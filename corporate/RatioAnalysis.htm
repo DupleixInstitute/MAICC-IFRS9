@@ -1,0 +1,620 @@
+s<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Ratio Analysis</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+   <script type="text/javascript" src="Dupleix.js"></script>    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+				//Load Data
+				Ratio_Analysis_CALCULATE();
+				DisplayRatiosFromLocalStorage();
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	 function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+ 
+
+		
+		function DisplayRatiosFromLocalStorage()
+		{
+  	       // EDWARD ALTMAN'S Z SCORE MODEL RATIOS =========================================================================================
+		
+		// X1. Working Capital / Sales Ratio
+		   
+		        //document.RationAnalysisForm.WCToSalesYear0.value = localStorage.WCToSales0;
+		   document.RatioAnalysisForm.WCToTotalAssetsYear1.value = localStorage.WCToTotalAssets1;
+		   document.RatioAnalysisForm.WCToTotalAssetsYear2.value = localStorage.WCToTotalAssets2;
+		   document.RatioAnalysisForm.WCToTotalAssetsYear3.value = localStorage.WCToTotalAssets3;
+		   document.RatioAnalysisForm.WCToTotalAssetsWeighted.value = localStorage.WCToTotalAssetsWeighted;
+		   
+		   // X2. Retained Earnings/Total Assets Ratio
+		   
+		         //document.RatioAnalysisForm.REToTotalAssetsYear0.value = localStorage.REToTotalAssets0;
+		   document.RatioAnalysisForm.REToTotalAssetsYear1.value = localStorage.REToTotalAssets1;
+		   document.RatioAnalysisForm.REToTotalAssetsYear2.value = localStorage.REToTotalAssets2;
+		   document.RatioAnalysisForm.REToTotalAssetsYear3.value = localStorage.REToTotalAssets3;
+		   document.RatioAnalysisForm.REToTotalAssetsWeighted.value = localStorage.REToTotalAssetsWeighted;
+		  
+		  // X3. EBIT/Total Assets Ratio
+		        //document.RatioAnalysisForm.EBITTotalAssetsYear0.value = localStorage.EBITTotalAssets0;
+		   document.RatioAnalysisForm.EBITToTotalAssetsYear1.value = localStorage.EBITToTotalAssets1;
+		   document.RatioAnalysisForm.EBITToTotalAssetsYear2.value = localStorage.EBITToTotalAssets2;
+		   document.RatioAnalysisForm.EBITToTotalAssetsYear3.value = localStorage.EBITToTotalAssets3;
+		   document.RatioAnalysisForm.EBITToTotalAssetsWeighted.value = localStorage.EBITToTotalAssetsWeighted;
+	      
+		  // X4. Equity/Total Liabilities Ratio
+		        //document.RationAnalysisForm.EquityToTotalLiabilitiesYear0.value = localStorage.EquityToTotalLiabilities0;
+		   document.RatioAnalysisForm.EquityToTotalLiabilitiesYear1.value = localStorage.EquityToTotalLiabilities1;
+		   document.RatioAnalysisForm.EquityToTotalLiabilitiesYear2.value = localStorage.EquityToTotalLiabilities2;
+		   document.RatioAnalysisForm.EquityToTotalLiabilitiesYear3.value = localStorage.EquityToTotalLiabilities3;
+		   document.RatioAnalysisForm.EquityToTotalLiabilitiesWeighted.value = localStorage.EquityToTotalLiabilitiesWeighted;
+		   
+	
+		   // X5. Sales/Total Assets Ratio
+		        //document.RationAnalysisForm.SalesToTotalAssetsYear0.value = localStorage.SalesToTotalAssets0;
+		   document.RatioAnalysisForm.SalesToTotalAssetsYear1.value = localStorage.SalesToTotalAssets1;
+		   document.RatioAnalysisForm.SalesToTotalAssetsYear2.value = localStorage.SalesToTotalAssets2;
+		   document.RatioAnalysisForm.SalesToTotalAssetsYear3.value = localStorage.SalesToTotalAssets3;
+		   document.RatioAnalysisForm.SalesToTotalAssetsWeighted.value = localStorage.SalesToTotalAssetsWeighted;
+		   
+	
+	       // Z Score 
+	             //document.RationAnalysisForm.ZScoreYear0.value = localStorage.ZScore0;
+		   document.RatioAnalysisForm.ZScoreYear1.value = localStorage.ZScore1;
+		   document.RatioAnalysisForm.ZScoreYear2.value = localStorage.ZScore2;
+		   document.RatioAnalysisForm.ZScoreYear3.value = localStorage.ZScore3;
+		   document.RatioAnalysisForm.ZScoreWeighted.value = localStorage.ZScoreWeighted;
+		   
+	       // Z Score Prime
+	             //document.RationAnalysisForm.ZScorePrimeYear0.value = localStorage.ZScorePrime0;
+		   document.RatioAnalysisForm.ZScorePrimeYear1.value = localStorage.ZScorePrime1;
+		   document.RatioAnalysisForm.ZScorePrimeYear2.value = localStorage.ZScorePrime2;
+		   document.RatioAnalysisForm.ZScorePrimeYear3.value = localStorage.ZScorePrime3;
+		   document.RatioAnalysisForm.ZScorePrimeWeighted.value = localStorage.ZScorePrimeWeighted;
+			   
+		   //CALCULATING LIQUIDITY RATIOS===========================================================================================
+		   
+		   //Current Ratio
+             //document.RationAnalysisForm.CurrentRatioYear0.value = localStorage.CurrentRatio0;
+		   document.RatioAnalysisForm.CurrentRatioYear1.value = localStorage.CurrentRatio1;
+		   document.RatioAnalysisForm.CurrentRatioYear2.value = localStorage.CurrentRatio2;
+		   document.RatioAnalysisForm.CurrentRatioYear3.value = localStorage.CurrentRatio3;
+		   document.RatioAnalysisForm.CurrentRatioWeighted.value = localStorage.CurrentRatioWeighted;
+		   
+		   //QUICK RATIO = QUICK ASSETS/CURRENT LIABILITIES 
+             //document.RationAnalysisForm.QuickRatioYear0.value = localStorage.QuickRatio0;
+		   document.RatioAnalysisForm.QuickRatioYear1.value = localStorage.QuickRatio1;
+		   document.RatioAnalysisForm.QuickRatioYear2.value = localStorage.QuickRatio2;
+		   document.RatioAnalysisForm.QuickRatioYear3.value = localStorage.QuickRatio3;
+		   document.RatioAnalysisForm.QuickRatioWeighted.value = localStorage.QuickRatioWeighted;
+		   
+		   // Debtor Days
+	            //document.RationAnalysisForm.DebtorDaysYear0.value = localStorage.DebtorDays0;
+		   document.RatioAnalysisForm.DebtorDaysYear1.value = localStorage.DebtorDays1;
+		   document.RatioAnalysisForm.DebtorDaysYear2.value = localStorage.DebtorDays2;
+		   document.RatioAnalysisForm.DebtorDaysYear3.value = localStorage.DebtorDays3;
+		   document.RatioAnalysisForm.DebtorDaysWeighted.value = localStorage.DebtorDaysWeighted;
+		   //Creditor Days
+	            //document.RationAnalysisForm.CreditorDaysYear0.value = localStorage.CreditorDaysDays0;
+		   document.RatioAnalysisForm.CreditorDaysYear1.value = localStorage.CreditorDays1;
+		   document.RatioAnalysisForm.CreditorDaysYear2.value = localStorage.CreditorDays2;
+		   document.RatioAnalysisForm.CreditorDaysYear3.value = localStorage.CreditorDays3;
+		   document.RatioAnalysisForm.CreditorDaysWeighted.value = localStorage.CreditorDaysWeighted;
+		   
+		   //Turnover/ Working Capital = Inverse of the Sales/Working Capital Ratio on the Z Score
+	            //document.RationAnalysisForm.TurnoverToWCYear0.value = localStorage.TurnoverToWC0;
+		   document.RatioAnalysisForm.TurnoverToWCYear1.value = localStorage.TurnoverToWC1;
+		   document.RatioAnalysisForm.TurnoverToWCYear2.value = localStorage.TurnoverToWC2;
+		   document.RatioAnalysisForm.TurnoverToWCYear3.value = localStorage.TurnoverToWC3;
+		   document.RatioAnalysisForm.TurnoverToWCWeighted.value = localStorage.TurnoverToWCWeighted;
+		   
+		   
+		   // CALCULATING PROFITABILITY RATIOS================================================================================================
+		   
+		   // Turnover Growth for last three years only
+	            //document.RationAnalysisForm.TurnoverGrowthYear0.value = localStorage.TurnoverGrowth0;
+		   document.RatioAnalysisForm.TurnoverGrowthYear1.value = localStorage.TurnoverGrowth1;
+		   document.RatioAnalysisForm.TurnoverGrowthYear2.value = localStorage.TurnoverGrowth2;
+		   document.RatioAnalysisForm.TurnoverGrowthYear3.value = localStorage.TurnoverGrowth3;
+		   document.RatioAnalysisForm.TurnoverGrowthWeighted.value = localStorage.TurnoverGrowthWeighted;
+		   //Gross Profit
+	            //document.RationAnalysisForm.GrossProfitMarginYear0.value = localStorage.GrossProfitMargin0;
+		   document.RatioAnalysisForm.GrossProfitMarginYear1.value = localStorage.GrossProfitMargin1;
+		   document.RatioAnalysisForm.GrossProfitMarginYear2.value = localStorage.GrossProfitMargin2;
+		   document.RatioAnalysisForm.GrossProfitMarginYear3.value = localStorage.GrossProfitMargin3;
+		   document.RatioAnalysisForm.GrossProfitMarginWeighted.value = localStorage.GrossProfitMarginWeighted;
+		   //Operating Profit
+	            //document.RationAnalysisForm.OperatingProfitMarginYear0.value = localStorage.OperatingProfitMargin0;
+		   document.RatioAnalysisForm.OperatingProfitMarginYear1.value = localStorage.OperatingProfitMargin1;
+		   document.RatioAnalysisForm.OperatingProfitMarginYear2.value = localStorage.OperatingProfitMargin2;
+		   document.RatioAnalysisForm.OperatingProfitMarginYear3.value = localStorage.OperatingProfitMargin3;
+		   document.RatioAnalysisForm.OperatingProfitMarginWeighted.value = localStorage.OperatingProfitMarginWeighted;
+			   //Net Profit
+	            //document.RationAnalysisForm.NetProfitMarginYear0.value = localStorage.NetProfitMargin0;
+		   document.RatioAnalysisForm.NetProfitMarginYear1.value = localStorage.NetProfitMargin1;
+		   document.RatioAnalysisForm.NetProfitMarginYear2.value = localStorage.NetProfitMargin2;
+		   document.RatioAnalysisForm.NetProfitMarginYear3.value = localStorage.NetProfitMargin3;
+		   document.RatioAnalysisForm.NetProfitMarginWeighted.value = localStorage.NetProfitMarginWeighted;
+		   //ROE
+	            //document.RationAnalysisForm.ROEYear0.value = localStorage.ROE0;
+		   document.RatioAnalysisForm.ROEYear1.value = localStorage.ROE1;
+		   document.RatioAnalysisForm.ROEYear2.value = localStorage.ROE2;
+		   document.RatioAnalysisForm.ROEYear3.value = localStorage.ROE3;
+		   document.RatioAnalysisForm.ROEWeighted.value = localStorage.ROEWeighted;
+		   //ROA
+	            //document.RationAnalysisForm.ROAYear0.value = locaStorage.ROA0;
+		   document.RatioAnalysisForm.ROAYear1.value = localStorage.ROA1;
+		   document.RatioAnalysisForm.ROAYear2.value = localStorage.ROA2;
+		   document.RatioAnalysisForm.ROAYear3.value = localStorage.ROA3;
+		   document.RatioAnalysisForm.ROAWeighted.value = localStorage.ROAWeighted;
+			   
+		   //ROI   
+	            //document.RationAnalysisForm.ROIYear0.value = locaStorage.ROI0;
+		   document.RatioAnalysisForm.ROIYear1.value = localStorage.ROI1;
+		   document.RatioAnalysisForm.ROIYear2.value = localStorage.ROI2;
+		   document.RatioAnalysisForm.ROIYear3.value = localStorage.ROI3;
+		   document.RatioAnalysisForm.ROIWeighted.value = localStorage.ROIWeighted;
+		   
+		   // DISPLAYING CAPITAL STRUCTURE RATIOS===============================================================================================
+		   
+		   // Gearing Ratio = Total Liabilities / Total Equity
+	            //document.RationAnalysisForm.GearingRatioYear0.value = locaStorage.GearingRatio0;
+		   document.RatioAnalysisForm.GearingRatioYear1.value = localStorage.GearingRatio1;
+		   document.RatioAnalysisForm.GearingRatioYear2.value = localStorage.GearingRatio2;
+		   document.RatioAnalysisForm.GearingRatioYear3.value = localStorage.GearingRatio3;
+		   document.RatioAnalysisForm.GearingRatioWeighted.value = localStorage.GearingRatioWeighted;
+    
+		   //Long-term Debt /Total Equity
+	            //document.RationAnalysisForm.LongtermDebtToEquityYear0.value = locaStorage.LongtermDebtToEquity0;
+		   document.RatioAnalysisForm.LongtermDebtToEquityYear1.value = localStorage.LongtermDebtToEquity1;
+		   document.RatioAnalysisForm.LongtermDebtToEquityYear2.value = localStorage.LongtermDebtToEquity2;
+		   document.RatioAnalysisForm.LongtermDebtToEquityYear3.value = localStorage.LongtermDebtToEquity3;
+		   document.RatioAnalysisForm.LongtermDebtToEquityWeighted.value = localStorage.LongtermDebtToEquityWeighted;
+   
+		   // Debt/Tangible Net Worth = Total Liabilities / Tangibele Net Worth
+	            //document.RationAnalysisForm.DebtToTangibleNetWorthYear0.value = locaStorage.DebtToTangibleNetWorth0;
+		   document.RatioAnalysisForm.DebtToTangibleNetWorthYear1.value = localStorage.DebtToTangibleNetWorth1;
+		   document.RatioAnalysisForm.DebtToTangibleNetWorthYear2.value = localStorage.DebtToTangibleNetWorth2;
+		   document.RatioAnalysisForm.DebtToTangibleNetWorthYear3.value = localStorage.DebtToTangibleNetWorth3;
+ 		   document.RatioAnalysisForm.DebtToTangibleNetWorthWeighted.value = localStorage.DebtToTangibleNetWorthWeighted;
+ 		   // Equity/Total Assets
+	            //document.RationAnalysisForm.EquityToTotalAssetsYear0.value = locaStorage.EquityToTotalAssets0;
+		   document.RatioAnalysisForm.EquityToTotalAssetsYear1.value = localStorage.EquityToTotalAssets1;
+		   document.RatioAnalysisForm.EquityToTotalAssetsYear2.value = localStorage.EquityToTotalAssets2;
+		   document.RatioAnalysisForm.EquityToTotalAssetsYear3.value = localStorage.EquityToTotalAssets3;
+		   document.RatioAnalysisForm.EquityToTotalAssetsWeighted.value = localStorage.EquityToTotalAssetsWeighted;
+   		   
+		   // Solvency = Total Assets / Total Liabilities
+	            //document.RationAnalysisForm.SolvencyYear0.value = locaStorage.Solvency0;
+		   document.RatioAnalysisForm.SolvencyYear1.value = localStorage.Solvency1;
+		   document.RatioAnalysisForm.SolvencyYear2.value = localStorage.Solvency2;
+		   document.RatioAnalysisForm.SolvencyYear3.value = localStorage.Solvency3;
+ 		   document.RatioAnalysisForm.SolvencyWeighted.value = localStorage.SolvencyWeighted;
+   		   
+		   // CALCULATING DEBT SERVICE RATIOS ====================================================================================================
+		   
+		   //Interest Cover
+	            //document.RationAnalysisForm.InterestCoverYear0.value = locaStorage.InterestCover0;
+		   document.RatioAnalysisForm.InterestCoverYear1.value = localStorage.InterestCover1;
+		   document.RatioAnalysisForm.InterestCoverYear2.value = localStorage.InterestCover2;
+		   document.RatioAnalysisForm.InterestCoverYear3.value = localStorage.InterestCover3;
+		   document.RatioAnalysisForm.InterestCoverWeighted.value = localStorage.InterestCoverWeighted;
+   		  
+   		  //EBITDAToDebt = EBITDA/Long-term Debt
+	            //document.RationAnalysisForm.EBITDAToDebtYear0.value = locaStorage.EBITDAToDebt0;
+		   document.RatioAnalysisForm.EBITDAToDebtYear1.value = localStorage.EBITDAToDebt1;
+		   document.RatioAnalysisForm.EBITDAToDebtYear2.value = localStorage.EBITDAToDebt2;
+		   document.RatioAnalysisForm.EBITDAToDebtYear3.value = localStorage.EBITDAToDebt3;
+ 		   document.RatioAnalysisForm.EBITDAToDebtWeighted.value = localStorage.EBITDAToDebtWeighted;
+  	   
+		   // CALCULATING ACTIVITY RATIOS ===========================================================================================================
+		   
+		   // 1. Total Assets Turnover = Sales/Total Assets. No need to recalculate ratio in the Z score
+	            //document.RationAnalysisForm.TotalAssetsTurnoverYear0.value = round(locaStorage.TotalAssetsTurnover0,2);
+		   document.RatioAnalysisForm.TotalAssetsTurnoverYear1.value = localStorage.TotalAssetsTurnover1;
+		   document.RatioAnalysisForm.TotalAssetsTurnoverYear2.value = localStorage.TotalAssetsTurnover2;
+		   document.RatioAnalysisForm.TotalAssetsTurnoverYear3.value = localStorage.TotalAssetsTurnover3;
+ 		   document.RatioAnalysisForm.TotalAssetsTurnoverWeighted.value = localStorage.TotalAssetsTurnoverWeighted;
+ 		   
+		   // Fixed Assets Turnover = Sales/Fixed Assets
+	            //document.RationAnalysisForm.FixedAssetsTurnoverYear0.value = round(locaStorage.FixedAssetsTurnover0,2);
+		   document.RatioAnalysisForm.FixedAssetsTurnoverYear1.value = localStorage.FixedAssetsTurnover1;
+		   document.RatioAnalysisForm.FixedAssetsTurnoverYear2.value = localStorage.FixedAssetsTurnover2;
+		   document.RatioAnalysisForm.FixedAssetsTurnoverYear3.value = localStorage.FixedAssetsTurnover3;
+		   document.RatioAnalysisForm.FixedAssetsTurnoverWeighted.value = localStorage.FixedAssetsTurnoverWeighted;
+
+		}	    
+	
+ 	
+		function ToNumber(nStr) 
+		{
+	  
+	       if   (typeof(nStr) == "undefined")
+		      {  return 0;}
+		   else  
+		      {
+		        if (nStr == "") {return 0};
+		        if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+		      } 
+	    }  
+   </script>
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="RatioAnalysisForm" action="SummaryBalanceSheet.htm" onsubmit="return validateForm()" method="post">>    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" autocomplete = on >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="554" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="554" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 1 bordercolor = 1 cellspacing = 0 cellpadding =0>
+	   
+	  <tr><td cellspacing = 0 colspan = 10 align = "center" style="background-color:darkblue;color:white"><h3>GARE VISION (PTY) LTD</h3></td></tr>
+	  
+		<tr bgcolor = darkblue>
+	      <th><h5 style="color:white;text-align:left"><br>RATIO ANALYSIS<h5></th>
+		  <th style="color:white">Symbol</th>
+		  <th style="color:white">Z Score<br>Weights</th>
+		  <th style="color:white">Z""Score<br>Weights</th>
+		  <th style="color:white">2017</th>
+		  <th style="color:white">2018</th>
+		  <th style="color:white">2019</th>
+		  <th style="color:white">Weighted<br>Average</th>
+		  <th style="color:white">Industry<br>Benchmark</th>
+		  <th style="color:white" align = left>Comment </th>
+		</tr>
+		<tr style ="background-color:lightblue;color:black">
+		  <td><strong>Bankrupcy Prediction Ratios</strong></td>
+		</tr>
+		<tr align = center>
+		  <td align = left>Working Capital/Total Assets</td>
+		  <td >X1</td>
+		  <td>1.2</td>
+		  <td>6.56</td>
+		  <td><Input size  = 3 type="text" name="WCToTotalAssetsYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="WCToTotalAssetsYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="WCToTotalAssetsYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="WCToTotalAssetsWeighted"  style="text-align:right;" readonly></td>
+		  <td></td>
+		  <td align = left rowspan = 5><textarea rows = 8 cols = 40 name = "ZScoreModelComment"></textarea></td>
+		<tr align = center>
+		  <td align = left>Retained Earnings/Total Assets</td>
+		  <td>X2</td>
+		  <td>1.4</td>
+		  <td>3.26</td>
+		  <td><Input size  = 3 type="text" name="REToTotalAssetsYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="REToTotalAssetsYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="REToTotalAssetsYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="REToTotalAssetsWeighted"  style="text-align:right;" readonly></td>
+		</tr>
+
+		<tr align = center>
+		  <td align = left>EBIT/Total Assets</td>
+		  <td>X3</td>
+		  <td>3.3</td>
+		  <td>6.72</td>
+		  <td><Input size  = 3 type="text" name="EBITToTotalAssetsYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="EBITToTotalAssetsYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="EBITToTotalAssetsYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="EBITToTotalAssetsWeighted"  style="text-align:right;" readonly></td>
+		</tr>
+		<tr align = center>
+		  <td align = left>Equity(market value)/Total Liabilities</td>
+		  <td>X4</td>
+		  <td>0.6</td>
+		  <td>1.05</td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalLiabilitiesYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalLiabilitiesYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalLiabilitiesYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalLiabilitiesWeighted"  style="text-align:right;" readonly></td>
+	    </tr align = center>
+		<tr align = center>
+		  <td align = left>Sales/Total Assets</td>
+		  <td>X5</td>
+		  <td>1</td>
+		  <td>0</td>
+		  <td><Input size  = 3 type="text" name="SalesToTotalAssetsYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="SalesToTotalAssetsYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="SalesToTotalAssetsYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="SalesToTotalAssetsWeighted"  style="text-align:right;" readonly></td>
+	    </tr>
+	    <tr><td>.</td></tr>
+	    <tr align = center>
+		  <td colspan = 4 align = left><strong>Z Score<strong></td>
+		  <td><Input size  = 3 type="text" name="ZScoreYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ZScoreYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ZScoreYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ZScoreWeighted"  style="text-align:right;" readonly></td>
+	      <td></td>
+		  <td align = left><Input size = 40 type="text" name="ZScoreComment"  style="text-align:right;"></td>
+		</tr>
+	    <tr align = center>
+		  <td colspan = 4 align = left><strong>Z" Score<strong></td>
+		  <td><Input size  = 3 type="text" name="ZScorePrimeYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ZScorePrimeYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ZScorePrimeYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ZScorePrimeWeighted"  style="text-align:right;" readonly></td>
+	      <td></td>
+		  <td align = left><Input size = 40 type="text" name="ZScorePrimeComment"  style="text-align:right;"></td>
+		 </tr>
+		 <tr align = center>
+			  <td align = left><strong>Z  Score Thresholds - Healthy<strong></td>
+			  <td></td>
+			  <td bgcolor = green>3</td>
+			  <td bgcolor = green>2.6</td>
+		  </tr>
+		  <tr align = center>
+			  <td align = left><strong>Z" Score Thresholds - Bankrupt<strong></td>
+		      <td></td>
+			  <td bgcolor = red>1.8</td>
+		      <td bgcolor = red>1.1</td>
+	    </tr>	
+	   <tr><td>.</td></tr>
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Liquidity Ratios<strong></td>
+	   </tr>
+	   <tr align = center>
+		  <td colspan = 4 align = left>Current Ratio</td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioWeighted"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioBenchmark"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="CurrentRatioComment"  style="text-align:right;"></td>
+		</tr>
+		<tr align = center>
+	      <td colspan = 4 align = left>Quick Ratio</td>
+		  <td><Input size  = 3 type="text" name="QuickRatioYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="QuickRatioYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="QuickRatioYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="QuickRatioWeighted"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="QuickRatioBenchmark"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="QuickRatioRatioComment"  style="text-align:right;"></td>
+		</tr>
+		<tr align = center>
+		  <td colspan = 4 align = left>Debtor Days</td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysWeighted"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysBenchmark"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="DebtorDaysComment"  style="text-align:right;" ></td>
+	</tr>
+	    <tr align = center>
+		  <td colspan = 4 align = left>Creditor Days</td>
+		  <td><Input size  = 3 type="text" name="CreditorDaysYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CreditorDaysYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CreditorDaysYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CreditorDaysWeighted"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CreditorDaysBenchmark"  style="text-align:right;"></td>
+		  <td align = left><Input size = 40 type="text" name="CreditorDaysComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+		<td colspan = 4 align = left>Turnover/Working Capital</td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCWeighted"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCBenchmark"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size  = 40 type="text" name="TurnoverToWCComment"  style="text-align:right;"></td>
+		
+		</tr>
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Profitability Ratios<strong></td>
+	   </tr>
+	   <tr align = center>
+		  <td colspan = 4 align  = left>Turnover Growth% </td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="TurnoverGrowthComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+	      <td colspan = 4 align = left>Gross Profit% </td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="GrossProfitMarginComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+		  <td colspan = 4 align = left>Operating Profit Margin</td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="OperatingProfitComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+		  <td colspan = 4 align = left>Net Profit Margin</td>
+		  <td><Input size  = 3 type="text" name="NetProfitMarginYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="NetProfitMarginYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="NetProfitMarginYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="NetProfitMarginWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="NetProfitMarginBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="NetProfitMarginComment"  style="text-align:right;" ></td>
+		</tr>
+	    <tr align = center>
+		  <td colspan = 4 align = left>Return On Equity(ROE)</td>
+		  <td><Input size  = 3 type="text" name="ROEYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROEYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROEYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROEWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROEBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="ROEComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+		<td colspan = 4 align = left>Return On Assets(ROA)</td>
+		  <td><Input size  = 3 type="text" name="ROAYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROAYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROAYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROAWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROABenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="ROAComment"  style="text-align:right;" ></td>
+	    </tr>
+		<tr align = center>
+		<td colspan = 4 align = left>Return On Investments(ROI)</td>
+		  <td><Input size  = 3 type="text" name="ROIYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROIYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROIYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROIWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="ROIBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="ROIComment"  style="text-align:right;" ></td>
+		</tr>
+	   	   
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Capital Structure Ratios<strong></td>
+	   </tr>
+	   <tr align = center>
+		  <td colspan = 4 align = left>Gearing Ratio</td>
+		  <td><Input size  = 3 type="text" name="GearingRatioYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="GearingRatioYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="GearingRatioYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="GearingRatioWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="GearingRatioBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="GearingRatioComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+	      <td colspan = 4 align = left>Long-term Debt/Equity</td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="LongtermDebtComment"  style="text-align:right;" ></td>
+	   </tr>
+		<tr align = center>
+		  <td colspan = 4 align =left >Debt/Tangible Net Worth</td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="DebtToTangibleNetWorthComment"  style="text-align:right;" ></td>
+		</tr>
+	
+		<tr align = center>
+		  <td colspan = 4 align = left>Equity/Total Assets</td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="EquityToTotalAssetsComment"  style="text-align:right;" ></td>
+		</tr>
+	    <tr align = center>
+		  <td colspan = 4 align = left>Solvency</td>
+		  <td><Input size  = 3 type="text" name="SolvencyYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="SolvencyYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="SolvencyYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="SolvencyWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="SolvencyBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="SolvencyComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Debt Service Ratios<strong></td>
+		</tr>
+	    <tr align = center>
+		  <td colspan = 4 align = left>Interest Cover</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverYear1"     style="text-align:right;" readonly>..</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverYear2"     style="text-align:right;" readonly>..</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverYear3"     style="text-align:right;" readonly>..</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverWeighted"  style="text-align:right;" readonly>..</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverBenchmark"  style="text-align:right;" readonly>..</td>
+		  <td align = left><Input size = 40 type="text" name="InterestCoverComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+	      <td colspan = 4 align = left>EBITDA/Gross Interest Debts</td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtYear1"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtYear2"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtYear3"     style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtWeighted"  style="text-align:right;" readonly>% </td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtBenchmark"  style="text-align:right;" readonly>% </td>
+		  <td align = left><Input size = 40 type="text" name="EBITDAToDebtComment"  style="text-align:right;" ></td>
+	    </tr>
+		<tr style ="background-color:lightblue;color:black" >
+		    <td><strong>Activity Ratios<strong></td>
+		</tr>
+	    <tr align = center>
+		  <td colspan = 4 align = left>Total Assets/Turnover</td>
+		  <td><Input size  = 3 type="text" name="TotalAssetsTurnoverYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TotalAssetsTurnoverYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TotalAssetsTurnoverYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TotalAssetsTurnoverWeighted"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TotalAssetsTurnoverBenchmark"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="TotalAssetsTurnoverComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+	      <td colspan = 4 align = left>Fixed Assets Turnover</td>
+		  <td><Input size  = 3 type="text" name="FixedAssetsTurnoverYear1"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="FixedAssetsTurnoverYear2"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="FixedAssetsTurnoverYear3"     style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="FixedAssetsTurnoverWeighted"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="FixedAssetsTurnoverBenchmark"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="FixedAssetsTurnoverComment"  style="text-align:right;" ></td>
+	    </tr>
+        <tr>
+	      <td></td>
+		  <td colspan = 2><Input type = Submit value = "Save/Submit" onclick = "SaveData()" ></td>
+		  <td colspan = 2><Button type = "button" value onclick ="ResetFormValues()">Clear Form</Button></td>
+	    </table>
+   </table>
+	 
+	 </Form>
+</body>
+
+</html>

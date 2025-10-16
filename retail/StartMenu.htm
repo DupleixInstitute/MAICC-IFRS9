@@ -1,0 +1,280 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Non Current Assets</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	    
+		//<!-- Convert number input into a thousand seperator -->
+        function Recalculate()
+		{
+			 
+			 // Read input values from form into working placeholder variables
+		   //1. Opening Net Book Value
+	       var OpeningNBV1 = ToNumber(document.forms["NonCurrentAssetsForm"]["OpeningNBVYear1"].value);
+	       
+		   //2.  Additions
+		   var Additions1 = ToNumber(document.forms["NonCurrentAssetsForm"]["AdditionsYear1"].value);
+           var Additions2 = ToNumber(document.forms["NonCurrentAssetsForm"]["AdditionsYear2"].value);
+		   var Additions3 = ToNumber(document.forms["NonCurrentAssetsForm"]["AdditionsYear3"].value);
+		   
+		   //3. Revaluation
+		   var Revaluation1 = ToNumber(document.forms["NonCurrentAssetsForm"]["RevaluationYear1"].value);
+	       var Revaluation2 = ToNumber(document.forms["NonCurrentAssetsForm"]["RevaluationYear2"].value);
+		   var Revaluation3 = ToNumber(document.forms["NonCurrentAssetsForm"]["RevaluationYear3"].value);
+
+		   //4. Depreciation CostOf Sales
+		   var DepreciationCostOfSales1 = ToNumber(document.forms["NonCurrentAssetsForm"]["DepreciationCostOfSalesYear1"].value);
+	       var DepreciationCostOfSales2 = ToNumber(document.forms["NonCurrentAssetsForm"]["DepreciationCostOfSalesYear2"].value);
+		   var DepreciationCostOfSales3 = ToNumber(document.forms["NonCurrentAssetsForm"]["DepreciationCostOfSalesYear3"].value);
+							  	 	  			   
+
+     	   //5. Depreciation Opex
+		   var DepreciationOpex1 = ToNumber(document.forms["NonCurrentAssetsForm"]["DepreciationOpexYear1"].value);
+	       var DepreciationOpex2 = ToNumber(document.forms["NonCurrentAssetsForm"]["DepreciationOpexYear2"].value);
+		   var DepreciationOpex3 = ToNumber(document.forms["NonCurrentAssetsForm"]["DepreciationOpexYear3"].value);
+
+	       //6. Other Movements PPE
+		   var OtherMovementsPPE1 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherMovementsPPEYear1"].value);
+	       var OtherMovementsPPE2 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherMovementsPPEYear2"].value);
+		   var OtherMovementsPPE3 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherMovementsPPEYear3"].value);
+	
+		  //7. Land and Buildings NBV
+		   var LandBuildingsNBV1 = ToNumber(document.forms["NonCurrentAssetsForm"]["LandBuildingsNBVYear1"].value);
+	       var LandBuildingsNBV2 = ToNumber(document.forms["NonCurrentAssetsForm"]["LandBuildingsNBVYear2"].value);
+		   var LandBuildingsNBV3 = ToNumber(document.forms["NonCurrentAssetsForm"]["LandBuildingsNBVYear3"].value);
+	 
+    
+		  //8. Investment Property
+		   var InvestmentProperty1 = ToNumber(document.forms["NonCurrentAssetsForm"]["InvestmentPropertyYear1"].value);
+	       var InvestmentProperty2 = ToNumber(document.forms["NonCurrentAssetsForm"]["InvestmentPropertyYear2"].value);
+		   var InvestmentProperty3 = ToNumber(document.forms["NonCurrentAssetsForm"]["InvestmentPropertyYear3"].value);
+		  
+           //9. Intangible Assets
+		   var IntangibleAssets1 = ToNumber(document.forms["NonCurrentAssetsForm"]["IntangibleAssetsYear1"].value);
+	       var IntangibleAssets2 = ToNumber(document.forms["NonCurrentAssetsForm"]["IntangibleAssetsYear2"].value);
+		   var IntangibleAssets3 = ToNumber(document.forms["NonCurrentAssetsForm"]["IntangibleAssetsYear3"].value);
+	  
+		  //10. Other Non-Current Assets Line 1
+		   var OtherNonCurrentAssetsLine1_1 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine1Year1"].value);
+	       var OtherNonCurrentAssetsLine1_2 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine1Year2"].value);
+		   var OtherNonCurrentAssetsLine1_3 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine1Year3"].value);
+		   
+		   //11. Other Non-Current Assets Line 2
+		   var OtherNonCurrentAssetsLine2_1 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine2Year1"].value);
+	       var OtherNonCurrentAssetsLine2_2 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine2Year2"].value);
+		   var OtherNonCurrentAssetsLine2_3 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine2Year3"].value);
+
+           //12. Other Non-Current Assets Line 3
+		   var OtherNonCurrentAssetsLine3_1 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine3Year1"].value);
+	       var OtherNonCurrentAssetsLine3_2 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine3Year2"].value);
+		   var OtherNonCurrentAssetsLine3_3 = ToNumber(document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsLine3Year3"].value);
+ 
+		    // RECALCULATING CALCULATED FIELDS
+			 
+		  //15. Depreciation Total 
+		   var DepreciationTotal1 = DepreciationCostOfSales1 + DepreciationOpex1;
+		   var DepreciationTotal2 = DepreciationCostOfSales2 + DepreciationOpex2;
+		   var DepreciationTotal3 = DepreciationCostOfSales3 + DepreciationOpex3;
+
+		  //16.Closing Book Value - PPE
+	       var ClosingNBV1 = OpeningNBV1 + Additions1 + Revaluation1 + DepreciationTotal1 + OtherMovementsPPE1;
+		   var ClosingNBV2 = ClosingNBV1 + Additions2 + Revaluation2 + DepreciationTotal2 + OtherMovementsPPE2;
+		   var ClosingNBV3 = ClosingNBV2 + Additions3 + Revaluation3 + DepreciationTotal3 + OtherMovementsPPE3;;
+  
+		  //17. Total Other PPE
+	       var TotalOtherPPE1 = ClosingNBV1 - LandBuildingsNBV1;
+	       var TotalOtherPPE2 = ClosingNBV2 - LandBuildingsNBV2;
+		   var TotalOtherPPE3 = ClosingNBV3 - LandBuildingsNBV3;
+	
+	
+		  //18. Total Other PPE
+	       var OtherNonCurrentAssetsTotal1 = OtherNonCurrentAssetsLine1_1 + OtherNonCurrentAssetsLine2_1 + OtherNonCurrentAssetsLine3_1;
+	       var OtherNonCurrentAssetsTotal2 = OtherNonCurrentAssetsLine1_2 + OtherNonCurrentAssetsLine2_2 + OtherNonCurrentAssetsLine3_2;
+		   var OtherNonCurrentAssetsTotal3 = OtherNonCurrentAssetsLine1_3 + OtherNonCurrentAssetsLine2_3 + OtherNonCurrentAssetsLine3_3;
+	 	
+
+		 //20. Other Non-Current Assets Grand Total
+		   var OtherNonCurrentAssetsGrandTotal1 = InvestmentProperty1 + IntangibleAssets1 + OtherNonCurrentAssetsTotal1;
+ 
+		   var OtherNonCurrentAssetsGrandTotal2 = InvestmentProperty2 + IntangibleAssets2 + OtherNonCurrentAssetsTotal2;
+
+		   var OtherNonCurrentAssetsGrandTotal3 = InvestmentProperty3 + IntangibleAssets3 + OtherNonCurrentAssetsTotal3;
+
+		  //21. Total Non-Current Assets
+		   var TotalNonCurrentAssets1 = ClosingNBV1 + OtherNonCurrentAssetsGrandTotal1;
+		   var TotalNonCurrentAssets2 = ClosingNBV2 + OtherNonCurrentAssetsGrandTotal2;
+		   var TotalNonCurrentAssets3 = ClosingNBV3 + OtherNonCurrentAssetsGrandTotal3;
+
+		   // DISPLAY THE CALCULATED FIELDS IN COMMA STYLE
+
+		   //1. Opening Net Book Values
+	       document.forms["NonCurrentAssetsForm"]["OpeningNBVYear2"].value = Thousands_Separators(ClosingNBV1);
+	       document.forms["NonCurrentAssetsForm"]["OpeningNBVYear3"].value = Thousands_Separators(ClosingNBV2);
+ 
+		   //2. Depreciation Total
+	       document.forms["NonCurrentAssetsForm"]["DepreciationTotalYear1"].value = Thousands_Separators(DepreciationTotal1);
+	       document.forms["NonCurrentAssetsForm"]["DepreciationTotalYear2"].value = Thousands_Separators(DepreciationTotal2);
+	       document.forms["NonCurrentAssetsForm"]["DepreciationTotalYear3"].value = Thousands_Separators(DepreciationTotal3);
+ 
+     	   //3. Closing Net Book Values
+	       document.forms["NonCurrentAssetsForm"]["ClosingNBVYear1"].value = Thousands_Separators(ClosingNBV1);
+	       document.forms["NonCurrentAssetsForm"]["ClosingNBVYear2"].value = Thousands_Separators(ClosingNBV2);
+	       document.forms["NonCurrentAssetsForm"]["ClosingNBVYear3"].value = Thousands_Separators(ClosingNBV3);
+ 
+		
+		   //4. Total Other PPE
+	       document.forms["NonCurrentAssetsForm"]["TotalOtherPPEYear1"].value = Thousands_Separators(TotalOtherPPE1);
+	       document.forms["NonCurrentAssetsForm"]["TotalOtherPPEYear2"].value = Thousands_Separators(TotalOtherPPE2);
+	       document.forms["NonCurrentAssetsForm"]["TotalOtherPPEYear3"].value = Thousands_Separators(TotalOtherPPE3);
+		 
+		   //5. Other Non-Current Assets Total
+	       document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsTotalYear1"].value = Thousands_Separators(OtherNonCurrentAssetsTotal1);
+	       document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsTotalYear2"].value = Thousands_Separators(OtherNonCurrentAssetsTotal2);
+	       document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsTotalYear3"].value = Thousands_Separators(OtherNonCurrentAssetsTotal3);
+			    
+		   //6. Other Non-Current Liabilities Total
+	       document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsGrandTotalYear1"].value = Thousands_Separators(OtherNonCurrentAssetsGrandTotal1);
+	       document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsGrandTotalYear2"].value = Thousands_Separators(OtherNonCurrentAssetsGrandTotal2);
+	       document.forms["NonCurrentAssetsForm"]["OtherNonCurrentAssetsGrandTotalYear3"].value = Thousands_Separators(OtherNonCurrentAssetsGrandTotal3);
+	
+           //7. Total Non Current Assets
+		   document.forms["NonCurrentAssetsForm"]["TotalNonCurrentAssetsYear1"].value = Thousands_Separators(TotalNonCurrentAssets1);
+		   document.forms["NonCurrentAssetsForm"]["TotalNonCurrentAssetsYear2"].value = Thousands_Separators(TotalNonCurrentAssets2);
+		   document.forms["NonCurrentAssetsForm"]["TotalNonCurrentAssetsYear3"].value = Thousands_Separators(TotalNonCurrentAssets3);
+		 
+		}
+		
+	    function ToNumber(nStr) 
+		{
+	       if   (typeof(nStr) == "undefined")
+		      {  return 0;}
+		   else  
+		      {
+		        if (nStr == "") {return 0};
+		        if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+		      } 
+	    }   
+   </script 
+</head>
+
+
+				
+				
+<body style="background-color:white;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="MainMenuForm" action="/action_BSPage.htm" onsubmit="return validateForm()" method="post">>    
+  
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="420" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="420" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 15 bordercolor = white width = 880>
+	   
+	      <tr>
+		     <td cellspacing = 0 colspan = 5 align = "center" style="background-color:darkblue;color:white"><h3>CORPORATE CREDIT SCORE CARD</h3></td>
+			 <td></td>
+			 <td></td>
+			 <td></td>
+		   </tr>
+	     <tr>
+		     <td cellspacing = 0 colspan = 5 align = "left" style="background-color:white;color:black"><strong>Reports</strong></td>
+			 <td></td>
+			 <td></td>
+			 <td></td>
+		   </tr>
+	      <tr>
+             <td><a style="background-color:white;color:black" href="Is.htm">Dashboard(Score-card)</a></td>
+		     <td><a style="background-color:white;color:black;text-align:centre" href="ProgressTracker.htm">Progress Tracker</a></td>
+		     <td><a style="background-color:white;color:black" href=".htm">Ratio Analysis</a></td>
+		     <td><a style="background-color:white;color:blue" href="SummaryBalanceSheet.htm">Summary Balance Sheet</a></td>
+		     <td><a style="background-color:white;color:black" href=".htm">Credit Policy Extract</a></td>
+		  </tr>
+		   <tr></tr>
+		   <tr></tr>
+		   <tr></tr>
+		   <tr>
+		     <td cellspacing = 0 colspan = 5 align = "left" style="background-color:white;color:black"><strong>Inputs</strong></td>
+			 
+		   </tr>
+	      <tr>
+             <td>
+			     <a style="background-color:white;color:blue;align:centre" href="CompanyData.htm">Company Data</a>
+		     </td>
+		     <td><a href="Is.htm" style="background-color:white;color:blue;align:centre">Income Statement</a></td>
+			 <td><a href="CurrentAssets.htm" style="background-color:white;color:blue;align:centre">Current Assets</a></td>
+			 <td><a href="CurrentLiabilities.htm" style="background-color:white;color:blue;align:centre">Current Liabilities</a></td>
+			 <td><a href="UserManual.htm" style="background-color:white;color:darkgreen;align:centre">User Manual</a></td>
+		  </tr>
+		   <tr>
+             <td><a style="background-color:white;color:blue" href="LoanData.htm">Loan And ITC Reports Data</a></td>
+		     <td><a style="background-color:white;color:blue" href="Equity.htm">Equity</a></td>
+		     <td><a style="background-color:white;color:blue" href="NonCurrentAssets.htm">Non Current Assets</a></td>
+		     <td><a style="background-color:white;color:blue" href="NonCurrentLiabilities.htm">Non Current Liabilities</a></td>
+		     <td><a style="background-color:white;color:blue" href="Settings1.htm">Settings</a></td>
+		  </tr>
+		  <tr>
+             <td><a style="background-color:white;color:blue" href="ShareholderData.htm">Shareholder Data</a></td>
+		     <td><a style="background-color:white;color:blue" href="ManagementAnalysis.htm">Management Analysis</a></td>
+		     <td><a style="background-color:white;color:blue" href="IndustryAnalysis.htm">Industry Analysis</a></td>
+		  </tr>
+		    </table>
+   </table>
+   <script>
+	 
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+    </script>
+   </Form>
+</body>
+
+</html>

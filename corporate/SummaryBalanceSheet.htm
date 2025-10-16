@@ -1,0 +1,715 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Summary Balance Sheet</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	  
+	  
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+				//Load Data from local storage
+				LoadData();
+				
+				// SUMMARY TOTAL LIABILITIES - Calculate for the three years
+                
+				var SummaryTotalLiabilities0 = ToNumber(localStorage.CurrentLiabilities0) + ToNumber(localStorage.NonCurrentLiabilities0);
+				var SummaryTotalLiabilities1 = ToNumber(localStorage.CurrentLiabilities1) + ToNumber(localStorage.NonCurrentLiabilities1);
+				var SummaryTotalLiabilities2 = ToNumber(localStorage.CurrentLiabilities2) + ToNumber(localStorage.NonCurrentLiabilities2);
+				var SummaryTotalLiabilities3 = ToNumber(localStorage.CurrentLiabilities3) + ToNumber(localStorage.NonCurrentLiabilities3);
+				
+				// SUMMARY TOTAL ASSETS - Calculate for the three years
+                
+				var SummaryTotalAssets0 = ToNumber(localStorage.CurrentAssets0) + ToNumber(localStorage.NonCurrentAssets0);
+				var SummaryTotalAssets1 = ToNumber(localStorage.CurrentAssets1) + ToNumber(localStorage.NonCurrentAssets1);
+				var SummaryTotalAssets2 = ToNumber(localStorage.CurrentAssets2) + ToNumber(localStorage.NonCurrentAssets2);
+				var SummaryTotalAssets3 = ToNumber(localStorage.CurrentAssets3) + ToNumber(localStorage.NonCurrentAssets3);
+				
+				// SUMMARY TOTAL EQUITY AND LIABILITIES - Calculate for the three years
+                
+				var SummaryTotalEquityAndLiabilities0 = ToNumber(localStorage.TotalEquity0) + SummaryTotalLiabilities0;
+				var SummaryTotalEquityAndLiabilities1 = ToNumber(localStorage.TotalEquity1) + SummaryTotalLiabilities1;
+				var SummaryTotalEquityAndLiabilities2 = ToNumber(localStorage.TotalEquity2) + SummaryTotalLiabilities2;
+				var SummaryTotalEquityAndLiabilities3 = ToNumber(localStorage.TotalEquity3) + SummaryTotalLiabilities3;
+				
+				// SUMMARY WORKING CAPITAL- Calculate for the three years
+                
+				var WorkingCapital0 = ToNumber(localStorage.CurrentAssets0) - ToNumber(localStorage.CurrentLiabilities0);
+				var WorkingCapital1 = ToNumber(localStorage.CurrentAssets1) - ToNumber(localStorage.CurrentLiabilities1);
+				var WorkingCapital2 = ToNumber(localStorage.CurrentAssets2) - ToNumber(localStorage.CurrentLiabilities2);
+				var WorkingCapital3 = ToNumber(localStorage.CurrentAssets3) - ToNumber(localStorage.CurrentLiabilities3);
+				
+				// SUMMARY BALANCE SHEET CHECK - Calculate for the three years
+                
+				var BalanceSheetCheck0 = SummaryTotalAssets0 - SummaryTotalEquityAndLiabilities0;
+				var BalanceSheetCheck1 = SummaryTotalAssets1 - SummaryTotalEquityAndLiabilities1;
+				var BalanceSheetCheck2 = SummaryTotalAssets2 - SummaryTotalEquityAndLiabilities2;
+				var BalanceSheetCheck3 = SummaryTotalAssets3 - SummaryTotalEquityAndLiabilities3;
+				
+				// TANGIBLE NET WORTH - Calculate for the three years
+                
+				var TangibleNetWorth0 = ToNumber(localStorage.TotalEquity0) - ToNumber(localStorage.IntangibleAssets0);
+				var TangibleNetWorth1 = ToNumber(localStorage.TotalEquity1) - ToNumber(localStorage.IntangibleAssets1);
+				var TangibleNetWorth2 = ToNumber(localStorage.TotalEquity2) - ToNumber(localStorage.IntangibleAssets2);
+				var TangibleNetWorth3 = ToNumber(localStorage.TotalEquity3) - ToNumber(localStorage.IntangibleAssets3);
+				
+				
+				//SUMMARY TOTAL LIABILITIES - Convert to Comma Style and Store the localStorage
+				localStorage.SummaryTotalLiabilities0 = Thousands_Separators(SummaryTotalLiabilities0);
+				localStorage.SummaryTotalLiabilities1 = Thousands_Separators(SummaryTotalLiabilities1);
+				localStorage.SummaryTotalLiabilities2 = Thousands_Separators(SummaryTotalLiabilities2);
+				localStorage.SummaryTotalLiabilities3 = Thousands_Separators(SummaryTotalLiabilities3);
+				
+				//SUMMARY TOTAL EQUITY AND LIABILITIES - Convert to Comma Style and Store the lo?alStorage
+				localStorage.SummaryTotalEquityAndLiabilities0 = Thousands_Separators(SummaryTotalEquityAndLiabilities0);
+				localStorage.SummaryTotalEquityAndLiabilities1 = Thousands_Separators(SummaryTotalEquityAndLiabilities1);
+				localStorage.SummaryTotalEquityAndLiabilities2 = Thousands_Separators(SummaryTotalEquityAndLiabilities2);
+				localStorage.SummaryTotalEquityAndLiabilities3 = Thousands_Separators(SummaryTotalEquityAndLiabilities3);
+				
+				//SUMMARY TOTAL ASSETS - Convert to Comma Style and Store the lo?alStorage
+				localStorage.SummaryTotalAssets0 = Thousands_Separators(SummaryTotalAssets0);
+				localStorage.SummaryTotalAssets1 = Thousands_Separators(SummaryTotalAssets1);
+				localStorage.SummaryTotalAssets2 = Thousands_Separators(SummaryTotalAssets2);
+				localStorage.SummaryTotalAssets3 = Thousands_Separators(SummaryTotalAssets3);
+				
+				//SUMMARY WORKING CAPITAL - Convert to Comma Style and Store the lo?alStorage
+				localStorage.WorkingCapital0 = Thousands_Separators(WorkingCapital0);
+				localStorage.WorkingCapital1 = Thousands_Separators(WorkingCapital1);
+				localStorage.WorkingCapital2 = Thousands_Separators(WorkingCapital2);
+				localStorage.WorkingCapital3 = Thousands_Separators(WorkingCapital3);
+				
+				//TANGIBLE NET WORTH - Convert to Comma Style and Store the lo?alStorage
+				localStorage.TangibleNetWorth0 = Thousands_Separators(TangibleNetWorth0);
+				localStorage.TangibleNetWorth1 = Thousands_Separators(TangibleNetWorth1);
+				localStorage.TangibleNetWorth2 = Thousands_Separators(TangibleNetWorth2);
+				localStorage.TangibleNetWorth3 = Thousands_Separators(TangibleNetWorth3);
+				//TANGIBLE NET BALANCE SHEET  CHECK - Convert to Comma Style and Store the lo?alStorage
+				localStorage.BalanceSheetCheck0 = Thousands_Separators(BalanceSheetCheck0);
+				localStorage.BalanceSheetCheck1 = Thousands_Separators(BalanceSheetCheck1);
+				localStorage.BalanceSheetCheck2 = Thousands_Separators(BalanceSheetCheck2);
+				localStorage.BalanceSheetCheck3 = Thousands_Separators(BalanceSheetCheck3);
+					
+				
+				//SUMMARY TOTAL LIABILITIES - Display the Comma Style Workings
+			    document.forms["SummaryBalanceSheetForm"]["SummaryTotalLiabilitiesYear0"].value = localStorage.SummaryTotalLiabilities0;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalLiabilitiesYear1"].value = localStorage.SummaryTotalLiabilities1;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalLiabilitiesYear2"].value = localStorage.SummaryTotalLiabilities2;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalLiabilitiesYear3"].value = localStorage.SummaryTotalLiabilities3;
+	            
+				//SUMMARY TOTAL EQUITY AND LIABILITIES - Display the Comma Style Workings
+			    document.forms["SummaryBalanceSheetForm"]["SummaryTotalEquityAndLiabilitiesYear0"].value = localStorage.SummaryTotalEquityAndLiabilities0;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalEquityAndLiabilitiesYear1"].value = localStorage.SummaryTotalEquityAndLiabilities1;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalEquityAndLiabilitiesYear2"].value = localStorage.SummaryTotalEquityAndLiabilities2;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalEquityAndLiabilitiesYear3"].value = localStorage.SummaryTotalEquityAndLiabilities3;
+	           
+			   //SUMMARY TOTAL ASSETS - Display the Comma Style Workings
+			    document.forms["SummaryBalanceSheetForm"]["SummaryTotalAssetsYear0"].value = localStorage.SummaryTotalAssets0;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalAssetsYear1"].value = localStorage.SummaryTotalAssets1;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalAssetsYear2"].value = localStorage.SummaryTotalAssets2;
+	            document.forms["SummaryBalanceSheetForm"]["SummaryTotalAssetsYear3"].value = localStorage.SummaryTotalAssets3;
+	           
+				//WORKING CAPITAL - Display the Comma Style Workings
+			    document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear0"].value = localStorage.WorkingCapital0;
+	            document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear1"].value = localStorage.WorkingCapital1;
+	            document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear2"].value = localStorage.WorkingCapital2;
+	            document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear3"].value = localStorage.WorkingCapital3;
+	      
+				//SUMMARY BALANCE SHEET CHECK - Display the Comma Style Workings
+			    document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear0"].value = localStorage.BalanceSheetCheck0;
+	            document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear1"].value = localStorage.BalanceSheetCheck1;
+	            document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear2"].value = localStorage.BalanceSheetCheck2;
+	            document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear3"].value = localStorage.BalanceSheetCheck3;
+	            
+				//TANGIBLE NET WORTH - Display the Comma Style Workings
+			    document.forms["SummaryBalanceSheetForm"]["TangibleNetWorthYear0"].value = localStorage.TangibleNetWorth0;
+	            document.forms["SummaryBalanceSheetForm"]["TangibleNetWorthYear1"].value = localStorage.TangibleNetWorth1;
+	            document.forms["SummaryBalanceSheetForm"]["TangibleNetWorthYear2"].value = localStorage.TangibleNetWorth2;
+	            document.forms["SummaryBalanceSheetForm"]["TangibleNetWorthYear3"].value = localStorage.TangibleNetWorth3;
+	            
+		        // PERFORM CONDITIONAL FORMATTING ON THE BALANCE SHEET CHECK AND WORKING CAPITAL
+				   // Balance Sheet Check is red if not zero
+ 				  if (BalanceSheetCheck0 !==0)
+				      {document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear0"].style.backgroundColor = "red";}
+				  else 
+				      {document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear0"].style.backgroundColor = "green";}
+ 				  if (BalanceSheetCheck1 !==0)
+				      {document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear1"].style.backgroundColor = "red";}
+				   else 
+				      {document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear1"].style.backgroundColor = "green";}
+ 				   
+				   if (BalanceSheetCheck2 !==0)
+				      {document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear2"].style.backgroundColor = "red";}
+				   else 
+				      {document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear2"].style.backgroundColor = "green";}
+
+ 				   if (BalanceSheetCheck3 !==0)
+				      {document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear3"].style.backgroundColor = "red";}
+				   else 
+				      {document.forms["SummaryBalanceSheetForm"]["BalanceSheetCheckYear3"].style.backgroundColor = "green";}
+                   // Display Negative Working Capital In Red
+ 				  if (WorkingCapital1 <0)
+				      {document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear0"].style.backgroundColor = "red";}
+				  else 
+				      {document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear0"].style.backgroundColor = "green";}
+ 				  if (WorkingCapital1 <0)
+				      {document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear1"].style.backgroundColor = "red";}
+				   else 
+				      {document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear1"].style.backgroundColor = "green";}
+ 				   
+				   if (WorkingCapital2 <0)
+				      {document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear2"].style.backgroundColor = "red";}
+				   else 
+				      {document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear2"].style.backgroundColor = "green";}
+
+ 				   if (WorkingCapital3 <0)
+				      {document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear3"].style.backgroundColor = "red";}
+				   else 
+				      {document.forms["SummaryBalanceSheetForm"]["WorkingCapitalYear3"].style.backgroundColor = "green";}
+		        		        		        		        
+		  
+		        // Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	    
+		//<!-- Convert number input into a thousand seperator -->
+      function LoadData()
+	  {
+	  	//loading current assets
+		document.forms["SummaryBalanceSheetForm"]["SummaryCurrentAssetsYear0"].value = localStorage.CurrentAssets0;
+		document.forms["SummaryBalanceSheetForm"]["SummaryCurrentAssetsYear1"].value = localStorage.CurrentAssets1;
+		document.forms["SummaryBalanceSheetForm"]["SummaryCurrentAssetsYear2"].value = localStorage.CurrentAssets2;
+		document.forms["SummaryBalanceSheetForm"]["SummaryCurrentAssetsYear3"].value = localStorage.CurrentAssets3;
+	  	//loading non current assets
+		document.forms["SummaryBalanceSheetForm"]["SummaryNonCurrentAssetsYear0"].value = localStorage.NonCurrentAssets0;
+		document.forms["SummaryBalanceSheetForm"]["SummaryNonCurrentAssetsYear1"].value = localStorage.NonCurrentAssets1;
+		document.forms["SummaryBalanceSheetForm"]["SummaryNonCurrentAssetsYear2"].value = localStorage.NonCurrentAssets2;
+		document.forms["SummaryBalanceSheetForm"]["SummaryNonCurrentAssetsYear3"].value = localStorage.NonCurrentAssets3;
+        //loading current liabilities
+		document.forms["SummaryBalanceSheetForm"]["SummaryCurrentLiabilitiesYear0"].value = localStorage.CurrentLiabilities0;
+		document.forms["SummaryBalanceSheetForm"]["SummaryCurrentLiabilitiesYear1"].value = localStorage.CurrentLiabilities1;
+		document.forms["SummaryBalanceSheetForm"]["SummaryCurrentLiabilitiesYear2"].value = localStorage.CurrentLiabilities2;
+		document.forms["SummaryBalanceSheetForm"]["SummaryCurrentLiabilitiesYear3"].value = localStorage.CurrentLiabilities3;
+	  	//loading non current liabilities
+		document.forms["SummaryBalanceSheetForm"]["SummaryNonCurrentLiabilitiesYear0"].value = localStorage.NonCurrentLiabilities0;
+		document.forms["SummaryBalanceSheetForm"]["SummaryNonCurrentLiabilitiesYear1"].value = localStorage.NonCurrentLiabilities1;
+		document.forms["SummaryBalanceSheetForm"]["SummaryNonCurrentLiabilitiesYear2"].value = localStorage.NonCurrentLiabilities2;
+		document.forms["SummaryBalanceSheetForm"]["SummaryNonCurrentLiabilitiesYear3"].value = localStorage.NonCurrentLiabilities3;
+ 	    //loading Equity
+		document.forms["SummaryBalanceSheetForm"]["SummaryEquityYear0"].value = localStorage.TotalEquity0;
+		document.forms["SummaryBalanceSheetForm"]["SummaryEquityYear1"].value = localStorage.TotalEquity1;
+		document.forms["SummaryBalanceSheetForm"]["SummaryEquityYear2"].value = localStorage.TotalEquity2;
+		document.forms["SummaryBalanceSheetForm"]["SummaryEquityYear3"].value = localStorage.TotalEquity3;
+
+
+        //loading Cashflow Statement Data
+        document.SummaryBalanceSheetForm.EBIT1.value = localStorage.EBIT1;
+        document.SummaryBalanceSheetForm.EBIT2.value = localStorage.EBIT2;
+        document.SummaryBalanceSheetForm.EBIT3.value = localStorage.EBIT3;
+ 
+        document.SummaryBalanceSheetForm.Depreciation1.value = localStorage.Depreciation1;
+        document.SummaryBalanceSheetForm.Depreciation2.value = localStorage.Depreciation2;
+        document.SummaryBalanceSheetForm.Depreciation3.value = localStorage.Depreciation3;
+
+        document.SummaryBalanceSheetForm.Amortisation1.value = localStorage.Amortisation1;
+        document.SummaryBalanceSheetForm.Amortisation2.value = localStorage.Amortisation2;
+        document.SummaryBalanceSheetForm.Amortisation3.value = localStorage.Amortisation3;
+
+        var EBITDA1 =  Number(localStorage.EBIT1) + Number(localStorage.Depreciation1)
+                     + Number(localStorage.Amortisation1); 		
+        
+        var EBITDA2 =  Number(localStorage.EBIT2) + Number(localStorage.Depreciation2)
+                     + Number(localStorage.Amortisation2); 		
+
+        var EBITDA3 =  Number(localStorage.EBIT3) + Number(localStorage.Depreciation3)
+                     + Number(localStorage.Amortisation3); 		
+
+		document.SummaryBalanceSheetForm.EBITDA1.value = EBITDA1;
+ 		document.SummaryBalanceSheetForm.EBITDA2.value = EBITDA2;
+		document.SummaryBalanceSheetForm.EBITDA3.value = EBITDA3;
+		
+        //loading Change in Inventory
+		
+		InventoryChange1 = localStorage.Inventory0-localStorage.Inventory1;
+		InventoryChange2 = localStorage.Inventory1-localStorage.Inventory2;
+		InventoryChange3 = localStorage.Inventory2-localStorage.Inventory3;
+		
+        document.SummaryBalanceSheetForm.InventoryChange1.value = InventoryChange1;
+        document.SummaryBalanceSheetForm.InventoryChange2.value = InventoryChange2;
+        document.SummaryBalanceSheetForm.InventoryChange3.value = InventoryChange3;
+  
+        //Trade and Other Receivables Changes
+		
+	    OtherDebtors0 = Number(localStorage.OtherCurrentAssetsNonInterCompanyLine1_0)+
+                        Number(localStorage.OtherCurrentAssetsNonInterCompanyLine2_0)+
+                        Number(localStorage.OtherCurrentAssetsNonInterCompanyLine3_0)+
+						Number(localStorage.OtherCurrentAssetsInterCompanyLine1_0)+
+                        Number(localStorage.OtherCurrentAssetsInterCompanyLine2_0)+
+                        Number(localStorage.OtherCurrentAssetsInterCompanyLine3_0);
+
+	    OtherDebtors1 = Number(localStorage.OtherCurrentAssetsNonInterCompanyLine1_1)+
+                        Number(localStorage.OtherCurrentAssetsNonInterCompanyLine2_1)+
+                        Number(localStorage.OtherCurrentAssetsNonInterCompanyLine3_1)+
+						Number(localStorage.OtherCurrentAssetsInterCompanyLine1_1)+
+                        Number(localStorage.OtherCurrentAssetsInterCompanyLine2_1)+
+                        Number(localStorage.OtherCurrentAssetsInterCompanyLine3_1);
+
+	    OtherDebtors2 = Number(localStorage.OtherCurrentAssetsNonInterCompanyLine1_2)+
+                        Number(localStorage.OtherCurrentAssetsNonInterCompanyLine2_2)+
+                        Number(localStorage.OtherCurrentAssetsNonInterCompanyLine3_2)+
+						Number(localStorage.OtherCurrentAssetsInterCompanyLine1_2)+
+                        Number(localStorage.OtherCurrentAssetsInterCompanyLine2_2)+
+                        Number(localStorage.OtherCurrentAssetsInterCompanyLine3_2);
+
+	    OtherDebtors3 = Number(localStorage.OtherCurrentAssetsNonInterCompanyLine1_3)+
+                        Number(localStorage.OtherCurrentAssetsNonInterCompanyLine3_3)+
+                        Number(localStorage.OtherCurrentAssetsNonInterCompanyLine3_3)+
+						Number(localStorage.OtherCurrentAssetsInterCompanyLine1_3)+
+                        Number(localStorage.OtherCurrentAssetsInterCompanyLine3_3)+
+                        Number(localStorage.OtherCurrentAssetsInterCompanyLine3_3);
+
+		Debtors0      = OtherDebtors0 + Number(localStorage.AccountsReceivable0) + Number(localStorage.Prepayments0);
+		Debtors1      = OtherDebtors1 + Number(localStorage.AccountsReceivable1) + Number(localStorage.Prepayments1);
+		Debtors2      = OtherDebtors2 + Number(localStorage.AccountsReceivable2) + Number(localStorage.Prepayments2);
+		Debtors3      = OtherDebtors3 + Number(localStorage.AccountsReceivable3) + Number(localStorage.Prepayments3);
+
+        DebtorsChange1= Debtors0 - Debtors1;
+        DebtorsChange2= Debtors1 - Debtors2;
+        DebtorsChange3= Debtors2 - Debtors3;
+			
+		document.SummaryBalanceSheetForm.TradeReceivablesChange1.value = DebtorsChange1;
+        document.SummaryBalanceSheetForm.TradeReceivablesChange2.value = DebtorsChange2;
+        document.SummaryBalanceSheetForm.TradeReceivablesChange3.value = DebtorsChange3;
+
+	    OtherCreditors0 = Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine1_0)+
+                        Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine2_0)+
+                        Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine3_0)+
+						Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine1_0)+
+                        Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine2_0)+
+                        Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine3_0);
+
+	    OtherCreditors1 = Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine1_1)+
+                        Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine2_1)+
+                        Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine3_1)+
+						Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine1_1)+
+                        Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine2_1)+
+                        Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine3_1);
+
+	    OtherCreditors2 = Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine1_2)+
+                        Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine2_2)+
+                        Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine3_2)+
+						Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine1_2)+
+                        Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine2_2)+
+                        Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine3_2);
+
+	    OtherCreditors3 = Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine1_3)+
+                        Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine3_3)+
+                        Number(localStorage.OtherCurrentLiabilitiesNonInterCompanyLine3_3)+
+						Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine1_3)+
+                        Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine3_3)+
+                        Number(localStorage.OtherCurrentLiabilitiesInterCompanyLine3_3);
+
+		Creditors0      = OtherCreditors0 + Number(localStorage.AccountsReceivable0) + Number(localStorage.Prepayments0);
+		Creditors1      = OtherCreditors1 + Number(localStorage.AccountsReceivable1) + Number(localStorage.Prepayments1);
+		Creditors2      = OtherCreditors2 + Number(localStorage.AccountsReceivable2) + Number(localStorage.Prepayments2);
+		Creditors3      = OtherCreditors3 + Number(localStorage.AccountsReceivable3) + Number(localStorage.Prepayments3);
+
+        CreditorsChange1= Creditors1 - Creditors0;
+		CreditorsChange2= Creditors2 - Creditors1;
+		CreditorsChange3= Creditors3 - Creditors2;
+		
+		document.SummaryBalanceSheetForm.TradePayablesChange1.value = CreditorsChange1;
+        document.SummaryBalanceSheetForm.TradePayablesChange2.value = CreditorsChange2;
+        document.SummaryBalanceSheetForm.TradePayablesChange3.value = CreditorsChange3;
+
+        DividendsPaid1 = localStorage.DividendsPayable1 - localStorage.Dividends1 - localStorage.DividendsPayable0;
+        DividendsPaid2 = localStorage.DividendsPayable2 - localStorage.Dividends2 - localStorage.DividendsPayable1;
+        DividendsPaid3 = localStorage.DividendsPayable3 - localStorage.Dividends3 - localStorage.DividendsPayable2;
+
+        document.SummaryBalanceSheetForm.DividendsPaid1.value = DividendsPaid1;
+        document.SummaryBalanceSheetForm.DividendsPaid2.value = DividendsPaid2;
+        document.SummaryBalanceSheetForm.DividendsPaid3.value = DividendsPaid3;
+
+        var IncomeTaxPaid1 = (localStorage.TaxPayable1 - localStorage.PrepaidTax1) - localStorage.Taxation1
+		                   - (localStorage.TaxPayable0 - localStorage.PrepaidTax0);
+
+        var IncomeTaxPaid2 = (localStorage.TaxPayable2 - localStorage.PrepaidTax2) - localStorage.Taxation2
+		                   - (localStorage.TaxPayable1 - localStorage.PrepaidTax1);
+
+        var IncomeTaxPaid3 = (localStorage.TaxPayable3 - localStorage.PrepaidTax3) - localStorage.Taxation3
+		                   - (localStorage.TaxPayable2 - localStorage.PrepaidTax2);
+          	
+		document.SummaryBalanceSheetForm.IncomeTaxPaid1.value = IncomeTaxPaid1;
+        document.SummaryBalanceSheetForm.IncomeTaxPaid2.value = IncomeTaxPaid2;
+        document.SummaryBalanceSheetForm.IncomeTaxPaid3.value = IncomeTaxPaid3;
+
+		document.SummaryBalanceSheetForm.NetFinanceCosts1.value = localStorage.NetFinanceCosts1;
+        document.SummaryBalanceSheetForm.NetFinanceCosts2.value = localStorage.NetFinanceCosts2;
+        document.SummaryBalanceSheetForm.NetFinanceCosts3.value = localStorage.NetFinanceCosts3;
+
+        CashFlowAftWC_Change1 = EBITDA1 + InventoryChange1 + DebtorsChange1 + CreditorsChange1;
+        CashFlowAftWC_Change2 = EBITDA2 + InventoryChange2 + DebtorsChange2 + CreditorsChange2;
+        CashFlowAftWC_Change3 = EBITDA3 + InventoryChange3 + DebtorsChange3 + CreditorsChange3;
+ 
+		document.SummaryBalanceSheetForm.CashflowAftWC_Change1.value = CashFlowAftWC_Change1;
+        document.SummaryBalanceSheetForm.CashflowAftWC_Change2.value = CashFlowAftWC_Change2;
+        document.SummaryBalanceSheetForm.CashflowAftWC_Change3.value = CashFlowAftWC_Change3;
+
+	    OperatingCashFlow1    = CashFlowAftWC_Change1 + DividendsPaid1 + IncomeTaxPaid1 + Number(localStorage.NetFinanceCosts1);
+	    OperatingCashFlow2    = CashFlowAftWC_Change2 + DividendsPaid2 + IncomeTaxPaid2 + Number(localStorage.NetFinanceCosts2);
+	    OperatingCashFlow3    = CashFlowAftWC_Change3 + DividendsPaid3 + IncomeTaxPaid3 + Number(localStorage.NetFinanceCosts3);
+ 
+        document.SummaryBalanceSheetForm.OperatingCashflows1.value = OperatingCashFlow1;
+        document.SummaryBalanceSheetForm.OperatingCashflows2.value = OperatingCashFlow2;
+        document.SummaryBalanceSheetForm.OperatingCashflows3.value = OperatingCashFlow3;
+
+        Capex1 = Number(localStorage.NonCurrentAssets1) - Number(localStorage.NonCurrentAssets0) +
+		         Number(localStorage.Depreciation1) + Number(localStorage.Amortisation1); 
+
+        Capex2 = Number(localStorage.NonCurrentAssets2) - Number(localStorage.NonCurrentAssets1) +
+		         Number(localStorage.Depreciation2) + Number(localStorage.Amortisation2); 
+
+        Capex3 = Number(localStorage.NonCurrentAssets3) - Number(localStorage.NonCurrentAssets2) +
+		         Number(localStorage.Depreciation3) + Number(localStorage.Amortisation3);     
+        
+		FundingCashflows1 = OperatingCashFlow1 - Capex1;
+		FundingCashflows2 = OperatingCashFlow2 - Capex2;
+		FundingCashflows3 = OperatingCashFlow3 - Capex3;
+		
+		document.SummaryBalanceSheetForm.InvestingCashflows1.value = -Capex1;
+        document.SummaryBalanceSheetForm.InvestingCashflows2.value = -Capex2;
+        document.SummaryBalanceSheetForm.InvestingCashflows3.value = -Capex3;
+
+		document.SummaryBalanceSheetForm.FundingCashflows1.value = FundingCashflows1;
+        document.SummaryBalanceSheetForm.FundingCashflows2.value = FundingCashflows2;
+        document.SummaryBalanceSheetForm.FundingCashflows3.value = FundingCashflows3;
+
+        FreeCashflowsPerMonth = FundingCashflows3/12;
+	    SurplusCashflows = FreeCashflowsPerMonth - Number(localStorage.loan_installment)- Number(localStorage.insurance_premium);
+
+		document.SummaryBalanceSheetForm.FreeCashflowsPerMonth.value = FreeCashflowsPerMonth;
+        document.SummaryBalanceSheetForm.LoanInstallment.value = -Number(localStorage.loan_installment);
+        document.SummaryBalanceSheetForm.InsurancePremium.value = -Number(localStorage.insurance_premium);
+        document.SummaryBalanceSheetForm.SurplusCashflows.value = SurplusCashflows;
+	
+}
+
+
+		
+		function ToNumber(nStr) 
+		{
+	  
+			   if   (typeof(nStr) == "undefined")
+		            {  return 0;}
+		       else  
+		            {
+		            if (nStr == "") {return 0};
+		            if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+		            } 
+	    }
+   </script 
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="SummaryBalanceSheetForm" id = "BS" action="CorporateAddMenu.htm" onsubmit="return validateForm()" method="post">    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="492" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="492" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 0>
+	   
+	  <tr><td cellspacing = 0 colspan = 5 align = "center" style="background-color:darkblue;color:white"><h3>..</h3></td></tr>
+	  
+	   <tr bgcolor = darkblue>
+	      <th></th>
+		  <th Width = 20 style="color:white">Year 0</th>
+		  <th Width = 20 style="color:white">Year 1</th>
+		  <th Width = 20 style="color:white">Year 2</th>
+		  <th Width = 20 style="color:white">Year 3</th>
+		</tr>
+		<tr bgcolor = darkblue>
+	      <th><h4 style="color:white;text-align:left">SUMMARY BALANCE SHEET AS AT<h4></th>
+		  <th Width = 20 style="color:white"></th>
+		  <th Width = 20 style="color:white"></th>
+		  <th Width = 20 style="color:white"></th>
+		  <th Width = 20 style="color:white"></th>
+		</tr>
+		<tr bgcolor = darkblue>
+		  <th></th>
+		  <th Width = 20 style="color:white">BWP</th>
+		  <th Width = 20 style="color:white">BWP</th>
+		  <th Width = 20 style="color:white">BWP</th>
+		  <th Width = 20 style="color:white">BWP</th>
+		</tr>
+		
+		<!-- PROPERT, PLANT AND EQUIPMENT HEADING -->
+		
+       <tr><th align = left>ASSETS</th></tr>
+	   <tr>
+		  <td>Current Assets</td>
+		  <td><Input class = "price" type="text" name = "SummaryCurrentAssetsYear0" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "SummaryCurrentAssetsYear1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "SummaryCurrentAssetsYear2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "SummaryCurrentAssetsYear3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	   </tr>
+	  
+	    <tr>
+		  <td>Non Current Assets</td>
+		  <td><Input class = "price" type="text" name = "SummaryNonCurrentAssetsYear0" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "SummaryNonCurrentAssetsYear1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "SummaryNonCurrentAssetsYear2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "SummaryNonCurrentAssetsYear3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+        </tr>
+		
+	    <tr style ="background-color:blue;">
+		  <td style="color:white"> <strong>TOTAL ASSETS<strong></td>
+		  <td><Input class = "price" type=text name = "SummaryTotalAssetsYear0" style="text-align:right;background-color:blue;color:white"></td>
+		  <td><Input class = "price" type=text name = "SummaryTotalAssetsYear1" style="text-align:right;background-color:blue;color:white"></td>
+		  <td><Input class = "price" type=text name = "SummaryTotalAssetsYear2" style="text-align:right;background-color:blue;color:white"></td>
+		  <td><Input class = "price" type=text name = "SummaryTotalAssetsYear3" style="text-align:right;background-color:blue;color:white"></td>
+	    </tr> 
+	    
+		<tr></tr>
+		
+		<tr><th align = left>EQUITY AND LIABILITIES</th></tr>
+		
+        <tr>
+		  <td>Equity</td>
+		  <td><Input class = "price" type="text" name="SummaryEquityYear0" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryEquityYear1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryEquityYear2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryEquityYear3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	    </tr>
+	   <tr>
+		  <td>Current Liabilities</td>
+		  <td><Input class = "price" type="text" name="SummaryCurrentLiabilitiesYear0" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryCurrentLiabilitiesYear1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryCurrentLiabilitiesYear2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryCurrentLiabilitiesYear3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	    </tr>
+	   <tr>
+		  <td>Non Current Liabilities</td>
+		  <td><Input class = "price" type="text" name="SummaryNonCurrentLiabilitiesYear0" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryNonCurrentLiabilitiesYear1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryNonCurrentLiabilitiesYear2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name="SummaryNonCurrentLiabilitiesYear3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	    </tr>
+	   
+		 <tr style ="background-color:powderblue;">
+		  <td style="color:black"> <strong>Total Liabilities<strong></td>
+		  <td><Input class = "price" type=text name = "SummaryTotalLiabilitiesYear0" style="text-align:right;background-color:powderblue;color:black"></td>
+		  <td><Input class = "price" type=text name = "SummaryTotalLiabilitiesYear1" style="text-align:right;background-color:powderblue;color:black"></td>
+		  <td><Input class = "price" type=text name = "SummaryTotalLiabilitiesYear2" style="text-align:right;background-color:powderblue;color:black"></td>
+		  <td><Input class = "price" type=text name = "SummaryTotalLiabilitiesYear3" style="text-align:right;background-color:powderblue;color:black"></td>
+	    </tr> 
+	   	<tr style ="background-color:blue;">
+		  <td style="color:white"><strong>TOTAL EQUITY AND LIABILITIES<strong></td>
+		  <td><Input class = "price" type="text" name = "SummaryTotalEquityAndLiabilitiesYear0" readonly = true style="text-align:right;background-color:blue;color:white"></td>
+		  <td><Input class = "price" type="text" name = "SummaryTotalEquityAndLiabilitiesYear1" readonly = true style="text-align:right;background-color:blue;color:white"></td>
+		  <td><Input class = "price" type="text" name = "SummaryTotalEquityAndLiabilitiesYear2" readonly = true style="text-align:right;background-color:blue;color:white"></td>
+		  <td><Input class = "price" type="text" name = "SummaryTotalEquityAndLiabilitiesYear3" readonly = true style="text-align:right;background-color:blue;color:white"></td>
+	     </tr>
+		
+		<tr>
+		  <td><strong>Balance Sheet Check<strong></td>
+		  <td><Input class = "price" type="text" name = "BalanceSheetCheckYear0" readonly = true style="text-align:right;background-color:Lightgrey;color:white"></td>
+		  <td><Input class = "price" type="text" name = "BalanceSheetCheckYear1" readonly = true style="text-align:right;background-color:Lightgrey;color:white"></td>
+		  <td><Input class = "price" type="text" name = "BalanceSheetCheckYear2" readonly = true style="text-align:right;background-color:Lightgrey;color:white"></td>
+		  <td><Input class = "price" type="text" name = "BalanceSheetCheckYear3" readonly = true style="text-align:right;background-color:Lightgrey;color:white"></td>
+	     </tr>
+		
+		<tr></tr>
+		
+		<tr><th align = left>OTHER SUMMARY BALANCES</th></tr>
+		<!-- Working Capital -->
+	  
+	    <tr>
+		  <td>Working Capital</td>
+		  <td><Input class = "price" type="text" name = "WorkingCapitalYear0" readonly = true style="text-align:right;background-color:Lightgrey;color:white"></td>
+		  <td><Input class = "price" type="text" name = "WorkingCapitalYear1" readonly = true style="text-align:right;background-color:Lightgrey;color:white"></td>
+		  <td><Input class = "price" type="text" name = "WorkingCapitalYear2" readonly = true style="text-align:right;background-color:Lightgrey;color:white"></td>
+		  <td><Input class = "price" type="text" name = "WorkingCapitalYear3" readonly = true style="text-align:right;background-color:Lightgrey;color:white"></td>
+	     </tr>
+	   	<tr>
+		  <td>Tangible Net Worth</td>
+		  <td><Input class = "price" type="text" name = "TangibleNetWorthYear0" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "TangibleNetWorthYear1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "TangibleNetWorthYear2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "TangibleNetWorthYear3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr bgcolor = darkblue>
+	      <th><h4 style="color:white;text-align:left">CASHFLOW AND AFFORDABILITY STATEMENT <h4></th>
+		</tr>
+	    <tr>
+		  <td colspan = 2><b>Operating Profit(EBIT)</b></td>
+		  <td><Input size = 17 class = "price" type="text" name = "EBIT1" readonly = true style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+		  <td><Input size = 17 class = "price" type="text" name = "EBIT2" readonly = true style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+		  <td><Input size = 17 class = "price" type="text" name = "EBIT3" readonly = true style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>Add</b> Depreciation</td>
+		  <td><Input class = "price" type="text" name = "Depreciation1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "Depreciation2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "Depreciation3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>Add</b> Amortisation</td>
+		  <td><Input class = "price" type="text" name = "Amortisation1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "Amortisation2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "Amortisation3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>EBITDA</b></td>
+		  <td><Input size = 17 class = "price" type="text" name = "EBITDA1" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+		  <td><Input size = 17 class = "price" type="text" name = "EBITDA2" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+		  <td><Input size = 17 class = "price" type="text" name = "EBITDA3" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2>Change In Inventory</td>
+		  <td><Input class = "price" type="text" name = "InventoryChange1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "InventoryChange2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "InventoryChange3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2>Change In Trade & Other Receivables</td>
+		  <td><Input class = "price" type="text" name = "TradeReceivablesChange1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "TradeReceivablesChange2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "TradeReceivablesChange3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2>Change In Trade & Other Payables</td>
+		  <td><Input class = "price" type="text" name = "TradePayablesChange1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "TradePayablesChange2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "TradePayablesChange3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>Cashflows After Working Capital Changes</b></td>
+		  <td><Input size = 17 class = "price" type="text" name = "CashflowAftWC_Change1" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+		  <td><Input size = 17 class = "price" type="text" name = "CashflowAftWC_Change2" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+		  <td><Input size = 17 class = "price" type="text" name = "CashflowAftWC_Change3" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2>Income Tax Paid</td>
+		  <td><Input class = "price" type="text" name = "IncomeTaxPaid1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "IncomeTaxPaid2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "IncomeTaxPaid3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+        <tr>
+		  <td colspan = 2>Dividends Paid</td>
+		  <td><Input class = "price" type="text" name = "DividendsPaid1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "DividendsPaid2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "DividendsPaid3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2>Net Finance Costs</td>
+		  <td><Input class = "price" type="text" name = "NetFinanceCosts1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "NetFinanceCosts2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "NetFinanceCosts3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>Operating Cashflows</b></td>
+		  <td><Input size = 16 class = "price" type="text" name = "OperatingCashflows1" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+		  <td><Input size = 16 class = "price" type="text" name = "OperatingCashflows2" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+		  <td><Input size = 16 class = "price" type="text" name = "OperatingCashflows3" readonly style="text-align:right;background-color:powderblue;color:black;font-weight:bold"></td>
+	    </tr>
+	    <tr>
+		  <td colspan = 2>Cashflows from Investing Activities</td>
+		  <td><Input class = "price" type="text" name = "InvestingCashflows1" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "InvestingCashflows2" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+		  <td><Input class = "price" type="text" name = "InvestingCashflows3" readonly = true style="text-align:right;background-color:Lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>Cashflows Available For Funding</b></td>
+		  <td><Input class = "price" type="text" name = "FundingCashflows1" readonly = true style="text-align:right;background-color:darkblue;color:white"></td>
+		  <td><Input class = "price" type="text" name = "FundingCashflows2" readonly = true style="text-align:right;background-color:darkblue;color:white"></td>
+		  <td><Input class = "price" type="text" name = "FundingCashflows3" readonly = true style="text-align:right;background-color:darkblue;color:white"></td>
+	     </tr>
+	     <tr bgcolor = darkblue>
+	       <th><h4 style="color:white;text-align:left">AFFORDABILITY STATEMENT <h4></th>
+		 </tr>
+	    <tr>
+		  <td colspan = 2><b>Free Cashflows Per Month</b></td>
+		  <td></td>
+		  <td></td>
+		  <td><Input class = "price" type="text" name = "FreeCashflowsPerMonth" readonly style="text-align:right;background-color:darkblue;color:white"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>Minus</b> Loan Installment</td>
+		  <td></td>
+		  <td></td>
+		  <td><Input class = "price" type="text" name = "LoanInstallment" readonly style="text-align:right;background-color:lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>Minus</b> Insurance Premium</td>
+		  <td></td>
+		  <td></td>
+		  <td><Input class = "price" type="text" name = "InsurancePremium" readonly style="text-align:right;background-color:lightgrey;color:black"></td>
+	     </tr>
+	    <tr>
+		  <td colspan = 2><b>Surplus(Deficit) Cashflows</b></td>
+		  <td></td>
+		  <td></td>
+		  <td><Input class = "price" type="text" name = "SurplusCashflows" readonly style="text-align:right;background-color:darkblue;color:white"></td>
+	     </tr>
+
+	      <td></td>
+		  <td><Input class = "price" type = Submit value = "Save/Submit" ></td><td><Button type = "button" value onclick ="ResetFormValues()">Clear Form</Button></td>
+	    </table>
+   </table>
+   <script>
+	 
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+    </script>
+   </Form>
+</body>
+
+</html>

@@ -1,0 +1,21 @@
+<SCRIPT TYPE="text/javascript">
+<!-- 
+function checkEmail(email)
+{
+if(email.length > 0)
+   {
+   if (email.indexOf(' ') >= 0)
+      alert("email addresses cannot have spaces in them");
+   else if (email.indexOf('@') == -1)
+      alert("a valid email address must have an @ in it");
+   }
+}
+//-->
+</SCRIPT>
+
+
+<FORM ACTION="../cgi-bin/mycgi.pl" METHOD=POST>
+name:        <INPUT NAME="realname"><BR>
+email:       <INPUT NAME="email" onChange="checkEmail(this.value)"><BR>
+destination: <INPUT NAME="desination">
+</FORM>

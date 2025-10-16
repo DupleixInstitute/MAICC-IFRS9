@@ -1,0 +1,321 @@
+<html>
+
+<head>
+    <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+	<script>
+	    $(function()
+		    {
+				//Load Data
+				LoadBigFirmsData();
+				LoadSmallFirmsData();
+				
+			}); 
+			
+        function bfRecalculate(elem)
+		{
+           if (isNaN(elem.value))
+		   {
+		     alert ("Please enter numbers only");
+			 elem.value =""; 
+		   }
+           else
+		   {
+		      var bfFinancialAnalysis = Number(document.forms["SettingsForm"]["bfFinancialAnalysisPercentage"].value);
+		      var bfManagementAnalysis = Number(document.forms["SettingsForm"]["bfManagementAnalysisPercentage"].value);
+		      var bfIndustryAnalysis = Number(document.forms["SettingsForm"]["bfIndustryAnalysisPercentage"].value);
+		      var bfShareholderAnalysis = Number(document.forms["SettingsForm"]["bfShareholderAnalysisPercentage"].value);
+		      var bfEstablishmentAnalysis = Number(document.forms["SettingsForm"]["bfEstablishmentAnalysisPercentage"].value);
+			  var bfTotalPercentage = bfFinancialAnalysis + bfManagementAnalysis + bfIndustryAnalysis + bfShareholderAnalysis + bfEstablishmentAnalysis;
+		      var bfTotalScore = Number(document.forms["SettingsForm"]["bfTotalScore"].value);
+	
+			  //var bfBalancing = 100 - bfTotalPercentage;
+			  
+			  
+			  if (bfTotalPercentage > 100)
+		      {
+		         alert("Total score may not exceed 100%");
+				 elem.value = "";
+				 
+		      }
+              else  
+			    // Display Total Score;
+			  {
+			    document.forms["SettingsForm"]["bfTotalPercentage"].value = bfTotalPercentage;  
+                document.forms["SettingsForm"]["bfFinancialAnalysisScore"].value = bfTotalScore * bfFinancialAnalysis / 100;
+                document.forms["SettingsForm"]["bfManagementAnalysisScore"].value = bfTotalScore * bfManagementAnalysis / 100;
+		        document.forms["SettingsForm"]["bfIndustryAnalysisScore"].value = bfTotalScore * bfIndustryAnalysis / 100;
+				document.forms["SettingsForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+				document.forms["SettingsForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	    		document.forms["SettingsForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	    		document.forms["SettingsForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	    		document.forms["SettingsForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	    		document.forms["SettingsForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	            // Updata Small Firms Total Score = Big Firm Total Score
+				if (elem.name=="bfTotalScore")
+				{
+				  document.forms["SettingsForm"]["sfTotalScore"].value = elem.value;
+	            }
+				document.forms["SettingsForm"]["bfEstablishmentAnalysisScore"].value = bfTotalScore * bfEstablishmentAnalysis / 100;
+			    //document.forms["SettingsForm"]["bfEstablishmentAnalysisPercentage"].value = bfBalancing;
+			  }
+			}
+		}
+		
+		function LoadBigFirmsData(elem)
+		
+		{
+              alert localStorage.bfFinancialAnalysis ;
+			  var document.forms["SettingsForm"]["bfFinancialAnalysisPercentage"].value = localStorage.bfFinancialAnalysis;
+		      var document.forms["SettingsForm"]["bfManagementAnalysisPercentage"].value = localStorage.bfManagementAnalysis;
+		      var document.forms["SettingsForm"]["bfIndustryAnalysisPercentage"].value = localStorage.bfIndustryAnalysis;
+		      var document.forms["SettingsForm"]["bfShareholderAnalysisPercentage"].value = localStorage.bfShareholderAnalysis;
+		      var document.forms["SettingsForm"]["bfEstablishmentAnalysisPercentage"].value = localStorage.bfEstablishmentAnalysis;
+		}
+		
+		function LoadSmallFirmsData(elem)
+		
+		{
+              var document.forms["SettingsForm"]["sfFinancialAnalysisPercentage"].value = localStorage.sfFinancialAnalysis ;
+		      var document.forms["SettingsForm"]["sfManagementAnalysisPercentage"].value = localStorage.sfManagementAnalysis;
+		      var document.forms["SettingsForm"]["sfIndustryAnalysisPercentage"].value = localStorage.sfIndustryAnalysis;
+		      var document.forms["SettingsForm"]["sfShareholderAnalysisPercentage"].value = localStorage.sfShareholderAnalysis;
+		      var document.forms["SettingsForm"]["sfEstablishmentAnalysisPercentage"].value = localStorage.sfEstablishmentAnalysis;
+		}
+		
+		function SaveBigFirmsData(elem)
+		
+		{
+              var localStorage.bfFinancialAnalysis = Number(document.forms["SettingsForm"]["bfFinancialAnalysisPercentage"].value);
+		      var localStorage.bfManagementAnalysis = Number(document.forms["SettingsForm"]["bfManagementAnalysisPercentage"].value);
+		      var localStorage.bfIndustryAnalysis = Number(document.forms["SettingsForm"]["bfIndustryAnalysisPercentage"].value);
+		      var localStorage.bfShareholderAnalysis = Number(document.forms["SettingsForm"]["bfShareholderAnalysisPercentage"].value);
+		      var localStorage.bfEstablishmentAnalysis = Number(document.forms["SettingsForm"]["bfEstablishmentAnalysisPercentage"].value);
+		}
+        
+		function SaveSmallFirmsData(elem)
+		
+		{
+              var localStorage.sfFinancialAnalysis = Number(document.forms["SettingsForm"]["sfFinancialAnalysisPercentage"].value);
+		      var localStorage.sfManagementAnalysis = Number(document.forms["SettingsForm"]["sfManagementAnalysisPercentage"].value);
+		      var localStorage.sfIndustryAnalysis = Number(document.forms["SettingsForm"]["sfIndustryAnalysisPercentage"].value);
+		      var localStorage.sfShareholderAnalysis = Number(document.forms["SettingsForm"]["sfShareholderAnalysisPercentage"].value);
+		      var localStorage.sfEstablishmentAnalysis = Number(document.forms["SettingsForm"]["sfEstablishmentAnalysisPercentage"].value);
+		}
+       
+		function sfRecalculate(elem)
+		{
+           if (isNaN(elem.value))
+		   {
+		     alert ("Please enter numbers only");
+			 elem.value =""; 
+		   }
+           else
+		   {
+		      
+			  var sfFinancialAnalysis = Number(document.forms["SettingsForm"]["sfFinancialAnalysisPercentage"].value);
+		      var sfManagementAnalysis = Number(document.forms["SettingsForm"]["sfManagementAnalysisPercentage"].value);
+		      var sfIndustryAnalysis = Number(document.forms["SettingsForm"]["sfIndustryAnalysisPercentage"].value);
+		      var sfShareholderAnalysis = Number(document.forms["SettingsForm"]["sfShareholderAnalysisPercentage"].value);
+		      var sfEstablishmentAnalysis = Number(document.forms["SettingsForm"]["sfEstablishmentAnalysisPercentage"].value);
+			  var sfTotalPercentage = sfFinancialAnalysis + sfManagementAnalysis + sfIndustryAnalysis + sfShareholderAnalysis + sfEstablishmentAnalysis;
+		      var sfTotalScore = Number(document.forms["SettingsForm"]["sfTotalScore"].value);
+	
+			  //var sfBalancing = 100 - sfTotalPercentage;
+			  
+			  
+			  if (sfTotalPercentage > 100)
+		      {
+		         alert("Total score may not exceed 100%");
+				 elem.value = "";
+				 
+		      }
+              else  
+			    // Display Total Score;
+			  {
+			    document.forms["SettingsForm"]["sfTotalPercentage"].value = sfTotalPercentage;  
+                document.forms["SettingsForm"]["sfFinancialAnalysisScore"].value = sfTotalScore * sfFinancialAnalysis / 100;
+                document.forms["SettingsForm"]["sfManagementAnalysisScore"].value = sfTotalScore * sfManagementAnalysis / 100;
+		        document.forms["SettingsForm"]["sfIndustryAnalysisScore"].value = sfTotalScore * sfIndustryAnalysis / 100;
+				document.forms["SettingsForm"]["sfShareholderAnalysisScore"].value = sfTotalScore * sfShareholderAnalysis / 100;
+				document.forms["SettingsForm"]["sfEstablishmentAnalysisScore"].value = sfTotalScore * sfEstablishmentAnalysis / 100;
+			   
+			     
+  
+                //document.forms["SettingsForm"]["sfEstablishmentAnalysisPercentage"].value = sfBalancing;
+			  }
+			}
+		}
+    </script>
+</head>
+<body>
+   <form id = "SettingsForm">
+   <Table Border = 0>
+      <tr>
+	      <td border = 0>
+		      <table Border = 0 Bordercolor = red>
+   			     <tr> <td><strong>MAIN CHARECTERISTICS<strong></td> 
+				      <td></td>
+					  <td></td>
+				 </tr> 
+				 <tr> <td></td>
+				      <td colspan = 2  align = center>BIG FIRMS</td> 
+				  </tr>
+				 <tr> 
+				      <td></td>
+					  <td align = center><strong>%<strong></td>
+					  <td><strong>Score<strong></td>
+				 </tr>
+				 <tr> 
+				      <td><strong>Total Scores<strong></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:blue" 
+								 size = "1" type = text readonly name = "bfTotalPercentage" value = "100" onchange="bfRecalculate(this)">
+					  </td>
+					  <td align = right bgcolor = "blue" color = white >
+					      <input size = "1" type = text name = "bfTotalScore" onchange="bfRecalculate(this)">
+					  </td>
+				 </tr>
+				 <tr> 
+				      <td><strong>Made up of:</td>
+					  <td></td><td></td>
+				 </tr>
+				 <tr> 
+				      <td><a href ="FinancialAnalysis.htm">Financial Analysis</a></td>
+					  <td><input size = "1" type = text name = "bfFinancialAnalysisPercentage" onchange="bfRecalculate(this)"></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								readonly size = "1" type = text name = "bfFinancialAnalysisScore">
+					  </td>
+				 </tr>
+				 <tr> 
+				      <td><a href = "ManagementAnalysis.htm"> Management Analysis </a></td>
+					  <td><input size = "1" type = text name = "bfManagementAnalysisPercentage" onchange="bfRecalculate(this)"></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "bfManagementAnalysisScore"></td>
+				 </tr>
+				 <tr> 
+				      <td><a href = "IndustryAnalysis.htm">Industry Analysis</a></td>
+					  <td><input size = "1" type = text name = "bfIndustryAnalysisPercentage" onchange="bfRecalculate(this)" ></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "bfIndustryAnalysisScore"></td>
+				 </tr>
+			    <tr> 
+				      <td><a href = "ManagementAnalysis.htm">Shareholder Analysis</a></td>
+					  <td><input size = "1" type = text name = "bfShareholderAnalysisPercentage" onchange="bfRecalculate(this)"></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "bfShareholderAnalysisScore"></td>
+				</tr>
+				<tr> 
+				      <td><a href = "EstablishmentAnalysis.htm">Establishment Analysis (Balancing)</a></td>
+					  <td><input size = "1" type = text name = "bfEstablishmentAnalysisPercentage" onchange="bfRecalculate(this)"></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "bfEstablishmentAnalysisScore"></td>
+				 </tr>
+				 <tr>
+	                <td></td>
+	                <td> <Button type = submit name = "BtnSave">Save</Button> </td>
+	             </tr>
+			  </table> 
+		  </td>
+		  <!-Gap>
+		  <td><table Border = 1 Bordercolor = yellow> <tr> <td color=white></td> </tr> </Table> </td> 
+		  
+		  <!-Markup for big tables>
+		  <td><table Border = 0 Bordercolor = blue> 
+		          <tr> 
+				       <td>
+					       <table Border = 0 Bordercolor = red>
+   			     <tr>  
+				      <td style = "color:white" >Main</td>
+					  <td></td>
+				 </tr> 
+				 <tr> 
+				      <td colspan = 2  align = center>SMALL FIRMS</td> 
+				  </tr>
+				 <tr> 
+				      
+					  <td align = center><strong>%<strong></td>
+					  <td><strong>Score<strong></td>
+				 </tr>
+				 <tr> 
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:blue" 
+								 size = "1" type = text readonly name = "sfTotalPercentage" value = "100" onchange="sfRecalculate(this)">
+					  </td>
+				      <td>
+					      <input style = "text-align:right;
+										  color:white;
+										  background-color:blue" 
+								 readonly size = "1" type = text name = "sfTotalScore" onchange="sfRecalculate(this)">
+					  </td>
+				
+				 <tr> 
+				      <td colspan = 2 style = "color:white">Made up of</td>
+					  <td></td>
+				 </tr>
+				 <tr> 
+				      
+					  <td><input size = "1" type = text name = "sfFinancialAnalysisPercentage" onchange="sfRecalculate(this)"></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								readonly size = "1" type = text name = "sfFinancialAnalysisScore">
+					  </td>
+				 </tr>
+				 <tr> 
+				      
+					  <td><input size = "1" type = text name = "sfManagementAnalysisPercentage" onchange="sfRecalculate(this)"></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "sfManagementAnalysisScore"></td>
+				 </tr>
+				 <tr> 
+				      
+					  <td><input size = "1" type = text name = "sfIndustryAnalysisPercentage" onchange="sfRecalculate(this)" ></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "sfIndustryAnalysisScore"></td>
+				 </tr>
+			    <tr> 
+				      
+					  <td><input size = "1" type = text name = "sfShareholderAnalysisPercentage" onchange="sfRecalculate(this)"></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "sfShareholderAnalysisScore"></td>
+				</tr>
+				<tr> 
+				      
+					  <td><input size = "1" type = text name = "sfEstablishmentAnalysisPercentage" onchange="sfRecalculate(this)"></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "sfEstablishmentAnalysisScore"></td>
+				 </tr>
+	             <tr><td colspan = 2><Button>Cancel</Button></td></tr>
+			  </table> 
+					   </td> 
+				  </tr> 
+			   </Table> 
+		  </td> </td>              
+	  </tr>
+	 
+   </Table>
+   </form>
+</body>
+
+</html>

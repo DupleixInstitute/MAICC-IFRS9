@@ -1,0 +1,40 @@
+<!DOCTYPE html> 
+<html> 
+  
+<head> 
+    <title>Read Text File</title> 
+</head> 
+  
+<body> 
+
+    
+    <pre id="output"></pre> 
+      
+    <script type="text/javascript"> 
+        var db;
+var request = indexedDB.open("TestDatabase");
+request.onerror = function(evt) {
+  alert("Database error code: " + evt.target.errorCode);
+};
+request.onsuccess = function(evt) {
+  alert ("su");
+  db = request.result;
+};
+
+/**
+		document.getElementById('inputfile') 
+            .addEventListener('change', function() { 
+              
+            var fr=new FileReader(); 
+            fr.onload=function(){ 
+                document.getElementById('output') 
+                        .textContent=fr.result; 
+            } 
+              
+            fr.readAsText(this.files[0]); 
+        }) 
+		**/
+    </script> 
+</body> 
+  
+</html> 

@@ -1,0 +1,86 @@
+.tablebackground {
+	background-color: #F0F5FF;
+	color: #330066;
+
+}
+.forms {
+	color: #0066FF;
+}
+.mylink {
+	font-size: 10px;
+	color: #0099FF;
+}
+.header {
+	font-size: 16px;
+	color: #000066;
+	font-family: Geneva, Arial, Helvetica, sans-serif;
+	font-weight: bolder;
+
+}
+input.btn {
+	color:#FFFFFF;
+	font: bolder 84% 'trebuchet ms', helvetica, sans-serif;
+	background-color:#000040;
+	border-top: 1px solid #000033;
+	border-right: 1px solid #000033;
+	border-bottom: 1px solid #000033;
+	border-left: 1px solid #000033;
+
+}
+.label {
+
+	font-size: 12px;
+	color: #575A80;
+	font-family: Geneva, Arial, Helvetica, sans-serif;
+	font-weight: bold;
+}
+.lines {
+
+
+	font-size: 12px;
+	color: #FF6600;
+	font-family: Geneva, Arial, Helvetica, sans-serif;
+	font-weight: bolder;
+}
+.logot {
+	font-size: 11px;
+	color: #666666;
+	font-family: Arial;
+	font-weight: normal;
+	font-style: italic;
+
+}
+input.btn2 {
+	color:#003333;
+	font: bolder 84% 'trebuchet ms', helvetica, sans-serif;
+	background-color:#FFCC33;
+	border: 1px solid #FF9900;
+
+}
+.tablebackgroundCopy {
+
+	background-color: #8CC6FF;
+	color: #333333;
+}
+.mytext {
+
+
+	font-size: 12px;
+	color: #000066;
+	font-family: Arial;
+	font-weight: bold;
+}
+.headerCopy {
+
+	font-size: 16px;
+	color: #009933;
+	font-family: Geneva, Arial, Helvetica, sans-serif;
+	font-weight: bolder;
+}
+.header2 {
+
+	font-size: 16px;
+	color: #009900;
+	font-family: Geneva, Arial, Helvetica, sans-serif;
+	font-weight: bolder;
+}

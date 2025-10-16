@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<!--[if IE 8]>
+<html id="ie8" lang="en-US">
+<![endif]-->
+<!--[if !(IE 8) ]><!-->
+<html lang="en-US"><!--<![endif]--><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<title>Submitting html form without reload the page | Codexpedia</title>
+<meta description="Submitting html form without reload the page  ">
+<meta keywords="form,html,javascript">
+
+<link rel="profile" href="https://blog.codexpedia.com/">
+<link rel="pingback" href="https://www.codexpedia.com/xmlrpc.php">
+<link rel="shortcut icon" href="https://www.codexpedia.com/wp-content/themes/codex/images/favicon.ico" type="image/x-icon">
+
+<link rel="stylesheet" href="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/bootstrap.css">
+<link rel="stylesheet" href="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/bootstrap-theme.css">
+<script type="text/javascript" async="" id="inspsync" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/inspectlet.js"></script><script type="text/javascript" async="" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/analytics.js"></script><script src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/cbgapi.loaded_0" async=""></script><script async="" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/gtm.js"></script><script src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/jquery.js"></script>
+<script src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/bootstrap.js"></script>
+
+<!--[if lt IE 9]>
+<script src="https://www.codexpedia.com/wp-content/themes/codex/js/html5.js" type="text/javascript"></script>
+<![endif]-->
+<link rel="dns-prefetch" href="https://s.w.org/">
+<link rel="alternate" type="application/rss+xml" title="Codexpedia » Feed" href="https://www.codexpedia.com/feed/">
+<link rel="alternate" type="application/rss+xml" title="Codexpedia » Comments Feed" href="https://www.codexpedia.com/comments/feed/">
+<link rel="alternate" type="application/rss+xml" title="Codexpedia » Submitting html form without reload the page Comments Feed" href="https://www.codexpedia.com/javascript/submitting-html-form-without-reload-the-page/feed/">
+		<script type="text/javascript">
+			window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/11.2.0\/72x72\/","ext":".png","svgUrl":"https:\/\/s.w.org\/images\/core\/emoji\/11.2.0\/svg\/","svgExt":".svg","source":{"concatemoji":"https:\/\/www.codexpedia.com\/wp-includes\/js\/wp-emoji-release.min.js?ver=3052d2794862ae05658f73247033ae35"}};
+			!function(a,b,c){function d(a,b){var c=String.fromCharCode;l.clearRect(0,0,k.width,k.height),l.fillText(c.apply(this,a),0,0);var d=k.toDataURL();l.clearRect(0,0,k.width,k.height),l.fillText(c.apply(this,b),0,0);var e=k.toDataURL();return d===e}function e(a){var b;if(!l||!l.fillText)return!1;switch(l.textBaseline="top",l.font="600 32px Arial",a){case"flag":return!(b=d([55356,56826,55356,56819],[55356,56826,8203,55356,56819]))&&(b=d([55356,57332,56128,56423,56128,56418,56128,56421,56128,56430,56128,56423,56128,56447],[55356,57332,8203,56128,56423,8203,56128,56418,8203,56128,56421,8203,56128,56430,8203,56128,56423,8203,56128,56447]),!b);case"emoji":return b=d([55358,56760,9792,65039],[55358,56760,8203,9792,65039]),!b}return!1}function f(a){var c=b.createElement("script");c.src=a,c.defer=c.type="text/javascript",b.getElementsByTagName("head")[0].appendChild(c)}var g,h,i,j,k=b.createElement("canvas"),l=k.getContext&&k.getContext("2d");for(j=Array("flag","emoji"),c.supports={everything:!0,everythingExceptFlag:!0},i=0;i<j.length;i++)c.supports[j[i]]=e(j[i]),c.supports.everything=c.supports.everything&&c.supports[j[i]],"flag"!==j[i]&&(c.supports.everythingExceptFlag=c.supports.everythingExceptFlag&&c.supports[j[i]]);c.supports.everythingExceptFlag=c.supports.everythingExceptFlag&&!c.supports.flag,c.DOMReady=!1,c.readyCallback=function(){c.DOMReady=!0},c.supports.everything||(h=function(){c.readyCallback()},b.addEventListener?(b.addEventListener("DOMContentLoaded",h,!1),a.addEventListener("load",h,!1)):(a.attachEvent("onload",h),b.attachEvent("onreadystatechange",function(){"complete"===b.readyState&&c.readyCallback()})),g=c.source||{},g.concatemoji?f(g.concatemoji):g.wpemoji&&g.twemoji&&(f(g.twemoji),f(g.wpemoji)))}(window,document,window._wpemojiSettings);
+		</script><script src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/wp-emoji-release.js" type="text/javascript" defer="defer"></script>
+		<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 .07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+	<link rel="stylesheet" id="wp-block-library-css" href="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/style.css" type="text/css" media="all">
+<link rel="stylesheet" id="cntctfrm_form_style-css" href="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/form_style.css" type="text/css" media="all">
+<link rel="stylesheet" id="style-css" href="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/style_002.css" type="text/css" media="all">
+<script>if (document.location.protocol != "https:") {document.location = document.URL.replace(/^http:/i, "https:");}</script><link rel="https://api.w.org/" href="https://www.codexpedia.com/wp-json/">
+<link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.codexpedia.com/xmlrpc.php?rsd">
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://www.codexpedia.com/wp-includes/wlwmanifest.xml"> 
+<link rel="prev" title="Youtube search API example with javascript and html" href="https://www.codexpedia.com/api/youtube-search-api-example-with-javascript-and-html/">
+<link rel="next" title="Android Activity Class boilerplate code" href="https://www.codexpedia.com/android/android-activity-class-boilerplate-code/">
+
+<link rel="canonical" href="https://www.codexpedia.com/javascript/submitting-html-form-without-reload-the-page/">
+<link rel="shortlink" href="https://www.codexpedia.com/?p=2407">
+<link rel="alternate" type="application/json+oembed" href="https://www.codexpedia.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.codexpedia.com%2Fjavascript%2Fsubmitting-html-form-without-reload-the-page%2F">
+<link rel="alternate" type="text/xml+oembed" href="https://www.codexpedia.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.codexpedia.com%2Fjavascript%2Fsubmitting-html-form-without-reload-the-page%2F&amp;format=xml">
+		<script type="text/javascript">
+			var _statcounter = _statcounter || [];
+			_statcounter.push({"tags": {"author": "s-hunter"}});
+		</script>
+		<script type="text/javascript">
+(function(url){
+	if(/(?:Chrome\/26\.0\.1410\.63 Safari\/537\.31|WordfenceTestMonBot)/.test(navigator.userAgent)){ return; }
+	var addEvent = function(evt, handler) {
+		if (window.addEventListener) {
+			document.addEventListener(evt, handler, false);
+		} else if (window.attachEvent) {
+			document.attachEvent('on' + evt, handler);
+		}
+	};
+	var removeEvent = function(evt, handler) {
+		if (window.removeEventListener) {
+			document.removeEventListener(evt, handler, false);
+		} else if (window.detachEvent) {
+			document.detachEvent('on' + evt, handler);
+		}
+	};
+	var evts = 'contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop keydown keypress keyup mousedown mousemove mouseout mouseover mouseup mousewheel scroll'.split(' ');
+	var logHuman = function() {
+		if (window.wfLogHumanRan) { return; }
+		window.wfLogHumanRan = true;
+		var wfscr = document.createElement('script');
+		wfscr.type = 'text/javascript';
+		wfscr.async = true;
+		wfscr.src = url + '&r=' + Math.random();
+		(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(wfscr);
+		for (var i = 0; i < evts.length; i++) {
+			removeEvent(evts[i], logHuman);
+		}
+	};
+	for (var i = 0; i < evts.length; i++) {
+		addEvent(evts[i], logHuman);
+	}
+})('//www.codexpedia.com/?wordfence_lh=1&hid=66A1F469B8A92C6707E552BBB5939EA0');
+</script><link rel="stylesheet" type="text/css" href="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/wp-code-highlight.css" media="screen">
+<style type="text/css" id="custom-background-css">
+body.custom-background { background-color: #ffffff; }
+</style>
+	<link rel="stylesheet" type="text/css" href="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/shCore.css"><link rel="stylesheet" type="text/css" href="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/shThemeDefault.css"><style type="text/css" id="syntaxhighlighteranchor"></style>
+<script type="text/javascript" async="" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/a"></script></head>
+ 
+<body data-rsssl="1" role="document">
+<!-- Google Tag Manager -->
+<noscript><iframe src="//www.googletagmanager.com/ns.html?id=GTM-KBTS29"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KBTS29');</script>
+<!-- End Google Tag Manager -->
+
+	<nav id="site-header" role="navigation" class="navbar navbar-expand-lg navbar-light bg-light">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+      <a href="https://www.codexpedia.com/" class="navbar-brand">Codexpedia</a>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav mr-auto">
+        <li class="nav-item active">
+          <a class="navbar-brand nav-link" href="https://www.codexpedia.com/">Codexpedia <span class="sr-only">(current)</span></a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="https://www.codexpedia.com/about">About</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="https://www.codexpedia.com/contact">Contact</a>
+        </li>
+      </ul>
+      <form class="form-inline my-2 my-lg-0">
+  <input class="form-control mr-sm-2" type="search" name="s" aria-label="Search" placeholder="Search …">
+  <button class="btn btn-outline-success my-2 my-sm-0" id="searchsubmit" type="submit" name="submit">Search</button>
+</form>    </div>
+
+	</nav>
+    <div class="container-fluid content-container">
+        <div class="row">
+
+            <div id="primary" class="content-area col-sm-12 col-md-12 col-lg-12">
+
+                <div id="content" class="site-content post-content" role="main">
+     
+                                            
+<h1 id="post-header" class="col-lg-12 col-md-12 col-sm-12">Submitting html form without reload the page</h1>
+
+    <div class="container">
+        <div class="row">             <div class="col-lg-8 col-md-8 col-sm-12" id="main-content">
+                <script async="" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/adsbygoogle.js"></script>
+<div class="side-ad">
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-9914600002068948" data-ad-slot="8790037712" data-ad-format="auto"></ins>
+    <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+</div>                <style>
+.covid19PillTag {
+  background-color: #eee;
+  border: none;
+  color: black;
+  padding: 2px 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 16px;
+  font-size: 10px;
+}
+.covid19PillTag:hover {
+  background-color: #f1f1f1;
+}
+.covid19TotalConfirmedColor {
+  color: red;
+}
+.covid19TotalRecoveredColor {
+  color: green;
+}
+</style>
+
+<div class="card border-secondary col-lg-12 col-md-12 col-sm-12" style="padding: 0px;">
+  <div class="card-body" style="text-align: center; padding: 0px;" id="covid19-stats">
+  </div>
+</div>
+
+<script type="text/javascript">
+  showCovid19Stats();
+  function showCovid19Stats() {
+    const covid19DataStorageKey = 'covid19Data';
+    const lastSavedCovid19DataStorageKey = 'covid19DataLastSave';
+    const covid19Data = {
+      "summary": {},
+      "lastUdate": ""
+    };
+
+    getCovid19Summary();
+
+    function getCovid19Summary() {
+      if (shouldFetchNewCovid19Data()) {
+        $.getJSON('https://api.covid19api.com/summary')
+          .done(function(data, textStatus, jqXHR) {
+            showCovid19Summary(processCovid19Data(data));
+          })
+          .fail(function(jqXHR, textStatus, errorThrown) { 
+            getIpInfoFromAll();
+          });
+      } else {
+        const savedData = getSavedCovid19Data();
+        showCovid19Summary(JSON.parse(savedData));
+      }
+    }
+
+    function showCovid19Summary(data) {
+      // console.log("covid19 stats: ", data);
+      const items = [];
+      $("#covid19-stats").append(`<h5 style="text-align: center;"><a href="https://codexpage.com/covid19.html"><b>Covid19 Watch</b> (Location: <span class="covid19TotalConfirmedColor">Total Confirmed</span> | <span class="covid19TotalRecoveredColor">Total Recovered</span>)</a></h5>`);
+      $("#covid19-stats").append(`<span class="covid19PillTag">Global: <span class="covid19TotalConfirmedColor">${data.summary.covid19GlobalStats.TotalConfirmed}</span> | <span class="covid19TotalRecoveredColor">${data.summary.covid19GlobalStats.TotalRecovered}</span></span>`);
+      data.summary.covid19CountryStats.forEach((countryStats) => {
+        $("#covid19-stats").append(`<span class="covid19PillTag">${countryStats.Country}: <span class="covid19TotalConfirmedColor">${countryStats.TotalConfirmed}</span> | <span class="covid19TotalRecoveredColor">${countryStats.TotalRecovered}</span></span>`);
+      })
+    }
+
+    function processCovid19Data(data) {
+      const covid19Summary = {};
+      covid19Summary['covid19GlobalStats'] = data.Global;
+      covid19Summary['covid19GlobalStats']['Country'] = 'Global';
+
+      const countries = data.Countries.sort((a, b) => (a.TotalConfirmed > b.TotalConfirmed) ? -1 : 1);
+      covid19Summary['covid19CountryStats'] = countries.slice(0, 12);
+
+      covid19Data.summary = covid19Summary;
+      covid19Data.lastUdate = data.Date;
+
+      saveCovid19Data(covid19Data);
+      return covid19Data;
+    }
+
+    function saveCovid19Data(processedData) {
+      saveToBrowserStorage(covid19DataStorageKey, JSON.stringify(processedData));  
+      saveToBrowserStorage(lastSavedCovid19DataStorageKey, Date.now());    
+    }
+
+    function getSavedCovid19Data() {
+      return getFromBrowserStorage(covid19DataStorageKey);   
+    }
+
+    function shouldFetchNewCovid19Data() {
+      const lastSaveTime = getFromBrowserStorage(lastSavedCovid19DataStorageKey);
+      if (lastSaveTime) {
+        return (Date.now() - parseInt(lastSaveTime, 10)) >= (1000 * 60 * 60); // has it been an hour?
+      }
+
+      return true;
+    }
+
+    function saveToBrowserStorage(key, value) {
+      // Check browser support
+      if (typeof(Storage) !== "undefined") {
+        localStorage.setItem(key, value);
+      }
+    }
+
+    function getFromBrowserStorage(key) {
+      // Check browser support
+      if (typeof(Storage) !== "undefined") {
+        return localStorage.getItem(key);
+      }
+    }    
+  }
+</script>
+                <article><p>Sometimes, when a form is submitted, you 
+don’t want to reload the page, instead you want to execute a javascript 
+function only. Here are ways of <strong>executing a javascript function on form submit without reload the html page</strong>. <code>return false;</code> is the key to prevent the from to reolad the html page.</p>
+<p>1. When this html form is submitted, it will call the javascript function yourJsFunction(), but it won’t reload the page.</p>
+<div><div id="highlighter_926565" class="syntaxhighlighter syntaxhighlighter xml"><table cellspacing="0" cellpadding="0" border="0"><tbody><tr><td class="gutter"><div class="line number1 index0 alt2">1</div><div class="line number2 index1 alt1">2</div><div class="line number3 index2 alt2">3</div><div class="line number4 index3 alt1">4</div></td><td class="code"><div class="container"><div class="line number1 index0 alt2"><code class="xml plain">&lt;</code><code class="xml keyword">form</code> <code class="xml color1">action</code><code class="xml plain">=</code><code class="xml string">"#"</code> <code class="xml color1">onsubmit</code><code class="xml plain">=</code><code class="xml string">"yourJsFunction();return false"</code><code class="xml plain">&gt;</code></div><div class="line number2 index1 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"text"</code><code class="xml plain">/&gt;</code></div><div class="line number3 index2 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"submit"</code><code class="xml plain">/&gt;</code></div><div class="line number4 index3 alt1"><code class="xml plain">&lt;/</code><code class="xml keyword">form</code><code class="xml plain">&gt;</code></div></div></td></tr></tbody></table></div></div>
+<p></p>
+<p>2. Use jQuery’s submit event to handle the form submit, add <code>return false;</code> at the end of the submit handle function to prevent the page to reload.</p>
+<div><div id="highlighter_152545" class="syntaxhighlighter syntaxhighlighter xml"><table cellspacing="0" cellpadding="0" border="0"><tbody><tr><td class="gutter"><div class="line number1 index0 alt2">1</div><div class="line number2 index1 alt1">2</div><div class="line number3 index2 alt2">3</div><div class="line number4 index3 alt1">4</div><div class="line number5 index4 alt2">5</div></td><td class="code"><div class="container"><div class="line number1 index0 alt2"><code class="xml plain">&lt;</code><code class="xml keyword">script</code> <code class="xml color1">src</code><code class="xml plain">=</code><code class="xml string">"<a href="https://code.jquery.com/jquery-2.2.1.min.js">https://code.jquery.com/jquery-2.2.1.min.js</a>"</code><code class="xml plain">&gt;&lt;/</code><code class="xml keyword">script</code><code class="xml plain">&gt;</code></div><div class="line number2 index1 alt1"><code class="xml plain">&lt;</code><code class="xml keyword">form</code> <code class="xml color1">action</code><code class="xml plain">=</code><code class="xml string">""</code> <code class="xml color1">id</code><code class="xml plain">=</code><code class="xml string">"my-form"</code><code class="xml plain">&gt;</code></div><div class="line number3 index2 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"text"</code><code class="xml plain">/&gt;</code></div><div class="line number4 index3 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"submit"</code><code class="xml plain">/&gt;</code></div><div class="line number5 index4 alt2"><code class="xml plain">&lt;/</code><code class="xml keyword">form</code><code class="xml plain">&gt;</code></div></div></td></tr></tbody></table></div></div>
+<div><div id="highlighter_97776" class="syntaxhighlighter syntaxhighlighter jscript"><table cellspacing="0" cellpadding="0" border="0"><tbody><tr><td class="gutter"><div class="line number1 index0 alt2">1</div><div class="line number2 index1 alt1">2</div><div class="line number3 index2 alt2">3</div><div class="line number4 index3 alt1">4</div><div class="line number5 index4 alt2">5</div><div class="line number6 index5 alt1">6</div></td><td class="code"><div class="container"><div class="line number1 index0 alt2"><code class="jscript plain">$(document).ready(</code><code class="jscript keyword">function</code><code class="jscript plain">() {</code></div><div class="line number2 index1 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">$(document).on(</code><code class="jscript string">'submit'</code><code class="jscript plain">, </code><code class="jscript string">'#my-form'</code><code class="jscript plain">, </code><code class="jscript keyword">function</code><code class="jscript plain">() {</code></div><div class="line number3 index2 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript comments">// do your things</code></div><div class="line number4 index3 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript keyword">return</code> <code class="jscript keyword">false</code><code class="jscript plain">;</code></div><div class="line number5 index4 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">});</code></div><div class="line number6 index5 alt1"><code class="jscript plain">});</code></div></div></td></tr></tbody></table></div></div>
+<p></p>
+<p>3. This form has no submit input, thus it won’t reload the page 
+because the form will never get submitted, but the javascript function 
+will be executed the button input is clicked.</p>
+<div><div id="highlighter_284577" class="syntaxhighlighter syntaxhighlighter xml"><table cellspacing="0" cellpadding="0" border="0"><tbody><tr><td class="gutter"><div class="line number1 index0 alt2">1</div><div class="line number2 index1 alt1">2</div><div class="line number3 index2 alt2">3</div><div class="line number4 index3 alt1">4</div></td><td class="code"><div class="container"><div class="line number1 index0 alt2"><code class="xml plain">&lt;</code><code class="xml keyword">form</code> <code class="xml color1">action</code><code class="xml plain">=</code><code class="xml string">"#"</code><code class="xml plain">&gt;</code></div><div class="line number2 index1 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"text"</code><code class="xml plain">/&gt;</code></div><div class="line number3 index2 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"button"</code> <code class="xml color1">onclick</code><code class="xml plain">=</code><code class="xml string">"yourJsFunction();"</code><code class="xml plain">/&gt;</code></div><div class="line number4 index3 alt1"><code class="xml plain">&lt;/</code><code class="xml keyword">form</code><code class="xml plain">&gt;</code></div></div></td></tr></tbody></table></div></div>
+<p></p>
+<h3>Collect the input values from the form that don’t reload the page.</h3>
+<p>Referenced from stackoverflow <a href="http://stackoverflow.com/a/1186309/2069407" target="_blank">answer</a><br>
+The sample html form with some basic inputs.</p>
+<div><div id="highlighter_9955" class="syntaxhighlighter syntaxhighlighter xml"><table cellspacing="0" cellpadding="0" border="0"><tbody><tr><td class="gutter"><div class="line number1 index0 alt2">1</div><div class="line number2 index1 alt1">2</div><div class="line number3 index2 alt2">3</div><div class="line number4 index3 alt1">4</div><div class="line number5 index4 alt2">5</div><div class="line number6 index5 alt1">6</div><div class="line number7 index6 alt2">7</div><div class="line number8 index7 alt1">8</div><div class="line number9 index8 alt2">9</div><div class="line number10 index9 alt1">10</div><div class="line number11 index10 alt2">11</div><div class="line number12 index11 alt1">12</div><div class="line number13 index12 alt2">13</div><div class="line number14 index13 alt1">14</div><div class="line number15 index14 alt2">15</div><div class="line number16 index15 alt1">16</div><div class="line number17 index16 alt2">17</div><div class="line number18 index17 alt1">18</div><div class="line number19 index18 alt2">19</div><div class="line number20 index19 alt1">20</div><div class="line number21 index20 alt2">21</div><div class="line number22 index21 alt1">22</div><div class="line number23 index22 alt2">23</div></td><td class="code"><div class="container"><div class="line number1 index0 alt2"><code class="xml plain">&lt;</code><code class="xml keyword">form</code> <code class="xml color1">action</code><code class="xml plain">=</code><code class="xml string">""</code> <code class="xml color1">method</code><code class="xml plain">=</code><code class="xml string">"post"</code><code class="xml plain">&gt;</code></div><div class="line number2 index1 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">First Name: &lt;</code><code class="xml keyword">input</code> <code class="xml color1">placeholder</code><code class="xml plain">=</code><code class="xml string">"First Name"</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"text"</code> <code class="xml color1">name</code><code class="xml plain">=</code><code class="xml string">"firstname"</code> <code class="xml color1">maxlength</code><code class="xml plain">=</code><code class="xml string">"12"</code> <code class="xml color1">size</code><code class="xml plain">=</code><code class="xml string">"12"</code><code class="xml plain">/&gt; &lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number3 index2 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">Gender:&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number4 index3 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">Male:&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"radio"</code> <code class="xml color1">name</code><code class="xml plain">=</code><code class="xml string">"gender"</code> <code class="xml color1">value</code><code class="xml plain">=</code><code class="xml string">"Male"</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number5 index4 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">Female:&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"radio"</code> <code class="xml color1">name</code><code class="xml plain">=</code><code class="xml string">"gender"</code> <code class="xml color1">value</code><code class="xml plain">=</code><code class="xml string">"Female"</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number6 index5 alt1">&nbsp;</div><div class="line number7 index6 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">Favorite Food:&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number8 index7 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">Steak:&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"checkbox"</code> <code class="xml color1">name</code><code class="xml plain">=</code><code class="xml string">"food[]"</code> <code class="xml color1">value</code><code class="xml plain">=</code><code class="xml string">"Steak"</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number9 index8 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">Pizza:&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"checkbox"</code> <code class="xml color1">name</code><code class="xml plain">=</code><code class="xml string">"food[]"</code> <code class="xml color1">value</code><code class="xml plain">=</code><code class="xml string">"Pizza"</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number10 index9 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">Chicken:&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"checkbox"</code> <code class="xml color1">name</code><code class="xml plain">=</code><code class="xml string">"food[]"</code> <code class="xml color1">value</code><code class="xml plain">=</code><code class="xml string">"Chicken"</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number11 index10 alt2">&nbsp;</div><div class="line number12 index11 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">textarea</code> <code class="xml color1">wrap</code><code class="xml plain">=</code><code class="xml string">"physical"</code> <code class="xml color1">cols</code><code class="xml plain">=</code><code class="xml string">"20"</code> <code class="xml color1">name</code><code class="xml plain">=</code><code class="xml string">"quote"</code> <code class="xml color1">rows</code><code class="xml plain">=</code><code class="xml string">"5"</code> <code class="xml color1">placeholder</code><code class="xml plain">=</code><code class="xml string">"message"</code><code class="xml plain">&gt;&lt;/</code><code class="xml keyword">textarea</code><code class="xml plain">&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">&gt;</code></div><div class="line number13 index12 alt2">&nbsp;</div><div class="line number14 index13 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">Select a Level of Education:&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number15 index14 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">select</code> <code class="xml color1">name</code><code class="xml plain">=</code><code class="xml string">"education"</code><code class="xml plain">&gt;</code></div><div class="line number16 index15 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">option</code> <code class="xml color1">value</code><code class="xml plain">=</code><code class="xml string">"Jr.High"</code><code class="xml plain">&gt;Jr.High&lt;/</code><code class="xml keyword">option</code><code class="xml plain">&gt;</code></div><div class="line number17 index16 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">option</code> <code class="xml color1">value</code><code class="xml plain">=</code><code class="xml string">"HighSchool"</code><code class="xml plain">&gt;HighSchool&lt;/</code><code class="xml keyword">option</code><code class="xml plain">&gt;</code></div><div class="line number18 index17 alt1"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">option</code> <code class="xml color1">value</code><code class="xml plain">=</code><code class="xml string">"College"</code><code class="xml plain">&gt;College&lt;/</code><code class="xml keyword">option</code><code class="xml plain">&gt;&lt;/</code><code class="xml keyword">select</code><code class="xml plain">&gt;&lt;</code><code class="xml keyword">br</code><code class="xml plain">/&gt;</code></div><div class="line number19 index18 alt2"><code class="xml spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="xml plain">&lt;</code><code class="xml keyword">p</code><code class="xml plain">&gt;&lt;</code><code class="xml keyword">input</code> <code class="xml color1">type</code><code class="xml plain">=</code><code class="xml string">"submit"</code> <code class="xml plain">/&gt;&lt;/</code><code class="xml keyword">p</code><code class="xml plain">&gt;</code></div><div class="line number20 index19 alt1"><code class="xml plain">&lt;/</code><code class="xml keyword">form</code><code class="xml plain">&gt;</code></div><div class="line number21 index20 alt2">&nbsp;</div><div class="line number22 index21 alt1"><code class="xml plain">&lt;</code><code class="xml keyword">h2</code><code class="xml plain">&gt;JSON&lt;/</code><code class="xml keyword">h2</code><code class="xml plain">&gt;</code></div><div class="line number23 index22 alt2"><code class="xml plain">&lt;</code><code class="xml keyword">pre</code> <code class="xml color1">id</code><code class="xml plain">=</code><code class="xml string">"result"</code><code class="xml plain">&gt;&lt;/</code><code class="xml keyword">pre</code><code class="xml plain">&gt;</code></div></div></td></tr></tbody></table></div></div>
+<p></p>
+<p>The jQuery function for converting the form input values into a json object.</p>
+<div><div id="highlighter_261891" class="syntaxhighlighter syntaxhighlighter jscript"><table cellspacing="0" cellpadding="0" border="0"><tbody><tr><td class="gutter"><div class="line number1 index0 alt2">1</div><div class="line number2 index1 alt1">2</div><div class="line number3 index2 alt2">3</div><div class="line number4 index3 alt1">4</div><div class="line number5 index4 alt2">5</div><div class="line number6 index5 alt1">6</div><div class="line number7 index6 alt2">7</div><div class="line number8 index7 alt1">8</div><div class="line number9 index8 alt2">9</div><div class="line number10 index9 alt1">10</div><div class="line number11 index10 alt2">11</div><div class="line number12 index11 alt1">12</div><div class="line number13 index12 alt2">13</div><div class="line number14 index13 alt1">14</div><div class="line number15 index14 alt2">15</div><div class="line number16 index15 alt1">16</div><div class="line number17 index16 alt2">17</div><div class="line number18 index17 alt1">18</div><div class="line number19 index18 alt2">19</div><div class="line number20 index19 alt1">20</div><div class="line number21 index20 alt2">21</div><div class="line number22 index21 alt1">22</div></td><td class="code"><div class="container"><div class="line number1 index0 alt2"><code class="jscript plain">$.fn.serializeObject = </code><code class="jscript keyword">function</code><code class="jscript plain">(){</code></div><div class="line number2 index1 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript keyword">var</code> <code class="jscript plain">o = {};</code></div><div class="line number3 index2 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript keyword">var</code> <code class="jscript plain">a = </code><code class="jscript keyword">this</code><code class="jscript plain">.serializeArray();</code></div><div class="line number4 index3 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">$.each(a, </code><code class="jscript keyword">function</code><code class="jscript plain">() {</code></div><div class="line number5 index4 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript keyword">if</code> <code class="jscript plain">(o[</code><code class="jscript keyword">this</code><code class="jscript plain">.name] !== undefined) {</code></div><div class="line number6 index5 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript keyword">if</code> <code class="jscript plain">(!o[</code><code class="jscript keyword">this</code><code class="jscript plain">.name].push) {</code></div><div class="line number7 index6 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">o[</code><code class="jscript keyword">this</code><code class="jscript plain">.name] = [o[</code><code class="jscript keyword">this</code><code class="jscript plain">.name]];</code></div><div class="line number8 index7 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">}</code></div><div class="line number9 index8 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">o[</code><code class="jscript keyword">this</code><code class="jscript plain">.name].push(</code><code class="jscript keyword">this</code><code class="jscript plain">.value || </code><code class="jscript string">''</code><code class="jscript plain">);</code></div><div class="line number10 index9 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">} </code><code class="jscript keyword">else</code> <code class="jscript plain">{</code></div><div class="line number11 index10 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">o[</code><code class="jscript keyword">this</code><code class="jscript plain">.name] = </code><code class="jscript keyword">this</code><code class="jscript plain">.value || </code><code class="jscript string">''</code><code class="jscript plain">;</code></div><div class="line number12 index11 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">}</code></div><div class="line number13 index12 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">});</code></div><div class="line number14 index13 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript keyword">return</code> <code class="jscript plain">o;</code></div><div class="line number15 index14 alt2"><code class="jscript plain">};</code></div><div class="line number16 index15 alt1">&nbsp;</div><div class="line number17 index16 alt2"><code class="jscript plain">$(</code><code class="jscript keyword">function</code><code class="jscript plain">() {</code></div><div class="line number18 index17 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">$(</code><code class="jscript string">'form'</code><code class="jscript plain">).submit(</code><code class="jscript keyword">function</code><code class="jscript plain">() {</code></div><div class="line number19 index18 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">$(</code><code class="jscript string">'#result'</code><code class="jscript plain">).text(JSON.stringify($(</code><code class="jscript string">'form'</code><code class="jscript plain">).serializeObject()));</code></div><div class="line number20 index19 alt1"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript keyword">return</code> <code class="jscript keyword">false</code><code class="jscript plain">;</code></div><div class="line number21 index20 alt2"><code class="jscript spaces">&nbsp;&nbsp;&nbsp;&nbsp;</code><code class="jscript plain">});</code></div><div class="line number22 index21 alt1"><code class="jscript plain">});</code></div></div></td></tr></tbody></table></div></div>
+<p></p>
+</article>
+                <div class="row"> 
+                  <div class="col-lg-6 col-md-6 col-sm-12">
+    <p><strong>Search within Codexpedia</strong></p>
+    <style type="text/css">
+    @import url(//www.google.com/cse/api/branding.css);
+    </style>
+    <div class="cse-branding-bottom" style="background-color:#FFFFFF;color:#000000">
+      <div class="cse-branding-form">
+        <form action="https://www.google.com" id="cse-search-box" target="_blank">
+          <div>
+            <input type="hidden" name="cx" value="partner-pub-9914600002068948:8997617316">
+            <input type="hidden" name="ie" value="UTF-8">
+            <input type="text" name="q" size="30">
+            <input type="submit" name="sa" value="Search">
+          </div>
+        </form>
+      </div>
+      <div class="cse-branding-logo">
+        <img src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/poweredby_FFFFFF.gif" alt="Google">
+      </div>
+      <div class="cse-branding-text">
+        Custom Search
+      </div>
+    </div>
+</div>
+<div class="col-lg-6 col-md-6 col-sm-12">
+    <p><strong>Search the entire web</strong></p>
+    <style type="text/css">
+    @import url(//www.google.com/cse/api/branding.css);
+    </style>
+    <div class="cse-branding-bottom" style="background-color:#FFFFFF;color:#000000">
+      <div class="cse-branding-form">
+        <form action="https://www.google.com" id="cse-search-box" target="_blank">
+          <div>
+            <input type="hidden" name="cx" value="partner-pub-9914600002068948:2892208118">
+            <input type="hidden" name="ie" value="UTF-8">
+            <input type="text" name="q" size="30">
+            <input type="submit" name="sa" value="Search">
+          </div>
+        </form>
+      </div>
+      <div class="cse-branding-logo">
+        <img src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/poweredby_FFFFFF.gif" alt="Google">
+      </div>
+      <div class="cse-branding-text">
+        Custom Search
+      </div>
+    </div>
+</div>                </div>
+        		            </div>
+
+            <div class="col-lg-4 col-md-4 col-sm-12" id="right-side-ads">
+              <div class="side-ad">
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-9914600002068948" data-ad-slot="5417768917" data-ad-format="auto"></ins>
+    <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+</div>
+
+<div class="side-ad">
+    <!-- responsive_ad_box3 -->
+    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-9914600002068948" data-ad-slot="4440563318" data-ad-format="auto"></ins>
+    <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+</div><!-- <div class="panel panel-default">
+  <div class="panel-heading">Featured Posts</div>
+  <div class="panel-body">
+    <ul class="nav">
+		<li><a href="https://www.codexpedia.com/android/android-interview-questions/">Android Interview Questions</a></li>
+		<li><a href="https://www.codexpedia.com/android/android-development-cheatsheet/">Android Development Cheatsheet</a></li>
+	</ul>
+  </div>
+</div> -->
+
+<div class="panel panel-default">
+  <div class="panel-heading">Related Posts</div>
+  <div class="panel-body">
+		<ul class="nav">
+							<li>
+					<a href="https://www.codexpedia.com/javascript/setting-up-phaser-for-html5-game-development/" rel="bookmark">Setting up phaser for html5 game development</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/javascript/submitting-html-form-without-reload-the-page/" rel="bookmark">Submitting html form without reload the page</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/css/html-table-with-horizontal-and-vertical-scroll-bar/" rel="bookmark">html table with horizontal and vertical scroll bar</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/javascript/populating-html-select-options-on-select-changes/" rel="bookmark">populating html select options on select changes</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/javascript/handlebar-example-for-javascript-templating/" rel="bookmark">handlebar example for javascript templating</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/html/html-boilerplate-code-template/" rel="bookmark">HTML boilerplate code template</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/javascript/html-dom-object-and-javascript/" rel="bookmark">HTML DOM object and javascript</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/css/a-very-simple-css-for-a-very-simple-html-table/" rel="bookmark">A very simple css for a very simple html table</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/css/css-sliding-underline-effect-on-hover/" rel="bookmark">CSS sliding underline effect on hover</a>
+				</li>
+							<li>
+					<a href="https://www.codexpedia.com/css/pop-up-modal-with-only-html-and-css3/" rel="bookmark">Pop up modal with only html and CSS3</a>
+				</li>
+							<li><a href="https://www.codexpedia.com/" html="">More</a></li>
+		</ul>
+  </div>
+</div>
+
+            </div>
+
+        </div>
+    </div>
+
+<hr>
+<div id="youtube-response" class="container">            
+</div>
+<script type="text/javascript">
+  function onClientLoad() {
+      gapi.client.load('youtube', 'v3', onYouTubeApiLoad);
+  }
+  function onYouTubeApiLoad() {
+      gapi.client.setApiKey('AIzaSyDBu_mtDg_Jnd6o6txskZWnnYLpJgVzS20');
+      var request = gapi.client.youtube.search.list({
+          part: 'snippet',
+          q: 'Pop up modal with only html and CSS3'
+      });
+      request.execute(populateYoutubeVideos);
+  }
+  function populateYoutubeVideos(response) {
+    if (!response.items) return;
+    var videoItems  = response.items;
+    var html    = '';
+    videoItems.forEach(function (video) {
+      var videoId       = (video.id)    ? video.id.videoId : '';
+      var videoTitle = '', videoDescription = '', videoPublishedAt = '';
+      if (video.snippet) {
+        videoTitle      = video.snippet.title;
+        videoDescription  = video.snippet.description;
+        videoPublishedAt  = video.snippet.publishedAt;
+      }
+
+      html += '<div class="row">' +
+                '<div class="col-sm-6">' +
+                    '<div class="embed-responsive embed-responsive-16by9">' +
+                        '<iframe allowfullscreen class="embed-responsive-item" src="https://www.youtube.com/embed/'+ videoId +'"></iframe>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="col-sm-6"></div>' +
+                    '<h5>'+ videoTitle +'</h5>'+
+                    '<p>'+ videoDescription +'</p>'+
+                    '<p>'+ videoPublishedAt +'</p>'+
+              '</div>' +
+            '</div><hr>';
+    });
+      document.getElementById('youtube-response').innerHTML = html;
+  }
+</script>
+<script src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/client.js" type="text/javascript" gapi_processed="true"></script><script>
+// $(window).scroll(function() {
+//   var scrollTop = $(window).scrollTop();
+//   var mainContentHeight = $('#main-content').height() - 200;
+//   if ($(window).width() > 1000 && scrollTop > 200 && scrollTop < mainContentHeight) {
+//    $("#right-side-ads").css({"margin-top": ($(window).scrollTop() - 150) + "px"});    
+//   }
+//   if (scrollTop == 0) {
+//    $("#right-side-ads").css({"margin-top": "0px"});    
+//   }
+// });
+</script>
+    <nav id="nav-below">
+      <ul class="pagination justify-content-center">
+
+     
+        <li class="page-item page-link"><a href="https://www.codexpedia.com/java/java-comparator-with-insertion-sort/" rel="prev"><span>←</span> Java Comparator with insertion sort</a></li>        <li class="page-item page-link"><a href="https://www.codexpedia.com/php/php-curl-example/" rel="next">PHP curl example <span>→</span></a></li> 
+         </ul>
+    </nav><!-- #nav-below -->
+                             
+                </div><!-- #content .site-content -->
+            </div><!-- #primary .content-area -->
+
+            <div class="clearfix visible-sm-block"></div>
+        </div>
+    </div>
+	<!--WP Code Highlight_start-->
+	<script type="text/javascript">
+		window.onload = function(){prettyPrint();};
+	</script>
+	<script type="text/javascript" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/wp-code-highlight.js"></script>
+	<!--WP Code Highlight_end-->
+ 
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                    <ul class="list-inline text-center">
+                        <li>
+                            <a href="#">
+                                <span class="fa-stack fa-lg">
+                                    <i class="fa fa-circle fa-stack-2x"></i>
+                                    <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <span class="fa-stack fa-lg">
+                                    <i class="fa fa-circle fa-stack-2x"></i>
+                                    <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <span class="fa-stack fa-lg">
+                                    <i class="fa fa-circle fa-stack-2x"></i>
+                                    <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                    <p class="copyright text-muted">Copyright © Codexpedia 2016</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Custom Theme JavaScript -->
+		<!-- Start of StatCounter Code -->
+		<script>
+			<!--
+			var sc_project=9953898;
+			var sc_security="093b6229";
+						var scJsHost = (("https:" == document.location.protocol) ?
+				"https://secure." : "http://www.");
+			//-->
+			
+document.write("<sc"+"ript src='" +scJsHost +"statcounter.com/counter/counter.js'></"+"script>");		</script><script src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/counter.js"></script>
+				<noscript><div class="statcounter"><a title="web analytics" href="https://statcounter.com/"><img class="statcounter" src="https://c.statcounter.com/9953898/0/093b6229/0/" alt="web analytics" /></a></div></noscript>
+		<!-- End of StatCounter Code -->
+		<script>if (document.location.protocol != "https:") {document.location = document.URL.replace(/^http:/i, "https:");}</script><script type="text/javascript" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/shCore.js"></script>
+<script type="text/javascript" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/shBrushXml.js"></script>
+<script type="text/javascript" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/shBrushJScript.js"></script>
+<script type="text/javascript">
+	(function(){
+		var corecss = document.createElement('link');
+		var themecss = document.createElement('link');
+		var corecssurl = "https://www.codexpedia.com/wp-content/plugins/syntaxhighlighter/syntaxhighlighter3/styles/shCore.css?ver=3.0.9b";
+		if ( corecss.setAttribute ) {
+				corecss.setAttribute( "rel", "stylesheet" );
+				corecss.setAttribute( "type", "text/css" );
+				corecss.setAttribute( "href", corecssurl );
+		} else {
+				corecss.rel = "stylesheet";
+				corecss.href = corecssurl;
+		}
+		document.getElementsByTagName("head")[0].insertBefore( corecss, document.getElementById("syntaxhighlighteranchor") );
+		var themecssurl = "https://www.codexpedia.com/wp-content/plugins/syntaxhighlighter/syntaxhighlighter3/styles/shThemeDefault.css?ver=3.0.9b";
+		if ( themecss.setAttribute ) {
+				themecss.setAttribute( "rel", "stylesheet" );
+				themecss.setAttribute( "type", "text/css" );
+				themecss.setAttribute( "href", themecssurl );
+		} else {
+				themecss.rel = "stylesheet";
+				themecss.href = themecssurl;
+		}
+		//document.getElementById("syntaxhighlighteranchor").appendChild(themecss);
+		document.getElementsByTagName("head")[0].insertBefore( themecss, document.getElementById("syntaxhighlighteranchor") );
+	})();
+	SyntaxHighlighter.config.strings.expandSource = '+ expand source';
+	SyntaxHighlighter.config.strings.help = '?';
+	SyntaxHighlighter.config.strings.alert = 'SyntaxHighlighter\n\n';
+	SyntaxHighlighter.config.strings.noBrush = 'Can\'t find brush for: ';
+	SyntaxHighlighter.config.strings.brushNotHtmlScript = 'Brush wasn\'t configured for html-script option: ';
+	SyntaxHighlighter.defaults['class-name'] = 'syntaxhighlighter';
+	SyntaxHighlighter.defaults['pad-line-numbers'] = false;
+	SyntaxHighlighter.defaults['toolbar'] = false;
+	SyntaxHighlighter.all();
+</script>
+<script type="text/javascript" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/comment-reply.js"></script>
+<script type="text/javascript" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/wp-embed.js"></script>
+
+
+
+
+
+<script type="text/javascript" id="inspectletjs">window.__insp=window.__insp||[];__insp.push(["wid",1698814444]);(function(){function a(){var b=document.createElement("script");b.type="text/javascript";b.async=!0;b.id="inspsync";b.src=("https:"==document.location.protocol?"https":"http")+"://www.inspectlet.com/inspectlet.js";var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(b,a)}window.attachEvent?window.attachEvent("onload",a):window.addEventListener("load",a,!1)})();</script><iframe id="apiproxy1bdd51be03633adad08e984fda40c4139ad5b8210.1535467956" name="apiproxy1bdd51be03633adad08e984fda40c4139ad5b8210.1535467956" style="width: 1px; height: 1px; position: absolute; top: -100px; display: none;" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/proxy.html" tabindex="-1" aria-hidden="true"></iframe><iframe id="apiproxy90105ed518e7e7b710adfecaf276ad4295d9603a0.2551774238" name="apiproxy90105ed518e7e7b710adfecaf276ad4295d9603a0.2551774238" style="width: 1px; height: 1px; position: absolute; top: -100px; display: none;" src="Submitting%20html%20form%20without%20reload%20the%20page%20Codexpedia_files/proxy_002.html" tabindex="-1" aria-hidden="true"></iframe></body></html>
+<!-- Dynamic page generated in 1.100 seconds. -->
+<!-- Cached page generated by WP-Super-Cache on 2020-05-20 17:30:01 -->
+<!-- super cache -->

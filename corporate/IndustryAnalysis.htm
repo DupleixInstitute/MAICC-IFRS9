@@ -1,0 +1,277 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING :Industry Analysis - Porters Five Forces</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   <script type="text/javascript" src="Dupleix.js"></script>
+     	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+         $(function()
+		    {
+				//InitialiseIndustryAnalysis();
+				RecalculatePortersForm();
+		     	LoadIndustryAnalysis();
+				RecalculatePortersForm(this);
+         
+			});
+		
+   </script>
+<style>
+.header
+{
+  text-align:right;
+  background-color:powderblue;
+}
+</style>   
+   
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form id = "PortersForm" name="PortersForm" action="SaveIndustryAnalysisData.php" onsubmit="return ValidatePortersForm()" method="post">>    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="562" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="562" height="208"/></td>
+	   </tr>
+	   
+	   <table align = "center" cellspacing=1 border = 0>
+		<td></td><td><Input type = Submit value = "Save/Submit" onclick = "SaveIndustryAnalysis()"  ></td><td colspan = 2><Button type = "button" onclick ="RecalculatePortersForm()">Clear Form</Button> </td>	
+	    <tr><td cellspacing = 0 colspan = 4 align = "center" style="background-color:darkblue;color:white"><h3><p id = "legal_name">GARE VISION (PTY) LTD</p></h3></td></tr>
+	    
+		<tr>
+		   <td colspan = 3 ><strong>INDUSTRY PERFORMANCE AND CYCLICALITY</strong></td>
+           <td align = right>Application Ref No  :<input name = "application_ref" class = "header" readonly  >Company Reg No:<input name = "company_reg_no" class = "header" readonly></td>		
+		</tr>
+		<tr><td colspan = 4 align = right>Loan Number  :<input name = "loan_number" class = "header" readonly>Username______:<input name ="username" class = "header" readonly></td></tr>
+		<tr>
+		   <td>Industry Cyclicality</td>
+		   <td colspan = 3><SELECT required name = "IndustryCyclicality" id = "skip" >
+                   <option value = "Industry Demand Growing">Industry Demand Growing</option>
+                   <option value = "Industry Demand Stagnant">Industry Demand Stagnant</option>
+                   <option value = "Industry Demand Falling">Industry Demand Falling</option>
+				</SELECT>   
+		   </td>
+		</tr>
+		<tr>
+		   <td>Industry Performance</td>
+		   <td colspan = 3><SELECT required name = "IndustryPerformance" id = "skip">
+                   <option value = "Super Profits In Industry">Super Profits In Industry</option>
+                   <option value = "Perfomance In Line With Economy">Perfomance In Line With Economy</option>
+                   <option value = "Perfomance Below Economic Growth">Perfomance Below Economic Growth</option>
+				</SELECT>   
+		   </td>
+		</tr>
+		<tr><td>.</td></tr>
+		<tr>
+		   <td colspan = 3 ><strong>PORTER'S FIVE FORCES ANALYSIS</strong></td>
+		</tr>
+	    <tr></tr>
+	
+		<tr bgcolor = darkblue>
+		  <th></th>
+		  <th style="color:white;text-align:left">Rating</th>
+		  <th style="color:white;text-align:left">Score</th>
+		  <th style="color:white;text-align:left"></th>
+		</tr>
+		<tr bgcolor = darkblue style="color:white">
+		  <th style="text-align:left;color:darkblue">PORTERS FIVE FORCES ANALYSIS </th>
+		  <th style="text-align:left;">Input</th>
+		  <th style="text-align:left;" Size =1>Formula</th>
+		  <th style="text-align:left;">Comment</th>
+		</tr>
+		<tr style ="background-color:lightblue;color:black">
+		   <td><Strong>Threats of New Entry<Strong></td>
+		   <td><input required type ="text" name = "ThreatsOfNewEntryRating" size = 6 style ="text-align:left;background-color:lightblue;color:white"></td>
+		   <td><input required type ="text" name = "ThreatsOfNewEntryScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		   <td></td>
+		</tr>
+		<tr>
+		  <td>Time and cost of entry</td>	
+		  <td><Select name="EntryCostsRating" onmousemove = "RecalculatePortersForm(this)"><Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "EntryCostsScore" Type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "EntryCostsComment" Type = "text" size = 100></td>
+	    </tr>
+	   <tr >
+		  <td>Specialist Knowledge</td>
+		  <td><Select name="SpecialistKnowledgeRating" Onmousemove="RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+          <td><input required name = "SpecialKnowledgeScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+          <td><input required name = "SpecialistKnowledgeComment" Type = "text" size = 100>
+	   </tr>
+		  <td>Economies Of Scale</td>
+		  <td><Select name="EconomiesOfScaleRating" onmousemove = "RecalculatePortersForm(this)" > <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "EconomiesOfScaleScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "EconomiesOfScaleComment" Type = "text" size = 100>  
+	   </tr>
+	   <tr >
+		  <td>Cost Advantages</td>
+	      <td><Select name="CostAdvantagesRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "CostAdvantagesScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "CostAdvantagesComment" Type = "text" size = 100></td> 
+	  </tr>
+	   <tr >
+	      <td>Technology Protection</td>
+	      <td><Select name="TechnologyProtectionRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "TechnologyProtectionScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "TechnologyProtectionComment" Type = "text" size = 100>   </tr>
+	   
+       <tr>
+	      <td>Barriers to Entry</td>
+	      <td><Select name="BarriersToEntryRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "BarriersToEntryScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+		  <td><input required name = "BarriersToEntryComment" Type = "text" size = 100>  
+		</tr>
+	   
+	   <tr style ="background-color:lightblue;color:black">
+	      <td><strong>Competitive Rivalry<strong></td>
+          <td><input required type ="text" name = "CompetitiveRivalryRating" size = 6 style="text-align:left;background-color:lightblue;color:white"></td>
+		  <td><input required type ="text" name = "CompetitiveRivalryScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		  <td></td>	   
+	   </tr>
+	   <tr>
+		  <td>Number Of Competitors</td>
+	      <td><Select name="NumberOfCompetitorsRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "NumberOfCompetitorsScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "NumberOfCompetitorsComment" Type = "text" size = 100>	</tr>
+	    <tr>
+		  <td>Quality Differences</td>
+	      <td><Select name="QualityDifferencesRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "QualityDifferencesScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "QualityDifferencesComment" Type = "text" size = 100>   </tr> 
+	   <tr>
+		  <td>Other Differences</td>
+	      <td><Select name="OtherDifferencesRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "OtherDifferencesScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+		  <td><input required name = "OtherDifferencesComment" Type = "text" size = 100> </tr> 
+	   <tr>
+		  <td>Switching Costs</td>
+	      <td><Select name="SwitchingCostsRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required  name = "SwitchingCostsScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required  name = "SwitchingCostsComment" Type = "text" size = 100>   </tr>
+	   <tr>
+		  <td>Customer Loyalty</td>
+		  <td><Select name="CustomerLoyaltyRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "CustomerLoyaktyScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "CustomerLoyaktyComment" Type = "text" size = 100> </tr>
+	   <tr style ="background-color:lightblue;color:black">
+	      <td><strong>Supplier Power<strong></td>
+	      <td><input required type ="text" name = "SupplierPowerRating" size = 6 style="text-align:left;background-color:lightblue;color:white"></td>
+		  <td><input required type ="text" name = "SupplierPowerScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		  <td></td>
+	   </tr>
+	   <tr>
+		  <td>Number Of Supplierss</td>
+	      <td><Select name="NumberOfSuppliersrsRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "NumberOfSuppliersOverallScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "NumberOfSuppliersComment" Type = "text" size = 100>	</tr>
+	    <tr>
+		  <td>Size Of Suppliers</td>
+	       <td><Select name="SizeOfSuppliersRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "SizeOfSuppliersOverallScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+		  <td><input required name = "SizeOfSuppliersComment" Type = "text" size = 100>   </tr> 
+	   <tr>
+		  <td>Uniqueness Of Service</td>
+	      <td><Select name="UniquenessOfServiceRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "UniquenessOfServiceScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "UniquenessOfServiceComment" Type = "text" size = 100> </tr> 
+	   <tr>
+		  <td>Costs Of Supplier Change</td>
+	      <td><Select name="CostsOfSupplierChangeRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "CostsOfSupplierChangeScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "CostsOfSupplierChangeComment" Type = "text" size = 100>   </tr>
+	   <tr>
+		  <td>Supplier Switching Costs</td>
+		  <td><Select name="SupplierSwitchingCostsRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "SupplierSwitchingCostsScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "SupplierSwitchingCostsComment" Type = "text" size = 100> </tr>
+	  </tr>
+	  <tr style ="background-color:lightblue;color:black">
+	      <td><strong>Threats Of Substitution<strong></td>
+	      <td><input required type ="text" name = "ThreatsOfSubstitutionRating" size = 6 style="text-align:left;background-color:lightblue;color:white"></td>
+		  <td><input required type ="text" name = "ThreatsOfSubstitutionScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		  <td></td>
+	  </tr>
+	   <tr>
+		  <td>Substitute Performance</td>
+	      <td><Select name="SubstitutePerfomanceRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "SubstitutePerformanceScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "SubstitutePerfomanceComment" Type = "text" size = 100>	
+	    </tr>
+	    <tr>
+		  <td>Costs of Substitution</td>
+	      <td><Select name="CostsOfSubstitutionRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "CostsOfSubstitutionScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "CostsOfSubstitutionComment" Type = "text" size = 100>   </tr> 
+	   </tr>
+	   <tr style ="background-color:lightblue;color:black">
+	      <td><strong>Buyer Power<strong></td>
+	      <td><input required type ="text" name = "BuyerPowerRating" size = 6 style="text-align:left;background-color:lightblue;color:white"></td>
+		  <td><input required type ="text" name = "BuyerPowerScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		  <td></td>
+	</tr>
+	   <tr>
+		  <td>Number Of Customers</td>
+	      <td><Select name="NumberOfCustomersRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "NumberOfCCustomersScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "NumberOfCustomersComment" Type = "text" size = 100>	</tr>
+	    <tr>
+		  <td>Single Order Size</td>
+	      <td><Select name="SingleOrderSizeRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "SingleOrderSizeScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+		  <td><input required name = "SingleOrderSizeComment" Type = "text" size = 100>   
+		 </tr> 
+	   <tr>
+		  <td>Competitor Differences</td>
+	      <td><Select name="CompetitorDifferencesRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "CompetitorDifferencesScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "CompetitorDifferencesComment" Type = "text" size = 100> </tr> 
+	   <tr>
+		  <td>Price Sensitivity</td>
+	      <td><Select name="PriceSensitivityRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "PriceSensitivityScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "PriceSensitivityComment" Type = "text" size = 100>   </tr>
+	   <tr>
+		  <td>Ability To Substitute</td>
+		  <td><Select name="AbilityToSubstituteRating"onmousemove = "RecalculatePortersForm(this)" > <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "AbilityToSubstituteScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "AbilityToSubstituteComment" Type = "text" size = 100> 
+		</tr>
+		<tr>
+		  <td>Customers Switching Costs</td>
+		  <td><Select name="CustomersSwitchingCostsRating" onmousemove = "RecalculatePortersForm(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input required name = "CustomerSwitchingCostsScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input required name = "CustomersSwitchingCostsComment" Type = "text" size = 100> 
+		</tr>  
+		<tr style ="background-color:darkblue;color:white">
+	      <td><h4>GRAND TOTAL</h4></td>
+	      <td><input type ="text" name = "SummaryRating" size = 6 style="text-align:left;background-color:darkblue;color:white"></td>
+		  <td><input type ="text" name = "SummaryScore" size = 1 style="text-align:center;background-color:darkblue;color:white"></td>
+		  <td></td>
+	    </tr> 
+		  
+	      <td></td>
+		  <td><Input type = Submit value = "Save/Submit" onclick = "SaveIndustryAnalysis()" ></td><td colspan = 2><Button type = button onclick="RecalculatePortersForm()">Clear Form></Button></td>
+	    </table>
+   </table>
+   <script>
+	  
+    </script>
+   </Form>
+</body>
+
+</html>

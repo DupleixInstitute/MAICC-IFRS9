@@ -1,0 +1,332 @@
+<html>
+<head>
+   <title>CREDIT SCORING - Charts</Title>
+   <link href="bootstrap.css" rel="stylesheet" type="text/css">  
+   <script type="text/javascript" src="Chart.bundle.js"></script>
+   <script type="text/javascript" src="Dupleix.js"></script>  
+</head>
+
+<body>
+   <div class = "container">
+       <canvas id="ZScoreChart"></canvas> 
+       <canvas id="myChart"></canvas>
+       <canvas id="myChart1"></canvas>
+	   <canvas id="stackedChart"></canvas>
+   </div>
+   <script>
+      Ratio_Analysis_CALCULATE();
+	  var NetSales               =  [localStorage.NetSales0      ,localStorage.NetSales1,
+	                                 localStorage.NetSales2      ,localStorage.NetSales3];
+
+	  var WeightedSales           =  localStorage.NetSales1*localStorage.RatioWeightYear1/100+
+	                                 localStorage.NetSales2*localStorage.RatioWeightYear2/100+
+						             localStorage.NetSales3*localStorage.RatioWeightYear3/100;
+	  
+	  var GrossProfit             = [localStorage.GrossProfit0,localStorage.GrossProfit1,
+	                                 localStorage.GrossProfit2,localStorage.GrossProfit3];
+	  
+	  var GrossProfitMargin       = [localStorage.GrossProfitMargin0,localStorage.GrossProfitMargin1,
+	                                 localStorage.GrossProfitMargin2,localStorage.GrossProfitMargin3];
+	  var CosTotal                = [localStorage.CosTotal0,localStorage.CosTotal1,
+	                                 localStorage.CosTotal2,localStorage.CosTotal3];
+	   
+	  var OperatingProfitMargin   = [localStorage.OperatingProfitMargin0,localStorage.OperatingProfitMargin1,
+	                                 localStorage.OperatingProfitMargin2,localStorage.OperatingProfitMargin3];
+ 
+      var NetProfitMargin         = [localStorage.NetProfitMargin0,localStorage.NetProfitMargin1,
+	                                 localStorage.NetProfitMargin2,localStorage.NetProfitMargin3];
+	  
+	  
+	  
+	  var WeightedSalesLine = [WeightedSales,WeightedSales,WeightedSales,WeightedSales];
+	  
+	  var Years         = [localStorage.financial_year0, localStorage.financial_year1,
+	                       localStorage.financial_year2, localStorage.financial_year3];
+	  
+	  
+	  var ZScores       = [localStorage.ZScore0        ,localStorage.ZScore1,
+	                       localStorage.ZScore2        ,localStorage.ZScore3];
+	  var ZScorePrimes  = [localStorage.ZScorePrime0   ,localStorage.ZScorePrime1,
+	                       localStorage.ZScorePrime2   ,localStorage.ZScorePrime3];
+	  
+	  //Set color codes for Z Scores
+	  if      (Number(localStorage.ZScore0) >= 3)  { var ZScoreColor0 = "green";}
+	  else if (Number(localStorage.ZScore0) < 1.8) { var ZScoreColor0 = "red";}
+	  else if (Number(localStorage.ZScore0) >= 1.8 && Number(localStorage.ZScore0) < 3)
+                                               	   { var ZScoreColor0 = "grey";}
+
+	  if      (Number(localStorage.ZScore1) >= 3)  { var ZScoreColor1 = "green";}
+	  else if (Number(localStorage.ZScore1) < 1.8) { var ZScoreColor1 = "red";}
+	  else if (Number(localStorage.ZScore1) >= 1.8 && Number(localStorage.ZScore2) < 3)
+                                               	   { var ZScoreColor1 = "grey";}
+	  
+	  if      (Number(localStorage.ZScore2) >= 3)  { var ZScoreColor2 = "green";}
+	  else if (Number(localStorage.ZScore2) < 1.8) { var ZScoreColor2 = "red";}
+	  else if (Number(localStorage.ZScore2) >= 1.8 && Number(localStorage.ZScore2) < 3)
+                                               	   { var ZScoreColor2 = "grey";}
+
+	  if      (Number(localStorage.ZScore3) >= 3)  { var ZScoreColor3 = "green";}
+	  else if (Number(localStorage.ZScore3) < 1.8) { ZScoreColor3 = "red";}
+	  else if (Number(localStorage.ZScore3) >= 1.8 && Number(localStorage.ZScore3) < 3)
+                                               	   { var ZScoreColor3 = "grey";}
+	  
+	  if      (Number(localStorage.ZScoreWeighted) >= 3)  { var ZScoreColorWeighted = "green";}
+	  else if (Number(localStorage.ZScoreWeighted) < 1.8) { var ZScoreColorWeighted = "red";}
+	  else if (Number(localStorage.ZScoreWeighted) >= 1.8 && Number(localStorage.ZScoreWeighted) < 3)
+                                               	   { var ZScoreColorWeighted = "grey";}
+	   
+	  var Colors                       = ['purple','purple','purple','purple'];
+	  var ZScoreColors                 = [ZScoreColor0,ZScoreColor1,ZScoreColor2,ZScoreColor3];
+	  
+
+	  var ZScore_ctx = document.getElementById('ZScoreChart').getContext('2d');
+      
+	  var ZScorechart = new Chart(ZScore_ctx, {
+      // The type of chart we want to create
+      type: 'bar',   //line pie  bar
+
+      // The data for our dataset
+      data: {
+          labels: Years,
+          datasets: [{
+		      label: 'Bankrupcy Cut-off',
+			  data : [1.8,1.8,1.8,1.8],
+			  type : 'line',
+			  borderColor: 'red'
+			  //order:2
+		  },
+		  {
+              label: 'ZScores',
+              backgroundColor: ZScoreColors,
+              //borderColor: 'blue',
+              data:ZScores,
+			  borderWidth:4,
+			  hoverBorderWidth: 3,
+			  hoverBorderColor: 'black'
+			  //order:1
+          }]
+      },
+     // Configuration options go here
+      options: {
+	     scales:{
+		    
+			yAxes: [{
+              display: true,
+              ticks: {
+                suggestedMin: 0,    // minimum will be 0, unless there is a lower value.
+                // OR //
+                beginAtZero: true   // minimum value will be 0.
+              }
+            }]
+         },
+		 
+		 title:{
+		    display:true,
+			text   :'Z Scores',
+			fontSize:25
+		 },
+		 legend:{
+		    display  : true,
+			position : 'right',
+			fontColor: 'black'
+		 },
+		 layout:{
+		    padding:{
+			  left:0,
+			  right:0,
+			  bottom:0,
+			  top:0
+			}
+		 },
+		 tooltips:{
+		   enabled:true
+		 }
+	  }
+     });
+
+
+	  var ctx = document.getElementById('myChart').getContext('2d');
+      
+	  //Global Options
+	  //Chart.defaults.global.defaultFontFamily ='Lato';
+	  //Chart.defaults.global.defaultFontSize  = 18;
+	 /// Chart.defaults.global.defaultFontColor = 'lightgrey';
+	  
+	  
+	  
+	  var chart = new Chart(ctx, {
+      // The type of chart we want to create
+      type: 'bar',   //line pie  bar
+
+      // The data for our dataset
+      data: {
+          labels: Years,
+          datasets: [{
+              label: 'Turnover Trend',
+              backgroundColor: Colors,
+              borderColor: 'blue',
+              data:NetSales,
+			  borderWidth:4,
+			  hoverBorderWidth: 3,
+			  hoverBorderColor: 'black'
+          }]
+      },
+     // Configuration options go here
+      options: {
+	     scales:{
+		    yAxes: [{
+              display: true,
+              ticks: {
+                suggestedMin: 0,    // minimum will be 0, unless there is a lower value.
+                // OR //
+                beginAtZero: true   // minimum value will be 0.
+              }
+            }]
+         },
+		 
+		 title:{
+		    display:true,
+			text   :'Turnover Trend',
+			fontSize:25
+		 },
+		 legend:{
+		    display  : true,
+			position : 'right',
+			fontColor: 'black'
+		 },
+		 layout:{
+		    padding:{
+			  left:50,
+			  right:0,
+			  bottom:0,
+			  top:0
+			}
+		 },
+		 tooltips:{
+		   enabled:true
+		 }
+	  }
+     });
+	 
+  var ctx1 = document.getElementById('myChart1').getContext('2d');
+  
+  var SalesChart = new Chart(ctx1, {
+      // The type of chart we want to create
+      type: 'bar',   //ine pie  bar
+
+      // The data for our dataset
+     data: {
+          labels: Years,
+          datasets: [{
+              label: 'Turnover Trend',
+              backgroundColor: 'grey',
+             // borderColor: 'blue',
+              data:NetSales,
+			  borderWidth:4,
+			  hoverBorderWidth: 3,
+			  hoverBorderColor: 'black',
+			  order:2
+          },{
+              label: 'Weighted Turnover',
+              //backgroundColor: Colors,
+              borderColor: 'red',
+              data:WeightedSalesLine,
+			  borderWidth:4,
+			  hoverBorderWidth: 3,
+			  hoverBorderColor: 'black',
+ 		      type : 'line',
+		      order: 1
+		  },{
+             label: 'Gross Profit',
+              //backgroundColor: Colors,
+              borderColor: 'red',
+              data:GrossProfit,
+			  borderWidth:4,
+			  hoverBorderWidth: 3,
+			  hoverBorderColor: 'black',
+ 		      type : 'bar',
+		      order: 1
+		  }]
+      },
+     // Configuration options go here
+      options: {
+	     scales:{
+		    yAxes: [{
+              display: true,
+              ticks: {
+                suggestedMin: 0,    // minimum will be 0, unless there is a lower value.
+                // OR //
+                beginAtZero: true   // minimum value will be 0.
+              }
+            }]
+         },
+		 
+		 title:{
+		    display:true,
+			text   :'Turnover Trend',
+			fontSize:25
+		 },
+		 legend:{
+		    display  : true,
+			position : 'right',
+			fontColor: 'black'
+		 },
+		 layout:{
+		    padding:{
+			  left:50,
+			  right:0,
+			  bottom:0,
+			  top:0
+			}
+		 },
+		 tooltips:{
+		   enabled:true
+		 }
+	  }
+     });
+	 
+	 
+var ctx2 = document.getElementById('stackedChart').getContext('2d');
+var stackedBar = new Chart(ctx2, {
+  type: 'bar',
+  data: {
+    labels: ['Red', 'Blue', 'Yellow'],
+    datasets: [{
+        label: '# of Votes',
+        data: [12, 19, 3],
+        backgroundColor: [
+          'rgba(255, 99, 132, 0.2)',
+          'rgba(54, 162, 235, 0.2)',
+          'rgba(255, 206, 86, 0.2)',
+        ],
+        borderColor: [
+          'rgba(255, 99, 132, 1)',
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+        ],
+        borderWidth: 1
+      },
+      {
+        label: '# of Votes',
+        data: [10, 28, 23],
+        borderWidth: 1
+      }
+    ]
+  },
+  options: {
+    scales: {
+      xAxes: [{
+        stacked: true
+      }],
+      yAxes: [{
+        stacked: true
+      }]
+    }
+  }
+});
+  </script>
+
+</body>
+
+
+<html>

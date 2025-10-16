@@ -1,0 +1,26 @@
+<!--HTML5 - IndexedDB
+
+ Previous PageNext Page  
+The indexeddb is a new HTML5 concept to store the data inside user's browser. indexeddb is more power than local storage and useful for applications that requires to store large amount of the data. These applications can run more efficiency and load faster.
+
+Why to use indexeddb?
+The W3C has announced that the Web SQL database is a deprecated local storage specification so web developer should not use this technology any more. indexeddb is an alternative for web SQL data base and more effective than older technologies.
+
+Features
+it stores key-pair values
+it is not a relational database
+IndexedDB API is mostly asynchronous
+it is not a structured query language
+it has supported to access the data from same domain
+-->
+
+
+
+<html>
+
+<head>
+
+</head>
+
+</body>
+

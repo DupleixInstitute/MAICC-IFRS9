@@ -1,0 +1,1362 @@
+<html>
+
+<head>
+    <script type="text/javascript" src="jquery-3.5.1.js"></script>
+	<script type="text/javascript" src="jquery.number.js"></script>
+	<script>
+        $(function()
+		    {
+				//Setting up the number.js number formatting
+			    $('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			
+				
+				
+				//Load Data
+				LoadMainWeights(document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"]);
+				
+				LoadData();
+				RecalculateForm()
+	
+				
+				
+			}); 
+		function RecalculateForm()
+		{
+				sfRecalculate(document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"]);
+				bfRecalculate(document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"]);
+	
+				RecalculateIndustryAnalysis(document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"]);
+				RecalculateBehavioralAnalysis(document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"]);
+				RecalculateShareholderAnalysis(document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"]);
+				RecalculateManagementAnalysisWeights(document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"]);
+
+		}
+		
+		function LoadMainWeights()
+		
+		{
+              // Loading Big Firms Data
+			  document.forms["ManagementAnalysisForm"]["bfFinancialAnalysisPercentage"].value = ToNumber(localStorage.bfFinancialAnalysis);
+		      document.forms["ManagementAnalysisForm"]["bfManagementAnalysisPercentage"].value = ToNumber(localStorage.bfManagementAnalysis);
+		      document.forms["ManagementAnalysisForm"]["bfIndustryAnalysisPercentage"].value = ToNumber(localStorage.bfIndustryAnalysis);
+		      document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisPercentage"].value = ToNumber(localStorage.bfShareholderAnalysis);
+		      document.forms["ManagementAnalysisForm"]["bfBehavioralAnalysisPercentage"].value = ToNumber(localStorage.bfEstablishmentAnalysis);
+		      document.forms["ManagementAnalysisForm"]["bfTotalScore"].value = ToNumber(localStorage.bfTotalScore);
+		      // Loading Small Firms Data
+              document.forms["ManagementAnalysisForm"]["sfFinancialAnalysisPercentage"].value = ToNumber(localStorage.sfFinancialAnalysis) ;
+		      document.forms["ManagementAnalysisForm"]["sfManagementAnalysisPercentage"].value = ToNumber(localStorage.sfManagementAnalysis);
+		      document.forms["ManagementAnalysisForm"]["sfIndustryAnalysisPercentage"].value = ToNumber(localStorage.sfIndustryAnalysis);
+		      document.forms["ManagementAnalysisForm"]["sfShareholderAnalysisPercentage"].value = ToNumber(localStorage.sfShareholderAnalysis);
+		      document.forms["ManagementAnalysisForm"]["sfBehavioralAnalysisPercentage"].value = ToNumber(localStorage.sfEstablishmentAnalysis);
+		      document.forms["ManagementAnalysisForm"]["sfTotalScore"].value = ToNumber(localStorage.bfTotalScore);
+		  }
+		
+		function SaveData()
+		
+		{   
+			  //SAVING MANAGEMENT ANALYSIS CATEGORY WEIGHTS 
+			  //1. Sub Group Weights
+			  localStorage.CommitmentCategoryWeight = document.forms["ManagementAnalysisForm"]["CommitmentCategoryWeight"].value;
+		      localStorage.IntegrityCategoryWeight = document.forms["ManagementAnalysisForm"]["IntegrityCategoryWeight"].value;
+			  localStorage.InformationQualityCategoryWeight = document.forms["ManagementAnalysisForm"]["InformationQualityCategoryWeight"].value;
+			  localStorage.LeadershipCategoryWeight = document.forms["ManagementAnalysisForm"]["LeadershipCategoryWeight"].value;
+			  localStorage.StrategyCategoryWeight = document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"].value;
+			  localStorage.StructureCategoryWeight = document.forms["ManagementAnalysisForm"]["StructureCategoryWeight"].value;
+			  localStorage.SuccessionPlanCategoryWeight = document.forms["ManagementAnalysisForm"]["SuccessionPlanCategoryWeight"].value;
+			  localStorage.OrganisationalDesignCategoryWeight = document.forms["ManagementAnalysisForm"]["OrganisationalDesignCategoryWeight"].value;
+              //2. Effective Weights
+			  
+			  //1.Big Firms
+			  localStorage.CommitmentCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfCommitmentCategoryEffectiveWeight"].value;
+		      localStorage.IntegrityCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfIntegrityCategoryEffectiveWeight"].value;
+			  localStorage.InformationQualityCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfInformationQualityCategoryEffectiveWeight"].value;
+			  localStorage.LeadershipCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfLeadershipCategoryEffectiveWeight"].value;
+			  localStorage.StrategyCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfStrategyCategoryEffectiveWeight"].value;
+			  localStorage.StructureCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfStructureCategoryEffectiveWeight"].value;
+			  localStorage.ManagementCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfManagementCategoryEffectiveWeight"].value;
+			  localStorage.SuccessionPlanCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfSuccessionPlanCategoryEffectiveWeight"].value;
+			  localStorage.OrganisationalDesignCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["bfOrganisationalDesignCategoryEffectiveWeight"].value;
+ 			  //2.Big Firms
+			  localStorage.CommitmentCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfCommitmentCategoryEffectiveWeight"].value;
+		      localStorage.IntegrityCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfIntegrityCategoryEffectiveWeight"].value;
+			  localStorage.InformationQualityCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfInformationQualityCategoryEffectiveWeight"].value;
+			  localStorage.LeadershipCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfLeadershipCategoryEffectiveWeight"].value;
+			  localStorage.StrategyCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfStrategyCategoryEffectiveWeight"].value;
+			  localStorage.StructureCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfStructureCategoryEffectiveWeight"].value;
+			  localStorage.ManagementCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfManagementCategoryEffectiveWeight"].value;
+			  localStorage.SuccessionPlanCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfSuccessionPlanCategoryEffectiveWeight"].value;
+			  localStorage.OrganisationalDesignCategoryEffectiveWeight = document.forms["ManagementAnalysisForm"]["sfOrganisationalDesignCategoryEffectiveWeight"].value;
+   	  			
+			 //SAVING INDUSTRY ANALYSIS METRICS
+			  //1. Sub Group Weights
+			  localStorage.BusinessCyclicalityWeight = Number(document.forms["ManagementAnalysisForm"]["BusinessCyclicalityWeight"].value);
+			  localStorage.IndustryPerformanceWeight = Number(document.forms["ManagementAnalysisForm"]["IndustryPerformanceWeight"].value);
+		      localStorage.PortersWeight = Number(document.forms["ManagementAnalysisForm"]["PortersWeight"].value);
+              //2. Effective Weights
+			  //Big Firms
+			  localStorage.BusinessCyclicalityEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["bfBusinessCyclicalityEffectiveWeight"].value);
+		      localStorage.IndustryPerformanceEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["bfIndustryPerformanceEffectiveWeight"].value);
+		      localStorage.PortersEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["bfPortersEffectiveWeight"].value);
+ 			 //Small Firms
+			  localStorage.BusinessCyclicalityEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfBusinessCyclicalityEffectiveWeight"].value);
+		      localStorage.IndustryPerformanceEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfIndustryPerformanceEffectiveWeight"].value);
+		      localStorage.PortersEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfPortersEffectiveWeight"].value);
+ 			  
+			  //SAVING SHAREHOLDER ANALYSIS METRICS
+			  //1. Sub Group Weights
+			  localStorage.OwnersPaidDebtExceedsDefaultsWeight = Number(document.forms["ManagementAnalysisForm"]["OwnersPaidDebtExceedsDefaultsWeight"].value);
+		      localStorage.OwnersNoOfJudgementsWeight = Number(document.forms["ManagementAnalysisForm"]["OwnersNoOfJudgementsWeight"].value);
+		      localStorage.OwnersNoOfDefaultsWeight = Number(document.forms["ManagementAnalysisForm"]["OwnersNoOfDefaultsWeight"].value);
+		      localStorage.OwnersNoOfTraceAlertsWeight = Number(document.forms["ManagementAnalysisForm"]["OwnersNoOfTraceAlertsWeight"].value);  
+              //2. Effective Weights
+ 			  //Big Firms
+			  localStorage.OwnersPaidDebtExceedsDefaultsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfOwnersPaidDebtExceedsDefaultsEffectiveWeight"].value);
+		      localStorage.OwnersNoOfJudgementsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfOwnersNoOfJudgementsEffectiveWeight"].value);
+		      localStorage.OwnersNoOfDefaultsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfOwnersNoOfDefaultsEffectiveWeight"].value);
+		      localStorage.OwnersNoOfTraceAlertsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfOwnersNoOfTraceAlertsEffectiveWeight"].value);  
+              //Small Firms
+			  localStorage.OwnersPaidDebtExceedsDefaultsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfOwnersPaidDebtExceedsDefaultsEffectiveWeight"].value);
+		      localStorage.OwnersNoOfJudgementsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfOwnersNoOfJudgementsEffectiveWeight"].value);
+		      localStorage.OwnersNoOfDefaultsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfOwnersNoOfDefaultsEffectiveWeight"].value);
+		      localStorage.OwnersNoOfTraceAlertsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfOwnersNoOfTraceAlertsEffectiveWeight"].value);
+           
+			  //SAVING BEHAVIORAL AND PRODUCTS ANALYSIS
+			  //1. Sub Group Weights
+			  localStorage.LoanRateTypeWeight = ToNumber(document.forms["ManagementAnalysisForm"]["LoanRateTypeWeight"].value);
+			  localStorage.LoanMaturityWeight = ToNumber(document.forms["ManagementAnalysisForm"]["LoanMaturityWeight"].value);
+			  localStorage.BBSBankingRelationshipYearsWeight = ToNumber(document.forms["ManagementAnalysisForm"]["BBSBankingRelationshipYearsWeight"].value);
+			  localStorage.BBSBankingProductsNoWeight = ToNumber(document.forms["ManagementAnalysisForm"]["BBSBankingProductsNoWeight"].value);
+			  localStorage.PastYearArrearIncidentsNoWeight = ToNumber(document.forms["ManagementAnalysisForm"]["PastYearArrearIncidentsNoWeight"].value);
+			  localStorage.Past2YearsArrearLoansRenegotiatedNoWeight = ToNumber(document.forms["ManagementAnalysisForm"]["Past2YearsArrearLoansRenegotiatedNoWeight"].value);
+			  localStorage.PaidDebtExceedsDefaultsWeight = ToNumber(document.forms["ManagementAnalysisForm"]["PaidDebtExceedsDefaultsWeight"].value);
+		      localStorage.NoOfJudgementsWeight = ToNumber(document.forms["ManagementAnalysisForm"]["NoOfJudgementsWeight"].value);
+		      localStorage.NoOfDefaultsWeight = ToNumber(document.forms["ManagementAnalysisForm"]["NoOfDefaultsWeight"].value);
+		      localStorage.NoOfTraceAlertsWeight = ToNumber(document.forms["ManagementAnalysisForm"]["NoOfTraceAlertsWeight"].value);  
+              //2. Effective Weights
+			  //Big Firms
+			  localStorage.LoanRateTypeEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfLoanRateTypeEffectiveWeight"].value);
+			  localStorage.LoanMaturityEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfLoanMaturityEffectiveWeight"].value);
+			  localStorage.BBSBankingRelationshipYearsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfBBSBankingRelationshipYearsEffectiveWeight"].value);
+			  localStorage.BBSBankingProductsNoEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfBBSBankingProductsNoEffectiveWeight"].value);
+			  localStorage.PastYearArrearIncidentsNoEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfPastYearArrearIncidentsNoEffectiveWeight"].value);
+			  localStorage.Past2YearsArrearLoansRenegotiatedNoEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfPast2YearsArrearLoansRenegotiatedNoEffectiveWeight"].value);
+			  localStorage.PaidDebtExceedsDefaultsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfPaidDebtExceedsDefaultsEffectiveWeight"].value);
+		      localStorage.NoOfJudgementsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfNoOfJudgementsEffectiveWeight"].value);
+		      localStorage.NoOfDefaultsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfNoOfDefaultsEffectiveWeight"].value);
+		      localStorage.NoOfTraceAlertsEffectiveWeight = ToNumber(document.forms["ManagementAnalysisForm"]["bfNoOfTraceAlertsEffectiveWeight"].value);  
+   			  
+			  //Small Firms
+			  localStorage.LoanRateTypeEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfLoanRateTypeEffectiveWeight"].value);
+			  localStorage.LoanMaturityEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfLoanMaturityEffectiveWeight"].value);
+			  localStorage.BBSBankingRelationshipYearsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfBBSBankingRelationshipYearsEffectiveWeight"].value);
+			  localStorage.BBSBankingProductsNoEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfBBSBankingProductsNoEffectiveWeight"].value);
+			  localStorage.PastYearArrearIncidentsNoEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfPastYearArrearIncidentsNoEffectiveWeight"].value);
+			  localStorage.Past2YearsArrearLoansRenegotiatedNoEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfPast2YearsArrearLoansRenegotiatedNoEffectiveWeight"].value);
+			  localStorage.PaidDebtExceedsDefaultsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfPaidDebtExceedsDefaultsEffectiveWeight"].value);
+		      localStorage.NoOfJudgementsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfNoOfJudgementsEffectiveWeight"].value);
+		      localStorage.NoOfDefaultsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfNoOfDefaultsEffectiveWeight"].value);
+		      localStorage.NoOfTraceAlertsEffectiveWeight = Number(document.forms["ManagementAnalysisForm"]["sfNoOfTraceAlertsEffectiveWeight"].value);  
+              
+			  //Saving Turnover Threshold and Ratio Weights
+			  localStorage.TurnoverThreshold = ToNumber(document.forms["ManagementAnalysisForm"]["TurnoverThreshold"].value);  
+        	  localStorage.RatioWeightYear1 = ToNumber(document.forms["ManagementAnalysisForm"]["RatioWeightYear1"].value);  
+       	      localStorage.RatioWeightYear2 = ToNumber(document.forms["ManagementAnalysisForm"]["RatioWeightYear2"].value);  
+       	      localStorage.RatioWeightYear3 = ToNumber(document.forms["ManagementAnalysisForm"]["RatioWeightYear3"].value);  
+              
+			   // alert successful saving operation
+			   alert ("Settings successfully saved");
+		}
+       
+	   function round(number,decimalPlaces)
+	   {
+	      var factorOf10 = Math.pow(10,decimalPlaces);
+		  return Math.round(number * factorOf10) / factorOf10;
+	   }
+	   
+	   
+	   function ToNumber(nStr) 
+		{
+	      //alert (IsNan(nStr));
+		  if (nStr == "infinity")
+		     {
+		       return 0;
+		     }
+		  else
+		     {  
+			   if   (typeof(nStr) == "undefined")
+		            {  return 0;}
+		       else  
+		            {
+		            if (nStr == "") {return 0};
+		            if (nStr != "") 
+					   {
+					       var UnRoundedNumber = parseFloat(nStr.replace(/,/g,''));
+						   return round(UnRoundedNumber,2);
+					   }
+		            }
+	         }  
+	    }
+	   
+	   function LoadData()
+		
+		{   
+			 
+			 
+			 
+			 //Loading Management Analysis Category Weights  
+			  
+			  document.forms["ManagementAnalysisForm"]["CommitmentCategoryWeight"].value = ToNumber(localStorage.CommitmentCategoryWeight);
+		      document.forms["ManagementAnalysisForm"]["IntegrityCategoryWeight"].value = ToNumber(localStorage.IntegrityCategoryWeight);
+			  document.forms["ManagementAnalysisForm"]["InformationQualityCategoryWeight"].value = ToNumber(localStorage.InformationQualityCategoryWeight);
+			  document.forms["ManagementAnalysisForm"]["LeadershipCategoryWeight"].value = ToNumber(localStorage.LeadershipCategoryWeight);
+			  document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"].value = ToNumber(localStorage.StrategyCategoryWeight);
+		      document.forms["ManagementAnalysisForm"]["StructureCategoryWeight"].value = ToNumber(localStorage.StructureCategoryWeight);
+		      document.forms["ManagementAnalysisForm"]["ManagementCategoryWeight"].value = ToNumber(localStorage.ManagementCategoryWeight);                           
+			  document.forms["ManagementAnalysisForm"]["SuccessionPlanCategoryWeight"].value = ToNumber(localStorage.SuccessionPlanCategoryWeight);
+		      document.forms["ManagementAnalysisForm"]["OrganisationalDesignCategoryWeight"].value = ToNumber(localStorage.OrganisationalDesignCategoryWeight);
+		      
+			  
+			  //Loading Industry Analysis Weights
+			  document.forms["ManagementAnalysisForm"]["BusinessCyclicalityWeight"].value = ToNumber(localStorage.BusinessCyclicalityWeight);
+		      document.forms["ManagementAnalysisForm"]["IndustryPerformanceWeight"].value = ToNumber(localStorage.IndustryPerformanceWeight);
+		      document.forms["ManagementAnalysisForm"]["PortersWeight"].value = ToNumber(localStorage.PortersWeight);
+              
+			  //Loading Shareholder Analysis Weights
+			  document.forms["ManagementAnalysisForm"]["OwnersPaidDebtExceedsDefaultsWeight"].value = ToNumber(localStorage.OwnersPaidDebtExceedsDefaultsWeight);
+		      document.forms["ManagementAnalysisForm"]["OwnersNoOfJudgementsWeight"].value = ToNumber(localStorage.OwnersNoOfJudgementsWeight);
+		 	  document.forms["ManagementAnalysisForm"]["OwnersNoOfDefaultsWeight"].value = ToNumber(localStorage.OwnersNoOfDefaultsWeight);  
+     	 	  document.forms["ManagementAnalysisForm"]["OwnersNoOfTraceAlertsWeight"].value = ToNumber(localStorage.OwnersNoOfTraceAlertsWeight);  
+           
+		   	            
+						
+		      //Loading Behavioral& Product Analysis Weights
+			  document.forms["ManagementAnalysisForm"]["LoanRateTypeWeight"].value = ToNumber(localStorage.LoanRateTypeWeight);
+			  document.forms["ManagementAnalysisForm"]["LoanMaturityWeight"].value = ToNumber(localStorage.LoanMaturityWeight);
+		      document.forms["ManagementAnalysisForm"]["BBSBankingRelationshipYearsWeight"].value = ToNumber(localStorage.BBSBankingRelationshipYearsWeight);
+		 	  document.forms["ManagementAnalysisForm"]["BBSBankingProductsNoWeight"].value = ToNumber(localStorage.BBSBankingProductsNoWeight);  
+     	 	  document.forms["ManagementAnalysisForm"]["PastYearArrearIncidentsNoWeight"].value = ToNumber(localStorage.PastYearArrearIncidentsNoWeight);  
+              document.forms["ManagementAnalysisForm"]["Past2YearsArrearLoansRenegotiatedNoWeight"].value = ToNumber(localStorage.Past2YearsArrearLoansRenegotiatedNoWeight);  
+ 	          document.forms["ManagementAnalysisForm"]["PaidDebtExceedsDefaultsWeight"].value = ToNumber(localStorage.PaidDebtExceedsDefaultsWeight);
+		      document.forms["ManagementAnalysisForm"]["NoOfJudgementsWeight"].value = ToNumber(localStorage.NoOfJudgementsWeight);
+		 	  document.forms["ManagementAnalysisForm"]["NoOfDefaultsWeight"].value = ToNumber(localStorage.NoOfDefaultsWeight);  
+     	 	  document.forms["ManagementAnalysisForm"]["NoOfTraceAlertsWeight"].value = ToNumber(localStorage.NoOfTraceAlertsWeight);  
+              //Loading Turnover Threshold and Ratio Weights
+			  document.forms["ManagementAnalysisForm"]["TurnoverThreshold"].value = Thousands_Separators(localStorage.TurnoverThreshold);  
+        	  document.forms["ManagementAnalysisForm"]["RatioWeightYear1"].value = localStorage.RatioWeightYear1;  
+       	      document.forms["ManagementAnalysisForm"]["RatioWeightYear2"].value = localStorage.RatioWeightYear2;  
+       	      document.forms["ManagementAnalysisForm"]["RatioWeightYear3"].value = localStorage.RatioWeightYear3;  
+               
+		}
+     
+		
+		function RecalculateManagementAnalysisWeights(elem)
+		{
+           if (isNaN(elem.value))
+		   {
+		     alert ("Please enter numbers only");
+			 elem.value =""; 
+		   }
+           else
+		   {
+		      //Open Financial Analysis Table from database transfer to temporary variables
+              var TotalScore = ToNumber(localStorage.bfTotalScore);
+			  var bfManagementAnalysisCategoryWeight =ToNumber(localStorage.bfManagementAnalysis);
+			  var sfManagementAnalysisCategoryWeight =ToNumber(localStorage.sfManagementAnalysis);
+			  
+			  var bfManagementAnalysisCategoryScore =ToNumber(document.forms["ManagementAnalysisForm"]["bfManagementAnalysisScore"].value);
+			  var sfManagementAnalysisCategoryScore =ToNumber(document.forms["ManagementAnalysisForm"]["sfManagementAnalysisScore"].value);
+
+			  //Convert Financial Analysis Category Weights on document to numbers and hold in temproary variables
+			  var CommitmentCategoryWeight = Number(document.forms["ManagementAnalysisForm"]["CommitmentCategoryWeight"].value);
+		      var IntegrityCategoryWeight = Number(document.forms["ManagementAnalysisForm"]["IntegrityCategoryWeight"].value);
+		      var InformationQualityCategoryWeight = Number(document.forms["ManagementAnalysisForm"]["InformationQualityCategoryWeight"].value);
+		 	  var LeadershipCategoryWeight = Number(document.forms["ManagementAnalysisForm"]["LeadershipCategoryWeight"].value);
+ 			  var StrategyCategoryWeight = Number(document.forms["ManagementAnalysisForm"]["StrategyCategoryWeight"].value);
+		 	  var StructureCategoryWeight = Number(document.forms["ManagementAnalysisForm"]["StructureCategoryWeight"].value);
+		 	  var ManagementCategoryWeight = Number(document.forms["ManagementAnalysisForm"]["ManagementCategoryWeight"].value);
+		 	  var SuccessionPlanCategoryWeight = Number(document.forms["ManagementAnalysisForm"]["SuccessionPlanCategoryWeight"].value);
+		 	
+			  var TotalManagementAnalysisInputsOnly = CommitmentCategoryWeight + IntegrityCategoryWeight + InformationQualityCategoryWeight+LeadershipCategoryWeight+StrategyCategoryWeight+StructureCategoryWeight+ManagementCategoryWeight+SuccessionPlanCategoryWeight;
+		      var BalancingWeight = 100 - TotalManagementAnalysisInputsOnly;
+      	
+			  
+			  if (TotalManagementAnalysisInputsOnly > 100)
+		      {
+		         alert("Total score may not exceed 100%");
+				 elem.value = "";
+				 
+		      }
+              else  
+			    
+			  {
+			     
+				 document.forms["ManagementAnalysisForm"]["OrganisationalDesignCategoryWeight"].value = BalancingWeight;
+        
+				 //Calculate Score Allocation = Total Score X Financial Category Weight X Sub-category Weight 
+			     
+				 //1. Score Calculation - Big Firms
+				 var bfCommitmentCategoryScore = TotalScore * bfManagementAnalysisCategoryWeight * CommitmentCategoryWeight/10000;
+				 var bfIntegrityCategoryScore = TotalScore * bfManagementAnalysisCategoryWeight * IntegrityCategoryWeight/10000;
+				 var bfInformationQualityCategoryScore = TotalScore * bfManagementAnalysisCategoryWeight * InformationQualityCategoryWeight/10000;
+				 var bfLeadershipCategoryScore = TotalScore * bfManagementAnalysisCategoryWeight * LeadershipCategoryWeight/10000;
+				 var bfStrategyCategoryScore = TotalScore * bfManagementAnalysisCategoryWeight * StrategyCategoryWeight/10000;
+				 var bfStructureCategoryScore = TotalScore * bfManagementAnalysisCategoryWeight * StructureCategoryWeight/10000;
+				 var bfManagementCategoryScore = TotalScore * bfManagementAnalysisCategoryWeight * ManagementCategoryWeight/10000;
+				 var bfSuccessionPlanCategoryScore = TotalScore * bfManagementAnalysisCategoryWeight * SuccessionPlanCategoryWeight/10000;
+			     var bfTotalManagementAnalysisCategoryScoreBeforeLast = bfCommitmentCategoryScore + bfIntegrityCategoryScore + bfInformationQualityCategoryScore + bfLeadershipCategoryScore+ bfStrategyCategoryScore+bfStructureCategoryScore+bfManagementCategoryScore+bfSuccessionPlanCategoryScore;
+				 var bfBalancingScore = bfManagementAnalysisCategoryScore - bfTotalManagementAnalysisCategoryScoreBeforeLast;
+				 
+				 //2. Score Calculation - Small Firms
+				 var sfCommitmentCategoryScore = TotalScore * sfManagementAnalysisCategoryWeight * CommitmentCategoryWeight/10000;
+				 var sfIntegrityCategoryScore = TotalScore * sfManagementAnalysisCategoryWeight * IntegrityCategoryWeight/10000;
+				 var sfInformationQualityCategoryScore = TotalScore * sfManagementAnalysisCategoryWeight * InformationQualityCategoryWeight/10000;
+				 var sfLeadershipCategoryScore = TotalScore * sfManagementAnalysisCategoryWeight * LeadershipCategoryWeight/10000;
+				 var sfStrategyCategoryScore = TotalScore * sfManagementAnalysisCategoryWeight * StrategyCategoryWeight/10000;
+				 var sfStructureCategoryScore = TotalScore * sfManagementAnalysisCategoryWeight * StructureCategoryWeight/10000;
+				 var sfManagementCategoryScore = TotalScore * sfManagementAnalysisCategoryWeight * ManagementCategoryWeight/10000;
+				 var sfSuccessionPlanCategoryScore = TotalScore * sfManagementAnalysisCategoryWeight * SuccessionPlanCategoryWeight/10000;
+			     var sfTotalManagementAnalysisCategoryScoreBeforeLast = sfCommitmentCategoryScore + sfIntegrityCategoryScore + sfInformationQualityCategoryScore + sfLeadershipCategoryScore + sfStrategyCategoryScore+ sfStructureCategoryScore+ sfManagementCategoryScore+ sfSuccessionPlanCategoryScore;
+				 var sfBalancingScore = sfManagementAnalysisCategoryScore - sfTotalManagementAnalysisCategoryScoreBeforeLast;
+				
+				 //3. Display Total Scores - Big Firms
+			     document.forms["ManagementAnalysisForm"]["bfCommitmentCategoryScore"].value = bfCommitmentCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["bfIntegrityCategoryScore"].value = bfIntegrityCategoryScore;
+				 document.forms["ManagementAnalysisForm"]["bfInformationQualityCategoryScore"].value = bfInformationQualityCategoryScore;
+				 document.forms["ManagementAnalysisForm"]["bfLeadershipCategoryScore"].value = bfLeadershipCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["bfStrategyCategoryScore"].value = bfStrategyCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["bfStructureCategoryScore"].value = bfStructureCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["bfManagementCategoryScore"].value = bfManagementCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["bfSuccessionPlanCategoryScore"].value = bfSuccessionPlanCategoryScore;
+ 				 document.forms["ManagementAnalysisForm"]["bfTotalManagementAnalysisCategoryScore"].value = bfManagementAnalysisCategoryScore;
+				
+				 //Display Organisational Design as the balancing score to tie to the Management Scores total
+				 document.forms["ManagementAnalysisForm"]["bfOrganisationalDesignCategoryScore"].value = bfBalancingScore;  
+                
+				 //4. Display Total Scores - Small Firms
+			     document.forms["ManagementAnalysisForm"]["sfCommitmentCategoryScore"].value = sfCommitmentCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["sfIntegrityCategoryScore"].value = sfIntegrityCategoryScore;
+				 document.forms["ManagementAnalysisForm"]["sfInformationQualityCategoryScore"].value = sfInformationQualityCategoryScore;
+				 document.forms["ManagementAnalysisForm"]["sfLeadershipCategoryScore"].value = sfLeadershipCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["sfStrategyCategoryScore"].value = sfStrategyCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["sfStructureCategoryScore"].value = sfStructureCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["sfManagementCategoryScore"].value = sfManagementCategoryScore;
+                 document.forms["ManagementAnalysisForm"]["sfSuccessionPlanCategoryScore"].value = sfSuccessionPlanCategoryScore;
+ 				 document.forms["ManagementAnalysisForm"]["sfTotalManagementAnalysisCategoryScore"].value = sfManagementAnalysisCategoryScore;
+				
+				 //Display Organisational Design as the balancing score to tie to the Management Scores total
+				 document.forms["ManagementAnalysisForm"]["sfOrganisationalDesignCategoryScore"].value = sfBalancingScore;  
+                
+				
+				  //5.  Big Firms- Recalculate and Display Effective Weights =  Total Score / Sub-Category Score
+				
+				  var bfCommitmentEffWeight = bfCommitmentCategoryScore/TotalScore * 100;
+				  var bfIntegrityEffWeight = bfIntegrityCategoryScore/TotalScore * 100;
+				  var bfInformationQualityEffWeight = bfInformationQualityCategoryScore/TotalScore * 100;
+				  var bfLeadershipEffWeight = bfLeadershipCategoryScore/TotalScore * 100;
+				  var bfStrategyEffWeight = bfStrategyCategoryScore/TotalScore * 100;
+				  var bfStructureEffWeight = bfStructureCategoryScore/TotalScore * 100;
+				  var bfManagementEffWeight = bfManagementCategoryScore/TotalScore * 100;
+				  var bfSuccessionPlanEffWeight = bfSuccessionPlanCategoryScore/TotalScore * 100;
+			      var bfOrganisationalDesignEffWeight = bfBalancingScore/TotalScore * 100;
+				  var bfTotalMgtCatEffWeight = bfManagementAnalysisCategoryScore/TotalScore * 100;
+			      
+				  //6.  Small Firms- Recalculate and Display Effective Weights =  Total Score / Sub-Category Score
+				
+				  var sfCommitmentEffWeight = sfCommitmentCategoryScore/TotalScore * 100;
+				  var sfIntegrityEffWeight = sfIntegrityCategoryScore/TotalScore * 100;
+				  var sfInformationQualityEffWeight = sfInformationQualityCategoryScore/TotalScore * 100;
+				  var sfLeadershipEffWeight = sfLeadershipCategoryScore/TotalScore * 100;
+				  var sfStrategyEffWeight = sfStrategyCategoryScore/TotalScore * 100;
+				  var sfStructureEffWeight = sfStructureCategoryScore/TotalScore * 100;
+				  var sfManagementEffWeight = sfManagementCategoryScore/TotalScore * 100;
+				  var sfSuccessionPlanEffWeight = sfSuccessionPlanCategoryScore/TotalScore * 100;
+			      var sfOrganisationalDesignEffWeight = sfBalancingScore/TotalScore * 100;
+				  var sfTotalMgtCatEffWeight = sfManagementAnalysisCategoryScore/TotalScore * 100;
+			
+			     //7. Display effective weights - Big Firms
+				 document.forms["ManagementAnalysisForm"]["bfCommitmentCategoryEffectiveWeight"].value = round(bfCommitmentEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfIntegrityCategoryEffectiveWeight"].value = round(bfIntegrityEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfInformationQualityCategoryEffectiveWeight"].value = round(bfInformationQualityEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfLeadershipCategoryEffectiveWeight"].value = round(bfLeadershipEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfStrategyCategoryEffectiveWeight"].value = round(bfStrategyEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfStructureCategoryEffectiveWeight"].value = round(bfStructureEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfManagementCategoryEffectiveWeight"].value = round(bfManagementEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfSuccessionPlanCategoryEffectiveWeight"].value = round(bfSuccessionPlanEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfOrganisationalDesignCategoryEffectiveWeight"].value = round(bfOrganisationalDesignEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["bfTotalManagementAnalysisCategoryEffectiveWeight"].value = round(bfTotalMgtCatEffWeight,1);
+				  //8. Display effective weights - Small Firms
+				 document.forms["ManagementAnalysisForm"]["sfCommitmentCategoryEffectiveWeight"].value = round(sfCommitmentEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfIntegrityCategoryEffectiveWeight"].value = round(sfIntegrityEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfInformationQualityCategoryEffectiveWeight"].value = round(sfInformationQualityEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfLeadershipCategoryEffectiveWeight"].value = round(sfLeadershipEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfStrategyCategoryEffectiveWeight"].value = round(sfStrategyEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfStructureCategoryEffectiveWeight"].value = round(sfStructureEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfManagementCategoryEffectiveWeight"].value = round(sfManagementEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfSuccessionPlanCategoryEffectiveWeight"].value = round(sfSuccessionPlanEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfOrganisationalDesignCategoryEffectiveWeight"].value = round(sfOrganisationalDesignEffWeight,1);
+                 document.forms["ManagementAnalysisForm"]["sfTotalManagementAnalysisCategoryEffectiveWeight"].value = round(sfTotalMgtCatEffWeight,1);
+			   
+			  }
+			}
+		}
+		
+		function RecalculateIndustryAnalysis(elem)
+		{
+           if (isNaN(elem.value))
+		   {
+		     alert ("Please enter numbers only");
+			 elem.value =""; 
+		   }
+           else
+		   {
+		      var BusinessCyclicalityWeight = Number(document.forms["ManagementAnalysisForm"]["BusinessCyclicalityWeight"].value);
+		      var IndustryPerformanceWeight = Number(document.forms["ManagementAnalysisForm"]["IndustryPerformanceWeight"].value);
+		      //var PortersWeight = Number(document.forms["ManagementAnalysisForm"]["PortersWeight"].value);
+		 	  var TotalIndustryWeightInputsOnly = BusinessCyclicalityWeight + IndustryPerformanceWeight;
+		      var BalancingWeight = 100 - TotalIndustryWeightInputsOnly;
+			  
+			  
+			  
+			  if (TotalIndustryWeightInputsOnly > 100)
+		      {
+		         alert("Total score may not exceed 100%");
+				 elem.value = "";
+				 
+		      }
+              else  
+			    // Display Total Score;
+			  {
+			     document.forms["ManagementAnalysisForm"]["PortersWeight"].value =BalancingWeight;  
+                 //Calculate Score Allocation = Total Score X Financial Category Weight X Sub-category Weight 
+			     var TotalScore = ToNumber(localStorage.bfTotalScore);
+				 var bfIndustryCategoryScore = ToNumber(document.forms["ManagementAnalysisForm"]["bfIndustryAnalysisScore"].value);
+ 				 var sfIndustryCategoryScore = ToNumber(document.forms["ManagementAnalysisForm"]["sfIndustryAnalysisScore"].value);
+             
+				 //1. Calculate Scores - Big Firms
+				 var bfBusinessCyclicalityScore = bfIndustryCategoryScore * BusinessCyclicalityWeight/100;
+				 var bfIndustryPerformanceScore = bfIndustryCategoryScore * IndustryPerformanceWeight/100;
+				 var bfTotalIndustryScoreBeforeLast = bfBusinessCyclicalityScore + bfIndustryPerformanceScore;
+				 var bfBalancingScore = bfIndustryCategoryScore - bfTotalIndustryScoreBeforeLast;
+				 //2. Calculate Scores - Small Firms
+				 var sfBusinessCyclicalityScore = sfIndustryCategoryScore * BusinessCyclicalityWeight/100;
+				 var sfIndustryPerformanceScore = sfIndustryCategoryScore * IndustryPerformanceWeight/100;
+				 var sfTotalIndustryScoreBeforeLast = sfBusinessCyclicalityScore + sfIndustryPerformanceScore;
+				 var sfBalancingScore = sfIndustryCategoryScore - sfTotalIndustryScoreBeforeLast;
+				 
+				
+				 //3. Display Total Scores  Big Firms
+			     document.forms["ManagementAnalysisForm"]["bfBusinessCyclicalityScore"].value = round(bfBusinessCyclicalityScore,1);
+                 document.forms["ManagementAnalysisForm"]["bfIndustryPerformanceScore"].value = round(bfIndustryPerformanceScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfPortersScore"].value = round(bfBalancingScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfTotalIndustryAnalysisScore"].value = round(bfIndustryCategoryScore,1);
+				//4. Display Total Scores  Small Firms
+			     document.forms["ManagementAnalysisForm"]["sfBusinessCyclicalityScore"].value = round(sfBusinessCyclicalityScore,1);
+                 document.forms["ManagementAnalysisForm"]["sfIndustryPerformanceScore"].value = round(sfIndustryPerformanceScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfPortersScore"].value = round(sfBalancingScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfTotalIndustryAnalysisScore"].value = round(sfIndustryCategoryScore,1);
+				
+				
+				
+				 //document.forms["ManagementAnalysisForm"]["LeadershipCategoryWeight"].value =Balancing;  
+                
+				//5. Big Firms - Recalculate and Display Effective Weights =  Total Score / Sub-Category Score
+				var bfBusinessCyclicalityEffWeight = bfBusinessCyclicalityScore /TotalScore * 100;
+				var bfIndustryPerformanceEffWeight = bfIndustryPerformanceScore/TotalScore * 100;
+				var bfPortersEffWeight = bfBalancingScore/TotalScore * 100;
+				var bfTotalIndustryAnalysisEffWeight = bfIndustryCategoryScore/TotalScore * 100;
+				//6. Small Firms - Recalculate and Display Effective Weights =  Total Score / Sub-Category Score
+				var sfBusinessCyclicalityEffWeight = sfBusinessCyclicalityScore /TotalScore * 100;
+				var sfIndustryPerformanceEffWeight = sfIndustryPerformanceScore/TotalScore * 100;
+				var sfPortersEffWeight = sfBalancingScore/TotalScore * 100;
+				var sfTotalIndustryAnalysisEffWeight = sfIndustryCategoryScore/TotalScore * 100;
+			
+			    //Display effective weights - Big Firms
+				document.forms["ManagementAnalysisForm"]["bfBusinessCyclicalityEffectiveWeight"].value = round(bfBusinessCyclicalityEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfIndustryPerformanceEffectiveWeight"].value = round(bfIndustryPerformanceEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfPortersEffectiveWeight"].value = round(bfPortersEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfTotalIndustryAnalysisEffectiveWeight"].value = round(bfTotalIndustryAnalysisEffWeight,1);
+				//Display effective weights - Small Firms
+				document.forms["ManagementAnalysisForm"]["sfBusinessCyclicalityEffectiveWeight"].value = round(sfBusinessCyclicalityEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfIndustryPerformanceEffectiveWeight"].value = round(sfIndustryPerformanceEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfPortersEffectiveWeight"].value = round(sfPortersEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfTotalIndustryAnalysisEffectiveWeight"].value = round(sfTotalIndustryAnalysisEffWeight,1);
+				  
+			  } 
+			}
+		}
+        function RecalculateShareholderAnalysis(elem)
+		{
+           if (isNaN(elem.value))
+		   {
+		     alert ("Please enter numbers only");
+			 elem.value =""; 
+		   }
+           else
+		   {
+			  var OwnersPaidDebtExceedsDefaultsWeight = Number(document.forms["ManagementAnalysisForm"]["OwnersPaidDebtExceedsDefaultsWeight"].value);
+		 	  var OwnersNoOfJudgementsWeight = Number(document.forms["ManagementAnalysisForm"]["OwnersNoOfJudgementsWeight"].value);
+		 	  var OwnersNoOfDefaultsWeight = Number(document.forms["ManagementAnalysisForm"]["OwnersNoOfDefaultsWeight"].value);
+			  
+			  var TotalInputsOnly = OwnersPaidDebtExceedsDefaultsWeight+OwnersNoOfJudgementsWeight+OwnersNoOfDefaultsWeight;
+			  var BalancingWeight = 100 - TotalInputsOnly;
+			  
+			  if (TotalInputsOnly > 100)
+		      {
+		         alert("Total score may not exceed 100%");
+				 elem.value = "";
+				 
+		      }
+              else  
+			    // Display Total Score;
+			  {
+			    document.forms["ManagementAnalysisForm"]["OwnersNoOfTraceAlertsWeight"].value =round(BalancingWeight,1);  
+                var TotalScore = ToNumber(localStorage.bfTotalScore);
+				var bfShareholderCategoryScore = ToNumber(document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisScore"].value);
+		 		var sfShareholderCategoryScore = ToNumber(document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisScore"].value);
+		          
+           
+                //1. Calculate Scores : Big Firms
+				var bfOwnersPaidDebtExceedsDefaultsScore = bfShareholderCategoryScore * OwnersPaidDebtExceedsDefaultsWeight/100;
+				var bfOwnersNoOfJudgementsScore = bfShareholderCategoryScore * OwnersNoOfJudgementsWeight/100;
+				var bfOwnersNoOfDefaultsScore = bfShareholderCategoryScore * OwnersNoOfDefaultsWeight/100;
+                //2. Calculate Scores : Small Firms
+				var sfOwnersPaidDebtExceedsDefaultsScore = sfShareholderCategoryScore * OwnersPaidDebtExceedsDefaultsWeight/100;
+				var sfOwnersNoOfJudgementsScore = sfShareholderCategoryScore * OwnersNoOfJudgementsWeight/100;
+				var sfOwnersNoOfDefaultsScore = sfShareholderCategoryScore * OwnersNoOfDefaultsWeight/100;
+       
+	            //reuse the variables on scores to calculate the total of inputs excluding the balancing
+			    //3. Big Firms
+				var bfTotalInputsOnly = bfOwnersPaidDebtExceedsDefaultsScore+bfOwnersNoOfJudgementsScore+sfOwnersNoOfJudgementsScore+bfOwnersNoOfDefaultsScore;
+			    var bfBalancingScore = bfShareholderCategoryScore - bfTotalInputsOnly;
+			    //4. Small Firms
+				var sfTotalInputsOnly = sfOwnersPaidDebtExceedsDefaultsScore+sfOwnersNoOfJudgementsScore+sfOwnersNoOfJudgementsScore+bfOwnersNoOfDefaultsScore;
+			    var sfBalancingScore = sfShareholderCategoryScore - sfTotalInputsOnly;
+				
+				// The OwnersNoOfTraceAlertsScore being the last charecteristic is the balancing score so that sum = Total Behavioral Scores
+			 	//5. Big Firms
+				document.forms["ManagementAnalysisForm"]["bfOwnersNoOfTraceAlertsScore"].value =round(bfBalancingScore,1);  
+            	//6. Small Firms
+				document.forms["ManagementAnalysisForm"]["sfOwnersNoOfTraceAlertsScore"].value =round(sfBalancingScore,1);  
+            
+				
+				 //7. Display Total Scores - Big Firms
+				 document.forms["ManagementAnalysisForm"]["bfOwnersPaidDebtExceedsDefaultsScore"].value = round(bfOwnersPaidDebtExceedsDefaultsScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfOwnersNoOfJudgementsScore"].value = round(bfOwnersNoOfJudgementsScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfOwnersNoOfDefaultsScore"].value = round(bfOwnersNoOfDefaultsScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfTotalShareholderAnalysisScore"].value = round(bfShareholderCategoryScore,1);
+				 //8. Display Total Scores - Small Firms
+				 document.forms["ManagementAnalysisForm"]["sfOwnersPaidDebtExceedsDefaultsScore"].value = round(sfOwnersPaidDebtExceedsDefaultsScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfOwnersNoOfJudgementsScore"].value = round(sfOwnersNoOfJudgementsScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfOwnersNoOfDefaultsScore"].value = round(sfOwnersNoOfDefaultsScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfTotalShareholderAnalysisScore"].value = round(sfShareholderCategoryScore,1);
+				
+                
+				//Recalculate and Display Effective Weights =  Total Score / Sub-Category Score
+				//8. Big Firms
+				bfOwnersPaidDebtExceedsDefaultsEffWeight = bfOwnersPaidDebtExceedsDefaultsScore /TotalScore * 100;
+				bfOwnersNoOfJudgementsEffWeight = bfOwnersNoOfJudgementsScore /TotalScore * 100;
+				bfOwnersNoOfDefaultsEffWeight = bfOwnersNoOfDefaultsScore /TotalScore * 100;
+				bfOwnersNoOfTraceAlertsEffWeight = bfBalancingScore /TotalScore * 100;
+		     	bfTotalShareholderAnalysisEffWeight = bfShareholderCategoryScore/TotalScore * 100;
+			    //9. Small Firms
+				sfOwnersPaidDebtExceedsDefaultsEffWeight = sfOwnersPaidDebtExceedsDefaultsScore /TotalScore * 100;
+				sfOwnersNoOfJudgementsEffWeight = sfOwnersNoOfJudgementsScore /TotalScore * 100;
+				sfOwnersNoOfDefaultsEffWeight = sfOwnersNoOfDefaultsScore /TotalScore * 100;
+				sfOwnersNoOfTraceAlertsEffWeight = sfBalancingScore /TotalScore * 100;
+		     	sfTotalShareholderAnalysisEffWeight = sfShareholderCategoryScore/TotalScore * 100;
+			
+			    //10. Display effective weights - Big Firms
+                document.forms["ManagementAnalysisForm"]["bfOwnersPaidDebtExceedsDefaultsEffectiveWeight"].value = round(bfOwnersPaidDebtExceedsDefaultsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfOwnersNoOfJudgementsEffectiveWeight"].value = round(bfOwnersNoOfJudgementsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfOwnersNoOfDefaultsEffectiveWeight"].value = round(bfOwnersNoOfDefaultsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfOwnersNoOfTraceAlertsEffectiveWeight"].value = round(bfOwnersNoOfTraceAlertsEffWeight,1);
+ 				document.forms["ManagementAnalysisForm"]["bfTotalShareholderAnalysisEffectiveWeight"].value = round(bfTotalShareholderAnalysisEffWeight,1); 		  
+                //11. Display effective weights - Small Firms
+                document.forms["ManagementAnalysisForm"]["sfOwnersPaidDebtExceedsDefaultsEffectiveWeight"].value = round(sfOwnersPaidDebtExceedsDefaultsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfOwnersNoOfJudgementsEffectiveWeight"].value = round(sfOwnersNoOfJudgementsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfOwnersNoOfDefaultsEffectiveWeight"].value = round(sfOwnersNoOfDefaultsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfOwnersNoOfTraceAlertsEffectiveWeight"].value = round(sfOwnersNoOfTraceAlertsEffWeight,1);
+				document.forms["ManagementAnalysisForm"]["sfTotalShareholderAnalysisEffectiveWeight"].value = round(sfTotalShareholderAnalysisEffWeight,1); 		  
+ 
+				
+				
+	          }
+			}
+	}
+		function RecalculateBehavioralAnalysis(elem)
+		{
+           if (isNaN(elem.value))
+		   {
+		     alert ("Please enter numbers only");
+			 elem.value =""; 
+		   }
+           else
+		   {
+
+		      var LoanRateTypeWeight = Number(document.forms["ManagementAnalysisForm"]["LoanRateTypeWeight"].value);
+		      var LoanMaturityWeight = Number(document.forms["ManagementAnalysisForm"]["LoanMaturityWeight"].value);
+		 	  var BBSBankingRelationshipYearsWeight = Number(document.forms["ManagementAnalysisForm"]["BBSBankingRelationshipYearsWeight"].value);
+		 	  var BBSBankingProductsNoWeight = Number(document.forms["ManagementAnalysisForm"]["BBSBankingProductsNoWeight"].value);
+		 	  var PastYearArrearIncidentsNoWeight = Number(document.forms["ManagementAnalysisForm"]["PastYearArrearIncidentsNoWeight"].value);
+		 	  var Past2YearsArrearLoansRenegotiatedNoWeight = Number(document.forms["ManagementAnalysisForm"]["Past2YearsArrearLoansRenegotiatedNoWeight"].value);
+		 	  var PaidDebtExceedsDefaultsWeight = Number(document.forms["ManagementAnalysisForm"]["PaidDebtExceedsDefaultsWeight"].value);
+		 	  var NoOfJudgementsWeight = Number(document.forms["ManagementAnalysisForm"]["NoOfJudgementsWeight"].value);
+		 	  var NoOfDefaultsWeight = Number(document.forms["ManagementAnalysisForm"]["NoOfDefaultsWeight"].value);
+			  
+			  var TotalInputsOnlySubTotal1 = LoanRateTypeWeight + LoanMaturityWeight+BBSBankingRelationshipYearsWeight;
+			  var TotalInputsOnlySubTotal2 = BBSBankingProductsNoWeight+ PastYearArrearIncidentsNoWeight+Past2YearsArrearLoansRenegotiatedNoWeight;
+			  var TotalInputsOnlySubTotal3 = PaidDebtExceedsDefaultsWeight+NoOfJudgementsWeight+NoOfDefaultsWeight;
+		      var TotalInputsOnlyGrandTotal = TotalInputsOnlySubTotal1+TotalInputsOnlySubTotal2+TotalInputsOnlySubTotal3;
+			  var BalancingWeight = 100 - TotalInputsOnlyGrandTotal;
+			  
+			  
+			  
+			  if (TotalInputsOnlyGrandTotal > 100)
+		      {
+		         alert("Total score may not exceed 100%");
+				 elem.value = "";
+				 
+		      }
+             else  
+			    // Display Total Score;
+			  {
+			     document.forms["ManagementAnalysisForm"]["NoOfTraceAlertsWeight"].value =round(BalancingWeight,1);  
+                 var TotalScore = ToNumber(localStorage.bfTotalScore);
+				 var bfBehavioralCategoryScore = ToNumber(document.forms["ManagementAnalysisForm"]["bfBehavioralAnalysisScore"].value);
+		    	 var sfBehavioralCategoryScore = ToNumber(document.forms["ManagementAnalysisForm"]["sfBehavioralAnalysisScore"].value);
+		          
+                //1. Calculate Scores - Big Firms
+				 var bfLoanRateTypeScore = bfBehavioralCategoryScore * LoanRateTypeWeight/100;
+				 var bfLoanMaturityScore = bfBehavioralCategoryScore * LoanMaturityWeight/100;
+				 var bfBBSBankingRelationshipYearsScore = bfBehavioralCategoryScore * BBSBankingRelationshipYearsWeight/100;
+				 var bfBBSBankingProductsNoScore = bfBehavioralCategoryScore * BBSBankingProductsNoWeight/100;
+				 var bfPastYearArrearIncidentsNoScore = bfBehavioralCategoryScore * PastYearArrearIncidentsNoWeight/100;
+     			 var bfPast2YearsArrearLoansRenegotiatedNoScore = bfBehavioralCategoryScore * Past2YearsArrearLoansRenegotiatedNoWeight/100;
+                 var bfPaidDebtExceedsDefaultsScore = bfBehavioralCategoryScore * PaidDebtExceedsDefaultsWeight/100;
+				 var bfNoOfJudgementsScore = bfBehavioralCategoryScore * NoOfJudgementsWeight/100;
+				 var bfNoOfDefaultsScore = bfBehavioralCategoryScore * NoOfDefaultsWeight/100;
+                 //2. Calculate Scores - Small Firms
+				 var sfLoanRateTypeScore = sfBehavioralCategoryScore * LoanRateTypeWeight/100;
+				 var sfLoanMaturityScore = sfBehavioralCategoryScore * LoanMaturityWeight/100;
+				 var sfBBSBankingRelationshipYearsScore = sfBehavioralCategoryScore * BBSBankingRelationshipYearsWeight/100;
+				 var sfBBSBankingProductsNoScore = sfBehavioralCategoryScore * BBSBankingProductsNoWeight/100;
+				 var sfPastYearArrearIncidentsNoScore = sfBehavioralCategoryScore * PastYearArrearIncidentsNoWeight/100;
+     			 var sfPast2YearsArrearLoansRenegotiatedNoScore = sfBehavioralCategoryScore * Past2YearsArrearLoansRenegotiatedNoWeight/100;
+                 var sfPaidDebtExceedsDefaultsScore = sfBehavioralCategoryScore * PaidDebtExceedsDefaultsWeight/100;
+				 var sfNoOfJudgementsScore = sfBehavioralCategoryScore * NoOfJudgementsWeight/100;
+				 var sfNoOfDefaultsScore = sfBehavioralCategoryScore * NoOfDefaultsWeight/100;
+       
+	             //3. reuse the variables on scores to calculate the total of inputs excluding the balancing
+		         //Small Firms
+				 var sfTotalInputsOnlySubTotal1 = sfLoanRateTypeScore + sfLoanMaturityScore+sfBBSBankingRelationshipYearsScore;
+		 	     var sfTotalInputsOnlySubTotal2 = sfBBSBankingProductsNoScore +bfPastYearArrearIncidentsNoScore+sfPast2YearsArrearLoansRenegotiatedNoScore;
+			     var sfTotalInputsOnlySubTotal3 = sfPaidDebtExceedsDefaultsScore+sfNoOfJudgementsScore+sfNoOfDefaultsScore;
+		         var sfTotalInputsOnlyGrandTotal = sfTotalInputsOnlySubTotal1+sfTotalInputsOnlySubTotal2+sfTotalInputsOnlySubTotal3;
+			     var sfBalancingScore = sfBehavioralCategoryScore - sfTotalInputsOnlyGrandTotal;
+				 //Big firms
+				 var bfTotalInputsOnlySubTotal1 = bfLoanRateTypeScore + bfLoanMaturityScore+bfBBSBankingRelationshipYearsScore;
+		 	     var bfTotalInputsOnlySubTotal2 = bfBBSBankingProductsNoScore +bfPastYearArrearIncidentsNoScore+bfPast2YearsArrearLoansRenegotiatedNoScore;
+			     var bfTotalInputsOnlySubTotal3 = bfPaidDebtExceedsDefaultsScore+bfNoOfJudgementsScore+bfNoOfDefaultsScore;
+		         var bfTotalInputsOnlyGrandTotal = bfTotalInputsOnlySubTotal1+bfTotalInputsOnlySubTotal2+bfTotalInputsOnlySubTotal3;
+			     var bfBalancingScore = bfBehavioralCategoryScore - bfTotalInputsOnlyGrandTotal;
+				
+				// The NoOfTraceAlertsScore being the last charecteristic is the balancing score so that sum = Total Behavioral Scores
+			 	document.forms["ManagementAnalysisForm"]["bfNoOfTraceAlertsScore"].value =round(bfBalancingScore,1);  
+            	document.forms["ManagementAnalysisForm"]["sfNoOfTraceAlertsScore"].value =round(sfBalancingScore,1);  
+            
+				
+				 //5. Display Total Scores - Big Firms
+			     document.forms["ManagementAnalysisForm"]["bfLoanRateTypeScore"].value = round(bfLoanRateTypeScore,1);
+                 document.forms["ManagementAnalysisForm"]["bfLoanMaturityScore"].value = round(bfLoanMaturityScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfBBSBankingRelationshipYearsScore"].value = round(bfBBSBankingRelationshipYearsScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfBBSBankingProductsNoScore"].value = round(bfBBSBankingProductsNoScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfPastYearArrearIncidentsNoScore"].value = round(bfPastYearArrearIncidentsNoScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfPast2YearsArrearLoansRenegotiatedNoScore"].value =round(bfPast2YearsArrearLoansRenegotiatedNoScore,1) ;
+				 document.forms["ManagementAnalysisForm"]["bfPaidDebtExceedsDefaultsScore"].value = round(bfPaidDebtExceedsDefaultsScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfNoOfJudgementsScore"].value = round(bfNoOfJudgementsScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfNoOfDefaultsScore"].value = round(bfNoOfDefaultsScore,1);
+				 document.forms["ManagementAnalysisForm"]["bfTotalBehavioralAnalysisScore"].value = round(bfBehavioralCategoryScore,1);
+				 //6. Display Total Scores - Small Firms
+			     document.forms["ManagementAnalysisForm"]["sfLoanRateTypeScore"].value = round(sfLoanRateTypeScore,1);
+                 document.forms["ManagementAnalysisForm"]["sfLoanMaturityScore"].value = round(sfLoanMaturityScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfBBSBankingRelationshipYearsScore"].value = round(sfBBSBankingRelationshipYearsScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfBBSBankingProductsNoScore"].value = round(sfBBSBankingProductsNoScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfPastYearArrearIncidentsNoScore"].value = round(sfPastYearArrearIncidentsNoScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfPast2YearsArrearLoansRenegotiatedNoScore"].value =round(sfPast2YearsArrearLoansRenegotiatedNoScore,1) ;
+				 document.forms["ManagementAnalysisForm"]["sfPaidDebtExceedsDefaultsScore"].value = round(sfPaidDebtExceedsDefaultsScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfNoOfJudgementsScore"].value = round(sfNoOfJudgementsScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfNoOfDefaultsScore"].value = round(sfNoOfDefaultsScore,1);
+				 document.forms["ManagementAnalysisForm"]["sfTotalBehavioralAnalysisScore"].value = round(sfBehavioralCategoryScore,1);
+				
+                
+				//6. Big Firms - Recalculate and Display Effective Weights =  Total Score / Sub-Category Score
+				bfLoanRateTypeEffWeight = bfLoanRateTypeScore /TotalScore * 100;
+				bfLoanMaturityEffWeight = bfLoanMaturityScore /TotalScore * 100;
+				bfBBSBankingRelationshipYearsEffWeight = bfBBSBankingRelationshipYearsScore /TotalScore * 100;
+				bfBBSBankingProductsNoEffWeight = bfBBSBankingProductsNoScore /TotalScore * 100;
+				bfPastYearArrearIncidentsNoEffWeight = bfPastYearArrearIncidentsNoScore /TotalScore * 100;
+				bfPast2YearsArrearLoansRenegotiatedNoEffWeight = bfPast2YearsArrearLoansRenegotiatedNoScore /TotalScore * 100;
+				bfPaidDebtExceedsDefaultsEffWeight = bfPaidDebtExceedsDefaultsScore /TotalScore * 100;
+				bfNoOfJudgementsEffWeight = bfNoOfJudgementsScore /TotalScore * 100;
+				bfNoOfDefaultsEffWeight = bfNoOfDefaultsScore /TotalScore * 100;
+				bfNoOfTraceAlertsEffWeight = bfBalancingScore /TotalScore * 100;
+		     	bfTotalBehavioralAnalysisEffWeight = bfBehavioralCategoryScore/TotalScore * 100;
+				//7. Small Firms - Recalculate and Display Effective Weights =  Total Score / Sub-Category Score
+				sfLoanRateTypeEffWeight = sfLoanRateTypeScore /TotalScore * 100;
+				sfLoanMaturityEffWeight = sfLoanMaturityScore /TotalScore * 100;
+				sfBBSBankingRelationshipYearsEffWeight = sfBBSBankingRelationshipYearsScore /TotalScore * 100;
+				sfBBSBankingProductsNoEffWeight = sfBBSBankingProductsNoScore /TotalScore * 100;
+				sfPastYearArrearIncidentsNoEffWeight = sfPastYearArrearIncidentsNoScore /TotalScore * 100;
+				sfPast2YearsArrearLoansRenegotiatedNoEffWeight =sfPast2YearsArrearLoansRenegotiatedNoScore /TotalScore * 100;
+				sfPaidDebtExceedsDefaultsEffWeight = sfPaidDebtExceedsDefaultsScore /TotalScore * 100;
+				sfNoOfJudgementsEffWeight = sfNoOfJudgementsScore /TotalScore * 100;
+				sfNoOfDefaultsEffWeight = sfNoOfDefaultsScore /TotalScore * 100;
+				sfNoOfTraceAlertsEffWeight = sfBalancingScore /TotalScore * 100;
+		     	sfTotalBehavioralAnalysisEffWeight = sfBehavioralCategoryScore/TotalScore * 100;
+			
+			    //8. Display effective weights - Big Firms                                              
+				document.forms["ManagementAnalysisForm"]["bfLoanRateTypeEffectiveWeight"].value = round(bfLoanRateTypeEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfLoanMaturityEffectiveWeight"].value = round(bfLoanMaturityEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfBBSBankingRelationshipYearsEffectiveWeight"].value = round(bfBBSBankingRelationshipYearsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfBBSBankingProductsNoEffectiveWeight"].value = round(bfBBSBankingProductsNoEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfPastYearArrearIncidentsNoEffectiveWeight"].value = round(bfPastYearArrearIncidentsNoEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfPast2YearsArrearLoansRenegotiatedNoEffectiveWeight"].value = round(bfPast2YearsArrearLoansRenegotiatedNoEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfPaidDebtExceedsDefaultsEffectiveWeight"].value = round(bfPaidDebtExceedsDefaultsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfNoOfJudgementsEffectiveWeight"].value = round(bfNoOfJudgementsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfNoOfDefaultsEffectiveWeight"].value = round(bfNoOfDefaultsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfNoOfTraceAlertsEffectiveWeight"].value = round(bfNoOfTraceAlertsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["bfTotalBehavioralAnalysisEffectiveWeight"].value = round(bfTotalBehavioralAnalysisEffWeight,1); 		  
+ 			    //9. Display effective weights - Small Firms
+				document.forms["ManagementAnalysisForm"]["sfLoanRateTypeEffectiveWeight"].value = round(sfLoanRateTypeEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfLoanMaturityEffectiveWeight"].value = round(sfLoanMaturityEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfBBSBankingRelationshipYearsEffectiveWeight"].value = round(sfBBSBankingRelationshipYearsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfBBSBankingProductsNoEffectiveWeight"].value = round(sfBBSBankingProductsNoEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfPastYearArrearIncidentsNoEffectiveWeight"].value = round(sfPastYearArrearIncidentsNoEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfPast2YearsArrearLoansRenegotiatedNoEffectiveWeight"].value = round(sfPast2YearsArrearLoansRenegotiatedNoEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfPaidDebtExceedsDefaultsEffectiveWeight"].value = round(sfPaidDebtExceedsDefaultsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfNoOfJudgementsEffectiveWeight"].value = round(sfNoOfJudgementsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfNoOfDefaultsEffectiveWeight"].value = round(sfNoOfDefaultsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfNoOfTraceAlertsEffectiveWeight"].value = round(sfNoOfTraceAlertsEffWeight,1);
+                document.forms["ManagementAnalysisForm"]["sfTotalBehavioralAnalysisEffectiveWeight"].value = round(sfTotalBehavioralAnalysisEffWeight,1); 		  
+              }
+			}
+		}
+		
+		
+		function bfRecalculate(elem)
+		{
+           if (isNaN(elem.value))
+		   {
+		     alert ("Please enter numbers only");
+			 elem.value =""; 
+		   }
+           else
+		   {
+		      var bfFinancialAnalysis = Number(document.forms["ManagementAnalysisForm"]["bfFinancialAnalysisPercentage"].value);
+		      var bfManagementAnalysis = Number(document.forms["ManagementAnalysisForm"]["bfManagementAnalysisPercentage"].value);
+		      var bfIndustryAnalysis = Number(document.forms["ManagementAnalysisForm"]["bfIndustryAnalysisPercentage"].value);
+		      var bfShareholderAnalysis = Number(document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisPercentage"].value);
+		      var bfBehavioralAnalysis = Number(document.forms["ManagementAnalysisForm"]["bfBehavioralAnalysisPercentage"].value);
+			  var bfTotalPercentage = bfFinancialAnalysis + bfManagementAnalysis + bfIndustryAnalysis + bfShareholderAnalysis + bfBehavioralAnalysis;
+		      var bfTotalScore = Number(document.forms["ManagementAnalysisForm"]["bfTotalScore"].value);
+	
+			  //var bfBalancing = 100 - bfTotalPercentage;
+			  
+			  
+			  if (bfTotalPercentage > 100)
+		      {
+		         alert("Total score may not exceed 100%");
+				 elem.value = "";
+				 
+		      }
+              else  
+			    // Display Total Score;
+			  {
+			    document.forms["ManagementAnalysisForm"]["bfTotalPercentage"].value = bfTotalPercentage;  
+                document.forms["ManagementAnalysisForm"]["bfFinancialAnalysisScore"].value = bfTotalScore * bfFinancialAnalysis / 100;
+                document.forms["ManagementAnalysisForm"]["bfManagementAnalysisScore"].value = bfTotalScore * bfManagementAnalysis / 100;
+		        document.forms["ManagementAnalysisForm"]["bfIndustryAnalysisScore"].value = bfTotalScore * bfIndustryAnalysis / 100;
+				document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+				document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	    		document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	    		document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	    		document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	    		document.forms["ManagementAnalysisForm"]["bfShareholderAnalysisScore"].value = bfTotalScore * bfShareholderAnalysis / 100;
+	            // Updata Small Firms Total Score = Big Firm Total Score
+				if (elem.name=="bfTotalScore")
+				{
+				  document.forms["ManagementAnalysisForm"]["sfTotalScore"].value = elem.value;
+	            }
+				document.forms["ManagementAnalysisForm"]["bfBehavioralAnalysisScore"].value = bfTotalScore * bfBehavioralAnalysis / 100;
+			    //document.forms["ManagementAnalysisForm"]["bfEstablishmentAnalysisPercentage"].value = bfBalancing;
+			  }
+			}
+		}
+		
+		function sfRecalculate(elem)
+		{
+           if (isNaN(elem.value))
+		   {
+		     alert ("Please enter numbers only");
+			 elem.value =""; 
+		   }
+           else
+		   {
+		      
+			  var sfFinancialAnalysis = Number(document.forms["ManagementAnalysisForm"]["sfFinancialAnalysisPercentage"].value);
+		      var sfManagementAnalysis = Number(document.forms["ManagementAnalysisForm"]["sfManagementAnalysisPercentage"].value);
+		      var sfIndustryAnalysis = Number(document.forms["ManagementAnalysisForm"]["sfIndustryAnalysisPercentage"].value);
+		      var sfShareholderAnalysis = Number(document.forms["ManagementAnalysisForm"]["sfShareholderAnalysisPercentage"].value);
+		      var sfBehavioralAnalysis = Number(document.forms["ManagementAnalysisForm"]["sfBehavioralAnalysisPercentage"].value);
+			  var sfTotalPercentage = sfFinancialAnalysis + sfManagementAnalysis + sfIndustryAnalysis + sfShareholderAnalysis + sfBehavioralAnalysis;
+		      var sfTotalScore = Number(document.forms["ManagementAnalysisForm"]["sfTotalScore"].value);
+	
+			  //var sfBalancing = 100 - sfTotalPercentage;
+			  
+			  
+			  if (sfTotalPercentage > 100)
+		      {
+		         alert("Total score may not exceed 100%");
+				 elem.value = "";
+				 
+		      }
+              else  
+			    // Display Total Score;
+			  {
+			    document.forms["ManagementAnalysisForm"]["sfTotalPercentage"].value = sfTotalPercentage;  
+                document.forms["ManagementAnalysisForm"]["sfFinancialAnalysisScore"].value = sfTotalScore * sfFinancialAnalysis / 100;
+                document.forms["ManagementAnalysisForm"]["sfManagementAnalysisScore"].value = sfTotalScore * sfManagementAnalysis / 100;
+		        document.forms["ManagementAnalysisForm"]["sfIndustryAnalysisScore"].value = sfTotalScore * sfIndustryAnalysis / 100;
+				document.forms["ManagementAnalysisForm"]["sfShareholderAnalysisScore"].value = sfTotalScore * sfShareholderAnalysis / 100;
+				document.forms["ManagementAnalysisForm"]["sfBehavioralAnalysisScore"].value = sfTotalScore * sfBehavioralAnalysis / 100;
+			   
+			     
+  
+                //document.forms["ManagementAnalysisForm"]["sfEstablishmentAnalysisPercentage"].value = sfBalancing;
+			  }
+			}
+		}
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+    </script>	
+		
+    </script>
+</head>
+<body>
+   <form id = "ManagementAnalysisForm" method = "post" onclick = "RecalculateForm()">
+	 <Table Border = 2 border-style = 2 align = center>
+      <tr bgcolor = blue color = white>
+	       <th colspan = 3><h1 style = "color:white">MANAGEMENT ANALYSIS SETTINGS<h1></td>
+		   
+	  </tr>
+	  
+	  <tr>
+	      <td style = "vertical-align:top" >
+		      <table Border = 0 border-style = 2 align = top >
+   			     <tr style = "background-color:lightgrey"> <td><strong>Big Firms Calibration<strong></td> 
+				      <td></td>
+					  <td></td>
+				 </tr> 
+				 <tr> <td></td>
+				      <td colspan = 2  align = center>BIG FIRMS</td> 
+				  </tr>
+				 <tr> 
+				      <td></td>
+					  <td align = center><strong>%<strong></td>
+					  <td><strong>Score<strong></td>
+				 </tr>
+				 <tr> 
+				      <td><strong>Total Scores<strong></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:blue" 
+								 size = "1" type = text readonly name = "bfTotalPercentage" value = "100" onchange="bfRecalculate(this)">%
+					  </td>
+					  <td>
+					      <input size = "1" type = text name = "bfTotalScore" onchange="bfRecalculate(this)" style = "text-align:right">
+					  </td>
+				 </tr>
+				 <tr> 
+				      <td><strong>Made up of:</td>
+					  <td></td><td></td>
+				 </tr>
+				 <tr> 
+				      <td><a href ="Settings2.htm">Financial Analysis</a></td>
+					  <td><input class = "price" type size = "1" type = text name = "bfFinancialAnalysisPercentage" onchange="bfRecalculate(this)">%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								readonly size = "1" type = text name = "bfFinancialAnalysisScore">
+					  </td>
+				 </tr>
+				 <tr> 
+				      <td><a href = "Settings3.htm"> Management Analysis </a></td>
+					  <td><input class = "price" type size = "1" type = text name = "bfManagementAnalysisPercentage" onchange="bfRecalculate(this)">%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "bfManagementAnalysisScore"></td>
+				 </tr>
+				 <tr> 
+				      <td><a href = "Settings3.htm">Industry Analysis</a></td>
+					  <td><input class = "price" type size = "1" type = text name = "bfIndustryAnalysisPercentage" onchange="bfRecalculate(this)" >%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "bfIndustryAnalysisScore"></td>
+				 </tr>
+			    <tr> 
+				      <td><a href = "Settings3.htm">Shareholder Analysis</a></td>
+					  <td><input class = "price" type size = "1" type = text name = "bfShareholderAnalysisPercentage" onchange="bfRecalculate(this)">%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "bfShareholderAnalysisScore"></td>
+				</tr>
+				<tr> 
+				      <td><a href = "Setting3.htm">Behavioral & Product Analysis (Balancing)</a></td>
+					  <td><input size = "1" type = text name = "bfBehavioralAnalysisPercentage" onchange="bfRecalculate(this)">%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "bfBehavioralAnalysisScore"></td>
+				 </tr>
+				 <tr>
+	                <td></td>
+	                <td> <Button name = "BtnSave" onclick = "SaveData()">Save</Button> </td>
+	             </tr>
+		         <!-Markup for Small Firms Calibration>
+				<tr><td>.</td></tr>
+		
+   			     <tr style = "background-color:lightgrey" > <td><strong>Small Firms Calibration<strong></td> 
+				      <td></td>
+					  <td></td>
+				 </tr> 
+				 <tr > <td></td>
+				      <td colspan = 2  align = center>SMALL FIRMS</td> 
+				  </tr>
+				 <tr> 
+				      <td></td>
+					  <td align = center><strong>%<strong></td>
+					  <td><strong>Score<strong></td>
+				 </tr>
+				 <tr> 
+				      <td><strong>Total Scores<strong></td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:blue" 
+								 size = "1" type = text readonly name = "sfTotalPercentage" value = "100" onchange="sfRecalculate(this)">%
+					  </td>
+					  <td>
+					      <input size = "1" type = text name = "sfTotalScore" readonly style = "background-color:blue;color:white;text-align:right">
+					  </td>
+				 </tr>
+				 <tr> 
+				      <td><strong>Made up of:</td>
+					  <td></td><td></td>
+				 </tr>
+				 <tr> 
+				      <td><a href ="Settings2.htm">Financial Analysis</a></td>
+					  <td><input class = "price" type size = "1" type = text name = "sfFinancialAnalysisPercentage" onchange="sfRecalculate(this)">%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								readonly size = "1" type = text name = "sfFinancialAnalysisScore">
+					  </td>
+				 </tr>
+				 <tr> 
+				      <td><a href = "Settings2.htm"> Management Analysis </a></td>
+					  <td><input class = "price" type size = "1" type = text name = "sfManagementAnalysisPercentage" onchange="sfRecalculate(this)">%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "sfManagementAnalysisScore"></td>
+				 </tr>
+				 <tr> 
+				      <td><a href = "Settings3.htm">Industry Analysis</a></td>
+					  <td><input class = "price" type size = "1" type = text name = "sfIndustryAnalysisPercentage" onchange="sfRecalculate(this)" >%%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "sfIndustryAnalysisScore"></td>
+				 </tr>
+			    <tr> 
+				      <td><a href = "Settings3.htm">Shareholder Analysis</a></td>
+					  <td><input class = "price" type size = "1" type = text name = "sfShareholderAnalysisPercentage" onchange="sfRecalculate(this)">%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "sfShareholderAnalysisScore"></td>
+				</tr>
+				<tr> 
+				      <td><a href = "Settings3.htm">Behavioral & Product Analysis (Balancing)</a></td>
+					  <td><input size = "1" type = text name = "sfBehavioralAnalysisPercentage" onchange="sfRecalculate(this)">%</td>
+					  <td><input style = "text-align:right;
+										  color:white;
+										  background-color:grey"
+								 readonly size = "1" type = text name = "sfBehavioralAnalysisScore"></td>
+				 </tr>
+				 
+				 <div>
+				 <!-Markup for other settings>
+   			     <tr><td>.</td></tr>
+				 <tr style = "background-color:lightgrey" > <td><strong>Firm Size Settings<strong></td> 
+				      <td></td>
+					  <td></td>
+				 </tr> 
+	             <tr><td>.</td></tr>
+				 <tr>
+				      <td colspan = 3>Firm Size Turnover Threshold......<input size = 8 type = text name = "TurnoverThreshold" class = "price" style = "text-align:right"></td>
+				 </tr>
+				 <tr><td>.</td></tr>
+				 <tr style = "background-color:lightgrey" > 
+				      <td colspan = 3><strong>3 Year Ratio Analysis Weights Settings<strong></td> 
+				      <td></td>
+					  <td></td>
+				 </tr> 
+				 <tr><td>.</td></tr>
+				 <tr align = right>
+					  <td><strong>Year 1%</strong></td>
+				      <td><strong>Year 2%</strong></td>
+				      <td><strong>Year 3%</strong></td>
+				 </tr>
+				 <tr align = right>
+					  <td>Ratio Analysis Weights:................<input class = "price" type size = 1 type = text name = "RatioWeightYear1"  style = "text-align:right">%</td>
+				      <td><input class = "price" type size = 1 type = text name = "RatioWeightYear2" style = "text-align:right">%</td>
+				      <td><input class = "price" type size = 1 type = text name = "RatioWeightYear3" style = "text-align:right">%</td>
+				 </tr>
+				 <tr>
+	                <td></td>
+	                <td> <Button type = submit name = "BtnSave" onclick = "SaveData()">Save</Button> </td>
+	             </tr>
+			  
+ 				 
+			  </table>
+		  </td>
+		  <!-Gap>
+		  <td><table Border = 1 Bordercolor = yellow> <tr> <td color=white></td> </tr> </Table> </td> 
+		  
+			
+		  <td align = top>
+			      <table align = top>
+                     <tr style = "background-color:powderblue;text-align:center">
+					    <td style = "text-align:left" rowspan = 2><br> <strong>MANAGEMENT ANALYSIS<strong></td>
+						<td rowspan = 2><strong>%<br> WEIGHT<strong></td>
+						<td colspan = 2><strong>EFFECTIVE WEIGHT</strong></td>
+						<td colspan = 2><strong>SCORE ALLOCATION<strong></td>
+					 </tr>
+					 <tr style = "background-color:powderblue;text-align:center">
+					    <td>Big<br>Firm</td>
+						<td>Small<br>Firm</td>
+						<td>Big<br>Firm</td>
+						<td>Small<br>Firm</td>
+					 </tr>
+					 <tr align = center>
+					    <td align = left>Commitment</td>
+						<td><input class = "price" type style = "align:center" type = text name = "CommitmentCategoryWeight" Size = 1 onchange = "RecalculateManagementAnalysisWeights(this)"></td>
+                        <td><input type = text name = "bfCommitmentCategoryEffectiveWeight" Size = 1 readonly>%</td>
+	                    <td><input type = text name = "sfCommitmentCategoryEffectiveWeight" Size = 1 readonly>%</td>
+					    <td><input type = text name = "bfCommitmentCategoryScore" Size = 1 readonly></td>
+					    <td><input type = text name = "sfCommitmentCategoryScore" Size = 1 readonly></td>
+					  </tr>
+					  <tr align = center>
+					    <td align = left>Integrity</td>
+						<td><input class = "price" type type = text name = "IntegrityCategoryWeight" Size = 1 onchange = "RecalculateManagementAnalysisWeights(this)"></td>
+						<td><input type = text name = "bfIntegrityCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "sfIntegrityCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "bfIntegrityCategoryScore" Size = 1 readonly></td>
+						<td><input type = text name = "sfIntegrityCategoryScore" Size = 1 readonly></td>
+					   </tr>
+					   <tr align = center>
+	                    <td align = left>Information Quality</td>
+						<td><input class = "price" type type = text name = "InformationQualityCategoryWeight" Size = 1 onchange = "RecalculateManagementAnalysisWeights(this)"></td>
+						<td><input type = text name = "bfInformationQualityCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "sfInformationQualityCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "bfInformationQualityCategoryScore" Size = 1 readonly></td>
+						<td><input type = text name = "sfInformationQualityCategoryScore" Size = 1 readonly></td>
+						</tr>
+					   <tr align = center> 
+				        <td align = left>Leadership</td>
+						<td><input class = "price" type type = text name = "LeadershipCategoryWeight" Size = 1 onchange = "RecalculateManagementAnalysisWeights(this)"></td>
+						<td><input type = text name = "bfLeadershipCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "sfLeadershipCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "bfLeadershipCategoryScore" Size = 1 readonly></td>
+						<td><input type = text name = "sfLeadershipCategoryScore" Size = 1 readonly></td>
+					   </tr>
+					   <tr align = center> 
+				        <td align = left>Strategy And Business</td>
+						<td><input class = "price" type type = text name = "StrategyCategoryWeight" Size = 1 onchange = "RecalculateManagementAnalysisWeights(this)"></td>
+						<td><input type = text name = "bfStrategyCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "sfStrategyCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "bfStrategyCategoryScore" Size = 1 readonly></td>
+						<td><input type = text name = "sfStrategyCategoryScore" Size = 1 readonly></td>
+					   </tr>
+				       <tr align = center> 
+				        <td align = left>Structure</td>
+						<td><input class = "price" type type = text name = "StructureCategoryWeight" Size = 1 onchange = "RecalculateManagementAnalysisWeights(this)"></td>
+						<td><input type = text name = "bfStructureCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "sfStructureCategoryEffectiveWeight" Size = 1 readonly>%</td>
+					    <td><input type = text name = "bfStructureCategoryScore" Size = 1 readonly></td>
+						<td><input type = text name = "sfStructureCategoryScore" Size = 1 readonly></td>
+					   </tr>
+					   <tr align = center> 
+				        <td align = left>Management</td>
+						<td><input class = "price" type type = text name = "ManagementCategoryWeight" Size = 1 onchange = "RecalculateManagementAnalysisWeights(this)"></td>
+						<td><input type = text name = "bfManagementCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "sfManagementCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "bfManagementCategoryScore" Size = 1 readonly></td>
+						<td><input type = text name = "sfManagementCategoryScore" Size = 1 readonly></td>
+					   </tr >
+					   <tr align = center> 
+				        <td align = left>Succession Planning</td>
+						<td><input class = "price" type type = text name = "SuccessionPlanCategoryWeight" Size = 1 onchange = "RecalculateManagementAnalysisWeights(this)"></td>
+						<td><input type = text name = "bfSuccessionPlanCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "sfSuccessionPlanCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "bfSuccessionPlanCategoryScore" Size = 1 readonly></td>
+						<td><input type = text name = "sfSuccessionPlanCategoryScore" Size = 1 readonly></td>
+					   </tr align = center >
+					   <tr align = center >
+				        <td align = left>Organisational Design (Balancing)</td>
+						<td><input type = text name = "OrganisationalDesignCategoryWeight" Size = 1 readonly></td>
+						<td><input type = text name = "bfOrganisationalDesignCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "sfOrganisationalDesignCategoryEffectiveWeight" Size = 1 readonly>%</td>
+						<td><input type = text name = "bfOrganisationalDesignCategoryScore" Size = 1 readonly></td>
+						<td><input type = text name = "sfOrganisationalDesignCategoryScore" Size = 1 readonly></td>
+					   </tr>
+					   <tr align = center>
+					     <td align = left>TOTAL</td>
+						 <td><input type = text name = "TotalManagementAnalysisCategoryWeight" Size = 1 value = 100 readonly></td>
+						 <td><input type = text name = "bfTotalManagementAnalysisCategoryEffectiveWeight" Size = 1 readonly">%</td>
+						 <td><input type = text name = "sfTotalManagementAnalysisCategoryEffectiveWeight" Size = 1 readonly">%</td>
+						 <td><input type = text name = "bfTotalManagementAnalysisCategoryScore" Size = 1 readonly></td>
+						 <td><input type = text name = "sfTotalManagementAnalysisCategoryScore" Size = 1 readonly></td>
+					    </tr
+						<tr></tr>
+						<tr><td><strong>Drilled Down As Follows:<strong></td></tr>
+						
+						<tr><td colspan = 6>______________________________________________________________________________________</td></tr>
+						<!-- Level 3 Definitions -->
+                       <tr></tr>	   
+				        <tr style = "background-color:lightgrey" >
+					        <td><strong>Industry Analysis </strong></td>	
+					    </tr>
+					    <tr align = center>
+					        <td align = left>Business Cyclicality</td>
+						    <td><input class = "price" type type = text name = "BusinessCyclicalityWeight" Size = 1 onchange = "RecalculateIndustryAnalysis(this)"></td>
+							<td><input type = text name = "bfBusinessCyclicalityEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "sfBusinessCyclicalityEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfBusinessCyclicalityScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfBusinessCyclicalityScore" Size = 1 readonly></td>
+					    </tr>
+					    <tr align = center>
+					         <td align = left>Industry Performance</td>
+						     <td><input class = "price" type type = text name = "IndustryPerformanceWeight" Size = 1 onchange = "RecalculateIndustryAnalysis(this)"></td>
+							 <td><input type = text name = "bfIndustryPerformanceEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfIndustryPerformanceEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfIndustryPerformanceScore" Size = 1 readonly></td>
+					         <td><input type = text name = "sfIndustryPerformanceScore" Size = 1 readonly></td>
+						</tr>
+					    <tr align = center>
+	                         <td align = left>Porter's Five Forces Analysis(Balancing)</td>
+						     <td><input type = text name = "PortersWeight" Size = 1 readonly></td>
+							 <td><input type = text name = "bfPortersEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfPortersEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfPortersScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfPortersScore" Size = 1 readonly></td>
+					    </tr>
+					    <tr align = center>
+					         <td align = left>TOTAL</td>
+						     <td><input type = text name = "TotalIndustryAnalysisWeight" Size = 1 value = 100 readonly></td>
+							 <td><input type = text name = "bfTotalIndustryAnalysisEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfTotalIndustryAnalysisEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfTotalIndustryAnalysisScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfTotalIndustryAnalysisScore" Size = 1 readonly></td>
+					    </tr>
+						<tr><td colspan = 6>______________________________________________________________________________________</td></tr>
+				        <tr></tr>
+						
+					
+						<tr style = "background-color:lightgrey">
+					        <td><strong>Shareholder Analysis </strong></td>
+					    </tr>
+					    <tr align=center>
+					        <td align = left>ITC Paid Debt > Defaults</td>
+						    <td><input class = "price" type type = text name = "OwnersPaidDebtExceedsDefaultsWeight" onchange = "RecalculateShareholderAnalysis(this)" Size = 1</td>
+							<td><input type = text name = "bfOwnersPaidDebtExceedsDefaultsEffectiveWeight" class = 'Greyed">%</td>
+							<td><input type = text name = "sfOwnersPaidDebtExceedsDefaultsEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfOwnersPaidDebtExceedsDefaultsScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfOwnersPaidDebtExceedsDefaultsScore" Size = 1 readonly></td>
+					    </tr>
+					    <tr align = center>
+					         <td align = left>ITC No Of Judgements</td>
+						     <td><input class = "price" type type = text name = "OwnersNoOfJudgementsWeight" Size = 1 onchange = "RecalculateShareholderAnalysis(this)"></td>
+							 <td><input type = text name = "bfOwnersNoOfJudgementsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfOwnersNoOfJudgementsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfOwnersNoOfJudgementsScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfOwnersNoOfJudgementsScore" Size = 1 readonly></td>
+					    </tr>
+					    <tr align = center>
+					         <td align = left>ITC No Of Defaults</td>
+						     <td><input class = "price" type type = text name = "OwnersNoOfDefaultsWeight" Size = 1 onchange = "RecalculateShareholderAnalysis(this)"></td>
+							 <td><input type = text name = "bfOwnersNoOfDefaultsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfOwnersNoOfDefaultsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfOwnersNoOfDefaultsScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfOwnersNoOfDefaultsScore" Size = 1 readonly></td>
+						</tr>
+						<tr align = center>
+					         <td align = left>ITC No Of Trace Alerts (Balancing)</td>
+						     <td><input type = text name = "OwnersNoOfTraceAlertsWeight" Size = 1 onchange = "RecalculateShareholderAnalysis(this)"></td>
+							 <td><input type = text name = "bfOwnersNoOfTraceAlertsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfOwnersNoOfTraceAlertsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfOwnersNoOfTraceAlertsScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfOwnersNoOfTraceAlertsScore" Size = 1 readonly></td>
+						</tr>
+					    <tr align = center>
+					         <td align = left>TOTAL</td>
+						     <td>
+						         <input type = text name = "TotalShareholderAnalysisWeight" value = 100 Size = 1 readonly">
+								 <td><input type = text name = "bfTotalShareholderAnalysisEffectiveWeight" Size = 1 readonly>%</td>
+							     <td><input type = text name = "sfTotalShareholderAnalysisEffectiveWeight" Size = 1 readonly>%</td>
+								 <td><input type = text name = "bfTotalShareholderAnalysisScore" Size = 1 readonly></td>
+								 <td><input type = text name = "sfTotalShareholderAnalysisScore" Size = 1 readonly></td>
+						     </td>
+					    </tr>
+						
+						<tr><td colspan = 6>______________________________________________________________________________________</td></tr>
+				        <tr align = center></tr>
+						<tr style = "background-color:lightgrey"><td><strong>Behavioral & Product Analysis </strong></td>
+	                    </tr>
+					
+						<tr align = center>
+					        <td align = left>Loan Rate Type Requested</td>
+						    <td><input class = "price" type type type = text name = "LoanRateTypeWeight" onchange = "RecalculateBehavioralAnalysis(this)" Size = 1</td>
+							<td><input type = text name = "bfLoanRateTypeEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "sfLoanRateTypeEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfLoanRateTypeScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfLoanRateTypeScore" Size = 1 readonly></td>
+					    </tr>
+						<tr align = center>
+					        <td align = left>Loan Maturity Requested</td>
+						    <td><input class = "price" type type = text name = "LoanMaturityWeight" onchange = "RecalculateBehavioralAnalysis(this)" Size = 1</td>
+							<td><input type = text name = "bfLoanMaturityEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "sfLoanMaturityEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfLoanMaturityScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfLoanMaturityScore" Size = 1 readonly></td>
+					    </tr>
+    						<tr align = center>
+					        <td align = left>Years Of BBS Banking Relationship</td>
+						    <td><input class = "price" type type = text name = "BBSBankingRelationshipYearsWeight" onchange = "RecalculateBehavioralAnalysis(this)" Size = 1</td>
+							<td><input type = text name = "bfBBSBankingRelationshipYearsEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "sfBBSBankingRelationshipYearsEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfBBSBankingRelationshipYearsScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfBBSBankingRelationshipYearsScore" Size = 1 readonly></td>
+					    </tr>
+                        <tr align = center>
+					        <td align = left>No of BBS Banking Products</td>
+						    <td><input class = "price" type type = text name = "BBSBankingProductsNoWeight" onchange = "RecalculateBehavioralAnalysis(this)" Size = 1</td>
+							<td><input type = text name = "bfBBSBankingProductsNoEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "sfBBSBankingProductsNoEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfBBSBankingProductsNoScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfBBSBankingProductsNoScore" Size = 1 readonly></td>
+					    </tr>
+	                    <tr align = center>
+					        <td align = left>No of Arrear Incidents (last 12 months)</td>
+						    <td><input class = "price" type type = text name = "PastYearArrearIncidentsNoWeight" onchange = "RecalculateBehavioralAnalysis(this)" Size = 1</td>
+							<td><input type = text name = "bfPastYearArrearIncidentsNoEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "sfPastYearArrearIncidentsNoEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfPastYearArrearIncidentsNoScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfPastYearArrearIncidentsNoScore" Size = 1 readonly></td>
+					    </tr>
+	                    <tr align = center>
+					        <td align = left>Renegotiated Arrear Loans (last 24 months)</td>
+						    <td><input class = "price" type type = text name = "Past2YearsArrearLoansRenegotiatedNoWeight" onchange = "RecalculateBehavioralAnalysis(this)" Size = 1</td>
+							<td><input type = text name = "bfPast2YearsArrearLoansRenegotiatedNoEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "sfPast2YearsArrearLoansRenegotiatedNoEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfPast2YearsArrearLoansRenegotiatedNoScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfPast2YearsArrearLoansRenegotiatedNoScore" Size = 1 readonly></td>
+					    </tr>
+				        <tr align = center>
+					        <td align = left>ITC Paid Debt > Defaults</td>
+						    <td><input class = "price" type type = text name = "PaidDebtExceedsDefaultsWeight" onchange = "RecalculateBehavioralAnalysis(this)" Size = 1</td>
+							<td><input type = text name = "bfPaidDebtExceedsDefaultsEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "sfPaidDebtExceedsDefaultsEffectiveWeight" Size = 1 readonly>%</td>
+							<td><input type = text name = "bfPaidDebtExceedsDefaultsScore" Size = 1 readonly></td>
+							<td><input type = text name = "sfPaidDebtExceedsDefaultsScore" Size = 1 readonly></td>
+					    </tr>
+					    <tr align = center>
+					         <td align = left>ITC No Of Judgements</td> 
+						     <td><input class = "price" type type = text name = "NoOfJudgementsWeight" Size = 1 onchange = "RecalculateBehavioralAnalysis(this)"></td>
+							 <td><input type = text name = "bfNoOfJudgementsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfNoOfJudgementsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfNoOfJudgementsScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfNoOfJudgementsScore" Size = 1 readonly></td>
+					    </tr>
+					    <tr align =center>
+					         <td align = left>ITC No Of Defaults</td>
+						     <td><input class = "price" type = text name = "NoOfDefaultsWeight" Size = 1 onchange = "RecalculateBehavioralAnalysis(this)"></td>
+							 <td><input type = text name = "bfNoOfDefaultsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfNoOfDefaultsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfNoOfDefaultsScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfNoOfDefaultsScore" Size = 1 readonly></td>
+						</tr>
+						<tr align = center>
+					         <td align = left>ITC No Of Trace Alerts (Balancing)</td>
+						     <td><input type = text name = "NoOfTraceAlertsWeight" Size = 1 onchange = "RecalculateBehavioralAnalysis(this)"></td>
+							 <td><input type = text name = "bfNoOfTraceAlertsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "sfNoOfTraceAlertsEffectiveWeight" Size = 1 readonly>%</td>
+							 <td><input type = text name = "bfNoOfTraceAlertsScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfNoOfTraceAlertsScore" Size = 1 readonly></td>
+						</tr>
+					   	 
+						<tr align = center>
+					         <td align = left>TOTAL</td>
+						     <td><input type = text name = "TotalBehavioralAnalysisWeight" Size = 1 value = 100></td>
+							 <td><input type = text name = "bfTotalBehavioralAnalysisEffectiveWeight" Size = 1>%</td>
+							 <td><input type = text name = "sfTotalBehavioralAnalysisEffectiveWeight" Size = 1>%</td>
+							 <td><input type = text name = "bfTotalBehavioralAnalysisScore" Size = 1 readonly></td>
+							 <td><input type = text name = "sfTotalBehavioralAnalysisScore" Size = 1 readonly></td>  
+					    </tr>
+						 
+					</td>
+			      </table>
+			</td>
+			 
+			
+		  </tr> 
+		</Table> 
+		  </td></td>              
+	  </tr>
+	 
+   </Table>
+   </form>
+</body>
+
+</html>

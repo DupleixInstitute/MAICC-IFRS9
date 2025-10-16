@@ -1,0 +1,1 @@
+ALTER TABLE `cust_information` ADD `loan_instalment10` DECIMAL(20,2) NULL AFTER `loan_instalment5`;

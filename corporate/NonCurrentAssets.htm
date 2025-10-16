@@ -1,0 +1,310 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Non Current Assets</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   <script type="text/javascript" src="Dupleix.js"></script>
+  
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+				document.getElementById("legal_name").innerHTML = localStorage.legal_name + " " + localStorage.customer_type;
+			    document.NonCurrentAssetsForm.application_ref.value = localStorage.application_ref;
+				document.NonCurrentAssetsForm.company_reg_no.value = localStorage.company_reg_no;
+				document.NonCurrentAssetsForm.username.value = localStorage.username;
+				
+				document.NonCurrentAssetsForm.financial_year0.value = localStorage.financial_year0;
+				document.NonCurrentAssetsForm.financial_year1.value = localStorage.financial_year1;
+				document.NonCurrentAssetsForm.financial_year2.value = localStorage.financial_year2;
+				document.NonCurrentAssetsForm.financial_year3.value = localStorage.financial_year3;
+				
+				
+
+                // Load Data
+				NonCurrentAssets_LoadData();
+				
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	    
+		
+
+		
+		//<!-- Convert number input into a thousand seperator -->
+		
+	    function ToNumber(nStr) 
+		{
+	       if   (typeof(nStr) == "undefined")
+		      {  return 0;}
+		   else  
+		      {
+		        if (nStr == "") {return 0};
+		        if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+		      } 
+	    }  
+   </script 
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="NonCurrentAssetsForm" action="SaveNonCurrentAssetsData.php" onsubmit="return validateForm()" method="post">   
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="520" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="520" height="208"/></td>
+	   </tr>
+	   <table align = "center">
+	   
+	  <tr>
+	      <td cellspacing = 0 rowspan = 2"><strong><p id = "legal_name">COMPANY NAME</p></strong></td>
+	      <td align = center>Application Ref No</td>
+	      <td align = center>Company Reg No</td>
+		  <td align = center>Username</td>
+	  </tr>
+      <tr>
+	     <td><input style="background-color:powderblue;text-align:center" name = "application_ref" readonly></td>
+         <td><input style="background-color:powderblue;text-align:center" name = "company_reg_no" readonly></td>
+         <td><input style="background-color:powderblue;text-align:center" name = "username" readonly></td>
+	  </tr>
+	  
+	   <tr bgcolor = darkblue>
+	      <th></th>
+		  <th Width = 20 style="color:white">Year 0</th>
+		  <th Width = 20 style="color:white">Year 1</th>
+		  <th Width = 20 style="color:white">Year 2</th>
+		  <th Width = 20 style="color:white">Year 3</th>
+		</tr>
+		<tr bgcolor = darkblue>
+	      <th style="background-color:darkblue;color:white;text-align:left"><strong>NON CURRENT ASSETS AS AT<strong></th>
+		  <th><input readonly type = text size = 15 style="background-color:darkblue;color:white;text-align:center;font-weight:bold;font-size:16px" name = "financial_year0"></th>
+	      <th><input readonly type = text size = 15 style="background-color:darkblue;color:white;text-align:center;font-weight:bold;font-size:16px" name = "financial_year1"></th>
+	      <th><input readonly type = text size = 15 style="background-color:darkblue;color:white;text-align:center;font-weight:bold;font-size:16px" name = "financial_year2"></th>
+	      <th><input readonly type = text size = 15 style="background-color:darkblue;color:white;text-align:center;font-weight:bold;font-size:16px" name = "financial_year3"></th>
+	    </tr>
+		</tr>
+		<tr bgcolor = darkblue>
+		  <th></th>
+		  <th Width = 20 style="color:white" id = "currency">BWP</th>
+		  <th Width = 20 style="color:white" id = "currency">BWP</th>
+		  <th Width = 20 style="color:white" id = "currency">BWP</th>
+		  <th Width = 20 style="color:white" id = "currency">BWP</th>
+		</tr>
+		
+		<!-- PROPERT, PLANT AND EQUIPMENT HEADING -->
+		<tr style ="background-color:blue;color:white" >
+		    <td><strong>PROPERTY, PLANT AND EQUIPMENT:<br>Net Book Value Movement<strong></td>
+		</tr>
+		<!-- Non-inter company -->
+    <!-- long-term Borrowings Inter-company -->
+		
+		
+       <tr>
+		  <td>Opening Book Value:</td>
+		  <td><Input type="text" name = "OpeningNBVYear0" class="price" style="text-align:right;background-color:white;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OpeningNBVYear1" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OpeningNBVYear2" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OpeningNBVYear3" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+	   </tr>
+	  
+		<tr>
+		  <td>Additions (Capital Expenditure)</td>
+		  <td><Input type="text" name="AdditionsYear0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="AdditionsYear1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="AdditionsYear2" class="price" style="text-align:right;" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="AdditionsYear3" class="price" style="text-align:right;" onchange="NonCurrentAssets_Recalculate()"></td>
+	    </tr>
+		
+		<tr>
+		  <td>Revaluation</td>
+		  <td><Input type="text" name="RevaluationYear0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="RevaluationYear1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="RevaluationYear2" class="price" style="text-align:right;" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="RevaluationYear3" class="price" style="text-align:right;" onchange="NonCurrentAssets_Recalculate()"></td>
+	    </tr>
+	
+        <tr>
+		  <td>Depreciation:</td>
+		  <td><Input type="text" name = "DepreciationTotalYear0" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "DepreciationTotalYear1" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "DepreciationTotalYear2" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "DepreciationTotalYear3" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+	   </tr>
+	   <tr>
+		  <td>-   Cost of Sales</td>
+		  <td><Input type=text name = "DepreciationCostOfSalesYear0" class="price" readonly style="text-align:right;background-color:Lightgrey" onchange="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "DepreciationCostOfSalesYear1" class="price" readonly style="text-align:right;background-color:Lightgrey" onchange="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "DepreciationCostOfSalesYear2" class="price" readonly style="text-align:right;background-color:Lightgrey" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type=text name = "DepreciationCostOfSalesYear3" class="price" readonly style="text-align:right;background-color:Lightgrey" onchange="NonCurrentAssets_Recalculate()"></td>
+		</tr>
+	    <tr>
+		  <td>-   Operating Expenses</td>
+		  <td><Input type=text name = "DepreciationOpexYear0" class="price" readonly style="text-align:right;background-color:Lightgrey" onchange="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "DepreciationOpexYear1" class="price" readonly style="text-align:right;background-color:Lightgrey" onchange="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "DepreciationOpexYear2" class="price" readonly style="text-align:right;background-color:Lightgrey" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type=text name = "DepreciationOpexYear3" class="price" readonly style="text-align:right;background-color:Lightgrey" onchange="NonCurrentAssets_Recalculate()"></td>
+		</tr>
+		<tr>
+		  <td>Other Movements</td>
+		  <td><Input type="text" name="OtherMovementsPPEYear0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="OtherMovementsPPEYear1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="OtherMovementsPPEYear2" class="price" style="text-align:right;" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="OtherMovementsPPEYear3" class="price" style="text-align:right;" onchange="NonCurrentAssets_Recalculate()"></td>
+	    </tr>
+		
+		<!-- Retained Profits Account -->
+	  <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Closing Book Value<strong></td>
+		  <td><Input type="text" name = "ClosingNBVYear0" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "ClosingNBVYear1" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "ClosingNBVYear2" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "ClosingNBVYear3" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+	   </tr>
+	   <tr>
+		  <td><strong>Made up of:<Strong></td>
+	   </tr>
+	  
+	 	<tr>
+		  <td>Land And Buildings</td>
+		  <td><Input type="text" name="LandBuildingsNBVYear0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="LandBuildingsNBVYear1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="LandBuildingsNBVYear2" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="LandBuildingsNBVYear3" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+	    </tr>
+	 
+		<tr>
+		  <td>Other Property, Plant And Equipment (Balancing)</td>
+		  <td><Input type="text" name = "TotalOtherPPEYear0" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "TotalOtherPPEYear1" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "TotalOtherPPEYear2" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "TotalOtherPPEYear3" class="price" readonly = true style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentAssets_Recalculate()"></td>
+	   </tr>
+	   <tr>
+		  <td>Enter any supporting notes on PPE</td>
+          <td colspan = 4><Textarea rows = 5 cols = 100 name = "PPEComments" style="background-color:white;color:black"></textarea></td>
+	   </tr>
+	
+	   <tr style ="background-color:blue;color:white" >
+		  <td><strong>OTHER NON-CURRENT ASSETS:<strong></td>
+	   </tr>
+     
+	   <tr>
+		  <td>Investment Property</td>
+		  <td><Input type="text" name="InvestmentPropertyYear0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="InvestmentPropertyYear1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="InvestmentPropertyYear2" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="InvestmentPropertyYear3" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+	   </tr>
+	   <tr>
+		  <td>Intangible Assets</td>
+		  <td><Input type="text" name="IntangibleAssetsYear0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="IntangibleAssetsYear1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="IntangibleAssetsYear2" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name="IntangibleAssetsYear3" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+	   </tr>
+	
+	   <tr>
+		  <td>Other Non-Current Assets:</td>
+		  <td><Input type="text" name = "OtherNonCurrentAssetsTotalYear0" class="price" style="text-align:right;background-color:Lightgrey;color:black" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentAssetsTotalYear1" class="price" style="text-align:right;background-color:Lightgrey;color:black" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentAssetsTotalYear2" class="price" style="text-align:right;background-color:Lightgrey;color:black" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentAssetsTotalYear3" class="price" style="text-align:right;background-color:Lightgrey;color:black" onblur="NonCurrentAssets_Recalculate()"></td>
+	   </tr>
+		<tr>
+		  <td><input type=text name = "OtherNonCurrentAssetsDescLine1" Size = 35 Placeholder = "Enter line description 1"></td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine1Year0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine1Year1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine1Year2" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine1Year3" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		</tr>
+		<tr>
+		 <td><input type=text name = "OtherNonCurrentAssetsDescLine2" Size = 35 Placeholder = "Enter line description 2"></td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine2Year0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine2Year1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine2Year2" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine2Year3" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		</tr>
+		<tr>
+		 <td><input type=text name = "OtherNonCurrentAssetsDescLine3" Size = 35 Placeholder = "Enter line description 3"></td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine3Year0" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine3Year1" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine3Year2" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type=text name = "OtherNonCurrentAssetsLine3Year3" class="price" style="text-align:right;" onblur="NonCurrentAssets_Recalculate()"></td>
+		</tr>
+	   <tr style ="background-color:lightblue;color:black">
+		  <td><strong>Total Other Non-Current Assets:<strong></td>
+		  <td><Input type="text" name = "OtherNonCurrentAssetsGrandTotalYear0" class="price" style="text-align:right;background-color:Lightblue;color:black" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentAssetsGrandTotalYear1" class="price" style="text-align:right;background-color:Lightblue;color:black" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentAssetsGrandTotalYear2" class="price" style="text-align:right;background-color:Lightblue;color:black" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentAssetsGrandTotalYear3" class="price" style="text-align:right;background-color:Lightblue;color:black" onblur="NonCurrentAssets_Recalculate()"></td>
+	   </tr>	   
+	    <tr>
+		  <td>Enter any supporting notes on Other Assets</td>
+          <td colspan = 4><Textarea rows = 5 cols = 100 name = "OtherNonCurrentAssetsComments" style="background-color:white;color:black"></textarea></td>
+	   </tr>
+	  <tr style ="background-color:blue;">
+		  <td style="color:white"> <strong>Total Non-Current Assets<strong></td>
+		  <td><Input type=text name = "TotalNonCurrentAssetsYear0" class="price" style="text-align:right;background-color:blue;color:white" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type=text name = "TotalNonCurrentAssetsYear1" class="price" style="text-align:right;background-color:blue;color:white" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type=text name = "TotalNonCurrentAssetsYear2" class="price" style="text-align:right;background-color:blue;color:white" onblur="NonCurrentAssets_Recalculate()"></td>
+		  <td><Input type=text name = "TotalNonCurrentAssetsYear3" class="price" style="text-align:right;background-color:blue;color:white" onblur="NonCurrentAssets_Recalculate()" ></td>
+	   </tr> 
+	  
+	      <td></td>
+		  <td><Input type = Submit value = "Save/Submit" onclick = "NonCurrentAssetsForm_SaveData()" ></td><td><Button type = "button" value onclick ="ResetFormValues()">Clear Form</Button></td>
+	    </table>
+   </table>
+   <script>
+	 
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+    </script>
+   </Form>
+</body>
+
+</html>

@@ -1,0 +1,163 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Non Current Assets</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+				// Set up the number formatting.
+				
+				
+				//alert ("The previous page is " + document.referrer);
+				
+				document.AddMenuForm.application_ref.value = localStorage.application_ref;
+				document.AddMenuForm.company_reg_no.value = localStorage.company_reg_no;
+				document.AddMenuForm.loan_number.value = localStorage.loan_number;
+				document.AddMenuForm.legal_name.value = localStorage.legal_name  + " " + localStorage.customer_type;
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	    
+
+	    function ToNumber(nStr) 
+		{
+	       if   (typeof(nStr) == "undefined")
+		      {  return 0;}
+		   else  
+		      {
+		        if (nStr == "") {return 0};
+		        if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+		      } 
+	    }   
+   </script 
+</head>
+
+
+				
+				
+<body style="background-color:white;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="AddMenuForm" action="/action_BSPage.htm" onsubmit="return validateForm()" method="post">    
+  
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="442" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="442" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 15 bordercolor = white width = 880 cellpadding =0 cellspacing = 0>
+	   
+	      <tr>
+		     <td cellspacing = 0 colspan = 5 align = "center" style="background-color:darkblue;color:white"><h3>CORPORATE CREDIT SCORE CARD</h3></td>
+			 <td></td>
+			 <td></td>
+			 <td></td>
+		   </tr>
+	     
+		 <tr bgcolor = powderblue style = "color:black">
+		    <td colspan = 2><strong>Name of Company</strong></td>
+			<td><strong>Company Reg. No</strong></td>
+		    <td><strong>Application Loan No</strong></td>
+			<td><strong>Company Loan Count</strong></td>
+		 </tr>
+		 <tr>
+		    <td colspan = 2><Input type = text name = "legal_name" size = 45 readonly></td>
+			<td><input type = text name = "company_reg_no" readonly ></td>
+		    <td><input type = text name = "application_ref" readonly></td>
+			<td><input type = text name = "loan_number" readonly></td>
+		 </tr>
+		 <tr><td>.</td></tr>
+		 <tr>
+		     <td cellspacing = 0 colspan = 5 align = "left" style="background-color:white;color:black"><strong>Reports</strong></td>
+			 <td></td>
+			 <td></td>
+			 <td></td>
+		   </tr>
+	      <tr>
+             <td><a style="background-color:white;color:black" href="ScoreCard.htm">Dashboard(Score-card)</a></td>
+		     <td><a style="background-color:white;color:black;text-align:centre" href="ProgressTracker.htm">Progress Tracker</a></td>
+		     <td><a style="background-color:white;color:black" href="RatioAnalysis.htm">Ratio Analysis</a></td>
+		     <td><a style="background-color:white;color:blue" href="SummaryBalanceSheet.htm">Summary Balance Sheet</a></td>
+		     <td><a style="background-color:white;color:black" href=".htm">Credit Policy Extract</a></td>
+		  </tr>
+		   <tr></tr>
+		   <tr></tr>
+		   <tr></tr>
+		   <tr>
+		     <td cellspacing = 0 colspan = 5 align = "left" style="background-color:white;color:black"><strong>Inputs</strong></td>
+			 
+		   </tr>
+	      <tr>
+             <td>
+			     <a style="background-color:white;color:blue;align:centre" href="CompanyData.htm">Company Data</a>
+		     </td>
+		     <td><a href="Is.htm" style="background-color:white;color:blue;align:centre">Income Statement</a></td>
+			 <td><a href="CurrentAssets.htm" style="background-color:white;color:blue;align:centre">Current Assets</a></td>
+			 <td><a href="CurrentLiabilities.htm" style="background-color:white;color:blue;align:centre">Current Liabilities</a></td>
+			 <td><a href="UserManual.htm" style="background-color:white;color:darkgreen;align:centre">User Manual</a></td>
+		  </tr>
+		   <tr>
+             <td><a style="background-color:white;color:blue" href="LoanData.htm">Loan And ITC Reports Data</a></td>
+		     <td><a style="background-color:white;color:blue" href="Equity.htm">Equity</a></td>
+		     <td><a style="background-color:white;color:blue" href="NonCurrentAssets.htm">Non Current Assets</a></td>
+		     <td><a style="background-color:white;color:blue" href="NonCurrentLiabilities.htm">Non Current Liabilities</a></td>
+		     <td><a style="background-color:white;color:blue" href="Settings1.php">Settings</a></td>
+		  </tr
+		  <tr>
+             <td><a style="background-color:white;color:blue" href="ShareholderData.htm">Shareholder Data</a></td>
+		     <td><a style="background-color:white;color:blue" href="ManagementAnalysis.htm">Management Analysis</a></td>
+		     <td><a style="background-color:white;color:blue" href="IndustryAnalysis.htm">Industry Analysis</a></td>
+		  </tr>
+		    </table>
+   </table>
+   <script>
+	 
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+    </script>
+   </Form>
+</body>
+
+</html>

@@ -1,0 +1,217 @@
+
+<HTML>
+<HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<TITLE>CREDIT SCORING - Management Analysis</TITLE>
+
+
+<link href="btu.css" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="jquery-3.5.1.js"></script>
+<script type="text/javascript" src="Dupleix.js"></script>
+<script type="text/javascript">
+        $(function()
+		    {
+				//InitialiseManagementAnalysisForm();
+				LoadManagementAnalysisForm();
+				RecalculateManagementAnalysisForm();
+			});
+			
+</script>
+<style>
+.header
+{
+  text-align:right;
+  background-color:powderblue;
+}
+</style> 
+</HEAD>
+
+<BODY BGCOLOR=#FFFFFF >
+<font class="s_text">
+
+<table width="900" border="0" align="center" cellpadding="0" cellspacing="0" class="bdr" >
+  <tr>
+    <td colspan="6" class="s_text"><table width="100%" border="0" cellspacing="0" cellpadding="0" >
+      <tr>
+        <td width="1286"><table width="770" height="165">
+<td><img src="img1.gif" alt="nknk" name="g" width="385" height="208"/>&nbsp;</td>
+<td><font color="#FFFFFF" size="16" face="Arial Narrow"><img src="img2.JPG" alt="nknk" name="g" width="385" height="208"/></font></td>
+</table></td>
+
+
+</tr>
+<tr>hhh
+<td width="1286" align="CENTER" bgcolor="#000040" class="s_text"><font  color="#FFFFFF" size="6" face="Arial Narrow">MANAGEMENT ANALYSIS</font></td><tr>
+      </tr>
+   <form ACTION="SaveManagementAnalysisData.php" name="ManagementAnalysisForm" id="ManagementAnalysisForm" method="post"  onClick="RecalculateManagementAnalysisForm();" onsubmit="return check(this);">
+   <table class="s_text" >
+        <tr><td cellspacing = 0 colspan = 4 align = "center" style="background-color:darkblue;color:white"><h3><p id = "legal_name">GARE VISION (PTY) LTD</p></h3></td></tr>
+	 	<tr><td colspan = 4 align = right>Application Ref No  :<input name = "application_ref" class = "header" readonly  >Company Reg No:<input name = "company_reg_no" class = "header" readonly></td>		</tr>
+		<tr><td colspan = 4 align = right>Loan Number  :<input name = "loan_number" class = "header" readonly>Username______:<input name ="username" class = "header" readonly></td></tr>
+        <tr bgcolor="#ECF8FF" class="s_text"> 
+          <td>
+        <p></br> 
+            <td><table cellspacing = 0 cellpadding = 0>
+		   <!--
+		   <tr>
+		       <td><p align="justify" class="s_text"><br><table class="s_text">
+	   </tr> -->
+   <tr bgcolor = powderblue>
+       <td><strong>Area of Assessment</strong></td>
+	   <td><strong>Rating</strong></td>
+	   <td><strong>Justification</strong></td>
+	   <td><strong>Reviewer's notes
+	</tr>
+    <tr>
+       <td> Commitment</td>
+	   <td><SELECT required NAME="Commitment" onclick = "RecalculateManagementAnalysisForm()">
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+	   <td><textarea rows = 5 cols = 55 name = "CommitmentComment"></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "CommitmentReviewComment"></textarea></td>
+    </tr>
+	<tr><td colspan = 6>________________________________________________________________________________________</td></tr>
+	 <tr>
+       <td> Integrity  :</td>
+	   <td><SELECT required NAME="Integrity" onclick = "RecalculateManagementAnalysisForm()" >
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+       <td><textarea rows = 5 cols = 55 name = "IntegrityComment"></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "IntegrityReviewComment"></textarea></td>
+     </tr>
+	<tr><td colspan = 5>_______________________________________________________________________________________</td></tr>
+    <tr>
+       <td> Information Quality:</td>
+	   <td><SELECT required NAME="InformationQuality" onclick = "RecalculateManagementAnalysisForm()">
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+       <td><textarea rows = 5 cols = 55 name = "InformationQualityComment"></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "InformationQualityReviewComment"></textarea></td>
+    </tr>
+	
+	<tr><td colspan = 5>_______________________________________________________________________________________</td></tr>
+    <tr>
+       <td> Leadership:</td>
+	   <td><SELECT required NAME="Leadership" onclick = "RecalculateManagementAnalysisForm()">
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+	   <td><textarea rows = 5 cols = 55 name="LeadershipComment" ></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "LeadershipReviewComment"></textarea></td>
+    </tr>
+    <tr><td colspan = 5>_______________________________________________________________________________________</td></tr>
+	<tr>
+       <td> Strategy And Business  :</td>
+	   <td><SELECT required NAME="Strategy" onclick = "RecalculateManagementAnalysisForm()">
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+       <td><textarea rows = 5 cols = 55 name = "StrategyComment"></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "StrategyReviewComment"></textarea></td>
+    </tr>
+	<tr><td colspan = 5>_______________________________________________________________________________________</td></tr>
+	<tr>
+       <td>Structure</td>
+	   <td><SELECT required NAME="Structure" onclick = "RecalculateManagementAnalysisForm()">
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+       <td><textarea rows = 5 cols = 55 name = "StructureComment"></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "StructureReviewComment"></textarea></td>
+     </tr>
+	<tr><td colspan = 5>_______________________________________________________________________________________</td></tr>
+	<tr>
+       <td>Management  :</td>
+	   <td><SELECT required NAME="Management" onclick = "RecalculateManagementAnalysisForm()">
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+       <td><textarea rows = 5 cols = 55 name = "ManagementComment"></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "ManagementReviewComment"></textarea></td>
+    </tr>
+	<tr><td colspan = 5>______________________________________________________________________________________</td></tr>
+	<tr>
+       <td>Succession Planning  :</td>
+	   <td><SELECT required NAME="SuccessionPlanning" onclick = "RecalculateManagementAnalysisForm()">
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+	   <td><textarea rows = 5 cols = 55 name = "SuccessionPlanningComment"></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "SuccessionPlanningReviewComment"></textarea></td>
+    </tr>
+	<tr><td colspan = 5>______________________________________________________________________________________</td></tr>
+	<tr>
+       <td>Organisational Planning  :</td>
+	   <td><SELECT required NAME="OrganisationalPlanning" onclick = "RecalculateManagementAnalysisForm()">
+              <option value="Deficient">Deficient</option>
+              <option value="Insufficient">Insufficient</option>
+			  <option value="Sufficient">Sufficient</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
+           </SELECT>
+	   </td>
+       <td><textarea rows = 5 cols = 55 name = "OrganisationalPlanningComment"></textarea></td>
+	   <td><textarea rows = 5 cols = 20 name = "OrganisationalPlanningReviewComment"></textarea></td>
+    </tr>
+    <tr>
+       <td>	
+<input type = "hidden" name="username_"  value="<?php echo $username;?>"/>
+<input type = "hidden" name="password"  value="<?php echo $password; ?>"/>
+
+<input type="SUBMIT" name="ManagementAnalysisSubmit"  onclick = "SaveManagementAnalysisForm()" class="btn" value="Submit"/> 
+
+</td></tr>
+
+
+</form>
+
+
+
+</td></tr>
+</table>
+</td>
+</tr>    
+ </table> 
+</table>
+
+
+
+</table>
+</font>
+</BODY>
+</HTML>

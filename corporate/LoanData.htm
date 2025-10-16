@@ -1,0 +1,1501 @@
+
+<HTML>
+<HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<TITLE>CREDIT SCORING- Loan Data</TITLE>
+
+
+<link href="btu.css" rel="stylesheet" type="text/css">
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+   <script type="text/javascript" src="Dupleix.js"></script>
+ 
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+			
+				document.getElementById("legal_name").innerHTML = localStorage.legal_name + " " + localStorage.customer_type;
+		        document.LoanDataForm.application_ref.value = localStorage.application_ref;
+				document.LoanDataForm.company_reg_no.value = localStorage.company_reg_no;
+				document.LoanDataForm.username.value = localStorage.username;				
+		        document.LoanDataForm.loan_number.value = localStorage.loan_number;
+ 	
+				LoanDataForm_LoadData();
+				//LoadLoanData();
+				
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+			
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	   
+
+function ToNumber(nStr) 
+{
+	      //alert (IsNan(nStr));
+  if (nStr == "") {return 0};
+  if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+}  
+
+
+
+function RecalculateLoanDataForm()
+{
+
+// Recalculate number of BBS Products===============================================
+var savings=document.LoanDataForm.Savings.options[document.LoanDataForm.Savings.selectedIndex].value;
+var Deposit=document.LoanDataForm.Deposit.options[document.LoanDataForm.Deposit.selectedIndex].value;
+var Share=document.LoanDataForm.Share.options[document.LoanDataForm.Share.selectedIndex].value;
+var ST=document.LoanDataForm.ST.options[document.LoanDataForm.ST.selectedIndex].value;
+var Mortgages=document.LoanDataForm.Mortgages.options[document.LoanDataForm.Mortgages.selectedIndex].value;
+var x=0;
+
+  if(savings !== "NA") {
+  x=x + 1;
+  }
+ 
+ 
+ if(Deposit !== "NA") {
+  x=x + 1;
+  }
+  
+  if(Share !== "NA") {
+  x=x + 1;
+  }
+  
+  
+  if(ST !== "NA") {
+  x=x + 1;
+  }  
+  
+  if(Mortgages !== "NA") {
+  x=x + 1;
+  }
+  
+  document.LoanDataForm.total_bbs_products.value =x;
+
+//Recalculate Total Instalments of current loans;
+  var Loan1 = ToNumber(document.LoanDataForm.LoanInstalment1.value);
+  var Loan2 = ToNumber(document.LoanDataForm.LoanInstalment2.value); 
+  var Loan3 = ToNumber(document.LoanDataForm.LoanInstalment3.value);
+  var Loan4 = ToNumber(document.LoanDataForm.LoanInstalment4.value);
+  var Loan5 = ToNumber(document.LoanDataForm.LoanInstalment5.value);
+  var Loan6 = ToNumber(document.LoanDataForm.LoanInstalment6.value);
+  var Loan7 = ToNumber(document.LoanDataForm.LoanInstalment7.value);
+  var Loan8 = ToNumber(document.LoanDataForm.LoanInstalment8.value);
+  var Loan9 = ToNumber(document.LoanDataForm.LoanInstalment9.value);
+ //calculate and display total instalments
+  document.LoanDataForm.TotalInstalments.value = Loan1+Loan2+Loan3+Loan4+Loan5+
+                                                 Loan6+Loan7+Loan8+Loan9;
+  //calculate number of loans
+  var n = 0;
+  if (Loan1 !== 0) {n = n+1;}
+  if (Loan2 !== 0) {n = n+1;}
+  if (Loan3 !== 0) {n = n+1;}
+  if (Loan4 !== 0) {n = n+1;}
+  if (Loan5 !== 0) {n = n+1;}
+  if (Loan6 !== 0) {n = n+1;}
+  if (Loan7 !== 0) {n = n+1;}
+  if (Loan8 !== 0) {n = n+1;}
+  if (Loan9 !== 0) {n = n+1;}
+  document.LoanDataForm.loans_outstanding.value = n;
+  
+  return true;
+
+
+
+}
+
+
+function loantoval()
+{
+var loan=document.LoanDataForm.loan_amount.value;
+var omv=document.LoanDataForm.open_market_value.value;
+ var loan1 = parseFloat(loan);
+ var omv1 = parseFloat(omv);
+ 
+var loantovalue= loan1 / omv1;
+var loantovalue3= loantovalue*100;
+var loantovalue2= loantovalue3.toFixed(0);
+document.LoanDataForm.ltv.value =loantovalue2;
+	return true;
+}
+
+
+function mortinstal()
+{
+var instal=document.LoanDataForm.loan_installment.value;
+var insure=document.LoanDataForm.insurance_premium.value;
+var oloan=document.LoanDataForm.o_loan_type.value;
+ var add2 = parseFloat(instal);
+ var add1 = parseFloat(insure);
+
+var finalinstal= add1 + add2;
+
+//if(oloan == "Fixed") {var finalinstal= add2;}  
+
+alert ("loan type = "+oloan);
+var finalinstalment= finalinstal.toFixed(2)
+document.LoanDataForm.loanandinsurance.value = finalinstalment;
+	return true;
+}
+
+
+
+function myltvpolicy()
+{
+
+var test2=document.LoanDataForm.loan_type.options[document.LoanDataForm.loan_type.selectedIndex].value;
+var val= String(test2);
+
+if (val == "Standard to Batswana")
+{
+var ltvratio=90;
+}
+
+if (val == "Guaranteed Scheme")
+{
+var ltvratio=100;
+}
+
+if (val == "Standard to Non-Citizens")
+{
+var ltvratio=90;
+}
+
+if (val == "Second Time Home Owner")
+{
+var ltvratio=90;
+}
+if (val == "Non-Guaranteed Scheme")
+{
+var ltvratio=90;
+}
+if (val == "77")
+{
+var ltvratio=90;
+}
+document.LoanDataForm.ltv_policy.value = ltvratio;
+	return true;
+}
+
+
+
+
+function premium()
+{
+var myinsure=document.LoanDataForm.insurance_replacement.value;
+var test=document.LoanDataForm.property_type.options[document.LoanDataForm.property_type.selectedIndex].value;
+var val= String(test);
+
+if (val == "Residential")
+{
+var premiumpercent=0.06;
+//alert("yes1");
+}
+if (val == "Commercial")
+{
+var premiumpercent=0.10;
+//alert("yes2");
+}
+if (val == "Thatched_Residential")
+{
+var premiumpercent=0.65;
+//alert("yes3");
+}
+if (val == "Thatched_Commercial")
+{
+//alert("yes4");
+var premiumpercent=0.65;
+}
+
+var mypremium= (myinsure * premiumpercent/12)/100;
+var finalpremium= mypremium.toFixed(2);
+document.LoanDataForm.insurance_premium.value = finalpremium;
+	return true;
+}
+
+
+
+function ltv()
+{
+var amt=document.LoanDataForm.loan_amount.value;
+var val=document.LoanDataForm.open_market_value.value;
+var loanvale= amt/val;
+var myltv= loanval.toFixed(2);
+document.LoanDataForm.insurance_replacement.value = myltv;
+	return true;
+}
+
+
+
+
+function insure()
+{
+var opv=document.LoanDataForm.open_market_value.value;
+var insurance= opv * 1.4;
+var ins= insurance.toFixed(2);
+document.LoanDataForm.insurance_replacement.value = ins;
+	return true;
+}
+
+
+
+function instal()
+{
+var rate=document.LoanDataForm.irate.value;
+var amount =document.LoanDataForm.loan_amount.value;
+var maturity =document.LoanDataForm.loan_maturity.value;
+
+if (isNaN(rate) || isNaN(amount) || isNaN(maturity)) {
+		alert("You can only enter numbers in the Loan Amout and Rate fields!");	
+}
+maturity=maturity*12;
+rate=rate / 12;
+rate=rate / 100;
+
+var x= 1+ rate;
+
+var y =Math.pow(x, maturity);
+var b =Math.pow(x, maturity);
+
+
+
+
+var val = rate * b; 
+//var valaa= val.toFixed(2);
+
+
+var valb =  y - 1; 
+//var valbb = val.toFixed(2);
+
+var pmt = amount * (val / valb); 
+
+var dd= pmt.toFixed(2);
+document.LoanDataForm.loan_installment.value = dd;
+	return true;
+ }
+
+
+
+
+function checkRates(irate)
+{
+var mm =document.LoanDataForm.irate.value;
+var mm2 =document.LoanDataForm.loan_amount.value;
+var mm3 =document.LoanDataForm.loan_maturity.value;
+var numString = String(mm);
+var numString2 = String(mm2);
+var numString3 = String(mm3);
+
+var papi = String("papiso");
+newstring= papi.concat(numString);
+newstring2= papi.concat(numString2);
+newstring3= papi.concat(numString3);
+
+if(newstring.length == 6 || newstring2.length == 6 || newstring3.length == 6 ) 
+   {
+      alert("Ensure that the loan amount, loan maturity and interest are all filled to get a correct installment amount");
+	     return false;
+   }
+ }
+
+
+
+function calcTotal() {
+var installment=document.LoanDataForm.loanandinsurance.value;
+var addaa = document.LoanDataForm.tax.value
+    var addaa = parseFloat(addaa, 10)
+    addaa = (isNaN(addaa))?0:addaa;
+	
+	var addbb = document.LoanDataForm.tax2.value
+    var addbb = parseFloat(addbb, 10)
+    addbb = (isNaN(addbb))?0:addbb;
+	
+	
+var add1 = document.LoanDataForm.annual_sal.value
+    var add1 = parseFloat(add1, 10)
+    add1 = (isNaN(add1))?0:add1;
+    
+    //ADD SECOND INPUT VALUE
+    var add2 = document.LoanDataForm.fixed_perm_allowances.value
+    var add2 = parseFloat(add2, 10)
+    add2 = (isNaN(add2))?0:add2;
+    
+	var firstItem = add1 + add2 - addaa ;
+	
+	var add3 = document.LoanDataForm.hp_annual_sal.value
+    var add3 = parseFloat(add3, 10)
+    add3 = (isNaN(add3))?0:add3;
+    
+    //ADD SECOND INPUT VALUE
+    var add4 = document.LoanDataForm.hp_fixed_perm_allowances.value
+    var add4 = parseFloat(add4, 10)
+    add4 = (isNaN(add4))?0:add4;
+	
+	var secondItem = add3 + add4 - addbb;
+	
+	var forafford1=add1 + add2;
+	
+	var forafford2=add3 + add4;
+	
+	if (isNaN(firstItem) || isNaN(secondItem)) {
+		alert("You can only enter numbers in the  Rate fields!");
+		return false;
+	}
+	else {
+		document.LoanDataForm.total_rev_for_afford.value = firstItem;
+		document.LoanDataForm.hp_total_rev_for_afford.value = secondItem;
+		
+		
+		/*document.forms[0].amount6.value = sixthItem;*/
+		var grandTotal = firstItem + secondItem ;
+		var grandTotal2 = forafford1 + forafford2;
+		document.LoanDataForm.total_allowable_household_revenues.value = grandTotal;
+		var tt=grandTotal/12;
+		var tt2= tt.toFixed(2);
+			document.LoanDataForm.rev4afford.value = tt2;
+		
+var gg=grandTotal2/12;
+var ratio= installment/gg;
+		
+var ratio2=ratio*100;
+var finalratio= ratio2.toFixed(2);
+document.LoanDataForm.affordability_ratio.value=finalratio;	
+		return true;
+	}
+}
+function new_loan(){
+var installment=document.LoanDataForm.o_bal.value;
+ var installment = parseFloat(installment, 10)
+    installment = (isNaN(installment))?0:installment;
+var monthsal =document.LoanDataForm.newloan.value;    
+ var monthsal = parseFloat(monthsal, 10)
+    monthsal = (isNaN(monthsal))?0:monthsal;
+	
+
+
+var newtotalloan= installment + monthsal;
+var newtotalloan2= newtotalloan.toFixed(2);
+document.LoanDataForm.loan_amount.value= newtotalloan2;
+return true;
+}
+
+function isEmpty(strfield1, strfield2, strfield3) {
+
+
+//change "field1, field2 and field3" to your field names
+var strfield1 = document.LoanDataForm.loan_amount.value;
+var strfield2 = document.LoanDataForm.property_type.value;
+var strfield3 = document.LoanDataForm.loan_type.value;
+
+  //name field
+    if (strfield1 == "" || strfield1 == null )
+    {
+    alert("Please enter value for the loan amount requested.")
+    return false;
+    }
+
+  //url field 
+    if (strfield2 == "" || strfield2 == null )
+    {
+    alert("Please enter value for the roperty type.")
+    return false;
+    }
+
+  //title field 
+    if (strfield3 == "" || strfield3 == null )
+    {
+    alert("Please enter value for the Loan type.")
+    return false;
+    }
+    return true;
+}
+
+function check(LoanDataForm){
+if (isEmpty(LoanDataForm.loan_amount)){
+  if (isEmpty(LoanDataForm.property_type)){
+    if (isEmpty(LoanDataForm.loan_type)){
+	
+		  return true;
+		}
+	
+  }
+}
+return false;
+}
+
+
+
+function isEmpty(strfield0,strfield1, strfield2, strfield3, strfield4,strfield5, strfield6, strfield7, strfield8, strfield9, strfield10, strfield11, strfield12, strfield13, strfield14,strfield15, strfield16, strfield17, strfield18, strfield19,strfield20, strfield21, strfield22, strfield23, strfield24, strfield25, strfield26 , strfield27, strfield28, strfield29, strfield30, strfield31)
+   {
+//variables names
+var strfield1 = document.LoanDataForm.loan_amount.value;
+var strfield2 = document.LoanDataForm.property_type.value;
+var strfield3 = document.LoanDataForm.open_market_value.value;
+var strfield4 = document.LoanDataForm.loan_type.value;
+var strfield5 = document.LoanDataForm.loan_maturity.value;
+var strfield6 = document.LoanDataForm.rate_type.value;
+var strfield7 = document.LoanDataForm.irate.value;
+var strfield8 = document.LoanDataForm.insurance_replacement.value;
+var strfield9 = document.LoanDataForm.annual_sal.value;
+var strfield10 = document.LoanDataForm.fixed_perm_allowances.value;
+var strfield11 = document.LoanDataForm.hp_fixed_perm_allowances.value;
+var strfield12 = document.LoanDataForm.hp_fixed_perm_allowances.value;
+var strfield13 = document.LoanDataForm.affordability_policy.value;
+var strfield14 = document.LoanDataForm.customer_type.value;
+var strfield15 = document.LoanDataForm.nationality.value;
+var strfield16 = document.LoanDataForm.name.value;
+var strfield17 = document.LoanDataForm.other_name.value;
+var strfield18 = document.LoanDataForm.surname.value;
+var strfield19 = document.LoanDataForm.spouse_name.value;
+var strfield20 = document.LoanDataForm.spouse_surname.value;
+var strfield21 = document.LoanDataForm.address.value;
+var strfield22 = document.LoanDataForm.street_add.value;
+var strfield23 = document.LoanDataForm.town.value;
+var strfield24 = document.LoanDataForm.country.value;
+var strfield25 = document.LoanDataForm.permanent_residence.value;
+var strfield26 = document.LoanDataForm.location.value;
+var strfield27 = document.LoanDataForm.gender.value;
+var strfield0 = document.LoanDataForm.one.value;
+var strfield28 = document.LoanDataForm.education.value;
+var strfield29 = document.LoanDataForm.employment.value;
+var strfield30 = document.LoanDataForm.Professional.value;
+var strfield31 = document.LoanDataForm.bond_plot.value;
+
+
+
+  //name field
+
+if(strfield0 == "" || strfield0 == null)
+{ 
+alert("Please enter value omang/passport number")
+return false;
+} 
+if(strfield1 == "" || strfield1 == null)
+{ 
+alert("Please enter value for_loan amount requested.")
+return false;
+}
+if(strfield2 == "" || strfield2 == null)
+{
+alert("Please enter value for_Property type.") 
+return false;
+}
+if(strfield3 == "" || strfield3 == null)
+{
+alert("Please enter value for_Open Market Value." )
+return false;
+ }
+if(strfield4 == "" || strfield4 == null)
+{
+ alert("Please enter value for_Loan Type." )
+return false;
+}
+if(strfield5 == "" || strfield5 == null)
+{
+ alert("Please enter value for_Loan Maturity Requested.")
+  return false;
+}
+if(strfield6 == "" || strfield6 == null)
+{ 
+alert("Please enter value for_Rate Type Requested.")  
+  return false;
+}
+if(strfield7 == "" || strfield7 == null)
+{ 
+alert("Please enter value for_Estimated Loan Current (Offered) Interest Rate pa.") 
+   return false;
+}
+if(strfield8 == "" || strfield8 == null)
+{ 
+alert("Please enter value for_Insurance Replacement Cost.") 
+   return false;
+}
+if(strfield9 == "" || strfield9 == null)
+{ 
+alert("Please enter value for_Annual Salary Amount (Gross)." )
+   return false;
+}
+if(strfield10 == "" || strfield10 == null)
+{ 
+alert("Please enter value for_Fixed Permanent allowances (pa).") 
+   return false;
+}
+if(strfield13 == "" || strfield13 == null)
+{ 
+alert("Please enter value for_Affordability Policy.")  
+ return false;
+}
+if(strfield14 == "" || strfield14 == null)
+{ 
+alert("Please enter value for_Customer Type.")   
+ return false;
+}
+if(strfield15 == "" || strfield15 == null)
+{
+ alert("Please enter value for_Nationality.")   
+ return false;
+}
+if(strfield16 == "" || strfield16 == null)
+{ 
+alert("Please enter value for_Borrower Name.")
+   return false;
+}
+//if(strfield17 == "" || strfield17 == null)
+//{ 
+//alert("Please enter value for_Other Names.")   
+ //return false;
+//}
+if(strfield18 == "" || strfield18 == null)
+{ 
+alert("Please enter value for_Surname.")   
+ return false;
+}
+
+if(strfield21 == "" || strfield21 == null)
+{ 
+alert("Please enter value for_borrower present address.")
+   return false;
+}
+if(strfield22 == "" || strfield22 == null)
+{ 
+alert("Please enter value for_street name and number.")
+    return false;
+}
+if(strfield23 == "" || strfield23 == null)
+{ 
+alert("Please enter value for_town.") 
+ return false;
+}
+if(strfield24 == "" || strfield24 == null)
+{ 
+alert("Please enter value for_Country.") 
+  return false;
+}
+if(strfield25 == "" || strfield25 == null)
+{
+ alert("Please enter value for_Permanent Country of Residence.") 
+   return false;
+}
+if(strfield26 == "" || strfield26 == null)
+{
+ alert("Please enter value for_Location of Acquired Real Estate")  
+ return false;
+}
+if(strfield27 == "" || strfield26 == null)
+{
+ alert("Please enter value for gender")  
+ return false;
+}
+if(strfield28 == "" || strfield28 == null)
+{
+ alert("Please enter value for borrower education")  
+ return false;
+}
+if(strfield29 == "" || strfield29 == null)
+{
+ alert("Please enter value for employment contract")  
+ return false;
+}
+if(strfield30 == "" || strfield30 == null)
+{
+ alert("Please enter value for proffessional category")  
+ return false;
+}
+if(strfield31 == "" || strfield31 == null)
+{
+ alert("Please enter value for plot number of bonded security")  
+ return false;
+}
+    return true;
+}
+ 
+
+
+function double()
+{
+var revenues = document.LoanDataForm.revenues.options[document.LoanDataForm.revenues.selectedIndex].value;
+var strfield11 = document.LoanDataForm.hp_annual_sal.value;
+var strfield12 = document.LoanDataForm.hp_fixed_perm_allowances.value;
+
+
+  if(revenues == "Double" && (strfield11 == "" || strfield11 == null || strfield12 == "" || strfield12 == null)) 
+ 
+ { 
+alert("PLEASE ENTER ALL DETAILS FOR HouseHold Partner Revenues:")   
+ return false;
+}
+	return true;
+}
+
+
+
+
+
+function enable_text(status)
+{
+status=!status; 
+document.LoanDataForm.one.disabled = status;
+}
+
+function enable_text2(status)
+{
+status=!status; 
+document.LoanDataForm.pone.disabled = status;
+}
+// <![CDATA[
+function display(obj,id1,id2,id3,id4,id5,id6,id7,id8,id9) {
+txt = obj.options[obj.selectedIndex].value;
+document.getElementById(id1).style.display = 'none';
+document.getElementById(id2).style.display = 'none';
+document.getElementById(id3).style.display = 'none';
+document.getElementById(id4).style.display = 'none';
+document.getElementById(id5).style.display = 'none';
+document.getElementById(id6).style.display = 'none';
+document.getElementById(id7).style.display = 'none';
+document.getElementById(id8).style.display = 'none';
+document.getElementById(id9).style.display = 'none';
+		
+if ( txt.match(id1) ) {
+document.getElementById(id1).style.display = 'block';
+}
+if ( txt.match(id2) ) {
+document.getElementById(id2).style.display = 'block';
+}
+if ( txt.match(id3) ) {
+document.getElementById(id3).style.display = 'block';
+}
+if ( txt.match(id4) ) {
+document.getElementById(id4).style.display = 'block';
+}
+if ( txt.match(id5) ) {
+document.getElementById(id5).style.display = 'block';
+}
+if ( txt.match(id6) ) {
+document.getElementById(id6).style.display = 'block';
+}
+if ( txt.match(id7) ) {
+document.getElementById(id7).style.display = 'block';
+}
+if ( txt.match(id8) ) {
+document.getElementById(id8).style.display = 'block';
+}
+if ( txt.match(id9) ) {
+document.getElementById(id9).style.display = 'block';
+}
+//if ( txt.match(id10) ) {
+//document.getElementById(id10).style.display = 'block';
+//}
+}
+
+
+function displaya(obj,a,b,c) {
+txt = obj.options[obj.selectedIndex].value;
+document.getElementById(a).style.display = 'none';
+document.getElementById(b).style.display = 'none';
+document.getElementById(c).style.display = 'none';
+if ( txt.match(a) ) {
+document.getElementById(a).style.display = 'block';
+document.getElementById(b).style.display = 'block';
+document.getElementById(c).style.display = 'block';
+}
+}
+
+
+function setReadOnly(obj)
+{
+if (obj.options[obj.selectedIndex].value == "Single" )
+{
+document.LoanDataForm.day2.readOnly = 1;
+document.LoanDataForm.month2.readOnly = 1;
+document.LoanDataForm.year2.readOnly = 1;
+} 
+}
+
+</script>
+
+</HEAD>
+
+<BODY BGCOLOR=#FFFFFF >
+<font class="s_text">
+<!--
+<?php
+/**
+function calc_payment($pv, $payno, $int, $accuracy) 
+{ 
+// check that required values have been supplied 
+if (empty($pv)) { 
+   echo "<p class='error'>a value for PRINCIPAL is required</p>"; 
+   exit; 
+} // if 
+if (empty($payno)) { 
+   echo "<p class='error'>a value for NUMBER of PAYMENTS is required</p>"; 
+   exit; 
+} // if 
+if (empty($int)) { 
+   echo "<p class='error'>a value for INTEREST RATE is required</p>"; 
+   exit; 
+} // if 
+
+// now do the calculation using this formula: 
+
+//****************************************** 
+//            INT * ((1 + INT) ** PAYNO) 
+// PMT = PV * -------------------------- 
+//             ((1 + INT) ** PAYNO) - 1 
+//****************************************** 
+
+$int    = $int / 100;    // convert to a percentage 
+$value1 = $int * pow((1 + $int), $payno); 
+$value2 = pow((1 + $int), $payno) - 1; 
+$pmt    = $pv * ($value1 / $value2); 
+// $accuracy specifies the number of decimal places required in the result 
+$pmt    = number_format($pmt, $accuracy, ".", ""); 
+
+return $pmt; 
+
+} // calc_payment ==================================================================== 
+
+
+$username='root';
+$passwd="";//sefalana2008';
+
+
+// Edward $username=$_POST['username'];
+
+//echo  "BBS\ ";
+//$bbs='BBS\\';
+
+
+$new=$bbs.$username;
+
+$ldappass=$_POST['password'];
+//echo $new.$ldappass;
+
+$ldaprdn  = $new;     // ldap rdn or dn
+$ldappass = $ldappass;  // associated password
+
+// connect to ldap server
+$ldapconn = ldap_connect("10.0.9.10")
+    or die("Could not connect to LDAP server.");
+
+if ($ldapconn) {
+
+    // binding to ldap server
+    $ldapbind = ldap_bind($ldapconn, $ldaprdn, $ldappass);
+
+    // verify binding
+    if ($ldapbind) {
+        echo "";
+    } else {
+	
+     echo "<meta http-equiv=\"refresh\" content=\"0;URL=index.php\">";
+		
+
+    }
+
+}
+//$username = $_POST['username'];
+//$password = $_POST['password'];
+//echo $username;
+//echo $password; echo 'ttt';
+
+//$pass=$_POST['password'];
+
+$host="localhost"; // Host name 
+$username="root"; // Mysql username 
+$password="";//"sefalana2008"; // Mysql password 
+$db_name="creditscoring"; // Database name 
+// Connect to server and select databse.
+// Edward $ip =gethostbyname($_SERVER['REMOTE_ADDR']); 
+//echo $ip;
+
+
+$connect=mysqli_connect("localhost","root","",$db_name); //updated by Edward
+//echo $pass;
+  if (!$connect) {
+  mysqli_close($connect); 
+  echo "Cannot connect to the database! Please Check your username and password.";
+  die(); 
+}
+else {
+mysqli_select_db($connect,$db_name )     
+or die("Couldn't open $dbase: ".mysql_error());  
+
+}
+**/
+?>
+-->
+<table width="760" border="0" align="center" cellpadding="0" cellspacing="0" class="bdr" >
+  <tr>
+    <td colspan="6" class="s_text"><table width="100%" border="0" cellspacing="0" cellpadding="0" >
+      <tr>
+        <td width="1286"><table width="770" height="165">
+<td><img src="img1.gif" alt="nknk" name="g" width="385" height="208"/>&nbsp;</td>
+<td><font color="#FFFFFF" size="16" face="Arial Narrow"><img src="img2.JPG" alt="nknk" name="g" width="385" height="208"/></font></td>
+</table></td>
+
+
+</tr>
+<tr>
+<td width="1286" align="CENTER" bgcolor="#000040" class="s_text"><font  color="#FFFFFF" size="6" face="Arial Narrow">LOAN AND ITC REPORTS DATA</font></td><tr>
+      </tr>
+   <table class="s_text" >
+        <tr bgcolor="#ECF8FF" class="s_text"> 
+          <td>
+        <p></br> 
+        <form ACTION="SaveLoanData.php" name="LoanDataForm" id="LoanDataForm" method="post"  onClick="return RecalculateLoanDataForm();" onsubmit="return check(this);">
+            <td><table><tr><td><p align="justify" class="s_text"><br>
+<table class="s_text">
+<tr>
+                <td><strong><font color="#FF0000">**</font></strong> <em><font color="#FF9900" size="1">System 
+                  Generated Data</font></em></td>
+              </tr>
+	 	<tr><td colspan = 4 align = right>Application Ref No  :<input name = "application_ref" class = "header" readonly  >Company Reg No:<input name = "company_reg_no" class = "header" readonly></td>		</tr>
+		<tr><td colspan = 4 align = right>Loan Number  :<input name = "loan_number" class = "header" readonly>Username______:<input name ="username" class = "header" readonly></td></tr>
+       <tr><td cellspacing = 0 colspan = 4 align = "center" style="background-color:powderblue;color:black"><h3><p id = "legal_name">GARE VISION (PTY) LTD</p></h3></td></tr>
+ 	
+<tr><td>Loan Type</td><td width="60">&nbsp;</td><td>
+<SELECT required NAME="loan_type" onchange="displaya(this,'77', '78', '79');">
+<option value=""> </option>
+<option value="Standard to Batswana">Standard to Batswana </option>
+<option value="Guaranteed Scheme">Guaranteed Scheme</option>
+<option value="Non-Guaranteed Scheme">Non-Guaranteed Scheme</option>
+<option value="Standard to Non-Citizens">Standard to Non-Citizens </option>
+<option value="Second Time Home Owner">Second Time Home Owner</option>
+<option value="77">Further Advance</option>
+</SELECT></td></tr>
+
+</thead>
+<tfoot>
+
+</tfoot>
+<tbody id="77" style="display: none;">
+<tr>
+            <td class="title"><strong><em>Original Loan Type:</em></strong></td>
+<td class="field"><SELECT NAME="o_loan_type" >
+<option value="Fixed">Fixed </option>
+<option value="Variable">Variable</option>
+</SELECT></td>
+</tr>
+</tbody>
+<tbody id="78" style="display: none;">
+<tr>
+            <td class="title"><strong><em>Principal Outstanding in Original Loan:</em></strong></td>
+<td class="field"><input name="o_bal" type="text" onchange ="return new_loan()"></td>
+</tr>
+</tbody>
+<tbody id="79" style="display: none;">
+<tr>
+            <td class="title"><strong><em>New FA Requested:</em></strong></td>
+<td class="field"><input name="newloan" type="text" onchange="return new_loan()"></td>
+</tr>
+</tbody>
+<tr><td>Loan Amount Requested :</td><td width="60">&nbsp;</td><td>
+<input required name="loan_amount" type="text" onchange="return instal()" onFocus="this.blur">
+</td></tr>
+
+<tr><td>Property Type:</td><td width="60">&nbsp;</td><td><SELECT required NAME="property_type" >
+<option value="Residential">Residential </option>
+<option value="Commercial">Commercial</option>
+<option value="Thatched_Residential">Thatched_Residential </option>
+<option value="Thatched_Commercial">Thatched_Commercial</option>
+</SELECT></td></tr>
+
+<tr><td>Open Market Value:</td><td width="60">&nbsp;</td><td>
+<input required name="open_market_value" type="text">
+</td></tr>
+
+
+<tr><td>Loan Maturity Requested</td><td width="60"></td><td><SELECT required NAME="loan_maturity" onchange="return instal()">
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+<option value="7">7</option>
+<option value="8">8</option>
+<option value="9">9</option>
+<option value="10">10</option>
+<option value="11">11</option>
+<option value="12">12</option>
+<option value="13">13</option>
+<option value="14">14</option>
+<option value="15">15</option>
+<option value="16">16</option>
+<option value="17">17</option>
+<option value="18">18</option>
+<option value="19">19</option>
+<option value="20">20</option>
+<option value="21">21</option>
+<option value="22">22</option>
+<option value="23">23</option>
+<option value="24">24</option>
+<option value="25">25</option>
+<option value="26">26</option>
+<option value="27">27</option>
+<option value="28">28</option>
+<option value="29">29</option>
+<option value="30">30</option>
+</SELECT>
+
+
+<tr><td>Rate Type Requested:</td><td width="60">&nbsp;</td><td><SELECT required NAME="rate_type" >
+<option value=""></option>
+<option value="Fixed">Fixed </option>
+<option value="Floating">Floating</option>
+<option value="Variable">Variable</option>
+</SELECT></td></tr>
+
+<tr><td>Estimated Loan Current (Offered) Interest Rate pa</td><td width="60">&nbsp;</td><td>
+<input required name="irate" type="text" onchange="return instal()">
+</td></tr>
+ 
+<tr><td>Insurance Replacement Cost</td><td width="60">&nbsp;</td><td>
+<input required name="insurance_replacement" type="text">
+</td></tr>
+
+
+<tr>
+                <td>Estimated Insurance Premium <strong><font color="#FF0000">**</font></strong></td>
+                <td width="60">&nbsp;</td><td>
+<input name="insurance_premium" type="text"  readonly="true" onFocus="premium()">
+</td></tr>
+
+<tr><td>Estimated Instalment of the requested Loan <strong><font color="#FF0000">**</font></strong></td><td width="60">&nbsp;</td><td>
+<input name="loan_installment" type="text"  readonly="true" onFocus="this.blur();">
+</td></tr>
+
+<tr><td>Estimated Instalment + Insurance Premium  <strong><font color="#FF0000">**</font></strong></td><td width="60">&nbsp;</td><td>
+<input name="loanandinsurance" type="text"  readonly="true" onClick="mortinstal()" onchange="return calcTotal()">
+</td></tr>
+
+
+<tr><td>Loan To Value Policy <strong><font color="#FF0000">**</font></strong></td><td width="60">&nbsp;</td><td>
+<input name="ltv_policy" type="text" readonly="true" onClick="myltvpolicy()">
+</td></tr>
+
+<tr><td>Loan To Value <strong><font color="#FF0000">**</font></strong> </td><td width="60">&nbsp;</td><td>
+<input name="ltv" type="text" onClick="loantoval()" readonly="true">
+</td></tr>
+
+<tr><td>Affordability Policy</td><td width="60">&nbsp;</td><td>
+<SELECT NAME="affordability_policy" >
+<option value="40">40%</option>
+ </select>
+</td></tr>
+
+<tr><td>Monthly payment (rental/instalment):</td><td width="60"></td><td> <input required type="text" name="rent"> </td></tr>
+
+<tr><td>Age Of Relationshp with BBS:</td><td width="10"></td><td> <SELECT required NAME="relationship" >
+<option value="NA">NA</option>
+<option value="Since less than 1 year">Since less than 1 year</option>
+<option value="Since 1 to 5 years">Since 1 to 5 years</option>
+<option value="More than 5 years">More than 5 years</option>
+</SELECT></td></tr>
+
+
+<tr><td>Savings Account:</td><td width="10"></td><td> <SELECT required NAME="Savings" onchange = "RecalculateLoanDataForm()">
+<option value="NA">NA</option>
+<option value="Since less than 1 year">Since less than 1 year</option>
+<option value="Since 1 to 5 years">Since 1 to 5 years</option>
+<option value="More than 5 years">More than 5 years</option>
+</SELECT></td></tr>
+
+<tr><td>Deposit Account: </td><td width="10"></td><td><SELECT required NAME="Deposit"onchange = "RecalculateLoanDataForm()" >
+<option value="NA">NA</option>
+<option value="Since less than 1 year">Since less than 1 year</option>
+<option value="Since 1 to 5 years">Since 1 to 5 years</option>
+<option value="More than 5 years">More than 5 years</option>
+</SELECT></td></tr>
+
+<tr><td>Share Account: </td><td width="10"></td><td><SELECT required NAME="Share" onchange = "RecalculateLoanDataForm()" >
+<option value="NA">NA</option>
+<option value="Since less than 1 year">Since less than 1 year</option>
+<option value="Since 1 to 5 years">Since 1 to 5 years</option>
+<option value="More than 5 years">More than 5 years</option>
+</SELECT></td></tr>
+
+<tr><td>ST Loans: </td><td width="10"></td><td><SELECT NAME="ST" onchange = "RecalculateLoanDataForm()" >
+<option value="NA">NA</option>
+<option value="Since less than 1 year">Since less than 1 year</option>
+<option value="Since 1 to 5 years">Since 1 to 5 years</option>
+<option value="More than 5 years">More than 5 years</option>
+</SELECT></td></tr>
+
+<tr><td>Mortgages: </td><td width="10"></td><td><SELECT required NAME="Mortgages" onchange = "RecalculateLoanDataForm()" >
+<option value="NA">NA</option>
+<option value="Since less than 1 year">Since less than 1 year</option>
+<option value="Since 1 to 5 years">Since 1 to 5 years</option>
+<option value="More than 5 years">More than 5 years</option>
+</SELECT></td></tr>
+
+
+<tr><td>TOTAL BBS Products: <strong><font color="#FF0000">**??</font></strong> </td><td width="10"></td><td><input size = 1 type="text" name="total_bbs_products" readonly></td></tr>
+
+<tr><td >BBS arrears for over 30days in last 12mnths?</br> 
+</td><td width="10"></td><td><SELECT required NAME="loan_arrears">
+<option value="0">0</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+</SELECT></td></tr>
+
+
+<tr><td >Renegotiated loans with arreas in past 24 months?</br> 
+</td><td width="10"></td><td><SELECT required NAME="renegotiate">
+<option value=""></option>
+<option value="0">0</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+</SELECT></td></tr>
+
+
+<tr><td>Why was this needed ?
+</td><td width="10"></td><td><SELECT required NAME="why_renogotiation">
+<option value="0">Unexpected expenses</option>
+<option value="Increased instalments">Increased instalments</option>
+<option value="Reduced revenues">Reduced revenues</option>
+<option value="other">other</option>
+<option value="N/A">N/A</option>
+</SELECT>
+
+<tr><td colspan = 3><strong>Outstanding Loans:______________________________________________</strong></td></tr>
+<tr><td colspan = 2 align = right>Loan 1 Name-:<input type = "text" size  30 name = "LoanName1">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment1" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr><td colspan = 2 align = right>Loan 2 Name-:<input type = "text" size  30 name = "LoanName2">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment2" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr><td colspan = 2 align = right>Loan 3 Name-:<input type = "text" size  30 name = "LoanName3">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment3" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr><td colspan = 2 align = right>Loan 4 Name-:<input type = "text" size  30 name = "LoanName4">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment4" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr><td colspan = 2 align = right>Loan 5 Name-:<input type = "text" size  30 name = "LoanName5">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment5" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr><td colspan = 2 align = right>Loan 6 Name-:<input type = "text" size  30 name = "LoanName6">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment6" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr><td colspan = 2 align = right>Loan 7 Name-:<input type = "text" size  30 name = "LoanName7">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment7" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr><td colspan = 2 align = right>Loan 8 Name-:<input type = "text" size  30 name = "LoanName8">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment8" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr><td colspan = 2 align = right>Loan 9 Name-:<input type = "text" size  30 name = "LoanName9">Monthly Instalment:</td>
+    <td><input class = "price" type = "text"  name = "LoanInstalment9" onchange = "RecalculateLoanDataForm()"></td></tr>
+<tr>
+    <td class="title"><strong>Total Instalments:</stsrong><strong><font color="#FF0000">**</font></strong> </td><td></td>
+    <td class="field"><input style = "background-color:powderblue" type="text" name="TotalInstalments" readonly></td>
+</tr>
+<tr><td colspan = 3><strong>_____________________________________________________________</strong></td></tr>
+
+<tr><td>Number of loans presently outstanding<font color="#FF0000">**</font> </td><td width="10"></td><td><input style = "background-color:powderblue" NAME="loans_outstanding" type = "text" size = 1readonly>
+
+
+
+</tr>
+
+<tr>
+
+</thead>
+<tfoot>
+
+</tfoot>
+<tbody id="1" style="display: none;">
+<tr>
+<td class="title">loan installment:</td>
+<td class="field"><input type="text" name="installment1" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+<tbody id="2" style="display: none;">
+
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field"><input type="text" name="ainstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field"><input type="text" name="ainstallment2" size="8" /></td>
+</tr>
+
+</tbody>
+
+<tbody id="3" style="display: none;">
+
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="binstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment :</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="binstallment2" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment :</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="binstallment3" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+<tbody id="4" style="display: none;">
+
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="cinstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="cinstallment2" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="cinstallment3" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 4 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="cinstallment4" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+
+<tbody id="5" style="display: none;">
+
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment3" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 4 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment4" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 5 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment5" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+
+<tbody id="6" style="display: none;">
+
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="einstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="einstallment2" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="einstallment3" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 4 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="einstallment4" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 5 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="einstallment5" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 6 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="einstallment6" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+
+
+<tbody id="5" style="display: none;">
+
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment2" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment3" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 4 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment4" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 5 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="dinstallment5" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+
+<tbody id="7" style="display: none;">
+
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="finstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="finstallment2" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="finstallment3" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 4 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="finstallment4" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 5 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="finstallment5" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 6 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="finstallment6" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 7 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="finstallment7" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+<tbody id="8" style="display: none;">
+
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="ginstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="ginstallment2" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="ginstallment3" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 4 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="ginstallment4" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 5 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="ginstallment5" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 6 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="ginstallment6" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 7 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="ginstallment7" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 8 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="ginstallment8" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+
+<tbody id="9" style="display: none;">
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment2" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment3" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 4 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment4" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 5 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment5" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 6 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment6" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 7 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment7" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 8 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment8" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 9 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="hinstallment9" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+
+<tbody id="10" style="display: none;">
+<tr>
+<td class="title">loan 1 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment1" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 2 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment2" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 3 installment</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment3" size="8" /></td>
+</tr>
+<tr>
+<td class="title">loan 4 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment4" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 5 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment5" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 6 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment6" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 7 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment7" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 8 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment8" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 9 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment9" size="8" maxlength="7" /></td>
+</tr>
+<tr>
+<td class="title">loan 10 installment:</td>
+<td class="field">&nbsp;&nbsp;&nbsp;<input type="text" name="iinstallment10" size="8" maxlength="7" /></td>
+</tr>
+</tbody>
+
+
+<tr><td>ITC REF NO.</td><td width="60">&nbsp;</td><td><input type="text" name="itc_ref"></td></tr>
+
+<tr><td>ITC REPORT -(Paid Debt) </td><td width="10"></td><td><SELECT NAME="paid_debts">
+<option value="0">0</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+<option value="7">7</option>
+<option value="8">8</option>
+</SELECT>
+</td></tr>
+
+<tr><td>ITC REPORT: Judgement </td><td width="10"></td><td><SELECT NAME="judgement">
+<option value="0">0</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+<option value="7">7</option>
+<option value="8">8</option>
+</SELECT>
+</td></tr>
+
+<tr><td>ITC REPORT: Default Data </td><td width="10"></td><td><SELECT NAME="default_data">
+<option value="0">0</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+<option value="7">7</option>
+<option value="8">8</option>
+</SELECT>
+</td></tr>
+
+<tr><td>ITC REPORT: Trace Alerts  </td><td width="10"></td><td><SELECT NAME="trace_alerts">
+<option value="0">0</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+<option value="7">7</option>
+<option value="8">8</option>
+</SELECT>
+</td></tr>
+<tr><td>BlackList Flag  </td><td width="10"></td><td><SELECT NAME="blacklisted">
+<option value="No">No</option>
+<option value="Yes">Yes</option>
+</SELECT>
+</td></tr>
+
+<tr><td>Fraud Alerts  </td><td width="10"></td><td><SELECT NAME="fraud_alert">
+<option value="No">No</option>
+<option value="Yes">Yes</option>
+
+<tr><td>
+<input type="hidden" name="username_"  value="<?php echo $username;?>"/>
+<input type="hidden" name="password"  value="<?php echo $password; ?>"/>
+
+<input type="SUBMIT" name="RATE"  class="btn" value="Submit" onclick = "LoanDataForm_SaveData()"> 
+<tr><td>&nbsp;</td></tr>
+
+</td></tr>
+
+
+</form>
+
+
+
+</td></tr>
+</table>
+</td>
+</tr>    
+ </table> 
+</table>
+
+
+
+</table>
+</font>
+</BODY>
+</HTML>

@@ -1,0 +1,876 @@
+s<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Benchmark Overrides</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   <script type="text/javascript" src="Dupleix.js"></script>
+    
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		{
+			//Load Data
+				//CalculateRatiosFromLocalStorage();
+				//localStorage.industrial_sector = "RealEstate";
+
+				document.getElementById("legal_name").innerHTML = localStorage.legal_name + " " + localStorage.customer_type;
+			    document.BenchmarkOverrideForm.application_ref.value = localStorage.application_ref;
+				document.BenchmarkOverrideForm.company_reg_no.value = localStorage.company_reg_no;
+				document.BenchmarkOverrideForm.username.value = localStorage.username;
+				console.log(localStorage.industrial_sector);
+				//DisplayRatiosFromLocalStorage();
+				IndustryBenchmarksOverrideForm_LoadData();
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	 
+function Thousands_Separators(num)
+{
+   numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+   return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+   //return num_parts.join(".");
+	
+}
+
+
+function CalculateRatiosFromLocalStorage()
+		
+{
+           /***  	    
+		// CALCULATING EDWARD ALTMAN'S Z SCORE MODEL RATIOS
+		
+		// X1. Working Capital / Sales Ratio
+		   localStorage.WCToTotalAssets0 = round(ToNumber(localStorage.WorkingCapital0)/ToNumber(localStorage.SummaryTotalAssets0),2);
+		   localStorage.WCToTotalAssets1 = round(ToNumber(localStorage.WorkingCapital1)/ToNumber(localStorage.SummaryTotalAssets1),2);
+		   localStorage.WCToTotalAssets2 = round(ToNumber(localStorage.WorkingCapital2)/ToNumber(localStorage.SummaryTotalAssets2),2);
+		   localStorage.WCToTotalAssets3 = round(ToNumber(localStorage.WorkingCapital3)/ToNumber(localStorage.SummaryTotalAssets3),2);
+		   localStorage.WCToTotalAssetsWeighted = round(localStorage.WCToTotalAssets1*localStorage.RatioWeightYear1/100+
+		                                                localStorage.WCToTotalAssets2*localStorage.RatioWeightYear2/100+
+												        localStorage.WCToTotalAssets3*localStorage.RatioWeightYear3/100,2); 
+		   // X2. Retained Earnings/Total Assets Ratio
+		   localStorage.REToTotalAssets0 = round(ToNumber(localStorage.ClosingRetainedProfits0)/ToNumber(localStorage.SummaryTotalAssets0),2);
+		   localStorage.REToTotalAssets1 = round(ToNumber(localStorage.ClosingRetainedProfits1)/ToNumber(localStorage.SummaryTotalAssets1),2);
+		   localStorage.REToTotalAssets2 = round(ToNumber(localStorage.ClosingRetainedProfits2)/ToNumber(localStorage.SummaryTotalAssets2),2);
+		   localStorage.REToTotalAssets3 = round(ToNumber(localStorage.ClosingRetainedProfits3)/ToNumber(localStorage.SummaryTotalAssets3),2);
+	       localStorage.REToTotalAssetsWeighted = round(localStorage.REToTotalAssets1*localStorage.RatioWeightYear1/100+
+		                                                localStorage.REToTotalAssets2*localStorage.RatioWeightYear2/100+
+												        localStorage.REToTotalAssets3*localStorage.RatioWeightYear3/100,2); 
+		   // X3. EBIT/Total Assets Ratio
+		   localStorage.EBITToTotalAssets0 = round(ToNumber(localStorage.EBIT0)/ToNumber(localStorage.SummaryTotalAssets0),2);
+		   localStorage.EBITToTotalAssets1 = round(ToNumber(localStorage.EBIT1)/ToNumber(localStorage.SummaryTotalAssets1),2);
+		   localStorage.EBITToTotalAssets2 = round(ToNumber(localStorage.EBIT2)/ToNumber(localStorage.SummaryTotalAssets2),2);
+		   localStorage.EBITToTotalAssets3 = round(ToNumber(localStorage.EBIT3)/ToNumber(localStorage.SummaryTotalAssets3),2);
+           localStorage.EBITToTotalAssetsWeighted = round(localStorage.EBITToTotalAssets1*localStorage.RatioWeightYear1/100+
+		                                                  localStorage.EBITToTotalAssets2*localStorage.RatioWeightYear2/100+
+												          localStorage.EBITToTotalAssets3*localStorage.RatioWeightYear3/100,2); 
+			   // X4. Equity/Total Liabilities Ratio
+		   localStorage.EquityToTotalLiabilities0 = round(ToNumber(localStorage.TotalEquity0)/ToNumber(localStorage.SummaryTotalLiabilities0),2);
+		   localStorage.EquityToTotalLiabilities1 = round(ToNumber(localStorage.TotalEquity1)/ToNumber(localStorage.SummaryTotalLiabilities1),2);
+		   localStorage.EquityToTotalLiabilities2 = round(ToNumber(localStorage.TotalEquity2)/ToNumber(localStorage.SummaryTotalLiabilities2),2);
+		   localStorage.EquityToTotalLiabilities3 = round(ToNumber(localStorage.TotalEquity3)/ToNumber(localStorage.SummaryTotalLiabilities3),2);
+           localStorage.EquityToTotalLiabilitiesWeighted = round(localStorage.EquityToTotalLiabilities1*localStorage.RatioWeightYear1/100+
+		                                                         localStorage.EquityToTotalLiabilities2*localStorage.RatioWeightYear2/100+
+												                 localStorage.EquityToTotalLiabilities3*localStorage.RatioWeightYear3/100,2); 
+			   // X5. Sales/Total Assets Ratio
+		   localStorage.SalesToTotalAssets0 = round(ToNumber(localStorage.NetSales1)/ToNumber(localStorage.SummaryTotalAssets0),2);
+		   localStorage.SalesToTotalAssets1 = round(ToNumber(localStorage.NetSales1)/ToNumber(localStorage.SummaryTotalAssets1),2);
+		   localStorage.SalesToTotalAssets2 = round(ToNumber(localStorage.NetSales2)/ToNumber(localStorage.SummaryTotalAssets2),2);
+		   localStorage.SalesToTotalAssets3 = round(ToNumber(localStorage.NetSales3)/ToNumber(localStorage.SummaryTotalAssets3),2);
+           localStorage.SalesToTotalAssetsWeighted = round(localStorage.SalesToTotalAssets1*localStorage.RatioWeightYear1/100+
+		                                                  localStorage.SalesToTotalAssets2*localStorage.RatioWeightYear2/100+
+												          localStorage.SalesToTotalAssets3*localStorage.RatioWeightYear3/100,2); 
+		   // Calculating the Z Score - Multiply each ratio by the co-efficient then add the step calculations to get the Z Score
+		   //1. X1 * Factor
+		   var X1_0 = localStorage.WCToSales0 * 1.2;                var X1Prime_0 = localStorage.WCToSales0 * 6.56 ;
+		   var X1_1 = localStorage.WCToSales1 * 1.2;                var X1Prime_1 = localStorage.WCToSales1 * 6.56 ;
+		   var X1_2 = localStorage.WCToSales2 * 1.2;                var X1Prime_2 = localStorage.WCToSales2 * 6.56;
+		   var X1_3 = localStorage.WCToSales3 * 1.2;                var X1Prime_3 = localStorage.WCToSales3 * 6.56;
+		   var X1_Weighted = localStorage.WCToSalesWeighted * 1.2;  var X1Prime_Weighted = localStorage.WCToSalesWeighted * 6.56;
+		   
+		   //2. X2 * Factor
+		   var X2_0 = localStorage.REToTotalAssets0 * 1.4;          var X2Prime_0 = localStorage.REToTotalAssets0 * 3.26;
+		   var X2_1 = localStorage.REToTotalAssets1 * 1.4;          var X2Prime_1 = localStorage.REToTotalAssets1 * 3.26;
+	       var X2_2 = localStorage.REToTotalAssets2 * 1.4;          var X2Prime_2 = localStorage.REToTotalAssets2 * 3.26;
+		   var X2_3 = localStorage.REToTotalAssets3 * 1.4;          var X2Prime_3 = localStorage.REToTotalAssets3 * 3.26;
+		   var X2_Weighted = localStorage.REToTotalAssets3Weighted * 1.4;  var X2Prime_Weighted = localStorage.REToTotalAssets3Weighted * 3.26;
+		   //3. X3 * Factor
+		   var X3_0 = localStorage.EBITToTotalAssets0 * 3.3;          var X3Prime_0 = localStorage.EBITToTotalAssets0 * 6.72;
+		   var X3_1 = localStorage.EBITToTotalAssets1 * 3.3;          var X3Prime_1 = localStorage.EBITToTotalAssets1 * 6.72;
+	       var X3_2 = localStorage.EBITToTotalAssets2 * 3.3;          var X3Prime_2 = localStorage.EBITToTotalAssets2 * 6.72;
+		   var X3_3 = localStorage.EBITToTotalAssets3 * 3.3;          var X3Prime_3 = localStorage.EBITToTotalAssets3 * 6.72;
+		   var X3_Weighted = localStorage.EBITToTotalAssetsWeighted * 3.3;  var X3Prime_Weighted = localStorage.EBITToTotalAssetsWeighted * 6.72;
+		   //4. X4 * Factor
+		   var X4_0 = localStorage.EquityToTotalLiabilities0 * 0.6; var X4Prime_0 = localStorage.EquityToTotalLiabilities0 * 1.05;
+		   var X4_1 = localStorage.EquityToTotalLiabilities1 * 0.6; var X4Prime_1 = localStorage.EquityToTotalLiabilities1 * 1.05;
+	       var X4_2 = localStorage.EquityToTotalLiabilities2 * 0.6; var X4Prime_2 = localStorage.EquityToTotalLiabilities2 * 1.05;
+		   var X4_3 = localStorage.EquityToTotalLiabilities3 * 0.6; var X4Prime_3 = localStorage.EquityToTotalLiabilities3 * 1.05;
+		   var X4_Weighted = localStorage.EquityToTotalLiabilitiesWeighted * 0.6;  var X4Prime_Weighted = localStorage.EquityToTotalLiabilitiesWeighted * 1.05;
+		   //5. X5 * Factor
+		   var X5_0 = localStorage.SalesToTotalAssets0 * 1;         var X5Prime_0 = localStorage.SalesToTotalAssets0 * 0;
+		   var X5_1 = localStorage.SalesToTotalAssets1 * 1;         var X5Prime_1 = localStorage.SalesToTotalAssets1 * 0;
+	       var X5_2 = localStorage.SalesToTotalAssets2 * 1;         var X5Prime_2 = localStorage.SalesToTotalAssets2 * 0;
+		   var X5_3 = localStorage.SalesToTotalAssets3 * 1;         var X5Prime_3 = localStorage.SalesToTotalAssets3 * 0;
+		   var X5_Weighted = localStorage.SalesToTotalAssetsWeighted * 1;  var X5Prime_Weighted = localStorage.SalesToTotalAssetsWeighted * 0;
+
+		   // Hence Z Score 
+		   localStorage.ZScore0 = round(X1_0 + X2_0 + X3_0 + X4_0 + X5_0,2);
+		   localStorage.ZScore1 = round(X1_1 + X2_1 + X3_1 + X4_1 + X5_1,2);
+		   localStorage.ZScore2 = round(X1_2 + X2_2 + X3_2 + X4_2 + X5_2,2);
+		   localStorage.ZScore3 = round(X1_3 + X2_3 + X3_3 + X4_3 + X5_3,2);
+		   localStorage.ZScoreWeighted = round(X1_Weighted + X2_Weighted + X3_Weighted + X4_Weighted + X5_Weighted,2);
+		    // Hence Z Score Prime
+		   localStorage.ZScorePrime0 = round(X1Prime_0 + X2Prime_0 + X3Prime_0 + X4Prime_0 + X5Prime_0,2);
+		   localStorage.ZScorePrime1 = round(X1Prime_1 + X2Prime_1 + X3Prime_1 + X4Prime_1 + X5Prime_1,2);
+		   localStorage.ZScorePrime2 = round(X1Prime_2 + X2Prime_2 + X3Prime_2 + X4Prime_2 + X5Prime_2,2);
+		   localStorage.ZScorePrime3 = round(X1Prime_3 + X2Prime_3 + X3Prime_3 + X4Prime_3 + X5Prime_3,2);
+		   localStorage.ZScorePrimeWeighted = round(X1Prime_Weighted + X2Prime_Weighted + X3Prime_Weighted + X4Prime_Weighted + X5Prime_Weighted,2);
+		   
+		   //CALCULATING LIQUIDITY RATIOS===========================================================================================
+		   
+		   //Current Ratio
+		   localStorage.CurrentRatio0 = round(ToNumber(localStorage.CurrentAssets0)/ToNumber(localStorage.CurrentLiabilities0),2);
+		   localStorage.CurrentRatio1 = round(ToNumber(localStorage.CurrentAssets1)/ToNumber(localStorage.CurrentLiabilities1),2);
+		   localStorage.CurrentRatio2 = round(ToNumber(localStorage.CurrentAssets1)/ToNumber(localStorage.CurrentLiabilities2),2);
+		   localStorage.CurrentRatio3 = round(ToNumber(localStorage.CurrentAssets1)/ToNumber(localStorage.CurrentLiabilities3),2);
+		   localStorage.CurrentRatioWeighted = localStorage.CurrentRatio1*localStorage.RatioWeightYear1/100+
+		                                       localStorage.CurrentRatio2*localStorage.RatioWeightYear2/100+
+											   localStorage.CurrentRatio3*localStorage.RatioWeightYear3/100;
+	       // Debtor Days
+		   localStorage.DebtorDays0 = round(ToNumber(localStorage.AccountsReceivable0)/ToNumber(localStorage.NetSales0)*365,2);
+		   localStorage.DebtorDays1 = round(ToNumber(localStorage.AccountsReceivable1)/ToNumber(localStorage.NetSales1)*365,2);
+		   localStorage.DebtorDays2 = round(ToNumber(localStorage.AccountsReceivable2)/ToNumber(localStorage.NetSales2)*365,2);
+		   localStorage.DebtorDays3 = round(ToNumber(localStorage.AccountsReceivable3)/ToNumber(localStorage.NetSales3)*365,2); 
+		   localStorage.DebtorDaysWeighted = localStorage.DebtorDays1*localStorage.RatioWeightYear1/100+
+		                                     localStorage.DebtorDays2*localStorage.RatioWeightYear2/100+
+											 localStorage.DebtorDays3*localStorage.RatioWeightYear3/100;
+	       
+		   //Turnover/ Working Capital = Inverse of the Sales/Working Capital Ratio on the Z Score
+		   localStorage.TurnoverToWC0 = round(ToNumber(localStorage.NetSales0)/ToNumber(localStorage.WorkingCapital0),2);
+		   localStorage.TurnoverToWC1 = round(ToNumber(localStorage.NetSales1)/ToNumber(localStorage.WorkingCapitaL1),2);
+		   localStorage.TurnoverToWC2 = round(ToNumber(localStorage.NetSales2)/ToNumber(localStorage.WorkingCapital2),2);
+		   localStorage.TurnoverToWC3 = round(ToNumber(localStorage.NetSales3)/ToNumber(localStorage.WorkingCapital3),2);
+		   localStorage.TurnoverToWCWeighted = localStorage.TurnoverToWC1*localStorage.RatioWeightYear1/100+
+		                                       localStorage.TurnoverToWC2*localStorage.RatioWeightYear2/100+
+											   localStorage.TurnoverToWC3*localStorage.RatioWeightYear3/100;
+		   
+		   
+		   // CALCULATING PROFITABILITY RATIOS================================================================================================
+		   
+		   // Turnover Growth for last three years only
+		   localStorage.TurnoverGrowth1 = round(ToNumber(localStorage.NetSales1)/ToNumber(localStorage.NetSales0)-1,2);
+		   localStorage.TurnoverGrowth2 = round(ToNumber(localStorage.NetSales2)/ToNumber(localStorage.NetSales1)-1,2);
+		   localStorage.TurnoverGrowth3 = round(ToNumber(localStorage.NetSales3)/ToNumber(localStorage.NetSales2)-1,2);
+		   localStorage.TurnoverGrowthWeighted = localStorage.TurnoverGrowth1*localStorage.RatioWeightYear1/100+
+		                                         localStorage.TurnoverGrowth2*localStorage.RatioWeightYear2/100+
+											     localStorage.TurnoverGrowth3*localStorage.RatioWeightYear3/100;
+		   //Gross Profit
+		   localStorage.GrossProfitMargin0 = round(ToNumber(localStorage.GrossProfit0)/ToNumber(localStorage.NetSales0),2);
+		   localStorage.GrossProfitMargin1 = round(ToNumber(localStorage.GrossProfit1)/ToNumber(localStorage.NetSales1),2);
+		   localStorage.GrossProfitMargin2 = round(ToNumber(localStorage.GrossProfit2)/ToNumber(localStorage.NetSales2),2);
+		   localStorage.GrossProfitMargin3 = round(ToNumber(localStorage.GrossProfit3)/ToNumber(localStorage.NetSales3),2);
+		   localStorage.GrossProfitMarginWeighted = localStorage.GrossProfitMargin1*localStorage.RatioWeightYear1/100+
+		                                            localStorage.GrossProfitMargin2*localStorage.RatioWeightYear2/100+
+											        localStorage.GrossProfitMargin3*localStorage.RatioWeightYear3/100;
+		   //Operating Profit
+		   localStorage.OperatingProfitMargin0 = round(ToNumber(localStorage.OperatingProfit0)/ToNumber(localStorage.NetSales0),2);
+		   localStorage.OperatingProfitMargin1 = round(ToNumber(localStorage.OperatingProfit1)/ToNumber(localStorage.NetSales1),2);
+		   localStorage.OperatingProfitMargin2 = round(ToNumber(localStorage.OperatingProfit2)/ToNumber(localStorage.NetSales2),2);
+		   localStorage.OperatingProfitMargin3 = round(ToNumber(localStorage.OperatingProfit3)/ToNumber(localStorage.NetSales3),2);
+		   localStorage.OperatingProfitMarginWeighted = localStorage.OperatingProfitMargin1*localStorage.RatioWeightYear1/100+
+		                                                localStorage.OperatingProfitMargin2*localStorage.RatioWeightYear2/100+
+											            localStorage.OperatingProfitMargin3*localStorage.RatioWeightYear3/100;
+	      //ROE
+		   localStorage.ROE0 = round(ToNumber(localStorage.NetProfit0)/ToNumber(localStorage.TotalEquity0),2);
+		   localStorage.ROE1 = round(ToNumber(localStorage.NetProfit1)/ToNumber(localStorage.TotalEquity1),2);
+		   localStorage.ROE2 = round(ToNumber(localStorage.NetProfit2)/ToNumber(localStorage.TotalEquity2),2);
+		   localStorage.ROE3 = round(ToNumber(localStorage.NetProfit3)/ToNumber(localStorage.TotalEquity3),2);
+		   localStorage.ROEWeighted = localStorage.ROE1*localStorage.RatioWeightYear1/100+
+		                              localStorage.ROE2*localStorage.RatioWeightYear2/100+
+								      localStorage.ROE3*localStorage.RatioWeightYear3/100;
+		   //ROE
+		   localStorage.ROA0 = round(ToNumber(localStorage.NetProfit0)/ToNumber(localStorage.SummaryTotalAssets0),2);
+		   localStorage.ROA1 = round(ToNumber(localStorage.NetProfit1)/ToNumber(localStorage.SummaryTotalAssets1),2);
+		   localStorage.ROA2 = round(ToNumber(localStorage.NetProfit2)/ToNumber(localStorage.SummaryTotalAssets2),2);
+		   localStorage.ROA3 = round(ToNumber(localStorage.NetProfit3)/ToNumber(localStorage.SummaryTotalAssets3),2);
+		   localStorage.ROAWeighted = localStorage.ROA1*localStorage.RatioWeightYear1/100+
+		                              localStorage.ROA2*localStorage.RatioWeightYear2/100+
+								      localStorage.ROA3*localStorage.RatioWeightYear3/100;
+		   
+		   //ROI = EBIT / Total Long-term Funding = (Equity + Non-current Liabilities)
+		   
+		   // Step 1 : Calculate Total Long-term Funding = Total Equity + Total Non-current Liabilities
+		   var LTFunding0 = ToNumber(localStorage.SummaryTotalAssets0) + ToNumber(localStorage.NonCurrentLiabilities0);
+		   var LTFunding1 = ToNumber(localStorage.SummaryTotalAssets1) + ToNumber(localStorage.NonCurrentLiabilities1);
+		   var LTFunding2 = ToNumber(localStorage.SummaryTotalAssets2) + ToNumber(localStorage.NonCurrentLiabilities2);
+		   var LTFunding3 = ToNumber(localStorage.SummaryTotalAssets3) + ToNumber(localStorage.NonCurrentLiabilities3);
+		   
+		   // Step 2 : Full Calculation = EBIT/LT Funding(Step 1)
+		   localStorage.ROI0 = round(ToNumber(localStorage.EBIT0)/LTFunding0,2);
+		   localStorage.ROI1 = round(ToNumber(localStorage.EBIT1)/LTFunding1,2);
+		   localStorage.ROI2 = round(ToNumber(localStorage.EBIT2)/LTFunding2,2);
+		   localStorage.ROI3 = round(ToNumber(localStorage.EBIT3)/LTFunding3,2);
+		   localStorage.ROIWeighted = localStorage.ROI1*localStorage.RatioWeightYear1/100+
+		                              localStorage.ROI2*localStorage.RatioWeightYear2/100+
+								      localStorage.ROI3*localStorage.RatioWeightYear3/100;
+		   
+		   // CALCULATING CAPITAL STRUCTURE RATIOS===============================================================================================
+		   
+		   // Gearing Ratio = Total Liabilities / Total Equity
+		   localStorage.GearingRatio0 = round(ToNumber(localStorage.SummaryTotalLiabilities0)/ToNumber(localStorage.TotalEquity0),2);
+		   localStorage.GearingRatio1 = round(ToNumber(localStorage.SummaryTotalLiabilities1)/ToNumber(localStorage.TotalEquity1),2);
+		   localStorage.GearingRatio2 = round(ToNumber(localStorage.SummaryTotalLiabilities2)/ToNumber(localStorage.TotalEquity2),2);
+		   localStorage.GearingRatio3 = round(ToNumber(localStorage.SummaryTotalLiabilities3)/ToNumber(localStorage.TotalEquity3),2);
+		   localStorage.GearingRatioWeighted = localStorage.GearingRatio1*localStorage.RatioWeightYear1/100+
+		                                       localStorage.GearingRatio2*localStorage.RatioWeightYear2/100+
+								               localStorage.GearingRatio3*localStorage.RatioWeightYear3/100;
+	   
+		   //Long-term Debt /Total Equity
+		   localStorage.LongtermDebtToEquity0 = round(ToNumber(localStorage.NonCurrentLiabilities0)/ToNumber(localStorage.TotalEquity0),0);
+		   localStorage.LongtermDebtToEquity1 = round(ToNumber(localStorage.NonCurrentLiabilities1)/ToNumber(localStorage.TotalEquity1),0);
+		   localStorage.LongtermDebtToEquity2 = round(ToNumber(localStorage.NonCurrentLiabilities2)/ToNumber(localStorage.TotalEquity2),0);
+		   localStorage.LongtermDebtToEquity3 = round(ToNumber(localStorage.NonCurrentLiabilities3)/ToNumber(localStorage.TotalEquity3),0);
+		   localStorage.LongtermDebtToEquityWeighted = localStorage.LongtermDebtToEquity1*localStorage.RatioWeightYear1/100+
+		                                               localStorage.LongtermDebtToEquity2*localStorage.RatioWeightYear2/100+
+								                       localStorage.LongtermDebtToEquity3*localStorage.RatioWeightYear3/100;
+	
+		   // Debt/Tangible Net Worth = Total Liabilities / Tangibele Net Worth
+		   localStorage.DebtToTangibleNetWorth0 = round(ToNumber(localStorage.SummaryTotalLiabilities0)/ToNumber(localStorage.TangibleNetWorth0),2);
+		   localStorage.DebtToTangibleNetWorth1 = round(ToNumber(localStorage.SummaryTotalLiabilities1)/ToNumber(localStorage.TangibleNetWorth1),2);
+		   localStorage.DebtToTangibleNetWorth2 = round(ToNumber(localStorage.SummaryTotalLiabilities2)/ToNumber(localStorage.TangibleNetWorth2),2);
+		   localStorage.DebtToTangibleNetWorth3 = round(ToNumber(localStorage.SummaryTotalLiabilities3)/ToNumber(localStorage.TangibleNetWorth3),2);
+		   localStorage.DebtToTangibleNetWorthWeighted = localStorage.DebtToTangibleNetWorth1*localStorage.RatioWeightYear1/100+
+		                                                 localStorage.DebtToTangibleNetWorth2*localStorage.RatioWeightYear2/100+
+								                         localStorage.DebtToTangibleNetWorth3*localStorage.RatioWeightYear3/100;
+			   // Equity/Total Assets
+		   localStorage.EquityToTotalAssets0 = round(ToNumber(localStorage.TotalEquity0)/ToNumber(localStorage.SummaryTotalAssets0),2);
+		   localStorage.EquityToTotalAssets1 = round(ToNumber(localStorage.TotalEquity1)/ToNumber(localStorage.SummaryTotalAssets1),2);
+		   localStorage.EquityToTotalAssets2 = round(ToNumber(localStorage.TotalEquity2)/ToNumber(localStorage.SummaryTotalAssets2),2);
+		   localStorage.EquityToTotalAssets3 = round(ToNumber(localStorage.TotalEquity3)/ToNumber(localStorage.SummaryTotalAssets3),2);
+		   localStorage.EquityToTotalAssetsWeighted = localStorage.EquityToTotalAssets1*localStorage.RatioWeightYear1/100+
+		                                              localStorage.EquityToTotalAssets2*localStorage.RatioWeightYear2/100+
+								                      localStorage.EquityToTotalAssets3*localStorage.RatioWeightYear3/100;
+		   // Solvency = Total Assets / Total Liabilities
+		   localStorage.Solvency0 = round(ToNumber(localStorage.SummaryTotalAssets0)/ToNumber(localStorage.SummaryTotalLiabilities0),2);
+		   localStorage.Solvency1 = round(ToNumber(localStorage.SummaryTotalAssets1)/ToNumber(localStorage.SummaryTotalLiabilities1),2);
+		   localStorage.Solvency2 = round(ToNumber(localStorage.SummaryTotalAssets2)/ToNumber(localStorage.SummaryTotalLiabilities2),2);
+		   localStorage.Solvency3 = round(ToNumber(localStorage.SummaryTotalAssets3)/ToNumber(localStorage.SummaryTotalLiabilities3),2);
+		   localStorage.SolvencyWeighted = localStorage.Solvency1*localStorage.RatioWeightYear1/100+
+		                                   localStorage.Solvency2*localStorage.RatioWeightYear2/100+
+								           localStorage.Solvency3*localStorage.RatioWeightYear3/100;
+		   
+		   // CALCULATING DEBT SERVICE RATIOS ====================================================================================================
+		   
+		   //Interest Cover
+		   localStorage.InterestCover0 = round(ToNumber(localStorage.EBIT0)/ToNumber(localStorage.NetFinanceCosts0),2);
+		   localStorage.InterestCover1 = round(ToNumber(localStorage.EBIT1)/ToNumber(localStorage.NetFinanceCosts1),2);
+		   localStorage.InterestCover2 = round(ToNumber(localStorage.EBIT2)/ToNumber(localStorage.NetFinanceCosts2),2);
+		   localStorage.InterestCover3 = round(ToNumber(localStorage.EBIT3)/ToNumber(localStorage.NetFinanceCosts3),2);
+		   localStorage.InterestCoverWeighted = localStorage.InterestCover1*localStorage.RatioWeightYear1/100+
+		                                        localStorage.InterestCover2*localStorage.RatioWeightYear2/100+
+								                localStorage.InterestCover3*localStorage.RatioWeightYear3/100;
+		   //EBITDAToDebt = EBITDA/Long-term Debt
+		   //Step 1: Numerator (EBITDA) = EBIT + Deprecition <= From Non-Current Assets
+		   var EBITDA0 = ToNumber(localStorage.DepreciationCostOfSales0) + ToNumber(localStorage.DepreciationOpex0) + ToNumber(localStorage.Amortisation0);
+		   var EBITDA1 = ToNumber(localStorage.DepreciationCostOfSales1) + ToNumber(localStorage.DepreciationOpex1) + ToNumber(localStorage.Amortisation1);
+		   var EBITDA2 = ToNumber(localStorage.DepreciationCostOfSales2) + ToNumber(localStorage.DepreciationOpex2) + ToNumber(localStorage.Amortisation2);
+		   var EBITDA3 = ToNumber(localStorage.DepreciationCostOfSales3) + ToNumber(localStorage.DepreciationOpex3) + ToNumber(localStorage.Amortisation3);
+		   //Step 2: Full Calculation
+		   localStorage.EBITDAToDebt0 = round(EBITDA0/ToNumber(localStorage.NonCurrentLiabilities0),2);
+		   localStorage.EBITDAToDebt1 = round(EBITDA0/ToNumber(localStorage.NonCurrentLiabilities1),2);
+		   localStorage.EBITDAToDebt2 = round(EBITDA0/ToNumber(localStorage.NonCurrentLiabilities2),2);
+		   localStorage.EBITDAToDebt3 = round(EBITDA0/ToNumber(localStorage.NonCurrentLiabilities3),2);
+		   localStorage.EBITDAToDebtWeighted =  localStorage.EBITDAToDebt1*localStorage.RatioWeightYear1/100+
+		                                        localStorage.EBITDAToDebt2*localStorage.RatioWeightYear2/100+
+								                localStorage.EBITDAToDebt3*localStorage.RatioWeightYear3/100;
+		   
+		   // CALCULATING ACTIVITY RATIOS ===========================================================================================================
+		   
+		   // 1. Total Assets Turnover = Sales/Total Assets. No need to recalculate ratio in the Z score
+		   localStorage.TotalAssetsTurnover0 = localStorage.SalesToTotalAssets0;
+		   localStorage.TotalAssetsTurnover1 = localStorage.SalesToTotalAssets1;
+		   localStorage.TotalAssetsTurnover2 = localStorage.SalesToTotalAssets2;
+		   localStorage.TotalAssetsTurnover3 = localStorage.SalesToTotalAssets3;
+		   localStorage.TotalAssetsTurnoverWeighted =  localStorage.TotalAssetsTurnover1*localStorage.RatioWeightYear1/100+
+		                                               localStorage.TotalAssetsTurnover2*localStorage.RatioWeightYear2/100+
+								                       localStorage.TotalAssetsTurnover3*localStorage.RatioWeightYear3/100;
+		   
+		   // Fixed Assets Turnover = Sales/Fixed Assets
+		   localStorage.FixedAssetsTurnover0 = round(ToNumber(localStorage.NetSales0)/ToNumber(localStorage.NonCurrentAssets0),2);		   
+		   localStorage.FixedAssetsTurnover1 = round(ToNumber(localStorage.NetSales0)/ToNumber(localStorage.NonCurrentAssets1),2);		   
+		   localStorage.FixedAssetsTurnover2 = round(ToNumber(localStorage.NetSales0)/ToNumber(localStorage.NonCurrentAssets2),2);		   
+		   localStorage.FixedAssetsTurnover3 = round(ToNumber(localStorage.NetSales0)/ToNumber(localStorage.NonCurrentAssets3),2);		   
+		   localStorage.FixedAssetsTurnoverWeighted =  localStorage.FixedAssetsTurnover1*localStorage.RatioWeightYear1/100+
+		                                               localStorage.FixedAssetsTurnover2*localStorage.RatioWeightYear2/100+
+								                       localStorage.FixedAssetsTurnover3*localStorage.RatioWeightYear3/100;
+			**/
+			}
+
+function SetBackgroundColors()
+{
+		// Perform conditional formatting for the selected rating
+		   //var val = M.value;
+		   var IndexOfForceToUpdate = 0;
+           var PreviousIndexOfForceToUpdate = 0;
+		   var RatingScore = 0;
+		   var TempForceTotal = 0;
+		   var SelectedIndex = 0;
+		   var elem = document.getElementById('PortersForm').elements;
+          // var x = 1;
+		   
+		   // 
+		   var GrandTotal = 0;
+		   for(var i = 0; i < elem.length; i++)
+           {
+
+			   // Get the index of the element on focus and the Total Score input box of each of the five forces based on the element name
+			   PreviousIndexOfForceToUpdate = IndexOfForceToUpdate;
+			   switch (elem[i].name)
+			   {
+				   //case M.name:
+		           //     SelectedIndex = i;          // Get index of the element on focus  
+	               //     break;
+				   case "ThreatsOfNewEntryScore": 
+				        IndexOfForceToUpdate = i;
+						break;
+				 
+			       case "CompetitiveRivalryScore": 
+				        IndexOfForceToUpdate = i;
+						break; 
+				   case "ThreatsOfSubstitutionScore":
+				        IndexOfForceToUpdate = i;
+						break; 
+				   case "SupplierPowerScore":
+				        IndexOfForceToUpdate = i;
+						break;
+				   case "BuyerPowerScore":
+				        IndexOfForceToUpdate = i;
+						break;  
+	               
+			   }
+			   
+	
+			   /** if the element type = select-one then 
+			       1. Perform conditional formatting based on the value
+				   2. Update the score on the right
+				   3. Add the element score to the relevant subtotal using the IndexOfForceToUpdate variable determined with the switch statement above
+			   **/
+			   RatingScore = 0;
+			   if (elem[i].type == 'select-one') 
+			      {
+				  
+			   	     switch (elem[i].value) 
+				       {
+			             case "Low":
+			               elem[i].style.backgroundColor = "green";
+			               RatingScore = 1;
+					
+					       break;
+			             case "Medium":
+			               elem[i].style.backgroundColor = "orange";
+			               RatingScore = 0;
+					
+					       break;  
+			             case "High":
+			               elem[i].style.backgroundColor = "red";
+					       RatingScore = -1;
+					
+			               break;  
+		                  // default:
+		                }
+				  
+					 elem[i+1].value = RatingScore; GrandTotal += RatingScore;
+                  // add the element score
+				//if (isnan(elem[IndexOfForceToUpdate].value))
+				//   {elem[IndexOfForceToUpdate-1].value) + alert("not a number")};
+				   
+			
+                //x = parseInt((elem[IndexOfForceToUpdate].value),10) ;
+				//alert (elem[i-1].value + x);			
+			      }
+		          if (PreviousIndexOfForceToUpdate == IndexOfForceToUpdate)
+				        {  TempForceTotal += RatingScore;}
+				
+				  if (PreviousIndexOfForceToUpdate !== IndexOfForceToUpdate)
+			     	    {  TempForceTotal = 0;}
+			      if (IndexOfForceToUpdate !== 0) {elem[IndexOfForceToUpdate].value = TempForceTotal};
+				  
+				  //Update the force ratings and perform conditional formating
+				  if (IndexOfForceToUpdate !== 0)
+				  {
+					if   (TempForceTotal==0)
+		            {
+                      elem[IndexOfForceToUpdate-1].style.backgroundColor = "orange"
+			          elem[IndexOfForceToUpdate-1].value = "Medium";
+			
+			        }
+		            if (TempForceTotal >0)
+		            {		   
+		              elem[IndexOfForceToUpdate-1].style.backgroundColor = "green"
+			          elem[IndexOfForceToUpdate-1].value = "Low";
+					
+			    	}	
+		            if (TempForceTotal <0)
+		            {
+				      elem[IndexOfForceToUpdate-1].style.backgroundColor = "red"
+					  elem[IndexOfForceToUpdate-1].value = "High";
+			        }
+		    	  }
+		    } 
+		   
+		// Update grand Summary rating and summary score
+		   document.forms["PortersForm"]["SummaryScore"].value =  GrandTotal;
+		   
+		   if   (GrandTotal==0)
+		        {
+                    document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "orange"
+			        document.forms["PortersForm"]["SummaryRating"].value = "Medium";
+			
+			    }
+		   if (GrandTotal >0)
+		        {		   
+		            document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "green"
+			        document.forms["PortersForm"]["SummaryRating"].value = "Low";
+					Ind
+				}	
+		   if (GrandTotal <0)
+		        {
+				    document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "red"
+					document.forms["PortersForm"]["SummaryRating"].value = "High";
+			    }
+		    		
+}
+		
+
+
+		function DisplayRatiosFromLocalStorage()
+		{
+  	       /**
+		   // EDWARD ALTMAN'S Z SCORE MODEL RATIOS =========================================================================================
+		
+		// X1. Working Capital / Sales Ratio
+		   
+		        //document.RationAnalysisForm.WCToSalesYear0.value = localStorage.WCToSales0;
+		   document.BenchmarkOverrideForm.WCToTotalAssetsYear1.value = localStorage.WCToTotalAssets1;
+		   document.BenchmarkOverrideForm.WCToTotalAssetsYear2.value = localStorage.WCToTotalAssets2;
+		   document.BenchmarkOverrideForm.WCToTotalAssetsYear3.value = localStorage.WCToTotalAssets3;
+		   document.BenchmarkOverrideForm.WCToTotalAssetsWeighted.value = localStorage.WCToTotalAssetsWeighted;
+		   
+		   // X2. Retained Earnings/Total Assets Ratio
+		   
+		         //document.BenchmarkOverrideForm.REToTotalAssetsYear0.value = localStorage.REToTotalAssets0;
+		   document.BenchmarkOverrideForm.REToTotalAssetsYear1.value = localStorage.REToTotalAssets1;
+		   document.BenchmarkOverrideForm.REToTotalAssetsYear2.value = localStorage.REToTotalAssets2;
+		   document.BenchmarkOverrideForm.REToTotalAssetsYear3.value = localStorage.REToTotalAssets3;
+		   document.BenchmarkOverrideForm.REToTotalAssetsWeighted.value = localStorage.REToTotalAssetsWeighted;
+		  
+		  // X3. EBIT/Total Assets Ratio
+		        //document.BenchmarkOverrideForm.EBITTotalAssetsYear0.value = localStorage.EBITTotalAssets0;
+		   document.BenchmarkOverrideForm.EBITToTotalAssetsYear1.value = localStorage.EBITToTotalAssets1;
+		   document.BenchmarkOverrideForm.EBITToTotalAssetsYear2.value = localStorage.EBITToTotalAssets2;
+		   document.BenchmarkOverrideForm.EBITToTotalAssetsYear3.value = localStorage.EBITToTotalAssets3;
+		   document.BenchmarkOverrideForm.EBITToTotalAssetsWeighted.value = localStorage.EBITToTotalAssetsWeighted;
+	      
+		  // X4. Equity/Total Liabilities Ratio
+		        //document.RationAnalysisForm.EquityToTotalLiabilitiesYear0.value = localStorage.EquityToTotalLiabilities0;
+		   document.BenchmarkOverrideForm.EquityToTotalLiabilitiesYear1.value = localStorage.EquityToTotalLiabilities1;
+		   document.BenchmarkOverrideForm.EquityToTotalLiabilitiesYear2.value = localStorage.EquityToTotalLiabilities2;
+		   document.BenchmarkOverrideForm.EquityToTotalLiabilitiesYear3.value = localStorage.EquityToTotalLiabilities3;
+		   document.BenchmarkOverrideForm.EquityToTotalLiabilitiesWeighted.value = localStorage.EquityToTotalLiabilitiesWeighted;
+		   
+	
+		   // X5. Sales/Total Assets Ratio
+		        //document.RationAnalysisForm.SalesToTotalAssetsYear0.value = localStorage.SalesToTotalAssets0;
+		   document.BenchmarkOverrideForm.SalesToTotalAssetsYear1.value = localStorage.SalesToTotalAssets1;
+		   document.BenchmarkOverrideForm.SalesToTotalAssetsYear2.value = localStorage.SalesToTotalAssets2;
+		   document.BenchmarkOverrideForm.SalesToTotalAssetsYear3.value = localStorage.SalesToTotalAssets3;
+		   document.BenchmarkOverrideForm.SalesToTotalAssetsWeighted.value = localStorage.SalesToTotalAssetsWeighted;
+		   
+	
+	       // Z Score 
+	             //document.RationAnalysisForm.ZScoreYear0.value = localStorage.ZScore0;
+		   document.BenchmarkOverrideForm.ZScoreYear1.value = localStorage.ZScore1;
+		   document.BenchmarkOverrideForm.ZScoreYear2.value = localStorage.ZScore2;
+		   document.BenchmarkOverrideForm.ZScoreYear3.value = localStorage.ZScore3;
+		   document.BenchmarkOverrideForm.ZScoreWeighted.value = localStorage.ZScoreWeighted;
+		   
+	       // Z Score Prime
+	             //document.RationAnalysisForm.ZScorePrimeYear0.value = localStorage.ZScorePrime0;
+		   document.BenchmarkOverrideForm.ZScorePrimeYear1.value = localStorage.ZScorePrime1;
+		   document.BenchmarkOverrideForm.ZScorePrimeYear2.value = localStorage.ZScorePrime2;
+		   document.BenchmarkOverrideForm.ZScorePrimeYear3.value = localStorage.ZScorePrime3;
+		   document.BenchmarkOverrideForm.ZScorePrimeWeighted.value = localStorage.ZScorePrimeWeighted;
+			  
+**/			  
+		   //DISPLAYING MAXIMUM SCORES ======================================================================================
+		   
+		   //1. Determine the company size and the set of ratios to use
+		   
+		   var NetSales1 = ToNumber(localStorage.NetSales1);
+		   var NetSales2 = ToNumber(localStorage.NetSales2);
+		   var NetSales3 = ToNumber(localStorage.NetSales3);
+	 
+		   var WeightYear1 = ToNumber(localStorage.RatioWeightYear1);
+		   var WeightYear2 = ToNumber(localStorage.RatioWeightYear1);
+		   var WeightYear3 = ToNumber(localStorage.RatioWeightYear1);
+		   
+		   var WeightedNetSales = (NetSales1 * WeightYear1/100) + 
+		                          (NetSales2 * WeightYear2/100) +
+								  (NetSales3 * WeightYear3/100);
+								  
+		   var FirmSize = "Small";
+
+           if (WeightedNetSales > ToNumber(localStorage.TurnoverThreshold))	
+           {
+				FirmSize = "Big";
+				document.BenchmarkOverrideForm.DebtorDaysMaxScore.value				=	ToNumber(localStorage.bfDebtorDaysScore);
+				document.BenchmarkOverrideForm.CurrentRatioMaxScore.value			=	ToNumber(localStorage.bfCurrentRatioScore);
+				document.BenchmarkOverrideForm.DebtorDaysMaxScore.value				=	ToNumber(localStorage.bfDebtorDaysScore);
+				document.BenchmarkOverrideForm.TurnoverToWCMaxScore.value			=	ToNumber(localStorage.bfTurnoverToWCScore);
+				document.BenchmarkOverrideForm.GrossProfitMarginMaxScore.value		=	ToNumber(localStorage.bfGrossProfitMarginScore);
+				document.BenchmarkOverrideForm.OperatingProfitMarginMaxScore.value	=	ToNumber(localStorage.bfOperatingProfitMarginScore);
+				document.BenchmarkOverrideForm.TurnoverGrowthMaxScore.value			=	ToNumber(localStorage.bfTurnoverGrowthScore);	
+				document.BenchmarkOverrideForm.ROAMaxScore.value					=	ToNumber(localStorage.bfROAScore);
+				document.BenchmarkOverrideForm.ROIMaxScore.value					=	ToNumber(localStorage.bfROIScore);
+				document.BenchmarkOverrideForm.LongtermDebtToEquityMaxScore.value	=	ToNumber(localStorage.bfDebtToEquityScore);	
+				document.BenchmarkOverrideForm.DebtToTangibleNetWorthMaxScore.value	=	ToNumber(localStorage.bfDebtToTangibleNetWorthScore);
+				document.BenchmarkOverrideForm.EquityToTotalAssetsMaxScore.value	=	ToNumber(localStorage.bfEquityToTotalAssetsScore);
+				document.BenchmarkOverrideForm.InterestCoverMaxScore.value			=	ToNumber(localStorage.bfInterestCoverScore);
+				document.BenchmarkOverrideForm.EBITDAToDebtMaxScore.value			=	ToNumber(localStorage.bfEBITDAToDebtScore);
+		   }
+           else
+           {
+				FirmSize = "Small";
+				document.BenchmarkOverrideForm.DebtorDaysMaxScore.value				=	ToNumber(localStorage.sfDebtorDaysScore);
+				document.BenchmarkOverrideForm.CurrentRatioMaxScore.value			=	ToNumber(localStorage.sfCurrentRatioScore);
+				document.BenchmarkOverrideForm.DebtorDaysMaxScore.value				=	ToNumber(localStorage.sfDebtorDaysScore);
+				document.BenchmarkOverrideForm.TurnoverToWCMaxScore.value			=	ToNumber(localStorage.sfTurnoverToWCScore);
+				document.BenchmarkOverrideForm.GrossProfitMarginMaxScore.value		=	ToNumber(localStorage.sfGrossProfitMarginScore);
+				document.BenchmarkOverrideForm.OperatingProfitMarginMaxScore.value	=	ToNumber(localStorage.sfOperatingProfitMarginScore);
+				document.BenchmarkOverrideForm.TurnoverGrowthMaxScore.value			=	ToNumber(localStorage.sfTurnoverGrowthScore);	
+				document.BenchmarkOverrideForm.ROAMaxScore.value					=	ToNumber(localStorage.sfROAScore);
+				document.BenchmarkOverrideForm.ROIMaxScore.value					=	ToNumber(localStorage.sfROIScore);
+				document.BenchmarkOverrideForm.LongtermDebtToEquityMaxScore.value	=	ToNumber(localStorage.sfDebtToEquityScore);	
+				document.BenchmarkOverrideForm.DebtToTangibleNetWorthMaxScore.value	=	ToNumber(localStorage.sfDebtToTangibleNetWorthScore);
+				document.BenchmarkOverrideForm.EquityToTotalAssetsMaxScore.value	=	ToNumber(localStorage.sfEquityToTotalAssetsScore);
+				document.BenchmarkOverrideForm.InterestCoverMaxScore.value			=	ToNumber(localStorage.sfInterestCoverScore);
+				document.BenchmarkOverrideForm.EBITDAToDebtMaxScore.value			=	ToNumber(localStorage.sfEBITDAToDebtScore);
+           }		   
+		   
+	   	  
+		   
+		        //DISPLAYING CALCULATED WEIGHTED RATIOS===========================================================================================
+			document.BenchmarkOverrideForm.CurrentRatioValue.value				=	ToNumber(localStorage.CurrentRatioWeighted);
+			document.BenchmarkOverrideForm.DebtorDaysValue.value				=	ToNumber(localStorage.DebtorDaysWeighted);
+			document.BenchmarkOverrideForm.TurnoverToWCValue.value				=	ToNumber(localStorage.TurnoverGrowthWeighted);
+			document.BenchmarkOverrideForm.GrossProfitMarginValue.value			=	ToNumber(localStorage.GrossProfitMarginWeighted);
+			document.BenchmarkOverrideForm.OperatingProfitMarginValue.value		=	ToNumber(localStorage.OperatingProfitMarginWeighted);
+			document.BenchmarkOverrideForm.TurnoverGrowthValue.value			=	ToNumber(localStorage.TurnoverGrowthWeighted);	
+			document.BenchmarkOverrideForm.ROAValue.value						=	ToNumber(localStorage.ROAWeighted);
+			document.BenchmarkOverrideForm.ROIValue.value						=	ToNumber(localStorage.ROIWeighted);
+			document.BenchmarkOverrideForm.LongtermDebtToEquityValue.value		=	ToNumber(localStorage.LongtermDebtToEquityWeighted);	
+			document.BenchmarkOverrideForm.DebtToTangibleNetWorthValue.value	=	ToNumber(localStorage.DebtToTangibleNetWorthWeighted);
+			document.BenchmarkOverrideForm.EquityToTotalAssetsValue.value		=	ToNumber(localStorage.EquityToTotalAssetsWeighted);
+			document.BenchmarkOverrideForm.InterestCoverValue.value				=	ToNumber(localStorage.InterestCoverWeighted);
+			document.BenchmarkOverrideForm.EBITDAToDebtValue.value				=	ToNumber(localStorage.EBITDAToDebtWeighted);
+			   
+	}	    
+	
+ function round(number,decimalPlaces)
+{
+	var factorOf10 = Math.pow(10,decimalPlaces);
+    return Math.round(number * factorOf10) / factorOf10;
+}
+	
+function ToNumber(nStr) 
+{  
+	if   (typeof(nStr) == "undefined"){  return 0;}
+    else  
+    {
+		if (nStr == "") {return 0};
+		if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+    } 
+} 
+ 
+</script>
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="BenchmarkOverrideForm" action = "SaveIndustryBenchmarksOverridesData.php" onsubmit="" method="post">>    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" autocomplete = on >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="605" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="605" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 1 bordercolor = 1 cellspacing = 0 cellpadding =0> 
+	 	<tr><td colspan = 8 align = right>Application Ref No  :<input name = "application_ref" class = "header" readonly  >Company Reg No:<input name = "company_reg_no" class = "header" readonly></td>		</tr>
+		<tr><td colspan = 8 align = right>Loan Number  :<input name = "loan_number" class = "header" readonly>Username______:<input name ="username" class = "header" readonly></td></tr>
+        <tr><td cellspacing = 0 colspan = 8 align = "center" style="background-color:darkblue;color:white"><h3><p id = "legal_name">GARE VISION (PTY) LTD</p></h3></td></tr>
+	  
+		<tr bgcolor = darkblue>
+	      <th><p style="color:white;text-align:left"><br><br><strong>CORPORATE CREDIT SCORE CARD</strong></p></th>
+		  <th style="color:white">Policy<br>Benchmark<br>Type</th>
+	      <th style="color:white">Policy<br>Benchmark<br>Value</th>
+		  <th style="color:white">Override<br>Benchmark<br>Type</th>
+			  <th style="color:white">Override<br>Benchmark<br>Value</th>
+		  <th style="color:white" align = left><br><br>Reason For Benchmark Override </th>
+		  <th style="color:white" align = center><br><br>First<br>Level<br>Approve</th>
+		  <th style="color:white" align = center><br><br>Second<br>Level<br>Approve</th>
+		</tr>
+     <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Liquidity Ratios<strong></td>
+	   </tr>
+	   <tr align = left>
+		  <td align = left>Current Ratio</td>
+		  <td align = center><Input size  = 3 type="text" name="CurrentRatioBenchmarkType_"  value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly></td>
+	      <td> <select name = "CurrentRatioOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+	      </td>
+		  <td><Input min =  2 max = 90 type="number" name="CurrentRatioOverrideBenchmarkValue_"     style="text-align:right;"></td>
+		  <td align = left><Input size = 60 type="text" name="CurrentRatioOverrideComment_" ></td>
+		  <td> <select name = "CurrentRatioBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "CurrentRatioBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr>
+		<tr align = left>
+		  <td align = left>Debtor Days</td>
+		  <td align = center><Input size  = 3 type="text" name="DebtorDaysBenchmarkType_" value ="industry" style="text-align:right;background-color:lightgrey"    readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly></td>
+	      <td> <select name = "DebtorDaysOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input min = 0 max = 90 type="number" name="DebtorDaysOverrideBenchmarkValue_"     style="text-align:right;"></td>
+		  <td align = left><Input size = 60 type="text" name="DebtorDaysOverrideComment_"  ></td>
+		  <td> <select name = "DebtorDaysBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "DebtorDaysBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+	    </tr>
+	    <tr align = left>
+		<td align = left>Turnover/Working Capital</td>
+		  <td align = center><Input size  = 3 type="text" name="TurnoverToWCBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly></td>
+	      <td> <select name = "TurnoverToWCOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input type="number" max = 90 min = 0 name="TurnoverToWCOverrideBenchmarkValue_"     style="text-align:right;"></td>
+		  <td align = left><Input size  = 60 type="text" name="TurnoverToWCOverrideComment_" ></td>		
+		  <td> <select name = "TurnoverToWCBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "TurnoverToWCBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr>
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Profitability Ratios<strong></td>
+	   </tr>
+		<tr align = left>
+	      <td align = left>Gross Profit%</td>
+		  <td align = center><Input size  = 3 type="text" name="GrossProfitMarginBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "GrossProfitMarginOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min  = 0 type="number" name="GrossProfitMarginOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="GrossProfitMarginOverrideComment_"  ></td>
+		  <td> <select name = "GrossProfitMarginBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "GrossProfitMarginBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr>
+		<tr align = left>
+		  <td align = left>Operating Profit Margin</td>
+		  <td align = center><Input size  = 3 type="text" name="OperatingProfitMarginBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "OperatingProfitMarginOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0  type="number" name="OperatingProfitMarginOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="OperatingProfitMarginOverrideComment_"  ></td>
+		  <td> <select name = "OperatingProfitMarginBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "OperatingProfitMarginBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr>
+	   <tr align = left>
+		  <td align  = left>Turnover Growth%</td>
+		  <td align = center><Input size  = 3 type="text" name="TurnoverGrowthBenchmarkType_"  value ="Inflation" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "TurnoverGrowthOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="TurnoverGrowthOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="TurnoverGrowthOverrideComment_"  ></td>
+		  <td> <select name = "TurnoverGrowthBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "TurnoverGrowthBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr>
+
+	    <tr align = left>
+		  <td align = left>Return On Assets(ROA)</td>
+		  <td align = center><Input size  = 3 type="text" name="ROABenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROAPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "ROAOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="ROAOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+         <td align = left><Input size = 60 type="text" name="ROAOverrideComment_"  ></td>
+		 <td> <select name = "ROABenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		 <td> <select name = "ROABenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+ 	    </tr>
+		<tr align = left>
+		<td align = left>Return On Investments(ROI)</td>
+		  <td align = center><Input size  = 3 type="text" name="ROIBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROIPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "ROIOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0  type="number" name="ROIOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="ROIOverrideComment_"  ></td>
+		  <td> <select name = "ROIBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "ROIBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr>
+	   	   
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Capital Structure Ratios<strong></td>
+	   </tr>
+		<tr align = left>
+	      <td align = left>Long-term Debt/Equity</td>
+		  <td align = center><Input size  = 3 type="text" name="LongtermDebtToEquityBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "LongtermDebtToEquityOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="LongtermDebtToEquityOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="LongtermDebtToEquityOverrideComment_"  ></td>
+		  <td> <select name = "LongtermDebtToEquityBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "LongtermDebtToEquityBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+	   </tr>
+		<tr align = left>
+		  <td align =left >Debt/Tangible Net Worth</td>
+		  <td align = center><Input size  = 3 type="text" name="DebtToTangibleNetWorthBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "DebtToTangibleNetWorthOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="DebtToTangibleNetWorthOverrideBenchmarkValue_"     style="text-align:right;" >%</td>
+		  <td align = left><Input size = 60 type="text" name="DebtToTangibleNetWorthOverrideComment_"  ></td>
+		  <td> <select name = "DebtToTangibleNetWorthBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "DebtToTangibleNetWorthBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr>
+	
+		<tr align = left>
+		  <td align = left>Equity/Total Assets</td>
+		  <td align = center><Input size  = 3 type="text" name="EquityToTotalAssetsBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "EquityToTotalAssetsOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="EquityToTotalAssetsOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="EquityToTotalAssetsOverrideComment_"  ></td>
+		  <td> <select name = "EquityToTotalAssetsBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "EquityToTotalAssetsBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr>
+	    <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Debt Service Ratios<strong></td>
+		</tr>
+	    <tr align = left>
+		  <td align = left>Interest Cover</td>
+		  <td align = center><Input size  = 3 type="text" name="InterestCoverBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="InterestCoverPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>..</td>
+	      <td> <select name = "InterestCoverOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="InterestCoverOverrideBenchmarkValue_"     style="text-align:right;" >..</td>
+		  <td align = left><Input size = 60 type="text" name="InterestCoverOverrideComment_"  ></td>
+		  <td> <select name = "InterestCoverBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "InterestCoverBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		</tr
+		<tr align = center>
+	      <td align = left>EBITDA/Gross Interest Debts</td>
+		  <td align = center><Input size  = 3 type="text" name="EBITDAToDebtBenchmarkType_"  value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "EBITDAToDebtOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="EBITDAToDebtOverrideBenchmarkValue_"     style="text-align:right">%</td>
+	      <td align = left><Input size = 60 type="text" name="EBITDAToDebtOverrideComment_"  ></td>
+		  <td> <select name = "EBITDAToDebtBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+		  <td> <select name = "EBITDAToDebtBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 0>No</option></select>
+	    </tr>
+	    <tr><td align = center colspan = 8 style = "background-color:powderblue"><strong>REVIEWER'S COMMENTS</strong></td></tr>
+		<tr>
+		  <td><strong>First Reviewer's Comment:</strong></td>
+		  <td colspan = 7><textarea name = "BenchmarkOverrideFirstReviewerComment_" cols = 115 rows = 2></textarea></td>
+		</tr>7
+		<tr> 
+		  <td><strong>Second Reviewer's Comment:</strong></td>
+		  <td colspan = 7><textarea name = "BenchmarkOverrideSecondReviewerComment_" cols = 115 rows = 2></textarea></td>
+		</tr>
+		<tr>
+		   <td></td>
+		   <td align = center><button type = submit name = "Save" value = "Save">Save</td>
+		</table>
+   </table>
+	 
+	 </Form>
+</body>
+
+</html>

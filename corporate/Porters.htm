@@ -1,0 +1,431 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING :Industry Analysis - Porters Five Forces</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+         $(function()
+		    {
+				ResetFormValues();
+			});
+	    
+        function Recalculate(M)
+		{
+		// Perform conditional formatting for the selected rating
+		   //var val = M.value;
+		   var IndexOfForceToUpdate = 0;
+           var PreviousIndexOfForceToUpdate = 0;
+		   var RatingScore = 0;
+		   var TempForceTotal = 0;
+		   var SelectedIndex = 0;
+		   var elem = document.getElementById('PortersForm').elements;
+          // var x = 1;
+		   
+		   // 
+		   var GrandTotal = 0;
+		   for(var i = 0; i < elem.length; i++)
+           {
+
+			   // Get the index of the element on focus and the Total Score input box of each of the five forces based on the element name
+			   PreviousIndexOfForceToUpdate = IndexOfForceToUpdate;
+			   switch (elem[i].name)
+			   {
+				   //case M.name:
+		           //     SelectedIndex = i;          // Get index of the element on focus  
+	               //     break;
+				   case "ThreatsOfNewEntryScore": 
+				        IndexOfForceToUpdate = i;
+						break;
+				 
+			       case "CompetitiveRivalryScore": 
+				        IndexOfForceToUpdate = i;
+						break; 
+				   case "ThreatsOfSubstitutionScore":
+				        IndexOfForceToUpdate = i;
+						break; 
+				   case "SupplierPowerScore":
+				        IndexOfForceToUpdate = i;
+						break;
+				   case "BuyerPowerScore":
+				        IndexOfForceToUpdate = i;
+						break;  
+	               
+			   }
+			   
+	
+			   /** if the element type = select-one then 
+			       1. Perform conditional formatting based on the value
+				   2. Update the score on the right
+				   3. Add the element score to the relevant subtotal using the IndexOfForceToUpdate variable determined with the switch statement above
+			   **/
+			   RatingScore = 0;
+			   if (elem[i].type == 'select-one') 
+			      {
+				  
+			   	     switch (elem[i].value) 
+				       {
+			             case "Low":
+			               elem[i].style.backgroundColor = "green";
+			               RatingScore = 1;
+					
+					       break;
+			             case "Medium":
+			               elem[i].style.backgroundColor = "orange";
+			               RatingScore = 0;
+					
+					       break;  
+			             case "High":
+			               elem[i].style.backgroundColor = "red";
+					       RatingScore = -1;
+					
+			               break;  
+		                  // default:
+		                }
+				     elem[i+1].value = RatingScore; GrandTotal += RatingScore;
+                  // add the element score
+				//if (isnan(elem[IndexOfForceToUpdate].value))
+				//   {elem[IndexOfForceToUpdate-1].value) + alert("not a number")};
+				   
+			
+                //x = parseInt((elem[IndexOfForceToUpdate].value),10) ;
+				//alert (elem[i-1].value + x);			
+			      }
+		          if (PreviousIndexOfForceToUpdate == IndexOfForceToUpdate)
+				        {  TempForceTotal += RatingScore;}
+				
+				  if (PreviousIndexOfForceToUpdate !== IndexOfForceToUpdate)
+			     	    {  TempForceTotal = 0;}
+			      if (IndexOfForceToUpdate !== 0) {elem[IndexOfForceToUpdate].value = TempForceTotal};
+				  
+				  //Update the force ratings and perform conditional formating
+				  if (IndexOfForceToUpdate !== 0)
+				  {
+					if   (TempForceTotal==0)
+		            {
+                      elem[IndexOfForceToUpdate-1].style.backgroundColor = "orange"
+			          elem[IndexOfForceToUpdate-1].value = "Medium";
+			
+			        }
+		            if (TempForceTotal >0)
+		            {		   
+		              elem[IndexOfForceToUpdate-1].style.backgroundColor = "green"
+			          elem[IndexOfForceToUpdate-1].value = "Low";
+					
+			    	}	
+		            if (TempForceTotal <0)
+		            {
+				      elem[IndexOfForceToUpdate-1].style.backgroundColor = "red"
+					  elem[IndexOfForceToUpdate-1].value = "High";
+			        }
+		    	  }
+		    } 
+		   
+		// Update grand Summary rating and summary score
+		   document.forms["PortersForm"]["SummaryScore"].value =  GrandTotal;
+		   
+		   if   (GrandTotal==0)
+		        {
+                    document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "orange"
+			        document.forms["PortersForm"]["SummaryRating"].value = "Medium";
+			
+			    }
+		   if (GrandTotal >0)
+		        {		   
+		            document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "green"
+			        document.forms["PortersForm"]["SummaryRating"].value = "Low";
+					
+				}	
+		   if (GrandTotal <0)
+		        {
+				    document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "red"
+					document.forms["PortersForm"]["SummaryRating"].value = "High";
+			    }
+		    		
+		}
+	   function ResetFormValues()
+       {
+		   // Perform conditional formatting for the selected rating
+		   var IndexOfForceToUpdate = 0;
+           var PreviousIndexOfForceToUpdate = 0;
+		   
+		   var elem = document.getElementById('PortersForm').elements;
+         
+		   
+		   // 
+		   
+		   for(var i = 0; i < elem.length; i++)
+           {
+
+			   // Get the index of the element on focus and the Total Score input box of each of the five forces based on the element name
+			   PreviousIndexOfForceToUpdate = IndexOfForceToUpdate;
+			   switch (elem[i].name)
+			   {
+		
+				   case "ThreatsOfNewEntryScore": 
+				        IndexOfForceToUpdate = i;
+						break;
+				 
+			       case "CompetitiveRivalryScore": 
+				        IndexOfForceToUpdate = i;
+						break; 
+				   case "ThreatsOfSubstitutionScore":
+				        IndexOfForceToUpdate = i;
+						break; 
+				   case "SupplierPowerScore":
+				        IndexOfForceToUpdate = i;
+						break;
+				   case "BuyerPowerScore":
+				        IndexOfForceToUpdate = i;
+						break;  
+	               
+			   } //end of switch
+			   
+	
+			   /** if the element type = select-one then 
+			       1. Perform conditional formatting based on the value
+				   2. Update the score on the right
+				   3. Add the element score to the relevant subtotal using the IndexOfForceToUpdate variable determined with the switch statement above
+			   **/
+			  
+			   if (elem[i].type == 'select-one') 
+			      {
+				    //Reset select-one values to medium with orange background-color
+				    elem[i].value = "Medium"; elem[i].style.backgroundColor = "orange";
+				    //Reset individual score to 0
+					elem[i+1].value = 0;
+				    //Reset force totals to 0, medium and orange background-color
+					elem[IndexOfForceToUpdate].value = 0;
+				    elem[IndexOfForceToUpdate-1].style.backgroundColor = "orange";
+			        elem[IndexOfForceToUpdate-1].value = "Medium";
+			      }
+		    } //end of for loop
+		   
+		    // Reset grand Summary rating and summary score to Medium and 0 respectively
+		    document.forms["PortersForm"]["SummaryScore"].value =  0;
+		    document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "orange";
+		    document.forms["PortersForm"]["SummaryRating"].value = "Medium";		
+		}
+   </script>
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form id = "PortersForm" name="Porters" action="/action_ISPage.php" onsubmit="return validateForm()" method="post">>    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="562" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="562" height="208"/></td>
+	   </tr>
+	   
+	   <table align = "center" cellspacing=1 border = 0>
+		<td></td><td><Input type = Submit value = "Save/Submit"  ></td><td colspan = 2><Button type = "button" onclick ="ResetFormValues()">Clear Form</Button> ></td>	
+	    <tr><td cellspacing = 0 colspan = 4 align = "center" style="background-color:darkblue;color:white"><h3>GARE VISION (PTY) LTD</h3></td></tr>
+	  
+		<tr bgcolor = darkblue>
+		  <th></th>
+		  <th style="color:white;text-align:left">Rating</th>
+		  <th style="color:white;text-align:left">Score</th>
+		  <th style="color:white;text-align:left"></th>
+		</tr>
+		<tr bgcolor = darkblue style="color:white">
+		  <th style="text-align:left;">PORTERS FIVE FORCES ANALYSIS </th>
+		  <th style="text-align:left;">Input</th>
+		  <th style="text-align:left;" Size =1>Formula</th>
+		  <th style="text-align:left;">Comment</th>
+		</tr>
+		<tr style ="background-color:lightblue;color:black">
+		   <td><Strong>Threats of New Entry<Strong></td>
+		   <td><input type ="text" name = "ThreatsOfNewEntryRating" size = 6 style ="text-align:left;background-color:lightblue;color:white"></td>
+		   <td><input type ="text" name = "ThreatsOfNewEntryScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		   <td></td>
+		</tr>
+		<tr>
+		  <td>Time and cost of entry</td>	
+		  <td><Select name="EntryCostsRating" onmousemove = "Recalculate(this)"><Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "EntryCostsScore" Type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "EntryCostsComment" Type = "text" size = 100></td>
+	    </tr>
+	   <tr >
+		  <td>Specialist Knowledge</td>
+		  <td><Select name="SpecialistKnowledgeRating" Onmousemove="Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+          <td><input name = "SpecialKnowledgeScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+          <td><input name = "SpecialistKnowledgeComment" Type = "text" size = 100>
+	   </tr>
+		  <td>Economies Of Scale</td>
+		  <td><Select name="EconomiesOfScaleRating" onmousemove = "Recalculate(this)" > <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "EconomiesOfScaleScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "EconomiesOfScaleComment" Type = "text" size = 100>  
+	   </tr>
+	   <tr >
+		  <td>Cost Advantages</td>
+	      <td><Select name="CostAdvantagesRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "CostAdvantagesScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "CostAdvantagesComment" Type = "text" size = 100></td> 
+	  </tr>
+	   <tr >
+	      <td>Technology Protection</td>
+	      <td><Select name="TechnologyProtectionRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "TechnologyProtectionScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "TechnologyProtectionComment" Readonly="True" Type = "text" size = 100>   </tr>
+	   
+       <tr>
+	      <td>Barriers to Entry</td>
+	      <td><Select name="BarriersToEntryRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "BarriersToEntryScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+		  <td><input name = "BarriersToEntryComment" Readonly="True" Type = "text" size = 100>  
+		</tr>
+	   
+	   <tr style ="background-color:lightblue;color:black">
+	      <td><strong>Competitive Rivalry<strong></td>
+          <td><input type ="text" name = "CompetitiveRivalryRating" size = 6 style="text-align:left;background-color:lightblue;color:white"></td>
+		  <td><input type ="text" name = "CompetitiveRivalryScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		  <td></td>	   
+	   </tr>
+	   <tr>
+		  <td>Number Of Competitors</td>
+	      <td><Select name="NumberOfCompetitorsRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "NumberOfCompetitorsScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "NumberOfCompetitorsComment" Readonly="True" Type = "text" size = 100>	</tr>
+	    <tr>
+		  <td>Quality Differences</td>
+	      <td><Select name="QualityDifferencesRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "QualityDifferencesScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "QualityDifferencesComment" Readonly="True" Type = "text" size = 100>   </tr> 
+	   <tr>
+		  <td>Other Differences</td>
+	      <td><Select name="OtherDifferencesRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "OtherDifferencesScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+		  <td><input name = "OtherDifferencesComment" Readonly="True" Type = "text" size = 100> </tr> 
+	   <tr>
+		  <td>Switching Costs</td>
+	      <td><Select name="SwitchingCostsRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "SwitchingCostsScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "SwitchingCostsComment" Readonly="True" Type = "text" size = 100>   </tr>
+	   <tr>
+		  <td>Customer Loyalty</td>
+		  <td><Select name="CustomerLoyaltyRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "CustomerLoyaktyScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "CustomerLoyaktyComment" Readonly="True" Type = "text" size = 100> </tr>
+	   <tr style ="background-color:lightblue;color:black">
+	      <td><strong>Supplier Power<strong></td>
+	      <td><input type ="text" name = "SupplierPowerRating" size = 6 style="text-align:left;background-color:lightblue;color:white"></td>
+		  <td><input type ="text" name = "SupplierPowerScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		  <td></td>
+	   </tr>
+	   <tr>
+		  <td>Number Of Supplierss</td>
+	      <td><Select name="NumberOfSuppliersrsRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "NumberOfSuppliersOverallScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "NumberOfSuppliersComment" Readonly="True" Type = "text" size = 100>	</tr>
+	    <tr>
+		  <td>Size Of Suppliers</td>
+	       <td><Select name="SizeOfSuppliersRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "SizeOfSuppliersOverallScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+		  <td><input name = "SizeOfSuppliersComment" Readonly="True" Type = "text" size = 100>   </tr> 
+	   <tr>
+		  <td>Uniqueness Of Service</td>
+	      <td><Select name="UniquenessOfServiceRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "UniquenessOfServiceScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "UniquenessOfServiceComment" Readonly="True" Type = "text" size = 100> </tr> 
+	   <tr>
+		  <td>Costs Of Supplier Change</td>
+	      <td><Select name="CostsOfSupplierChangeRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "CostsOfSupplierChangeScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "CostsOfSupplierChangeComment" Readonly="True" Type = "text" size = 100>   </tr>
+	   <tr>
+		  <td>Supplier Switching Costs</td>
+		  <td><Select name="SupplierSwitchingCostsRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "SupplierSwitchingCostsScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "SupplierSwitchingCostsComment" Readonly="True" Type = "text" size = 100> </tr>
+	  </tr>
+	  <tr style ="background-color:lightblue;color:black">
+	      <td><strong>Threats Of Substitution<strong></td>
+	      <td><input type ="text" name = "ThreatsOfSubstitutionRating" size = 6 style="text-align:left;background-color:lightblue;color:white"></td>
+		  <td><input type ="text" name = "ThreatsOfSubstitutionScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		  <td></td>
+	  </tr>
+	   <tr>
+		  <td>Substitute Performance</td>
+	      <td><Select name="SubstitutePerfomanceRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "SubstitutePerformanceScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "SubstitutePerfomanceComment" Readonly="True" Type = "text" size = 100>	
+	    </tr>
+	    <tr>
+		  <td>Costs of Substitution</td>
+	      <td><Select name="CostsOfSubstitutionRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "CostsOfSubstitutionScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "CostsOfSubstitutionComment" Readonly="True" Type = "text" size = 100>   </tr> 
+	   </tr>
+	   <tr style ="background-color:lightblue;color:black">
+	      <td><strong>Buyer Power<strong></td>
+	      <td><input type ="text" name = "BuyerPowerRating" size = 6 style="text-align:left;background-color:lightblue;color:white"></td>
+		  <td><input type ="text" name = "BuyerPowerScore" size = 1 style="text-align:center;background-color:lightblue;color:black"></td>
+		  <td></td>
+	</tr>
+	   <tr>
+		  <td>Number Of Customers</td>
+	      <td><Select name="NumberOfCustomersRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "NumberOfCCustomersScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "NumberOfCustomersComment" Readonly="True" Type = "text" size = 100>	</tr>
+	    <tr>
+		  <td>Single Order Size</td>
+	      <td><Select name="SingleOrderSizeRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "SingleOrderSizeScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center" ></td>
+		  <td><input name = "SingleOrderSizeComment" Readonly="True" Type = "text" size = 100>   
+		 </tr> 
+	   <tr>
+		  <td>Competitor Differences</td>
+	      <td><Select name="CompetitorDifferencesRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "CompetitorDifferencesScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "CompetitorDifferencesComment" Readonly="True" Type = "text" size = 100> </tr> 
+	   <tr>
+		  <td>Price Sensitivity</td>
+	      <td><Select name="PriceSensitivityRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "PriceSensitivityScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "PriceSensitivityComment" Readonly="True" Type = "text" size = 100>   </tr>
+	   <tr>
+		  <td>Ability To Substitute</td>
+		  <td><Select name="AbilityToSubstituteRating"onmousemove = "Recalculate(this)" > <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "AbilityToSubstituteScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "AbilityToSubstituteComment" Readonly="True" Type = "text" size = 100> 
+		</tr>
+		<tr>
+		  <td>Customers Switching Costs</td>
+		  <td><Select name="CustomersSwitchingCostsRating" onmousemove = "Recalculate(this)"> <Option Value="Low">Low</option><Option Value = "Medium">Medium</option><option Value = "High">High</option></Select>></td>
+		  <td><input name = "CustomerSwitchingCostsScore" type ="text" size = 1 style="background-color:lightgrey;text-align:center"></td>
+		  <td><input name = "CustomersSwitchingCostsComment" Readonly="True" Type = "text" size = 100> 
+		</tr>  
+		<tr style ="background-color:darkblue;color:white">
+	      <td><h4>GRAND TOTAL</h4></td>
+	      <td><input type ="text" name = "SummaryRating" size = 6 style="text-align:left;background-color:darkblue;color:white"></td>
+		  <td><input type ="text" name = "SummaryScore" size = 1 style="text-align:center;background-color:darkblue;color:white"></td>
+		  <td></td>
+	    </tr> 
+		  
+	      <td></td>
+		  <td><Input type = Submit value = "Save/Submit"  ></td><td colspan = 2><Button type = button onclick="ResetFormValues()">Clear Form></Button></td>
+	    </table>
+   </table>
+   <script>
+	  
+    </script>
+   </Form>
+</body>
+
+</html>

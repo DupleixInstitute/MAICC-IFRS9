@@ -1,0 +1,100 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\LoanPortfolio;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class LoanBook extends Model
+{
+    use HasFactory;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'contract_id',
+        'external_identity_id',
+        'customer_id',
+        'portfolio_group',
+        'reporting_year',
+        'reporting_month',
+        'reporting_period',
+        'create_date',
+        'due_date',
+        'overdue_days',
+        'principal_balance',
+        'expected_loss_provision',
+        'overdue_status',
+        'is_month_end',
+        'client_id',
+        'loan_portfolio_id',
+        'contract_status',
+        'calculated_ifrs9_stage',
+        'ecl_value',
+        'pd_value',
+        'lgd_value',
+        'customer_lgd',
+        'collection_lgd',
+        '12_pd',
+        'lifetime_pd',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'create_date' => 'date',
+        'due_date' => 'date',
+        'principal_balance' => 'decimal:2',
+        'expected_loss_provision' => 'decimal:2',
+        'overdue_days' => 'integer',
+        'reporting_year' => 'integer',
+        'reporting_month' => 'integer',
+        'is_month_end' => 'boolean',
+    ];
+
+    /**
+     * Get the client that owns the loan book entry.
+     */
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'external_identity_id', 'customer_id');
+    }
+
+    /**
+     * Scope a query to only include month-end records.
+     */
+    public function scopeMonthEnd($query)
+    {
+        return $query->where('is_month_end', true);
+    }
+
+    /**
+     * Scope a query to filter by reporting period.
+     */
+    public function scopeByPeriod($query, $year, $month)
+    {
+        return $query->where([
+            'reporting_year' => $year,
+            'reporting_month' => $month
+        ]);
+    }
+
+    /**
+     * Scope a query to filter by overdue status.
+     */
+    public function scopeByOverdueStatus($query, $status)
+    {
+        return $query->where('overdue_status', $status);
+    }
+    public function portfolio()
+    {
+        return $this->belongsTo(LoanPortfolio::class, 'portfolio_group');
+    }
+}

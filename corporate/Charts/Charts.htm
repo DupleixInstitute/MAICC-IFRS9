@@ -1,0 +1,94 @@
+<html>
+<head>
+   <title>CREDIT SCORING - Charts</Title>
+   <link href="bootstrap.css" rel="stylesheet" type="text/css">  
+   <script type="text/javascript" src="Chart.bundle.js"></script>
+
+
+</head>
+
+<body>
+   <div class = "container">
+       <canvas id="myChart"></canvas>
+   </div>
+
+   <script>
+      var WeightedSales =  round(localStorage.NetSales1*localStorage.RatioWeightYear1/100+
+		                         localStorage.NetSales2*localStorage.RatioWeightYear2/100+
+				                 localStorage.NetSales3*localStorage.RatioWeightYear3/100,2);
+
+	  
+	  var Years    = [localStorage.financial_year0, localStorage.financial_year1,
+	                  localStorage.financial_year2, localStorage.financial_year3];
+	  
+	  var NetSales = [localStorage.NetSales0      ,localStorage.NetSales1,
+	                  localStorage.NetSales2      ,localStorage,NetSales3];
+	  
+	  var Colors   = ['purple','purple','purple','purple'];
+	  
+	  var ctx = document.getElementById('myChart').getContext('2d');
+      
+	  //Global Options
+	  //Chart.defaults.global.defaultFontFamily ='Lato';
+	  //Chart.defaults.global.defaultFontSize  = 18;
+	 /// Chart.defaults.global.defaultFontColor = 'lightgrey';
+	  
+	  
+	  
+	  var chart = new Chart(ctx, {
+      // The type of chart we want to create
+      type: 'bar',   //ine pie  bar
+
+      // The data for our dataset
+      data: {
+          labels: Years,
+          datasets: [{
+              label: 'Turnover Trend',
+              backgroundColor: Colors,
+              borderColor: 'blue',
+              data:NetSales,
+			  borderWidth:4,
+			  hoverBorderWidth: 3,
+			  hoverBorderColor: 'black'
+          },{  
+            label: 'Weighted Sales',
+              backgroundColor: 'blue',
+              borderColor: 'blue',
+              data:[WeightedSales,WeightedSales,WeightedSales],
+			  borderWidth:4,
+			  hoverBorderWidth: 3,
+			  hoverBorderColor: 'black',
+ 		      type: 'line'
+		  }]
+      },
+     // Configuration options go here
+      options: {
+	     title:{
+		    display:true,
+			text   :'Turnover Trend',
+			fontSize:25
+		 },
+		 legend:{
+		    display  : true,
+			position : 'right',
+			fontColor: 'black'
+		 },
+		 layout:{
+		    padding:{
+			  left:50,
+			  right:0,
+			  bottom:0,
+			  top:0
+			}
+		 },
+		 tooltips:{
+		   enabled:true
+		 }
+	  }
+     });
+  </script>
+
+</body>
+
+
+<html>

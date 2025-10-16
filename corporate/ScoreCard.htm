@@ -1,0 +1,2643 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Ratio Analysis</TITLE>
+   <link href="complaintstyle.css" rel="stylesheet" type="text/css">
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   <script type="text/javascript" src="Dupleix.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		{
+			//Load Data
+				Data_CompletenessCheck();
+				Ratio_Analysis_CALCULATE();
+				console.log(localStorage.industrial_sector);
+				DisplayRatiosFromLocalStorage();
+				ScoreCardForm_ShowIndustryBenchmarksOverrides();
+				ScoreCardForm_ShowIndustryBenchmarks();
+				ScoreCardForm_ShowAppliedIndustryBenchmarks();
+				ScoreCardForm_ShowAchievedIndustryBenchmarks();
+				ScoreCardForm_SetConditionalColors_Passes();
+				ScoreCardForm_CalculateFinancialAnalysisScores();
+				ScoreCardForm_CalculateManagementAnalysisScores();
+				ScoreCardForm_CalculateIndustryAnalysisScores();
+				ScoreCardForm_CalculateBehavioralAnalysisScores();
+                ScoreCardForm_CalculateShareholderAnalysisScores();
+				ScoreCardForm_SetConditionalColors_BehavioralAnalysis_Comments();
+				ScoreCardForm_SetConditionalColors_ShareholderAnalysis_Flags();
+				ScoreCardForm_CalculateGrandTotals();				
+				ScoreCardForm_ShowZScores();
+				ScoreCardForm_SetConditionalColors_ZScores();
+				ScoreCardForm_ECLParams();
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	 
+function Data_CompletenessCheck()
+{
+   //1.. Check if the Balance Sheet is Balancing==============================================================
+   var SummaryTotalLiabilities0 = ToNumber(localStorage.CurrentLiabilities0) + ToNumber(localStorage.NonCurrentLiabilities0);
+   var SummaryTotalLiabilities1 = ToNumber(localStorage.CurrentLiabilities1) + ToNumber(localStorage.NonCurrentLiabilities1);
+   var SummaryTotalLiabilities2 = ToNumber(localStorage.CurrentLiabilities2) + ToNumber(localStorage.NonCurrentLiabilities2);
+   var SummaryTotalLiabilities3 = ToNumber(localStorage.CurrentLiabilities3) + ToNumber(localStorage.NonCurrentLiabilities3);
+				
+   // SUMMARY TOTAL ASSETS - Calculate for the three years
+                
+   var SummaryTotalAssets0 = ToNumber(localStorage.CurrentAssets0) + ToNumber(localStorage.NonCurrentAssets0);
+   var SummaryTotalAssets1 = ToNumber(localStorage.CurrentAssets1) + ToNumber(localStorage.NonCurrentAssets1);
+   var SummaryTotalAssets2 = ToNumber(localStorage.CurrentAssets2) + ToNumber(localStorage.NonCurrentAssets2);
+   var SummaryTotalAssets3 = ToNumber(localStorage.CurrentAssets3) + ToNumber(localStorage.NonCurrentAssets3);
+				
+   // SUMMARY TOTAL EQUITY AND LIABILITIES - Calculate for the three years
+                
+   var SummaryTotalEquityAndLiabilities0 = ToNumber(localStorage.TotalEquity0) + SummaryTotalLiabilities0;
+   var SummaryTotalEquityAndLiabilities1 = ToNumber(localStorage.TotalEquity1) + SummaryTotalLiabilities1;
+   var SummaryTotalEquityAndLiabilities2 = ToNumber(localStorage.TotalEquity2) + SummaryTotalLiabilities2;
+   var SummaryTotalEquityAndLiabilities3 = ToNumber(localStorage.TotalEquity3) + SummaryTotalLiabilities3;
+				
+				// SUMMARY BALANCE SHEET CHECK - Calculate for the three years
+                
+   var BalanceSheetCheck0 = SummaryTotalAssets0 - SummaryTotalEquityAndLiabilities0;
+   var BalanceSheetCheck1 = SummaryTotalAssets1 - SummaryTotalEquityAndLiabilities1;
+   var BalanceSheetCheck2 = SummaryTotalAssets2 - SummaryTotalEquityAndLiabilities2;
+   var BalanceSheetCheck3 = SummaryTotalAssets3 - SummaryTotalEquityAndLiabilities3;
+
+   var SumALLBalanceSheetChecks = BalanceSheetCheck0 + BalanceSheetCheck2 + BalanceSheetCheck3 
+                                + BalanceSheetCheck3;
+   if (SumALLBalanceSheetChecks !== 0) {
+      alert ("SORRY! ** Balance Sheet Not Balancing ** \r\n\r\n Press OK To Go To Menu");
+      window.location.replace("CorporateAddMenu.php");
+   }   
+   //if Company Data not Saved and missing on Progress Tracker Log then return to Menu===================
+   if (localStorage.CompanyDataTrackerDateSaved == "") {
+      alert ("SORRY! ** Company Data Not Saved ** \r\n\r\n Press OK To Go To Menu");
+      window.location.replace("CorporateAddMenu.php");
+   } 
+   //if Loan Data not Saved and missing on Progress Tracker Log then return to Menu===================
+   if (localStorage.LoanDataTrackerDateSaved == "") {
+      alert ("SORRY! ** Loan Data Not Saved ** \r\n\r\n Press OK To Go To Menu");
+      window.location.replace("CorporateAddMenu.php");
+   } 
+   //if Management Analysis not Saved and missing on Progress Tracker Log then return to Menu===================
+   if (localStorage.ManagementAnalysisTrackerDateSaved == "") {
+      alert ("SORRY! ** Management Analysis Not Saved ** \r\n\r\n Press OK To Go To Menu");
+      window.location.replace("CorporateAddMenu.php");
+   } 
+   //if Industry Analysis not Saved and missing on Progress Tracker Log then return to Menu===================
+   if (localStorage.IndustryAnalysisTrackerDateSaved == "") {
+      alert ("SORRY! ** Industry Analysis Not Saved ** \r\n\r\n Press OK To Go To Menu");
+      window.location.replace("CorporateAddMenu.php");
+   } 
+   //if Shareholder Analysis not Saved and missing on Progress Tracker Log then return to Menu===================
+   if (localStorage.ShareholderAnalysisTrackerDateSaved == "") {
+      alert ("SORRY! ** Shareholder Analysis Not Saved ** \r\n\r\n Press OK To Go To Menu");
+      window.location.replace("CorporateAddMenu.php");
+   } 
+
+
+}
+
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+ 
+       function SetBackgroundColors()
+		{
+		// Perform conditional formatting for the selected rating
+		   //var val = M.value;
+		   var IndexOfForceToUpdate = 0;
+           var PreviousIndexOfForceToUpdate = 0;
+		   var RatingScore = 0;
+		   var TempForceTotal = 0;
+		   var SelectedIndex = 0;
+		   var elem = document.getElementById('PortersForm').elements;
+          // var x = 1;
+		   
+		   // 
+		   var GrandTotal = 0;
+		   for(var i = 0; i < elem.length; i++)
+           {
+
+			   // Get the index of the element on focus and the Total Score input box of each of the five forces based on the element name
+			   PreviousIndexOfForceToUpdate = IndexOfForceToUpdate;
+			   switch (elem[i].name)
+			   {
+				   //case M.name:
+		           //     SelectedIndex = i;          // Get index of the element on focus  
+	               //     break;
+				   case "ThreatsOfNewEntryScore": 
+				        IndexOfForceToUpdate = i;
+						break;
+				 
+			       case "CompetitiveRivalryScore": 
+				        IndexOfForceToUpdate = i;
+						break; 
+				   case "ThreatsOfSubstitutionScore":
+				        IndexOfForceToUpdate = i;
+						break; 
+				   case "SupplierPowerScore":
+				        IndexOfForceToUpdate = i;
+						break;
+				   case "BuyerPowerScore":
+				        IndexOfForceToUpdate = i;
+						break;  
+	               
+			   }
+			   
+	
+			   /** if the element type = select-one then 
+			       1. Perform conditional formatting based on the value
+				   2. Update the score on the right
+				   3. Add the element score to the relevant subtotal using the IndexOfForceToUpdate variable determined with the switch statement above
+			   **/
+			   RatingScore = 0;
+			   if (elem[i].type == 'select-one') 
+			      {
+				  
+			   	     switch (elem[i].value) 
+				       {
+			             case "Low":
+			               elem[i].style.backgroundColor = "green";
+			               RatingScore = 1;
+					
+					       break;
+			             case "Medium":
+			               elem[i].style.backgroundColor = "orange";
+			               RatingScore = 0;
+					
+					       break;  
+			             case "High":
+			               elem[i].style.backgroundColor = "red";
+					       RatingScore = -1;
+					
+			               break;  
+		                  // default:
+		                }
+				  
+					 elem[i+1].value = RatingScore; GrandTotal += RatingScore;
+                  // add the element score
+				//if (isnan(elem[IndexOfForceToUpdate].value))
+				//   {elem[IndexOfForceToUpdate-1].value) + alert("not a number")};
+				   
+			
+                //x = parseInt((elem[IndexOfForceToUpdate].value),10) ;
+				//alert (elem[i-1].value + x);			
+			      }
+		          if (PreviousIndexOfForceToUpdate == IndexOfForceToUpdate)
+				        {  TempForceTotal += RatingScore;}
+				
+				  if (PreviousIndexOfForceToUpdate !== IndexOfForceToUpdate)
+			     	    {  TempForceTotal = 0;}
+			      if (IndexOfForceToUpdate !== 0) {elem[IndexOfForceToUpdate].value = TempForceTotal};
+				  
+				  //Update the force ratings and perform conditional formating
+				  if (IndexOfForceToUpdate !== 0)
+				  {
+					if   (TempForceTotal==0)
+		            {
+                      elem[IndexOfForceToUpdate-1].style.backgroundColor = "orange"
+			          elem[IndexOfForceToUpdate-1].value = "Medium";
+			
+			        }
+		            if (TempForceTotal >0)
+		            {		   
+		              elem[IndexOfForceToUpdate-1].style.backgroundColor = "green"
+			          elem[IndexOfForceToUpdate-1].value = "Low";
+					
+			    	}	
+		            if (TempForceTotal <0)
+		            {
+				      elem[IndexOfForceToUpdate-1].style.backgroundColor = "red"
+					  elem[IndexOfForceToUpdate-1].value = "High";
+			        }
+		    	  }
+		    } 
+		   
+		// Update grand Summary rating and summary score
+		   document.forms["PortersForm"]["SummaryScore"].value =  GrandTotal;
+		   
+		   if   (GrandTotal==0)
+		        {
+                    document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "orange"
+			        document.forms["PortersForm"]["SummaryRating"].value = "Medium";
+			
+			    }
+		   if (GrandTotal >0)
+		        {		   
+		            document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "green"
+			        document.forms["PortersForm"]["SummaryRating"].value = "Low";
+					Ind
+				}	
+		   if (GrandTotal <0)
+		        {
+				    document.forms["PortersForm"]["SummaryRating"].style.backgroundColor = "red"
+					document.forms["PortersForm"]["SummaryRating"].value = "High";
+			    }
+		    		
+		}
+		
+function ScoreCardForm_ShowIndustryBenchmarksOverrides()
+{
+	    console.log("Industrial Sector = "+localStorage.industrial_sector);
+		console.log("Starting to show the industry benchmarks overrides");
+		document.ScoreCardForm.CurrentRatioBenchmarkValue.value = localStorage.CurrentRatioOverrideBenchmarkValue_;
+		document.ScoreCardForm.DebtorDaysBenchmarkValue.value = localStorage.DebtorDaysOverrideBenchmarkValue_;
+		document.ScoreCardForm.TurnoverToWCBenchmarkValue.value = localStorage.TurnoverToWCOverrideBenchmarkValue_;
+		document.ScoreCardForm.GrossProfitMarginBenchmarkValue.value = localStorage.GrossProfitMarginOverrideBenchmarkValue_;
+		document.ScoreCardForm.OperatingProfitMarginBenchmarkValue.value = localStorage.OperatingProfitMarginOverrideBenchmarkValue_;
+		document.ScoreCardForm.TurnoverGrowthBenchmarkValue.value = localStorage.TurnoverGrowthOverrideBenchmarkValue_;
+		document.ScoreCardForm.ROABenchmarkValue.value = localStorage.ROAOverrideBenchmarkValue_;
+		document.ScoreCardForm.ROIBenchmarkValue.value = localStorage.ROIOverrideBenchmarkValue_;
+		document.ScoreCardForm.LongtermDebtToEquityBenchmarkValue.value = localStorage.LongtermDebtToEquityOverrideBenchmarkValue_;
+		document.ScoreCardForm.DebtToTangibleNetWorthBenchmarkValue.value = localStorage.DebtToTangibleNetWorthOverrideBenchmarkValue_;
+		document.ScoreCardForm.EquityToTotalAssetsBenchmarkValue.value = localStorage.EquityToTotalAssetsOverrideBenchmarkValue_;
+	    document.ScoreCardForm.InterestCoverBenchmarkValue.value = localStorage.InterestCoverOverrideBenchmarkValue_;
+		document.ScoreCardForm.EBITDAToDebtBenchmarkValue.value = localStorage.EBITDAToDebtOverrideBenchmarkValue_;
+}	
+
+function ScoreCardForm_CalculateFinancialAnalysisScores()
+{
+   //Hold Max Scores in temporary working variables
+   var CurrentRatioMaxScore = Number(document.ScoreCardForm.CurrentRatioMaxScore.value);
+   var DebtorDaysMaxScore = Number(document.ScoreCardForm.DebtorDaysMaxScore.value);
+   var TurnoverToWCMaxScore = Number(document.ScoreCardForm.TurnoverToWCMaxScore.value);
+   var GrossProfitMarginMaxScore = Number(document.ScoreCardForm.GrossProfitMarginMaxScore.value);
+   var OperatingProfitMarginMaxScore = Number(document.ScoreCardForm.OperatingProfitMarginMaxScore.value);
+   var TurnoverGrowthMaxScore = Number(document.ScoreCardForm.TurnoverGrowthMaxScore.value);
+   var ROAMaxScore = Number(document.ScoreCardForm.ROAMaxScore.value);
+   var ROIMaxScore = Number(document.ScoreCardForm.ROIMaxScore.value);
+   var LongtermDebtToEquityMaxScore = Number(document.ScoreCardForm.LongtermDebtToEquityMaxScore.value);
+   var DebtToTangibleNetWorthMaxScore = Number(document.ScoreCardForm.DebtToTangibleNetWorthMaxScore.value);
+   var EquityToTotalAssetsMaxScore = Number(document.ScoreCardForm.EquityToTotalAssetsMaxScore.value);
+   var InterestCoverMaxScore = Number(document.ScoreCardForm.InterestCoverMaxScore.value);
+   var EBITDAToDebtMaxScore = Number(document.ScoreCardForm.EBITDAToDebtMaxScore.value);
+     
+   //calculate the Max Scores Sub-Totals
+   var TotalLiquidityMaxScore = CurrentRatioMaxScore + DebtorDaysMaxScore + TurnoverToWCMaxScore;
+   var TotalProfitabilityMaxScore = GrossProfitMarginMaxScore + OperatingProfitMarginMaxScore +
+                                     TurnoverGrowthMaxScore + ROAMaxScore + ROIMaxScore;
+   var TotalCapitalStructureMaxScore = LongtermDebtToEquityMaxScore + DebtToTangibleNetWorthMaxScore 
+                                        +EquityToTotalAssetsMaxScore;
+   var TotalDebtServiceMaxScore = InterestCoverMaxScore + EBITDAToDebtMaxScore;
+   var TotalFinancialMaxScore = TotalLiquidityMaxScore + TotalProfitabilityMaxScore + 
+                                TotalCapitalStructureMaxScore +  TotalDebtServiceMaxScore;
+	
+	console.log("Current Ratio Maximum Score = "+document.ScoreCardForm.CurrentRatioMaxScore.value);  
+  //Hold Calculated Ratios in temporary working variables
+   var CurrentRatio = parseFloat(document.ScoreCardForm.CurrentRatioValue.value);
+   var DebtorDays = Number(document.ScoreCardForm.DebtorDaysValue.value);
+   var TurnoverToWC = Number(document.ScoreCardForm.TurnoverToWCValue.value);
+   var GrossProfitMargin = Number(document.ScoreCardForm.GrossProfitMarginValue.value);
+   var OperatingProfitMargin = Number(document.ScoreCardForm.OperatingProfitMarginValue.value);
+   var TurnoverGrowth = Number(document.ScoreCardForm.TurnoverGrowthValue.value);
+   var ROA = Number(document.ScoreCardForm.ROAValue.value);
+   var ROI = Number(document.ScoreCardForm.ROIValue.value);
+   var LongtermDebtToEquity = Number(document.ScoreCardForm.LongtermDebtToEquityValue.value);
+   var DebtToTangibleNetWorth = Number(document.ScoreCardForm.DebtToTangibleNetWorthValue.value);
+   var EquityToTotalAssets = Number(document.ScoreCardForm.EquityToTotalAssetsValue.value);
+   var InterestCover = Number(document.ScoreCardForm.InterestCoverValue.value);
+   var EBITDAToDebt = Number(document.ScoreCardForm.EBITDAToDebtValue.value);
+   console.log("Current Ratio " +CurrentRatio);
+   //Hold Max Scores in temporary working variables
+   var CurrentRatioAppliedBenchmark = Number(document.ScoreCardForm.CurrentRatioAppliedBenchmarkValue.value);
+   var DebtorDaysAppliedBenchmark = Number(document.ScoreCardForm.DebtorDaysAppliedBenchmarkValue.value);
+   var TurnoverToWCAppliedBenchmark = Number(document.ScoreCardForm.TurnoverToWCAppliedBenchmarkValue.value);
+   var GrossProfitMarginAppliedBenchmark = Number(document.ScoreCardForm.GrossProfitMarginAppliedBenchmarkValue.value);
+   var OperatingProfitMarginAppliedBenchmark = Number(document.ScoreCardForm.OperatingProfitMarginAppliedBenchmarkValue.value);
+   var TurnoverGrowthAppliedBenchmark = Number(document.ScoreCardForm.TurnoverGrowthAppliedBenchmarkValue.value);
+   var ROAAppliedBenchmark = Number(document.ScoreCardForm.ROAAppliedBenchmarkValue.value);
+   var ROIAppliedBenchmark = Number(document.ScoreCardForm.ROIAppliedBenchmarkValue.value);
+   var LongtermDebtToEquityAppliedBenchmark = Number(document.ScoreCardForm.LongtermDebtToEquityAppliedBenchmarkValue.value);
+   var DebtToTangibleNetWorthAppliedBenchmark = Number(document.ScoreCardForm.DebtToTangibleNetWorthAppliedBenchmarkValue.value);
+   var EquityToTotalAssetsAppliedBenchmark = Number(document.ScoreCardForm.EquityToTotalAssetsAppliedBenchmarkValue.value);
+   var InterestCoverAppliedBenchmark = Number(document.ScoreCardForm.InterestCoverAppliedBenchmarkValue.value);
+   var EBITDAToDebtAppliedBenchmark = Number(document.ScoreCardForm.EBITDAToDebtAppliedBenchmarkValue.value);
+   console.log("Current Ratio Applied Benchmark = " + CurrentRatioAppliedBenchmark);
+   
+   //Calculate the Scores  = score/Benchmark x max score subject to a 0 and Max Score range
+   
+   var CurrentRatioScore = CurrentRatio / CurrentRatioAppliedBenchmark * CurrentRatioMaxScore;
+   
+   var DebtorDaysScore = DebtorDaysAppliedBenchmark/(DebtorDays+0.001) * DebtorDaysMaxScore;  //avoiding infinitybbb
+    
+   var TurnoverToWCScore = TurnoverToWC / TurnoverToWCAppliedBenchmark * TurnoverToWCMaxScore;
+   var GrossProfitMarginScore = GrossProfitMargin / GrossProfitMarginAppliedBenchmark * GrossProfitMarginMaxScore;
+   var OperatingProfitMarginScore = OperatingProfitMargin / OperatingProfitMarginAppliedBenchmark * OperatingProfitMarginMaxScore;
+   var TurnoverGrowthScore = TurnoverGrowth / TurnoverGrowthAppliedBenchmark * TurnoverGrowthMaxScore;
+   var ROAScore = ROA / ROAAppliedBenchmark * ROAMaxScore;
+   var ROIScore = ROA / ROIAppliedBenchmark * ROIMaxScore;
+   var DebtToTangibleNetWorthScore = DebtToTangibleNetWorthAppliedBenchmark/(DebtToTangibleNetWorth+0.001)  * DebtToTangibleNetWorthMaxScore;
+   var LongtermDebtToEquityScore = LongtermDebtToEquityAppliedBenchmark/(LongtermDebtToEquity+0.001) * LongtermDebtToEquityMaxScore;
+   var EquityToTotalAssetsScore = EquityToTotalAssets / EquityToTotalAssetsAppliedBenchmark * EquityToTotalAssetsMaxScore;
+   var InterestCoverScore = InterestCover / InterestCoverAppliedBenchmark * InterestCoverMaxScore;
+   var EBITDAToDebtScore = EBITDAToDebt / EBITDAToDebtAppliedBenchmark * EBITDAToDebtMaxScore;
+   console.log("Current Ratio Score = "+CurrentRatioScore);    
+
+   // Calibrate Calculated Scores into a 0-MaxScore Range ie negative score not allowed AND ROUND to two decimal places
+   CurrentRatioScore = ScoreLimit(CurrentRatioScore,CurrentRatioMaxScore);
+   DebtorDaysScore = ScoreLimit(DebtorDaysScore,DebtorDaysMaxScore);
+   TurnoverToWCScore = ScoreLimit(TurnoverToWCScore,TurnoverToWCMaxScore);
+   GrossProfitMarginScore = ScoreLimit(GrossProfitMarginScore,GrossProfitMarginMaxScore);
+   OperatingProfitMarginScore = ScoreLimit(OperatingProfitMarginScore,OperatingProfitMarginMaxScore);
+   TurnoverGrowthScore = ScoreLimit(TurnoverGrowthScore,TurnoverGrowthMaxScore);
+   ROAScore = ScoreLimit(ROAScore,ROAMaxScore);
+   ROIScore = ScoreLimit(ROIScore,ROAMaxScore);
+   DebtToTangibleNetWorthScore = ScoreLimit(DebtToTangibleNetWorthScore,DebtToTangibleNetWorthMaxScore);
+   LongtermDebtToEquityScore = ScoreLimit(LongtermDebtToEquityScore,LongtermDebtToEquityMaxScore);
+   EquityToTotalAssetsScore = ScoreLimit(EquityToTotalAssetsScore,EquityToTotalAssetsMaxScore);
+   InterestCoverScore = ScoreLimit(InterestCoverScore,InterestCoverMaxScore);
+   EBITDAToDebtScore = ScoreLimit(EBITDAToDebtScore,EBITDAToDebtMaxScore);
+
+  //calculate the Scores Sub-Totals
+   var TotalLiquidityScore = CurrentRatioScore + DebtorDaysScore + TurnoverToWCScore;
+   var TotalProfitabilityScore = GrossProfitMarginScore + OperatingProfitMarginScore +
+                                 TurnoverGrowthScore + ROAScore + ROIScore;
+   var TotalCapitalStructureScore = LongtermDebtToEquityScore + DebtToTangibleNetWorthScore 
+                                    +EquityToTotalAssetsScore;
+   var TotalDebtServiceScore = InterestCoverScore + EBITDAToDebtScore;
+   var TotalFinancialScore = TotalLiquidityScore + TotalProfitabilityScore + 
+                             TotalCapitalStructureScore +  TotalDebtServiceScore;
+   //Display the calculated scores
+   document.ScoreCardForm.CurrentRatioScore.value = CurrentRatioScore.toFixed(2);
+   document.ScoreCardForm.DebtorDaysScore.value = DebtorDaysScore.toFixed(2);
+   document.ScoreCardForm.TurnoverToWCScore.value = TurnoverToWCScore.toFixed(2);
+   document.ScoreCardForm.GrossProfitMarginScore.value = GrossProfitMarginScore.toFixed(2);
+   document.ScoreCardForm.OperatingProfitMarginScore.value = OperatingProfitMarginScore.toFixed(2);
+   document.ScoreCardForm.TurnoverGrowthScore.value = TurnoverGrowthScore.toFixed(2);
+   document.ScoreCardForm.ROAScore.value = ROAScore.toFixed(2);
+   document.ScoreCardForm.ROIScore.value = ROIScore.toFixed(2);
+   document.ScoreCardForm.LongtermDebtToEquityScore.value = LongtermDebtToEquityScore.toFixed(2);
+   document.ScoreCardForm.DebtToTangibleNetWorthScore.value = DebtToTangibleNetWorthScore.toFixed(2);
+   document.ScoreCardForm.EquityToTotalAssetsScore.value = EquityToTotalAssetsScore.toFixed(2);
+   document.ScoreCardForm.InterestCoverScore.value = InterestCoverScore.toFixed(2);
+   document.ScoreCardForm.EBITDAToDebtScore.value = EBITDAToDebtScore.toFixed(2);
+   
+   //Show the Sub-totals : Max Scores
+   document.ScoreCardForm.TotalLiquidityMaxScore.value = TotalLiquidityMaxScore.toFixed(2) ;
+   document.ScoreCardForm.TotalProfitabilityMaxScore.value = TotalProfitabilityMaxScore.toFixed(2) ;
+   document.ScoreCardForm.TotalCapitalStructureMaxScore.value = TotalCapitalStructureMaxScore.toFixed(2) ;
+   document.ScoreCardForm.TotalDebtServiceMaxScore.value = TotalDebtServiceMaxScore.toFixed(2) ;
+   document.ScoreCardForm.TotalFinancialCategoryMaxScore.value = TotalFinancialMaxScore.toFixed(2) ;
+ 
+   //Show the Sub-totals : Scores  
+   document.ScoreCardForm.TotalLiquidityScore.value = TotalLiquidityScore.toFixed(2) ;
+   document.ScoreCardForm.TotalProfitabilityScore.value = TotalProfitabilityScore.toFixed(2) ;
+   document.ScoreCardForm.TotalCapitalStructureScore.value = TotalCapitalStructureScore.toFixed(2) ;
+   document.ScoreCardForm.TotalDebtServiceScore.value = TotalDebtServiceScore.toFixed(2) ;
+   document.ScoreCardForm.TotalFinancialCategoryScore.value = TotalFinancialScore.toFixed(2) ;
+ 
+}
+
+function ScoreCardForm_CalculateManagementAnalysisScores()
+{
+   //Hold Max Scores in temporary working variables
+   var CommitmentMaxScore = Number(document.ScoreCardForm.CommitmentMaxScore.value);
+   var IntegrityMaxScore = Number(document.ScoreCardForm.IntegrityMaxScore.value);
+   var InformationQualityMaxScore = Number(document.ScoreCardForm.InformationQualityMaxScore.value);
+   var LeadershipMaxScore = Number(document.ScoreCardForm.LeadershipMaxScore.value);
+   var StrategyMaxScore = Number(document.ScoreCardForm.StrategyMaxScore.value);
+   var StructureMaxScore = Number(document.ScoreCardForm.StructureMaxScore.value);
+   var ManagementMaxScore = Number(document.ScoreCardForm.ManagementMaxScore.value);
+   var SuccessionPlanningMaxScore = Number(document.ScoreCardForm.SuccessionPlanningMaxScore.value);
+   var OrganisationalPlanningMaxScore = Number(document.ScoreCardForm.OrganisationalPlanningMaxScore.value);
+     
+   //calculate the Max Scores Sub-Totals
+   var TotalManagementMaxScore = CommitmentMaxScore + IntegrityMaxScore + InformationQualityMaxScore +
+								 LeadershipMaxScore + StrategyMaxScore + StructureMaxScore +
+                                 ManagementMaxScore + SuccessionPlanningMaxScore +
+                                 OrganisationalPlanningMaxScore;
+   
+    /** Calculate the Management Analysis Scores using the following table
+   
+         Deficient  	: 1/5 of Max Score for each charceteristic
+		 Insufficient	: 2/5 of Max Score for each charceteristic
+		 Sufficient		: 3/5 of Max Score for each charceteristic
+		 Good			: 4/5 of Max Score for each charecteristic
+		 Excellent		: 5/5 of Max Score = 100%
+   **/
+   
+   switch (localStorage.Commitment)
+   {   
+      case "Deficient"		: var CommitmentScore = round(1/5 * CommitmentMaxScore,2);break;
+      case "Insufficient"	: var CommitmentScore = round(2/5 * CommitmentMaxScore,2);break;
+      case "Sufficient"		: var CommitmentScore = round(3/5 * CommitmentMaxScore,2);break;
+      case "Good"			: var CommitmentScore = round(4/5 * CommitmentMaxScore,2);break;
+	  case "Excellent"		: var CommitmentScore = round(5/5 * CommitmentMaxScore,2);break;
+    }
+   switch (localStorage.Integrity)
+   {   
+      case "Deficient"		: var IntegrityScore = round(1/5 * IntegrityMaxScore,2);break;
+      case "Insufficient"	: var IntegrityScore = round(2/5 * IntegrityMaxScore,2);break;
+      case "Sufficient"		: var IntegrityScore = round(3/5 * IntegrityMaxScore,2);break;
+      case "Good"			: var IntegrityScore = round(4/5 * IntegrityMaxScore,2);break;
+	  case "Excellent"		: var IntegrityScore = round(5/5 * IntegrityMaxScore,2);break;
+    }
+   switch (localStorage.InformationQuality)
+   {   
+      case "Deficient"		: var InformationQualityScore = round(1/5 * InformationQualityMaxScore,2);break;
+      case "Insufficient"	: var InformationQualityScore = round(2/5 * InformationQualityMaxScore,2);break;
+      case "Sufficient"		: var InformationQualityScore = round(3/5 * InformationQualityMaxScore,2);break;
+      case "Good"			: var InformationQualityScore = round(4/5 * InformationQualityMaxScore,2);break;
+	  case "Excellent"		: var InformationQualityScore = round(5/5 * InformationQualityMaxScore,2);break;
+    }
+   switch (localStorage.Leadership)
+   {   
+      case "Deficient"		: var LeadershipScore = round(1/5 * LeadershipMaxScore,2);break;
+      case "Insufficient"	: var LeadershipScore = round(2/5 * LeadershipMaxScore,2);break;
+      case "Sufficient"		: var LeadershipScore = round(3/5 * LeadershipMaxScore,2);break;
+      case "Good"			: var LeadershipScore = round(4/5 * LeadershipMaxScore,2);break;
+	  case "Excellent"		: var LeadershipScore = round(5/5 * LeadershipMaxScore,2);break;
+    }
+   switch (localStorage.Strategy)
+   {   
+      case "Deficient"		: var StrategyScore = round(1/5 * StrategyMaxScore,2);break;
+      case "Insufficient"	: var StrategyScore = round(2/5 * StrategyMaxScore,2);break;
+      case "Sufficient"		: var StrategyScore = round(3/5 * StrategyMaxScore,2);break;
+      case "Good"			: var StrategyScore = round(4/5 * StrategyMaxScore,2);break;
+	  case "Excellent"		: var StrategyScore = round(5/5 * StrategyMaxScore,2);break;
+    }
+   switch (localStorage.Structure)
+   {   
+      case "Deficient"		: var StructureScore = round(1/5 * StructureMaxScore,2);break;
+      case "Insufficient"	: var StructureScore = round(2/5 * StructureMaxScore,2);break;
+      case "Sufficient"		: var StructureScore = round(3/5 * StructureMaxScore,2);break;
+      case "Good"			: var StructureScore = round(4/5 * StructureMaxScore,2);break;
+	  case "Excellent"		: var StructureScore = round(5/5 * StructureMaxScore,2);break;
+    }
+   switch (localStorage.Management)
+   {   
+      case "Deficient"		: var ManagementScore = round(1/5 * ManagementMaxScore,2);break;
+      case "Insufficient"	: var ManagementScore = round(2/5 * ManagementMaxScore,2);break;
+      case "Sufficient"		: var ManagementScore = round(3/5 * ManagementMaxScore,2);break;
+      case "Good"			: var ManagementScore = round(4/5 * ManagementMaxScore,2);break;
+	  case "Excellent"		: var ManagementScore = round(5/5 * ManagementMaxScore,2);break;
+    }
+   switch (localStorage.SuccessionPlanning)
+   {   
+      case "Deficient"		: var SuccessionPlanningScore = round(1/5 * SuccessionPlanningMaxScore,2);break;
+      case "Insufficient"	: var SuccessionPlanningScore = round(2/5 * SuccessionPlanningMaxScore,2);break;
+      case "Sufficient"		: var SuccessionPlanningScore = round(3/5 * SuccessionPlanningMaxScore,2);break;
+      case "Good"			: var SuccessionPlanningScore = round(4/5 * SuccessionPlanningMaxScore,2);break;
+	  case "Excellent"		: var SuccessionPlanningScore = round(5/5 * SuccessionPlanningMaxScore,2);break;
+    }
+   switch (localStorage.OrganisationalPlanning)
+   {   
+      case "Deficient"		: var OrganisationalPlanningScore = round(1/5 * OrganisationalPlanningMaxScore,2);break;
+      case "Insufficient"	: var OrganisationalPlanningScore = round(2/5 * OrganisationalPlanningMaxScore,2);break;
+      case "Sufficient"		: var OrganisationalPlanningScore = round(3/5 * OrganisationalPlanningMaxScore,2);break;
+      case "Good"			: var OrganisationalPlanningScore = round(4/5 * OrganisationalPlanningMaxScore,2);break;
+	  case "Excellent"		: var OrganisationalPlanningScore = round(5/5 * OrganisationalPlanningMaxScore,2);break;
+    }
+   // Calibrate Calculated Scores into a 0-MaxScore Range ie negative score not allowed AND ROUND to two decimal places
+   CommitmentScore = ScoreLimit(CommitmentScore,CommitmentMaxScore);
+   IntegrityScore = ScoreLimit(IntegrityScore,IntegrityMaxScore);
+   InformationQualityScore = ScoreLimit(InformationQualityScore,InformationQualityMaxScore);
+   LeadershipScore = ScoreLimit(LeadershipScore,LeadershipMaxScore);
+   StrategyScore = ScoreLimit(StrategyScore,StrategyMaxScore);
+   StructureScore = ScoreLimit(StructureScore,StructureMaxScore);
+   ManagementScore = ScoreLimit(ManagementScore,ManagementMaxScore);
+   SuccessionPlanningScore = ScoreLimit(SuccessionPlanningScore,SuccessionPlanningMaxScore);
+   OrganisationalPlanningScore = ScoreLimit(OrganisationalPlanningScore,OrganisationalPlanningMaxScore);
+  
+   //calculate the Scores Sub-Totals
+   var TotalManagementScore = CommitmentScore + IntegrityScore + InformationQualityScore+
+                              LeadershipScore + StrategyScore + StructureScore +
+                              ManagementScore + SuccessionPlanningScore +
+                              OrganisationalPlanningScore;
+   //Display the calculated scores
+   document.ScoreCardForm.CommitmentScore.value = CommitmentScore.toFixed(2);
+   document.ScoreCardForm.IntegrityScore.value = IntegrityScore.toFixed(2);
+   document.ScoreCardForm.InformationQualityScore.value = InformationQualityScore.toFixed(2);
+   document.ScoreCardForm.LeadershipScore.value = LeadershipScore.toFixed(2);
+   document.ScoreCardForm.StrategyScore.value = StrategyScore.toFixed(2);
+   document.ScoreCardForm.StructureScore.value = StructureScore.toFixed(2);
+   document.ScoreCardForm.ManagementScore.value = ManagementScore.toFixed(2);
+   document.ScoreCardForm.SuccessionPlanningScore.value = SuccessionPlanningScore.toFixed(2);
+   document.ScoreCardForm.OrganisationalPlanningScore.value = OrganisationalPlanningScore.toFixed(2);
+   //Show the Sub-totals : Max Scores
+   document.ScoreCardForm.TotalManagementCategoryMaxScore.value = TotalManagementMaxScore.toFixed(2) ;
+  //Show the Sub-totals : Scores
+   document.ScoreCardForm.TotalManagementCategoryScore.value = TotalManagementScore.toFixed(2) ;
+}
+//===============================================================================================================================
+function ScoreCardForm_CalculateIndustryAnalysisScores()
+{
+   //Hold Max Scores in temporary working variables
+   var IndustryCyclicalityMaxScore = Number(document.ScoreCardForm.IndustryCyclicalityMaxScore.value);
+   var IndustryPerformanceMaxScore = Number(document.ScoreCardForm.IndustryPerformanceMaxScore.value);
+   var PortersMaxScore = Number(document.ScoreCardForm.PortersMaxScore.value);
+   //calculate the Max Scores Sub-Totals
+   var TotalIndustryMaxScore =   IndustryCyclicalityMaxScore + IndustryPerformanceMaxScore + PortersMaxScore;
+  
+    /** 
+	
+	(a) Calculate the Industry Cyclicality Analysis Scores using the following table:
+   
+         "Industry Demand Growing"  		: 100% of Max Score
+		 "Industry Demand Stagnant"	    	:  50% of Max Score
+		 "Industry Demand Falling"			:   0% of Max Score
+	
+	(b) Calculate the Industry Performance Scores using the following table:
+	
+		"Super Profits In Industry"			: 100% of Max Score
+		"Perfomance In Line With Economy"	:  50% of Max Score
+		"Perfomance Below Economic Growth"	:	0% of Max Score
+	 
+    (c) Calculate the Porter's Five Forces Rating Scores using the following table
+		"Low"								: 100% of Max Score
+		"Medium"							:  50% of Max Score
+		"High"								:   0% of Max Score
+	     
+	**/
+	
+   console.log("Industry Cyclicality Value = " +localStorage.IndustryCyclicality);
+   switch (localStorage.IndustryCyclicality)
+   {   
+      case "Industry Demand Growing"	: var IndustryCyclicalityScore = round( 1.0 * IndustryCyclicalityMaxScore,2);break;
+      case "Industry Demand Stagnant"	: var IndustryCyclicalityScore = round( 0.5 * IndustryCyclicalityMaxScore,2);break;
+      case "Industry Demand Falling"	: var IndustryCyclicalityScore = round( 0.0 * IndustryCyclicalityMaxScore,2);break;
+   }
+   switch (localStorage.IndustryPerformance)
+   {   
+      case "Super Profits In Industry"			: var IndustryPerformanceScore = round(1.0 * IndustryPerformanceMaxScore,2);break;
+      case "Perfomance In Line With Economy"	: var IndustryPerformanceScore = round(0.5 * IndustryPerformanceMaxScore,2);break;
+      case "Perfomance Below Economic Growth"	: var IndustryPerformanceScore = round(0.0 * IndustryPerformanceMaxScore,2);break;
+   }
+   switch (localStorage.SummaryRating)
+   {   
+      case "Low"		: var PortersScore = round(1.0 * PortersMaxScore,2);break;
+      case "Medium"		: var PortersScore = round(0.5 * PortersMaxScore,2);break;
+      case "High"		: var PortersScore = round(0.0 * PortersMaxScore,2);break;
+   }
+ 
+   // Calibrate Calculated Scores into a 0-MaxScore Range ie negative score not allowed AND ROUND to two decimal places
+   IndustryCyclicalityScore = ScoreLimit(IndustryCyclicalityScore,IndustryCyclicalityMaxScore);
+   IndustryPerformanceScore = ScoreLimit(IndustryPerformanceScore,IndustryPerformanceMaxScore);
+   PortersScore = ScoreLimit(PortersScore,PortersMaxScore);
+   console.log ("Industry Cyclicality Score = " + localStorage.IndustryCyclicalityScore); 
+   console.log ("Industry Cyclicality Max Score = " + localStorage.IndustryCyclicalityMaxScore); 
+   //calculate the Scores Sub-Totals
+   var TotalIndustryScore =   IndustryCyclicalityScore + IndustryPerformanceScore + PortersScore;
+  //Display the calculated scores
+   document.ScoreCardForm.IndustryCyclicalityScore.value = IndustryCyclicalityScore.toFixed(2);
+   document.ScoreCardForm.IndustryPerformanceScore.value = IndustryPerformanceScore.toFixed(2);
+   document.ScoreCardForm.PortersScore.value = PortersScore.toFixed(2);
+  //Show the Sub-totals : Max Scores
+   document.ScoreCardForm.TotalIndustryCategoryMaxScore.value = TotalIndustryMaxScore.toFixed(2) ;
+  //Show the Sub-totals : Scores
+   document.ScoreCardForm.TotalIndustryCategoryScore.value = TotalIndustryScore.toFixed(2) ;
+}
+function ScoreCardForm_CalculateShareholderAnalysisScores()
+{
+   //Hold Max Scores in temporary working variables
+   var ShareholderPaidDebtsMaxScore = Number(document.ScoreCardForm.ShareholderPaidDebtsMaxScore.value);
+   var ShareholderJudgementsMaxScore = Number(document.ScoreCardForm.ShareholderJudgementsMaxScore.value);
+   var ShareholderDefaultsMaxScore = Number(document.ScoreCardForm.ShareholderDefaultsMaxScore.value);
+   var ShareholderTraceAlertsMaxScore = Number(document.ScoreCardForm.ShareholderTraceAlertsMaxScore.value);
+    //calculate the Max Scores Sub-Totals
+   var TotalShareholderMaxScore =   ShareholderPaidDebtsMaxScore + ShareholderJudgementsMaxScore + 
+                                    ShareholderDefaultsMaxScore  + ShareholderTraceAlertsMaxScore;
+   
+   //Check for count of blacklisted flags and insert REJECT Comment if > 0
+   var BlacklistedCount = 0;
+   if (localStorage.ShareholderBlacklisted1 == "Yes") { BlacklistedCount = BlacklistedCount + 1;}
+   if (localStorage.ShareholderBlacklisted2 == "Yes") { BlacklistedCount = BlacklistedCount + 1;}
+   if (localStorage.ShareholderBlacklisted3 == "Yes") { BlacklistedCount = BlacklistedCount + 1;}
+   if (localStorage.ShareholderBlacklisted4 == "Yes") { BlacklistedCount = BlacklistedCount + 1;}
+   if (localStorage.ShareholderBlacklisted5 == "Yes") { BlacklistedCount = BlacklistedCount + 1;}
+   //Show REJECT comment if at least one shareholder is blacklisted	 
+   document.ScoreCardForm.ShareholderBlacklistedComment.value = BlacklistedCount = 0 ? "OK":"REJECT"
+   //Check for count of Fraud Alert Cflags and insert REJECT Comment if > 0
+   var FraudCount = 0;
+   if (localStorage.ShareholderFraudAlert1 == "Yes") { BlacklistedCount = FraudCount + 1;}
+   if (localStorage.ShareholderFraudAlert2 == "Yes") { BlacklistedCount = FraudCount + 1;}
+   if (localStorage.ShareholderFraudAlert3 == "Yes") { BlacklistedCount = FraudCount + 1;}
+   if (localStorage.ShareholderFraudAlert4 == "Yes") { BlacklistedCount = FraudCount + 1;}
+   if (localStorage.ShareholderFraudAlert5 == "Yes") { BlacklistedCount = FraudCount + 1;}
+   //Show REJECT comment if at least one shareholder is blacklisted	 
+   document.ScoreCardForm.ShareholderFraudAlertComment.value = FraudCount = 0 ? "OK":"REJECT"
+
+   //Calculate the number of shareholders and wipe out details for shareholders without a name
+   var Count = 0;
+   if (localStorage.ShareholderName1 !== "") { Count = Count + 1;}
+   if (localStorage.ShareholderName2 !== "") { Count = Count + 1;}
+   if (localStorage.ShareholderName3 !== "") { Count = Count + 1;}
+   if (localStorage.ShareholderName4 !== "") { Count = Count + 1;}
+   if (localStorage.ShareholderName5 !== "") { Count = Count + 1;}
+   
+   //If there no shareholder name was entered, go back the previous page 
+   if (Count == 0) {
+      alert ("SORRY! ** Shareholder Analysis still Incomplete **\r\n\r\nPress OK to enter details for at least one shareholder");
+	  window.history.back();
+   }
+   //Calculate the the Total ITC Ratings for all shareholders
+   var PaidDebtsRatingTotal = 0;
+   var JudgementsRatingTotal = 0;
+   var DefaultsRatingTotal = 0;
+   var TraceAlertsRatingTotal = 0;
+   
+   if (localStorage.ShareholderName1 !== "")
+   {
+	  PaidDebtsRatingTotal   = PaidDebtsRatingTotal + parseFloat(localStorage.ShareholderPaidDebts1);
+	  JudgementsRatingTotal  = JudgementsRatingTotal + parseFloat(localStorage.ShareholderJudgements1);
+	  DefaultsRatingTotal    = DefaultsRatingTotal + parseFloat(localStorage.ShareholderDefaults1);
+	  TraceAlertsRatingTotal = TraceAlertsRatingTotal + parseFloat(localStorage.ShareholderTraceAlerts1);
+   }
+   if (localStorage.ShareholderName2 !== "")
+   {
+	  PaidDebtsRatingTotal   = PaidDebtsRatingTotal + parseFloat(localStorage.ShareholderPaidDebts2);
+	  JudgementsRatingTotal  = JudgementsRatingTotal + parseFloat(localStorage.ShareholderJudgements2);
+	  DefaultsRatingTotal    = DefaultsRatingTotal + parseFloat(localStorage.ShareholderDefaults2);
+	  TraceAlertsRatingTotal = TraceAlertsRatingTotal + parseFloat(localStorage.ShareholderTraceAlerts2);
+   }
+   if (localStorage.ShareholderName3 !== "")
+   {
+	  PaidDebtsRatingTotal   = PaidDebtsRatingTotal + parseFloat(localStorage.ShareholderPaidDebts3);
+	  JudgementsRatingTotal  = JudgementsRatingTotal + parseFloat(localStorage.ShareholderJudgements3);
+	  DefaultsRatingTotal    = DefaultsRatingTotal + parseFloat(localStorage.ShareholderDefaults3);
+	  TraceAlertsRatingTotal = TraceAlertsRatingTotal + parseFloat(localStorage.ShareholderTraceAlerts3);
+   }
+   if (localStorage.ShareholderName4 !== "")
+   {
+	  PaidDebtsRatingTotal   = PaidDebtsRatingTotal + parseFloat(localStorage.ShareholderPaidDebts4);
+	  JudgementsRatingTotal  = JudgementsRatingTotal + parseFloat(localStorage.ShareholderJudgements4);
+	  DefaultsRatingTotal    = DefaultsRatingTotal + parseFloat(localStorage.ShareholderDefaults4);
+	  TraceAlertsRatingTotal = TraceAlertsRatingTotal + parseFloat(localStorage.ShareholderTraceAlerts4);
+   }
+   if (localStorage.ShareholderName5 !== "")
+   {
+	  PaidDebtsRatingTotal   = PaidDebtsRatingTotal + parseFloat(localStorage.ShareholderPaidDebts5);
+	  JudgementsRatingTotal  = JudgementsRatingTotal + parseFloat(localStorage.ShareholderJudgements5);
+	  DefaultsRatingTotal    = DefaultsRatingTotal + parseFloat(localStorage.ShareholderDefaults5);
+	  TraceAlertsRatingTotal = TraceAlertsRatingTotal + parseFloat(localStorage.ShareholderTraceAlerts5);
+   }
+
+   //Calculate the average ITC Ratings for all shareholders
+   var PaidDebtsRatingAvg  = round(PaidDebtsRatingTotal/Count,0);
+   var JudgementsRatingAvg = round(JudgementsRatingTotal/Count,0);
+   var DefaultsRatingAvg   = round(DefaultsRatingTotal/Count,0);
+   var TraceAlertsRatingAvg= round(TraceAlertsRatingTotal/Count,0);	 
+   
+   //Apply the Same ITC Scoring Logic on Behavioral Analysis to the Average Score of Shareholders===========================
+   switch (PaidDebtsRatingAvg)
+   {   
+      case 0: 
+	     var paid_debtsScore = 0;
+		 var paid_debtsScoreComment = "REJECT";
+		 break;
+      case 1: 
+	     var paid_debtsScore = round(ShareholderPaidDebtsMaxScore,2);
+		 var paid_debtsScoreComment = "OK";
+	     break;
+	  default:
+	     //alert ("PAID DEBTS CHARECTERISRIC. Reminder to revisit intepretation of this charecteristic. Dupleix intepretation is that there must only be two options, 1 when instances of paid_debtsebts exceeds defaults and 0 if not. There must not be more than these two options");
+		 var paid_debtsScore = round(ShareholderPaidDebtsMaxScore,2);
+		 var paid_debtsScoreComment = "OK";
+	     break;
+	     
+   }
+   console.log ("Number of Shareholder Paid Debts = "+PaidDebtsRatingAvg+", Score = "+ paid_debtsScore);
+   // ITC Judgements Score Calculations ================================================================
+   switch (JudgementsRatingAvg)
+   {   
+      case 0: 
+	     var judgementScore = round(500/500 * ShareholderJudgementsMaxScore,2);
+		 var judgementScoreComment = "OK";
+		 break;
+      case 1: 
+	     var judgementScore = round(200/500 * ShareholderJudgementsMaxScore,2);
+		 var judgementScoreComment = "OK";
+	     break;
+      case 2: 
+	     var judgementScore = round(100/500 * ShareholderJudgementsMaxScore,2);
+		 var judgementScoreComment = "OK";
+	     break;
+      default: 
+	     var judgementScore = 0;
+		 var judgementScoreComment = "REJECT";
+		 break;
+   }
+   console.log("Number of judgements = "+JudgementsRatingAvg+", Score = "+judgementScore);
+   //Calculating scores for default data with same relative priorities as for retail scoring=========
+   switch (DefaultsRatingAvg)
+   {   
+      case 0: 
+	     var default_dataScore = round(500/500 * ShareholderDefaultsMaxScore,2);
+		 var default_dataScoreComment = "OK";
+		 break;
+      case 1: 
+	     var default_dataScore = round(200/500 * ShareholderDefaultsMaxScore,2);
+		 var default_dataScoreComment = "OK";
+	     break;
+      case 2: 
+	     var default_dataScore = round(100/500 * ShareholderDefaultsMaxScore,2);
+		 var default_dataScoreComment = "OK";
+	     break;
+      default: 
+	     var default_dataScore = 0;
+		 var default_dataScoreComment = "REJECT";
+		 break;
+   }
+   console.log ("Number of Default Data "+DefaultsRatingAvg+", Score = "+default_dataScore);
+  //Calculating scores for ITC Trace alerts with same relative priorities as for retail scoring=========
+   switch (TraceAlertsRatingAvg)
+   {   
+      case 0: 
+	     var trace_alertsScore = round(500/500 * ShareholderTraceAlertsMaxScore,2);
+		 var trace_alertsScoreComment = "OK";
+		 break;
+      case 1: 
+	     var trace_alertsScore = round(200/500 * ShareholderTraceAlertsMaxScore,2);
+		 var trace_alertsScoreComment = "OK";
+	     break;
+      case 2: 
+	     var trace_alertsScore = round(100/500 * ShareholderTraceAlertsMaxScore,2);
+		 var trace_alertsScoreComment = "OK";
+	     break;
+      default: 
+	     var trace_alertsScore = 0;
+		 var trace_alertsScoreComment = "REJECT";
+		 break;
+   }
+  
+
+   //Show the average ITC Scores==============================================================================================
+   document.ScoreCardForm.ShareholderPaidDebtsAverage.value  = PaidDebtsRatingAvg;
+   document.ScoreCardForm.ShareholderJudgementsAverage.value = JudgementsRatingAvg;
+   document.ScoreCardForm.ShareholderDefaultsAverage.value   = DefaultsRatingAvg;
+   document.ScoreCardForm.ShareholderTraceAlertsAverage.value= TraceAlertsRatingAvg;
+ 
+   // Show the Calculated Scores and Comments================================================================================= 
+   document.ScoreCardForm.ShareholderPaidDebtsScore.value   = paid_debtsScore.toFixed(2);
+   document.ScoreCardForm.ShareholderJudgementsScore.value  = judgementScore.toFixed(2);
+   document.ScoreCardForm.ShareholderDefaultsScore.value    = default_dataScore.toFixed(2);
+   document.ScoreCardForm.ShareholderTraceAlertsScore.value = trace_alertsScore.toFixed(2);
+ 
+  //Display the OK and REJECT COMMENTS but not displaying because they do ot apply
+  /**
+   document.ScoreCardForm.ShareholderPaidDebtsComment.value = paid_debtsScoreComment;
+   document.ScoreCardForm.ShareholderJudgementsComment.value = judgementScoreComment;
+   document.ScoreCardForm.ShareholderDefaultsComment.value = default_dataScoreComment;
+   document.ScoreCardForm.ShareholderTraceAlertsComment.value = trace_alertsScoreComment;
+  **/
+ 
+   //Show the Sub-totals : Max Scores============================================================================================
+   
+   document.ScoreCardForm.TotalShareholderCategoryMaxScore.value = TotalShareholderMaxScore.toFixed(2) ;
+   //Calculate and Show the Sub-totals : Score
+   
+   TotalShareholderScore = paid_debtsScore + judgementScore + default_dataScore + trace_alertsScore; 
+   document.ScoreCardForm.TotalShareholderCategoryScore.value = TotalShareholderScore.toFixed(2) ;
+ 
+}
+
+function ScoreCardForm_CalculateBehavioralAnalysisScores()
+{
+   //Hold Max Scores in temporary working variables
+   var rate_typeMaxScore = Number(document.ScoreCardForm.rate_typeMaxScore.value);
+   var loan_maturityMaxScore = Number(document.ScoreCardForm.loan_maturityMaxScore.value);
+   var relationshipMaxScore = Number(document.ScoreCardForm.relationshipMaxScore.value);
+   var total_bbs_productsMaxScore = Number(document.ScoreCardForm.total_bbs_productsMaxScore.value);
+   var loan_arrearsMaxScore = Number(document.ScoreCardForm.loan_arrearsMaxScore.value);
+   var renegotiateMaxScore = Number(document.ScoreCardForm.renegotiateMaxScore.value);
+   var paid_debtsMaxScore = Number(document.ScoreCardForm.paid_debtsMaxScore.value);
+   var judgementMaxScore = Number(document.ScoreCardForm.judgementMaxScore.value);
+   var default_dataMaxScore = Number(document.ScoreCardForm.default_dataMaxScore.value);
+   var trace_alertsMaxScore = Number(document.ScoreCardForm.trace_alertsMaxScore.value);
+   console.log ("CHECKING BEHAVIORAL MAXIMUM SCORES===========================");
+   console.log("Rate Type Max Score                 = "+rate_typeMaxScore);
+   console.log("Loan Maturity Max Score             = "+loan_maturityMaxScore);
+   console.log("Relationship Max Score              = "+relationshipMaxScore); 
+   console.log("Total BBS Products Max Score        = "+total_bbs_productsMaxScore);
+   console.log("No of Loan Arrears Max Score        = "+loan_arrearsMaxScore);
+   console.log("No of Loan Renegotiations Max Score = "+renegotiateMaxScore);
+   console.log("No of Paid Debts Max Score          = "+paid_debtsMaxScore);
+   console.log("No of judgements Max Score          = "+judgementMaxScore);
+   console.log("No of defaults Max Score            = "+default_dataMaxScore);
+   console.log("No of Trace Alerts Max Score        = "+trace_alertsMaxScore);   
+   //calculate the Max Scores Sub-Totals
+   var TotalBehavioralMaxScore = rate_typeMaxScore + loan_maturityMaxScore + relationshipMaxScore +
+								 total_bbs_productsMaxScore + loan_arrearsMaxScore + renegotiateMaxScore +
+                                 paid_debtsMaxScore + judgementMaxScore +
+                                 default_dataMaxScore + trace_alertsMaxScore;
+   
+   console.log ("Loan Interest Rate Type = "+localStorage.rate_type);
+   switch (localStorage.rate_type)
+   {   
+      case "Fixed"			: var rate_typeScore = round(400/400 * rate_typeMaxScore,2);break;
+      case "Floating"		: var rate_typeScore = round(300/400 * rate_typeMaxScore,2);break;
+      case "Variable"		: var rate_typeScore = round(200/400 * rate_typeMaxScore,2);break;
+   }
+   console.log ("Rate Type Score = "+rate_typeScore);
+   console.log("Loan Maturity = "+localStorage.loan_maturity);
+   //Allocating scores for loan_maturity=======================================================
+   var loan_maturity_rating = ToNumber(localStorage.loan_maturity);
+   if      (loan_maturity_rating > 0 && loan_maturity_rating < 6)
+   {       var loan_maturityScore = round(300/400 * loan_maturityMaxScore,2);} 
+   
+   else if (loan_maturity_rating > 5 && loan_maturity_rating < 11)
+   {       var loan_maturityScore = round(350/400 * loan_maturityMaxScore,2);}
+   
+   else if (loan_maturity_rating > 10 && loan_maturity_rating < 16)
+   {       var loan_maturityScore = round(400/400 * loan_maturityMaxScore,2);} 
+   
+   else if (loan_maturity_rating > 15 && loan_maturity_rating < 20)
+   {       var loan_maturityScore = round(400/400 * loan_maturityMaxScore,2);} 
+   
+   else if (loan_maturity_rating > 19 && loan_maturity_rating < 25)
+   {       var loan_maturityScore = round(350/400 * loan_maturityMaxScore,2);} 
+   
+   else if (loan_maturity_rating > 24 && loan_maturity_rating < 30)
+   {       var loan_maturityScore = round(300/400 * loan_maturityMaxScore,2);} 
+   
+   else if (loan_maturity_rating = 30)
+   {       var loan_maturityScore = round(250/400 * loan_maturityMaxScore,2);} 
+   console.log("Loan Maturity Score = "+loan_maturityScore);
+   
+   //Age of BBS Relationship Score Calculations ===========================================================
+   switch (localStorage.relationship)  
+   {   
+      case "NA"		    			: var relationshipScore = round(100/400 * relationshipMaxScore,2);break;
+      case "Since less than 1 year"	: var relationshipScore = round(200/400 * relationshipMaxScore,2);break;
+      case "Since 1 to 5 years"		: var relationshipScore = round(300/400 * relationshipMaxScore,2);break;
+      case "More than 5 years"		: var relationshipScore = round(400/400 * relationshipMaxScore,2);break;
+    }
+   console.log ("AGE of BBS Bank Relationship = "+localStorage.relationship+ ", Score = "+relationshipScore);
+   //Total BBS Products Score Calculations ==============================================================
+   switch (localStorage.total_bbs_products)
+   {   
+      case "0": var total_bbs_productsScore = round(100/600 * total_bbs_productsMaxScore,2);break;
+      case "1": var total_bbs_productsScore = round(200/600 * total_bbs_productsMaxScore,2);break;
+      case "2": var total_bbs_productsScore = round(300/600 * total_bbs_productsMaxScore,2);break;
+      case "3": var total_bbs_productsScore = round(400/600 * total_bbs_productsMaxScore,2);break;
+      case "4": var total_bbs_productsScore = round(500/600 * total_bbs_productsMaxScore,2);break;
+      case "5": var total_bbs_productsScore = round(600/600 * total_bbs_productsMaxScore,2);break;
+   }  
+  console.log ("Total BBS Products = "+localStorage.total_bbs_products+ ", Score = "+total_bbs_productsScore);
+  //  Loan Arrears Score Calculations ===================================================================
+  switch (localStorage.loan_arrears)
+   {   
+      case "0": 
+	     var loan_arrearsScore = round(400/400 * loan_arrearsMaxScore,2);
+		 var loan_arrearsScoreComment = "OK";
+		 break;
+      case "1": 
+	     var loan_arrearsScore = round(100/400 * loan_arrearsMaxScore,2);
+		 var loan_arrearsScoreComment = "OK";
+	     break;
+      case "2": 
+	     var loan_arrearsScore =  round(50/400 * loan_arrearsMaxScore,2);
+		 var loan_arrearsScoreComment = "OK";
+	     break;
+     case "3": 
+	     var loan_arrearsScore =  0;
+		 var loan_arrearsScoreComment = "REJECT";
+	     break;
+      case "n/a": 
+	     var loan_arrearsScore =  round(50/400 * loan_arrearsMaxScore,2);
+		 
+	     break;
+  }
+  console.log ("Number of Loan Arrears = "+localStorage.loan_arrears+ ", Score = "+loan_arrearsScore);
+  console.log ("Loan arrears score comment = "+loan_arrearsScoreComment);
+ // Renegotiations Score Calculations =====================================================================
+ switch (localStorage.renegotiate)
+   {   
+      case "0": 
+	     var renegotiateScore = round(400/400 * renegotiateMaxScore,2);
+		 var renegotiateScoreComment = "OK";
+		 break;
+      case "1": 
+	     var renegotiateScore = round(100/400 * renegotiateMaxScore,2);
+		 var renegotiateScoreComment = "OK";
+	     break;
+      case "2": 
+	     var renegotiateScore = 0;
+		 var renegotiateScoreComment = "REJECT";
+	     break;
+      case "N/A": 
+	     var renegotiateScore = round(100/400 * renegotiateMaxScore,2);
+		 var renegotiateScoreComment = "OK";
+		 break;
+	  default:
+	     var renegotiateScore = 0;
+		 var renegotiateScoreComment = "REJECT";
+	     break;     	  
+   }
+  console.log ("Number of renegotiations = "+localStorage.renegotiate+", Score = "+renegotiateScore);
+  //Paid Debts Score Calculations ==================================================================
+  
+  switch (localStorage.paid_debts)
+   {   
+      case "0": 
+	     var paid_debtsScore = 0;
+		 var paid_debtsScoreComment = "REJECT";
+		 break;
+      case "1": 
+	     var paid_debtsScore = round(paid_debtsMaxScore,2);
+		 var paid_debtsScoreComment = "OK";
+	     break;
+	  default:
+	     //alert ("PAID DEBTS CHARECTERISRIC. Reminder to revisit intepretation of this charecteristic. Dupleix intepretation is that there must only be two options, 1 when instances of paid_debtsebts exceeds defaults and 0 if not. There must not be more than these two options");
+		 var paid_debtsScore = round(paid_debtsMaxScore,2);
+		 var paid_debtsScoreComment = "OK";
+	     break;
+	     
+   }
+  console.log ("Number of Paid Debts = "+localStorage.paid_debts+", Score = "+ paid_debtsScore);
+   // ITC Judgements Score Calculations ================================================================
+   switch (localStorage.judgement)
+   {   
+      case "0": 
+	     var judgementScore = round(500/500 * judgementMaxScore,2);
+		 var judgementScoreComment = "OK";
+		 break;
+      case "1": 
+	     var judgementScore = round(200/500 * judgementMaxScore,2);
+		 var judgementScoreComment = "OK";
+	     break;
+      case "2": 
+	     var judgementScore = round(100/500 * judgementMaxScore,2);
+		 var judgementScoreComment = "OK";
+	     break;
+      default: 
+	     var judgementScore = 0;
+		 var judgementScoreComment = "REJECT";
+		 break;
+   }
+   console.log("Number of judgements = "+localStorage.judgement+", Score = "+judgementScore);
+   //Calculating scores for default data with same relative priorities as for retail scoring=========
+   switch (localStorage.default_data)
+   {   
+      case "0": 
+	     var default_dataScore = round(500/500 * default_dataMaxScore,2);
+		 var default_dataScoreComment = "OK";
+		 break;
+      case "1": 
+	     var default_dataScore = round(200/500 * default_dataMaxScore,2);
+		 var default_dataScoreComment = "OK";
+	     break;
+      case "2": 
+	     var default_dataScore = round(100/500 * default_dataMaxScore,2);
+		 var default_dataScoreComment = "OK";
+	     break;
+      default: 
+	     var default_dataScore = 0;
+		 var default_dataScoreComment = "REJECT";
+		 break;
+   }
+   console.log ("Number of Default Data "+localStorage.default_data+", Score = "+default_dataScore);
+  //Calculating scores for ITC Trace alerts with same relative priorities as for retail scoring=========
+   switch (localStorage.trace_alerts)
+   {   
+      case "0": 
+	     var trace_alertsScore = round(500/500 * trace_alertsMaxScore,2);
+		 var trace_alertsScoreComment = "OK";
+		 break;
+      case "1": 
+	     var trace_alertsScore = round(200/500 * trace_alertsMaxScore,2);
+		 var trace_alertsScoreComment = "OK";
+	     break;
+      case "2": 
+	     var trace_alertsScore = round(100/500 * trace_alertsMaxScore,2);
+		 var trace_alertsScoreComment = "OK";
+	     break;
+      default: 
+	     var trace_alertsScore = 0;
+		 var trace_alertsScoreComment = "REJECT";
+		 break;
+   }
+   console.log("Number of Trace Alerts = "+localStorage.trace_alerts+", Score = "+ trace_alertsScore); 
+   //calculate the Scores Sub-Totals
+   var TotalBehavioralScore = rate_typeScore + loan_maturityScore + relationshipScore+
+                              total_bbs_productsScore + loan_arrearsScore + renegotiateScore+
+                              paid_debtsScore + judgementScore +
+                              default_dataScore + trace_alertsScore;
+   //Display the calculated scores
+   document.ScoreCardForm.rate_typeScore.value = rate_typeScore.toFixed(2);
+   document.ScoreCardForm.loan_maturityScore.value = loan_maturityScore.toFixed(2);
+   document.ScoreCardForm.relationshipScore.value = relationshipScore.toFixed(2);
+   document.ScoreCardForm.total_bbs_productsScore.value = total_bbs_productsScore.toFixed(2);
+   document.ScoreCardForm.loan_arrearsScore.value = loan_arrearsScore.toFixed(2);
+   document.ScoreCardForm.renegotiateScore.value = renegotiateScore.toFixed(2);
+   document.ScoreCardForm.paid_debtsScore.value = paid_debtsScore.toFixed(2);
+   document.ScoreCardForm.judgementScore.value = judgementScore.toFixed(2);
+   document.ScoreCardForm.default_dataScore.value = default_dataScore.toFixed(2);
+   document.ScoreCardForm.trace_alertsScore.value = trace_alertsScore.toFixed(2);
+    //Show the Sub-totals : Max Scores
+   document.ScoreCardForm.TotalBehavioralCategoryMaxScore.value = TotalBehavioralMaxScore.toFixed(2) ;
+  //Show the Sub-totals : Scores
+   document.ScoreCardForm.TotalBehavioralCategoryScore.value = TotalBehavioralScore.toFixed(2) ;
+
+  //Display the OK and REJECT COMMENTS
+   document.ScoreCardForm.loan_arrearsComment.value = loan_arrearsScoreComment;
+   document.ScoreCardForm.renegotiateComment.value = renegotiateScoreComment;
+   document.ScoreCardForm.paid_debtsComment.value = paid_debtsScoreComment;
+   document.ScoreCardForm.judgementComment.value = judgementScoreComment;
+   document.ScoreCardForm.default_dataComment.value = default_dataScoreComment;
+   document.ScoreCardForm.trace_alertsComment.value = trace_alertsScoreComment;
+  
+}
+
+function ScoreCardForm_SetConditionalColors_Passes()
+{
+
+   //Financial Analysis
+   document.ScoreCardForm.CurrentRatioPass.style.backgroundColor = document.ScoreCardForm.CurrentRatioPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.DebtorDaysPass.style.backgroundColor = document.ScoreCardForm.DebtorDaysPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.TurnoverToWCPass.style.backgroundColor = document.ScoreCardForm.TurnoverToWCPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.GrossProfitMarginPass.style.backgroundColor = document.ScoreCardForm.GrossProfitMarginPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.OperatingProfitMarginPass.style.backgroundColor = document.ScoreCardForm.OperatingProfitMarginPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.TurnoverGrowthPass.style.backgroundColor = document.ScoreCardForm.TurnoverGrowthPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.ROAPass.style.backgroundColor = document.ScoreCardForm.ROAPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.ROIPass.style.backgroundColor = document.ScoreCardForm.ROIPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.LongtermDebtToEquityPass.style.backgroundColor = document.ScoreCardForm.LongtermDebtToEquityPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.DebtToTangibleNetWorthPass.style.backgroundColor = document.ScoreCardForm.DebtToTangibleNetWorthPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.EquityToTotalAssetsPass.style.backgroundColor = document.ScoreCardForm.EquityToTotalAssetsPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.InterestCoverPass.style.backgroundColor = document.ScoreCardForm.InterestCoverPass.value=="true"?"green":"red"; 
+   document.ScoreCardForm.EBITDAToDebtPass.style.backgroundColor = document.ScoreCardForm.EBITDAToDebtPass.value=="true"?"green":"red"; 
+
+
+}
+function ScoreCardForm_SetConditionalColors_BehavioralAnalysis_Comments()
+{
+   //Show red background for all REJECT comments
+   document.ScoreCardForm.loan_arrearsComment.style.backgroundColor = 
+       document.ScoreCardForm.loan_arrearsComment.value == "REJECT" ? "red":"white";
+   document.ScoreCardForm.renegotiateComment.style.backgroundColor  = 
+       document.ScoreCardForm.renegotiateComment.value  == "REJECT" ? "red":"white";
+   document.ScoreCardForm.paid_debtsComment.style.backgroundColor   = 
+       document.ScoreCardForm.paid_debtsComment.value   == "REJECT" ? "red":"white";
+   document.ScoreCardForm.judgementComment.style.backgroundColor    = 
+       document.ScoreCardForm.judgementComment.value    == "REJECT" ? "red":"white";
+   document.ScoreCardForm.default_dataComment.style.backgroundColor = 
+       document.ScoreCardForm.default_dataComment.value == "REJECT" ? "red":"white";
+   document.ScoreCardForm.trace_alertsComment.style.backgroundColor = 
+       document.ScoreCardForm.trace_alertsComment.value == "REJECT" ? "red":"white";
+}
+
+function ScoreCardForm_SetConditionalColors_ShareholderAnalysis_Flags()
+{
+  //1. Show red back ground for black-listed flags = Yes		
+  document.ScoreCardForm.ShareholderBlacklisted1.style.backgroundColor     =
+      document.ScoreCardForm.ShareholderBlacklisted1.value	 == "Yes"  ? "red": "white";
+  document.ScoreCardForm.ShareholderBlacklisted2.style.backgroundColor     =
+      document.ScoreCardForm.ShareholderBlacklisted2.value	 == "Yes"  ? "red": "white";
+  document.ScoreCardForm.ShareholderBlacklisted3.style.backgroundColor     =
+      document.ScoreCardForm.ShareholderBlacklisted3.value	 == "Yes"  ? "red": "white";
+  document.ScoreCardForm.ShareholderBlacklisted4.style.backgroundColor     =
+      document.ScoreCardForm.ShareholderBlacklisted4.value	 == "Yes"  ? "red": "white";
+  document.ScoreCardForm.ShareholderBlacklisted5.style.backgroundColor     =
+      document.ScoreCardForm.ShareholderBlacklisted5.value	 == "Yes"  ? "red": "white";
+
+  // applying conditional formatting on Black listed COMMENT
+  document.ScoreCardForm.ShareholderBlacklistedComment.style.backgroundColor   =
+      document.ScoreCardForm.ShareholderBlacklistedComment.value == "OK" ? "white":"red";
+  
+  //Show red back ground for fraudalert flags = Yes		
+  document.ScoreCardForm.ShareholderFraudAlert1.style.backgroundColor     =
+     document.ScoreCardForm.ShareholderFraudAlert1.value	 == "Yes"  ? "red": "white";
+  document.ScoreCardForm.ShareholderFraudAlert2.style.backgroundColor     =
+     document.ScoreCardForm.ShareholderFraudAlert2.value	 == "Yes"  ? "red": "white";
+  document.ScoreCardForm.ShareholderFraudAlert3.style.backgroundColor     =
+     document.ScoreCardForm.ShareholderFraudAlert3.value	 == "Yes"  ? "red": "white";
+  document.ScoreCardForm.ShareholderFraudAlert4.style.backgroundColor     =
+     document.ScoreCardForm.ShareholderFraudAlert4.value	 == "Yes"  ? "red": "white";
+  document.ScoreCardForm.ShareholderFraudAlert5.style.backgroundColor     =
+     document.ScoreCardForm.ShareholderFraudAlert5.value	 == "Yes"  ? "red": "white";
+  
+  // applying conditional formatting on Fraud Alert COMMENT
+  document.ScoreCardForm.ShareholderFraudAlertComment.style.backgroundColor   =
+      document.ScoreCardForm.ShareholderFraudAlertComment.value == "OK" ? "white":"red";
+ 
+}
+
+function ScoreCardForm_ShowAchievedIndustryBenchmarks()
+{
+	    /** If calculated benchmark >= applied benchmark then show as TRUE in green otherwise False in red
+		**/
+		
+		console.log("Industrial Sector = "+localStorage.industrial_sector);
+		console.log("Starting to show the industry benchmarks achievements");
+		document.ScoreCardForm.CurrentRatioPass.value = (ToNumber(document.ScoreCardForm.CurrentRatioAppliedBenchmarkValue.value) <
+		                                                 ToNumber(document.ScoreCardForm.CurrentRatioValue.value));
+		
+		
+		document.ScoreCardForm.DebtorDaysPass.value =  (ToNumber(document.ScoreCardForm.DebtorDaysValue.value) <
+	                                                    ToNumber(document.ScoreCardForm.DebtorDaysAppliedBenchmarkValue.value)); 
+		document.ScoreCardForm.TurnoverToWCPass.value =  (ToNumber(document.ScoreCardForm.TurnoverToWCAppliedBenchmarkValue.value) <
+	                                                      ToNumber(document.ScoreCardForm.TurnoverToWCValue.value)); 
+		document.ScoreCardForm.GrossProfitMarginPass.value = (Number(document.ScoreCardForm.GrossProfitMarginAppliedBenchmarkValue.value) <
+	                                                          Number(document.ScoreCardForm.GrossProfitMarginValue.value)); 
+		document.ScoreCardForm.OperatingProfitMarginPass.value = (Number(document.ScoreCardForm.OperatingProfitMarginAppliedBenchmarkValue.value) <
+	                                                              Number(document.ScoreCardForm.OperatingProfitMarginValue.value)); 
+		document.ScoreCardForm.TurnoverGrowthPass.value = (ToNumber(document.ScoreCardForm.TurnoverGrowthAppliedBenchmarkValue.value) <
+		                                                   ToNumber(document.ScoreCardForm.TurnoverGrowthValue.value));
+    	document.ScoreCardForm.ROAPass.value = (ToNumber(document.ScoreCardForm.ROAAppliedBenchmarkValue.value) <
+		                                        ToNumber(document.ScoreCardForm.ROAValue.value));
+	
+		document.ScoreCardForm.ROIPass.value = (ToNumber(document.ScoreCardForm.ROIAppliedBenchmarkValue.value) <
+											    ToNumber(document.ScoreCardForm.ROIAppliedBenchmarkValue.value));
+		document.ScoreCardForm.LongtermDebtToEquityPass.value = (ToNumber(document.ScoreCardForm.LongtermDebtToEquityAppliedBenchmarkValue.value) >=
+																 ToNumber(document.ScoreCardForm.LongtermDebtToEquityValue.value));
+		
+		document.ScoreCardForm.DebtToTangibleNetWorthPass.value = (ToNumber(document.ScoreCardForm.DebtToTangibleNetWorthAppliedBenchmarkValue.value) >=
+																   ToNumber(document.ScoreCardForm.DebtToTangibleNetWorthValue.value));
+		document.ScoreCardForm.EquityToTotalAssetsPass.value = (ToNumber(document.ScoreCardForm.EquityToTotalAssetsAppliedBenchmarkValue.value) <
+																ToNumber(document.ScoreCardForm.EquityToTotalAssetsValue.value));
+	    document.ScoreCardForm.InterestCoverPass.value = (ToNumber(document.ScoreCardForm.InterestCoverAppliedBenchmarkValue.value) <
+														  ToNumber(document.ScoreCardForm.InterestCoverValue.value));
+		document.ScoreCardForm.EBITDAToDebtPass.value = (ToNumber(document.ScoreCardForm.EBITDAToDebtAppliedBenchmarkValue.value) <
+														 ToNumber(document.ScoreCardForm.EBITDAToDebtValue.value));
+		 
+}
+
+function ScoreCardForm_ShowAppliedIndustryBenchmarks()
+{
+	    /** If appplied benchmark = override if not empty otherwise use the benchmark settings
+		**/
+		console.log("Industrial Sector = "+localStorage.industrial_sector);
+		console.log("Starting to show the applied industry benchmarks overrides");
+		document.ScoreCardForm.CurrentRatioAppliedBenchmarkValue.value = 
+		    localStorage.CurrentRatioOverrideBenchmarkValue_=="" ? document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value:
+			localStorage.CurrentRatioOverrideBenchmarkValue_;
+		document.ScoreCardForm.DebtorDaysAppliedBenchmarkValue.value = 
+		    localStorage.DebtorDaysOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value:
+			localStorage.DebtorDaysOverrideBenchmarkValue_;
+		document.ScoreCardForm.TurnoverToWCAppliedBenchmarkValue.value = 
+		    localStorage.TurnoverToWCOverrideBenchmarkValue_ =="" ? document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value:
+			localStorage.TurnoverToWCOverrideBenchmarkValue_;
+		document.ScoreCardForm.GrossProfitMarginAppliedBenchmarkValue.value = 
+		    localStorage.GrossProfitMarginOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value:
+    		localStorage.GrossProfitMarginOverrideBenchmarkValue_;
+		document.ScoreCardForm.OperatingProfitMarginAppliedBenchmarkValue.value =  
+		    localStorage.OperatingProfitMarginOverrideBenchmarkValue_ == "" ?  document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value:
+		    localStorage.OperatingProfitMarginOverrideBenchmarkValue_;
+		document.ScoreCardForm.TurnoverGrowthAppliedBenchmarkValue.value =
+            localStorage.TurnoverGrowthOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value:
+			localStorage.TurnoverGrowthOverrideBenchmarkValue_;
+		document.ScoreCardForm.ROAAppliedBenchmarkValue.value = 
+		    localStorage.ROAOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.ROAPolicyBenchmarkValue.value: 
+			localStorage.ROAOverrideBenchmarkValue_;
+		document.ScoreCardForm.ROIAppliedBenchmarkValue.value = 
+		    localStorage.ROIOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.ROIPolicyBenchmarkValue.value:
+			localStorage.ROIOverrideBenchmarkValue_;
+		document.ScoreCardForm.LongtermDebtToEquityAppliedBenchmarkValue.value = 
+		    localStorage.LongtermDebtToEquityOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value:
+			localStorage.LongtermDebtToEquityOverrideBenchmarkValue_;
+		document.ScoreCardForm.DebtToTangibleNetWorthAppliedBenchmarkValue.value = 
+		    localStorage.DebtToTangibleNetWorthOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value:
+			localStorage.DebtToTangibleNetWorthOverrideBenchmarkValue_;
+		document.ScoreCardForm.EquityToTotalAssetsAppliedBenchmarkValue.value = 
+		    localStorage.EquityToTotalAssetsOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value:
+			localStorage.EquityToTotalAssetsOverrideBenchmarkValue_;
+	    document.ScoreCardForm.InterestCoverAppliedBenchmarkValue.value = 
+		    localStorage.InterestCoverOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value:
+			localStorage.InterestCoverOverrideBenchmarkValue_;
+		document.ScoreCardForm.EBITDAToDebtAppliedBenchmarkValue.value = 
+		    localStorage.EBITDAToDebtOverrideBenchmarkValue_ == "" ? document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value:
+			localStorage.EBITDAToDebtOverrideBenchmarkValue_;
+
+}	
+function ScoreCardForm_ShowIndustryBenchmarks()
+{
+   console.log("Showing Compnay Identification Details");
+   document.ScoreCardForm.application_ref.value = localStorage.application_ref;
+   document.ScoreCardForm.company_reg_no.value = localStorage.company_reg_no;
+   document.getElementById("legal_name").innerHTML = localStorage.legal_name + " " + localStorage.customer_type;
+   document.ScoreCardForm.industrial_sector.value = localStorage.industrial_sector;
+   document.ScoreCardForm.loan_number.value = localStorage.loan_number;
+   document.ScoreCardForm.username.value = localStorage.username;
+  
+   console.log("Starting Benchmarks Ratio Display");
+   switch (localStorage.industrial_sector)
+   {
+     case "Trade":
+	    console.log("Industrial Sector = "+localStorage.industrial_sector);
+		console.log("Starting to show the industry benchmarks");
+		console.log(CurrentRatioBenchmark_Trade);
+		document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_Trade;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_Trade;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_Trade;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_Trade;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_Trade;
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_Trade;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_Trade;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_Trade;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_Trade;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_Trade;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_Trade;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_Trade;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_Trade;
+		break;
+	 case "Finance And Business Services":
+	    console.log("Industrial Sector = "+localStorage.industrial_sector);
+		console.log("Starting to show the industry benchmarks");
+		//console.log(localStorage.CurrentRatioBenchmark_RealEstate);
+	    document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_Finance;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_Finance;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_Finance;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_Finance;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_Finance;
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_Finance;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_Finance;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_Finance;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_Finance;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_Finance;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_Finance;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_Finance;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_Finance;
+ 	    break;
+	 case "RealEstate":
+	    console.log("Industrial Sector = "+localStorage.industrial_sector);
+		console.log("Starting to show the Real Estate industry benchmarks");
+		console.log(localStorage.CurrentRatioBenchmark_RealEstate);
+	    document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_RealEstate;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_RealEstate;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_RealEstate;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_RealEstate;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_RealEstate;
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_RealEstate;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_RealEstate;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_RealEstate;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_RealEstate;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_RealEstate;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_RealEstate;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_RealEstate;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_RealEstate;
+ 	    break;
+	 case "Manufacturing":
+	    document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_Manufacturing;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_Manufacturing;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_Manufacturing;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_Manufacturing;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_Manufacturing;
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_Manufacturing;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_Manufacturing;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_Manufacturing;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_Manufacturing;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_Manufacturing;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_Manufacturing;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_Manufacturing;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_Manufacturing;
+ 	    break;
+	 case "Construction":
+	    document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_Construction;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_Construction;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_Construction;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_Construction;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_Construction;
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_Construction;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_Construction;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_Construction;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_Construction;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_Construction;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_Construction;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_Construction;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_Construction;
+ 	    break;
+	 case "Agriculture":
+	    document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_Agriculture;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_Agriculture;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_Agriculture;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_Agriculture;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_Agriculture;
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_Agriculture;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_Agriculture;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_Agriculture;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_Agriculture;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_Agriculture;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_Agriculture;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_Agriculture;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_Agriculture;
+ 	    break;
+	 case "Parastatals":
+	    document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_Parastatals;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_Parastatals;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_Parastatals;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_Parastatals;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_Parastatals;
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_Parastatals;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_Parastatals;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_Parastatals;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_Parastatals;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_Parastatals;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_Parastatals;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_Parastatals;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_Parastatals;
+ 	    break;
+	 case "Transport And Communications":
+	    document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_Transport;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_Transport;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_Transport;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_Transport;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_Transport;
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_Transport;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_Transport;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_Transport;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_Transport;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_Transport;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_Transport;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_Transport;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_Transport;
+	    break;
+	 case "Mining":
+	    document.ScoreCardForm.CurrentRatioPolicyBenchmarkValue.value = localStorage.CurrentRatioBenchmark_Mining;
+		document.ScoreCardForm.DebtorDaysPolicyBenchmarkValue.value = localStorage.DebtorDaysBenchmark_Mining;
+		document.ScoreCardForm.TurnoverToWCPolicyBenchmarkValue.value = localStorage.TurnoverToWCBenchmark_Mining;
+		document.ScoreCardForm.GrossProfitMarginPolicyBenchmarkValue.value = localStorage.GrossProfitMarginBenchmark_Mining;
+		document.ScoreCardForm.OperatingProfitMarginPolicyBenchmarkValue.value = localStorage.OperatingProfitMarginBenchmark_Mining.
+		document.ScoreCardForm.TurnoverGrowthPolicyBenchmarkValue.value = localStorage.TurnoverGrowthBenchmark_Mining;
+		document.ScoreCardForm.ROAPolicyBenchmarkValue.value = localStorage.ROABenchmark_Mining;
+		document.ScoreCardForm.ROIPolicyBenchmarkValue.value = localStorage.ROIBenchmark_Mining;
+		document.ScoreCardForm.LongtermDebtToEquityPolicyBenchmarkValue.value = localStorage.LongtermDebtToEquityBenchmark_Mining;
+		document.ScoreCardForm.DebtToTangibleNetWorthPolicyBenchmarkValue.value = localStorage.DebtToTangibleNetWorthBenchmark_Mining;
+		document.ScoreCardForm.EquityToTotalAssetsPolicyBenchmarkValue.value = localStorage.EquityToTotalAssetsBenchmark_Mining;
+	    document.ScoreCardForm.InterestCoverPolicyBenchmarkValue.value = localStorage.InterestCoverBenchmark_Mining;
+		document.ScoreCardForm.EBITDAToDebtPolicyBenchmarkValue.value = localStorage.EBITDAToDebtBenchmark_Mining;
+ 	    break;
+	}	
+}
+
+function DisplayRatiosFromLocalStorage()
+{
+  	       /**
+		   // EDWARD ALTMAN'S Z SCORE MODEL RATIOS =========================================================================================
+		
+		// X1. Working Capital / Sales Ratio
+		   
+		        //document.RationAnalysisForm.WCToSalesYear0.value = localStorage.WCToSales0;
+		   document.ScoreCardForm.WCToTotalAssetsYear1.value = localStorage.WCToTotalAssets1;
+		   document.ScoreCardForm.WCToTotalAssetsYear2.value = localStorage.WCToTotalAssets2;
+		   document.ScoreCardForm.WCToTotalAssetsYear3.value = localStorage.WCToTotalAssets3;
+		   document.ScoreCardForm.WCToTotalAssetsWeighted.value = localStorage.WCToTotalAssetsWeighted;
+		   
+		   // X2. Retained Earnings/Total Assets Ratio
+		   
+		         //document.ScoreCardForm.REToTotalAssetsYear0.value = localStorage.REToTotalAssets0;
+		   document.ScoreCardForm.REToTotalAssetsYear1.value = localStorage.REToTotalAssets1;
+		   document.ScoreCardForm.REToTotalAssetsYear2.value = localStorage.REToTotalAssets2;
+		   document.ScoreCardForm.REToTotalAssetsYear3.value = localStorage.REToTotalAssets3;
+		   document.ScoreCardForm.REToTotalAssetsWeighted.value = localStorage.REToTotalAssetsWeighted;
+		  
+		  // X3. EBIT/Total Assets Ratio
+		        //document.ScoreCardForm.EBITTotalAssetsYear0.value = localStorage.EBITTotalAssets0;
+		   document.ScoreCardForm.EBITToTotalAssetsYear1.value = localStorage.EBITToTotalAssets1;
+		   document.ScoreCardForm.EBITToTotalAssetsYear2.value = localStorage.EBITToTotalAssets2;
+		   document.ScoreCardForm.EBITToTotalAssetsYear3.value = localStorage.EBITToTotalAssets3;
+		   document.ScoreCardForm.EBITToTotalAssetsWeighted.value = localStorage.EBITToTotalAssetsWeighted;
+	      
+		  // X4. Equity/Total Liabilities Ratio
+		        //document.RationAnalysisForm.EquityToTotalLiabilitiesYear0.value = localStorage.EquityToTotalLiabilities0;
+		   document.ScoreCardForm.EquityToTotalLiabilitiesYear1.value = localStorage.EquityToTotalLiabilities1;
+		   document.ScoreCardForm.EquityToTotalLiabilitiesYear2.value = localStorage.EquityToTotalLiabilities2;
+		   document.ScoreCardForm.EquityToTotalLiabilitiesYear3.value = localStorage.EquityToTotalLiabilities3;
+		   document.ScoreCardForm.EquityToTotalLiabilitiesWeighted.value = localStorage.EquityToTotalLiabilitiesWeighted;
+		   
+	
+		   // X5. Sales/Total Assets Ratio
+		        //document.RationAnalysisForm.SalesToTotalAssetsYear0.value = localStorage.SalesToTotalAssets0;
+		   document.ScoreCardForm.SalesToTotalAssetsYear1.value = localStorage.SalesToTotalAssets1;
+		   document.ScoreCardForm.SalesToTotalAssetsYear2.value = localStorage.SalesToTotalAssets2;
+		   document.ScoreCardForm.SalesToTotalAssetsYear3.value = localStorage.SalesToTotalAssets3;
+		   document.ScoreCardForm.SalesToTotalAssetsWeighted.value = localStorage.SalesToTotalAssetsWeighted;
+		   
+	
+	       // Z Score 
+	             //document.RationAnalysisForm.ZScoreYear0.value = localStorage.ZScore0;
+		   document.ScoreCardForm.ZScoreYear1.value = localStorage.ZScore1;
+		   document.ScoreCardForm.ZScoreYear2.value = localStorage.ZScore2;
+		   document.ScoreCardForm.ZScoreYear3.value = localStorage.ZScore3;
+		   document.ScoreCardForm.ZScoreWeighted.value = localStorage.ZScoreWeighted;
+		   
+	       // Z Score Prime
+	             //document.RationAnalysisForm.ZScorePrimeYear0.value = localStorage.ZScorePrime0;
+		   document.ScoreCardForm.ZScorePrimeYear1.value = localStorage.ZScorePrime1;
+		   document.ScoreCardForm.ZScorePrimeYear2.value = localStorage.ZScorePrime2;
+		   document.ScoreCardForm.ZScorePrimeYear3.value = localStorage.ZScorePrime3;
+		   document.ScoreCardForm.ZScorePrimeWeighted.value = localStorage.ZScorePrimeWeighted;
+			  
+**/			  
+		   //DISPLAYING MAXIMUM SCORES ======================================================================================
+		   
+		   //1. Determine the company size and the set of ratios to use
+		   
+		   var NetSales1 = ToNumber(localStorage.NetSales1);
+		   var NetSales2 = ToNumber(localStorage.NetSales2);
+		   var NetSales3 = ToNumber(localStorage.NetSales3);
+	 
+		   var WeightYear1 = ToNumber(localStorage.RatioWeightYear1);
+		   var WeightYear2 = ToNumber(localStorage.RatioWeightYear2);
+		   var WeightYear3 = ToNumber(localStorage.RatioWeightYear3);
+		   
+		   var WeightedNetSales = (NetSales1 * WeightYear1/100) + 
+		                          (NetSales2 * WeightYear2/100) +
+								  (NetSales3 * WeightYear3/100);
+								  
+		   console.log ("NetSales1 = "+NetSales1+" NetSales2 = "+NetSales2+"NetSales3 = "+NetSales3+"Weighted NetSales = "+WeightedNetSales);
+		   
+		   var FirmSize = "SMALL";
+
+           if (WeightedNetSales > ToNumber(localStorage.TurnoverThreshold))	
+           {
+				FirmSize = "BIG";
+			    document.ScoreCardForm.company_size.value                   =   FirmSize;
+				//Financial Analysis Maximum Scores	
+				document.ScoreCardForm.DebtorDaysMaxScore.value				=	ToNumber(localStorage.bfDebtorDaysScore).toFixed(2);
+				document.ScoreCardForm.CurrentRatioMaxScore.value			=	ToNumber(localStorage.bfCurrentRatioScore).toFixed(2);
+				document.ScoreCardForm.DebtorDaysMaxScore.value				=	ToNumber(localStorage.bfDebtorDaysScore).toFixed(2);
+				document.ScoreCardForm.TurnoverToWCMaxScore.value			=	ToNumber(localStorage.bfTurnoverToWorkingCapitalScore).toFixed(2);
+				document.ScoreCardForm.GrossProfitMarginMaxScore.value		=	ToNumber(localStorage.bfGrossProfitMarginScore).toFixed(2);
+				document.ScoreCardForm.OperatingProfitMarginMaxScore.value	=	ToNumber(localStorage.bfOperatingProfitMarginScore).toFixed(2);
+				document.ScoreCardForm.TurnoverGrowthMaxScore.value			=	ToNumber(localStorage.bfTurnoverGrowthScore).toFixed(2);	
+				document.ScoreCardForm.ROAMaxScore.value					=	ToNumber(localStorage.bfReturnOnAssetsScore).toFixed(2);
+				document.ScoreCardForm.ROIMaxScore.value					=	ToNumber(localStorage.bfReturnOnInvestmentsScore).toFixed(2);
+				document.ScoreCardForm.LongtermDebtToEquityMaxScore.value	=	ToNumber(localStorage.bfDebtToEquityScore).toFixed(2);	
+				document.ScoreCardForm.DebtToTangibleNetWorthMaxScore.value	=	ToNumber(localStorage.bfDebtToTangibleNetWorthScore).toFixed(2);
+				document.ScoreCardForm.EquityToTotalAssetsMaxScore.value	=	ToNumber(localStorage.bfShareholdersFundsToTotalAssetsScore).toFixed(2);
+				document.ScoreCardForm.InterestCoverMaxScore.value			=	ToNumber(localStorage.bfInterestCoverScore).toFixed(2);
+				document.ScoreCardForm.EBITDAToDebtMaxScore.value			=	ToNumber(localStorage.bfEBITDAToGrossIntDebtsScore).toFixed(2);
+		        
+				//Management Analysis Maximum Scores	
+				document.ScoreCardForm.CommitmentMaxScore.value				=	ToNumber(localStorage.bfCommitmentCategoryScore).toFixed(2);
+	    		document.ScoreCardForm.IntegrityMaxScore.value				=	ToNumber(localStorage.bfIntegrityCategoryScore).toFixed(2)
+				document.ScoreCardForm.InformationQualityMaxScore.value		=	ToNumber(localStorage.bfInformationQualityCategoryScore).toFixed(2);
+			    document.ScoreCardForm.LeadershipMaxScore.value				=	ToNumber(localStorage.bfLeadershipCategoryScore).toFixed(2);
+				document.ScoreCardForm.StrategyMaxScore.value				=	ToNumber(localStorage.bfStrategyCategoryScore).toFixed(2);
+				document.ScoreCardForm.StructureMaxScore.value				=	ToNumber(localStorage.bfStructureCategoryScore).toFixed(2);
+				document.ScoreCardForm.ManagementMaxScore.value				=	ToNumber(localStorage.bfManagementCategoryScore).toFixed(2);
+				document.ScoreCardForm.SuccessionPlanningMaxScore.value		=	ToNumber(localStorage.bfSuccessionPlanCategoryScore ).toFixed(2);
+				document.ScoreCardForm.OrganisationalPlanningMaxScore.value	=	ToNumber(localStorage.bfOrganisationalDesignCategoryScore).toFixed(2);
+				//Industry Analysis Maximum Scores	
+				document.ScoreCardForm.IndustryCyclicalityMaxScore.value	=	ToNumber(localStorage.bfBusinessCyclicalityScore).toFixed(2);
+	    		document.ScoreCardForm.IndustryPerformanceMaxScore.value	=	ToNumber(localStorage.bfIndustryPerformanceScore).toFixed(2)
+				document.ScoreCardForm.PortersMaxScore.value		        =	ToNumber(localStorage.bfPortersScore).toFixed(2);
+ 				//Behavioral Analysis Maximum Scores	
+				document.ScoreCardForm.rate_typeMaxScore.value				=   ToNumber(localStorage.bfLoanRateTypeScore).toFixed(2);
+				document.ScoreCardForm.loan_maturityMaxScore.value			=   ToNumber(localStorage.bfLoanRateTypeScore).toFixed(2);
+				document.ScoreCardForm.relationshipMaxScore.value			=   ToNumber(localStorage.bfBBSBankingRelationshipYearsScore).toFixed(2);
+				document.ScoreCardForm.total_bbs_productsMaxScore.value		=   ToNumber(localStorage.bfBBSBankingProductsNoScore).toFixed(2); 
+				document.ScoreCardForm.loan_arrearsMaxScore.value			=   ToNumber(localStorage.bfPastYearArrearIncidentsNoScore).toFixed(2);
+				document.ScoreCardForm.renegotiateMaxScore.value			=   ToNumber(localStorage.bfPast2YearsArrearLoansRenegotiatedNoScore).toFixed(2); 
+				document.ScoreCardForm.paid_debtsMaxScore.value				=   ToNumber(localStorage.bfPaidDebtExceedsDefaultsScore).toFixed(2);
+				document.ScoreCardForm.judgementMaxScore.value				=   ToNumber(localStorage.bfNoOfJudgementsScore).toFixed(2);
+				document.ScoreCardForm.default_dataMaxScore.value			=   ToNumber(localStorage.bfNoOfDefaultsScore).toFixed(2);
+				document.ScoreCardForm.trace_alertsMaxScore.value			=   ToNumber(localStorage.bfNoOfTraceAlertsScore).toFixed(2);
+				//Shareholder Analysis Maximum Scores	
+				document.ScoreCardForm.ShareholderPaidDebtsMaxScore.value	=   ToNumber(localStorage.bfOwnersPaidDebtExceedsDefaultsScore).toFixed(2);
+				document.ScoreCardForm.ShareholderDefaultsMaxScore.value	=   ToNumber(localStorage.bfOwnersNoOfDefaultsScore).toFixed(2);
+				document.ScoreCardForm.ShareholderJudgementsMaxScore.value	=   ToNumber(localStorage.bfOwnersNoOfJudgementsScore).toFixed(2);
+				document.ScoreCardForm.ShareholderTraceAlertsMaxScore.value	=   ToNumber(localStorage.bfOwnersNoOfTraceAlertsScore).toFixed(2); 
+			   }
+           else
+           {
+				FirmSize = "SMALL";
+				document.ScoreCardForm.company_size.value                   =   FirmSize;
+				document.ScoreCardForm.DebtorDaysMaxScore.value				=	ToNumber(localStorage.sfDebtorDaysScore).toFixed(2);
+				document.ScoreCardForm.CurrentRatioMaxScore.value			=	ToNumber(localStorage.sfCurrentRatioScore).toFixed(2);
+				document.ScoreCardForm.DebtorDaysMaxScore.value				=	ToNumber(localStorage.sfDebtorDaysScore).toFixed(2);
+				document.ScoreCardForm.TurnoverToWCMaxScore.value			=	ToNumber(localStorage.sfTurnoverToWorkingCapitalScore).toFixed(2);
+				document.ScoreCardForm.GrossProfitMarginMaxScore.value		=	ToNumber(localStorage.sfGrossProfitMarginScore).toFixed(2);
+				document.ScoreCardForm.OperatingProfitMarginMaxScore.value	=	ToNumber(localStorage.sfOperatingProfitMarginScore).toFixed(2);
+				document.ScoreCardForm.TurnoverGrowthMaxScore.value			=	ToNumber(localStorage.sfTurnoverGrowthScore).toFixed(2);	
+				document.ScoreCardForm.ROAMaxScore.value					=	ToNumber(localStorage.sfReturnOnAssetsScore).toFixed(2);
+				document.ScoreCardForm.ROIMaxScore.value					=	ToNumber(localStorage.sfReturnOnInvestmentsScore).toFixed(2);
+				document.ScoreCardForm.LongtermDebtToEquityMaxScore.value	=	ToNumber(localStorage.sfDebtToEquityScore).toFixed(2);	
+				document.ScoreCardForm.DebtToTangibleNetWorthMaxScore.value	=	ToNumber(localStorage.sfDebtToTangibleNetWorthScore).toFixed(2);
+				document.ScoreCardForm.EquityToTotalAssetsMaxScore.value	=	ToNumber(localStorage.sfShareholdersFundsToTotalAssetsScore).toFixed(2);
+				document.ScoreCardForm.InterestCoverMaxScore.value			=	ToNumber(localStorage.sfInterestCoverScore).toFixed(2);
+				document.ScoreCardForm.EBITDAToDebtMaxScore.value			=	ToNumber(localStorage.sfEBITDAToGrossIntDebtsScore).toFixed(2);
+ 				//Management Analysis Maximum Scores	
+				document.ScoreCardForm.CommitmentMaxScore.value				=	ToNumber(localStorage.sfCommitmentCategoryScore).toFixed(2);
+	    		document.ScoreCardForm.IntegrityMaxScore.value				=	ToNumber(localStorage.sfIntegrityCategoryScore).toFixed(2)
+				document.ScoreCardForm.InformationQualityMaxScore.value		=	ToNumber(localStorage.sfInformationQualityCategoryScore).toFixed(2);
+			    document.ScoreCardForm.LeadershipMaxScore.value				=	ToNumber(localStorage.sfLeadershipCategoryScore).toFixed(2);
+				document.ScoreCardForm.StrategyMaxScore.value				=	ToNumber(localStorage.sfStrategyCategoryScore).toFixed(2);
+				document.ScoreCardForm.StructureMaxScore.value				=	ToNumber(localStorage.sfStructureCategoryScore).toFixed(2);
+				document.ScoreCardForm.ManagementMaxScore.value				=	ToNumber(localStorage.sfManagementCategoryScore).toFixed(2);
+				document.ScoreCardForm.SuccessionPlanningMaxScore.value		=	ToNumber(localStorage.sfSuccessionPlanCategoryScore ).toFixed(2);
+				document.ScoreCardForm.OrganisationalPlanningMaxScore.value	=	ToNumber(localStorage.sfOrganisationalDesignCategoryScore).toFixed(2);
+				//Industry Analysis Maximum Scores	
+				document.ScoreCardForm.IndustryCyclicalityMaxScore.value	=	ToNumber(localStorage.sfBusinessCyclicalityScore).toFixed(2);
+	    		document.ScoreCardForm.IndustryPerformanceMaxScore.value	=	ToNumber(localStorage.sfIndustryPerformanceScore).toFixed(2)
+				document.ScoreCardForm.PortersMaxScore.value		        =	ToNumber(localStorage.sfPortersScore).toFixed(2);
+ 				//Behavioral Analysis Maximum Scores	
+				document.ScoreCardForm.rate_typeMaxScore.value				=   ToNumber(localStorage.sfLoanRateTypeScore).toFixed(2);
+				document.ScoreCardForm.loan_maturityMaxScore.value			=   ToNumber(localStorage.sfLoanRateTypeScore).toFixed(2);
+				document.ScoreCardForm.relationshipMaxScore.value			=   ToNumber(localStorage.sfBBSBankingRelationshipYearsScore).toFixed(2);
+				document.ScoreCardForm.total_bbs_productsMaxScore.value		=   ToNumber(localStorage.sfBBSBankingProductsNoScore).toFixed(2); 
+				document.ScoreCardForm.loan_arrearsMaxScore.value			=   ToNumber(localStorage.sfPastYearArrearIncidentsNoScore).toFixed(2);
+				document.ScoreCardForm.renegotiateMaxScore.value			=   ToNumber(localStorage.sfPast2YearsArrearLoansRenegotiatedNoScore).toFixed(2); 
+				document.ScoreCardForm.paid_debtsMaxScore.value				=   ToNumber(localStorage.sfPaidDebtExceedsDefaultsScore).toFixed(2);
+				document.ScoreCardForm.judgementMaxScore.value				=   ToNumber(localStorage.sfNoOfJudgementsScore).toFixed(2);
+				document.ScoreCardForm.default_dataMaxScore.value			=   ToNumber(localStorage.sfNoOfDefaultsScore).toFixed(2);
+				document.ScoreCardForm.trace_alertsMaxScore.value			=   ToNumber(localStorage.sfNoOfTraceAlertsScore).toFixed(2);
+ 		        
+				
+				console.log("CHECKING THE BEHAVIORAL MAX SCORES LOADED FROM LOCAL STORAGE===============");
+				console.log("Total BBS Products = "+document.ScoreCardForm.total_bbs_productsMaxScore.value);				
+				//Shareholder Analysis Maximum Scores	
+				document.ScoreCardForm.ShareholderPaidDebtsMaxScore.value	=   ToNumber(localStorage.sfOwnersPaidDebtExceedsDefaultsScore).toFixed(2);
+				document.ScoreCardForm.ShareholderDefaultsMaxScore.value	=   ToNumber(localStorage.sfOwnersNoOfDefaultsScore).toFixed(2);
+				document.ScoreCardForm.ShareholderJudgementsMaxScore.value	=   ToNumber(localStorage.sfOwnersNoOfJudgementsScore).toFixed(2);
+				document.ScoreCardForm.ShareholderTraceAlertsMaxScore.value	=   ToNumber(localStorage.sfOwnersNoOfTraceAlertsScore).toFixed(2); 
+				console.log("CHECKING THE SHAREHOLDER  MAX SCORES  LOADED FROM LOCAL STORAGE==============");
+				console.log("ShareholderJudgements Max Score = "+document.ScoreCardForm.ShareholderPaidDebtsMaxScore.value);
+	      		console.log("ShareholderDefaults Max Score = "+document.ScoreCardForm.ShareholderDefaultsMaxScore.value);
+	    		console.log("ShareholderTraceAlerts Max Score = "+document.ScoreCardForm.ShareholderTraceAlertsMaxScore.value);
+						
+		  
+		  
+		  }		   
+		   
+	   	  
+		   
+		    //DISPLAYING CALCULATED WEIGHTED RATIOS===========================================================================================
+			document.ScoreCardForm.CurrentRatioValue.value				=	ToNumber(localStorage.CurrentRatioWeighted).toFixed(2);
+			document.ScoreCardForm.DebtorDaysValue.value				=	ToNumber(localStorage.DebtorDaysWeighted).toFixed(2);
+			document.ScoreCardForm.TurnoverToWCValue.value				=	ToNumber(localStorage.TurnoverGrowthWeighted).toFixed(2);
+			document.ScoreCardForm.GrossProfitMarginValue.value			=	ToNumber(localStorage.GrossProfitMarginWeighted).toFixed(2);
+			document.ScoreCardForm.OperatingProfitMarginValue.value		=	ToNumber(localStorage.OperatingProfitMarginWeighted).toFixed(2);
+			document.ScoreCardForm.TurnoverGrowthValue.value			=	ToNumber(localStorage.TurnoverGrowthWeighted).toFixed(2);	
+			document.ScoreCardForm.ROAValue.value						=	ToNumber(localStorage.ROAWeighted).toFixed(2);
+			document.ScoreCardForm.ROIValue.value						=	ToNumber(localStorage.ROIWeighted).toFixed(2);
+			document.ScoreCardForm.LongtermDebtToEquityValue.value		=	ToNumber(localStorage.LongtermDebtToEquityWeighted).toFixed(2);	
+			document.ScoreCardForm.DebtToTangibleNetWorthValue.value	=	ToNumber(localStorage.DebtToTangibleNetWorthWeighted).toFixed(2);
+			document.ScoreCardForm.EquityToTotalAssetsValue.value		=	ToNumber(localStorage.EquityToTotalAssetsWeighted).toFixed(2);
+			document.ScoreCardForm.InterestCoverValue.value				=	ToNumber(localStorage.InterestCoverWeighted).toFixed(2);
+			document.ScoreCardForm.EBITDAToDebtValue.value				=	ToNumber(localStorage.EBITDAToDebtWeighted).toFixed(2);
+           //DISPLAYING THE MANGEMENT ANALYSIS RATINGS ========================================================================================
+			//1. Management Analysis Ratings
+			document.ScoreCardForm.CommitmentRating.value				=	localStorage.Commitment;
+	    	document.ScoreCardForm.IntegrityRating.value				=	localStorage.Integrity;
+			document.ScoreCardForm.InformationQualityRating.value		=	localStorage.InformationQuality;
+			document.ScoreCardForm.LeadershipRating.value				=	localStorage.Leadership;
+			document.ScoreCardForm.StrategyRating.value				    =	localStorage.Strategy;
+			document.ScoreCardForm.StructureRating.value				=	localStorage.Structure;
+			document.ScoreCardForm.ManagementRating.value				=	localStorage.Management;
+			document.ScoreCardForm.SuccessionPlanningRating.value		=	localStorage.SuccessionPlanning;
+			document.ScoreCardForm.OrganisationalPlanningRating.value	=	localStorage.OrganisationalPlanning;
+ 			//2. Management Analysis Comments
+			document.ScoreCardForm.CommitmentComment.value				=	localStorage.CommitmentComment;
+	    	document.ScoreCardForm.IntegrityComment.value				=	localStorage.IntegrityComment;
+			document.ScoreCardForm.InformationQualityComment.value		=	localStorage.InformationQualityComment;
+			document.ScoreCardForm.LeadershipComment.value				=	localStorage.LeadershipComment;
+			document.ScoreCardForm.StrategyComment.value				=	localStorage.StrategyComment;
+			document.ScoreCardForm.StructureComment.value				=	localStorage.StructureComment;
+			document.ScoreCardForm.ManagementComment.value				=	localStorage.ManagementComment;
+			document.ScoreCardForm.SuccessionPlanningComment.value		=	localStorage.SuccessionPlanComment;
+			document.ScoreCardForm.OrganisationalPlanningComment.value	=	localStorage.OrganisationalDesignComment;
+ 			//3. Industry Analysis Ratings
+			document.ScoreCardForm.IndustryCyclicalityRating.value		=	localStorage.IndustryCyclicality;
+	    	document.ScoreCardForm.IndustryPerformanceRating.value		=	localStorage.IndustryPerformance;
+			document.ScoreCardForm.PortersRating.value					=	localStorage.SummaryRating;
+			//Behavioral Analysis Ratings	
+			document.ScoreCardForm.rate_typeRating.value				=   localStorage.rate_type;
+			document.ScoreCardForm.loan_maturityRating.value			=   localStorage.loan_maturity;
+			document.ScoreCardForm.relationshipRating.value				=   localStorage.relationship;
+			document.ScoreCardForm.total_bbs_productsRating.value		=   localStorage.total_bbs_products; 
+			document.ScoreCardForm.loan_arrearsRating.value				=   localStorage.loan_arrears;
+			document.ScoreCardForm.renegotiateRating.value				=   localStorage.renegotiate; 
+			document.ScoreCardForm.paid_debtsRating.value				=   localStorage.paid_debts;
+			document.ScoreCardForm.judgementRating.value				=   localStorage.judgement;
+			document.ScoreCardForm.default_dataRating.value				=   localStorage.default_data;
+			document.ScoreCardForm.trace_alertsRating.value				=   localStorage.trace_alerts;
+ 			//Behavioral Analysis Ratings	
+			document.ScoreCardForm.ShareholderPaidDebts1.value			=   localStorage.ShareholderPaidDebts1;
+			document.ScoreCardForm.ShareholderDefaults1.value			=   localStorage.ShareholderDefaults1;
+			document.ScoreCardForm.ShareholderJudgements1.value			=   localStorage.ShareholderJudgements1;
+			document.ScoreCardForm.ShareholderTraceAlerts1.value		=   localStorage.ShareholderTraceAlerts1;
+			document.ScoreCardForm.ShareholderPaidDebts2.value			=   localStorage.ShareholderPaidDebts2;
+			document.ScoreCardForm.ShareholderDefaults2.value			=   localStorage.ShareholderDefaults2;
+			document.ScoreCardForm.ShareholderJudgements2.value			=   localStorage.ShareholderJudgements2;
+			document.ScoreCardForm.ShareholderTraceAlerts2.value		=   localStorage.ShareholderTraceAlerts2;
+			document.ScoreCardForm.ShareholderPaidDebts3.value			=   localStorage.ShareholderPaidDebts3;
+			document.ScoreCardForm.ShareholderDefaults3.value			=   localStorage.ShareholderDefaults3;
+			document.ScoreCardForm.ShareholderJudgements3.value			=   localStorage.ShareholderJudgements3;
+			document.ScoreCardForm.ShareholderTraceAlerts3.value		=   localStorage.ShareholderTraceAlerts3;
+			document.ScoreCardForm.ShareholderPaidDebts4.value			=   localStorage.ShareholderPaidDebts4;
+			document.ScoreCardForm.ShareholderDefaults4.value			=   localStorage.ShareholderDefaults4;
+			document.ScoreCardForm.ShareholderJudgements4.value			=   localStorage.ShareholderJudgements4;
+			document.ScoreCardForm.ShareholderTraceAlerts4.value		=   localStorage.ShareholderTraceAlerts4;
+			document.ScoreCardForm.ShareholderPaidDebts5.value			=   localStorage.ShareholderPaidDebts5;
+			document.ScoreCardForm.ShareholderDefaults5.value			=   localStorage.ShareholderDefaults5;
+			document.ScoreCardForm.ShareholderJudgements5.value			=   localStorage.ShareholderJudgements5;
+			document.ScoreCardForm.ShareholderTraceAlerts5.value		=   localStorage.ShareholderTraceAlerts5;
+		    //Loading Blacklisting Flags
+			document.ScoreCardForm.ShareholderBlacklisted1.value		=   localStorage.ShareholderBlacklisted1;
+			document.ScoreCardForm.ShareholderBlacklisted2.value		=   localStorage.ShareholderBlacklisted2;
+			document.ScoreCardForm.ShareholderBlacklisted3.value		=   localStorage.ShareholderBlacklisted3;
+			document.ScoreCardForm.ShareholderBlacklisted4.value		=   localStorage.ShareholderBlacklisted4;
+			document.ScoreCardForm.ShareholderBlacklisted5.value		=   localStorage.ShareholderBlacklisted5;
+	        //Loading Fraud-Alert Flags
+			document.ScoreCardForm.ShareholderFraudAlert1.value		=   localStorage.ShareholderFraudAlert1;
+			document.ScoreCardForm.ShareholderFraudAlert2.value		=   localStorage.ShareholderFraudAlert2;
+			document.ScoreCardForm.ShareholderFraudAlert3.value		=   localStorage.ShareholderFraudAlert3;
+			document.ScoreCardForm.ShareholderFraudAlert4.value		=   localStorage.ShareholderFraudAlert4;
+			document.ScoreCardForm.ShareholderFraudAlert5.value		=   localStorage.ShareholderFraudAlert5;
+
+    }	    
+	
+function ScoreCardForm_CalculateGrandTotals()
+{
+   // Calculate Grand Total for Client's Maximum Scores
+   var TotalFinancialCategoryMaxScore    = ToNumber(document.ScoreCardForm.TotalFinancialCategoryMaxScore.value);
+   var TotalManagementCategoryMaxScore   = ToNumber(document.ScoreCardForm.TotalManagementCategoryMaxScore.value);
+   var TotalIndustryCategoryMaxScore     = ToNumber(document.ScoreCardForm.TotalIndustryCategoryMaxScore.value);
+   var TotalShareholderCategoryMaxScore  = ToNumber(document.ScoreCardForm.TotalShareholderCategoryMaxScore.value);  
+   var TotalBehavioralCategoryMaxScore   = ToNumber(document.ScoreCardForm.TotalBehavioralCategoryMaxScore.value);
+   var GrandTotalMaxScore = TotalFinancialCategoryMaxScore + TotalManagementCategoryMaxScore+
+                            TotalIndustryCategoryMaxScore  + TotalShareholderCategoryMaxScore+
+							TotalBehavioralCategoryMaxScore;
+   console.log("TotalFinancialCategoryMaxScore = "+TotalFinancialCategoryMaxScore);
+   console.log("TotalManagementCategoryMaxScore = "+TotalManagementCategoryMaxScore);
+   console.log("TotalIndustryCategoryMaxScore = "+TotalIndustryCategoryMaxScore);
+   console.log("TotalShareholderCategoryMaxScore = "+TotalShareholderCategoryMaxScore);
+   console.log("TotalBehavioralCategoryMaxScore = "+TotalBehavioralCategoryMaxScore);
+  
+   
+   
+   // Calculate Grand Total for Client's Scores
+   var TotalFinancialCategoryScore    = ToNumber(document.ScoreCardForm.TotalFinancialCategoryScore.value);
+   var TotalManagementCategoryScore   = ToNumber(document.ScoreCardForm.TotalManagementCategoryScore.value);
+   var TotalIndustryCategoryScore     = ToNumber(document.ScoreCardForm.TotalIndustryCategoryScore.value);
+   var TotalShareholderCategoryScore  = ToNumber(document.ScoreCardForm.TotalShareholderCategoryScore.value);  
+   var TotalBehavioralCategoryScore   = ToNumber(document.ScoreCardForm.TotalBehavioralCategoryScore.value);
+   var GrandTotalScore = TotalFinancialCategoryScore + TotalManagementCategoryScore+
+                         TotalIndustryCategoryScore  + TotalShareholderCategoryScore+
+					     TotalBehavioralCategoryScore;
+  
+   //Display Grand Totals
+   document.ScoreCardForm.GrandTotalMaxScore.value = GrandTotalMaxScore.toFixed(2);
+   document.ScoreCardForm.GrandTotalScore.value    = GrandTotalScore.toFixed(2);
+   
+}
+
+function round(number,decimalPlaces)
+{
+    var factorOf10 = Math.pow(10,decimalPlaces);
+    var rounded = Math.round(number * factorOf10) / factorOf10;
+    return rounded;
+}
+
+//===========================================================================================================================
+
+// This function ensures that the Score Limit is not negative and above the Max Score
+function ScoreLimit(Score,MaxScore)
+
+{
+   if      (isNaN(Score))      {return MaxScore;} 
+   if      (Score < 0)         {return 0.00;}
+   else if (Score > MaxScore)  {return MaxScore;}  
+   else    {return Score;}   
+
+}
+
+//==========================================================================================================================	
+
+function ToNumber(nStr) 
+{ 
+  if   (typeof(nStr) == "undefined")
+  {    return 0;}
+       else  
+  {
+       if (nStr == "") {return 0};
+       if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+  } 
+}
+
+function ScoreCardForm_ShowZScores()
+{
+   document.ScoreCardForm.ZScore1.value              =  localStorage.ZScore1;
+   document.ScoreCardForm.ZScore2.value              =  localStorage.ZScore2;
+   document.ScoreCardForm.ZScore3.value              =  localStorage.ZScore3;
+   document.ScoreCardForm.ZScoreWeighted.value       =  localStorage.ZScoreWeighted;
+
+   document.ScoreCardForm.ZScorePrime1.value         =  localStorage.ZScorePrime1;
+   document.ScoreCardForm.ZScorePrime2.value         =  localStorage.ZScorePrime2;
+   document.ScoreCardForm.ZScorePrime3.value         =  localStorage.ZScorePrime3;
+   document.ScoreCardForm.ZScorePrimeWeighted.value  =  localStorage.ZScorePrimeWeighted;
+
+ 
+}
+function ScoreCardForm_SetConditionalColors_ZScores()
+{
+ 
+   var ZScoreMax      = 3;
+   var ZScoreMin      = 1.8;
+   var ZScorePrimeMax = 3;
+   var ZScorePrimeMin = 1.8;  
+   
+   //Set Z Scores conditional colors as follows: Green if >= 3, Red of < 1.8 and grey for in between
+   if      ( Number(localStorage.ZScore1) > ZScoreMax  )
+           { document.ScoreCardForm.ZScore1.style.backgroundColor = "green";}
+   else if ( Number(localStorage.ZScore1) < ZScoreMin)
+           { document.ScoreCardForm.ZScore1.style.backgroundColor = "red";}
+   else if ( Number(localStorage.ZScore1) == ZScoreMin && Number(localStorage.ZScore1) < ZScoreMax)
+           { document.ScoreCardForm.ZScore1.style.backgroundColor = "grey";}
+ 
+   if      ( Number(localStorage.ZScore2) > ZScoreMax  )
+           { document.ScoreCardForm.ZScore2.style.backgroundColor = "green";}
+   else if ( Number(localStorage.ZScore2) < ZScoreMin)
+           { document.ScoreCardForm.ZScore2.style.backgroundColor = "red";}
+   else if ( Number(localStorage.ZScore2) == ZScoreMin && Number(localStorage.ZScore2) < ZScoreMax)
+           { document.ScoreCardForm.ZScore2.style.backgroundColor = "grey";}
+
+   if      ( Number(localStorage.ZScore3) > ZScoreMax  )
+           { document.ScoreCardForm.ZScore3.style.backgroundColor = "green";}
+   else if ( Number(localStorage.ZScore3) < ZScoreMin)
+           { document.ScoreCardForm.ZScore3.style.backgroundColor = "red";}
+   else if ( Number(localStorage.ZScore3) == ZScoreMin && Number(localStorage.ZScore3) < ZScoreMax)
+           { document.ScoreCardForm.ZScore3.style.backgroundColor = "grey";}
+     
+
+   if      ( Number(localStorage.ZScoreWeighted) > ZScoreMax  )
+           { document.ScoreCardForm.ZScoreWeighted.style.backgroundColor = "green";}
+   else if ( Number(localStorage.ZScoreWeighted) < ZScoreMin)
+           { document.ScoreCardForm.ZScoreWeighted.style.backgroundColor = "red";}
+   else if ( Number(localStorage.ZScoreWeighted) == ZScoreMin && Number(localStorage.ZScoreWeighted) < ZScoreMax)
+           { document.ScoreCardForm.ZScoreWeighted.style.backgroundColor = "grey";}
+     
+ //Set Z Scores Primes conditional colors as follows: Green if >= 3, Red of < 1.8 and grey for in between
+   if      ( Number(localStorage.ZScorePrime1) > ZScorePrimeMax  )
+           { document.ScoreCardForm.ZScorePrime1.style.backgroundColor = "green";}
+   else if ( Number(localStorage.ZScorePrime1) < ZScorePrimeMin)
+           { document.ScoreCardForm.ZScorePrime1.style.backgroundColor = "red";}
+   else if ( Number(localStorage.ZScorePrime1) == ZScorePrimeMin && Number(localStorage.ZScorePrime1) < ZScorePrimeMax)
+           { document.ScoreCardForm.ZScorePrime1.style.backgroundColor = "grey";}
+ 
+   if      ( Number(localStorage.ZScorePrime2) > ZScorePrimeMax  )
+           { document.ScoreCardForm.ZScorePrime2.style.backgroundColor = "green";}
+   else if ( Number(localStorage.ZScorePrime2) < ZScorePrimeMin)
+           { document.ScoreCardForm.ZScorePrime2.style.backgroundColor = "red";}
+   else if ( Number(localStorage.ZScorePrime2) == ZScorePrimeMin && Number(localStorage.ZScorePrime2) < ZScorePrimeMax)
+           { document.ScoreCardForm.ZScorePrime2.style.backgroundColor = "grey";}
+
+   if      ( Number(localStorage.ZScorePrime3) > ZScorePrimeMax  )
+           { document.ScoreCardForm.ZScorePrime3.style.backgroundColor = "green";}
+   else if ( Number(localStorage.ZScorePrime3) < ZScorePrimeMin)
+           { document.ScoreCardForm.ZScorePrime3.style.backgroundColor = "red";}
+   else if ( Number(localStorage.ZScorePrime3) == ZScorePrimeMin && Number(localStorage.ZScorePrime3) < ZScorePrimeMax)
+           { document.ScoreCardForm.ZScorePrime3.style.backgroundColor = "grey";}
+     
+ 
+   if      ( Number(localStorage.ZScorePrimeWeighted) > ZScorePrimeMax  )
+           { document.ScoreCardForm.ZScorePrimeWeighted.style.backgroundColor = "green";}
+   else if ( Number(localStorage.ZScorePrimeWeighted) < ZScorePrimeMin)
+           { document.ScoreCardForm.ZScorePrimeWeighted.style.backgroundColor = "red";}
+   else if ( Number(localStorage.ZScorePrimeWeighted) == ZScorePrimeMin && Number(localStorage.ZScorePrimeWeighted) < ZScorePrimeMax)
+           { document.ScoreCardForm.ZScorePrimeWeighted.style.backgroundColor = "grey";}
+}
+
+function ScoreCardForm_ECLParams()
+{
+   var Haircut                             = 25;
+   var Haircut_Amount                      = localStorage.open_market_value * Haircut/100;
+   var general_costs_percentage            = 5;
+   var LGD_Amount                          = Number(localStorage.open_market_value) - Haircut_Amount;
+   var LGD_Percentage                      = LGD_Amount/localStorage.loan_amount;
+   var PDgrade1_UpperScore_Inclusive       = Number(localStorage.PDMaxScore1);
+   var PDgrade2_UpperScore_Inclusive       = Number(localStorage.PDMaxScore2);
+   var PDgrade3_UpperScore_Inclusive       = Number(localStorage.PDMaxScore3);
+   var PDgrade4_UpperScore_Inclusive       = Number(localStorage.PDMaxScore4);
+   var PDgrade5_UpperScore_Inclusive       = Number(localStorage.PDMaxScore5);
+   var PDgrade6_UpperScore_Inclusive       = Number(localStorage.PDMaxScore6);
+   var PDgrade7_UpperScore_Inclusive       = Number(localStorage.PDMaxScore7);
+   var PDgrade8_UpperScore_Inclusive       = Number(localStorage.PDMaxScore8);
+   var PDgrade9_UpperScore_Inclusive       = Number(localStorage.PDMinScore8);
+   
+   var installments_3months = round(Number(localStorage.loan_installment * 3),0)
+ 
+   console.log("Loan Installment = "+localStorage.loan_installment);
+   console.log ("LGD Percentage = "+LGD_Percentage);
+   var general_costs        = localStorage.loan_amount * general_costs_percentage/100;
+      
+   var EAD                  = Number(localStorage.loan_amount)+general_costs+installments_3months;
+ 
+   var TotalScore = Number(document.ScoreCardForm.GrandTotalScore.value);
+   if      (TotalScore > PDgrade2_UpperScore_Inclusive) {var PDRiskGroup = 1; var PD = Number(localStorage.PDPercentage1);}
+   else if (TotalScore > PDgrade3_UpperScore_Inclusive) {var PDRiskGroup = 2; var PD = Number(localStorage.PDPercentage2);}
+   else if (TotalScore > PDgrade4_UpperScore_Inclusive) {var PDRiskGroup = 3; var PD = Number(localStorage.PDPercentage3);}
+   else if (TotalScore > PDgrade5_UpperScore_Inclusive) {var PDRiskGroup = 4; var PD = Number(localStorage.PDPercentage4);}
+   else if (TotalScore > PDgrade6_UpperScore_Inclusive) {var PDRiskGroup = 5; var PD = Number(localStorage.PDPercentage5);}
+   else if (TotalScore > PDgrade7_UpperScore_Inclusive) {var PDRiskGroup = 6; var PD = Number(localStorage.PDPercentage6);}
+   else if (TotalScore > PDgrade8_UpperScore_Inclusive) {var PDRiskGroup = 7; var PD = Number(localStorage.PDPercentage7);}
+   else if (TotalScore > PDgrade9_UpperScore_Inclusive) {var PDRiskGroup = 8; var PD = Number(localStorage.PDPercentage8);}
+   else                                                 {var PDRiskGroup = "Unrated"; var PD = 1.000;}
+ 
+   var ECL                  = EAD * PD/100 * LGD_Percentage;
+   //Display the ECL Parameters
+   document.ScoreCardForm.PDScoreRange1.value        = localStorage.PDMinScore1+"-"+localStorage.PDMaxScore1;
+   document.ScoreCardForm.PDScoreRange2.value        = localStorage.PDMinScore2+"-"+localStorage.PDMaxScore2;
+   document.ScoreCardForm.PDScoreRange3.value        = localStorage.PDMinScore3+"-"+localStorage.PDMaxScore3;
+   document.ScoreCardForm.PDScoreRange4.value        = localStorage.PDMinScore4+"-"+localStorage.PDMaxScore4;
+   document.ScoreCardForm.PDScoreRange5.value        = localStorage.PDMinScore5+"-"+localStorage.PDMaxScore5;
+   document.ScoreCardForm.PDScoreRange6.value        = localStorage.PDMinScore6+"-"+localStorage.PDMaxScore6;
+   document.ScoreCardForm.PDScoreRange7.value        = localStorage.PDMinScore7+"-"+localStorage.PDMaxScore7;
+   document.ScoreCardForm.PDScoreRange8.value        = localStorage.PDMinScore8+"-"+localStorage.PDMaxScore8;
+   document.ScoreCardForm.PDScoreRange9.value        = "0-"+localStorage.PDMinScore1;
+  
+   
+   document.ScoreCardForm.PDPercentage1.value        = Number(localStorage.PDPercentage1).toFixed(1)+"%";
+   document.ScoreCardForm.PDPercentage2.value        = Number(localStorage.PDPercentage2).toFixed(1)+"%";
+   document.ScoreCardForm.PDPercentage3.value        = Number(localStorage.PDPercentage3).toFixed(1)+"%";
+   document.ScoreCardForm.PDPercentage4.value        = Number(localStorage.PDPercentage4).toFixed(1)+"%";
+   document.ScoreCardForm.PDPercentage5.value        = Number(localStorage.PDPercentage5).toFixed(1)+"%";
+   document.ScoreCardForm.PDPercentage6.value        = Number(localStorage.PDPercentage6).toFixed(1)+"%";
+   document.ScoreCardForm.PDPercentage7.value        = Number(localStorage.PDPercentage7).toFixed(1)+"%";
+   document.ScoreCardForm.PDPercentage8.value        = Number(localStorage.PDPercentage8).toFixed(1)+"%";
+
+   
+   
+   document.ScoreCardForm.PDRiskGroup.value          = PDRiskGroup;
+   document.ScoreCardForm.PD.value                   = PD.toFixed(1)+"%";
+   document.ScoreCardForm.Haircut.value              = Haircut;
+   document.ScoreCardForm.open_market_value.value    = Thousands_Separators(localStorage.open_market_value);
+   document.ScoreCardForm.LGD.value                  = Thousands_Separators(LGD_Amount);
+   document.ScoreCardForm.loan_amount.value          = Thousands_Separators(Number(localStorage.loan_amount));
+   document.ScoreCardForm.general_costs.value        = Thousands_Separators(general_costs);
+   document.ScoreCardForm.installments_3months.value = Thousands_Separators(installments_3months);
+   document.ScoreCardForm.EADCalc.value              = Thousands_Separators(EAD);
+   document.ScoreCardForm.EAD.value                  = Thousands_Separators(EAD);
+   document.ScoreCardForm.ECL.value                  = Thousands_Separators(round(ECL,0));
+   
+   //% of loan_amount calculations
+   document.ScoreCardForm.omv_to_loan_amount.value   = Number(Number(localStorage.open_market_value)/
+                                                              Number(localStorage.loan_amount)*100).toFixed(2);
+   document.ScoreCardForm.haircut_to_loan_amount.value= Number(Haircut_Amount/+
+                                                        Number(localStorage.loan_amount)*100).toFixed(2);
+   document.ScoreCardForm.lgd_to_loan_amount.value    = Number(LGD_Amount/
+                                                        Number(localStorage.loan_amount)*100).toFixed(2);
+   document.ScoreCardForm.ead_to_loan_amount.value    = Number(EAD/
+                                                        Number(localStorage.loan_amount)*100).toFixed(2);;
+   document.ScoreCardForm.ecl_to_loan_amount.value    = Number(ECL/
+                                                        Number(localStorage.loan_amount)*100).toFixed(2);
+   //% of EAD calculations
+   document.ScoreCardForm.omv_to_ead.value            = Number(Number(localStorage.open_market_value)/
+                                                               EAD*100).toFixed(2);
+   document.ScoreCardForm.haircut_to_ead.value        = Number(Haircut/EAD*100).toFixed(2);
+   document.ScoreCardForm.lgd_to_ead.value            = Number(LGD_Amount/EAD*100).toFixed(2);
+   document.ScoreCardForm.ead_to_ead.value            = 100;
+   document.ScoreCardForm.ecl_to_ead.value            = Number(ECL/EAD*100).toFixed(2);
+
+   document.ScoreCardForm.loan_to_value.value         = localStorage.ltv;
+
+}
+  
+</script>
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="ScoreCardForm"  onsubmit="return validateForm()" method="post" action = "SaveScoreCard.php">>    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" autocomplete = on >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="577" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="577" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 1 bordercolor = 1 cellspacing = 0 cellpadding =0>
+	   
+	 	<tr>
+		     <td colspan = 4	 align = left>Company Size &nbsp;&nbsp;&nbsp;:<input name = "company_size" class = "header" readonly size = 4 style = "font-weight:bold" ></td>		
+			 <td colspan = 6 align = right>Application Ref No  :<input name = "application_ref" class = "header" readonly  >Company Reg No:<input name = "company_reg_no" class = "header" readonly></td>		
+		</tr>
+		<tr>
+		     <td colspan = 4	 align = left>Industrial Sector  :<input name = "industrial_sector" class = "header" readonly size = 40 style = "font-weight:bold" ></td>		
+		     <td colspan = 6 align = right>Loan Number  :<input name = "loan_number" class = "header" readonly>Username______:<input name ="username" class = "header" readonly></td>
+		</tr>
+        <tr><td cellspacing = 0 colspan = 10 align = "center" style="background-color:darkblue;color:white"><h3><p id = "legal_name">GARE VISION (PTY) LTD</p></h3></td></tr>
+	  
+		<tr bgcolor = darkblue>
+	      <th><h5 style="color:white;text-align:left"><br>FINANCIAL ANALYSIS<h5></th>
+		  <th style="color:white">Benchmark<br>Type</th>
+		  <th style="color:white">Policy<br>Benchmark<br>Value</th>
+		  <th style="color:white">Override<br>Benchmark<br>Value</th>
+		  <th style="color:white">Applied<br>Benchmark<br>Value</th>
+		  <th style="color:white">Calculated<br>Value</th>
+		  <th style="color:white">Pass?</th>
+		  <th style="color:white">Maximum<br>Score</th>
+		  <th style="color:white">Score</th>
+		  <th style="color:white" align = left>Comment </th>
+		</tr>
+ 	<tr bgcolor = lightgrey>
+	      <th align = left style = "color:black"><strong>GRAND TOTAL SCORE</strong></th>
+		  <th></th>
+		  <th></th>
+		  <th></th>
+		  <th></th>
+		  <th></th>
+		  <th></th>
+		  <th><input size = 3 name = "GrandTotalMaxScore" readonly style="background-Color:lightgrey;color:black;text-align:right;font-weight:bold"></th>
+		  <th><input size = 3 name = "GrandTotalScore" readonly style="background-Color:lightgrey;color:black;text-align:right;font-weight:bold"></th>
+		  <th style="color:white" align = left><input size = 40></th>
+		</tr>
+       <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Liquidity Ratios<strong></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>		  
+		  <td align = center><input readonly size = 3 name = "TotalLiquidityMaxScore" style = "background-Color:powderblue;font-weight:bold;text-align:right"></td>
+		  <td align = center><input readonly size = 3 name = "TotalLiquidityScore" style = "background-Color:powderblue;font-weight:bold;text-align:right"></td>
+	   </tr>
+	   <tr align = center>
+		  <td align = left>Current Ratio</td>
+		  <td><Input size  = 4 type="text" name="CurrentRatioBenchmarkType"  value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioPolicyBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioAppliedBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="CurrentRatioComment"  style="text-align:right;"></td>
+		</tr>
+		<tr align = center>
+		  <td align = left>Debtor Days</td>
+		  <td><Input size  = 4 type="text" name="DebtorDaysBenchmarkType" value ="Global"    readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysPolicyBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysAppliedBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="DebtorDaysComment"  style="text-align:right;" ></td>
+	    </tr>
+	    <tr align = center>
+		<td align = left>Turnover/Working Capital</td>
+		  <td><Input size  = 4 type="text" name="TurnoverToWCBenchmarkType" value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCPolicyBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCAppliedBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size  = 40 type="text" name="TurnoverToWCComment"  style="text-align:right;"></td>
+		</tr>
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Profitability Ratios<strong></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>		  
+		  <td align = center><input readonly size = 3 name = "TotalProfitabilityMaxScore" style = "background-Color:powderblue;font-weight:bold;text-align:right"></td>
+		  <td align = center><input readonly size = 3 name = "TotalProfitabilityScore" style = "background-Color:powderblue;font-weight:bold;text-align:right"></td>
+	   </tr>
+		<tr align = center>
+	      <td align = left>Gross Profit%</td>
+		  <td><Input size  = 4 type="text" name="GrossProfitMarginBenchmarkType" value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="GrossProfitMarginComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left>Operating Profit Margin</td>
+		  <td><Input size  = 4 type="text" name="OperatingProfitMarginBenchmarkType" value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="OperatingProfitComment"  style="text-align:right;" ></td>
+		</tr>
+	   <tr align = center>
+		  <td align  = left>Turnover Growth%</td>
+		  <td><Input size  = 4 type="text" name="TurnoverGrowthBenchmarkType"  value ="Inflation" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthBenchmarkValue"     style="text-align:right;" readonly>%</td>
+	      <td><Input size  = 3 type="text" name="TurnoverGrowthAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="TurnoverGrowthComment"  style="text-align:right;" ></td>
+		</tr>
+
+	    <tr align = center>
+		  <td align = left>Return On Assets(ROA)</td>
+		  <td><Input size  = 4 type="text" name="ROABenchmarkType" value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROAPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="ROABenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="ROAAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="ROAValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="ROAPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROAMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROAScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="ROAComment"  style="text-align:right;" ></td>
+	    </tr>
+		<tr align = center>	
+		<td align = left>Return On Investments(ROI)</td>
+		  <td><Input size  = 4 type="text" name="ROIBenchmarkType" value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROIPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="ROIBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="ROIAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="ROIValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="ROIPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROIMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROIScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="ROIComment"  style="text-align:right;" ></td>
+		</tr>
+	   	   
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Capital Structure Ratios<strong></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>		  
+		  <td align = center><input readonly size = 3 name = "TotalCapitalStructureMaxScore" style = "background-Color:powderblue;font-weight:bold;text-align:right"></td>
+		  <td align = center><input readonly size = 3 name = "TotalCapitalStructureScore" style = "background-Color:powderblue;font-weight:bold;text-align:right"></td>
+	   </tr>
+		<tr align = center>
+	      <td align = left>Long-term Debt/Equity</td>
+		  <td><Input size  = 4 type="text" name="LongtermDebtToEquityBenchmarkType" value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="LongtermDebtComment"  style="text-align:right;" ></td>
+	   </tr>
+		<tr align = center>
+		  <td align =left >Debt/Tangible Net Worth</td>
+		  <td><Input size  = 4 type="text" name="DebtToTangibleNetWorthBenchmarkType" value ="Industry"  readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="DebtToTangibleNetWorthComment"  style="text-align:right;" ></td>
+		</tr>
+	
+		<tr align = center>
+		  <td align = left>Equity/Total Assets</td>
+		  <td><Input size  = 4 type="text" name="EquityToTotalAssetsBenchmarkType" value ="Industry"  readonly></td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsPass"  style="text-align:center;" readonly></td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsMaxScore"  style="text-align:right;" readonly></td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="EquityToTotalAssetsComment"  style="text-align:right;" ></td>
+		</tr>
+	    <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Debt Service Ratios<strong></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>
+	      <td></td>		  
+		  <td align = center><input readonly size = 3 name = "TotalDebtServiceMaxScore" style = "background-Color:powderblue;font-weight:bold;text-align:right"></td>
+		  <td align = center><input readonly size = 3 name = "TotalDebtServiceScore" style = "background-Color:powderblue;font-weight:bold;text-align:right"></td>
+		</tr>
+	    <tr align = center>
+		  <td align = left>Interest Cover</td>
+		  <td><Input size  = 4 type="text" name="InterestCoverBenchmarkType" value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="InterestCoverPolicyBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverAppliedBenchmarkValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverValue"     style="text-align:right;" readonly>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverPass"  style="text-align:center;" readonly></td>
+		  <td align = center><Input size  = 3 type="text" name="InterestCoverMaxScore"  style="text-align:right;" readonly></td>
+		  <td align = center><Input size  = 3 type="text" name="InterestCoverScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="InterestCoverComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr align = center>
+	      <td align = left>EBITDA/Gross Interest Debts</td>
+		  <td><Input size  = 4 type="text" name="EBITDAToDebtBenchmarkType"  value ="Industry" readonly></td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtPolicyBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtAppliedBenchmarkValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtValue"     style="text-align:right;" readonly>%</td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtPass"  style="text-align:center;" readonly></td>
+		  <td align = center><Input size  = 3 type="text" name="EBITDAToDebtMaxScore"  style="text-align:right;" readonly></td>
+		  <td align = center><Input size  = 3 type="text" name="EBITDAToDebtScore"  style="text-align:right;" readonly></td>
+		  <td align = left><Input size = 40 type="text" name="EBITDAToDebtComment"  style="text-align:right;" ></td>
+	    </tr>
+	    <tr>
+	       <td colspan = 7><strong>TOTAL FINANCIAL CATEGORY</strong></td>
+		   <td align = center><input size = 3 name = "TotalFinancialCategoryMaxScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		   <td align = center><input size = 3 name = "TotalFinancialCategoryScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		</tr>
+		<tr bgcolor = darkblue>
+	      <th colspan = 4><h5 style="color:white;text-align:left"><br>MANAGEMENT ANALYSIS<h5></th>
+		  <th colspan = 3 style="color:white">Rating</th>
+		  <th style="color:white">Maximum<br>Score</th>
+		  <th style="color:white">Score</th>
+		  <th style="color:white" align = left>Comment </th>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Commitment</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "CommitmentRating" style="text-align:center;"></td>
+		  <td><input readonly size = 3 name = "CommitmentMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "CommitmentScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="CommitmentComment"   ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Integrity</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "IntegrityRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "IntegrityMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "IntegrityScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="IntegrityComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>InformationQuality</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "InformationQualityRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "InformationQualityMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "InformationQualityScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="InformationQualityComment" ></td>
+		</tr>
+ 		<tr align = center>
+		  <td align = left colspan = 4><strong>Leadership</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "LeadershipRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "LeadershipMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "LeadershipScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="LeadershipComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4> <strong>Strategy And Business</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "StrategyRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "StrategyMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "StrategyScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="StrategyComment"></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4> <strong>Structure</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "StructureRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "StructureMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "StructureScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="StructureComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4> <strong>Management</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "ManagementRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "ManagementMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "ManagementScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="ManagementComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4> <strong>Succession Planning</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "SuccessionPlanningRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "SuccessionPlanningMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "SuccessionPlanningScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="SuccessionPlanningComment"></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4> <strong>Organisational Planning</strong></td>
+		  <td colspan = 3><input readonly size = 8 name = "OrganisationalPlanningRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "OrganisationalPlanningMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "OrganisationalPlanningScore" style="text-align:right"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="OrganisationalPlanningComment" ></td>
+		</tr>
+	    <tr align = center>
+	      <td align = left colspan = 4><strong>TOTAL MANAGEMENT ANALYSIS CATEGORY</strong></td>
+	      <td colspan = 3><input readonly size = 8 name = "TotalManagementCategoryRating" style="text-align:center"></td>
+	      <td align = center><input readonly size = 3 name = "TotalManagementCategoryMaxScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		  <td align = center><input readonly size = 3 name = "TotalManagementCategoryScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="TotalManagementCategoryComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr bgcolor = darkblue>
+	      <th colspan = 4><h5 style="color:white;text-align:left"><br>INDUSTRY ANALYSIS<h5></th>
+		  <th colspan = 3 style="color:white">Rating</th>
+		  <th style="color:white">Maximum<br>Score</th>
+		  <th style="color:white">Score</th>
+		  <th style="color:white" align = left>Comment </th>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Industry Cyclicality</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "IndustryCyclicalityRating" style="text-align:center;"></td>
+		  <td><input readonly size = 3 name = "IndustryCyclicalityMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "IndustryCyclicalityScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="IndustryCyclicalityComment"   ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Industry Performance</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "IndustryPerformanceRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "IndustryPerformanceMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "IndustryPerformanceScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="IndustryPerformanceComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Porter's Five Forces Analysis</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "PortersRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "PortersMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "PortersScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="PortersComment" ></td>
+		</tr>
+ 	    <tr align = center>
+	      <td align = left colspan = 4><strong>TOTAL INDUSTRY ANALYSIS CATEGORY</strong></td>
+	      <td colspan = 3><input readonly size = 25 name = "TotalIndustryCategoryRating" style="text-align:center"></td>
+	      <td align = center><input readonly size = 3 name = "TotalIndustryCategoryMaxScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		  <td align = center><input readonly size = 3 name = "TotalIndustryCategoryScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="TotalIndustryCategoryComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr bgcolor = darkblue>
+	      <th colspan = 10><h5 style="color:white;text-align:left"><br>SHAREHOLDER ANALYSIS<h5></th>
+		</tr> 
+		<tr align = center bgcolor = powderblue>
+		  <th align = left>Charecteristic</th>
+		  <th>Share-<br>holder 1</th>
+		  <th>Share-<br>holder 2</th>
+		  <th>Share-<br>holder 3</th>
+		  <th>Share-<br>holder 4</th>
+		  <th>Share-<br>holder 5</th>
+		  <th>Average<br>Score</th>
+		  <th>Maximum<br>Score</th>
+		  <th>Score</th>
+		  <th>Comment </th>
+		</tr>
+		<tr align = center>
+	      <td align = left>No Of Paid Debts Defaults</td>
+	      <td><input readonly size = 3 name = "ShareholderPaidDebts1" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderPaidDebts2" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderPaidDebts3" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderPaidDebts4" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderPaidDebts5" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderPaidDebtsAverage" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderPaidDebtsMaxScore" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderPaidDebtsScore" style="text-align:right"></td>
+          <td align = left><Input readonly size = 40 type="text" name="ShareholderPaidDebtsComment"  style="text-align:right;" ></td> 
+  		</tr> 
+ 		<tr align = center>
+		  <td align = left>No Of Defaults</td>
+          <td><input readonly size = 3 name = "ShareholderDefaults1" style="text-align:right"></td>
+          <td><input readonly size = 3 name = "ShareholderDefaults2" style="text-align:right"></td>
+          <td><input readonly size = 3 name = "ShareholderDefaults3" style="text-align:right"></td>
+          <td><input readonly size = 3 name = "ShareholderDefaults4" style="text-align:right"></td>
+          <td><input readonly size = 3 name = "ShareholderDefaults5" style="text-align:right"></td>
+          <td><input readonly size = 3 name = "ShareholderDefaultsAverage" style="text-align:right"></td>
+          <td><input readonly size = 3 name = "ShareholderDefaultsMaxScore" style="text-align:right"></td>
+          <td><input readonly size = 3 name = "ShareholderDefaultsScore" style="text-align:right"></td>
+          <td align = left><Input readonly size = 40 type="text" name="ShareholderDefaultsComment"  style="text-align:right;" ></td> 
+ 		</tr>  
+		<tr align = center>
+		  <td align = left>No Of Judgements</td>
+	      <td><input readonly size = 3 name = "ShareholderJudgements1" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderJudgements2" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderJudgements3" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderJudgements4" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderJudgements5" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderJudgementsAverage" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderJudgementsMaxScore" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderJudgementsScore" style="text-align:right"></td>
+          <td align = left><Input readonly size = 40 type="text" name="ShareholderJudgementsComment"  style="text-align:right;" ></td> 
+ 		</tr> 
+ 		<tr align = center>
+		 <td align = left>No Of Trace Alerts</td>
+         <td><input readonly size = 3 name = "ShareholderTraceAlerts1" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "ShareholderTraceAlerts2" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "ShareholderTraceAlerts3" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "ShareholderTraceAlerts4" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "ShareholderTraceAlerts5" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "ShareholderTraceAlertsAverage" style="text-align:right"></td>
+        <td><input readonly size = 3 name = "ShareholderTraceAlertsMaxScore" style="text-align:right"></td>
+        <td><input readonly size = 3 name = "ShareholderTraceAlertsScore" style="text-align:right"></td>
+        <td align = left><Input readonly size = 40 type="text" name="ShareholderTraceAlertsComment"  style="text-align:right;" ></td> 
+ 		</tr> 
+ 		<tr align = center>
+		  <td align = left>Black-listed?</td>
+	      <td><input readonly size = 3 name = "ShareholderBlacklisted1" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderBlacklisted2" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderBlacklisted3" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderBlacklisted4" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderBlacklisted5" style="text-align:right"></td>
+	      <td></td>
+		  <td></td><td></td>
+          <td align = left><Input readonly size = 40 type="text" name="ShareholderBlacklistedComment"  style="text-align:left;" ></td> 
+ 		</tr> 
+		<tr align = center>
+		  <td align = left>Fraud-alert?</td>
+	      <td><input readonly size = 3 name = "ShareholderFraudAlert1" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderFraudAlert2" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderFraudAlert3" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderFraudAlert4" style="text-align:right"></td>
+	      <td><input readonly size = 3 name = "ShareholderFraudAlert5" style="text-align:right"></td>
+	      <td></td>
+		  <td></td><td></td>
+          <td align = left><Input readonly size = 40 type="text" name="ShareholderFraudAlertComment"  style="text-align:left;" ></td> 
+ 		</tr> 
+		<tr align = center>
+		 <td align = left><strong>Total-Score</strong></td>
+         <td><input readonly size = 3 name = "TotalScoreShareholder1" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "TotalScoreShareholder2" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "TotalScoreShareholder3" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "TotalScoreShareholder4" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "TotalScoreShareholder5" style="text-align:right"></td>
+         <td><input readonly size = 3 name = "TotalScoreShareholderAverage" style="text-align:right"></td>
+		 <td></td><td></td>
+         <td align = left><Input readonly size = 40 type="text" name="TotalScoreShareholderComment"  style="text-align:right;" ></td> 
+		</tr> 
+  	  <td align = left colspan = 7><strong>TOTAL SHAREHOLDER ANALYSIS CATEGORY</strong></td>
+	      <td align = center><input readonly size = 3 name = "TotalShareholderCategoryMaxScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		  <td align = center><input readonly size = 3 name = "TotalShareholderCategoryScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="TotalShareholderCategoryComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr bgcolor = darkblue>
+	      <th colspan = 4><h5 style="color:white;text-align:left"><br>BEHAVIORAL AND PRODUCT ANALYSIS<h5></th>
+		  <th colspan = 3 style="color:white">Rating</th>
+		  <th style="color:white">Maximum<br>Score</th>
+		  <th style="color:white">Score</th>
+		  <th style="color:white" align = left>Comment </th>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Loan Rate Type Requested</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "rate_typeRating" style="text-align:center;"></td>
+		  <td><input readonly size = 3 name = "rate_typeMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "rate_typeScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="rate_typeComment"   ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Loan Maturity Requested</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "loan_maturityRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "loan_maturityMaxScore" style="text-align:right;"></td>
+		  <td><input readonly size = 3 name = "loan_maturityScore" style="text-align:right;"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="loan_maturityComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Years Of BBS Banking Relationship</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "relationshipRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "relationshipMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "relationshipScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="relationshipComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>No of BBS Banking Products</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "total_bbs_productsRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "total_bbs_productsMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "total_bbs_productsScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="total_bbs_productsComment" ></td>
+		</tr>
+ 		<tr align = center>
+		  <td align = left colspan = 4><strong>No of Arrear Incidents (last 12 months)</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "loan_arrearsRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "loan_arrearsMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "loan_arrearsScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="loan_arrearsComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>Renegotiated Arrear Loans (last 24 months)</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "renegotiateRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "renegotiateMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "renegotiateScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="renegotiateComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>ITC (Paid Debt)</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "paid_debtsRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "paid_debtsMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "paid_debtsScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="paid_debtsComment" ></td>
+		</tr>
+ 			<tr align = center>
+		  <td align = left colspan = 4><strong>ITC No Of Judgements</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "judgementRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "judgementMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "judgementScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="judgementComment" ></td>
+		</tr>
+ 		<tr align = center>
+		  <td align = left colspan = 4><strong>ITC No Of Defaults</strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "default_dataRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "default_dataMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "default_dataScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="default_dataComment" ></td>
+		</tr>
+		<tr align = center>
+		  <td align = left colspan = 4><strong>ITC No Of Trace Alerts </strong></td>
+		  <td colspan = 3><input readonly size = 25 name = "trace_alertsRating" style="text-align:center"></td>
+		  <td><input readonly size = 3 name = "trace_alertsMaxScore" style="text-align:right"></td>
+		  <td><input readonly size = 3 name = "trace_alertsScore" style="text-align:right;="></td>
+		  <td align = left><Input readonly size = 40 type="text" name="trace_alertsComment" ></td>
+		</tr>
+     	<tr align = center>
+	      <td align = left colspan = 4><strong>TOTAL BEHAVIORAL & PRODUCT ANALYSIS CATEGORY</strong></td>
+	      <td colspan = 3><input readonly size = 25 name = "TotalBehavioralCategoryRating" style="text-align:center"></td>
+	      <td align = center><input readonly size = 3 name = "TotalBehavioralCategoryMaxScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		  <td align = center><input readonly size = 3 name = "TotalBehavioralCategoryScore" style = "color:black;background-Color:lightgrey;text-align:right;font-weight:bold"></td>
+		  <td align = left><Input readonly size = 40 type="text" name="TotalBehavioralCategoryComment"  style="text-align:right;" ></td>
+		</tr>
+		<tr bgcolor = darkblue>
+	      <th colspan = 5><h5 style="color:white;text-align:left"><br>BANKRUPCY PREDICTION - Z SCORES<h5></th>
+		  <th style="color:white">ZScore1</th>
+		  <th style="color:white">ZScore2</th>
+		  <th style="color:white">ZScore3</th>
+		  <th style="color:white">ZScore<br>Weighted</th>
+		  <th style="color:white" align = left>Comment </th>
+		</tr>
+		
+		<tr align = center>
+		  <td align = left colspan = 5><strong>Z Score </strong></td>
+		  <td><input readonly size = 4 name = "ZScore1"         style="text-align:center"></td>
+		  <td><input readonly size = 4 name = "ZScore2"         style="text-align:center"></td>
+		  <td><input readonly size = 4 name = "ZScore3"         style="text-align:center"></td>
+		  <td><input readonly size = 4 name = "ZScoreWeighted"  style="text-align:center"></td>
+	      <td align = left><Input readonly size = 40 type="text" name="ZScoreComment" ></td>
+		</tr>
+		
+		<tr align = center>
+		  <td align = left colspan = 5><strong>Z Score Prime </strong></td>
+		  <td><input readonly size = 4 name = "ZScorePrime1"        style="text-align:center"></td>
+		  <td><input readonly size = 4 name = "ZScorePrime2"        style="text-align:center"></td>
+		  <td><input readonly size = 4 name = "ZScorePrime3"        style="text-align:center"></td>
+		  <td><input readonly size = 4 name = "ZScorePrimeWeighted" style="text-align:center"></td>
+	      <td align = left><Input readonly size = 40 type="text" name="ZScorePrimeComment" ></td>
+		</tr>
+		<tr bgcolor = darkblue>
+	      <th colspan = 10><h4 style="color:white;text-align:left"><br>EXPECTED LOSS CALCULATION<h4></th>
+		</tr>
+	    <tr bgcolor = darkblue>
+	      <th style="color:white">Score Range</th>
+		  <th style="color:white">PD<BR>Risk<br>Class</th>
+		  <th style="color:white">PD</th>
+		  <th style="color:white">Open<br>Market<br>Value</th>
+		  <th style="color:white">Haircut</th>
+		  <th style="color:white">LGD</th>
+	      <th colspan = 2 style="color:white">EAD</th>
+		  <th style="color:white">Expected<br>Loss<br>Computation</th>
+		  <th style="color:white" align = left>Workings - EAD Calculation </th>
+		</tr>
+	    <tr align = center>
+	      <td><input name = "PDScoreRange1" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">1</td>
+	      <td><input name = "PDPercentage1" readonly Size = 7 style="color:black;text-align:center"></td>
+	    </tr>
+	    <tr align = center>
+	      <td><input name = "PDScoreRange2" readonly type = "text" Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">2</td>
+	      <td><input name = "PDPercentage2" readonly Size = 7 style="color:black;text-align:center"></td>
+	    </tr>
+        <tr align = center>
+	      <td><input name = "PDScoreRange3" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">3</td>
+	      <td><input name = "PDPercentage3" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td colspan = 6></td>	
+		  <td>&nbsp;&nbsp;&nbsp;Loan Amount &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:
+		        <input name = "loan_amount" size = 12 
+			           style = "text-align:right;background-Color:lightblue">
+		</tr>
+	    <tr align = center>
+	      <td><input name = "PDScoreRange4" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">4</td>
+	      <td><input name = "PDPercentage4" readonly Size = 7 style="color:black;text-align:center"></td>
+	    </tr>
+        <tr align = center>
+	      <td><input name = "PDScoreRange5" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">5</td>
+	      <td><input name = "PDPercentage5" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td colspan = 6></td>	
+		  <td><strong>+</strong> General Costs @5%&nbsp;&nbsp;&nbsp;:
+		        <input name = "general_costs" size = 12 
+		    	       style = "text-align:right;background-Color:lightblue">
+		</tr>
+        <tr align = center>
+	      <td><input name = "PDScoreRange6" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">6</td>
+	      <td><input name = "PDPercentage6" readonly Size = 7 style="color:black;text-align:center"></td>
+        </tr>
+		<tr align = center>
+	      <td><input name = "PDScoreRange7" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">7</td>
+	      <td><input name = "PDPercentage7" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td colspan = 6></td>	
+		  <td><strong>+</strong>  3 Months Installments:
+		      <input name = "installments_3months" size = 12 
+			         style = "text-align:right;background-Color:lightblue">
+		  </td>
+		</tr>
+        <tr align = center>
+	      <td><input name = "PDScoreRange8" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">8</td>
+	      <td><input name = "PDPercentage8" readonly Size = 7 style="color:black;text-align:center"></td>
+		</tr>
+       <tr align = center>
+	      <td><input name = "PDScoreRange9" readonly Size = 7 style="color:black;text-align:center"></td>
+		  <td style="color:black;text-align:center">Unrated</td>
+		  <td style="color:black;text-align:center">Reject</td>
+		  <td colspan = 6></td>	
+		  <td><strong>= Estimated EAD&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</strong>
+		      <input name = "EADCalc" size =12 
+			         style = "text-align:right;background-Color:lightblue">
+		  </td>
+		</tr>
+	    <tr bgcolor = lightblue align = center>
+	      <th style="color:black">Customer Calculation</th>
+		  <th style="color:black"><input name = "PDRiskGroup" Size = 7 style = "text-align:center;background-Color:lightblue"></th>
+		  <th style="color:black"><input name = "PD" size = 7 style = "text-align:center;background-Color:lightblue"></th>
+		  <th style="color:black"><input name = "open_market_value" size = 10 style = "text-align:right;background-Color:lightblue">&nbsp;&nbsp;&nbsp;&nbsp;</th>
+		  <th style="color:black"><input name = "Haircut" size = 4 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th style="color:black"><input name = "LGD" size = 7 style = "text-align:right;background-Color:lightblue">&nbsp;&nbsp;&nbsp;&nbsp;</th>
+		  <th colspan = 2 style="color:black"><input name = "EAD" size = 15 style = "text-align:right;background-Color:lightblue">&nbsp;&nbsp;&nbsp;&nbsp;</th>
+		  <th style="color:black"><input name = "ECL" size = 10 
+		                                 style = "text-align:right;font-weight:bold;
+										          background-Color:lightblue">&nbsp;&nbsp;&nbsp;&nbsp;</th>
+		</tr>
+	    <tr bgcolor = lightblue align = right>
+	      <th style="color:black">% of Loan Amount</th>
+		  <th></th>
+		  <th></th>
+		  <th style="color:black"><input name = "omv_to_loan_amount" size = 10 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th style="color:black"><input name = "haircut_to_loan_amount" size = 4 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th style="color:black"><input name = "lgd_to_loan_amount" size = 7 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th colspan = 2 style="color:black"><input name = "ead_to_loan_amount" size = 15 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th style="color:black"><input name = "ecl_to_loan_amount" size = 10 
+		                                 style = "text-align:right;font-weight:bold;
+										          background-Color:lightblue">%</th>
+		  <td bgcolor = lightgrey><strong>Loan to Value %&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</strong>
+		      <input name = "loan_to_value" size =12 
+			         style = "text-align:right;background-Color:lightblue"><td>
+		</tr>
+	    <tr bgcolor = lightblue align = right>
+	      <th style="color:black">% of EAD</th>
+		  <th></th>
+		  <th></th>
+		  <th style="color:black"><input name = "omv_to_ead" size = 10 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th style="color:black"><input name = "haircut_to_ead" size = 4 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th style="color:black"><input name = "lgd_to_ead" size = 7 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th colspan = 2 style="color:black"><input name = "ead_to_ead" size = 15 style = "text-align:right;background-Color:lightblue">%</th>
+		  <th style="color:black"><input name = "ecl_to_ead" size = 10 
+		                                 style = "text-align:right;font-weight:bold;
+										          background-Color:lightblue">%</th>
+		</tr>
+					
+  		<tr> 
+          <td colspan = 10 align = center>		
+		     <br>
+		     <input class = "btn2" readonly type = "submit" value = "Return to Add Menu" onclick = "form.action = 'CorporateAddMenu.php'">
+		     <input class = "btn"  readonly type = "submit" value = "Submit For Approval">
+		     <br>
+		  </td>
+	        
+		  </td>
+		</tr>
+ 
+  </table>
+  	 
+	 </Form>
+</body>
+
+</html>

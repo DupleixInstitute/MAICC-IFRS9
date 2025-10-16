@@ -1,0 +1,35 @@
+<VirtualHost surgery.local:80>
+    DocumentRoot "C:\xampp\htdocs\surgerymanager\public"
+    ServerName surgery.local
+    <Directory "C:\xampp\htdocs\surgerymanager\public">
+    Require all granted
+    AllowOverride ALL
+    </Directory>
+    </VirtualHost>
+
+ <VirtualHost surgery.local:443>
+     DocumentRoot "C:\xampp\htdocs\surgerymanager\public"
+     ServerName surgery.local
+     <Directory "C:\xampp\htdocs\surgerymanager\public">
+    Require all granted
+    AllowOverride ALL
+    </Directory>
+
+     SSLEngine on
+     SSLCertificateFile "ssl\surgery.local\server.crt"
+     SSLCertificateKeyFile "ssl\surgery.local\server.key"
+     RewriteEngine On
+
+     RewriteRule /app/          ws://127.0.0.1:6001/$1 [P,L]
+
+     ProxyRequests off
+     ProxyPreserveHost On
+     SSLProxyEngine on
+
+     <Proxy *>
+         Require all granted
+     </Proxy>
+
+     ProxyPass        /app/ http://127.0.0.1:6001
+     ProxyPassReverse /app/ http://127.0.0.1:6001
+ </VirtualHost>

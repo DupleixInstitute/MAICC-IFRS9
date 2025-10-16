@@ -1,0 +1,5 @@
+*
+!public/
+!keys/
+!.gitignore
+!icd10cm_tabular_2021.xml

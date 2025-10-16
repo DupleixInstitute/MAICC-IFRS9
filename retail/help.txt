@@ -1,0 +1,9 @@
+<SCRIPT LANGUAGE="JavaScript"> 
+<!-- 
+function updatebanking() { 
+var i = document.addnewprod.banking_opt.selectedIndex; 
+var strBanking = document.addnewprod.banking_opt.options.text; 
+document.addnewprod.banking.value = strBanking; 
+} 
+//--> 
+</SCRIPT> 

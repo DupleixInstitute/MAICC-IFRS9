@@ -1,0 +1,293 @@
+s<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Non Current Liabilities</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   <script type="text/javascript" src="Dupleix.js"></script>
+  
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+				document.getElementById("legal_name").innerHTML = localStorage.legal_name + " " + localStorage.customer_type;
+			    document.NonCurrentLiabilitiesForm.application_ref.value = localStorage.application_ref;
+				document.NonCurrentLiabilitiesForm.company_reg_no.value = localStorage.company_reg_no;
+				document.NonCurrentLiabilitiesForm.username.value = localStorage.username;
+
+				document.NonCurrentLiabilitiesForm.financial_year0.value = localStorage.financial_year0;
+				document.NonCurrentLiabilitiesForm.financial_year1.value = localStorage.financial_year1;
+				document.NonCurrentLiabilitiesForm.financial_year2.value = localStorage.financial_year2;
+				document.NonCurrentLiabilitiesForm.financial_year3.value = localStorage.financial_year3;
+				
+
+                //Load Data into the form
+				NonCurrentLiabilitiesForm_LoadData();
+				
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	    
+
+
+   </script 
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="NonCurrentLiabilitiesForm" action="SaveNonCurrentLiabilitiesData.php" onsubmit="return validateForm()" method="post">   
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="520" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="520" height="208"/></td>
+	   </tr>
+	   <table align = "center">
+	   
+	  <tr>
+	      <td cellspacing = 0 rowspan = 2"><strong><p id = "legal_name">COMPANY NAME</p></strong></td>
+	      <td align = center>Application Ref No</td>
+	      <td align = center>Company Reg No</td>
+		  <td align = center>Username</td>
+	  </tr>
+      <tr>
+	     <td><input style="background-color:powderblue;text-align:center" name = "application_ref" readonly></td>
+         <td><input style="background-color:powderblue;text-align:center" name = "company_reg_no" readonly></td>
+         <td><input style="background-color:powderblue;text-align:center" name = "username" readonly></td>
+	  </tr>
+	  
+	   <tr bgcolor = darkblue>
+	      <th></th>
+		  <th Width = 20 style="color:white">Year 0</th>
+		  <th Width = 20 style="color:white">Year 1</th>
+		  <th Width = 20 style="color:white">Year 2</th>
+		  <th Width = 20 style="color:white">Year 3</th>
+		</tr>
+		<tr bgcolor = darkblue>
+          <th style="background-color:darkblue;color:white;text-align:left"><strong>NON CURRENT LIABILITIES AS AT<strong></th>
+		  <th><input readonly type = text size = 15 style="background-color:darkblue;color:white;text-align:center;font-weight:bold;font-size:16px" name = "financial_year0"></th>
+	      <th><input readonly type = text size = 15 style="background-color:darkblue;color:white;text-align:center;font-weight:bold;font-size:16px" name = "financial_year1"></th>
+	      <th><input readonly type = text size = 15 style="background-color:darkblue;color:white;text-align:center;font-weight:bold;font-size:16px" name = "financial_year2"></th>
+	      <th><input readonly type = text size = 15 style="background-color:darkblue;color:white;text-align:center;font-weight:bold;font-size:16px" name = "financial_year3"></th>
+		</tr>
+		<tr bgcolor = darkblue>
+		  <th></th>
+		  <th Width = 20 style="color:white" id = "currency">BWP</th>
+		  <th Width = 20 style="color:white" id = "currency">BWP</th>
+		  <th Width = 20 style="color:white" id = "currency">BWP</th>
+		  <th Width = 20 style="color:white" id = "currency">BWP</th>
+		</tr>
+		
+		<!-- Non-inter company -->
+        <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Long-term Borrowings : Non-Inter Company  :<strong></td>
+		  <td><Input type="text" name = "LongTermBorrowingsNonInterCompanyTotalYear0" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "LongTermBorrowingsNonInterCompanyTotalYear1" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "LongTermBorrowingsNonInterCompanyTotalYear2" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "LongTermBorrowingsNonInterCompanyTotalYear3" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	   </tr>
+		<tr>
+		  <td>Mortgage Loans</td>
+		  <td><Input type="text" name="MortgageLoansYear0" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="MortgageLoansYear1" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="MortgageLoansYear2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="MortgageLoansYear3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	    </tr>
+		<tr>
+		  <td>Term Loans</td>
+		  <td><Input type="text" name="TermLoansYear0" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="TermLoansYear1" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="TermLoansYear2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="TermLoansYear3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	    </tr>
+		<tr>
+		  <td>Bonds</td>
+		  <td><Input type="text" name="BondsYear0" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="BondsYear1" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="BondsYear2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="BondsYear3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	    </tr>
+		<tr>
+		  <td>Finance Lease and Instalment Sale Agreements</td>
+		  <td><Input type="text" name="FinanceLeasesYear0" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="FinanceLeasesYear1" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="FinanceLeasesYear2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="FinanceLeasesYear3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	    </tr>
+	    <tr>
+		  <td>Other Long-term Borrowings</td>
+		  <td><Input type="text" name="OtherLongTermBorrowingsYear0" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="OtherLongTermBorrowingsYear1" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="OtherLongTermBorrowingsYear2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="OtherLongTermBorrowingsYear3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	    
+		<!-- long-term Borrowings Inter-company -->
+		
+		</tr>	
+		    <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Long-term Borrowings : Inter-Company  :<strong></td>
+		  <td><Input type="text" name = "LongTermBorrowingsInterCompanyTotalYear0" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "LongTermBorrowingsInterCompanyTotalYear1" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "LongTermBorrowingsInterCompanyTotalYear2" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "LongTermBorrowingsInterCompanyTotalYear3" class="price" style="text-align:right;background-color:lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	   </tr>
+		
+		<tr>
+		  <td>Shareholders and Directors Loans</td>
+		  <td><Input type="text" name="ShareholdersLoansYear0" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="ShareholdersLoansYear1" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="ShareholdersLoansYear2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="ShareholdersLoansYear3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	    </tr>
+	
+        <tr>
+		  <td>Inter-company Loans:</td>
+		  <td><Input type="text" name = "InterCompanyLoansTotalYear0" class="price" style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "InterCompanyLoansTotalYear1" class="price" style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "InterCompanyLoansTotalYear2" class="price" style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "InterCompanyLoansTotalYear3" class="price" style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	   </tr>
+	   <tr>
+		  <td><input type=text name = "InterCompanyLoansDescLine1" Size = 35 Placeholder = "Enter line description 1"></td>
+		  <td><Input type=text name = "InterCompanyLoansLine1Year0" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "InterCompanyLoansLine1Year1" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "InterCompanyLoansLine1Year2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "InterCompanyLoansLine1Year3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		</tr>
+		<tr>
+		  <td><input type=text name = "InterCompanyLoansDescLine2" Size = 35 Placeholder = "Enter line description 2"></td>
+		  <td><Input type=text name = "InterCompanyLoansLine2Year0" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "InterCompanyLoansLine2Year1" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "InterCompanyLoansLine2Year2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "InterCompanyLoansLine2Year3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		</tr>
+		<tr>
+		  <td><input type=text name = "InterCompanyLoansDescLine3" Size = 35 Placeholder = "Enter line description 3"></td>
+		  <td><Input type=text name = "InterCompanyLoansLine3Year0" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "InterCompanyLoansLine3Year1" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "InterCompanyLoansLine3Year2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "InterCompanyLoansLine3Year3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		</tr>
+		
+		<!-- Retained Profits Account -->
+		<tr style ="background-color:blue;color:white" >
+		  <td><strong>Total Long-term Borrowings:<strong></td>
+		  <td><Input type="text" name = "TotalLongTermBorrowingsYear0" class="price" style="text-align:right;background-color:blue;color:white" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "TotalLongTermBorrowingsYear1" class="price" style="text-align:right;background-color:blue;color:white" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "TotalLongTermBorrowingsYear2" class="price" style="text-align:right;background-color:blue;color:white" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "TotalLongTermBorrowingsYear3" class="price" style="text-align:right;background-color:blue;color:white" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	   </tr>
+       <tr>
+		  <td><strong>Total Other Non-Current Liabilities:<strong></td>
+		  <td><Input type="text" name = "OtherNonCurrentLiabilitiesGrandTotalYear0" class="price" style="text-align:right;background-color:Lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentLiabilitiesGrandTotalYear1" class="price" style="text-align:right;background-color:Lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentLiabilitiesGrandTotalYear2" class="price" style="text-align:right;background-color:Lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentLiabilitiesGrandTotalYear3" class="price" style="text-align:right;background-color:Lightblue;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	   </tr>	   
+	   <tr>
+		  <td>Deferred Tax Balance</td>
+		  <td><Input type="text" name="DeferredTaxBalanceYear0" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="DeferredTaxBalanceYear1" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="DeferredTaxBalanceYear2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="DeferredTaxBalanceYear3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	   </tr>
+	   <tr>
+		  <td>Provisions</td>
+		  <td><Input type="text" name="ProvisionsYear0" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="ProvisionsYear1" class="price" style="text-align:right;" onblur="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="ProvisionsYear2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name="ProvisionsYear3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	    </tr>
+		 <tr>
+		  <td>Other Non-Current Liabilities:</td>
+		  <td><Input type="text" name = "OtherNonCurrentLiabilitiesTotalYear0" class="price" style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentLiabilitiesTotalYear1" class="price" style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentLiabilitiesTotalYear2" class="price" style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type="text" name = "OtherNonCurrentLiabilitiesTotalYear3" class="price" style="text-align:right;background-color:Lightgrey;color:black" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+	   </tr>
+		<tr>
+		  <td><input type=text name = "OtherNonCurrentLiabilitiesDescLine1" Size = 35 Placeholder = "Enter line description 1"></td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine1Year0" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine1Year1" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine1Year2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine1Year3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		</tr>
+		<tr>
+		 <td><input type=text name = "OtherNonCurrentLiabilitiesDescLine2" Size = 35 Placeholder = "Enter line description 2"></td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine2Year0" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine2Year1" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine2Year2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine2Year3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		</tr>
+		<tr>
+		 <td><input type=text name = "OtherNonCurrentLiabilitiesDescLine3" Size = 35 Placeholder = "Enter line description 3"></td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine3Year0" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine3Year1" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"</td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine3Year2" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "OtherNonCurrentLiabilitiesLine3Year3" class="price" style="text-align:right;" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		</tr>
+	  
+	  <tr style ="background-color:blue;">
+		  <td style="color:white"> <strong>Total Non-Current Liabilities<strong></td>
+		  <td><Input type=text name = "TotalNonCurrentLiabilitiesYear0" class="price" style="text-align:right;background-color:blue;color:white" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "TotalNonCurrentLiabilitiesYear1" class="price" style="text-align:right;background-color:blue;color:white" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "TotalNonCurrentLiabilitiesYear2" class="price" style="text-align:right;background-color:blue;color:white" onchange="NonCurrentLiabilitiesForm_Recalculate()"></td>
+		  <td><Input type=text name = "TotalNonCurrentLiabilitiesYear3" class="price" style="text-align:right;background-color:blue;color:white" onchange="NonCurrentLiabilitiesForm_Recalculate()" ></td>
+	   </tr> 
+	  
+	      <td></td>
+		  <td><Input type = Submit value = "Save/Submit" onclick="NonCurrentLiabilitiesForm_SaveData()"></td><td><Button type = "button" value onclick ="ResetFormValues()">Clear Form</Button></td>
+	    </table>
+   </table>
+   <script>
+	 
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+    </script>
+   </Form>
+</body>
+
+</html>

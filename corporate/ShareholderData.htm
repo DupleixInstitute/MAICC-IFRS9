@@ -1,0 +1,506 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:Shareholder Analysis Input</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   <script type="text/javascript" src="Dupleix.js"></script>
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+				
+				//InitialiseShareholderAnalysisForm();
+				LoadShareholderAnalysisForm();
+				ShareholderAnalysisRecalculate();
+				// Set up the number formatting.
+				
+				//$( "#dialog" ).dialog();
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	    
+		//<!-- Convert number input into a thousand seperator -->
+
+function ShowHelp()
+{
+  alert ("Please enter the details for the top 5 shareholders in order of shareholding. The gender is set to Female by default and the ITC ratings in all categories to 0 unless changed. Leave the respective shareholder name blank when the shareholders are less than 5");
+}
+		
+		function ToNumber(nStr) 
+		{
+	      //alert (IsNan(nStr));
+		  if (nStr == "") {return 0};
+		  if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+	    }  
+   </script 
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="ShareholderForm" id="ShareholderForm" action="SaveShareholderAnalysisData.php" onsubmit="return validateForm()" onclick = "ShareholderAnalysisRecalculate()" method="post">>    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="547" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="547" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 0 width = 1100>
+	   
+ 	 	<tr><td colspan = 2><input type = "button" id = "dialog" name = "Help" onclick = "ShowHelp()" value ="Help"></td>
+		    <td colspan = 11 align = right>Application Ref No  :<input name = "application_ref" class = "header" readonly  >Company Reg No:<input name = "company_reg_no" class = "header" readonly></td>		
+		</tr>
+		<tr><td colspan = 13 align = right>Loan Number  :<input name = "loan_number" class = "header" readonly>Username______:<input name ="username" class = "header" readonly></td></tr>
+       <tr><td cellspacing = 0 colspan = 13 align = "center" style="background-color:darkblue;color:white"><h3><p id = "legal_name">GARE VISION (PTY) LTD</p></h3></td></tr>
+ 	   
+		<tr bgcolor = darkblue style = "vertical-align:center">
+	      <td colspan = 13 ><h2 style="color:white;text-align:Center">SHAREHOLDER DATA</h2></td>
+	    </tr>
+		
+		<tr bgcolor = darkblue align = center style = "vertical-align:bottom">
+		  <td align = left style="color:white;width:26%">Full Names</td>
+		  <td align = left style="color:white;width:7%">Date of Birth</td>
+		  <td align = left style="color:white;width:5%">Gender</td>
+		  <td style="color:white;width:3%">Age</td>
+		  <td style="color:white;width:5%">% Shares</td>
+	      <td align = left style="color:white;width:20%">ITC Ref No</td>
+		  <td align = left style="color:white;width:7%">ITC Date</td>
+		  <td style="color:white;width:5%">No of Paid Debts > Defauts</td>
+		  <td style="color:white;width:5%">No of Defaults</td>
+		  <td style="color:white;width:5%">No of Judge-ments</td>
+		  <td style="color:white;width:5%">No of Trace Alerts</td>
+		  <td style="color:white;width:5%">Black-listed?</td>
+		  <td style="color:white;width:5%">Fraud-alert?</td>
+		  <!--<td align = right style="color:white;width:5%">Total Score</td>-->
+
+		</tr>
+		<tr>
+		    <td><input size = 32 name = "ShareholderName1" type = text id = 1 placeholder = "1st Highest shareholding"></td>
+			<td><input name = "ShareholderDate1" size = 2 type = date id = 2></td>
+			<td> <select required name = "ShareholderGender1" id = 3>
+				    <option selected value = "Female">Female</option>
+					<option value = "Male">Male</option>
+				 </select>
+			 </td>
+			<td><input name = "ShareholderAge1" type = text size = 1 id = 4></td>
+
+	        <td><input name = "ShareholderPercentageShares1" type = text size = 1 id = 5></td>
+			<td><input name = "ShareholderITCRef1" type = text id = 6></td>
+			<td><input name = "ShareholderITCDate1" type = date size = 2 id = 7></td>
+			<td align = center><SELECT NAME="ShareholderPaidDebts1" id = 8>         
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderDefaults1" id = 9>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderJudgements1" id = 10>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td >
+			<td align = center><SELECT NAME="ShareholderTraceAlerts1" id = 11>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderBlacklisted1" onclick = "ShareholderAnalysisConditionalFormat(this)" id = 12>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderFraudAlert1" onclick = "ShareholderAnalysisConditionalFormat(this)" id = 13>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+            <!-- </td>
+				<td><input name = "ShareholderTotalScore1" type = text size = 1 id = 14></td> -->
+		</tr>
+	      <tr>
+		    <td><input size = 32 name = "ShareholderName2" type = text id = 15 placeholder = "2nd highest shareholding"></td>
+			<td><input name = "ShareholderDate2" size = 2 type = date id = 16></td>
+			<td> <select required name = "ShareholderGender2" id = 17>
+				    <option selected value = "Female">Female</option>
+					<option value = "Male">Male</option>
+				 </select>
+			 </td>
+			<td><input name = "ShareholderAge2" type = text size = 1 id = 18></td>
+
+	        <td><input name = "ShareholderPercentageShares2" type = text size = 1 id = 19></td>
+			<td><input name = "ShareholderITCRef2" type = text id = 20></td>
+			<td><input name = "ShareholderITCDate2" type = date size = 2 id = 21></td>
+			<td align = center><SELECT NAME="ShareholderPaidDebts2" id = 22>         
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderDefaults2" id = 23>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderJudgements2" id = 24>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td >
+			<td align = center><SELECT NAME="ShareholderTraceAlerts2" id = 25>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderBlacklisted2" onclick = "ShareholderAnalysisConditionalFormat(this)" id = 26>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderFraudAlert2" onclick = "ShareholderAnalysisConditionalFormat(this)" id = 27>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+			 <!--
+			<td><input name = "ShareholderTotalScore2" type = text size = 1 id = 28></td> -->
+		</tr>
+		<tr>
+		    <td><input size = 32 name = "ShareholderName3" type = text id = 29 placeholder = "3rd highest shareholding"></td>
+			<td><input name = "ShareholderDate3" size = 2 type = date id = 30></td>
+			<td> <select required name = "ShareholderGender3" id = 31>
+				    <option selected value = "Female">Female</option>
+					<option value = "Male">Male</option>
+				 </select>
+			 </td>
+			<td><input name = "ShareholderAge3" type = text size = 1 id = 32 ></td>
+
+	        <td><input name = "ShareholderPercentageShares3" type = text size = 1 id = 33></td>
+			<td><input name = "ShareholderITCRef3" type = text id = 34></td>
+			<td><input name = "ShareholderITCDate3" type = date size = 2 id = 35></td>
+			<td align = center><SELECT NAME="ShareholderPaidDebts3" id = 36>         
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderDefaults3" id = 37>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderJudgements3" id =38>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td >
+			<td align = center><SELECT NAME="ShareholderTraceAlerts3" id = 39>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderBlacklisted3" onclick = "ShareholderAnalysisConditionalFormat(this)" id = 40>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderFraudAlert3" onclick = "ShareholderAnalysisConditionalFormat(this)" id = 41>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+			<!-- <td><input name = "ShareholderTotalScore3" type = text size = 1 id = 42></td> -->
+		</tr>
+	      <tr>
+		    <td><input size = 32 name = "ShareholderName4" type = text id = 43 placeholder = "4th highest shareholding"></td>
+			<td><input name = "ShareholderDate4" size = 2 type = date id = 44></td>
+			<td> <select required name = "ShareholderGender4" id = 45>
+				    <option selected value = "Female">Female</option>
+					<option value = "Male">Male</option>
+				 </select>
+			 </td>
+			<td><input name = "ShareholderAge4" type = text size = 1 id = 46></td>
+
+	        <td><input name = "ShareholderPercentageShares4" type = text size = 1 id = 47></td>
+			<td><input name = "ShareholderITCRef4" type = text id = 48></td>
+			<td><input name = "ShareholderITCDate4" type = date size = 2 id = 49></td>
+			<td align = center><SELECT NAME="ShareholderPaidDebts4" id = 50>         
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderDefaults4" id =51>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderJudgements4" id =52>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td >
+			<td align = center><SELECT NAME="ShareholderTraceAlerts4" id =53>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderBlacklisted4" onclick = "ShareholderAnalysisConditionalFormat(this)" id =54>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderFraudAlert4" onclick = "ShareholderAnalysisConditionalFormat(this)" id =55>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+			<!-- <td><input name = "ShareholderTotalScore4" type = text size = 1 id = 56></td> -->
+		</tr>
+	     <tr>
+		    <td><input size = 32 name = "ShareholderName5" type = text id = 57 placeholder = "5th highest shareholding"></td>
+			<td><input name = "ShareholderDate5" size = 2 type = date id = 58></td>
+			<td> <select required name = "ShareholderGender5" id = 59>
+				    <option selected value = "Female">Female</option>
+					<option value = "Male">Male</option>
+				 </select>
+			 </td>
+			<td><input name = "ShareholderAge5" type = text size = 1 id = 60></td>
+
+	        <td><input name = "ShareholderPercentageShares5" type = text size = 1 id = 61></td>
+			<td><input name = "ShareholderITCRef5" type = text id = 62></td>
+			<td><input name = "ShareholderITCDate5" type = date size = 2 id = 63></td>
+			<td align = center><SELECT NAME="ShareholderPaidDebts5" id = 64>         
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderDefaults5" id =65>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderJudgements5" id =66>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td >
+			<td align = center><SELECT NAME="ShareholderTraceAlerts5" id=67>
+                   <option selected value="0">0</option>
+                   <option value="1">1</option> 
+                   <option value="2">2</option>
+                   <option value="3">3</option>
+                   <option value="4">4</option>
+                   <option value="5">5</option>
+                   <option value="6">6</option>
+                   <option value="7">7</option>
+                   <option value="8">8</option>
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderBlacklisted5" onclick = "ShareholderAnalysisConditionalFormat(this)" id = 68>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+			<td align = center><SELECT NAME="ShareholderFraudAlert5" onclick = "ShareholderAnalysisConditionalFormat(this)" id =69>
+                   <option selected value="No">No</option>
+                   <option value="Yes">Yes</option> 
+                 </SELECT>
+             </td>
+		<!--	 <td><input name = "ShareholderTotalScore5" type = text size = 1 id=70></td> -->
+		</tr>
+		<!--
+	     <tr bgcolor = powderblue>
+		    <td colspan = 13 align = right style = "color:black"><strong>AVERAGE SCORE</strong></td>	    
+			<td align = right><input name = "ShareholderAverageScore" type = text size = 1 readonly id = 71></td>
+         </tr>		
+-->		 
+	     <tr bgcolor = blue><td colspan = 13 align = center style = "color:white"><strong>COMMENTS</strong></td></tr>    
+		 <tr><td colspan = 13 align = center><textarea name = "ShareholderComment" rows = 5 cols = 134 id = 72></textarea></td></tr>		 
+	     <tr>
+		    <td></td>
+		    <td><Input type = Submit value = "Save/Submit" onclick = "SaveShareholderAnalysisForm()"></td><td colspan = 2><Button type = "button" value onclick ="">Clear Form</Button></td>
+		 </tr>
+	    </table>
+   </table>
+   <script>
+	 
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+    </script>
+   </Form>
+</body>
+
+</html>

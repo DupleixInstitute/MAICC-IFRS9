@@ -1,0 +1,38 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'buttons.css';
+@import 'tailwindcss/utilities';
+
+.btn {
+    @apply px-4 py-2  text-white font-semibold rounded;
+}
+.btn-blue,.btn-info {
+    @apply bg-blue-600 hover:bg-blue-700;
+}
+.btn-green,.btn-success {
+    @apply text-white bg-green-500 hover:bg-green-700;
+}
+.btn-indigo {
+    @apply text-white bg-indigo-500 hover:bg-indigo-700;
+}
+.btn-red,.btn-danger {
+    @apply text-white bg-red-500 hover:bg-red-700;
+}
+.form-control{
+    @apply border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm;
+}
+.label-red{
+    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase
+}
+.label-blue-gray{
+    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase
+}
+.label-orange{
+    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase
+}
+.label-warning{
+    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase
+}
+.tox-notifications-container {
+    display: none!important;
+}

@@ -1,0 +1,1176 @@
+
+<HTML>
+<HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<TITLE>CREDIT SCORING</TITLE>
+
+
+<link href="btu.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript">
+function total_kids()
+{
+
+var children1=document.CompanyDataForm.to12.options[document.CompanyDataForm.to12.selectedIndex].value;
+ var children11= parseFloat(children1);
+
+
+
+var children2=document.CompanyDataForm.to18.options[document.CompanyDataForm.to18.selectedIndex].value;
+ var children22= parseFloat(children2);
+
+
+var children3=document.CompanyDataForm.to26.options[document.CompanyDataForm.to26.selectedIndex].value;
+ var children33= parseFloat(children3);
+
+
+
+var total_dependents=children11 + children22 + children33;
+
+
+
+document.CompanyDataForm.no_of_children.value=total_dependents;
+
+return true;
+}
+
+
+
+function total_dependents()
+{
+
+
+var aunts=document.CompanyDataForm.aunts_uncles_cousins.options[document.CompanyDataForm.aunts_uncles_cousins.selectedIndex].value;
+ var aunts1= parseFloat(aunts);
+
+
+var others=document.CompanyDataForm.other.options[document.CompanyDataForm.other.selectedIndex].value;
+ var others1= parseFloat(others);
+
+
+
+var grandparent=document.CompanyDataForm.grandparents.options[document.CompanyDataForm.grandparents.selectedIndex].value;
+ var grandparents1= parseFloat(grandparent);
+
+var total_dependents= aunts1 + others1 + grandparents1;
+
+
+
+document.CompanyDataForm.dependants_at_home.value=total_dependents;
+
+return true;
+}
+
+
+
+
+
+function displ()
+{
+var savings=document.CompanyDataForm.Savings.options[document.CompanyDataForm.Savings.selectedIndex].value;
+var Deposit=document.CompanyDataForm.Deposit.options[document.CompanyDataForm.Deposit.selectedIndex].value;
+var Share=document.CompanyDataForm.Share.options[document.CompanyDataForm.Share.selectedIndex].value;
+var ST=document.CompanyDataForm.ST.options[document.CompanyDataForm.ST.selectedIndex].value;
+var Mortgages=document.CompanyDataForm.Mortgages.options[document.CompanyDataForm.Mortgages.selectedIndex].value;
+var x=0;
+
+  if(savings !== "NA") {
+  x=x + 1;
+  }
+ 
+ 
+ if(Deposit !== "NA") {
+  x=x + 1;
+  }
+  
+  if(Share !== "NA") {
+  x=x + 1;
+  }
+  
+  
+  if(ST !== "NA") {
+  x=x + 1;
+  }  
+  
+  if(Mortgages !== "NA") {
+  x=x + 1;
+  }
+  
+  document.CompanyDataForm.total_bbs_products.value =x;
+  
+    return true;
+
+}
+
+
+function loantoval()
+{
+var loan=document.CompanyDataForm.YearOfRegistration.value;
+var omv=document.CompanyDataForm.open_market_value.value;
+ var loan1 = parseFloat(loan);
+ var omv1 = parseFloat(omv);
+ 
+var loantovalue= loan1 / omv1;
+var loantovalue3= loantovalue*100;
+var loantovalue2= loantovalue3.toFixed(0);
+document.CompanyDataForm.ltv.value =loantovalue2;
+	return true;
+}
+
+
+function mortinstal()
+{
+var instal=document.CompanyDataForm.loan_installment.value;
+var insure=document.CompanyDataForm.insurance_premium.value;
+var oloan=document.CompanyDataForm.o_loan_type.value;
+ var add2 = parseFloat(instal);
+ var add1 = parseFloat(insure);
+ 
+var finalinstal= add1 + add2;
+
+ if(oloan == "Fixed") {
+var finalinstal= add2;
+  }  
+var finalinstalment= finalinstal.toFixed(2)
+document.CompanyDataForm.loanandinsurance.value = finalinstalment;
+	return true;
+}
+
+
+
+function myltvpolicy()
+{
+
+var test2=document.CompanyDataForm.loan_type.options[document.CompanyDataForm.loan_type.selectedIndex].value;
+var val= String(test2);
+
+if (val == "Standard to Batswana")
+{
+var ltvratio=90;
+}
+
+if (val == "Guaranteed Scheme")
+{
+var ltvratio=100;
+}
+
+if (val == "Standard to Non-Citizens")
+{
+var ltvratio=90;
+}
+
+if (val == "Second Time Home Owner")
+{
+var ltvratio=90;
+}
+if (val == "Non-Guaranteed Scheme")
+{
+var ltvratio=90;
+}
+if (val == "77")
+{
+var ltvratio=90;
+}
+document.CompanyDataForm.ltv_policy.value = ltvratio;
+	return true;
+}
+
+
+
+
+function premium()
+{
+var myinsure=document.CompanyDataForm.insurance_replacement.value;
+var test=document.CompanyDataForm.property_type.options[document.CompanyDataForm.property_type.selectedIndex].value;
+var val= String(test);
+
+if (val == "Residential")
+{
+var premiumpercent=0.06;
+//alert("yes1");
+}
+if (val == "Commercial")
+{
+var premiumpercent=0.10;
+//alert("yes2");
+}
+if (val == "Thatched_Residential")
+{
+var premiumpercent=0.65;
+//alert("yes3");
+}
+if (val == "Thatched_Commercial")
+{
+//alert("yes4");
+var premiumpercent=0.65;
+}
+
+var mypremium= (myinsure * premiumpercent/12)/100;
+var finalpremium= mypremium.toFixed(2);
+document.CompanyDataForm.insurance_premium.value = finalpremium;
+	return true;
+}
+
+
+
+function ltv()
+{
+var amt=document.CompanyDataForm.YearOfRegistration.value;
+var val=document.CompanyDataForm.open_market_value.value;
+var loanvale= amt/val;
+var myltv= loanval.toFixed(2);
+document.CompanyDataForm.insurance_replacement.value = myltv;
+	return true;
+}
+
+
+
+
+function insure()
+{
+var opv=document.CompanyDataForm.open_market_value.value;
+var insurance= opv * 1.4;
+var ins= insurance.toFixed(2);
+document.CompanyDataForm.insurance_replacement.value = ins;
+	return true;
+}
+
+
+
+function instal()
+{
+var rate=document.CompanyDataForm.irate.value;
+var amount =document.CompanyDataForm.YearOfRegistration.value;
+var maturity =document.CompanyDataForm.loan_maturity.value;
+
+if (isNaN(rate) || isNaN(amount) || isNaN(maturity)) {
+		alert("You can only enter numbers in the Loan Amout and Rate fields!");	
+}
+maturity=maturity*12;
+rate=rate / 12;
+rate=rate / 100;
+
+var x= 1+ rate;
+
+var y =Math.pow(x, maturity);
+var b =Math.pow(x, maturity);
+
+
+
+
+var val = rate * b; 
+//var valaa= val.toFixed(2);
+
+
+var valb =  y - 1; 
+//var valbb = val.toFixed(2);
+
+var pmt = amount * (val / valb); 
+
+var dd= pmt.toFixed(2);
+document.CompanyDataForm.loan_installment.value = dd;
+	return true;
+ }
+
+
+
+
+function checkRates(irate)
+{
+var mm =document.CompanyDataForm.irate.value;
+var mm2 =document.CompanyDataForm.YearOfRegistration.value;
+var mm3 =document.CompanyDataForm.loan_maturity.value;
+var numString = String(mm);
+var numString2 = String(mm2);
+var numString3 = String(mm3);
+
+var papi = String("papiso");
+newstring= papi.concat(numString);
+newstring2= papi.concat(numString2);
+newstring3= papi.concat(numString3);
+
+if(newstring.length == 6 || newstring2.length == 6 || newstring3.length == 6 ) 
+   {
+      alert("Ensure that the loan amount, loan maturity and interest are all filled to get a correct installment amount");
+	     return false;
+   }
+ }
+
+
+
+function calcTotal() {
+var installment=document.CompanyDataForm.loanandinsurance.value;
+var addaa = document.CompanyDataForm.tax.value
+    var addaa = parseFloat(addaa, 10)
+    addaa = (isNaN(addaa))?0:addaa;
+	
+	var addbb = document.CompanyDataForm.tax2.value
+    var addbb = parseFloat(addbb, 10)
+    addbb = (isNaN(addbb))?0:addbb;
+	
+	
+var add1 = document.CompanyDataForm.annual_sal.value
+    var add1 = parseFloat(add1, 10)
+    add1 = (isNaN(add1))?0:add1;
+    
+    //ADD SECOND INPUT VALUE
+    var add2 = document.CompanyDataForm.fixed_perm_allowances.value
+    var add2 = parseFloat(add2, 10)
+    add2 = (isNaN(add2))?0:add2;
+    
+	var firstItem = add1 + add2 - addaa ;
+	
+	var add3 = document.CompanyDataForm.hp_annual_sal.value
+    var add3 = parseFloat(add3, 10)
+    add3 = (isNaN(add3))?0:add3;
+    
+    //ADD SECOND INPUT VALUE
+    var add4 = document.CompanyDataForm.hp_fixed_perm_allowances.value
+    var add4 = parseFloat(add4, 10)
+    add4 = (isNaN(add4))?0:add4;
+	
+	var secondItem = add3 + add4 - addbb;
+	
+	var forafford1=add1 + add2;
+	
+	var forafford2=add3 + add4;
+	
+	if (isNaN(firstItem) || isNaN(secondItem)) {
+		alert("You can only enter numbers in the  Rate fields!");
+		return false;
+	}
+	else {
+		document.CompanyDataForm.total_rev_for_afford.value = firstItem;
+		document.CompanyDataForm.hp_total_rev_for_afford.value = secondItem;
+		
+		
+		/*document.forms[0].amount6.value = sixthItem;*/
+		var grandTotal = firstItem + secondItem ;
+		var grandTotal2 = forafford1 + forafford2;
+		document.CompanyDataForm.total_allowable_household_revenues.value = grandTotal;
+		var tt=grandTotal/12;
+		var tt2= tt.toFixed(2);
+			document.CompanyDataForm.rev4afford.value = tt2;
+		
+var gg=grandTotal2/12;
+var ratio= installment/gg;
+		
+var ratio2=ratio*100;
+var finalratio= ratio2.toFixed(2);
+document.CompanyDataForm.affordability_ratio.value=finalratio;	
+		return true;
+	}
+}
+function new_loan(){
+var installment=document.CompanyDataForm.o_bal.value;
+ var installment = parseFloat(installment, 10)
+    installment = (isNaN(installment))?0:installment;
+var monthsal =document.CompanyDataForm.newloan.value;    
+ var monthsal = parseFloat(monthsal, 10)
+    monthsal = (isNaN(monthsal))?0:monthsal;
+	
+
+
+var newtotalloan= installment + monthsal;
+var newtotalloan2= newtotalloan.toFixed(2);
+document.CompanyDataForm.YearOfRegistration.value= newtotalloan2;
+return true;
+}
+
+function isEmpty(strfield1, strfield2, strfield3) {
+
+
+//change "field1, field2 and field3" to your field names
+var strfield1 = document.CompanyDataForm.YearOfRegistration.value;
+var strfield2 = document.CompanyDataForm.property_type.value;
+var strfield3 = document.CompanyDataForm.loan_type.value;
+
+  //name field
+    if (strfield1 == "" || strfield1 == null )
+    {
+    alert("Please enter value for the loan amount requested.")
+    return false;
+    }
+
+  //url field 
+    if (strfield2 == "" || strfield2 == null )
+    {
+    alert("Please enter value for the roperty type.")
+    return false;
+    }
+
+  //title field 
+    if (strfield3 == "" || strfield3 == null )
+    {
+    alert("Please enter value for the Loan type.")
+    return false;
+    }
+    return true;
+}
+
+function check(CompanyDataForm){
+if (isEmpty(CompanyDataForm.YearOfRegistration)){
+  if (isEmpty(CompanyDataForm.property_type)){
+    if (isEmpty(CompanyDataForm.loan_type)){
+	
+		  return true;
+		}
+	
+  }
+}
+return false;
+}
+
+
+
+function isEmpty(strfield0,strfield1, strfield2, strfield3, strfield4,strfield5, strfield6, strfield7, strfield8, strfield9, strfield10, strfield11, strfield12, strfield13, strfield14,strfield15, strfield16, strfield17, strfield18, strfield19,strfield20, strfield21, strfield22, strfield23, strfield24, strfield25, strfield26 , strfield27, strfield28, strfield29, strfield30, strfield31)
+   {
+//variables names
+var strfield1 = document.CompanyDataForm.YearOfRegistration.value;
+var strfield2 = document.CompanyDataForm.property_type.value;
+var strfield3 = document.CompanyDataForm.open_market_value.value;
+var strfield4 = document.CompanyDataForm.loan_type.value;
+var strfield5 = document.CompanyDataForm.loan_maturity.value;
+var strfield6 = document.CompanyDataForm.rate_type.value;
+var strfield7 = document.CompanyDataForm.irate.value;
+var strfield8 = document.CompanyDataForm.insurance_replacement.value;
+var strfield9 = document.CompanyDataForm.annual_sal.value;
+var strfield10 = document.CompanyDataForm.fixed_perm_allowances.value;
+var strfield11 = document.CompanyDataForm.hp_fixed_perm_allowances.value;
+var strfield12 = document.CompanyDataForm.hp_fixed_perm_allowances.value;
+var strfield13 = document.CompanyDataForm.affordability_policy.value;
+var strfield14 = document.CompanyDataForm.Business_Type.value;
+var strfield15 = document.CompanyDataForm.CountryOfRegistration.value;
+var strfield16 = document.CompanyDataForm.name.value;
+var strfield17 = document.CompanyDataForm.Trading_Name.value;
+var strfield18 = document.CompanyDataForm.surname.value;
+var strfield19 = document.CompanyDataForm.spouse_name.value;
+var strfield20 = document.CompanyDataForm.spouse_surname.value;
+var strfield21 = document.CompanyDataForm.address.value;
+var strfield22 = document.CompanyDataForm.street_add.value;
+var strfield23 = document.CompanyDataForm.town.value;
+var strfield24 = document.CompanyDataForm.country.value;
+var strfield25 = document.CompanyDataForm.permanent_residence.value;
+var strfield26 = document.CompanyDataForm.location.value;
+var strfield27 = document.CompanyDataForm.Industrial_Sector.value;
+var strfield0 = document.CompanyDataForm.CompanyRegistrationNo.value;
+var strfield28 = document.CompanyDataForm.education.value;
+var strfield29 = document.CompanyDataForm.employment.value;
+var strfield30 = document.CompanyDataForm.Professional.value;
+var strfield31 = document.CompanyDataForm.bond_plot.value;
+
+
+
+  //name field
+
+if(strfield0 == "" || strfield0 == null)
+{ 
+alert("Please enter value omang/passport number")
+return false;
+} 
+if(strfield1 == "" || strfield1 == null)
+{ 
+alert("Please enter value for year of registration.")
+return false;
+}
+if(strfield2 == "" || strfield2 == null)
+{
+alert("Please enter value for_Property type.") 
+return false;
+}
+if(strfield3 == "" || strfield3 == null)
+{
+alert("Please enter value for_Open Market Value." )
+return false;
+ }
+if(strfield4 == "" || strfield4 == null)
+{
+ alert("Please enter value for_Loan Type." )
+return false;
+}
+if(strfield5 == "" || strfield5 == null)
+{
+ alert("Please enter value for_Loan Maturity Requested.")
+  return false;
+}
+if(strfield6 == "" || strfield6 == null)
+{ 
+alert("Please enter value for_Rate Type Requested.")  
+  return false;
+}
+if(strfield7 == "" || strfield7 == null)
+{ 
+alert("Please enter value for_Estimated Loan Current (Offered) Interest Rate pa.") 
+   return false;
+}
+if(strfield8 == "" || strfield8 == null)
+{ 
+alert("Please enter value for_Insurance Replacement Cost.") 
+   return false;
+}
+if(strfield9 == "" || strfield9 == null)
+{ 
+alert("Please enter value for_Annual Salary Amount (Gross)." )
+   return false;
+}
+if(strfield10 == "" || strfield10 == null)
+{ 
+alert("Please enter value for_Fixed Permanent allowances (pa).") 
+   return false;
+}
+if(strfield13 == "" || strfield13 == null)
+{ 
+alert("Please enter value for_Affordability Policy.")  
+ return false;
+}
+if(strfield14 == "" || strfield14 == null)
+{ 
+alert("Please enter value for_Customer Type.")   
+ return false;
+}
+if(strfield15 == "" || strfield15 == null)
+{
+ alert("Please enter value for_Nationality.")   
+ return false;
+}
+if(strfield16 == "" || strfield16 == null)
+{ 
+alert("Please enter value for_Borrower Name.")
+   return false;
+}
+//if(strfield17 == "" || strfield17 == null)
+//{ 
+//alert("Please enter value for_Other Names.")   
+ //return false;
+//}
+if(strfield18 == "" || strfield18 == null)
+{ 
+alert("Please enter value for_Surname.")   
+ return false;
+}
+
+if(strfield21 == "" || strfield21 == null)
+{ 
+alert("Please enter value for_borrower present address.")
+   return false;
+}
+if(strfield22 == "" || strfield22 == null)
+{ 
+alert("Please enter value for_street name and number.")
+    return false;
+}
+if(strfield23 == "" || strfield23 == null)
+{ 
+alert("Please enter value for_town.") 
+ return false;
+}
+if(strfield24 == "" || strfield24 == null)
+{ 
+alert("Please enter value for_Country.") 
+  return false;
+}
+if(strfield25 == "" || strfield25 == null)
+{
+ alert("Please enter value for_Permanent Country of Residence.") 
+   return false;
+}
+if(strfield26 == "" || strfield26 == null)
+{
+ alert("Please enter value for_Location of Acquired Real Estate")  
+ return false;
+}
+if(strfield27 == "" || strfield26 == null)
+{
+ alert("Please enter value for Industrial_Sector")  
+ return false;
+}
+if(strfield28 == "" || strfield28 == null)
+{
+ alert("Please enter value for borrower education")  
+ return false;
+}
+if(strfield29 == "" || strfield29 == null)
+{
+ alert("Please enter value for employment contract")  
+ return false;
+}
+if(strfield30 == "" || strfield30 == null)
+{
+ alert("Please enter value for proffessional category")  
+ return false;
+}
+if(strfield31 == "" || strfield31 == null)
+{
+ alert("Please enter value for plot number of bonded security")  
+ return false;
+}
+    return true;
+}
+ 
+
+
+function double()
+{
+var revenues = document.CompanyDataForm.revenues.options[document.CompanyDataForm.revenues.selectedIndex].value;
+var strfield11 = document.CompanyDataForm.hp_annual_sal.value;
+var strfield12 = document.CompanyDataForm.hp_fixed_perm_allowances.value;
+
+
+  if(revenues == "Double" && (strfield11 == "" || strfield11 == null || strfield12 == "" || strfield12 == null)) 
+ 
+ { 
+alert("PLEASE ENTER ALL DETAILS FOR HouseHold Partner Revenues:")   
+ return false;
+}
+	return true;
+}
+
+
+
+
+
+function enable_text(status)
+{
+status=!status; 
+document.CompanyDataForm.CompanyRegistrationNo.disabled = status;
+}
+
+function enable_text2(status)
+{
+status=!status; 
+document.CompanyDataForm.pone.disabled = status;
+}
+// <![CDATA[
+function display(obj,id1,id2,id3,id4,id5,id6,id7,id8,id9) {
+txt = obj.options[obj.selectedIndex].value;
+document.getElementById(id1).style.display = 'none';
+document.getElementById(id2).style.display = 'none';
+document.getElementById(id3).style.display = 'none';
+document.getElementById(id4).style.display = 'none';
+document.getElementById(id5).style.display = 'none';
+document.getElementById(id6).style.display = 'none';
+document.getElementById(id7).style.display = 'none';
+document.getElementById(id8).style.display = 'none';
+document.getElementById(id9).style.display = 'none';
+		
+if ( txt.match(id1) ) {
+document.getElementById(id1).style.display = 'block';
+}
+if ( txt.match(id2) ) {
+document.getElementById(id2).style.display = 'block';
+}
+if ( txt.match(id3) ) {
+document.getElementById(id3).style.display = 'block';
+}
+if ( txt.match(id4) ) {
+document.getElementById(id4).style.display = 'block';
+}
+if ( txt.match(id5) ) {
+document.getElementById(id5).style.display = 'block';
+}
+if ( txt.match(id6) ) {
+document.getElementById(id6).style.display = 'block';
+}
+if ( txt.match(id7) ) {
+document.getElementById(id7).style.display = 'block';
+}
+if ( txt.match(id8) ) {
+document.getElementById(id8).style.display = 'block';
+}
+if ( txt.match(id9) ) {
+document.getElementById(id9).style.display = 'block';
+}
+//if ( txt.match(id10) ) {
+//document.getElementById(id10).style.display = 'block';
+//}
+}
+
+
+function displaya(obj,a,b,c) {
+txt = obj.options[obj.selectedIndex].value;
+document.getElementById(a).style.display = 'none';
+document.getElementById(b).style.display = 'none';
+document.getElementById(c).style.display = 'none';
+if ( txt.match(a) ) {
+document.getElementById(a).style.display = 'block';
+document.getElementById(b).style.display = 'block';
+document.getElementById(c).style.display = 'block';
+}
+}
+
+
+function setReadOnly(obj)
+{
+if (obj.options[obj.selectedIndex].value == "Single" )
+{
+document.CompanyDataForm.day2.readOnly = 1;
+document.CompanyDataForm.month2.readOnly = 1;
+document.CompanyDataForm.year2.readOnly = 1;
+} 
+}
+
+</script>
+
+</HEAD>
+
+<BODY BGCOLOR=#FFFFFF >
+<font class="s_text">
+<?php
+function calc_payment($pv, $payno, $int, $accuracy) 
+{ 
+// check that required values have been supplied 
+if (empty($pv)) { 
+   echo "<p class='error'>a value for PRINCIPAL is required</p>"; 
+   exit; 
+} // if 
+if (empty($payno)) { 
+   echo "<p class='error'>a value for NUMBER of PAYMENTS is required</p>"; 
+   exit; 
+} // if 
+if (empty($int)) { 
+   echo "<p class='error'>a value for INTEREST RATE is required</p>"; 
+   exit; 
+} // if 
+
+// now do the calculation using this formula: 
+
+//****************************************** 
+//            INT * ((1 + INT) ** PAYNO) 
+// PMT = PV * -------------------------- 
+//             ((1 + INT) ** PAYNO) - 1 
+//****************************************** 
+
+$int    = $int / 100;    // convert to a percentage 
+$value1 = $int * pow((1 + $int), $payno); 
+$value2 = pow((1 + $int), $payno) - 1; 
+$pmt    = $pv * ($value1 / $value2); 
+// $accuracy specifies the number of decimal places required in the result 
+$pmt    = number_format($pmt, $accuracy, ".", ""); 
+
+return $pmt; 
+
+} // calc_payment ==================================================================== 
+
+
+/**
+//$username='root';
+//$passwd='sefalana2008';
+
+
+// Edward $username=$_POST['username'];
+
+//echo  "BBS\ ";
+$bbs='BBS\\';
+/*
+$new=$bbs.$username;
+$ldappass=$_POST['password'];
+//echo $new.$ldappass;
+
+$ldaprdn  = $new;     // ldap rdn or dn
+$ldappass = $ldappass;  // associated password
+
+// connect to ldap server
+$ldapconn = ldap_connect("10.0.9.10")
+    or die("Could not connect to LDAP server.");
+
+if ($ldapconn) {
+
+    // binding to ldap server
+    $ldapbind = ldap_bind($ldapconn, $ldaprdn, $ldappass);
+
+    // verify binding
+    if ($ldapbind) {
+        echo "";
+    } else {
+	
+     echo "<meta http-equiv=\"refresh\" content=\"0;URL=index.php\">";
+		
+
+    }
+
+}
+
+
+$username = $_POST['username'];
+$password = $_POST['password'];
+echo $username;
+//echo $password; echo 'ttt';
+
+$pass=$_POST['password'];
+$host="localhost"; // Host name 
+//$username="root"; // Mysql username 
+//$password="sefalana2008"; // Mysql password 
+$db_name="creditscoring"; // Database name 
+// Connect to server and select databse.
+// Edward $ip =gethostbyname($_SERVER['REMOTE_ADDR']); 
+//echo $ip;
+
+
+$connect=mysqli_connect("localhost","root","",$db_name); //updated by Edward
+//echo $pass;
+  if (!$connect) {
+  mysqli_close($connect); 
+  echo "Cannot connect to the database! Please Check your username and password.";
+  die(); 
+}
+else {
+mysqli_select_db($connect,$db_name )     
+or die("Couldn't open $dbase: ".mysql_error());  
+
+}
+
+**/
+?>
+
+<table width="900" border="0" align="center" cellpadding="0" cellspacing="0" class="bdr" >
+  <tr>
+    <td colspan="6" class="s_text"><table width="100%" border="0" cellspacing="0" cellpadding="0" >
+      <tr>
+        <td width="1286"><table width="770" height="165">
+<td><img src="img1.gif" alt="nknk" name="g" width="385" height="208"/>&nbsp;</td>
+<td><font color="#FFFFFF" size="16" face="Arial Narrow"><img src="img2.JPG" alt="nknk" name="g" width="385" height="208"/></font></td>
+</table></td>
+
+
+</tr>
+<tr>
+<td width="1286" align="CENTER" bgcolor="#000040" class="s_text"><font  color="#FFFFFF" size="6" face="Arial Narrow">COMPANY DATA</font></td><tr>
+      </tr>
+   <table class="s_text" >
+        <tr bgcolor="#ECF8FF" class="s_text"> 
+          <td>
+        <p></br> 
+        <form ACTION="RetailRate.php" name="CompanyDataForm" method="post"  onClick="return displ();" onsubmit="return check(this);">
+            <td><table>
+		   <tr>
+		       <td><p align="justify" class="s_text"><br><table class="s_text">
+<tr>
+               <td><strong><font color="#FF0000">**</font></strong> <em><font color="#FF9900" size="1">System Generated Data</font></em></td>
+          </tr>
+          <tr><td colspan = 5>__________________________________________<strong>COMPANY REGISTRATION DETAILS  :</strong>_____________________________</td></tr>
+ 
+		  <tr>
+              <td><strong><font color="#000000">Certificate Of Registratio No</font></strong></td>
+              <td></td>
+			  <td  colspan = 2><input type="text" name="CompanyRegistrationNo"></td> 
+		  </tr>
+          <tr>
+              <td><strong><font color="#000000">VAT Registratio No</font></strong></td>
+              <td></td>
+			  <td  colspan = 2><input type="text" name="VATRegistrationNo"></td> 
+		  </tr>
+          <tr>
+              <td colspan = 2><strong><font color="#000000">Customer CIF <font color="#FF0000">(If existing BBS Customer)</font></font></strong></td>
+              
+			  <td><input type="text" name="cif"></td> 
+		  </tr>
+          <tr>
+               <td>Year Of Registration (4 Digits)</td>
+	           <td></td>
+	           <td><input name ="YearOfRegistration"  type ="text" size = 1 ></td>
+          	   <td><font color="#FF0000">**</font>Years In Business</td>
+			   <td><input name ="YearsInBusiness"  type ="text" size = 1 ></td>
+		  </tr>
+		  <tr><td>Customer Legal Type:</td><td width="10">&nbsp;</td>
+	          <td><SELECT NAME="Business_Type" > 
+                     <option value=""> </option>
+                     <option value="Pty Ltd">Pty Ltd</option>
+                     <option value="Ltd">Ltd</option>
+                  </SELECT>
+              </td>
+           </tr>
+
+   <tr><td>Legal Name (Without Legal Type Suffix Above) :</td><td width="60">&nbsp;</td><td>
+            <input name="name" type="text">
+       </td>
+   </tr>
+   </tr>
+   <tr><td>Trading Name :</td><td width="60">&nbsp;</td><td>
+             <input name="Trading_Name" type="text">
+       </td>
+   </tr>
+   <tr></tr>
+   <tr><td>Country Of Registration:</td><td width="60">&nbsp;</td><td>
+           <SELECT NAME="Country" >
+              <option value="Botswana">Botswana </option>
+              <option value="Foreign">Foreign </option>
+           </SELECT>
+       </td>
+   <tr><td colspan = 5>__________________________________________<strong>FINANCIAL PERIODS SETTINGS  :</strong>_______________________________</td></tr>
+   <tr>
+       <td></td>
+	   <!--<td width="60">&nbsp;</td>-->
+       <td></td>
+	   <td bgcolor = "powderblue" style = "color:black"><strong>Year 1</strong></td>
+	   <td bgcolor = "powderblue" style = "color:black"><strong>Year 2</strong></td>
+       <td bgcolor = "powderblue" style = "color:black"><strong>Year 3</strong></td>
+   </tr>  
+   <tr>
+       <td>Financial Year (4 Digits)</td>
+	   <td></td>
+	   <td><input name ="Year1"  type ="text" size = 1 style = "text-align:right;align:right"></td>
+       <td><input name ="Year2"  type ="text" size = 1 style = "text-align:right"></td>
+	   <td><input name ="Year3"  type ="text" size = 1 style = "text-align:right"></td>
+   </tr>	   
+   <tr>
+       <td>Reporting Month (1-12)  :</td>
+	   <td></td>
+	   <td> <SELECT NAME="ReportingMonthYear1" >
+              <option value="1">1</option>
+              <option value="2">2</option>
+			  <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+           </SELECT></td>
+       <td> <SELECT NAME="ReportingMonthYear2" >
+              <option value="1">1</option>
+              <option value="2">2</option>
+			  <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+           </SELECT></td>
+       <td> <SELECT NAME="ReportingMonthYear3" >
+              <option value="1">1</option>
+              <option value="2">2</option>
+			  <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+           </SELECT></td>
+     </tr>
+	 <tr>
+       <td>No of Months In Year (1-15)  :</td>
+	   <td></td>
+	   <td> <SELECT NAME="NumReportedMonthsYear1" >
+              <option value="1">1</option>
+              <option value="2">2</option>
+			  <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+              <option value="13">13</option>
+              <option value="14">14</option>
+              <option value="15">15</option>
+            </SELECT></td>
+       <td> <SELECT NAME="NumReportedMonthsYear2" >
+              <option value="1">1</option>
+              <option value="2">2</option>
+			  <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+              <option value="13">13</option>
+              <option value="14">14</option>
+              <option value="15">15</option>
+           </SELECT></td>
+       <td> <SELECT NAME="NumReportedMonthsYear3" >
+              <option value="1">1</option>
+              <option value="2">2</option>
+			  <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+              <option value="13">13</option>
+              <option value="14">14</option>
+              <option value="15">15</option>
+           </SELECT></td>
+     </tr>  
+	<tr>
+       <td>Audit Status  :</td>
+	   <td></td>
+	   <td> <SELECT NAME="AuditStatusYear1" >
+              <option value="Audited">Audited</option>
+              <option value="Registered Accountant">Registered Accountant</option>
+			  <option value="Management Accounts">Management Accounts</option>
+            </SELECT></td>
+       <td> <SELECT NAME="AuditStatusYear2" >
+              <option value="Audited">Audited</option>
+              <option value="Registered Accountant">Registered Accountant</option>
+			  <option value="Management Accounts">Management Accounts</option>
+            </SELECT></td>
+       <td> <SELECT NAME="AuditStatusYear3" >
+              <option value="Audited">Audited</option>
+              <option value="Registered Accountant">Registered Accountant</option>
+			  <option value="Management Accounts">Management Accounts</option>
+            </SELECT></td>
+     </tr> 
+	 <tr>
+       <td>Annual Inflation Rate - Real</td>
+	   <td></td>
+	   <td><input name ="InflationRateYear1"  type ="text" size = 1></td>
+       <td><input name ="InflationRateYear2"  type ="text" size = 1></td>
+	   <td><input name ="InflationRateYear3"  type ="text" size = 1></td>
+   </tr>
+   	 <tr>
+       <td>Annual Inflation Rate - Norminal</td>
+	   <td></td>
+	   <td><input name ="InflationRateYear1"  type ="text" size = 1></td>
+       <td><input name ="InflationRateYear2"  type ="text" size = 1></td>
+	   <td><input name ="InflationRateYear3"  type ="text" size = 1></td>
+   </tr>
+   <tr><td colspan = 5>__________________________________________________________________________________________________________</td></tr>
+  
+<tr><td>Industrial Sector:</td><td width="60">&nbsp;</td><td><SELECT NAME="Industrial_Sector" > 
+<option value="Trade">Trade </option>
+<option value="Finance And Business Services">Finance & Business Services</option>
+<option value="Real Estate">RealEstate</option>
+<option value="Manufacturing">Manufacturing</option>
+<option value="Construction">Construction</option>
+<option value="Agriculture">Agriculture</option>
+<option value="Parastatals">Parastatals</option>
+<option value="Transport And Communications">Transport & Communications</option>
+<option value="Mining">Mining</option>
+
+</SELECT></td></tr>
+
+<tr><td>Company Present Address :</td><td width="60">&nbsp;</td><td>
+<input name="address" type="text">
+</td></tr>
+<tr><td>Street Name and Number :</td><td width="60">&nbsp;</td><td>
+<input name="street_add" type="text">
+</td></tr>
+<tr><td>Years At Present Address:</td><td width="60"></td><td> <SELECT NAME="years_at_address" >
+<option value="0 to 3">0 to 3</option>
+<option value="3 to 5">3 to 5</option>
+<option value="5 to 10">5 to 10</option>
+<option value="+10">+10</option>
+</SELECT></td></tr>
+</td></tr>
+<tr><td>Company Email Address :</td><td width="60">&nbsp;</td><td>
+<input name="email" type="text">
+</td></tr>
+<tr><td>Plot No.of bonded security :</td><td width="60">&nbsp;</td><td>
+<input name="bond_plot" type="text">
+</td></tr>
+
+ &nbsp;&nbsp;&nbsp;
+
+<tr><td>Location of Acquired Real Estate:</td><td width="60">&nbsp;</td><td> <SELECT NAME="location" >
+<option value="Urban A">Urban A</option>
+<option value="Urban B">Urban B</option>
+<option value="Semi Urban A">Semi Urban A </option>
+<option value="Semi Urban B">Semi Urban B </option>
+<option value="Rural">Rural </option>
+</SELECT>
+</td></tr>
+
+</td></tr>
+
+
+<tr><td>Main Bank:</td><td width="10"></td><td> <SELECT NAME="mainbank" >
+
+<option value="BBS">BBS</option>
+<option value="BSB">BSB</option>
+<option value="NDB">NDB</option>
+<option value="FNBB">FNBB</option>
+<option value="S&C">S&C </option>
+<option value="Barclays">Barclays</option>
+<option value="Stanbic">Stanbic</option>
+<option value="Bank Gaborone">Bank Gaborone</option>
+<option value="Bank ABC">Bank ABC</option>
+<option value="Bank Of Baroda">Bank Of Baroda</option>
+<option value="Capital Bank">Capital Bank</option>
+<option value="State Bank of India">State Bank of India</option>
+
+
+</SELECT></td></tr>
+
+
+<tr><td>Second Bank: </td><td width="10"></td><td><SELECT NAME="secondbank" >
+<option value="NA">Not Applicable</option>
+<option value="BBS">BBS</option>
+<option value="BSB">BSB</option>
+<option value="NDB">NDB</option>
+<option value="FNBB">FNBB</option>
+<option value="S&C">S&C </option>
+<option value="Barclays">Barclays</option>
+<option value="Stanbic Bank">Stanbic Bank</option>
+<option value="Bank Gaborone">Bank Gaborone</option>
+<option value="Bank ABC">Bank ABC</option>
+<option value="Bank Of Baroda">Bank Of Baroda</option>
+<option value="Capital Bank">Capital Bank</option>
+<option value="State Bank of India">State Bank of India</option>
+</SELECT></td></tr>
+
+<tr><td>Third Bank: </td><td width="10"></td><td><SELECT NAME="thirdbank" >
+<option value="NA">Not Applicable</option>
+<option value="BBS">BBS</option>
+<option value="BSB">BSB</option>
+<option value="NDB">NDB</option>
+<option value="FNBB">FNBB</option>
+<option value="S&C">S&C </option>
+<option value="Barclays">Barclays</option>
+<option value="Stanbic Bank">Stanbic Bank</option>
+<option value="Bank Gaborone">Bank Gaborone</option>
+<option value="Bank ABC">Bank ABC</option>
+<option value="Bank Of Baroda">Bank Of Baroda</option>
+<option value="Capital Bank">Capital Bank</option>
+<option value="State Bank of India">State Bank of India</option>
+
+</SELECT></td></tr>
+
+<tr><td>
+<input type = "hidden" name="username"  value="<?php echo $username;?>"/>
+<input type = "hidden" name="password"  value="<?php echo $password; ?>"/>
+
+<input type="SUBMIT" name="RATE"  class="btn" value="Submit"/> 
+<tr><td>&nbsp;</td></tr>
+
+</td></tr>
+
+
+</form>
+
+
+
+</td></tr>
+</table>
+</td>
+</tr>    
+ </table> 
+</table>
+
+
+
+</table>
+</font>
+</BODY>
+</HTML>

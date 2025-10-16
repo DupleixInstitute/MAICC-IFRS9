@@ -1,0 +1,330 @@
+s<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Benchmark Overrides</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   <script type="text/javascript" src="Dupleix.js"></script>
+  
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		{
+			//Load Data
+				//CalculateRatiosFromLocalStorage();
+				console.log(localStorage.industrial_sector);
+				BenchmarkOverrideForm_LoadIndustryPolicyBenchmarks();
+				BenchmarkOverrideForm_LoadIndustryOverridesBenchmarks();
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	 
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+ 
+
+	
+       function round(number,decimalPlaces)
+	   {
+	      var factorOf10 = Math.pow(10,decimalPlaces);
+		  return Math.round(number * factorOf10) / factorOf10;
+	   }
+	
+		function ToNumber(nStr) 
+		{
+	  
+	       if   (typeof(nStr) == "undefined")
+		      {  return 0;}
+		   else  
+		      {
+		        if (nStr == "") {return 0};
+		        if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+		      } 
+	    }  
+   </script>
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="BenchmarksOverrideForm" id = "BenchmarksOverrideForm" action = "SaveIndustryBenchmarksOverridesData.php" onsubmit="return validateForm()" method="post">>    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" autocomplete = on >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="590" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="590" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 1 bordercolor = 1 cellspacing = 0 cellpadding =0> 
+	 	<tr><td colspan = 8 align = right>Application Ref No  :<input name = "application_ref" class = "header" readonly  >Company Reg No:<input name = "company_reg_no" class = "header" readonly></td>		</tr>
+		<tr><td colspan = 8 align = right>Loan Number  :<input name = "loan_number" class = "header" readonly>Username______:<input name ="username" class = "header" readonly></td></tr>
+        <tr><td cellspacing = 0 colspan = 8 align = "center" style="background-color:darkblue;color:white"><h3><p id = "legal_name">GARE VISION (PTY) LTD</p></h3></td></tr>
+	  
+		<tr bgcolor = darkblue>
+	      <th><p style="color:white;text-align:left"><br><br><strong>CORPORATE CREDIT SCORE CARD</strong></p></th>
+		  <th style="color:white">Policy<br>Benchmark<br>Type</th>
+	      <th style="color:white">Policy<br>Benchmark<br>Value</th>
+		  <th style="color:white">Override<br>Benchmark<br>Type</th>
+			  <th style="color:white">Override<br>Benchmark<br>Value</th>
+		  <th style="color:white" align = left><br><br>Reason For Benchmark Override </th>
+		  <th style="color:white" align = center><br><br>First<br>Level<br>Approve</th>
+		  <th style="color:white" align = center><br><br>Second<br>Level<br>Approve</th>
+		</tr>
+     <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Liquidity Ratios<strong></td>
+	   </tr>
+	   <tr align = left>
+		  <td align = left>Current Ratio</td>
+		  <td align = center><Input size  = 3 type="text" name="CurrentRatioBenchmarkType_"  value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly></td>
+	      <td> <select name = "CurrentRatioOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+	      </td>
+		  <td><Input max =  3 min = 0 type="number" name="CurrentRatioOverrideBenchmarkValue_"     style="text-align:right;"></td>
+		  <td align = left><Input size = 60 type="text" name="CurrentRatioOverrideComment_" ></td>
+		  <td> <select name = "CurrentRatioBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "CurrentRatioBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr>
+		<tr align = left>
+		  <td align = left>Debtor Days</td>
+		  <td align = center><Input size  = 3 type="text" name="DebtorDaysBenchmarkType_" value ="industry" style="text-align:right;background-color:lightgrey"    readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtorDaysPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly></td>
+	      <td> <select name = "DebtorDaysOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input min = 0 max = 90 type="number" name="DebtorDaysOverrideBenchmarkValue_"     style="text-align:right;"></td>
+		  <td align = left><Input size = 60 type="text" name="DebtorDaysOverrideComment_"  ></td>
+		  <td> <select name = "DebtorDaysBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "DebtorDaysBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+	    </tr>
+	    <tr align = left>
+		<td align = left>Turnover/Working Capital</td>
+		  <td align = center><Input size  = 3 type="text" name="TurnoverToWCBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly></td>
+	      <td> <select name = "TurnoverToWCOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input type="number" max = 90 min = 0 name="TurnoverToWCOverrideBenchmarkValue_"     style="text-align:right;"></td>
+		  <td align = left><Input size  = 60 type="text" name="TurnoverToWCOverrideComment_" ></td>		
+		  <td> <select name = "TurnoverToWCBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "TurnoverToWCBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr>
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Profitability Ratios<strong></td>
+	   </tr>
+		<tr align = left>
+	      <td align = left>Gross Profit%</td>
+		  <td align = center><Input size  = 3 type="text" name="GrossProfitMarginBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "GrossProfitMarginOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min  = 0 type="number" name="GrossProfitMarginOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="GrossProfitMarginOverrideComment_"  ></td>
+		  <td> <select name = "GrossProfitMarginBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "GrossProfitMarginBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr>
+		<tr align = left>
+		  <td align = left>Operating Profit Margin</td>
+		  <td align = center><Input size  = 3 type="text" name="OperatingProfitMarginBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "OperatingProfitMarginOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0  type="number" name="OperatingProfitMarginOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="OperatingProfitMarginOverrideComment_"  ></td>
+		  <td> <select name = "OperatingProfitMarginBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "OperatingProfitMarginBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr>
+	   <tr align = left>
+		  <td align  = left>Turnover Growth%</td>
+		  <td align = center><Input size  = 3 type="text" name="TurnoverGrowthBenchmarkType_"  value ="Inflation" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "TurnoverGrowthOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="TurnoverGrowthOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="TurnoverGrowthOverrideComment_"  ></td>
+		  <td> <select name = "TurnoverGrowthBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "TurnoverGrowthBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr>
+
+	    <tr align = left>
+		  <td align = left>Return On Assets(ROA)</td>
+		  <td align = center><Input size  = 3 type="text" name="ROABenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROAPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "ROAOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="ROAOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+         <td align = left><Input size = 60 type="text" name="ROAOverrideComment_"  ></td>
+		  <td> <select name = "ROABenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "ROABenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+	    </tr>
+		<tr align = left>
+		<td align = left>Return On Investments(ROI)</td>
+		  <td align = center><Input size  = 3 type="text" name="ROIBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="ROIPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "ROIOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0  type="number" name="ROIOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="ROIOverrideComment_"  ></td>
+		  <td> <select name = "ROIBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "ROIBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr>
+	   	   
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Capital Structure Ratios<strong></td>
+	   </tr>
+		<tr align = left>
+	      <td align = left>Long-term Debt/Equity</td>
+		  <td align = center><Input size  = 3 type="text" name="LongtermDebtToEquityBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "LongtermDebtToEquityOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="LongtermDebtToEquityOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="LongtermDebtToEquityOverrideComment_"  ></td>
+		  <td> <select name = "LongtermDebtToEquityBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "LongtermDebtToEquityBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+	   </tr>
+		<tr align = left>
+		  <td align =left >Debt/Tangible Net Worth</td>
+		  <td align = center><Input size  = 3 type="text" name="DebtToTangibleNetWorthBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "DebtToTangibleNetWorthOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="DebtToTangibleNetWorthOverrideBenchmarkValue_"     style="text-align:right;" >%</td>
+		  <td align = left><Input size = 60 type="text" name="DebtToTangibleNetWorthOverrideComment_"  ></td>
+		  <td> <select name = "DebtToTangibleNetWorthBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "DebtToTangibleNetWorthBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr>
+	
+		<tr align = left>
+		  <td align = left>Equity/Total Assets</td>
+		  <td align = center><Input size  = 3 type="text" name="EquityToTotalAssetsBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "EquityToTotalAssetsOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="EquityToTotalAssetsOverrideBenchmarkValue_"     style="text-align:right;">%</td>
+		  <td align = left><Input size = 60 type="text" name="EquityToTotalAssetsOverrideComment_"  ></td>
+		  <td> <select name = "EquityToTotalAssetsBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "EquityToTotalAssetsBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr>
+	    <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Debt Service Ratios<strong></td>
+		</tr>
+	    <tr align = left>
+		  <td align = left>Interest Cover</td>
+		  <td align = center><Input size  = 3 type="text" name="InterestCoverBenchmarkType_" value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="InterestCoverPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>..</td>
+	      <td> <select name = "InterestCoverOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="InterestCoverOverrideBenchmarkValue_"     style="text-align:right;" >..</td>
+		  <td align = left><Input size = 60 type="text" name="InterestCoverOverrideComment_"  ></td>
+		  <td> <select name = "InterestCoverBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "InterestCoverBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		</tr
+		<tr align = center>
+	      <td align = left>EBITDA/Gross Interest Debts</td>
+		  <td align = center><Input size  = 3 type="text" name="EBITDAToDebtBenchmarkType_"  value ="Industry" style="text-align:right;background-color:lightgrey" readonly></td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtPolicyBenchmarkValue_"     style="text-align:right;background-color:lightgrey" readonly>%</td>
+	      <td> <select name = "EBITDAToDebtOverrideBenchmarkType_">
+		           <option value = 1>Industry</option>
+				   <option value = 2>Global</option>
+				   <option value = 3>Inflation</option>
+			   </select>
+		  <td><Input max  = 90 min = 0 type="number" name="EBITDAToDebtOverrideBenchmarkValue_"     style="text-align:right">%</td>
+	      <td align = left><Input size = 60 type="text" name="EBITDAToDebtOverrideComment_"  ></td>
+		  <td> <select name = "EBITDAToDebtBenchmarkFirstApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+		  <td> <select name = "EBITDAToDebtBenchmarkSecondApproval_"><option value = 1>Yes</option><option value = 2>No</option></select>
+	    </tr>
+	    <tr><td align = center colspan = 8 style = "background-color:powderblue"><strong>REVIEWER'S COMMENTS</strong></td></tr>
+		<tr>
+		  <td><strong>First Reviewer's Comment:</strong></td>
+		  <td colspan = 7><textarea name = "BenchmarkOverrideFirstReviewerComment_" cols = 127 rows = 2></textarea></td>
+		</tr>7
+		<tr> 
+		  <td><strong>Second Reviewer's Comment:</strong></td>
+		  <td colspan = 7><textarea name = "BenchmarkOverrideSecondReviewerComment_" cols = 127 rows = 2></textarea></td>
+		</tr>
+		<tr>
+		   <td></td>
+		   <td align = center><button type = submit name = "Save" onclick = "BenchmarkOverrideForm_SaveIndustryOverridesBenchmarks()" value = "Save">Save</td>
+		</table>
+   </table>
+	 
+	 </Form>
+</body>
+
+</html>

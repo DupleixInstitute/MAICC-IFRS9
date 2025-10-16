@@ -1,0 +1,17 @@
+<input type='file' onchange='openFile(event)'>
+<script>
+  var openFile = function(event) {
+    var input = event.target;
+
+    var reader = new FileReader();
+    reader.onloadstart = function() {
+      reader.abort();
+    };
+
+    reader.onloadend = function() {
+      console.log(reader.error.message);
+    };
+
+    reader.readAsDataURL(input.files[0]);
+  };
+</script>

@@ -1,0 +1,1147 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>CREDIT SCORING:FINANCIAL ANALYSIS - Ratio Analysis</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+    
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   	 
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+				//Load Data
+				
+				document.BenchmarksForm.username.value = localStorage.username;
+				
+				LoadData_Industry_Benchmarks();
+				CalculateRatios();
+				DisplayRatiosFromLocalStorage();
+				// Set up the number formatting.
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			});
+	 
+	  function LoadData_Industry_Benchmarks()
+	  {
+ 		 //Loading industry benchmarks via ToNumber functions in case the local storage variables are undefined
+         document.BenchmarksForm.CurrentRatioBenchmarkType.value =  localStorage.CurrentRatioBenchmarkType;
+         document.BenchmarksForm.CurrentRatioGlobalAverage.value =  ToNumber(localStorage.CurrentRatioGlobalAverage);
+         document.BenchmarksForm.CurrentRatioBenchmark_Trade.value =  ToNumber(localStorage.CurrentRatioBenchmark_Trade);
+         document.BenchmarksForm.CurrentRatioBenchmark_Finance.value =  ToNumber(localStorage.CurrentRatioBenchmark_Finance);
+         document.BenchmarksForm.CurrentRatioBenchmark_RealEstate.value =  ToNumber(localStorage.CurrentRatioBenchmark_RealEstate);
+         document.BenchmarksForm.CurrentRatioBenchmark_Manufacturing.value =  ToNumber(localStorage.CurrentRatioBenchmark_Manufacturing);
+         document.BenchmarksForm.CurrentRatioBenchmark_Construction.value =  ToNumber(localStorage.CurrentRatioBenchmark_Construction);
+         document.BenchmarksForm.CurrentRatioBenchmark_Agriculture.value =  ToNumber(localStorage.CurrentRatioBenchmark_Agriculture);
+         document.BenchmarksForm.CurrentRatioBenchmark_Parastatals.value =  ToNumber(localStorage.CurrentRatioBenchmark_Parastatals);
+         document.BenchmarksForm.CurrentRatioBenchmark_Transport.value =  ToNumber(localStorage.CurrentRatioBenchmark_Transport);
+         document.BenchmarksForm.CurrentRatioBenchmark_Mining.value =  ToNumber(localStorage.CurrentRatioBenchmark_Mining);
+         document.BenchmarksForm.CurrentRatioBenchmark_DateUpdated.value =  localStorage.CurrentRatioBenchmark_DateUpdated;
+         document.BenchmarksForm.CurrentRatioBenchmarkComment.value =  localStorage.CurrentRatioBenchmarkComment;
+         document.BenchmarksForm.QuickRatioBenchmarkType.value =  localStorage.QuickRatioBenchmarkType;
+         document.BenchmarksForm.QuickRatioGlobalAverage.value =  ToNumber(localStorage.QuickRatioGlobalAverage);
+         document.BenchmarksForm.QuickRatioBenchmark_Trade.value =  ToNumber(localStorage.QuickRatioBenchmark_Trade);
+         document.BenchmarksForm.QuickRatioBenchmark_Finance.value =  ToNumber(localStorage.QuickRatioBenchmark_Finance);
+         document.BenchmarksForm.QuickRatioBenchmark_RealEstate.value =  ToNumber(localStorage.QuickRatioBenchmark_RealEstate);
+         document.BenchmarksForm.QuickRatioBenchmark_Manufacturing.value =  ToNumber(localStorage.QuickRatioBenchmark_Manufacturing);
+         document.BenchmarksForm.QuickRatioBenchmark_Construction.value =  ToNumber(localStorage.QuickRatioBenchmark_Construction);
+         document.BenchmarksForm.QuickRatioBenchmark_Agriculture.value =  ToNumber(localStorage.QuickRatioBenchmark_Agriculture);
+         document.BenchmarksForm.QuickRatioBenchmark_Parastatals.value =  ToNumber(localStorage.QuickRatioBenchmark_Parastatals);
+         document.BenchmarksForm.QuickRatioBenchmark_Transport.value =  ToNumber(localStorage.QuickRatioBenchmark_Transport);
+         document.BenchmarksForm.QuickRatioBenchmark_Mining.value =  ToNumber(localStorage.QuickRatioBenchmark_Mining);
+         document.BenchmarksForm.QuickRatioBenchmark_DateUpdated.value =  localStorage.QuickRatioBenchmark_DateUpdated;
+         document.BenchmarksForm.QuickRatioBenchmarkComment.value =  localStorage.QuickRatioBenchmarkComment;
+         document.BenchmarksForm.DebtorDaysBenchmarkType.value =  localStorage.DebtorDaysBenchmarkType;
+         document.BenchmarksForm.DebtorDaysGlobalAverage.value =  localStorage.DebtorDaysGlobalAverage;
+         document.BenchmarksForm.DebtorDaysBenchmark_Trade.value =  ToNumber(localStorage.DebtorDaysBenchmark_Trade);
+         document.BenchmarksForm.DebtorDaysBenchmark_Finance.value =  ToNumber(localStorage.DebtorDaysBenchmark_Finance);
+         document.BenchmarksForm.DebtorDaysBenchmark_RealEstate.value =  ToNumber(localStorage.DebtorDaysBenchmark_RealEstate);
+         document.BenchmarksForm.DebtorDaysBenchmark_Manufacturing.value =  ToNumber(localStorage.DebtorDaysBenchmark_Manufacturing);
+         document.BenchmarksForm.DebtorDaysBenchmark_Construction.value =  ToNumber(localStorage.DebtorDaysBenchmark_Construction);
+         document.BenchmarksForm.DebtorDaysBenchmark_Agriculture.value =  ToNumber(localStorage.DebtorDaysBenchmark_Agriculture);
+         document.BenchmarksForm.DebtorDaysBenchmark_Parastatals.value =  ToNumber(localStorage.DebtorDaysBenchmark_Parastatals);
+         document.BenchmarksForm.DebtorDaysBenchmark_Transport.value =  ToNumber(localStorage.DebtorDaysBenchmark_Transport);
+         document.BenchmarksForm.DebtorDaysBenchmark_Mining.value =  ToNumber(localStorage.DebtorDaysBenchmark_Mining);
+         document.BenchmarksForm.DebtorDaysBenchmark_DateUpdated.value =  localStorage.DebtorDaysBenchmark_DateUpdated;
+         document.BenchmarksForm.DebtorDaysBenchmarkComment.value =  localStorage.DebtorDaysBenchmarkComment;
+         document.BenchmarksForm.CreditorDaysBenchmarkType.value =  localStorage.CreditorDaysBenchmarkType;
+         document.BenchmarksForm.CreditorDaysGlobalAverage.value =  ToNumber(localStorage.CreditorDaysGlobalAverage);
+         document.BenchmarksForm.CreditorDaysBenchmark_Trade.value =  ToNumber(localStorage.CreditorDaysBenchmark_Trade);
+         document.BenchmarksForm.CreditorDaysBenchmark_Finance.value =  ToNumber(localStorage.CreditorDaysBenchmark_Finance);
+         document.BenchmarksForm.CreditorDaysBenchmark_RealEstate.value =  ToNumber(localStorage.CreditorDaysBenchmark_RealEstate);
+         document.BenchmarksForm.CreditorDaysBenchmark_Manufacturing.value =  ToNumber(localStorage.CreditorDaysBenchmark_Manufacturing);
+         document.BenchmarksForm.CreditorDaysBenchmark_Construction.value =  ToNumber(localStorage.CreditorDaysBenchmark_Construction);
+         document.BenchmarksForm.CreditorDaysBenchmark_Agriculture.value =  ToNumber(localStorage.CreditorDaysBenchmark_Agriculture);
+         document.BenchmarksForm.CreditorDaysBenchmark_Parastatals.value =  ToNumber(localStorage.CreditorDaysBenchmark_Parastatals);
+         document.BenchmarksForm.CreditorDaysBenchmark_Transport.value =  ToNumber(localStorage.CreditorDaysBenchmark_Transport);
+         document.BenchmarksForm.CreditorDaysBenchmark_Mining.value =  ToNumber(localStorage.CreditorDaysBenchmark_Mining);
+         document.BenchmarksForm.CreditorDaysBenchmark_DateUpdated.value =  localStorage.CreditorDaysBenchmark_DateUpdated;
+         document.BenchmarksForm.CreditorDaysBenchmarkComment.value =  localStorage.CreditorDaysBenchmarkComment;
+         document.BenchmarksForm.TurnoverToWCBenchmarkType.value =  localStorage.TurnoverToWCBenchmarkType;
+         document.BenchmarksForm.TurnoverToWCGlobalAverage.value =  ToNumber(localStorage.TurnoverToWCGlobalAverage);
+         document.BenchmarksForm.TurnoverToWCBenchmark_Trade.value =  ToNumber(localStorage.TurnoverToWCBenchmark_Trade);
+         document.BenchmarksForm.TurnoverToWCBenchmark_Finance.value =  ToNumber(localStorage.TurnoverToWCBenchmark_Finance);
+         document.BenchmarksForm.TurnoverToWCBenchmark_RealEstate.value =  ToNumber(localStorage.TurnoverToWCBenchmark_RealEstate);
+         document.BenchmarksForm.TurnoverToWCBenchmark_Manufacturing.value =  ToNumber(localStorage.TurnoverToWCBenchmark_Manufacturing);
+         document.BenchmarksForm.TurnoverToWCBenchmark_Construction.value =  ToNumber(localStorage.TurnoverToWCBenchmark_Construction);
+         document.BenchmarksForm.TurnoverToWCBenchmark_Agriculture.value =  ToNumber(localStorage.TurnoverToWCBenchmark_Agriculture);
+         document.BenchmarksForm.TurnoverToWCBenchmark_Parastatals.value =  ToNumber(localStorage.TurnoverToWCBenchmark_Parastatals);
+         document.BenchmarksForm.TurnoverToWCBenchmark_Transport.value =  ToNumber(localStorage.TurnoverToWCBenchmark_Transport);
+         document.BenchmarksForm.TurnoverToWCBenchmark_Mining.value =  ToNumber(localStorage.TurnoverToWCBenchmark_Mining);
+         document.BenchmarksForm.TurnoverToWCBenchmark_DateUpdated.value =  localStorage.TurnoverToWCBenchmark_DateUpdated;
+         document.BenchmarksForm.TurnoverToWCBenchmarkComment.value =  localStorage.TurnoverToWCBenchmarkComment;
+         document.BenchmarksForm.TurnoverGrowthBenchmarkType.value =  localStorage.TurnoverGrowthBenchmarkType;
+         document.BenchmarksForm.TurnoverGrowthGlobalAverage.value =  ToNumber(localStorage.TurnoverGrowthGlobalAverage);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_Trade.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_Trade);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_Finance.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_Finance);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_RealEstate.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_RealEstate);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_Manufacturing.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_Manufacturing);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_Construction.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_Construction);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_Agriculture.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_Agriculture);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_Parastatals.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_Parastatals);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_Transport.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_Transport);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_Mining.value =  ToNumber(localStorage.TurnoverGrowthBenchmark_Mining);
+         document.BenchmarksForm.TurnoverGrowthBenchmark_DateUpdated.value =  localStorage.TurnoverGrowthBenchmark_DateUpdated;
+         document.BenchmarksForm.TurnoverGrowthBenchmarkComment.value =  localStorage.TurnoverGrowthBenchmarkComment;
+         document.BenchmarksForm.GrossProfitMarginBenchmarkType.value =  localStorage.GrossProfitMarginBenchmarkType;
+         document.BenchmarksForm.GrossProfitMarginGlobalAverage.value =  ToNumber(localStorage.GrossProfitMarginGlobalAverage);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_Trade.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_Trade);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_Finance.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_Finance);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_RealEstate.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_RealEstate);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_Manufacturing.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_Manufacturing);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_Construction.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_Construction);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_Agriculture.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_Agriculture);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_Parastatals.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_Parastatals);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_Transport.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_Transport);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_Mining.value =  ToNumber(localStorage.GrossProfitMarginBenchmark_Mining);
+         document.BenchmarksForm.GrossProfitMarginBenchmark_DateUpdated.value =  localStorage.GrossProfitMarginBenchmark_DateUpdated;
+         document.BenchmarksForm.GrossProfitMarginBenchmarkComment.value =  localStorage.GrossProfitMarginBenchmarkComment;
+         document.BenchmarksForm.OperatingProfitMarginBenchmarkType.value =  localStorage.OperatingProfitMarginBenchmarkType;
+         document.BenchmarksForm.OperatingProfitMarginGlobalAverage.value =  ToNumber(localStorage.OperatingProfitMarginGlobalAverage);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_Trade.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_Trade);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_Finance.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_Finance);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_RealEstate.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_RealEstate);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_Manufacturing.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_Manufacturing);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_Construction.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_Construction);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_Agriculture.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_Agriculture);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_Parastatals.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_Parastatals);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_Transport.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_Transport);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_Mining.value =  ToNumber(localStorage.OperatingProfitMarginBenchmark_Mining);
+         document.BenchmarksForm.OperatingProfitMarginBenchmark_DateUpdated.value =  localStorage.OperatingProfitMarginBenchmark_DateUpdated;
+         document.BenchmarksForm.OperatingProfitMarginBenchmarkComment.value =  localStorage.OperatingProfitMarginBenchmarkComment;
+         document.BenchmarksForm.NetProfitMarginBenchmarkType.value =  localStorage.NetProfitMarginBenchmarkType;
+         document.BenchmarksForm.NetProfitMarginGlobalAverage.value =  ToNumber(localStorage.NetProfitMarginGlobalAverage);
+         document.BenchmarksForm.NetProfitMarginBenchmark_Trade.value =  ToNumber(localStorage.NetProfitMarginBenchmark_Trade);
+         document.BenchmarksForm.NetProfitMarginBenchmark_Finance.value =  ToNumber(localStorage.NetProfitMarginBenchmark_Finance);
+         document.BenchmarksForm.NetProfitMarginBenchmark_RealEstate.value =  ToNumber(localStorage.NetProfitMarginBenchmark_RealEstate);
+         document.BenchmarksForm.NetProfitMarginBenchmark_Manufacturing.value =  ToNumber(localStorage.NetProfitMarginBenchmark_Manufacturing);
+         document.BenchmarksForm.NetProfitMarginBenchmark_Construction.value =  ToNumber(localStorage.NetProfitMarginBenchmark_Construction);
+         document.BenchmarksForm.NetProfitMarginBenchmark_Agriculture.value =  ToNumber(localStorage.NetProfitMarginBenchmark_Agriculture);
+         document.BenchmarksForm.NetProfitMarginBenchmark_Parastatals.value =  ToNumber(localStorage.NetProfitMarginBenchmark_Parastatals);
+         document.BenchmarksForm.NetProfitMarginBenchmark_Transport.value =  ToNumber(localStorage.NetProfitMarginBenchmark_Transport);
+         document.BenchmarksForm.NetProfitMarginBenchmark_Mining.value =  ToNumber(localStorage.NetProfitMarginBenchmark_Mining);
+         document.BenchmarksForm.NetProfitMarginBenchmark_DateUpdated.value =  localStorage.NetProfitMarginBenchmark_DateUpdated;
+         document.BenchmarksForm.NetProfitMarginBenchmarkComment.value =  localStorage.NetProfitMarginBenchmarkComment;
+         document.BenchmarksForm.ROEBenchmarkType.value =  localStorage.ROEBenchmarkType;
+         document.BenchmarksForm.ROEGlobalAverage.value =  ToNumber(localStorage.ROEGlobalAverage);
+         document.BenchmarksForm.ROEBenchmark_Trade.value =  ToNumber(localStorage.ROEBenchmark_Trade);
+         document.BenchmarksForm.ROEBenchmark_Finance.value =  ToNumber(localStorage.ROEBenchmark_Finance);
+         document.BenchmarksForm.ROEBenchmark_RealEstate.value =  ToNumber(localStorage.ROEBenchmark_RealEstate);
+         document.BenchmarksForm.ROEBenchmark_Manufacturing.value =  ToNumber(localStorage.ROEBenchmark_Manufacturing);
+         document.BenchmarksForm.ROEBenchmark_Construction.value =  ToNumber(localStorage.ROEBenchmark_Construction);
+         document.BenchmarksForm.ROEBenchmark_Agriculture.value =  ToNumber(localStorage.ROEBenchmark_Agriculture);
+         document.BenchmarksForm.ROEBenchmark_Parastatals.value =  ToNumber(localStorage.ROEBenchmark_Parastatals);
+         document.BenchmarksForm.ROEBenchmark_Transport.value =  ToNumber(localStorage.ROEBenchmark_Transport);
+         document.BenchmarksForm.ROEBenchmark_Mining.value =  ToNumber(localStorage.ROEBenchmark_Mining);
+         document.BenchmarksForm.ROEBenchmark_DateUpdated.value =  localStorage.ROEBenchmark_DateUpdated;
+         document.BenchmarksForm.ROEBenchmarkComment.value =  localStorage.ROEBenchmarkComment;
+         document.BenchmarksForm.ROABenchmarkType.value =  localStorage.ROABenchmarkType;
+         document.BenchmarksForm.ROAGlobalAverage.value =  ToNumber(localStorage.ROAGlobalAverage);
+         document.BenchmarksForm.ROABenchmark_Trade.value =  ToNumber(localStorage.ROABenchmark_Trade);
+         document.BenchmarksForm.ROABenchmark_Finance.value =  ToNumber(localStorage.ROABenchmark_Finance);
+         document.BenchmarksForm.ROABenchmark_RealEstate.value =  ToNumber(localStorage.ROABenchmark_RealEstate);
+         document.BenchmarksForm.ROABenchmark_Manufacturing.value =  ToNumber(localStorage.ROABenchmark_Manufacturing);
+         document.BenchmarksForm.ROABenchmark_Construction.value =  ToNumber(localStorage.ROABenchmark_Construction);
+         document.BenchmarksForm.ROABenchmark_Agriculture.value =  ToNumber(localStorage.ROABenchmark_Agriculture);
+         document.BenchmarksForm.ROABenchmark_Parastatals.value =  ToNumber(localStorage.ROABenchmark_Parastatals);
+         document.BenchmarksForm.ROABenchmark_Transport.value =  ToNumber(localStorage.ROABenchmark_Transport);
+         document.BenchmarksForm.ROABenchmark_Mining.value =  ToNumber(localStorage.ROABenchmark_Mining);
+         document.BenchmarksForm.ROABenchmark_DateUpdated.value =  localStorage.ROABenchmark_DateUpdated;
+         document.BenchmarksForm.ROABenchmarkComment.value =  localStorage.ROABenchmarkComment;
+         document.BenchmarksForm.ROIBenchmarkType.value =  localStorage.ROIBenchmarkType;
+         document.BenchmarksForm.ROIGlobalAverage.value =  ToNumber(localStorage.ROIGlobalAverage);
+         document.BenchmarksForm.ROIBenchmark_Trade.value =  ToNumber(localStorage.ROIBenchmark_Trade);
+         document.BenchmarksForm.ROIBenchmark_Finance.value =  ToNumber(localStorage.ROIBenchmark_Finance);
+         document.BenchmarksForm.ROIBenchmark_RealEstate.value =  ToNumber(localStorage.ROIBenchmark_RealEstate);
+         document.BenchmarksForm.ROIBenchmark_Manufacturing.value =  ToNumber(localStorage.ROIBenchmark_Manufacturing);
+         document.BenchmarksForm.ROIBenchmark_Construction.value =  ToNumber(localStorage.ROIBenchmark_Construction);
+         document.BenchmarksForm.ROIBenchmark_Agriculture.value =  ToNumber(localStorage.ROIBenchmark_Agriculture);
+         document.BenchmarksForm.ROIBenchmark_Parastatals.value =  ToNumber(localStorage.ROIBenchmark_Parastatals);
+         document.BenchmarksForm.ROIBenchmark_Transport.value =  ToNumber(localStorage.ROIBenchmark_Transport);
+         document.BenchmarksForm.ROIBenchmark_Mining.value =  ToNumber(localStorage.ROIBenchmark_Mining);
+         document.BenchmarksForm.ROIBenchmark_DateUpdated.value =  localStorage.ROIBenchmark_DateUpdated;
+         document.BenchmarksForm.ROIBenchmarkComment.value =  localStorage.ROIBenchmarkComment;
+         document.BenchmarksForm.GearingRatioBenchmarkType.value =  localStorage.GearingRatioBenchmarkType;
+         document.BenchmarksForm.GearingRatioGlobalAverage.value =  ToNumber(localStorage.GearingRatioGlobalAverage);
+         document.BenchmarksForm.GearingRatioBenchmark_Trade.value =  ToNumber(localStorage.GearingRatioBenchmark_Trade);
+         document.BenchmarksForm.GearingRatioBenchmark_Finance.value =  ToNumber(localStorage.GearingRatioBenchmark_Finance);
+         document.BenchmarksForm.GearingRatioBenchmark_RealEstate.value =  ToNumber(localStorage.GearingRatioBenchmark_RealEstate);
+         document.BenchmarksForm.GearingRatioBenchmark_Manufacturing.value =  ToNumber(localStorage.GearingRatioBenchmark_Manufacturing);
+         document.BenchmarksForm.GearingRatioBenchmark_Construction.value =  ToNumber(localStorage.GearingRatioBenchmark_Construction);
+         document.BenchmarksForm.GearingRatioBenchmark_Agriculture.value =  ToNumber(localStorage.GearingRatioBenchmark_Agriculture);
+         document.BenchmarksForm.GearingRatioBenchmark_Parastatals.value =  ToNumber(localStorage.GearingRatioBenchmark_Parastatals);
+         document.BenchmarksForm.GearingRatioBenchmark_Transport.value =  ToNumber(localStorage.GearingRatioBenchmark_Transport);
+         document.BenchmarksForm.GearingRatioBenchmark_Mining.value =  ToNumber(localStorage.GearingRatioBenchmark_Mining);
+         document.BenchmarksForm.GearingRatioBenchmark_DateUpdated.value =  localStorage.GearingRatioBenchmark_DateUpdated;
+         document.BenchmarksForm.GearingRatioBenchmarkComment.value =  localStorage.GearingRatioBenchmarkComment;
+         document.BenchmarksForm.LongtermDebtToEquityBenchmarkType.value =  localStorage.LongtermDebtToEquityBenchmarkType;
+         document.BenchmarksForm.LongtermDebtToEquityGlobalAverage.value =  ToNumber(localStorage.LongtermDebtToEquityGlobalAverage);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_Trade.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_Trade);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_Finance.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_Finance);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_RealEstate.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_RealEstate);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_Manufacturing.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_Manufacturing);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_Construction.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_Construction);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_Agriculture.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_Agriculture);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_Parastatals.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_Parastatals);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_Transport.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_Transport);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_Mining.value =  ToNumber(localStorage.LongtermDebtToEquityBenchmark_Mining);
+         document.BenchmarksForm.LongtermDebtToEquityBenchmark_DateUpdated.value =  localStorage.LongtermDebtToEquityBenchmark_DateUpdated;
+         document.BenchmarksForm.LongtermDebtToEquityBenchmarkComment.value =  localStorage.LongtermDebtToEquityBenchmarkComment;
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmarkType.value = localStorage.DebtToTangibleNetWorthBenchmarkType;
+         document.BenchmarksForm.DebtToTangibleNetWorthGlobalAverage.value =  ToNumber(localStorage.DebtToTangibleNetWorthGlobalAverage);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Trade.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_Trade);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Finance.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_Finance);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_RealEstate.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_RealEstate);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Manufacturing.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_Manufacturing);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Construction.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_Construction);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Agriculture.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_Agriculture);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Parastatals.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_Parastatals);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Transport.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_Transport);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Mining.value =  ToNumber(localStorage.DebtToTangibleNetWorthBenchmark_Mining);
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_DateUpdated.value =  localStorage.DebtToTangibleNetWorthBenchmark_DateUpdated;
+         document.BenchmarksForm.DebtToTangibleNetWorthBenchmarkComment.value =  localStorage.DebtToTangibleNetWorthBenchmarkComment;
+         document.BenchmarksForm.EquityToTotalAssetsBenchmarkType.value = localStorage.EquityToTotalAssetsBenchmarkType;
+         document.BenchmarksForm.EquityToTotalAssetsGlobalAverage.value =  ToNumber(localStorage.EquityToTotalAssetsGlobalAverage);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_Trade.value =  ToNumber(localStorage.EquityToTotalAssetsBenchmark_Trade);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_Finance.value =  ToNumber(localStorage.EquityToTotalAssetsBenchmark_Finance);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_RealEstate.value =  ToNumber(localStorage.EquityToTotalAssetsBenchmark_RealEstate);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_Manufacturing.value =  ToNumber(localStorage.EquityToTotalAssetsBenchmark_Manufacturing);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_Construction.value =  ToNumber(localStorage.EquityToTotalAssetsBenchmark_Construction);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_Agriculture.value =  ToNumber(localStorage.EquityToTotalAssetsBenchmark_Agriculture);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_Parastatals.value =  ToNumber(localStorage.EquityToTotalAssetsBenchmark_Parastatals);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_Transport.value =  ToNumber(localStorage.EquityToTotalAssetsBenchmark_Transport);
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_Mining.value =  localStorage.EquityToTotalAssetsBenchmark_Mining;
+         document.BenchmarksForm.EquityToTotalAssetsBenchmark_DateUpdated.value =  localStorage.EquityToTotalAssetsBenchmark_DateUpdated;
+         document.BenchmarksForm.EquityToTotalAssetsBenchmarkComment.value =  localStorage.EquityToTotalAssetsBenchmarkComment;
+         document.BenchmarksForm.SolvencyBenchmarkType.value =  localStorage.SolvencyBenchmarkType;
+         document.BenchmarksForm.SolvencyGlobalAverage.value =  ToNumber(localStorage.SolvencyGlobalAverage);
+         document.BenchmarksForm.SolvencyBenchmark_Trade.value =  ToNumber(localStorage.SolvencyBenchmark_Trade);
+         document.BenchmarksForm.SolvencyBenchmark_Finance.value =  ToNumber(localStorage.SolvencyBenchmark_Finance);
+         document.BenchmarksForm.SolvencyBenchmark_RealEstate.value =  ToNumber(localStorage.SolvencyBenchmark_RealEstate);
+         document.BenchmarksForm.SolvencyBenchmark_Manufacturing.value =  ToNumber(localStorage.SolvencyBenchmark_Manufacturing);
+         document.BenchmarksForm.SolvencyBenchmark_Construction.value =  ToNumber(localStorage.SolvencyBenchmark_Construction);
+         document.BenchmarksForm.SolvencyBenchmark_Agriculture.value =  ToNumber(localStorage.SolvencyBenchmark_Agriculture);
+         document.BenchmarksForm.SolvencyBenchmark_Parastatals.value =  ToNumber(localStorage.SolvencyBenchmark_Parastatals);
+         document.BenchmarksForm.SolvencyBenchmark_Transport.value =  ToNumber(localStorage.SolvencyBenchmark_Transport);
+         document.BenchmarksForm.SolvencyBenchmark_Mining.value =  ToNumber(localStorage.SolvencyBenchmark_Mining);
+         document.BenchmarksForm.SolvencyBenchmark_DateUpdated.value =  localStorage.SolvencyBenchmark_DateUpdated;
+         document.BenchmarksForm.SolvencyBenchmarkComment.value =  localStorage.SolvencyBenchmarkComment;
+         document.BenchmarksForm.InterestCoverBenchmarkType.value =  localStorage.InterestCoverBenchmarkType;
+         document.BenchmarksForm.InterestCoverGlobalAverage.value =  ToNumber(localStorage.InterestCoverGlobalAverage);
+         document.BenchmarksForm.InterestCoverBenchmark_Trade.value =  ToNumber(localStorage.InterestCoverBenchmark_Trade);
+         document.BenchmarksForm.InterestCoverBenchmark_Finance.value =  ToNumber(localStorage.InterestCoverBenchmark_Finance);
+         document.BenchmarksForm.InterestCoverBenchmark_RealEstate.value =  ToNumber(localStorage.InterestCoverBenchmark_RealEstate);
+         document.BenchmarksForm.InterestCoverBenchmark_Manufacturing.value =  ToNumber(localStorage.InterestCoverBenchmark_Manufacturing);
+         document.BenchmarksForm.InterestCoverBenchmark_Construction.value =  ToNumber(localStorage.InterestCoverBenchmark_Construction);
+         document.BenchmarksForm.InterestCoverBenchmark_Agriculture.value =  ToNumber(localStorage.InterestCoverBenchmark_Agriculture);
+         document.BenchmarksForm.InterestCoverBenchmark_Parastatals.value =  ToNumber(localStorage.InterestCoverBenchmark_Parastatals);
+         document.BenchmarksForm.InterestCoverBenchmark_Transport.value =  ToNumber(localStorage.InterestCoverBenchmark_Transport);
+         document.BenchmarksForm.InterestCoverBenchmark_Mining.value =  ToNumber(localStorage.InterestCoverBenchmark_Mining);
+         document.BenchmarksForm.InterestCoverBenchmark_DateUpdated.value =  localStorage.InterestCoverBenchmark_DateUpdated;
+         document.BenchmarksForm.InterestCoverBenchmarkComment.value =  localStorage.InterestCoverBenchmarkComment;
+         document.BenchmarksForm.EBITDAToDebtBenchmarkType.value =  localStorage.EBITDAToDebtBenchmarkType;
+         document.BenchmarksForm.EBITDAToDebtGlobalAverage.value =  ToNumber(localStorage.EBITDAToDebtGlobalAverage);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_Trade.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_Trade);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_Finance.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_Finance);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_RealEstate.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_RealEstate);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_Manufacturing.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_Manufacturing);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_Construction.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_Construction);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_Agriculture.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_Agriculture);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_Parastatals.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_Parastatals);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_Transport.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_Transport);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_Mining.value =  ToNumber(localStorage.EBITDAToDebtBenchmark_Mining);
+         document.BenchmarksForm.EBITDAToDebtBenchmark_DateUpdated.value =  localStorage.EBITDAToDebtBenchmark_DateUpdated;
+         document.BenchmarksForm.EBITDAToDebtBenchmarkComment.value =  localStorage.EBITDAToDebtBenchmarkComment;
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmarkType.value =  localStorage.TotalAssetsTurnoverBenchmarkType;
+         document.BenchmarksForm.TotalAssetsTurnoverGlobalAverage.value =  ToNumber(localStorage.TotalAssetsTurnoverGlobalAverage);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Trade.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_Trade);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Finance.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_Finance);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_RealEstate.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_RealEstate);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Manufacturing.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_Manufacturing);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Construction.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_Construction);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Agriculture.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_Agriculture);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Parastatals.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_Parastatals);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Transport.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_Transport);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Mining.value =  ToNumber(localStorage.TotalAssetsTurnoverBenchmark_Mining);
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmark_DateUpdated.value =  localStorage.TotalAssetsTurnoverBenchmark_DateUpdated;
+         document.BenchmarksForm.TotalAssetsTurnoverBenchmarkComment.value =  localStorage.TotalAssetsTurnoverBenchmarkComment;
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmarkType.value =  localStorage.FixedAssetsTurnoverBenchmarkType;
+         document.BenchmarksForm.FixedAssetsTurnoverGlobalAverage.value =  ToNumber(localStorage.FixedAssetsTurnoverGlobalAverage);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Trade.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_Trade);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Finance.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_Finance);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_RealEstate.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_RealEstate);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Manufacturing.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_Manufacturing);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Construction.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_Construction);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Agriculture.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_Agriculture);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Parastatals.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_Parastatals);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Transport.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_Transport);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Mining.value =  ToNumber(localStorage.FixedAssetsTurnoverBenchmark_Mining);
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmark_DateUpdated.value =  localStorage.FixedAssetsTurnoverBenchmark_DateUpdated;
+         document.BenchmarksForm.FixedAssetsTurnoverBenchmarkComment.value =  localStorage.FixedAssetsTurnoverBenchmarkComment;
+	  
+	  }
+	  
+	  function SaveData_Industry_Benchmarks ()
+	  {
+         localStorage.CurrentRatioBenchmarkType                     =  document.BenchmarksForm.CurrentRatioBenchmarkType.value;
+         localStorage.CurrentRatioGlobalAverage                     =  document.BenchmarksForm.CurrentRatioGlobalAverage.value;
+         localStorage.CurrentRatioBenchmark_Trade                   =  document.BenchmarksForm.CurrentRatioBenchmark_Trade.value;
+         localStorage.CurrentRatioBenchmark_Finance                 =  document.BenchmarksForm.CurrentRatioBenchmark_Finance.value;
+         localStorage.CurrentRatioBenchmark_RealEstate              =  document.BenchmarksForm.CurrentRatioBenchmark_RealEstate.value;
+         localStorage.CurrentRatioBenchmark_Manufacturing           =  document.BenchmarksForm.CurrentRatioBenchmark_Manufacturing.value;
+         localStorage.CurrentRatioBenchmark_Construction            =  document.BenchmarksForm.CurrentRatioBenchmark_Construction.value;
+         localStorage.CurrentRatioBenchmark_Agriculture             =  document.BenchmarksForm.CurrentRatioBenchmark_Agriculture.value;
+         localStorage.CurrentRatioBenchmark_Parastatals             =  document.BenchmarksForm.CurrentRatioBenchmark_Parastatals.value;
+         localStorage.CurrentRatioBenchmark_Transport               =  document.BenchmarksForm.CurrentRatioBenchmark_Transport.value;
+         localStorage.CurrentRatioBenchmark_Mining                  =  document.BenchmarksForm.CurrentRatioBenchmark_Mining.value;
+         localStorage.CurrentRatioBenchmark_DateUpdated             =  document.BenchmarksForm.CurrentRatioBenchmark_DateUpdated.value;
+         localStorage.CurrentRatioBenchmarkComment                  =  document.BenchmarksForm.CurrentRatioBenchmarkComment.value;
+         localStorage.QuickRatioBenchmarkType                       =  document.BenchmarksForm.QuickRatioBenchmarkType.value;
+         localStorage.QuickRatioGlobalAverage                       =  document.BenchmarksForm.QuickRatioGlobalAverage.value;
+         localStorage.QuickRatioBenchmark_Trade                     =  document.BenchmarksForm.QuickRatioBenchmark_Trade.value;
+         localStorage.QuickRatioBenchmark_Finance                   =  document.BenchmarksForm.QuickRatioBenchmark_Finance.value;
+         localStorage.QuickRatioBenchmark_RealEstate                =  document.BenchmarksForm.QuickRatioBenchmark_RealEstate.value;
+         localStorage.QuickRatioBenchmark_Manufacturing             =  document.BenchmarksForm.QuickRatioBenchmark_Manufacturing.value;
+         localStorage.QuickRatioBenchmark_Construction              =  document.BenchmarksForm.QuickRatioBenchmark_Construction.value;
+         localStorage.QuickRatioBenchmark_Agriculture               =  document.BenchmarksForm.QuickRatioBenchmark_Agriculture.value;
+         localStorage.QuickRatioBenchmark_Parastatals               =  document.BenchmarksForm.QuickRatioBenchmark_Parastatals.value;
+         localStorage.QuickRatioBenchmark_Transport                 =  document.BenchmarksForm.QuickRatioBenchmark_Transport.value;
+         localStorage.QuickRatioBenchmark_Mining                    =  document.BenchmarksForm.QuickRatioBenchmark_Mining.value;
+         localStorage.QuickRatioBenchmark_DateUpdated               =  document.BenchmarksForm.QuickRatioBenchmark_DateUpdated.value;
+         localStorage.QuickRatioBenchmarkComment                    =  document.BenchmarksForm.QuickRatioBenchmarkComment.value;
+         localStorage.DebtorDaysBenchmarkType                       =  document.BenchmarksForm.DebtorDaysBenchmarkType.value;
+         localStorage.DebtorDaysGlobalAverage                       =  document.BenchmarksForm.DebtorDaysGlobalAverage.value;
+         localStorage.DebtorDaysBenchmark_Trade                     =  document.BenchmarksForm.DebtorDaysBenchmark_Trade.value;
+         localStorage.DebtorDaysBenchmark_Finance                   =  document.BenchmarksForm.DebtorDaysBenchmark_Finance.value;
+         localStorage.DebtorDaysBenchmark_RealEstate                =  document.BenchmarksForm.DebtorDaysBenchmark_RealEstate.value;
+         localStorage.DebtorDaysBenchmark_Manufacturing             =  document.BenchmarksForm.DebtorDaysBenchmark_Manufacturing.value;
+         localStorage.DebtorDaysBenchmark_Construction              =  document.BenchmarksForm.DebtorDaysBenchmark_Construction.value;
+         localStorage.DebtorDaysBenchmark_Agriculture               =  document.BenchmarksForm.DebtorDaysBenchmark_Agriculture.value;
+         localStorage.DebtorDaysBenchmark_Parastatals               =  document.BenchmarksForm.DebtorDaysBenchmark_Parastatals.value;
+         localStorage.DebtorDaysBenchmark_Transport                 =  document.BenchmarksForm.DebtorDaysBenchmark_Transport.value;
+         localStorage.DebtorDaysBenchmark_Mining                    =  document.BenchmarksForm.DebtorDaysBenchmark_Mining.value;
+         localStorage.DebtorDaysBenchmark_DateUpdated               =  document.BenchmarksForm.DebtorDaysBenchmark_DateUpdated.value;
+         localStorage.DebtorDaysBenchmarkComment                    =  document.BenchmarksForm.DebtorDaysBenchmarkComment.value;
+         localStorage.CreditorDaysBenchmarkType                     =  document.BenchmarksForm.CreditorDaysBenchmarkType.value;
+         localStorage.CreditorDaysGlobalAverage                     =  document.BenchmarksForm.CreditorDaysGlobalAverage.value;
+         localStorage.CreditorDaysBenchmark_Trade                   =  document.BenchmarksForm.CreditorDaysBenchmark_Trade.value;
+         localStorage.CreditorDaysBenchmark_Finance                 =  document.BenchmarksForm.CreditorDaysBenchmark_Finance.value;
+         localStorage.CreditorDaysBenchmark_RealEstate              =  document.BenchmarksForm.CreditorDaysBenchmark_RealEstate.value;
+         localStorage.CreditorDaysBenchmark_Manufacturing           =  document.BenchmarksForm.CreditorDaysBenchmark_Manufacturing.value;
+         localStorage.CreditorDaysBenchmark_Construction            =  document.BenchmarksForm.CreditorDaysBenchmark_Construction.value;
+         localStorage.CreditorDaysBenchmark_Agriculture             =  document.BenchmarksForm.CreditorDaysBenchmark_Agriculture.value;
+         localStorage.CreditorDaysBenchmark_Parastatals             =  document.BenchmarksForm.CreditorDaysBenchmark_Parastatals.value;
+         localStorage.CreditorDaysBenchmark_Transport               =  document.BenchmarksForm.CreditorDaysBenchmark_Transport.value;
+         localStorage.CreditorDaysBenchmark_Mining                  =  document.BenchmarksForm.CreditorDaysBenchmark_Mining.value;
+         localStorage.CreditorDaysBenchmark_DateUpdated             =  document.BenchmarksForm.CreditorDaysBenchmark_DateUpdated.value;
+         localStorage.CreditorDaysBenchmarkComment                  =  document.BenchmarksForm.CreditorDaysBenchmarkComment.value;
+         localStorage.TurnoverToWCBenchmarkType                     =  document.BenchmarksForm.TurnoverToWCBenchmarkType.value;
+         localStorage.TurnoverToWCGlobalAverage                     =  document.BenchmarksForm.TurnoverToWCGlobalAverage.value;
+         localStorage.TurnoverToWCBenchmark_Trade                   =  document.BenchmarksForm.TurnoverToWCBenchmark_Trade.value;
+         localStorage.TurnoverToWCBenchmark_Finance                 =  document.BenchmarksForm.TurnoverToWCBenchmark_Finance.value;
+         localStorage.TurnoverToWCBenchmark_RealEstate              =  document.BenchmarksForm.TurnoverToWCBenchmark_RealEstate.value;
+         localStorage.TurnoverToWCBenchmark_Manufacturing           =  document.BenchmarksForm.TurnoverToWCBenchmark_Manufacturing.value;
+         localStorage.TurnoverToWCBenchmark_Construction            =  document.BenchmarksForm.TurnoverToWCBenchmark_Construction.value;
+         localStorage.TurnoverToWCBenchmark_Agriculture             =  document.BenchmarksForm.TurnoverToWCBenchmark_Agriculture.value;
+         localStorage.TurnoverToWCBenchmark_Parastatals             =  document.BenchmarksForm.TurnoverToWCBenchmark_Parastatals.value;
+         localStorage.TurnoverToWCBenchmark_Transport               =  document.BenchmarksForm.TurnoverToWCBenchmark_Transport.value;
+         localStorage.TurnoverToWCBenchmark_Mining                  =  document.BenchmarksForm.TurnoverToWCBenchmark_Mining.value;
+         localStorage.TurnoverToWCBenchmark_DateUpdated             =  document.BenchmarksForm.TurnoverToWCBenchmark_DateUpdated.value;
+         localStorage.TurnoverToWCBenchmarkComment                  =  document.BenchmarksForm.TurnoverToWCBenchmarkComment.value;
+         localStorage.TurnoverGrowthBenchmarkType                   =  document.BenchmarksForm.TurnoverGrowthBenchmarkType.value;
+         localStorage.TurnoverGrowthGlobalAverage                   =  document.BenchmarksForm.TurnoverGrowthGlobalAverage.value;
+         localStorage.TurnoverGrowthBenchmark_Trade                 =  document.BenchmarksForm.TurnoverGrowthBenchmark_Trade.value;
+         localStorage.TurnoverGrowthBenchmark_Finance               =  document.BenchmarksForm.TurnoverGrowthBenchmark_Finance.value;
+         localStorage.TurnoverGrowthBenchmark_RealEstate            =  document.BenchmarksForm.TurnoverGrowthBenchmark_RealEstate.value;
+         localStorage.TurnoverGrowthBenchmark_Manufacturing         =  document.BenchmarksForm.TurnoverGrowthBenchmark_Manufacturing.value;
+         localStorage.TurnoverGrowthBenchmark_Construction          =  document.BenchmarksForm.TurnoverGrowthBenchmark_Construction.value;
+         localStorage.TurnoverGrowthBenchmark_Agriculture           =  document.BenchmarksForm.TurnoverGrowthBenchmark_Agriculture.value;
+         localStorage.TurnoverGrowthBenchmark_Parastatals           =  document.BenchmarksForm.TurnoverGrowthBenchmark_Parastatals.value;
+         localStorage.TurnoverGrowthBenchmark_Transport             =  document.BenchmarksForm.TurnoverGrowthBenchmark_Transport.value;
+         localStorage.TurnoverGrowthBenchmark_Mining                =  document.BenchmarksForm.TurnoverGrowthBenchmark_Mining.value;
+         localStorage.TurnoverGrowthBenchmark_DateUpdated           =  document.BenchmarksForm.TurnoverGrowthBenchmark_DateUpdated.value;
+         localStorage.TurnoverGrowthBenchmarkComment                =  document.BenchmarksForm.TurnoverGrowthBenchmarkComment.value;
+         localStorage.GrossProfitMarginBenchmarkType                =  document.BenchmarksForm.GrossProfitMarginBenchmarkType.value;
+         localStorage.GrossProfitMarginGlobalAverage                =  document.BenchmarksForm.GrossProfitMarginGlobalAverage.value;
+         localStorage.GrossProfitMarginBenchmark_Trade              =  document.BenchmarksForm.GrossProfitMarginBenchmark_Trade.value;
+         localStorage.GrossProfitMarginBenchmark_Finance            =  document.BenchmarksForm.GrossProfitMarginBenchmark_Finance.value;
+         localStorage.GrossProfitMarginBenchmark_RealEstate         =  document.BenchmarksForm.GrossProfitMarginBenchmark_RealEstate.value;
+         localStorage.GrossProfitMarginBenchmark_Manufacturing      =  document.BenchmarksForm.GrossProfitMarginBenchmark_Manufacturing.value;
+         localStorage.GrossProfitMarginBenchmark_Construction       =  document.BenchmarksForm.GrossProfitMarginBenchmark_Construction.value;
+         localStorage.GrossProfitMarginBenchmark_Agriculture        =  document.BenchmarksForm.GrossProfitMarginBenchmark_Agriculture.value;
+         localStorage.GrossProfitMarginBenchmark_Parastatals        =  document.BenchmarksForm.GrossProfitMarginBenchmark_Parastatals.value;
+         localStorage.GrossProfitMarginBenchmark_Transport          =  document.BenchmarksForm.GrossProfitMarginBenchmark_Transport.value;
+         localStorage.GrossProfitMarginBenchmark_Mining             =  document.BenchmarksForm.GrossProfitMarginBenchmark_Mining.value;
+         localStorage.GrossProfitMarginBenchmark_DateUpdated        =  document.BenchmarksForm.GrossProfitMarginBenchmark_DateUpdated.value;
+         localStorage.GrossProfitMarginBenchmarkComment             =  document.BenchmarksForm.GrossProfitMarginBenchmarkComment.value;
+         localStorage.OperatingProfitMarginBenchmarkType            =  document.BenchmarksForm.OperatingProfitMarginBenchmarkType.value;
+         localStorage.OperatingProfitMarginGlobalAverage            =  document.BenchmarksForm.OperatingProfitMarginGlobalAverage.value;
+         localStorage.OperatingProfitMarginBenchmark_Trade          =  document.BenchmarksForm.OperatingProfitMarginBenchmark_Trade.value;
+         localStorage.OperatingProfitMarginBenchmark_Finance        =  document.BenchmarksForm.OperatingProfitMarginBenchmark_Finance.value;
+         localStorage.OperatingProfitMarginBenchmark_RealEstate     =  document.BenchmarksForm.OperatingProfitMarginBenchmark_RealEstate.value;
+         localStorage.OperatingProfitMarginBenchmark_Manufacturing  =  document.BenchmarksForm.OperatingProfitMarginBenchmark_Manufacturing.value;
+         localStorage.OperatingProfitMarginBenchmark_Construction   =  document.BenchmarksForm.OperatingProfitMarginBenchmark_Construction.value;
+         localStorage.OperatingProfitMarginBenchmark_Agriculture    =  document.BenchmarksForm.OperatingProfitMarginBenchmark_Agriculture.value;
+         localStorage.OperatingProfitMarginBenchmark_Parastatals    =  document.BenchmarksForm.OperatingProfitMarginBenchmark_Parastatals.value;
+         localStorage.OperatingProfitMarginBenchmark_Transport      =  document.BenchmarksForm.OperatingProfitMarginBenchmark_Transport.value;
+         localStorage.OperatingProfitMarginBenchmark_Mining         =  document.BenchmarksForm.OperatingProfitMarginBenchmark_Mining.value;
+         localStorage.OperatingProfitMarginBenchmark_DateUpdated    =  document.BenchmarksForm.OperatingProfitMarginBenchmark_DateUpdated.value;
+         localStorage.OperatingProfitMarginBenchmarkComment         =  document.BenchmarksForm.OperatingProfitMarginBenchmarkComment.value;
+         localStorage.NetProfitMarginBenchmarkType                  =  document.BenchmarksForm.NetProfitMarginBenchmarkType.value;
+         localStorage.NetProfitMarginGlobalAverage                  =  document.BenchmarksForm.NetProfitMarginGlobalAverage.value;
+         localStorage.NetProfitMarginBenchmark_Trade                =  document.BenchmarksForm.NetProfitMarginBenchmark_Trade.value;
+         localStorage.NetProfitMarginBenchmark_Finance              =  document.BenchmarksForm.NetProfitMarginBenchmark_Finance.value;
+         localStorage.NetProfitMarginBenchmark_RealEstate           =  document.BenchmarksForm.NetProfitMarginBenchmark_RealEstate.value;
+         localStorage.NetProfitMarginBenchmark_Manufacturing        =  document.BenchmarksForm.NetProfitMarginBenchmark_Manufacturing.value;
+         localStorage.NetProfitMarginBenchmark_Construction         =  document.BenchmarksForm.NetProfitMarginBenchmark_Construction.value;
+         localStorage.NetProfitMarginBenchmark_Agriculture          =  document.BenchmarksForm.NetProfitMarginBenchmark_Agriculture.value;
+         localStorage.NetProfitMarginBenchmark_Parastatals          =  document.BenchmarksForm.NetProfitMarginBenchmark_Parastatals.value;
+         localStorage.NetProfitMarginBenchmark_Transport            =  document.BenchmarksForm.NetProfitMarginBenchmark_Transport.value;
+         localStorage.NetProfitMarginBenchmark_Mining               =  document.BenchmarksForm.NetProfitMarginBenchmark_Mining.value;
+         localStorage.NetProfitMarginBenchmark_DateUpdated          =  document.BenchmarksForm.NetProfitMarginBenchmark_DateUpdated.value;
+         localStorage.NetProfitMarginBenchmarkComment               =  document.BenchmarksForm.NetProfitMarginBenchmarkComment.value;
+         localStorage.ROEBenchmarkType                              =  document.BenchmarksForm.ROEBenchmarkType.value;
+         localStorage.ROEGlobalAverage                              =  document.BenchmarksForm.ROEGlobalAverage.value;
+         localStorage.ROEBenchmark_Trade                            =  document.BenchmarksForm.ROEBenchmark_Trade.value;
+         localStorage.ROEBenchmark_Finance                          =  document.BenchmarksForm.ROEBenchmark_Finance.value;
+         localStorage.ROEBenchmark_RealEstate                       =  document.BenchmarksForm.ROEBenchmark_RealEstate.value;
+         localStorage.ROEBenchmark_Manufacturing                    =  document.BenchmarksForm.ROEBenchmark_Manufacturing.value;
+         localStorage.ROEBenchmark_Construction                     =  document.BenchmarksForm.ROEBenchmark_Construction.value;
+         localStorage.ROEBenchmark_Agriculture                      =  document.BenchmarksForm.ROEBenchmark_Agriculture.value;
+         localStorage.ROEBenchmark_Parastatals                      =  document.BenchmarksForm.ROEBenchmark_Parastatals.value;
+         localStorage.ROEBenchmark_Transport                        =  document.BenchmarksForm.ROEBenchmark_Transport.value;
+         localStorage.ROEBenchmark_Mining                           =  document.BenchmarksForm.ROEBenchmark_Mining.value;
+         localStorage.ROEBenchmark_DateUpdated                      =  document.BenchmarksForm.ROEBenchmark_DateUpdated.value;
+         localStorage.ROEBenchmarkComment                           =  document.BenchmarksForm.ROEBenchmarkComment.value;
+         localStorage.ROABenchmarkType                              =  document.BenchmarksForm.ROABenchmarkType.value;
+         localStorage.ROAGlobalAverage                              =  document.BenchmarksForm.ROAGlobalAverage.value;
+         localStorage.ROABenchmark_Trade                            =  document.BenchmarksForm.ROABenchmark_Trade.value;
+         localStorage.ROABenchmark_Finance                          =  document.BenchmarksForm.ROABenchmark_Finance.value;
+         localStorage.ROABenchmark_RealEstate                       =  document.BenchmarksForm.ROABenchmark_RealEstate.value;
+         localStorage.ROABenchmark_Manufacturing                    =  document.BenchmarksForm.ROABenchmark_Manufacturing.value;
+         localStorage.ROABenchmark_Construction                     =  document.BenchmarksForm.ROABenchmark_Construction.value;
+         localStorage.ROABenchmark_Agriculture                      =  document.BenchmarksForm.ROABenchmark_Agriculture.value;
+         localStorage.ROABenchmark_Parastatals                      =  document.BenchmarksForm.ROABenchmark_Parastatals.value;
+         localStorage.ROABenchmark_Transport                        =  document.BenchmarksForm.ROABenchmark_Transport.value;
+         localStorage.ROABenchmark_Mining                           =  document.BenchmarksForm.ROABenchmark_Mining.value;
+         localStorage.ROABenchmark_DateUpdated                      =  document.BenchmarksForm.ROABenchmark_DateUpdated.value;
+         localStorage.ROABenchmarkComment                           =  document.BenchmarksForm.ROABenchmarkComment.value;
+         localStorage.ROIBenchmarkType                              =  document.BenchmarksForm.ROIBenchmarkType.value;
+         localStorage.ROIGlobalAverage                              =  document.BenchmarksForm.ROIGlobalAverage.value;
+         localStorage.ROIBenchmark_Trade                            =  document.BenchmarksForm.ROIBenchmark_Trade.value;
+         localStorage.ROIBenchmark_Finance                          =  document.BenchmarksForm.ROIBenchmark_Finance.value;
+         localStorage.ROIBenchmark_RealEstate                       =  document.BenchmarksForm.ROIBenchmark_RealEstate.value;
+         localStorage.ROIBenchmark_Manufacturing                    =  document.BenchmarksForm.ROIBenchmark_Manufacturing.value;
+         localStorage.ROIBenchmark_Construction                     =  document.BenchmarksForm.ROIBenchmark_Construction.value;
+         localStorage.ROIBenchmark_Agriculture                      =  document.BenchmarksForm.ROIBenchmark_Agriculture.value;
+         localStorage.ROIBenchmark_Parastatals                      =  document.BenchmarksForm.ROIBenchmark_Parastatals.value;
+         localStorage.ROIBenchmark_Transport                        =  document.BenchmarksForm.ROIBenchmark_Transport.value;
+         localStorage.ROIBenchmark_Mining                           =  document.BenchmarksForm.ROIBenchmark_Mining.value;
+         localStorage.ROIBenchmark_DateUpdated                      =  document.BenchmarksForm.ROIBenchmark_DateUpdated.value;
+         localStorage.ROIBenchmarkComment                           =  document.BenchmarksForm.ROIBenchmarkComment.value;
+         localStorage.GearingRatioBenchmarkType                     =  document.BenchmarksForm.GearingRatioBenchmarkType.value;
+         localStorage.GearingRatioGlobalAverage                     =  document.BenchmarksForm.GearingRatioGlobalAverage.value;
+         localStorage.GearingRatioBenchmark_Trade                   =  document.BenchmarksForm.GearingRatioBenchmark_Trade.value;
+         localStorage.GearingRatioBenchmark_Finance                 =  document.BenchmarksForm.GearingRatioBenchmark_Finance.value;
+         localStorage.GearingRatioBenchmark_RealEstate              =  document.BenchmarksForm.GearingRatioBenchmark_RealEstate.value;
+         localStorage.GearingRatioBenchmark_Manufacturing           =  document.BenchmarksForm.GearingRatioBenchmark_Manufacturing.value;
+         localStorage.GearingRatioBenchmark_Construction            =  document.BenchmarksForm.GearingRatioBenchmark_Construction.value;
+         localStorage.GearingRatioBenchmark_Agriculture             =  document.BenchmarksForm.GearingRatioBenchmark_Agriculture.value;
+         localStorage.GearingRatioBenchmark_Parastatals             =  document.BenchmarksForm.GearingRatioBenchmark_Parastatals.value;
+         localStorage.GearingRatioBenchmark_Transport               =  document.BenchmarksForm.GearingRatioBenchmark_Transport.value;
+         localStorage.GearingRatioBenchmark_Mining                  =  document.BenchmarksForm.GearingRatioBenchmark_Mining.value;
+         localStorage.GearingRatioBenchmark_DateUpdated             =  document.BenchmarksForm.GearingRatioBenchmark_DateUpdated.value;
+         localStorage.GearingRatioBenchmarkComment                  =  document.BenchmarksForm.GearingRatioBenchmarkComment.value;
+         localStorage.LongtermDebtToEquityBenchmarkType             =  document.BenchmarksForm.LongtermDebtToEquityBenchmarkType.value;
+         localStorage.LongtermDebtToEquityGlobalAverage             =  document.BenchmarksForm.LongtermDebtToEquityGlobalAverage.value;
+         localStorage.LongtermDebtToEquityBenchmark_Trade           =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_Trade.value;
+         localStorage.LongtermDebtToEquityBenchmark_Finance         =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_Finance.value;
+         localStorage.LongtermDebtToEquityBenchmark_RealEstate      =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_RealEstate.value;
+         localStorage.LongtermDebtToEquityBenchmark_Manufacturing   =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_Manufacturing.value;
+         localStorage.LongtermDebtToEquityBenchmark_Construction    =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_Construction.value;
+         localStorage.LongtermDebtToEquityBenchmark_Agriculture     =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_Agriculture.value;
+         localStorage.LongtermDebtToEquityBenchmark_Parastatals     =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_Parastatals.value;
+         localStorage.LongtermDebtToEquityBenchmark_Transport       =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_Transport.value;
+         localStorage.LongtermDebtToEquityBenchmark_Mining          =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_Mining.value;
+         localStorage.LongtermDebtToEquityBenchmark_DateUpdated     =  document.BenchmarksForm.LongtermDebtToEquityBenchmark_DateUpdated.value;
+         localStorage.LongtermDebtToEquityBenchmarkComment          =  document.BenchmarksForm.LongtermDebtToEquityBenchmarkComment.value;
+         localStorage.DebtToTangibleNetWorthBenchmarkType           =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmarkType.value;
+         localStorage.DebtToTangibleNetWorthGlobalAverage           =  document.BenchmarksForm.DebtToTangibleNetWorthGlobalAverage.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_Trade         =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Trade.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_Finance       =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Finance.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_RealEstate    =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_RealEstate.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_Manufacturing =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Manufacturing.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_Construction  =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Construction.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_Agriculture   =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Agriculture.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_Parastatals   =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Parastatals.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_Transport     =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Transport.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_Mining        =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_Mining.value;
+         localStorage.DebtToTangibleNetWorthBenchmark_DateUpdated   =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmark_DateUpdated.value;
+         localStorage.DebtToTangibleNetWorthBenchmarkComment        =  document.BenchmarksForm.DebtToTangibleNetWorthBenchmarkComment.value;
+         localStorage.EquityToTotalAssetsBenchmarkType              =  document.BenchmarksForm.EquityToTotalAssetsBenchmarkType.value;
+         localStorage.EquityToTotalAssetsGlobalAverage              =  document.BenchmarksForm.EquityToTotalAssetsGlobalAverage.value;
+         localStorage.EquityToTotalAssetsBenchmark_Trade            =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_Trade.value;
+         localStorage.EquityToTotalAssetsBenchmark_Finance          =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_Finance.value;
+         localStorage.EquityToTotalAssetsBenchmark_RealEstate       =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_RealEstate.value;
+         localStorage.EquityToTotalAssetsBenchmark_Manufacturing    =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_Manufacturing.value;
+         localStorage.EquityToTotalAssetsBenchmark_Construction     =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_Construction.value;
+         localStorage.EquityToTotalAssetsBenchmark_Agriculture      =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_Agriculture.value;
+         localStorage.EquityToTotalAssetsBenchmark_Parastatals      =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_Parastatals.value;
+         localStorage.EquityToTotalAssetsBenchmark_Transport        =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_Transport.value;
+         localStorage.EquityToTotalAssetsBenchmark_Mining           =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_Mining.value;
+         localStorage.EquityToTotalAssetsBenchmark_DateUpdated      =  document.BenchmarksForm.EquityToTotalAssetsBenchmark_DateUpdated.value;
+         localStorage.EquityToTotalAssetsBenchmarkComment           =  document.BenchmarksForm.EquityToTotalAssetsBenchmarkComment.value;
+         localStorage.SolvencyBenchmarkType                         =  document.BenchmarksForm.SolvencyBenchmarkType.value;
+         localStorage.SolvencyGlobalAverage                         =  document.BenchmarksForm.SolvencyGlobalAverage.value;
+         localStorage.SolvencyBenchmark_Trade                       =  document.BenchmarksForm.SolvencyBenchmark_Trade.value;
+         localStorage.SolvencyBenchmark_Finance                     =  document.BenchmarksForm.SolvencyBenchmark_Finance.value;
+         localStorage.SolvencyBenchmark_RealEstate                  =  document.BenchmarksForm.SolvencyBenchmark_RealEstate.value;
+         localStorage.SolvencyBenchmark_Manufacturing               =  document.BenchmarksForm.SolvencyBenchmark_Manufacturing.value;
+         localStorage.SolvencyBenchmark_Construction                =  document.BenchmarksForm.SolvencyBenchmark_Construction.value;
+         localStorage.SolvencyBenchmark_Agriculture                 =  document.BenchmarksForm.SolvencyBenchmark_Agriculture.value;
+         localStorage.SolvencyBenchmark_Parastatals                 =  document.BenchmarksForm.SolvencyBenchmark_Parastatals.value;
+         localStorage.SolvencyBenchmark_Transport                   =  document.BenchmarksForm.SolvencyBenchmark_Transport.value;
+         localStorage.SolvencyBenchmark_Mining                      =  document.BenchmarksForm.SolvencyBenchmark_Mining.value;
+         localStorage.SolvencyBenchmark_DateUpdated                 =  document.BenchmarksForm.SolvencyBenchmark_DateUpdated.value;
+         localStorage.SolvencyBenchmarkComment                      =  document.BenchmarksForm.SolvencyBenchmarkComment.value;
+         localStorage.InterestCoverBenchmarkType                    =  document.BenchmarksForm.InterestCoverBenchmarkType.value;
+         localStorage.InterestCoverGlobalAverage                    =  document.BenchmarksForm.InterestCoverGlobalAverage.value;
+         localStorage.InterestCoverBenchmark_Trade                  =  document.BenchmarksForm.InterestCoverBenchmark_Trade.value;
+         localStorage.InterestCoverBenchmark_Finance                =  document.BenchmarksForm.InterestCoverBenchmark_Finance.value;
+         localStorage.InterestCoverBenchmark_RealEstate             =  document.BenchmarksForm.InterestCoverBenchmark_RealEstate.value;
+         localStorage.InterestCoverBenchmark_Manufacturing          =  document.BenchmarksForm.InterestCoverBenchmark_Manufacturing.value;
+         localStorage.InterestCoverBenchmark_Construction           =  document.BenchmarksForm.InterestCoverBenchmark_Construction.value;
+         localStorage.InterestCoverBenchmark_Agriculture            =  document.BenchmarksForm.InterestCoverBenchmark_Agriculture.value;
+         localStorage.InterestCoverBenchmark_Parastatals            =  document.BenchmarksForm.InterestCoverBenchmark_Parastatals.value;
+         localStorage.InterestCoverBenchmark_Transport              =  document.BenchmarksForm.InterestCoverBenchmark_Transport.value;
+         localStorage.InterestCoverBenchmark_Mining                 =  document.BenchmarksForm.InterestCoverBenchmark_Mining.value;
+         localStorage.InterestCoverBenchmark_DateUpdated            =  document.BenchmarksForm.InterestCoverBenchmark_DateUpdated.value;
+         localStorage.InterestCoverBenchmarkComment                 =  document.BenchmarksForm.InterestCoverBenchmarkComment.value;
+         localStorage.EBITDAToDebtBenchmarkType                     =  document.BenchmarksForm.EBITDAToDebtBenchmarkType.value;
+         localStorage.EBITDAToDebtGlobalAverage                     =  document.BenchmarksForm.EBITDAToDebtGlobalAverage.value;
+         localStorage.EBITDAToDebtBenchmark_Trade                   =  document.BenchmarksForm.EBITDAToDebtBenchmark_Trade.value;
+         localStorage.EBITDAToDebtBenchmark_Finance                 =  document.BenchmarksForm.EBITDAToDebtBenchmark_Finance.value;
+         localStorage.EBITDAToDebtBenchmark_RealEstate              =  document.BenchmarksForm.EBITDAToDebtBenchmark_RealEstate.value;
+         localStorage.EBITDAToDebtBenchmark_Manufacturing           =  document.BenchmarksForm.EBITDAToDebtBenchmark_Manufacturing.value;
+         localStorage.EBITDAToDebtBenchmark_Construction            =  document.BenchmarksForm.EBITDAToDebtBenchmark_Construction.value;
+         localStorage.EBITDAToDebtBenchmark_Agriculture             =  document.BenchmarksForm.EBITDAToDebtBenchmark_Agriculture.value;
+         localStorage.EBITDAToDebtBenchmark_Parastatals             =  document.BenchmarksForm.EBITDAToDebtBenchmark_Parastatals.value;
+         localStorage.EBITDAToDebtBenchmark_Transport               =  document.BenchmarksForm.EBITDAToDebtBenchmark_Transport.value;
+         localStorage.EBITDAToDebtBenchmark_Mining                  =  document.BenchmarksForm.EBITDAToDebtBenchmark_Mining.value;
+         localStorage.EBITDAToDebtBenchmark_DateUpdated             =  document.BenchmarksForm.EBITDAToDebtBenchmark_DateUpdated.value;
+         localStorage.EBITDAToDebtBenchmarkComment                  =  document.BenchmarksForm.EBITDAToDebtBenchmarkComment.value;
+         localStorage.TotalAssetsTurnoverBenchmarkType              =  document.BenchmarksForm.TotalAssetsTurnoverBenchmarkType.value;
+         localStorage.TotalAssetsTurnoverGlobalAverage              =  document.BenchmarksForm.TotalAssetsTurnoverGlobalAverage.value;
+         localStorage.TotalAssetsTurnoverBenchmark_Trade            =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Trade.value;
+         localStorage.TotalAssetsTurnoverBenchmark_Finance          =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Finance.value;
+         localStorage.TotalAssetsTurnoverBenchmark_RealEstate       =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_RealEstate.value;
+         localStorage.TotalAssetsTurnoverBenchmark_Manufacturing    =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Manufacturing.value;
+         localStorage.TotalAssetsTurnoverBenchmark_Construction     =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Construction.value;
+         localStorage.TotalAssetsTurnoverBenchmark_Agriculture      =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Agriculture.value;
+         localStorage.TotalAssetsTurnoverBenchmark_Parastatals      =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Parastatals.value;
+         localStorage.TotalAssetsTurnoverBenchmark_Transport        =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Transport.value;
+         localStorage.TotalAssetsTurnoverBenchmark_Mining           =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_Mining.value;
+         localStorage.TotalAssetsTurnoverBenchmark_DateUpdated      =  document.BenchmarksForm.TotalAssetsTurnoverBenchmark_DateUpdated.value;
+         localStorage.TotalAssetsTurnoverBenchmarkComment           =  document.BenchmarksForm.TotalAssetsTurnoverBenchmarkComment.value;
+         localStorage.FixedAssetsTurnoverBenchmarkType             =  document.BenchmarksForm.FixedAssetsTurnoverBenchmarkType.value;
+         localStorage.FixedAssetsTurnoverGlobalAverage             =  document.BenchmarksForm.FixedAssetsTurnoverGlobalAverage.value;
+         localStorage.FixedAssetsTurnoverBenchmark_Trade           =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Trade.value;
+         localStorage.FixedAssetsTurnoverBenchmark_Finance         =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Finance.value;
+         localStorage.FixedAssetsTurnoverBenchmark_RealEstate      =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_RealEstate.value;
+         localStorage.FixedAssetsTurnoverBenchmark_Manufacturing   =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Manufacturing.value;
+         localStorage.FixedAssetsTurnoverBenchmark_Construction    =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Construction.value;
+         localStorage.FixedAssetsTurnoverBenchmark_Agriculture     =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Agriculture.value;
+         localStorage.FixedAssetsTurnoverBenchmark_Parastatals     =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Parastatals.value;
+         localStorage.FixedAssetsTurnoverBenchmark_Transport       =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Transport.value;
+         localStorage.FixedAssetsTurnoverBenchmark_Mining          =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_Mining.value;
+         localStorage.FixedAssetsTurnoverBenchmark_DateUpdated     =  document.BenchmarksForm.FixedAssetsTurnoverBenchmark_DateUpdated.value;
+         localStorage.FixedAssetsTurnoverBenchmarkComment          =  document.BenchmarksForm.FixedAssetsTurnoverBenchmarkComment.value;
+	  
+	     alert ("Industry benchmarks successfully saved into local storage - now updating database");
+	  }
+	  
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+ 
+
+
+		function CalculateRatios()
+		
+		{
+		   
+		   var elem = document.getElementById('BenchmarksForm').elements;
+ 		   var today = new Date();
+		   for(var i = 0; i < elem.length; i++)
+           {		   
+			   var AverageColumn = elem[i].name.search("GlobalAverage");
+			   if (AverageColumn !== -1)
+			   {
+			      //Get the form data for the benchmark for each line
+				  var Trade              = ToNumber(elem[i+1].value);
+				  var Finance            = ToNumber(elem[i+2].value);
+				  var RealEstate         = ToNumber(elem[i+3].value);
+				  var Manufacturing      = ToNumber(elem[i+4].value);
+			      var Construction       = ToNumber(elem[i+5].value);
+			      var Agriculture        = ToNumber(elem[i+6].value);
+			      var Parastatals        = ToNumber(elem[i+7].value);
+			      var Transport          = ToNumber(elem[i+8].value);
+				  var Mining             = ToNumber(elem[i+9].value);
+                  
+				  // Calculate the global average
+				  var Total              = Trade + Finance + RealEstate + Manufacturing + 
+				                           Construction + Agriculture + Parastatals + Transport + Mining;
+				  
+				  var GlobalAverageBefore= round(elem[i].value,1);
+				  var GlobalAverageAfter = round(Total/9,1);
+			      
+				  //if there is a change on the Global calculation then update the change date = 10th column after the avg
+				  if (GlobalAverageAfter !== GlobalAverageBefore) 
+				  {
+				     elem[i+10].valueAsDate = new Date();
+				  }
+				  // Display the Global Average to the calculated value
+				  
+				  elem[i].value = GlobalAverageAfter;
+		          elem[i].style.backgroundColor = "powderblue";
+		         // elem[i].style.text-align = "right";
+		          //elem[i].style.font-weight = "bold";
+				}
+			}
+ 		}
+		
+		function DisplayRatiosFromLocalStorage()
+		{
+   		}	    
+	
+       function round(number,decimalPlaces)
+	   {
+	      var factorOf10 = Math.pow(10,decimalPlaces);
+		  return Math.round(number * factorOf10) / factorOf10;
+	   }
+	
+		function ToNumber(nStr) 
+		{
+	  
+	       if   (typeof(nStr) == "undefined")
+		      {  return 0;}
+		   else  
+		      {
+		        if (nStr == "") {return 0};
+		        if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+		      } 
+	    }  
+   </script>
+ <style>
+	.price {
+         text-align:right;
+
+	 }
+    .Date {
+         text-align:center;
+	     color:black;
+		 background-color:powderblue;
+		 readonly:true;
+		 width:130;
+	 }
+   
+     .Greyed 
+         text-align:right;
+	     color:white;
+		 background-color:grey;
+		 readonly:true;
+		 width:45;
+	 }
+	 
+    .Avg {
+         text-align:right;
+	     color:black;
+		 font-weight:bold;
+		 background-color:powderblue;
+		 readonly:true;
+		 width:50;
+	 }
+	
+	</style>  
+  
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <!--<label for="number">How much would you like to pay?</label><br />-->
+   
+   <form name="BenchmarksForm" id="BenchmarksForm" onsubmit="return validateForm()" 
+         method="post" onclick ="CalculateRatios()" 
+		 action = "SaveIndustryBenchmarksData.php">    
+   
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" autocomplete = on >
+  	  <tr>
+	    <td><img src="img1.gif" alt="nknk" name="g" width="554" height="208"/></td>
+		<td><img src="img2.jpg" alt="nknk" name="g" width="554" height="208"/></td>
+	   </tr>
+	   <table align = "center" border = 1 bordercolor = 1 cellspacing = 0 cellpadding =0 width = 1108>
+	   
+	  <tr><td cellspacing = 0 colspan = 15 align = "center" style="background-color:darkblue;color:white"><h3>MODEL CALIBRATION - Financial Ratio Benchmarks</h3></td></tr>
+      <tr>
+	 	  <td colspan = 2 align = center>Username</td>
+	      <td colspan = 2><input style="background-color:powderblue;text-align:center" name = "username" readonly></td>
+	  </tr>
+		<tr bgcolor = darkblue align = center>
+	      <th align = left width = "16%"><h5 style="color:white;text-align:left"><br>RATIO<h5></th>
+		  <td style="color:white" width = "4%" >Units</td>
+		  <td style="color:white" width = "9%" >Bench-mark<br>Type</td>
+		  <td style="color:white" width = "4%" >Global<br>Average</td>
+		  <td style="color:white" width = "4%" >Trade</td>
+		  <td style="color:white" width = "4%" >Finance<br>and<br>Business<br>Services</td>
+		  <td style="color:white" width = "4%" >Real<br>Estate</td>
+		  <td style="color:white" width = "4%" >Manufa-cturing</td>
+		  <td style="color:white" width = "4%" >Constru-ction</td>
+		  <td style="color:white" width = "4%" >Agri-culture</td>
+		  <td style="color:white" width = "4%" >Para-statals</td>
+		  <td style="color:white" width = "4%" >Transport<br>and<br>Communi-cations</td>
+		  <td style="color:white" width = "4%" >Mining</td>
+		  <td style="color:white" width = "4%" >Date<br>Updated</td>
+		  <td style="color:white"  width = "43%" align = left>Data Source </td>
+		</tr>
+   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Liquidity Ratios<strong></td>
+	   </tr>
+	   <tr align = center>
+		  <td align = left>Current Ratio</td>
+		  <td>Days</td>
+		  <td><Input size  = 3 type="text" name="CurrentRatioBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioGlobalAverage"                 class = "Greyed" readonly></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CurrentRatioBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="CurrentRatioBenchmark_DateUpdated"         class="Date" ></td>
+		  <td align = left><Input size = 30 type="text" name="CurrentRatioBenchmarkComment" style="text-align:right;"></td>
+		</tr>
+		<tr align = center>
+	      <td align = left>Quick Ratio</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="QuickRatioBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="QuickRatioBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="QuickRatioBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="QuickRatioBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+		  <td align = left>Debtor Days</td>
+		  <td>Days</td>
+	      <td><Input size  = 3 type="text" name="DebtorDaysBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtorDaysBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="DebtorDaysBenchmark_DateUpdated"         class = "Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="DebtorDaysBenchmarkComment" style="text-align:right;"></td>
+</tr>
+	    <tr align = center>
+		  <td align = left>Creditor Days</td>
+		  <td>Days</td>
+		  <td><Input size  = 3 type="text" name="CreditorDaysBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="CreditorDaysBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="CreditorDaysBenchmark_DateUpdated"         class = "Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="CreditorDaysBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+		<td align = left>Turnover/Working Capital</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="TurnoverToWCBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverToWCBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="TurnoverToWCBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="TurnoverToWCBenchmarkComment" style="text-align:right;"></td>
+		</tr>
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Profitability Ratios<strong></td>
+	   </tr>
+	   <tr align = center>
+		  <td align  = left>Turnover Growth%</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="TurnoverGrowthBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TurnoverGrowthBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="TurnoverGrowthBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="TurnoverGrowthBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+	      <td align = left>Gross Profit%</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="GrossProfitMarginBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GrossProfitMarginBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="GrossProfitMarginBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="GrossProfitMarginBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+		  <td align = left>Operating Profit Margin</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="OperatingProfitMarginBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="OperatingProfitMarginBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="OperatingProfitMarginBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="OperatingProfitMarginBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+		  <td align = left>Net Profit Margin</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="NetProfitMarginBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="NetProfitMarginBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="NetProfitMarginBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="NetProfitMarginBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+	    <tr align = center>
+		  <td align = left>Return On Equity(ROE)</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="ROEBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="ROEGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROEBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="ROEBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="ROEBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+		<td align = left>Return On Assets(ROA)</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="ROABenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="ROAGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROABenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="ROABenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="ROABenchmarkComment" style="text-align:right;"></td>
+	    </tr>
+		<tr align = center>
+		<td align = left>Return On Investments(ROI)</td>
+		  <td>%</td>		  
+		  <td><Input size  = 3 type="text" name="ROIBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="ROIGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="ROIBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="ROIBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="ROIBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+	   	   
+	   <tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Capital Structure Ratios<strong></td>
+	   </tr>
+	   <tr align = center>
+		  <td align = left>Gearing Ratio</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="GearingRatioBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="GearingRatioBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="GearingRatioBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="GearingRatioBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+	      <td align = left>Long-term Debt/Equity</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="LongtermDebtToEquityBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="LongtermDebtToEquityBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="LongtermDebtToEquityBenchmark_DateUpdated"         class="Date"  readonly></td>
+		  <td align = left><Input size = 30 type="text" name="LongtermDebtToEquityBenchmarkComment" style="text-align:right;"></td>
+   </tr>
+		<tr align = center>
+		  <td align =left >Debt/Tangible Net Worth</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="DebtToTangibleNetWorthBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="DebtToTangibleNetWorthBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="DebtToTangibleNetWorthBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="DebtToTangibleNetWorthBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+	
+		<tr align = center>
+		  <td align = left>Equity/Total Assets</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="EquityToTotalAssetsBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EquityToTotalAssetsBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="EquityToTotalAssetsBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="EquityToTotalAssetsBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+	    <tr align = center>
+		  <td align = left>Solvency</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="SolvencyBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="SolvencyBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="SolvencyBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="SolvencyBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr style ="background-color:lightblue;color:black" >
+		  <td><strong>Debt Service Ratios<strong></td>
+		</tr>
+	    <tr align = center>
+		  <td align = left>Interest Cover</td>
+		  <td>times</td>
+		  <td><Input size  = 3 type="text" name="InterestCoverBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="InterestCoverBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="InterestCoverBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="InterestCoverBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+	      <td align = left>EBITDA/Gross Interest Debts</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="EBITDAToDebtBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="EBITDAToDebtBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="EBITDAToDebtBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="EBITDAToDebtBenchmarkComment" style="text-align:right;"></td>
+	    </tr>
+		<tr style ="background-color:lightblue;color:black" >
+		    <td><strong>Activity Ratios<strong></td>
+		</tr>
+	    <tr align = center>
+		  <td align = left>Total Assets/Turnover</td>
+		  <td>%</td>
+		  <td><Input size  = 3 type="text" name="TotalAssetsTurnoverBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="TotalAssetsTurnoverBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="TotalAssetsTurnoverBenchmark_DateUpdated"         class="Date"  readonly></td>
+		  <td align = left><Input size = 30 type="text" name="TotalAssetsTurnoverBenchmarkComment" style="text-align:right;"></td>
+	</tr>
+		<tr align = center>
+	      <td align = left>Fixed Assets Turnover</td>
+		  <td>times</td>
+		  <td><Input size  = 3 type="text" name="FixedAssetsTurnoverBenchmarkType"                 value ="Industry" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverGlobalAverage"                 class = "Avg" readonly></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_Trade"               style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_Finance"             style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_RealEstate"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_Manufacturing"       style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_Construction"        style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_Agriculture"         style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_Parastatals"          style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_Transport"           style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="text" name="FixedAssetsTurnoverBenchmark_Mining"              style="text-align:right;" ></td>
+		  <td><Input size  = 2 type="date" name="FixedAssetsTurnoverBenchmark_DateUpdated"         class="Date" readonly ></td>
+		  <td align = left><Input size = 30 type="text" name="FixedAssetsTurnoverBenchmarkComment" style="text-align:right;"></td>
+    </tr>
+        <tr>
+	      <td></td>
+		  <td colspan = 2><Input type = Submit value = "Save/Submit" onclick = "SaveData_Industry_Benchmarks()" ></td>
+	    </table>
+   </table>
+	 
+	 </Form>
+</body>
+
+</html>

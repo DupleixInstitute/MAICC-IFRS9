@@ -1,0 +1,64 @@
+<html>
+<head>
+<style>
+#container {
+  position: fixed;
+  left: 20px;
+  width: 500px;
+  height: 100px;
+  top: 20px;
+  overflow: scroll;
+}
+
+#absolutediv {
+  position: absolute;
+  top: 30px;
+  width: 300px;
+  background-color: #CEC;
+}
+
+#fixeddiv {
+  position: fixed;
+  top: 100px;
+  width: 300px;
+  background-color: #ECC;
+}
+
+#absolutediv2 {
+  position: absolute;
+  width: 300px;
+  top: 50px;
+  background-color: #ECC;
+}
+
+
+</style
+var div = document.getElementById('absolutediv2');
+var container = document.getElementById('container');
+
+container.addEventListener('scroll', function() {
+  div.style.top = container.scrollTop + 300 + 'px';
+});
+</head>
+<body>
+
+<div id="container">
+  <div id="background">
+    Content
+  </div>
+  <div id="absolutediv">
+    Absolute stays inside
+  </div>
+  <div id="fixeddiv">
+    Fixed escapes!
+  </div>
+  <div id="absolutediv2">
+    Stays put!
+  </div>
+</div>
+
+
+
+</body>
+
+</html>
