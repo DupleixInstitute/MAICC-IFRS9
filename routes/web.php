@@ -716,6 +716,34 @@ Route::get('/expected-credit-loss/create', [ExpectedCreditLossController::class,
 Route::post('/expected-credit-loss/calculations', [ExpectedCreditLossController::class, 'calculateECL'])->name('expected-credit-loss.calculation');
 Route::get('/expected-credit-loss/reports',[ExpectedCreditLossController::class,'exportECL'])->name('expected-credit-loss.reports');
 
+// Stageing Rules Routes
+Route::group(['prefix' => 'stageing-rules', 'as' => 'stageing-rules.'], function () {
+    Route::get('/', [\App\Http\Controllers\StageingRulesController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\StageingRulesController::class, 'store'])->name('store');
+});
+
+Route::group(['prefix' => 'sicr-groups', 'as' => 'sicr-groups.'], function () {
+    Route::get('/', [\App\Http\Controllers\SicrGroupController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\SicrGroupController::class, 'store'])->name('store');
+    Route::post('/import', [\App\Http\Controllers\SicrGroupController::class, 'import'])->name('import');
+    Route::put('/{group}/update', [\App\Http\Controllers\SicrGroupController::class, 'update'])->name('update');
+    Route::delete('/{group}/destroy', [\App\Http\Controllers\SicrGroupController::class, 'destroy'])->name('destroy');
+});
+
+Route::group(['prefix' => 'sicr-items', 'as' => 'sicr-items.'], function () {
+    Route::get('/', [\App\Http\Controllers\SicrItemController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\SicrItemController::class, 'store'])->name('store');
+    Route::post('/import', [\App\Http\Controllers\SicrItemController::class, 'import'])->name('import');
+    Route::put('/{item}/update', [\App\Http\Controllers\SicrItemController::class, 'update'])->name('update');
+    Route::post('/{item}/toggle', [\App\Http\Controllers\SicrItemController::class, 'toggle'])->name('toggle');
+    Route::delete('/{item}/destroy', [\App\Http\Controllers\SicrItemController::class, 'destroy'])->name('destroy');
+});
+
+Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function () {
+    Route::get('/', [\App\Http\Controllers\SicrTriggerController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\SicrTriggerController::class, 'store'])->name('store');
+});
+
 //Manual Routes
 Route::get('/manuals/list',[ManualsController::class,'index'])->name('manuals.index');
 Route::get('/manuals/create',[ManualsController::class,'create'])->name('manuals.create');

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\LoanPortfolio;
+use App\Models\Client;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -41,6 +42,9 @@ class LoanBook extends Model
         'ifrs9stage_pre_qualitative',
         'ifrs9stage_postalitative',
         'sicr',
+        'ifrs9_stage_prequalitative',
+        'sicr_trigger',
+        'ifrs9_stage_postqualitative',
         'ecl_value',
         'pd_value',
         'lgd_value',
@@ -64,6 +68,9 @@ class LoanBook extends Model
         'reporting_year' => 'integer',
         'reporting_month' => 'integer',
         'is_month_end' => 'boolean',
+        'ifrs9_stage_prequalitative' => 'integer',
+        'sicr_trigger' => 'integer',
+        'ifrs9_stage_postqualitative' => 'integer',
     ];
 
     /**
