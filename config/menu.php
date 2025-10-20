@@ -88,12 +88,32 @@ return [
 
         //Loan Portfolios
         [
-            'name' => 'Loan Portfolios',
+            'name' => 'Portfolios',
             'icon' => 'database',
-            'route' => 'portfolios.index',
-            'permissions' => 'portfolios.index',
-            'dropdown' => false,
-            'children' => [],
+            'route' => '',
+            'permissions' => '',
+            'dropdown' => true,
+            'children' => [
+                                [
+                    'name' => 'Loan Portfolio',
+                    'icon' => 'circle',
+                    'route' => 'portfolios.index',
+                    'permissions' => 'portfolios.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 0,
+                ],
+                [
+                    'name' => 'Sector Types',
+                    'icon' => 'circle',
+                    'route' => 'industry_types.index',
+                    'route_check' => 'industry_types.index',
+                    'permissions' => 'industry_types.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 1,
+                ],
+            ],
             'order' => 1,
         ],
         //CUSTOM IMPORTS

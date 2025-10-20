@@ -70,7 +70,7 @@ class ClientImportController extends Controller
 
                     try {
                         $client = Client::create([
-                            'external_id' => $customerId,
+                            'customer_id' => $customerId,
                             'name' => $name,
                             'mobile' => $phone,
                             'type' => 'individual',
@@ -78,7 +78,7 @@ class ClientImportController extends Controller
                         
                         $successfulRecords[] = [
                             'id' => $client->id,
-                            'external_id' => $customerId,
+                            'customer_id' => $customerId,
                             'name' => $name,
                             'mobile' => $phone,
                         ];

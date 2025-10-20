@@ -19,7 +19,10 @@ return new class extends Migration
             $table->unsignedBigInteger('district_id')->nullable();
             $table->unsignedBigInteger('ward_id')->nullable();
             $table->unsignedBigInteger('village_id')->nullable();
+            $table->string('industry_type')->nullable();
+            $table->string('industry_code')->nullable();
             $table->string('external_id')->nullable();
+            $table->integer('client_id')->nullable();
             $table->enum('type', ['individual', 'corporate'])->default('individual');
             $table->string('name')->nullable();
             $table->enum('gender', ['male', 'female', 'other'])->nullable();

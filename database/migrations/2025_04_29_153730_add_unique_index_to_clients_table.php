@@ -9,6 +9,7 @@ return new class extends Migration {
     {
         Schema::table('clients', function (Blueprint $table) {
             $table->unique(['external_id', 'mobile'], 'clients_external_mobile_unique');
+            $table->unique(['customer_id', 'name'], 'clients_id_name_unique');
         });
     }
 
@@ -16,6 +17,7 @@ return new class extends Migration {
     {
         Schema::table('clients', function (Blueprint $table) {
             $table->dropUnique('clients_external_mobile_unique');
+            $table->dropUnique('clients_id_name_unique');
         });
     }
 };

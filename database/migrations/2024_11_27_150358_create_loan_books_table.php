@@ -22,12 +22,24 @@ return new class extends Migration
             $table->date('create_date');
             $table->date('due_date');
             $table->integer('overdue_days')->default(0);
+            $table->integer('tenor')->default(0);
+            $table->decimal('interest_rate',8,2)->default(0);
             $table->decimal('principal_balance', 65, 2)->default(0);
+            $table->decimal('disbursed',16,2)->default(0);
+            $table->decimal('repayments',16,2)->default(0);
+            $table->string('collateral_type')->nullable();
             $table->decimal('commitments', 16,2)->default(0);
             $table->decimal('expected_loss_provision', 65, 2)->default(0);
             $table->string('overdue_status')->nullable();
             $table->boolean('is_month_end')->default(false);
-            $table->string('ifrs9_stage')->nullable();
+            $table->integer('ifrs9_stage')->default(0);
+            $table->string('ifrs9stage_pre_qualitative')->nullable();
+            $table->boolean('sicr')->default(0)->nullable();
+            $table->string('ifrs9stage_post_qualitative')->nullable();
+            $table->string('< 30')->nullable();
+            $table->string('30 to =< 90')->nullable();
+            $table->string('30 =< 180')->nullable();
+            $table->string('arrears > 180')->nullable();
             $table->timestamps();
             
             // Composite indexes for efficient querying

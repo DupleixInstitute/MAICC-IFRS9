@@ -14,7 +14,7 @@ return new class extends Migration
             
             // Add new columns for transition profile
             $table->string('aggregation_criteria')->default('balance'); // 'count' or 'balance'
-            $table->foreignId('end_transition_profile_id')->nullable()->references('id')->on('loan_products');
+           // $table->foreignId('end_transition_profile_id')->nullable()->references('id')->on('loan_products');
             $table->boolean('is_default')->default(false);
             $table->boolean('is_per_portfolio')->default(true);
             $table->boolean('is_paid')->default(true);
@@ -34,7 +34,7 @@ return new class extends Migration
             // Remove new columns
             $table->dropColumn([
                 'aggregation_criteria',
-                'end_transition_profile_id',
+               // 'end_transition_profile_id',
                 'is_default',
                 'is_per_portfolio',
                 'is_paid',

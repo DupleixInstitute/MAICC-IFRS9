@@ -118,7 +118,7 @@ class TransitionMatrixCummulativeController extends Controller
                     UPDATE loan_books
                     SET pd_value = ?
                     WHERE reporting_period = ?
-                    AND calculated_ifrs9_stage = ?
+                    AND ifrs9stage_pre_qualitative = ?
                 ", [
                     $pdDecimal,
                     $period,

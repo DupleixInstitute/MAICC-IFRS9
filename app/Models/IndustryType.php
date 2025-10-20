@@ -10,7 +10,12 @@ class IndustryType extends Model
 {
     use HasFactory;
 
-
+    protected $fillable = [
+        'code',
+        'name',
+        'description',
+    ];
+    
     public function scopeFilter($query, array $filters)
     {
         $query->when($filters['search'] ?? null, function ($query, $search) {

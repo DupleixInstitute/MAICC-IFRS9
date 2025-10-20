@@ -56,7 +56,7 @@ class ClientsController extends Controller
                 ->withQueryString()
                 ->through(fn ($client) => [
                     'id' => $client->id,
-                    'external_id' => $client->external_id,
+                    'external_id' => $client->customer_id,
                     'name' => $client->name,
                     'mobile' => $client->mobile,
                     'updated_at' => $client->updated_at->format('Y-m-d H:i'),
@@ -74,17 +74,19 @@ class ClientsController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string'],
-            'external_id' => ['required', 'string'],
-            'mobile' => ['required', 'string', 'regex:/^07\d{8}$/'],
-        ], [
-            'mobile.regex' => 'Phone number must be 10 digits starting with 07',
+            'customer_id' => ['required', 'string'],
+        //     'mobile' => ['required', 'string', 'regex:/^07\d{8}$/'],
+        // ], [
+        //     'mobile.regex' => 'Phone number must be 10 digits starting with 07',
         ]);
 
         $client = new Client();
         $client->created_by_id = Auth::id();
         $client->name = $request->name;
-        $client->external_id = $request->external_id;
-        $client->mobile = $request->mobile;
+        //$client->external_id = $request->external_id;
+       // $client->mobile = $request->mobile;
+       $client->industry_code = $request->industry_code;
+       $client->industry_type_code = $request->industry_type;
         $client->type = 'individual';
         $client->status = 'active';
         $client->save();
@@ -117,13 +119,16 @@ class ClientsController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string'],
-            'external_id' => ['required', 'string'],
-            'mobile' => ['required', 'string', 'regex:/^07\d{8}$/'],
+            'customer_id' => ['required', 'string'],
+           // 'mobile' => ['required', 'string', 'regex:/^07\d{8}$/'],
         ]);
 
+        $client->customer_id = $request->customer_id;
         $client->name = $request->name;
-        $client->external_id = $request->external_id;
-        $client->mobile = $request->mobile;
+        //$client->external_id = $request->external_id;
+       // $client->mobile = $request->mobile;
+        $client->industry_code = $request->industry_code;
+        $client->industry_type_code = $request->industry_type;
         $client->type = 'individual';
         $client->status = 'active';
         $client->save();

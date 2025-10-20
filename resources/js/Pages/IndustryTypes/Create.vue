@@ -15,18 +15,18 @@
                     <form @submit.prevent="submit">
                         <div class="grid grid-cols-1 gap-2">
                             <div class="">
-                                <jet-label for="name" value="Name"/>
-                                <jet-input id="name" type="text" class="mt-1 block w-full" v-model="form.name"
+                                <jet-label for="code" value="Name"/>
+                                <jet-input id="code" type="text" class="mt-1 block w-full" v-model="form.code"
                                            required/>
-                                <jet-input-error :message="form.errors.name" class="mt-2"/>
+                                <jet-input-error :message="form.errors.code" class="mt-2"/>
                             </div>
                             <div>
-                                <jet-label for="description" value="Description"/>
-                                <textarea-input id="description" class="mt-1 block w-full"
-                                                v-model="form.description"/>
-                                <jet-input-error :message="form.errors.description" class="mt-2"/>
+                                <jet-label for="name" value="Description"/>
+                                <textarea-input id="name" class="mt-1 block w-full"
+                                                v-model="form.name"/>
+                                <jet-input-error :message="form.errors.name" class="mt-2"/>
                             </div>
-                            <h4>Liquidity Ratios</h4>
+                            <!-- <h4>Liquidity Ratios</h4>
                             <div>
                                 <jet-label for="current_ratio" value="Current Ratio(days)"/>
                                 <jet-input id="current_ratio" type="text" class="mt-1 block w-full"
@@ -162,7 +162,7 @@
                                 <jet-input id="fixed_assets_turn_over" type="text" class="mt-1 block w-full"
                                            v-model="form.fixed_assets_turn_over"/>
                                 <jet-input-error :message="form.errors.fixed_assets_turn_over" class="mt-2"/>
-                            </div>
+                            </div> -->
 
                         </div>
                         <div class="flex items-center justify-end mt-4">
@@ -212,30 +212,9 @@ export default {
     data() {
         return {
             form: this.$inertia.form({
+                code: null,
                 name: null,
-                description: null,
-                current_ratio: '',
-                quick_ratio: '',
-                debtor_days: '',
-                creditor_days: '',
-                working_capital: '',
-                turnover_growth: '',
-                gross_profit: '',
-                operating_profit_margin: '',
-                net_profit_margin: '',
-                return_on_equity: '',
-                return_on_assets: '',
-                return_on_investment: '',
-                gearing_ratio: '',
-                long_term_debt: '',
-                tangible_net_worth: '',
-                total_assets: '',
-                solvency: '',
-                interest_cover: '',
-                gross_interest_debts: '',
-                total_assets_turnover: '',
-                fixed_assets_turn_over: '',
-
+                description: null     
             }),
             pageTitle: "Create Type",
             pageDescription: "Create Type",

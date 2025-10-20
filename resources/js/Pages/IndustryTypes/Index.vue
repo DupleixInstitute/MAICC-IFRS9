@@ -30,12 +30,12 @@
                         class="hover:bg-gray-100 focus-within:bg-gray-100">
                         <td class="border-t">
                              <span class="px-6 py-4 flex items-center">
-                                {{ type.name }}
+                                {{ type.code }}
                             </span>
                         </td>
                         <td class="border-t">
                              <span class="px-6 py-4 flex items-center">
-                                {{ type.description }}
+                                {{ type.name }}
                             </span>
                         </td>
                         <td class="border-t w-px pr-2">

@@ -14,15 +14,12 @@ return new class extends Migration
         Schema::table('loan_books', function (Blueprint $table) {
             $table->decimal('lgd_value', 8, 2)
                   ->nullable()
-                  ->after('calculated_ifrs9_stage')
                   ->comment('Loss Given Default value for the loan book');
             $table->decimal('pd_value', 8, 2)
                   ->nullable()
-                  ->after('calculated_ifrs9_stage')
                   ->comment('Probability Of Default for the loan book');
              $table->decimal('ecl_value', 18, 2)
                    ->nullable()
-                   ->after('calculated_ifrs9_stage')
                    ->comment('Expected Credit Loss value for the loan book');
             $table->decimal('12m_pd',8,2)
                    ->nullable()

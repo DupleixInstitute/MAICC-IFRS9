@@ -21,9 +21,12 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithChunkReading, ShouldQueue
 {
-    public Import $import;
-    public array $data;
-    protected string $exceptionFilePath;
+    /** @var Import */
+    public $import;
+    /** @var array */
+    public $data;
+    /** @var string */
+    protected $exceptionFilePath;
 
     protected function parseDate($value): ?string
     {
@@ -73,6 +76,22 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
         }
     }
 
+    public function classifyIFRS9Stage($row) {
+                $ifrs9stage = 'Stage 1'; // Default stage
+
+                if (!empty($row['181-270 Days']) && floatval($row['181-270 Days']) > 0) {
+                    $ifrs9stage = 'Stage 3';
+                } elseif (!empty($row['91-180 Days']) && floatval($row['91-180 Days']) > 0) {
+                    $ifrs9stage = 'Stage 2';
+                } elseif (!empty($row['31-90 Days']) && floatval($row['31-90 Days']) > 0) {
+                    $ifrs9stage = 'Stage 2';
+                } elseif (!empty($row['1-30 Days']) && floatval($row['1-30 Days']) > 0) {
+                    $ifrs9stage = 'Stage 1';
+                }
+
+                return $ifrs9stage;
+            }
+
     public function collection(Collection $rows)
     {
         $bulkInsert = [];
@@ -93,27 +112,28 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
 
         foreach ($rows as $row) {
             try {
-                $externalId = trim($row['external_identity_id']);
+                $customerId = trim($row['customer_id']);
                 $contractId = $row['contract_id'];
 
-                $client = Client::where('external_id', $externalId)->first();
+                $customer = Client::where('customer_id', $customerId)->first();
 
-                if (!$client) {
-                    $publicName = explode('-', $row['public_name'] ?? $row['name'] ?? '');
-                    $phone = isset($publicName[0]) && trim($publicName[0]) !== '' ? trim($publicName[0]) : '00000000000';
-                    $name = isset($publicName[1]) && trim($publicName[1]) !== '' ? trim($publicName[1]) : 'TBA';
+               $client = Client::where('customer_id', $customerId)->first();
 
-                    if (!isset($publicName[1]) || empty(trim($publicName[1]))) {
-                        $exceptions++;
-                        $this->appendExceptionRow($row->toArray());
+                    if (!$client) {
+                        $publicName = explode('-', $row['public_name'] ?? $row['name'] ?? '');
+                        $phone = isset($publicName[0]) && trim($publicName[0]) !== '' ? trim($publicName[0]) : '00000000000';
+                        $name = isset($publicName[1]) && trim($publicName[1]) !== '' ? trim($publicName[1]) : 'TBA';
+
+                        if (!isset($publicName[1]) || empty(trim($publicName[1]))) {
+                            $exceptions++;
+                            $this->appendExceptionRow($row->toArray());
+                        }
+
+                        $client = Client::updateOrCreate(
+                            ['customer_id' => $customerId],
+                            ['name' => $name]
+                        );
                     }
-
-                    $client = Client::updateOrCreate(
-                        ['external_id' => $externalId],
-                        ['mobile' => $phone, 'name' => $name]
-                    );
-                }
-
                 // Date parsing
                 //$createDate = Carbon::createFromFormat('d-m-Y H:i', trim($row['create_time']))->startOfDay();
                 //Log::debug('Hex create_time: ' . bin2hex($row['create_time']));
@@ -143,61 +163,66 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
                 //     continue;
                 // }
 
-                try {
-                    $createDate = Carbon::createFromFormat('d/m/Y H:i', $cleanCreateTime)->startOfDay();
-                    $reportingEndDate = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth()->startOfDay();
+              //  try {
+                    // $createDate = Carbon::createFromFormat('d/m/Y H:i', $cleanCreateTime)->startOfDay();
+                    // $reportingEndDate = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth()->startOfDay();
 
-                    $diffDays = $createDate->diffInDays($reportingEndDate, false);
+                    // $diffDays = $createDate->diffInDays($reportingEndDate, false);
 
 
-                    if ($diffDays >= 0 && $diffDays <= 30) {
-                        $ifrs9Stage = 1;
-                    } elseif ($diffDays > 30 && $diffDays <= 90) {
-                        $ifrs9Stage = 2;
-                    } elseif ($diffDays > 90) {
-                        $ifrs9Stage = 3;
-                    } else {
+                    // if ($diffDays >= 0 && $diffDays <= 30) {
+                    //     $ifrs9Stage = 1;
+                    // } elseif ($diffDays > 30 && $diffDays <= 90) {
+                    //     $ifrs9Stage = 2;
+                    // } elseif ($diffDays > 90) {
+                    //     $ifrs9Stage = 3;
+                    // } else {
                         
-                        $ifrs9Stage = 1;
-                    }
+                    //     $ifrs9Stage = 1;
+                    // }
 
-                    if(isset($row->overdue_days)){
-                        $daysValue = (int)$row->overdue_days;
+                    // if(isset($row->overdue_days)){
+                    //     $daysValue = (int)$row->overdue_days;
 
-                        if ($daysValue >= 0 && $daysValue <= 30) {
-                            $ifrs9Stage = 1;
-                        } elseif ($daysValue > 30 && $daysValue <= 180) {
-                            $ifrs9Stage = 2;
-                        } elseif ($daysValue > 180) {
-                            $ifrs9Stage = 3;
-                        }
-
-                    }
+                    //     if ($daysValue >= 0 && $daysValue <= 30) {
+                    //         $ifrs9Stage = 1;
+                    //     } elseif ($daysValue > 30 && $daysValue <= 180) {
+                    //         $ifrs9Stage = 2;
+                    //     } elseif ($daysValue > 180) {
+                    //         $ifrs9Stage = 3;
+                    //     }
+                    // }
 
                     // Optional for debugging
                     //Log::debug("Contract {$contractId} - Create: {$createDate}, ReportEnd: {$reportingEndDate}, Days: {$diffDays}, Stage: {$ifrs9Stage}");
 
-                } catch (\Exception $e) {
-                    Log::error("Failed to parse date or calculate stage: " . $e->getMessage());
-                    $this->appendExceptionRow($row->toArray());
-                    continue;
-                }
+                // } catch (\Exception $e) {
+                //     Log::error("Failed to parse date or calculate stage: " . $e->getMessage());
+                //     $this->appendExceptionRow($row->toArray());
+                //     continue;
+                // }
 
 
                 $bulkInsert[] = [
-                    'client_id' => $client->id,
+                    'customer_id' => $client->id,
+                    'customer_name'=>$row['name'],
                     'loan_portfolio_id' => $this->data['loan_portfolio_id'],
                     'reporting_period' => $reportingPeriod,
                     'reporting_year' => $year,
                     'reporting_month' => $month,
                     'contract_id' => $contractId,
-                    'external_identity_id' => $externalId,
-                    'create_date' => $this->parseDate($row['create_time']),
-                    'due_date' => $this->parseDate($row['over_due_date']),
+                   // 'external_identity_id' => $externalId,
+                    'create_date' => $this->parseDate($row['value_date']),
+                    'due_date' => $this->parseDate($row['maturity_date']),
+                    'tenor'=> $row['tenor'],
+                    'interest_rate'=>$row['interest_rate'],
                     'overdue_days' => $row['overdue_days'],
-                    'principal_balance' => $row['amount'],
+                    'principal_balance' => $row['principal'],
+                    'disbursed'=>$row['disbursed'],
+                
                     'contract_status' => $row['status'],
-                    'calculated_ifrs9_stage' => $ifrs9Stage,
+                    'ifrs9stage_pre_qualitative' => $this->classifyIFRS9Stage($row),
+                    'ifrs9stage_post_qualitative' => $this->classifyIFRS9Stage($row),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
