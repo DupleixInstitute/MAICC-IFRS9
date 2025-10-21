@@ -76,21 +76,33 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
         }
     }
 
-    public function classifyIFRS9Stage($row) {
-                $ifrs9stage = 'Stage 1'; // Default stage
+        public function classifyIFRS9Stage($row) {
+           // Log::debug('classifyIFRS9Stage input: ', $row);
 
-                if (!empty($row['181-270 Days']) && floatval($row['181-270 Days']) > 0) {
-                    $ifrs9stage = 'Stage 3';
-                } elseif (!empty($row['91-180 Days']) && floatval($row['91-180 Days']) > 0) {
-                    $ifrs9stage = 'Stage 2';
-                } elseif (!empty($row['31-90 Days']) && floatval($row['31-90 Days']) > 0) {
-                    $ifrs9stage = 'Stage 2';
-                } elseif (!empty($row['1-30 Days']) && floatval($row['1-30 Days']) > 0) {
-                    $ifrs9stage = 'Stage 1';
-                }
+            $ifrs9stage = '1';
 
-                return $ifrs9stage;
+            $clean = function($value) {
+                    $value = str_replace(['-', "\xC2\xA0", "\xA0", "\xE2\x80\x8B", "\xE2\x80\x8C", "\t", "\n", "\r"], '', $value);
+                    $value = trim(preg_replace('/[\x00-\x1F\x7F\xA0\xAD]/u', '', mb_convert_encoding($value, 'UTF-8')));
+            
+                return is_numeric($value) && floatval($value) > 0;
+            };
+
+           if ($clean($row['181_270_days'] ?? null)) {
+                $ifrs9stage = '3';
+            } elseif ($clean($row['91_180_days'] ?? null)) {
+                $ifrs9stage = '2';
+            } elseif ($clean($row['31_90_days'] ?? null)) {
+                $ifrs9stage = '2';
+            } elseif ($clean($row['1_30_days'] ?? null)) {
+                $ifrs9stage = '1';
             }
+
+            //Log::debug("IFRS9 Stage determined: $ifrs9stage");
+
+            return $ifrs9stage;
+        }
+
 
     public function collection(Collection $rows)
     {
@@ -110,34 +122,49 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
         $reportingPeriod = $this->data['reporting_period'];
         [$year, $month] = explode('-', $reportingPeriod);
 
-        foreach ($rows as $row) {
+        $normalizedRow = [];
+            foreach ($rows as $row) {
             try {
-                $customerId = trim($row['customer_id']);
-                $contractId = $row['contract_id'];
+                $row = $row->toArray();
+                $normalizedRow = [];
+                foreach ($row as $key => $value) {
+                    $normalizedRow[strtolower(trim($key))] = $value;
+                }
 
-                $customer = Client::where('customer_id', $customerId)->first();
+                // ✅ Use normalized keys
+                $customerId = trim($normalizedRow['customer_id'] ?? '');
+                if ($customerId === '') {
+                    throw new \Exception('Missing customer_id');
+                }
 
-               $client = Client::where('customer_id', $customerId)->first();
+                $contractId = $normalizedRow['contract_id'] ?? null;
 
-                    if (!$client) {
-                        $publicName = explode('-', $row['public_name'] ?? $row['name'] ?? '');
-                        $phone = isset($publicName[0]) && trim($publicName[0]) !== '' ? trim($publicName[0]) : '00000000000';
-                        $name = isset($publicName[1]) && trim($publicName[1]) !== '' ? trim($publicName[1]) : 'TBA';
+                $client = Client::where('customer_id', $customerId)->first();
 
-                        if (!isset($publicName[1]) || empty(trim($publicName[1]))) {
-                            $exceptions++;
-                            $this->appendExceptionRow($row->toArray());
-                        }
-
-                        $client = Client::updateOrCreate(
-                            ['customer_id' => $customerId],
-                            ['name' => $name]
-                        );
+                if (!$client) {
+                   
+                   // $publicName = explode('-', $normalizedRow['public_name'] ?? $normalizedRow['name'] ?? '');
+                  //  $phone = isset($publicName[0]) && trim($publicName[0]) !== '' ? trim($publicName[0]) : '00000000000';
+                   
+                  $name = trim($normalizedRow['name'] ?? ''); 
+                  if (empty($name)) {
+                        $exceptions++;
+                        $this->appendExceptionRow($normalizedRow);
+                        Log::info("Client created or updated: customer_id={$customerId}, name={$name}");
+                        continue;
                     }
-                // Date parsing
+
+                    $client = Client::updateOrCreate(
+                        ['customer_id' => $customerId],
+                        ['name' => $name]
+                    );
+                }
+
                 //$createDate = Carbon::createFromFormat('d-m-Y H:i', trim($row['create_time']))->startOfDay();
                 //Log::debug('Hex create_time: ' . bin2hex($row['create_time']));
                 $rawCreateTime = $row['create_time'] ?? '';
+
+                $createDate = $normalizedRow['value_date'] ?? null;
 
                 // Normalize encoding and remove invisible characters
                 $cleanCreateTime = trim(
@@ -163,66 +190,49 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
                 //     continue;
                 // }
 
-              //  try {
-                    // $createDate = Carbon::createFromFormat('d/m/Y H:i', $cleanCreateTime)->startOfDay();
-                    // $reportingEndDate = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth()->startOfDay();
+            try {
+                $valueDateRaw = $normalizedRow['value_date'] ?? null;
+                $valueDate = $this->parseDate($valueDateRaw);
 
-                    // $diffDays = $createDate->diffInDays($reportingEndDate, false);
+                if (!$valueDate) {
+                    throw new \Exception('Invalid or missing value_date');
+                }
+                $createDate = Carbon::createFromFormat('Y-m-d', $valueDate)->startOfDay();
+                $reportingEndDate = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth()->startOfDay();
+                $remainingLife = $createDate->floatDiffInYears($reportingEndDate);
 
+                Log::debug("Remaining life in years: $remainingLife");
 
-                    // if ($diffDays >= 0 && $diffDays <= 30) {
-                    //     $ifrs9Stage = 1;
-                    // } elseif ($diffDays > 30 && $diffDays <= 90) {
-                    //     $ifrs9Stage = 2;
-                    // } elseif ($diffDays > 90) {
-                    //     $ifrs9Stage = 3;
-                    // } else {
-                        
-                    //     $ifrs9Stage = 1;
-                    // }
+            } catch (\Exception $e) {
+                Log::error("Failed to parse create date: " . $e->getMessage());
+                $this->appendExceptionRow($normalizedRow);
+                continue;
+            }
 
-                    // if(isset($row->overdue_days)){
-                    //     $daysValue = (int)$row->overdue_days;
-
-                    //     if ($daysValue >= 0 && $daysValue <= 30) {
-                    //         $ifrs9Stage = 1;
-                    //     } elseif ($daysValue > 30 && $daysValue <= 180) {
-                    //         $ifrs9Stage = 2;
-                    //     } elseif ($daysValue > 180) {
-                    //         $ifrs9Stage = 3;
-                    //     }
-                    // }
-
-                    // Optional for debugging
-                    //Log::debug("Contract {$contractId} - Create: {$createDate}, ReportEnd: {$reportingEndDate}, Days: {$diffDays}, Stage: {$ifrs9Stage}");
-
-                // } catch (\Exception $e) {
-                //     Log::error("Failed to parse date or calculate stage: " . $e->getMessage());
-                //     $this->appendExceptionRow($row->toArray());
-                //     continue;
-                // }
 
 
                 $bulkInsert[] = [
                     'customer_id' => $client->id,
-                    'customer_name'=>$row['name'],
+                    'customer_name'=>$normalizedRow['name'],
                     'loan_portfolio_id' => $this->data['loan_portfolio_id'],
                     'reporting_period' => $reportingPeriod,
                     'reporting_year' => $year,
                     'reporting_month' => $month,
-                    'contract_id' => $contractId,
+                    'contract_id' => $contractId,             
                    // 'external_identity_id' => $externalId,
                     'create_date' => $this->parseDate($row['value_date']),
                     'due_date' => $this->parseDate($row['maturity_date']),
-                    'tenor'=> $row['tenor'],
-                    'interest_rate'=>$row['interest_rate'],
-                    'overdue_days' => $row['overdue_days'],
-                    'principal_balance' => $row['principal'],
-                    'disbursed'=>$row['disbursed'],
-                
-                    'contract_status' => $row['status'],
-                    'ifrs9stage_pre_qualitative' => $this->classifyIFRS9Stage($row),
-                    'ifrs9stage_post_qualitative' => $this->classifyIFRS9Stage($row),
+                    'tenor'=> $normalizedRow['tenor'],
+                    'interest_rate'=>$normalizedRow['interest_rate'],
+                    'remaining_tenor'=> $remainingLife ?? 0,
+                   // 'overdue_days' => $row['overdue_days'],
+                    'principal_balance' =>$normalizedRow['principal'],
+                    'disbursed'=>$normalizedRow['disbursed'] ?? 0,
+                    'repayments' => $normalizedRow['repayments'],
+                    'carrying_amount' => $normalizedRow['carrying_amount'] ?? 0,
+                    //'contract_status' => $row['status'],
+                    'ifrs9stage_pre_qualitative' => $this->classifyIFRS9Stage($normalizedRow),
+                    'ifrs9stage_post_qualitative' => $this->classifyIFRS9Stage($normalizedRow),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -230,15 +240,16 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
             } catch (\Exception $e) {
                 Log::error("Row import exception: " . $e->getMessage());
                 $exceptions++;
-                $this->appendExceptionRow($row->toArray());
+                $this->appendExceptionRow($row);
+
             }
         }
 
         if (!empty($bulkInsert)) {
             LoanBook::upsert(
                 $bulkInsert,
-                ['client_id', 'loan_portfolio_id', 'reporting_period', 'contract_id', 'external_identity_id'],
-                ['reporting_year', 'reporting_month', 'create_date', 'due_date', 'overdue_days', 'principal_balance', 'contract_status', 'calculated_ifrs9_stage', 'updated_at']
+                ['customer_id', 'loan_portfolio_id', 'reporting_period', 'contract_id','customer_name'],
+                ['reporting_year', 'reporting_month', 'create_date', 'due_date', 'principal_balance', 'ifrs9stage_pre_qualitative', 'ifrs9stage_post_qualitative','updated_at']
             );
         }
 
