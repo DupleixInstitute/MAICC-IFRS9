@@ -742,6 +742,9 @@ Route::group(['prefix' => 'sicr-items', 'as' => 'sicr-items.'], function () {
 Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function () {
     Route::get('/', [\App\Http\Controllers\SicrTriggerController::class, 'index'])->name('index');
     Route::post('/store', [\App\Http\Controllers\SicrTriggerController::class, 'store'])->name('store');
+    Route::post('/{trigger}/update-loan-book', [\App\Http\Controllers\SicrTriggerController::class, 'updateLoanBook'])->name('update-loan-book');
+    Route::post('/{trigger}/remove-alert', [\App\Http\Controllers\SicrTriggerController::class, 'removeAlert'])->name('remove-alert');
+    Route::get('/customers', [\App\Http\Controllers\SicrTriggerController::class, 'getCustomers'])->name('customers');
 });
 
 //Manual Routes
