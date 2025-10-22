@@ -10,6 +10,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use League\Csv\Reader;
 use App\Models\LoanBook;
+use App\Models\StageingRule;
 use Illuminate\Http\Request;
 use App\Models\LoanPortfolio;
 use Illuminate\Support\Facades\DB;
@@ -296,6 +297,7 @@ class LoanBookController extends Controller
                         'overdue_status' => $this->calculateOverdueStatus($record['overdue_days']),
                         'is_month_end' => true,
                         'ifrs9_stage' => $this->calculateIfrs9Stage($record, $reportingPeriod),
+                        'ifrs9_stage_prequalitative' => $this->calculateIfrs9Stage($record, $reportingPeriod),
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
@@ -365,22 +367,28 @@ class LoanBookController extends Controller
     public static function calculateIfrs9Stage($record, $reportingPeriod)
     {
         try {
-            if (empty($record['create_date'])) {
-                throw new \Exception("Missing create_date");
+            // Load thresholds
+            $rule = StageingRule::first();
+            $stage1 = $rule?->stage_1_threshold ?? 30;
+            $stage3 = $rule?->stage_3_threshold ?? 90;
+
+            // Prefer Days Past Due if available; fallback to days since create_date
+            if (isset($record['overdue_days']) && is_numeric($record['overdue_days'])) {
+                $dpd = (int)$record['overdue_days'];
+            } else {
+                if (empty($record['create_date'])) {
+                    throw new \Exception("Missing create_date");
+                }
+                $createDateFromFile = $record['create_date'] instanceof Carbon
+                    ? $record['create_date']
+                    : Carbon::parse($record['create_date']);
+                $reportingPeriodDate = Carbon::createFromFormat('Ym', $reportingPeriod)->endOfMonth();
+                $dpd = $createDateFromFile->diffInDays($reportingPeriodDate);
             }
 
-            // Check if create_date is already a Carbon instance
-            $createDateFromFile = $record['create_date'] instanceof Carbon
-                ? $record['create_date']
-                : Carbon::parse($record['create_date']);
-
-            $reportingPeriodDate = Carbon::createFromFormat('Ym', $reportingPeriod)->endOfMonth();
-
-            $days = $createDateFromFile->diffInDays($reportingPeriodDate);
-
-            if ($days <= 30) {
+            if ($dpd <= $stage1) {
                 return '1';
-            } elseif ($days <= 90) {
+            } elseif ($dpd < $stage3) {
                 return '2';
             } else {
                 return '3';
