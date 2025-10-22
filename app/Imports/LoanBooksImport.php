@@ -129,6 +129,7 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
                 $normalizedRow = [];
                 foreach ($row as $key => $value) {
                     $normalizedRow[strtolower(trim($key))] = $value;
+                   
                 }
 
                 // ✅ Use normalized keys
@@ -201,7 +202,7 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
                 $reportingEndDate = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth()->startOfDay();
                 $remainingLife = $createDate->floatDiffInYears($reportingEndDate);
 
-                Log::debug("Remaining life in years: $remainingLife");
+               // Log::debug("Remaining life in years: $remainingLife");
 
             } catch (\Exception $e) {
                 Log::error("Failed to parse create date: " . $e->getMessage());
@@ -228,7 +229,7 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
                    // 'overdue_days' => $row['overdue_days'],
                     'principal_balance' =>$normalizedRow['principal'],
                     'disbursed'=>$normalizedRow['disbursed'] ?? 0,
-                    'repayments' => $normalizedRow['repayments'],
+                    //'repayments' => $normalizedRow['repayments'],
                     'carrying_amount' => $normalizedRow['carrying_amount'] ?? 0,
                     //'contract_status' => $row['status'],
                     'ifrs9stage_pre_qualitative' => $this->classifyIFRS9Stage($normalizedRow),

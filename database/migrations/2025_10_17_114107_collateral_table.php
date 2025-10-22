@@ -21,6 +21,7 @@ return new class extends Migration
             $table->decimal("standard_haircut", 10, 2)->comment('Percentage')->nullable();
             $table->decimal('liquidity_factor',10,2)->default(0)->nullable();
             $table->boolean("is_active")->default(true);
+            $table->timestamps();
 
             $table->index(["type_code","is_active"]);
         
@@ -29,7 +30,7 @@ return new class extends Migration
          Schema::create('collateral_registers', function (Blueprint $table) {
             $table->id();
             $table->string('register_number', 50)->unique();
-            $table->string('client_id', 20);
+            $table->string('customer_id', 20);
             $table->string('customer_name', 255);
             $table->string('collateral_type', 100);
             $table->string('property_use', 100)->nullable();
@@ -45,7 +46,7 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
             
-            $table->index(['client_id']);
+            $table->index(['customer_id']);
             $table->index(['status']);
             $table->index(['expiry_date']);
         });
@@ -56,8 +57,8 @@ return new class extends Migration
             $table->tinyInteger('reporting_month');
             $table->integer('reporting_period')->virtualAs('reporting_year * 100 + reporting_month');
             $table->foreignId('collateral_register_id')->constrained('collateral_registers');
-            $table->string('client_id', 20);
-            $table->string('client_name', 255);
+            $table->string('customer_id', 20);
+            $table->string('customer_name', 255);
             $table->string('contract_id', 50);
             $table->decimal('account_balance', 20, 2)->default(0);
             $table->decimal('total_customer_exposure', 20, 2)->default(0);
@@ -81,7 +82,7 @@ return new class extends Migration
             ], 'unique_monthly_allocation');
             
             $table->index(['reporting_period']);
-            $table->index(['client_id', 'contract_id']);
+            $table->index(['customer_id', 'contract_id']);
             $table->index(['allocation_date']);
         });
 

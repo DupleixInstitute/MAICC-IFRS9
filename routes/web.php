@@ -7,6 +7,7 @@ use App\Http\Controllers\ManualsController;
 use App\Http\Controllers\LossGiveDefaultController;
 use App\Http\Controllers\LossGivenDefaultCummulativeController;
 use App\Http\Controllers\ExpectedCreditLossController;
+use App\Http\Controllers\CollateralController;
 use Inertia\Inertia;
 use App\Http\Controllers\ImportsController;
 use Illuminate\Support\Facades\Artisan;
@@ -759,3 +760,17 @@ Route::post('/macro-forecast-weighted', [MacroForecastWeightedController::class,
 Route::post('/macro-forecast-weighted/calculate', [MacroForecastWeightedController::class, 'calculate'])->name('macro-forecast-weighted.calculate');
 Route::post('/macro-forecast-weighted/{id}/rerun', [MacroForecastWeightedController::class, 'rerun'])->name('macro-forecast-weighted.rerun');
 Route::delete('/macro-forecast-weighted/{id}', [MacroForecastWeightedController::class, 'destroy'])->name('macro-forecast-weighted.destroy');
+
+
+// Collateral Routes
+Route::get('/collateral/types', [CollateralController::class, 'collateralType'])->name('collateral.types.index');
+Route::post('/collateral/types', [CollateralController::class, 'store'])->name('collateral.types.store');
+
+// Collateral Register Import (Inertia UI)
+Route::get('/collateral/register/import', [CollateralController::class, 'importView'])->name('collateral.register.import');
+
+// Collateral Allocations (Inertia UI)
+Route::get('/collateral/allocations', [CollateralController::class, 'indexAllocations'])->name('collateral.allocations.index');
+
+// Auto Allocate (Inertia UI page)
+Route::get('/collateral/allocate', [CollateralController::class, 'allocateView'])->name('collateral.allocate');

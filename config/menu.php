@@ -166,6 +166,34 @@ return [
             ],
             'order' => 6,
         ],
+        [
+            'name' => 'Collateral Management',
+            'icon' => 'chart-bar',
+            'permissions' => 'loans.products.index',
+            'dropdown' => true,
+            'children' => [
+                  [
+                    'name' => 'Types',
+                    'icon' => 'circle',
+                    'route' => 'collateral.types.index',
+                    'permissions' => 'collateral.types.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 0,
+                ],
+                [
+                    'name' => 'Allocation',
+                    'icon' => 'circle',
+                    'route' => 'collateral.allocations.index',
+                    'route_check' => 'collateral.allocations.index',
+                    'permissions' => 'collateral.allocations.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 1,
+                ],
+            ],
+            'order' => 6,
+        ],
 
 
         // [
