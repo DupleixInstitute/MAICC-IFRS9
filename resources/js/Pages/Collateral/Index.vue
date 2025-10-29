@@ -52,8 +52,7 @@
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.contract_id }}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.allocation_basis }}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(item.discounted_collateral) }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> % {{ (item.coverage_ratio * 100).toFixed(2) }} </td>
-
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">  {{ (item.coverage_ratio * 100).toFixed(2) }} % </td>
               </tr>
             </tbody>
           </table>

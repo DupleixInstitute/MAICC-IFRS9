@@ -262,7 +262,7 @@ class CollateralController extends Controller
                     $realisationYears = $realisationMonths / 12;
 
                     $discounted = ($executionValue * (1 - ($haircut / 100))) / pow(1 + $interestRate, $realisationYears);
-                    $coverage = $loan->carrying_amount > 0 ? $discounted / $loan->carrying_amount : 0;
+                    $coverage = $loan->carrying_amount > 0 ? min(($discounted / $loan->carrying_amount) * 100, 100) : 0;
 
                     CollateralAllocation::updateOrCreate(
                         [
@@ -276,9 +276,9 @@ class CollateralController extends Controller
                             'customer_name' => $customer->name,
                             'total_customer_exposure' => $loan->carrying_amount,
                             'allocated_collateral' => $share,
-                            'allocation_percentage' => round(($share / $totalCollateral) * 100, 2),
+                            'allocation_percentage' => min(round(($share / $totalCollateral) * 100, 2), 100),
                             'discounted_collateral' => $discounted,
-                            'coverage_ratio' => $coverage,
+                            'coverage_ratio' => max(0, min($coverage, 1)),
                             'allocation_basis' => strtoupper($request->allocation_basis),
                             'allocation_notes' => 'Auto-allocated using customer_id & customer_name',
                         ]
@@ -287,7 +287,7 @@ class CollateralController extends Controller
                     // Update customer LGD based on coverage (per contract_id)
                     DB::statement("
                         UPDATE loan_books
-                        SET customer_lgd = 1 - ( ? / 100 )
+                        SET customer_lgd = GREATEST(1 - ( ? / 100 ), 0)
                         WHERE contract_id = ?
                     ", [
                         $coverage * 100,
