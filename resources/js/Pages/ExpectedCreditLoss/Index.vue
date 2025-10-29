@@ -101,8 +101,8 @@
                                        <tbody class="bg-white divide-y divide-gray-200">
                                            <tr v-for="loan in loanBooks.data" :key="loan.id">
                                                <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.calculated_ifrs9_stage }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(loan.principal_balance) }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.ifrs9stage_pre_qualitative }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(loan.carrying_amount) }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm">{{ loan.pd_value }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm" >{{ loan.lgd_value }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> {{ formatCurrency(loan.ecl_value) }}</td>

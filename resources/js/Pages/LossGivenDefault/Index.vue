@@ -126,33 +126,54 @@
     </div>
   </div>
 
-  <div v-if="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-        <h2 class="text-lg font-bold mb-4">Update Loan Book Period</h2>
-        <p class="mb-4">Select the reporting period to update loan books for <strong>{{ selectedLGD?.portfolio_group?.name }}</strong>.</p>
-        
-        <label for="period" class="block mb-2 text-sm font-medium text-gray-700">Reporting Period</label>
-        <input 
-            type="month" 
-            v-model="selectedPeriod" 
-            id="period" 
-            class="border-gray-300 rounded-md shadow-sm w-full mb-4"
-        >
+<div v-if="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+    <h2 class="text-lg font-bold mb-4">Update Loan Book Period</h2>
+    <p class="mb-4">
+      Select the reporting period to update loan books for
+      <strong>{{ selectedLGD?.portfolio_group?.name }}</strong>.
+    </p>
 
-        <div class="flex justify-end space-x-2">
-            <button @click="showModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
-            <button 
-                @click="submitUpdate" 
-                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                :disabled="loading === selectedLGD?.id"
-            >
-                <span v-if="loading === selectedLGD?.id">Update..</span>
-                <span v-else>Update</span>
-                
-            </button>
-        </div>  
+    <!-- Reporting Period -->
+    <label for="period" class="block mb-2 text-sm font-medium text-gray-700">Reporting Period</label>
+    <input
+      type="month"
+      v-model="selectedPeriod"
+      id="period"
+      class="border-gray-300 rounded-md shadow-sm w-full mb-4"
+    >
+
+    <!-- ✅ Include Customer LGD -->
+    <label class="flex items-center mb-4">
+      <input
+        type="checkbox"
+        v-model="includeCustomerLGD"
+        class="mr-2 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+      >
+      <span class="text-sm text-gray-700">Include Customer LGD in Update</span>
+    </label>
+
+    <!-- Buttons -->
+    <div class="flex justify-end space-x-2">
+      <button
+        @click="showModal = false"
+        class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+      >
+        Cancel
+      </button>
+
+      <button
+        @click="submitUpdate"
+        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+        :disabled="loading === selectedLGD?.id"
+      >
+        <span v-if="loading === selectedLGD?.id">Updating...</span>
+        <span v-else>Update</span>
+      </button>
     </div>
+  </div>
 </div>
+
 
     </app-layout>
 </template>
@@ -178,6 +199,7 @@ export default {
     setup() {
         const loading = ref(null);
         const showModal = ref(false);
+        const includeCustomerLGD = ref(false)
         const selectedLGD = ref(null);
         const selectedPeriod = ref('');
 
@@ -218,6 +240,7 @@ export default {
             router.post(route('loss-given-default.update-loan-book', selectedLGD.value.id), {
                 reporting_period: selectedPeriod.value,
                 lgd_id: selectedLGD.value.id,
+                include_customer_lgd: includeCustomerLGD.value,
             }, {
                 preserveScroll: true,
                 onFinish: () => {

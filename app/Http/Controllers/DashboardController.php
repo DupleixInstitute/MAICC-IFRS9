@@ -97,19 +97,19 @@ class DashboardController extends Controller
            // $lastPeriod = $request
 
             // 💰 Gross carrying amount: only for the selected period
-            $grossCarryingAmount = (float) LoanBook::where('reporting_period', $selectedPeriod)->sum('principal_balance');
+            $grossCarryingAmount = (float) LoanBook::where('reporting_period', $selectedPeriod)->sum('carrying_amount');
 
             $stage1Amount = (float) LoanBook::where('reporting_period', $selectedPeriod)
-                ->where('calculated_ifrs9_stage', 1)
-                ->sum('principal_balance');
+                ->where('ifrs9stage_pre_qualitative', 1)
+                ->sum('carrying_amount');
 
             $stage2Amount = (float) LoanBook::where('reporting_period', $selectedPeriod)
-                ->where('calculated_ifrs9_stage', 2)
-                ->sum('principal_balance');
+                ->where('ifrs9stage_pre_qualitative', 2)
+                ->sum('carrying_amount');
 
             $stage3Amount = (float) LoanBook::where('reporting_period', $selectedPeriod)
-                ->where('calculated_ifrs9_stage', 3)
-                ->sum('principal_balance');
+                ->where('ifrs9stage_pre_qualitative', 3)
+                ->sum('carrying_amount');
 
             $stage1ECL = (float) ExpectedCreditLoss::where('reporting_period', $selectedPeriod)
                 ->where('ifrs9_stage', 1)

@@ -83,8 +83,14 @@ class LoanBook extends Model
      */
     public function client()
     {
-        return $this->belongsTo(Client::class, 'external_identity_id', 'customer_id');
+        return $this->belongsTo(Client::class, 'customer_id', 'customer_id');
     }
+
+    public function collateralAllocations()
+    {
+        return $this->hasMany(CollateralAllocation::class, 'contract_id', 'contract_id');
+    }
+
 
     /**
      * Scope a query to only include month-end records.

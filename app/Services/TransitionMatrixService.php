@@ -51,7 +51,7 @@ class TransitionMatrixService
             $end_grading_col = $profileDefinition->end_grading_col;
             $start_client_id_col = $profileDefinition->start_client_id_col;
             $end_client_id_col = $profileDefinition->end_client_id_col;
-            $balance_column = 'principal_balance'; // Adjust as needed
+            $balance_column = 'carrying_amount'; // Adjust as needed
 
             $matrix_sql = "
                 SELECT 

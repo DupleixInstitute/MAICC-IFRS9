@@ -75,6 +75,8 @@ class ExpectedCreditLossController extends Controller
             $validated = $request->validate([
                 'portfolios' => 'required|exists:loan_portfolios,id',
                 'reporting_period' => 'required|date',
+                'pd_type' => 'required|in:12_pd,lifetime_pd',
+                'lgd_type' => 'required|in:customer_lgd,collection_lgd,both',
             ]);
 
             $portfolioId = $validated['portfolios'];
@@ -83,23 +85,38 @@ class ExpectedCreditLossController extends Controller
             $month = $periodDate->format('Y-m') . '-01';
             $period = $periodDate->format('Y-m');
 
-            // Step 1: Update ECLs
+            // Choose PD and LGD sources based on request
+            $pdType = $validated['pd_type']; // '12_pd' or 'lifetime_pd'
+            $lgdType = $validated['lgd_type']; // 'customer_lgd', 'collection_lgd', or 'both'
+
+            // Whitelisted expressions
+            // Support either schema naming for 12-month PD: `12m_pd` or `12_pd`
+            $pdExpr = $pdType === '12_pd'
+                ? 'COALESCE(`12m_pd`, `12_pd`)'
+                : 'lifetime_pd';
+            $lgdExpr = $lgdType === 'both'
+                ? '(IFNULL(customer_lgd, 0) * IFNULL(collection_lgd, 0))'
+                : ($lgdType === 'customer_lgd' ? 'customer_lgd' : 'collection_lgd');
+
+            // Step 1: Update chosen PD/LGD and ECL values
             DB::statement("
                 UPDATE loan_books
-                SET ecl_value = IFNULL(pd_value, 0) * IFNULL(lgd_value, 0) * IFNULL(principal_balance, 0)
+                SET 
+                    pd_value = IFNULL($pdExpr, 0),
+                    lgd_value = IFNULL($lgdExpr, 0),
+                    ecl_value = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0) * IFNULL(carrying_amount, 0)
                 WHERE loan_portfolio_id = ? AND reporting_period = ?
             ", [$portfolioId, $period]);
 
             // Step 2: Calculate grouped values by IFRS9 stage
             $grouped = DB::table('loan_books')
-                ->selectRaw('
-                    ifrs9stage_pre_qualitative,
-                    SUM(principal_balance) as total_ead,
-                    SUM(ecl_value) as total_ecl,
-                    AVG(pd_value) as avg_pd,
-                    AVG(lgd_value) as avg_lgd,
-                    COUNT(*) as total_loans
-                ')
+                ->selectRaw("\n                    
+                ifrs9stage_pre_qualitative,\n                    
+                SUM(COALESCE(carrying_amount, 0) + COALESCE(commitment, 0)) as total_ead,\n                    
+                SUM(ecl_value) as total_ecl,\n                    
+                AVG($pdExpr) as avg_pd,\n                    
+                AVG($lgdExpr) as avg_lgd,\n                    
+                COUNT(*) as total_loans\n                ")
                 ->where('loan_portfolio_id', $portfolioId)
                 ->where('reporting_period', $period)
                 ->groupBy('ifrs9stage_pre_qualitative')
@@ -147,9 +164,9 @@ class ExpectedCreditLossController extends Controller
         {
             $exportable = [
                 'contract_id',
-                'principal_balance',
-                'pd_value',
-                'lgd_value',
+                'carrying_amount',
+                'pd_value_used',
+                'lgd_value_used',
                 'ecl_value',
                 'ifrs9stage_pre_qualitative',
                 'reporting_period',
@@ -182,9 +199,9 @@ class ExpectedCreditLossController extends Controller
                 $data = DB::table('loan_books')
                     ->selectRaw('
                         ifrs9stage_pre_qualitative as stage,
-                        SUM(principal_balance) as total_ead,
-                        AVG(pd_value) as avg_pd,
-                        AVG(lgd_value) as avg_lgd,
+                        SUM(carrying_amount) as total_ead,
+                        AVG(pd_value_used) as avg_pd,
+                        AVG(lgd_value_used) as avg_lgd,
                         SUM(ecl_value) as total_ecl
                     ')
                     ->where('loan_portfolio_id', $portfolioId)

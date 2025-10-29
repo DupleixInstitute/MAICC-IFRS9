@@ -34,7 +34,7 @@ return new class extends Migration
             $table->string('created_by')->nullable()->comment('User who created the record');
             $table->string('updated_by')->nullable()->comment('User who last updated the record');
             $table->softDeletes();
-            $table->index('deleted_at');
+           // $table->index('deleted_at');
             //$table->unique(['reporting_period', 'is_active_or_closed'], 'lgd_period_status_unique');
         });
     }

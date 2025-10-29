@@ -10,6 +10,7 @@ use App\Jobs\CalculateLGDJob;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\Console\Input\Input;
 
@@ -220,13 +221,13 @@ class LossGiveDefaultController extends Controller
                         ->where('lb_end.reporting_period', '=', $reportingPeriod);
                 })
                 ->where('lb_start.reporting_period', '=', $startPeriod)
-                ->where('lb_start.calculated_ifrs9_stage', 3)
+                ->where('lb_start.ifrs9stage_pre_qualitative', 3)
                 ->where('lb_start.loan_portfolio_id', $portfolioGroup->id)
                 ->select(
                     'lb_start.contract_id',
-                    DB::raw('lb_start.principal_balance as start_balance'),
-                    DB::raw('COALESCE(lb_end.principal_balance, 0) as end_balance'),
-                    DB::raw('COALESCE(lb_end.calculated_ifrs9_stage, 3) as closing_stage')
+                    DB::raw('lb_start.carrying_amount as start_balance'),
+                    DB::raw('COALESCE(lb_end.carrying_amount, 0) as end_balance'),
+                    DB::raw('COALESCE(lb_end.ifrs9stage_pre_qualitative, 3) as closing_stage')
                 )
                 ->get();
 
@@ -290,8 +291,12 @@ class LossGiveDefaultController extends Controller
             $lgd = (1 - $cureRate) * (1 - $recoveryRate);
 
             // Create a new LossGivenDefault record
-            LossGivenDefault::create([
+
+            try{
+            LossGivenDefault::updateOrCreate([ 
                 'reporting_period' => $reportingPeriod,
+                'calculation_source' => 'system',
+            ], [
                 'start_period' => $startPeriod,
                 'portfolio_group' => $portfolioGroup->id,
                 'start_total_stage3' => $startBalance,
@@ -309,13 +314,16 @@ class LossGiveDefaultController extends Controller
                 'written_offs' => $writtenOffs,
                 'created_by' => auth()->user()->id ?? null,
                 'updated_by' => auth()->user()->id ?? null,
-                'calculation_source' => 'system',
                 'is_active_or_closed' => $request->input('is_active_or_closed', 'active'),
             ]);
 
             $timeTaken = round(microtime(true) - $startTime, 3);
 
-            return back()->with('success', 'Loss Given Default calculated successfully in ' . $timeTaken . ' seconds.');
+            return redirect()->route('loss-given-default.index')->with('success', 'Loss Given Default calculated successfully in ' . $timeTaken . ' seconds.');
+        }catch(\Exception $e){
+            return back()->with('error', 'An error occurred while calculating LGD: ' . $e->getMessage());
+        
+        }
         }
 
 
@@ -464,53 +472,98 @@ class LossGiveDefaultController extends Controller
 
     // Function to update loan books with the LGD value
     // This function updates the loan books for a specific reporting period with the LGD value from
-        public function updateLoanBooks(Request $request)
-        {
-            ini_set('max_execution_time', 300);
-            $startTime = microtime(true);
-            
-            $request->validate([
-                'reporting_period' => 'required|date_format:Y-m',
-                'lgd_id' => 'required|exists:loss_given_default,id',
-            ]);
 
-            $lgd = LossGivenDefault::findOrFail($request->lgd_id);
+       public function updateLoanBooks(Request $request)
+            {
+                ini_set('max_execution_time', 300);
+                $startTime = microtime(true);
 
-            // 1. Update loan_books with LGD value
-            if($lgd->is_active_or_closed !== 'closed'){
-                return back()->with('error', 'Cannot update loan books for an active LGD record.');
-            } else{
-            LoanBook::where('reporting_period', $request->reporting_period)
-                ->update(['lgd_value' => $lgd->loss_given_default_percentage]); 
+                $request->validate([
+                    'reporting_period' => 'required|date_format:Y-m',
+                    'lgd_id' => 'required|exists:loss_given_default,id',
+                    'include_customer_lgd' => 'nullable|boolean',
+                ]);
+
+                $lgd = LossGivenDefault::findOrFail($request->lgd_id);
+
+                if ($lgd->is_active_or_closed !== 'closed') {
+                    return back()->with('error', 'Cannot update loan books for an active LGD record.');
                 }
-            
-            $endTime = microtime(true);
-            $timeTaken = round(($endTime - $startTime) / 60, 2); // time in minutes, rounded to 2 decimal places
 
-            
-            // Parse year and month from reporting_period (e.g., '2025-06')
-            $period = Carbon::parse($request->reporting_period)->format('Y-m'); // e.g., "2025-06"
-            $periodParts = explode('-', $period); // ["2025", "06"]
+                $collectionLgd = $lgd->loss_given_default_percentage;
+                $periodKey = Carbon::parse($request->reporting_period)->format('Y-m');
+                $periodMonthDate = Carbon::parse($request->reporting_period)->startOfMonth()->format('Y-m-d');
 
-            $year = $periodParts[0] . '-01-01';     // "2025-01-01"
-            $month = $periodParts[0] . '-' . $periodParts[1] . '-01'; // "2025-06-01"
+                // Diagnostics: log matching row counts for the target month
+                try {
+                    $totalRowObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ?", [$periodKey]);
+                    $nonNullObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NOT NULL", [$periodKey]);
+                    $nullObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NULL", [$periodKey]);
+                    $totalRows = $totalRowObj?->c ?? 0;
+                    $nonNullRows = $nonNullObj?->c ?? 0;
+                    $nullRows = $nullObj?->c ?? 0;
+                    Log::info("LGD update diagnostics", [
+                        'period_key' => $periodKey,
+                        'total_rows_for_month' => $totalRows,
+                        'rows_with_customer_lgd' => $nonNullRows,
+                        'rows_without_customer_lgd' => $nullRows,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('LGD update diagnostics failed: '.$e->getMessage());
+                }
 
-            
-            // 2. Save or update reporting_period record
-            ReportingPeriods::updateOrCreate(
-                ['period' => $period],
-                [
-                    'reporting_year' => $year,
-                    'reporting_month' => $month,
-                    'lgd_id' => $lgd->id,
-                    'lgd_calculation_source' => $lgd->calculation_source,
-                    'lgd_calculation_time' => $timeTaken,
-                ]
-            );
-            return redirect()->back()->with('success', 'Loan books updated in ' . $timeTaken . ' seconds.');
-        }
+                if ($request->boolean('include_customer_lgd')) {
+                    // Update rows with custom LGD
+                    $rowsUpdatedCustomer = DB::update("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = customer_lgd * ?
+                        WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NOT NULL
+                    ", [$collectionLgd, $collectionLgd, $periodKey]);
 
-        // Function to delete a Loss Given Default record
+                    // Update rows without custom LGD
+                    $rowsUpdatedDefault = DB::update("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = ?
+                        WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NULL
+                    ", [$collectionLgd, $collectionLgd, $periodKey]);
+
+                    Log::info("Rows updated where customer_lgd IS NOT NULL: $rowsUpdatedCustomer");
+                    Log::info("Rows updated where customer_lgd IS NULL: $rowsUpdatedDefault");
+
+                } else {
+                    $rowsUpdated = DB::update("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = ?
+                        WHERE LEFT(reporting_period, 7) = ?
+                    ", [$collectionLgd, $collectionLgd, $periodKey]);
+
+                    Log::info("Rows updated without customer LGD: $rowsUpdated");
+                }
+
+                $timeTaken = round((microtime(true) - $startTime) / 60, 2);
+
+                ReportingPeriods::updateOrCreate(
+                    ['period' => $request->reporting_period],
+                    [
+                        'reporting_year' => Carbon::parse($request->reporting_period)->startOfYear()->format('Y-m-d'),
+                        'reporting_month' => $periodMonthDate,
+                        'lgd_id' => $lgd->id,
+                        'lgd_calculation_source' => $lgd->calculation_source,
+                        'lgd_calculation_time' => $timeTaken,
+                    ]
+                );
+
+                return back()->with('success', "Loan books updated successfully in {$timeTaken} minutes.");
+            }
+
+
+ // Function to delete a Loss Given Default record
         // This function finds the record by ID and deletes it from the database
     public function destroy($id){
         $lossGivenDefaults = LossGivenDefault::find($id);
@@ -523,4 +576,5 @@ class LossGiveDefaultController extends Controller
 
         return back()->with('success', 'LGD record deleted successfully');
     }
+
 }

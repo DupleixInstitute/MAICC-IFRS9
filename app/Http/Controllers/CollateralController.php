@@ -5,10 +5,14 @@ use App\Models\CollateralType;
 use App\Models\CollateralRegister;
 use App\Models\CollateralAllocation;
 use App\Models\LoanBook;
+use App\Models\Client;
 use App\Imports\CollateralRegisterImport;
 use Illuminate\Http\Request;
+use App\Models\Import;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Log;
 
 class CollateralController extends Controller
 {
@@ -22,7 +26,7 @@ class CollateralController extends Controller
     public function collateralType()
     {
         return Inertia::render('Collateral/Types', [
-            'types' => CollateralType::paginate(15),
+            'types' => CollateralType::paginate(10),
         ]);
     }
     
@@ -39,21 +43,27 @@ class CollateralController extends Controller
      * Render the Auto Allocation page
      */
     public function allocateView()
-    {
-        return Inertia::render('Collateral/Components/Allocate');
-    }
+        {
+            $collateralList = CollateralRegister::all();
+            return Inertia::render('Collateral/Components/Allocate',
+                ['collateralList' => $collateralList]
+                );
+        }
 
     /**
      * Render Collateral Allocations index page
      */
     public function indexAllocations()
     {
-        $allocations = CollateralAllocation::with('collateral')->latest()->paginate(20);
+        $allocations = CollateralAllocation::with('collateral')
+            ->orderByRaw('CAST(contract_id AS UNSIGNED) ASC')
+            ->paginate(10);
 
         return Inertia::render('Collateral/Index', [
             'allocations' => $allocations,
         ]);
     }
+
 
     /* ============================================================
        LOGIC / API ENDPOINTS
@@ -65,6 +75,7 @@ class CollateralController extends Controller
             'type_code' => 'required|unique:collateral_types,type_code',
             'type_name' => 'required|string|max:255',
             'standard_haircut' => 'required|numeric|min:0|max:100',
+            'realisation_period' => 'required|integer|min:1',
             'description' => 'nullable|string',
         ]);
 
@@ -73,6 +84,65 @@ class CollateralController extends Controller
         return back()->with('success', 'Collateral type added successfully.');
     }
 
+    public function update(Request $request, $id)
+    {
+        $collateralType = CollateralType::findOrFail($id);
+
+        $request->validate([
+            'type_code' => 'required|unique:collateral_types,type_code,' . $collateralType->id,
+            'type_name' => 'required|string|max:255',
+            'standard_haircut' => 'required|numeric|min:0|max:100',
+            'realisation_period' => 'required|integer|min:1',
+            'description' => 'nullable|string',
+        ]);
+        
+
+        $collateralType->update($request->only(['type_code', 'type_name', 'standard_haircut', 'realisation_period','description']));
+
+        return back()->with('success', 'Collateral type updated successfully.');
+    }
+
+    public function destroy($id)
+    {
+        $collateralType = CollateralType::findOrFail($id);
+        $collateralType->delete();
+
+        return back()->with('success', 'Collateral type deleted successfully.');
+    }
+
+    public function downloadSample()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="loan_book_sample.csv"',
+        ];
+        $columns = [
+                        'customer_id',
+                        'customer_name',
+                        'collateral_type',
+                        'property_use',
+                        'description',
+                        'registration_date',
+                        'expiry_date',
+                        'valuation_date',
+                        'nominal_value',
+                        'execution_value'
+                            ];
+
+        $callback = function () use ($columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            fclose($file);
+        };
+
+       return response()->streamDownload($callback, 'collateral_registry_sample.csv', $headers);
+    }
+
+    
+        /**
+         * Import Collateral Register from uploaded file
+         */
+
     public function importCollateralRegister(Request $request)
     {
         $request->validate([
@@ -80,68 +150,156 @@ class CollateralController extends Controller
         ]);
 
         try {
-            Excel::import(new CollateralRegisterImport, $request->file('file'));
-            return back()->with('success', 'Collateral register imported successfully.');
+            // Create an Import record (or retrieve one)
+            $import = Import::create([
+                'type' => 'collateral_register',
+                'status' => 'pending',
+                'started_at' => now(),
+            ]);
+
+            // Optional: pass any additional metadata as array
+            $data = [
+                'source' => 'collateral',
+                'uploaded_by' => auth()->id(),
+            ];
+
+            Excel::import(new CollateralRegisterImport($import, $data), $request->file('file'));
+
+            return redirect()->route('collateral.allocations.index')->with('success', 'Collateral register imported successfully.');
         } catch (\Throwable $e) {
             return back()->with('error', 'Import failed: ' . $e->getMessage());
         }
-    }
+}
 
-    public function allocateAutomatically(Request $request)
-    {
-        $request->validate([
-            'collateral_register_id' => 'required|exists:collateral_registers,id',
-            'allocation_basis' => 'required|string|in:proportional,descending,ascending,equal',
-        ]);
 
-        $collateral = CollateralRegister::findOrFail($request->collateral_register_id);
-        $haircut = optional(
-            CollateralType::where('type_code', $collateral->collateral_type)->first()
-        )->standard_haircut ?? 20;
-
-        $haircutFactor = 1 - ($haircut / 100);
-        $loans = LoanBook::query()->where('carrying_amount', '>', 0)->get();
-
-        if ($loans->isEmpty()) {
-            return response()->json(['message' => 'No loans found to allocate collateral.'], 404);
-        }
-
-       $totalExposure = $loans->sum('carrying_amount');
-        $available = $collateral->execution_value;
-        $remainingLoans = $loans->count();
-
-        foreach ($loans as $loan) {
-            if ($available <= 0) break;
-
-            $share = match ($request->allocation_basis) {
-                // split the remaining available equally across the remaining loans
-                'equal' => $available / max(1, $remainingLoans),
-                default => min(($loan->carrying_amount / $totalExposure) * $collateral->execution_value, $available),
-            };
-
-            $discounted = $share * $haircutFactor;
-            $coverage = $loan->carrying_amount > 0 ? $discounted / $loan->carrying_amount : 0;
-
-            CollateralAllocation::create([
-                'reporting_year' => now()->year,
-                'reporting_month' => now()->month,
-                'collateral_register_id' => $collateral->id,
-                'customer_id' => $loan->customer_id,
-                'customer_name' => $loan->name,
-                'contract_id' => $loan->id, // or your actual contract/loan ID field
-                'total_customer_exposure' => $loan->carrying_amount,
-                'allocated_collateral' => $share,
-                'allocation_percentage' => round(($share / $collateral->execution_value) * 100, 2),
-                'discounted_collateral' => $discounted,
-                'coverage_ratio' => $coverage,
-                'allocation_basis' => strtoupper($request->allocation_basis),
-                'allocation_notes' => 'Auto allocated by system',
+        /**
+         * Auto allocate collateral to loans based on allocation_basis
+         */
+        public function allocateAutomatically(Request $request)
+        {
+            $request->validate([
+                'allocation_basis' => 'required|string|in:proportional,equal,descending,ascending',
+                'reporting_year' => 'required|integer|min:2000|max:' . now()->year,
+                'reporting_month' => 'required|integer|min:1|max:12',
             ]);
 
-            $available -= $share;
-            $remainingLoans--;
-        }
+            
+            $reportingYear = $request->input('reporting_year');
+            $reportingMonth = $request->input('reporting_month');
 
-        return response()->json(['message' => 'Collateral automatically allocated successfully.']);
+            // Fetch clients who have at least one loan and one collateral
+            $customers = Client::whereHas('loanBooks', fn($q) => $q->where('carrying_amount', '>', 0))
+                ->whereHas('collateralRegisters')
+                ->get();
+
+            // Debug: check if customers are fetched
+            if ($customers->isEmpty()) {
+                return back()->with('error', 'No clients with loans and collaterals found.');
+            }
+
+            // // Log debug info instead of dd() so execution continues
+            // Log::debug('allocateAutomatically - customers fetched', [
+            //     'Total clients' => $customers->count(),
+            //     'First client loans' => optional($customers->first())->loanBooks->pluck('carrying_amount', 'contract_id'),
+            //     'First client collaterals' => optional($customers->first())->collateralRegisters->pluck('execution_value', 'collateral_type'),
+            // ]);
+
+            foreach ($customers as $customer) {
+
+                $loans = $customer->loanBooks()
+                                    ->where('carrying_amount', '>', 0)
+                                    ->where('reporting_year', $reportingYear)
+                                    ->where('reporting_month', $reportingMonth)
+                                    ->get();
+
+                $collaterals = $customer->collateralRegisters;
+
+                if ($loans->isEmpty() || $collaterals->isEmpty()) {
+                    continue;
+                }
+
+                // Determine average haircut from collateral types
+                $haircuts = [];
+                foreach ($collaterals as $collateral) {
+                    $collateralType = CollateralType::where('type_code', $collateral->collateral_type)->first();
+                    if ($collateralType && $collateralType->standard_haircut !== null) {
+                        $haircuts[] = $collateralType->standard_haircut;
+                    }
+                }
+                $haircut = count($haircuts) > 0 ? array_sum($haircuts) / count($haircuts) : 20;
+                $haircutFactor = 1 - ($haircut / 100);
+
+                $totalCollateral = $collaterals->sum('execution_value');
+                $totalExposure = $loans->sum('carrying_amount');
+
+                if ($totalCollateral <= 0 || $totalExposure <= 0) {
+                    continue;
+                }
+
+                // Sort loans if ascending or descending
+                $loans = match ($request->allocation_basis) {
+                    'ascending' => $loans->sortBy('carrying_amount'),
+                    'descending' => $loans->sortByDesc('carrying_amount'),
+                    default => $loans,
+                };
+
+                $available = $totalCollateral;
+                $remainingLoans = $loans->count();
+
+              foreach ($loans as $loan) {
+                    if ($available <= 0) break;
+
+                    $share = match ($request->allocation_basis) {
+                        'equal' => $available / max(1, $remainingLoans),
+                        default => min(($loan->carrying_amount / $totalExposure) * $totalCollateral, $available),
+                    };
+
+                    $executionValue = optional($collaterals->first())->execution_value ?? 0;
+                    $collateralType = CollateralType::where('type_code', optional($collaterals->first())->collateral_type)->first();
+                    $haircut = $collateralType->standard_haircut ?? 20;
+                    $interestRate = $loan->interest_rate / 100; 
+                    $realisationMonths = $collateralType->realisation_period ?? 3;
+                    $realisationYears = $realisationMonths / 12;
+
+                    $discounted = ($executionValue * (1 - ($haircut / 100))) / pow(1 + $interestRate, $realisationYears);
+                    $coverage = $loan->carrying_amount > 0 ? $discounted / $loan->carrying_amount : 0;
+
+                    CollateralAllocation::updateOrCreate(
+                        [
+                            'reporting_year' => $reportingYear,
+                            'reporting_month' => $reportingMonth,
+                            'customer_id' => $customer->customer_id,
+                            'collateral_register_id' => optional($collaterals->first())->id,
+                            'contract_id' => $loan->contract_id,
+                        ],
+                        [
+                            'customer_name' => $customer->name,
+                            'total_customer_exposure' => $loan->carrying_amount,
+                            'allocated_collateral' => $share,
+                            'allocation_percentage' => round(($share / $totalCollateral) * 100, 2),
+                            'discounted_collateral' => $discounted,
+                            'coverage_ratio' => $coverage,
+                            'allocation_basis' => strtoupper($request->allocation_basis),
+                            'allocation_notes' => 'Auto-allocated using customer_id & customer_name',
+                        ]
+                    );
+
+                    // Update customer LGD based on coverage (per contract_id)
+                    DB::statement("
+                        UPDATE loan_books
+                        SET customer_lgd = 1 - ( ? / 100 )
+                        WHERE contract_id = ?
+                    ", [
+                        $coverage * 100,
+                        $loan->contract_id,
+                    ]);
+
+                    $available -= $share;
+                    $remainingLoans--;
+                }
+
+            }
+
+            return redirect()->route('collateral.allocations.index')->with('success', 'Collateral auto-allocated per customer successfully.');
+        }
     }
-}

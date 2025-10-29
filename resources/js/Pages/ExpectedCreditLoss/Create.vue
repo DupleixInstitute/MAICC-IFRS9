@@ -30,6 +30,21 @@
                                     </option>
                                 </select>
                             </div>
+                            <div>
+                                <jet-label for="pd_type" value="PD Type" />
+                                <select v-model="form.pd_type" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    <option value="12_pd">12-month PD</option>
+                                    <option value="lifetime_pd">Lifetime PD</option>
+                                </select>
+                            </div>
+                            <div>
+                                <jet-label for="lgd_type" value="LGD Type" />
+                                <select v-model="form.lgd_type" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    <option value="customer_lgd">Customer LGD</option>
+                                    <option value="collection_lgd">Collection LGD</option>
+                                    <option value="both">Both (customer × collection)</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="flex justify-end mt-6 gap-4">
@@ -77,6 +92,8 @@ setup(props){
         reporting_period: props.loanBooks?.reporting_period ?? '',
         calculation_source: props.loanBooks?.calculation_source ?? '',
         mode: props.loanBooks?.mode ?? '',
+        pd_type: '12_pd',
+        lgd_type: 'collection_lgd',
     });
 
 

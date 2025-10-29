@@ -13,9 +13,21 @@ class CollateralRegister extends Model
         'nominal_value', 'market_value', 'execution_value', 'status', 'notes'
     ];
 
+
+    public function type()
+    {
+        return $this->belongsTo(CollateralType::class, 'collateral_type', 'type_code');
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'customer_id', 'customer_id');
+    }
+
     public function allocations()
     {
-        return $this->hasMany(CollateralAllocation::class);
+        return $this->hasMany(CollateralAllocation::class, 'collateral_register_id', 'id');
     }
+
 }
 

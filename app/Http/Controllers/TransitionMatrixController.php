@@ -455,32 +455,54 @@ class TransitionMatrixController extends Controller
 
                 $totalUpdated = 0;
 
-           foreach ([1, 2, 3] as $stage) {
-                if (!isset($pds[$stage]) && $stage !== 3) {
-                    continue;
-                }
-
-                // Determine PD decimal
-                if ($stage === 3) {
-                    $pdDecimal = 1.0; // 100% as decimal
-                } else {
-                    $pdDecimal = $pds[$stage]->transition_probability_month / 100;
-                }
-
-                $affected = DB::update("
-                    UPDATE loan_books
-                    SET pd_value = ?
-                    WHERE reporting_period = ?
-                    AND ifrs9stage_pre_qualitative = ?
-                ", [
-                    $pdDecimal,
-                    $period,
-                    $stage,
-                ]);
-
-                $totalUpdated += $affected;
+                foreach ([1, 2, 3] as $stage) {
+                    if (!isset($pds[$stage]) && $stage !== 3) {
+                        continue;
                     }
 
+                    // Determine PD decimal
+                    if ($stage === 3) {
+                        $pdDecimal = 1.0; // 100% as decimal
+                    } else {
+                        $pdDecimal = $pds[$stage]->transition_probability_month / 100;
+                    }
+
+                    //Log::channel('loan_updates')->info("Stage {$stage} - 12m PD: {$pdDecimal}");
+
+                    // Update 12m PD first
+                    $affected = DB::update("
+                        UPDATE loan_books
+                        SET pd_value = ?
+                        WHERE reporting_period = ?
+                        AND ifrs9stage_pre_qualitative = ?
+                    ", [
+                        $pdDecimal,
+                        $period,
+                        $stage,
+                    ]);
+
+                  //  Log::channel('loan_updates')->info("Stage {$stage} - Updated {$affected} rows with 12m PD");
+
+                    $totalUpdated += $affected;
+
+                    //Lifetime PD update
+                    DB::statement("
+                        UPDATE loan_books
+                        SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
+                        WHERE reporting_period = ?
+                        AND ifrs9stage_pre_qualitative = ?
+                        AND remaining_tenor IS NOT NULL
+                    ", [
+                        $pdDecimal,
+                        $period,
+                        $stage,
+                    ]);
+
+                //     Log::channel('loan_updates')->info("Stage {$stage} - Lifetime PD update executed");
+                
+            }
+
+                
                 DB::commit();
 
                 $periodParts = explode('-', $validated['reporting_period']);

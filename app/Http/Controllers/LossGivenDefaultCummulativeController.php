@@ -8,6 +8,7 @@ use App\Models\LoanBook;
 use App\Models\LossGivenDefault;
 use App\Models\ReportingPeriods;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -243,49 +244,66 @@ class LossGivenDefaultCummulativeController extends Controller
         // Update loan books with the LGD value
         // @param Request $request
         // 
-       public function updateLoanBooks(Request $request)
-        {
-            ini_set('max_execution_time', 300);
-            $startTime = microtime(true);
+      public function updateLoanBooks(Request $request)
+            {
+                ini_set('max_execution_time', 300);
+                $startTime = microtime(true);
 
-            $request->validate([
-                'reporting_period' => 'required|date_format:Y-m',
-                'lgd_id' => 'required|exists:loss_given_default_cummulative,id',
-            ]);
+                $request->validate([
+                    'reporting_period' => 'required|date_format:Y-m',
+                    'lgd_id' => 'required|exists:loss_given_default_cummulative,id',
+                    'include_customer_lgd' => 'nullable|boolean',
+                ]);
 
-            $lgd = LossGivenDefaultCummulative::findOrFail($request->lgd_id);
-           
+                $lgd = LossGivenDefaultCummulative::findOrFail($request->lgd_id);
 
-            // 2. Update loan_books with LGD value
-            if($lgd->is_active_or_closed !== 'closed'){
-                return back()->with('error', 'Cannot update loan books for an active LGD record.');
-            } else{
-            LoanBook::where('reporting_period', $request->reporting_period)
-                ->update(['lgd_value' => $lgd->lgd_cummulative]); 
-                } 
+                if ($lgd->is_active_or_closed !== 'closed') {
+                    return back()->with('error', 'Cannot update loan books for an active LGD record.');
+                }
 
-            $endTime = microtime(true);
-            $timeTaken = round(($endTime - $startTime) / 60, 2);
-                
-            // Parse year and month from reporting_period (e.g., '2025-06')
-            $period = Carbon::parse($request->reporting_period)->format('Y-m'); // e.g., "2025-06"
-            $periodParts = explode('-', $period); // ["2025", "06"]
+                $period = Carbon::parse($request->reporting_period)->format('Y-m');
+                $periodParts = explode('-', $period);
+                $year = $periodParts[0] . '-01-01';
+                $month = $periodParts[0] . '-' . $periodParts[1] . '-01';
 
-            $year = $periodParts[0] . '-01-01';     // "2025-01-01"
-            $month = $periodParts[0] . '-' . $periodParts[1] . '-01'; // "2025-06-01"
-            // 2. Save or update reporting_period record
-            ReportingPeriods::updateOrCreate(
-                ['period' => $request->reporting_period],
-                [
-                    'reporting_year' => $year,
-                    'reporting_month' => $month,
-                    'lgd_id' => $lgd->id,
-                    'lgd_calculation_source' => $lgd->calculation_source,
-                    'lgd_calculation_time' => $timeTaken,
-                ]
-            );
-            return redirect()->back()->with('success', 'Loan books updated');
-        }
+                $collectionLgd = $lgd->lgd_cummulative;
+
+                if ($request->boolean('include_customer_lgd')) {
+                    DB::statement("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = (COALESCE(customer_lgd, 1) * ?)
+                        WHERE reporting_period = ?
+                    ", [$collectionLgd, $collectionLgd, $request->reporting_period]);
+                } else {
+                    DB::statement("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = ?
+                        WHERE reporting_period = ?
+                    ", [$collectionLgd, $collectionLgd, $request->reporting_period]);
+                }
+
+                $endTime = microtime(true);
+                $timeTaken = round(($endTime - $startTime) / 60, 2);
+
+                ReportingPeriods::updateOrCreate(
+                    ['period' => $request->reporting_period],
+                    [
+                        'reporting_year' => $year,
+                        'reporting_month' => $month,
+                        'lgd_id' => $lgd->id,
+                        'lgd_calculation_source' => $lgd->calculation_source,
+                        'lgd_calculation_time' => $timeTaken,
+                    ]
+                );
+
+                return redirect()->back()->with('success', 'Loan books updated successfully in ' . $timeTaken . ' minutes.');
+            }
+
+
 
     // Delete a specific Loss Given Default Cummulative record
     // @param int $id

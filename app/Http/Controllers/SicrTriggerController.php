@@ -223,13 +223,13 @@ class SicrTriggerController extends Controller
      */
     private function applyTriggerToLoan(LoanBook $loan)
     {
-        $loan->sicr_trigger = 1;
+        $loan->sicr = 1;
         
         // Qualitative stage conditional: if Stage 1, move to Stage 2
-        $preStage = (int)($loan->ifrs9_stage_prequalitative ?? $loan->ifrs9_stage ?? 1);
+        $preStage = (int)($loan->ifrs9stage_pre_qualitative ?? $loan->ifrs9_stage ?? 1);
         
         if ($preStage == 1) {
-            $loan->ifrs9_stage_postqualitative = 2;
+            $loan->ifrs9stage_post_qualitative = 2;
         }
         // If already Stage 2 or 3, no change needed
         

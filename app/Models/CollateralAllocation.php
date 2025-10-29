@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class CollateralAllocation extends Model
 {
     protected $fillable = [
-        'reporting_year', 'reporting_month', 'collateral_register_id', 'client_id', 'client_name', 
+        'reporting_year', 'reporting_month', 'collateral_register_id', 'customer_id', 'customer_name', 
         'contract_id', 'account_balance', 'total_customer_exposure', 'allocated_collateral',
         'allocation_percentage', 'total_collateral_value', 'EIR', 'realisation_months', 
         'discounted_collateral', 'coverage_ratio', 'allocation_basis', 'allocation_notes'
@@ -22,5 +22,20 @@ class CollateralAllocation extends Model
     public function getReportingPeriodAttribute()
     {
         return $this->reporting_year * 100 + $this->reporting_month;
+    }
+
+    public function collateralRegister()
+    {
+        return $this->belongsTo(CollateralRegister::class, 'collateral_register_id', 'id');
+    }
+
+    public function loanBook()
+    {
+        return $this->belongsTo(LoanBook::class, 'contract_id', 'contract_id');
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'customer_id', 'id');
     }
 }

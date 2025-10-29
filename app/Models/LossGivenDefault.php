@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LossGivenDefault extends Model
 {
-    use HasFactory, softDeletes;
+    use HasFactory;
     protected $table = 'loss_given_default';
     protected $fillable = [
         'reporting_period',

@@ -157,32 +157,55 @@
             </div>
 
 
-  <div v-if="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-        <h2 class="text-lg font-bold mb-4">Update Loan Book Period</h2>
-        <p class="mb-4">Select the reporting period to update loan books for <strong>{{ selectedLGD?.portfolio_group?.name }}</strong>.</p>
-        
-        <label for="period" class="block mb-2 text-sm font-medium text-gray-700">Reporting Period</label>
-        <input 
-            type="month" 
-            v-model="selectedPeriod" 
-            id="period" 
-            class="border-gray-300 rounded-md shadow-sm w-full mb-4"
-        >
+        <div v-if="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                <h2 class="text-lg font-bold mb-4">Update Loan Book Period</h2>
+                <p class="mb-4">
+                Select the reporting period to update loan books for 
+                <strong>{{ selectedLGD?.portfolio_group?.name }}</strong>.
+                </p>
 
-        <div class="flex justify-end space-x-2">
-            <button @click="showModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
-            <button 
-                @click="submitUpdate" 
-                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                :disabled="loading === selectedLGD?.id"
-            >
-                <span v-if="loading === selectedLGD?.id"></span>
-                Update
-            </button>
-        </div>
-    </div>
-</div>
+                <!-- Reporting Period -->
+                <label for="period" class="block mb-2 text-sm font-medium text-gray-700">Reporting Period</label>
+                <input 
+                type="month" 
+                v-model="selectedPeriod" 
+                id="period" 
+                class="border-gray-300 rounded-md shadow-sm w-full mb-4"
+                >
+
+                <!--  Customer LGD Toggle -->
+                <div class="flex items-center mb-6">
+                <input 
+                    id="include_customer_lgd" 
+                    type="checkbox" 
+                    v-model="includeCustomerLGD"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                >
+                <label for="include_customer_lgd" class="ml-2 text-sm text-gray-700">
+                    Include Customer LGD in Update
+                </label>
+                </div>
+                <div class="flex justify-end space-x-2">
+                <button 
+                    @click="showModal = false" 
+                    class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                    Cancel
+                </button>
+
+                <button 
+                    @click="submitUpdate" 
+                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    :disabled="loading === selectedLGD?.id"
+                >
+                    <span v-if="loading === selectedLGD?.id">Updating...</span>
+                    <span v-else>Update</span>
+                </button>
+                </div>
+            </div>
+            </div>
+
 
     </app-layout>
 </template>
@@ -208,6 +231,7 @@ export default {
     setup() {
         const loading = ref(null);
         const showModal = ref(false);
+        const includeCustomerLGD = ref(false)
         const selectedLGD = ref(null);
         const selectedPeriod = ref('');
         const periodsModalVisible = ref(false)
@@ -250,6 +274,7 @@ export default {
             router.post(route('lgd-cummulative.update-loanbook', selectedLGD.value.id), {
                 reporting_period: selectedPeriod.value,
                 lgd_id: selectedLGD.value.id,
+                include_customer_lgd: includeCustomerLGD.value,
             }, {
                 preserveScroll: true,
                 onFinish: () => {

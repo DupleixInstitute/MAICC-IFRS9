@@ -126,7 +126,20 @@ class TransitionMatrixCummulativeController extends Controller
                 ]);
 
                 $totalUpdated += $affected;
-                    }
+
+                DB::statement("
+                        UPDATE loan_books
+                        SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
+                        WHERE reporting_period = ?
+                        AND ifrs9stage_pre_qualitative = ?
+                        AND remaining_tenor IS NOT NULL
+                    ", [
+                        $pdDecimal,
+                        $period,
+                        $stage,
+                    ]);
+
+                }
 
                 DB::commit();
 
