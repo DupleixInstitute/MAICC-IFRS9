@@ -795,12 +795,12 @@ Route::delete('/macro-forecast-weighted/{id}', [MacroForecastWeightedController:
 
 // Credit Loss Data Routes
 Route::get('/credit-loss-data', [CreditLossDataController::class, 'index'])->name('credit-loss-data.index');
-Route::get('credit-loss-data/import', [CreditLossDataController::class, 'importView'])->name('credit-loss-data.importView');
+Route::get('/credit-loss-data/import', [CreditLossDataController::class, 'importView'])->name('credit-loss-data.importView');
 Route::post('/credit-loss-data/import', [CreditLossDataController::class, 'import'])->name('credit-loss-data.import');
-Route::get('/credit-loss-data/sample', [CreditLossDataController::class, 'create'])->name('credit-loss-data.create');
-Route::put('/credit-loss-data/{id}', [CreditLossDataController::class, 'update'])->name('credit-loss-data.update');
-Route::delete('/credit-loss-data/{id}', [CreditLossDataController::class, 'destroy'])->name('credit-loss-data.destroy');
-
+Route::get('/credit-loss-data/create', [CreditLossDataController::class, 'create'])->name('credit-loss-data.create');
+Route::post('/credit-loss-data', [CreditLossDataController::class, 'store'])->name('credit-loss-data.store');
+Route::put('/credit-loss-data/{creditLossData}', [CreditLossDataController::class, 'update'])->name('credit-loss-data.update');
+Route::delete('/credit-loss-data/{creditLossData}', [CreditLossDataController::class, 'destroy'])->name('credit-loss-data.destroy');
 
 // Collateral Routes
 Route::get('/collateral/types', [CollateralController::class, 'collateralType'])->name('collateral.types.index');
@@ -812,6 +812,7 @@ Route::delete('/collateral/types/{id}', [CollateralController::class, 'destroy']
 Route::get('/collateral/register', [CollateralController::class, 'importView'])->name('collateral.register.import');
 Route::post('/collateral/register/import', [CollateralController::class, 'importCollateralRegister'])->name('collateral.register.import.store');
 Route::get('/collateral/register/sample', [CollateralController::class, 'downloadSample'])->name('collateral.register.sample');
+Route::get('/collateral/register/list', [CollateralController::class, 'viewRegister'])->name('collateral.register.index');
 
 // Collateral Allocations (Inertia UI)
 Route::get('/collateral/allocations', [CollateralController::class, 'indexAllocations'])->name('collateral.allocations.index');

@@ -3,12 +3,12 @@
     <template #header>
       <div class="flex justify-between items-center">
         <div>
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Collateral Types</h2>
-         <p class="mt-1 text-sm text-gray-600">Enter the collateral types that are to be used in allocation</p>
+          <h2 class="font-semibold text-xl text-gray-800 leading-tight">Collateral Types</h2>
+          <p class="mt-1 text-sm text-gray-600">Enter the collateral types that are to be used in allocation</p>
         </div>
         <button
           @click="showModal = true"
-          class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          class="bg-gradient-to-r from-green-700 to-green-700 hover:from-green-500 hover:to-green-500 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"
         >
           + Add Type
         </button>
@@ -17,57 +17,57 @@
 
     <!-- Main Table Section -->
     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-        <div class="p-6 bg-white border-b border-gray-200">
-            <div class="overflow-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                  <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Haircut (%)</th>
-                  <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Realisation Period</th>
-                  <th class="px-4 py-3 text-left whitespace-nowrap">Actions</th>
-                </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                    v-for="type in types.data"
-                    :key="type.id"
-                    class="bg-white divide-y divide-gray-200"
+      <div class="p-6 bg-white border-b border-gray-200">
+        <div class="overflow-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Haircut (%)</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Realisation Period (Months)</th>
+                <th class="px-4 py-3 text-left whitespace-nowrap">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="type in types?.data || []"
+                :key="type.id"
+                class="bg-white divide-y divide-gray-200"
+              >
+                <td class="px-3 py-4 whitespace-nowrap text-m text-gray-500">{{ type.type_code }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.type_name }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.standard_haircut }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.realisation_period }}</td>
+                <td class="px-4 py-3 space-x-2 whitespace-nowrap">
+                  <button
+                    @click="editType(type)"
+                    class="text-blue-600 hover:text-blue-800 transition-colors"
+                    aria-label="Edit Type"
                   >
-                    <td class="px-3 py-4 whitespace-nowrap text-m text-gray-500">{{ type.type_code }}</td>
-                    <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.type_name }}</td>
-                    <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.standard_haircut }}</td>
-                    <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.realisation_period }}</td>
-                    <td class="px-4 py-3 space-x-2 whitespace-nowrap">
-                      <button
-                        @click="editType(type)"
-                        class="text-blue-600 hover:text-blue-800 transition-colors"
-                        aria-label="Edit Type"
-                      >
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      <button
-                        @click="deleteType(type.id)"
-                        class="text-red-600 hover:text-red-800 transition-colors"
-                      >
-                        <i class="fas fa-trash-alt"></i>
-                      </button>
-                    </td>
-                  </tr>
-                <tr v-if="types.data && types.data.length === 0">
-                  <td colspan="5" class="text-center py-4 text-gray-500">
-                    No collateral types available.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button
+                    @click="deleteType(type.id)"
+                    class="text-red-600 hover:text-red-800 transition-colors"
+                  >
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!(types?.data?.length > 0)">
+                <td colspan="5" class="text-center py-4 text-gray-500">
+                  No collateral types available.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-          </div>
-        </div>
+      </div>
+    </div>
 
-    <!-- Pagination (Optional) -->
-    <div v-if="types.links" class="mt-4">
+    <!-- Pagination -->
+    <div v-if="types?.links" class="mt-4">
       <Pagination :links="types.links" />
     </div>
 
@@ -80,41 +80,21 @@
         </h3>
         <form @submit.prevent="submit">
           <label class="block font-medium text-sm text-gray-700 mb-1">Type Code</label>
-          <input
-            v-model="form.type_code"
-            placeholder="Type Code"
-            class="w-full border p-2 mb-2 rounded"
-          />
+          <input v-model="form.type_code" placeholder="Type Code" class="w-full border p-2 mb-2 rounded" />
+          
           <label class="block font-medium text-sm text-gray-700 mb-1">Type Name</label>
-          <input
-            v-model="form.type_name"
-            placeholder="Type Name"
-            class="w-full border p-2 mb-2 rounded"
-          />
+          <input v-model="form.type_name" placeholder="Type Name" class="w-full border p-2 mb-2 rounded" />
+          
           <label class="block font-medium text-sm text-gray-700 mb-1">Standard Haircut (%)</label>
-          <input
-            v-model="form.standard_haircut"
-            type="number"
-            placeholder="Haircut %"
-            class="w-full border p-2 mb-2 rounded"
-          />
+          <input v-model="form.standard_haircut" type="number" placeholder="Haircut %" class="w-full border p-2 mb-2 rounded" />
+          
           <label class="block font-medium text-sm text-gray-700 mb-1">Realisation Period (Months)</label>
-          <input
-            v-model="form.realisation_period"
-            type="number"
-            placeholder="Realisation Period (Months)"
-            class="w-full border p-2 mb-2 rounded"
-          />
+          <input v-model="form.realisation_period" type="number" placeholder="Realisation Period (Months)" class="w-full border p-2 mb-2 rounded" />
+          
           <label class="block font-medium text-sm text-gray-700 mb-1">Description</label>
-          <textarea
-            v-model="form.description"
-            placeholder="Description"
-            class="w-full border p-2 mb-2 rounded"
-          ></textarea>
+          <textarea v-model="form.description" placeholder="Description" class="w-full border p-2 mb-2 rounded"></textarea>
 
-          <button
-            class="bg-green-600 text-white px-4 py-2 rounded w-full hover:bg-green-700"
-          >
+          <button class="bg-green-600 text-white px-4 py-2 rounded w-full hover:bg-green-700">
             {{ isEdit ? 'Update' : 'Submit' }}
           </button>
         </form>
@@ -131,12 +111,14 @@ import { router } from '@inertiajs/vue3'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 
 const props = defineProps({
-  types: Object, 
+  types: {
+    type: Object,
+    default: () => ({ data: [], links: null })
+  }
 })
 
 const showModal = ref(false)
 const isEdit = ref(false)
-
 const form = ref({
   id: null,
   type_code: '',
@@ -147,7 +129,7 @@ const form = ref({
 })
 
 function resetForm() {
-  form.value = { id: null, type_code: '', type_name: '', description: '', standard_haircut: 0 ,realisation_period:1}
+  form.value = { id: null, type_code: '', type_name: '', description: '', standard_haircut: 0, realisation_period: 1 }
   isEdit.value = false
 }
 
@@ -167,7 +149,6 @@ function submit() {
     },
   })
 }
-
 
 function editType(type) {
   form.value = { ...type }

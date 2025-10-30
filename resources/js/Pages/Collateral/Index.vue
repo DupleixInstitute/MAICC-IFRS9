@@ -13,9 +13,19 @@
           <!-- Import Collateral Register -->
           <inertia-link
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            :href="route('collateral.register.index')"
+          >
+           <i class="fa fa-eye" aria-hidden="true"></i>  View Register 
+          </inertia-link>
+
+          <inertia-link
+            class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition"
             :href="route('collateral.register.import')"
           >
-            Import Register <i class="fa fa-upload" aria-hidden="true"></i>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+            Import Register
           </inertia-link>
 
           <!-- Auto Allocate Collateral -->
@@ -35,11 +45,12 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100">
               <tr>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
+                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer ID</th>
+                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
                 <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Basis</th>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discounted Allocated</th>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coverage</th>
+                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exposure (MKW)</th>
+                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discounted Allocated (MKW)</th>
+                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Collateral Adequecy Ratio (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -48,11 +59,12 @@
                 :key="item.id"
                 class="bg-white divide-y divide-gray-200"
               >
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.customer_name }}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.contract_id }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.customer_name }}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.allocation_basis }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(item.discounted_collateral) }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">  {{ (item.coverage_ratio * 100).toFixed(2) }} % </td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> {{ formatCurrency(item.total_customer_exposure) }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> {{ formatCurrency(item.discounted_collateral) }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">  {{ (item.coverage_ratio * 100).toFixed(2) }} </td>
               </tr>
             </tbody>
           </table>
@@ -74,6 +86,6 @@ const props = defineProps({ allocations: Object })
 
 const formatCurrency = (value) => {
     if (!value) return 'E0.00';
-    return 'E' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    return  new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 };
 </script>

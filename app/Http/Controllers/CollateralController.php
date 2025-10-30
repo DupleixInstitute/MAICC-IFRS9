@@ -44,9 +44,16 @@ class CollateralController extends Controller
      */
     public function allocateView()
         {
+             $registerDates = CollateralRegister::select('registration_date')
+                ->distinct()
+                ->orderBy('registration_date', 'desc')
+                ->pluck('registration_date');
+
             $collateralList = CollateralRegister::all();
             return Inertia::render('Collateral/Components/Allocate',
-                ['collateralList' => $collateralList]
+                [
+                'collateralList' => $collateralList,
+                 'registerDates' => $registerDates]
                 );
         }
 
@@ -79,7 +86,7 @@ class CollateralController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        CollateralType::create($request->only(['type_code', 'type_name', 'standard_haircut', 'description']));
+        CollateralType::create($request->only(['type_code', 'type_name', 'standard_haircut', 'realisation_period','description']));
 
         return back()->with('success', 'Collateral type added successfully.');
     }
@@ -140,37 +147,90 @@ class CollateralController extends Controller
 
     
         /**
+         * Collateral View Register 
+         */
+
+        public function viewRegister(Request $request)
+        {
+            $query = CollateralRegister::query();
+
+            // --- FILTERS ---
+
+            //  Filter by registration date (exact or range)
+            if ($request->filled('registration_date_from')) {
+                $query->whereDate('registration_date', '>=', $request->registration_date_from);
+            }
+
+            if ($request->filled('registration_date_to')) {
+                $query->whereDate('registration_date', '<=', $request->registration_date_to);
+            }
+
+            //  Filter by collateral type
+            if ($request->filled('type_code')) {
+                $query->where('type_code', $request->type_code);
+            }
+
+            //  Filter by nominal value / market value / execution value range
+            if ($request->filled('sum_min')) {
+                $query->where('nominal_value', '>=', $request->sum_min);
+            }
+
+            if ($request->filled('sum_max')) {
+                $query->where('nominal_value', '<=', $request->sum_max);
+            }
+
+            // --- SORT AND PAGINATE ---
+            $collateralRegisters = $query
+                ->orderBy('registration_date', 'desc')
+                ->paginate(10)
+                ->appends($request->all()); // keep filters on pagination links
+
+         
+            return Inertia::render('Collateral/Register', [
+                'collateralRegisters' => $collateralRegisters,
+                'filters' => $request->only([
+                    'registration_date_from',
+                    'registration_date_to',
+                    'type_code',
+                    'sum_min',
+                    'sum_max',
+                ]),
+            ]);
+        }
+
+
+        /**
          * Import Collateral Register from uploaded file
          */
 
-    public function importCollateralRegister(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv|max:10240',
-        ]);
-
-        try {
-            // Create an Import record (or retrieve one)
-            $import = Import::create([
-                'type' => 'collateral_register',
-                'status' => 'pending',
-                'started_at' => now(),
+        public function importCollateralRegister(Request $request)
+        {
+            $request->validate([
+                'file' => ['required', 'file', 'mimes:txt,csv'],
+                'registration_date' => ['required', 'date_format:Y-m'],
             ]);
 
-            // Optional: pass any additional metadata as array
-            $data = [
-                'source' => 'collateral',
-                'uploaded_by' => auth()->id(),
-            ];
+            try {
+                $import = Import::create([
+                    'name' => $request->file('file')->getClientOriginalName(),
+                    'status' => 'pending',
+                ]);
 
-            Excel::import(new CollateralRegisterImport($import, $data), $request->file('file'));
+                $data = [
+                    'source' => 'collateral',
+                    'uploaded_by' => auth()->id(),
+                    'registration_date' => $request->input('registration_date'), 
+                ];
 
-            return redirect()->route('collateral.allocations.index')->with('success', 'Collateral register imported successfully.');
-        } catch (\Throwable $e) {
-            return back()->with('error', 'Import failed: ' . $e->getMessage());
+                Excel::import(new CollateralRegisterImport($import, $data), $request->file('file'));
+
+                return redirect()
+                    ->route('collateral.allocations.index')
+                    ->with('success', 'Collateral register imported successfully.');
+            } catch (\Throwable $e) {
+                return back()->with('error', 'Import failed: ' . $e->getMessage());
+            }
         }
-}
-
 
         /**
          * Auto allocate collateral to loans based on allocation_basis
@@ -181,6 +241,7 @@ class CollateralController extends Controller
                 'allocation_basis' => 'required|string|in:proportional,equal,descending,ascending',
                 'reporting_year' => 'required|integer|min:2000|max:' . now()->year,
                 'reporting_month' => 'required|integer|min:1|max:12',
+                'registration_date' => 'nullable|date',
             ]);
 
             
@@ -212,7 +273,10 @@ class CollateralController extends Controller
                                     ->where('reporting_month', $reportingMonth)
                                     ->get();
 
-                $collaterals = $customer->collateralRegisters;
+                 $collaterals = $customer->collateralRegisters()
+                                        ->whereDate('registration_date', $request->input('registration_date'))
+                                        ->get();
+
 
                 if ($loans->isEmpty() || $collaterals->isEmpty()) {
                     continue;
@@ -259,7 +323,7 @@ class CollateralController extends Controller
 
                     $collateralType = CollateralType::where('type_code', optional($collaterals->first())->collateral_type)->first();
                     $interestRate = $loan->interest_rate / 100; 
-                    $realisationMonths = $collateralType->realisation_period ?? 3;
+                    $realisationMonths = $collateralType->realisation_period ?? 1;
                     $realisationYears = $realisationMonths / 12;
 
                     $discounted = $discountedValueBeforeTime / pow(1 + $interestRate, $realisationYears);
@@ -305,4 +369,5 @@ class CollateralController extends Controller
 
             return redirect()->route('collateral.allocations.index')->with('success', 'Collateral auto-allocated per customer successfully.');
         }
+
     }

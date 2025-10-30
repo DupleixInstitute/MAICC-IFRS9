@@ -34,13 +34,18 @@
                             <div class="mt-5 h-0 flex-1 overflow-y-auto">
                                 <nav class="space-y-1 px-2">
                                     <div v-for="item in $page.props.menu" :key="item.name">
-                                        <Link v-if="!item.dropdown" :href="route(item.route)"
+                                        <DropdownMenu v-if="item.dropdown" :item="item"/>
+                                        <Link v-else-if="item.route" :href="route(item.route)"
                                               :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
                                             <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300"
                                                                aria-hidden="true" v-if="item.icon" :icon="item.icon"/>
                                             {{ item.name }}
                                         </Link>
-                                        <DropdownMenu v-else :item="item"/>
+                                        <div v-else class="text-indigo-100 group flex items-center px-2 py-2 text-sm font-medium rounded-md opacity-60 cursor-not-allowed">
+                                            <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300"
+                                                               aria-hidden="true" v-if="item.icon" :icon="item.icon"/>
+                                            {{ item.name }}
+                                        </div>
                                     </div>
                                 </nav>
                             </div>
@@ -63,13 +68,18 @@
                 <div class="mt-5 flex flex-1 flex-col">
                     <nav class="flex-1 space-y-1 px-2 pb-4">
                         <div v-for="item in $page.props.menu" :key="item.name">
-                            <Link v-if="!item.dropdown" :href="route(item.route)"
+                            <DropdownMenu v-if="item.dropdown" :item="item"/>
+                            <Link v-else-if="item.route" :href="route(item.route)"
                                   :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
                                 <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300" aria-hidden="true"
                                                    v-if="item.icon" :icon="item.icon"/>
                                 {{ item.name }}
                             </Link>
-                            <DropdownMenu v-else :item="item"/>
+                            <div v-else class="text-indigo-100 group flex items-center px-2 py-2 text-sm font-medium rounded-md opacity-60 cursor-not-allowed">
+                                <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300" aria-hidden="true"
+                                                   v-if="item.icon" :icon="item.icon"/>
+                                {{ item.name }}
+                            </div>
                         </div>
                     </nav>
                 </div>

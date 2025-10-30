@@ -48,6 +48,8 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, ShouldQu
         $inserted = 0;
         $exceptions = 0;
 
+        $period = Carbon::createFromFormat('Y-m', $this->data['registration_date'])->startOfMonth();
+
         foreach ($rows as $row) { // Skip headers
 
             try {
@@ -87,7 +89,7 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, ShouldQu
                         'customer_name' => $normalizedRow['name'] ?? null,
                         'property_use' => $normalizedRow['property_use'] ?? null,
                         'description' => $normalizedRow['description'] ?? null,
-                        // //'registration_date' => isset($normalizedRow['registration_date'])
+                        'registration_date' => $period,
                         //     ? Carbon::parse($normalizedRow['registration_date'])
                         //     : null,
                         // 'expiry_date' => isset($normalizedRow['expiry_date'])
@@ -108,6 +110,11 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, ShouldQu
                 $this->appendExceptionRow($row);
             }
         }
+
+        $import = Import::find($this->import->id);
+        $import->records += $inserted;
+        $import->failed_records += $exceptions;
+        $import->save();
     }
 
         protected function appendExceptionRow(array $row)

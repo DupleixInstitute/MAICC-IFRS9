@@ -15,7 +15,7 @@
         </a>
         <div class="ml-2" v-for="child in item.children" v-if="open"
              :key="child.name">
-            <Link :href="route(child.route)"
+            <Link v-if="child.route" :href="route(child.route)"
                   :class="[(route().current(child.route)||(child.route_check && route().current(child.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
                 <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300" aria-hidden="true"
                                    v-if="child.icon" :icon="child.icon"/>
@@ -53,6 +53,7 @@ export default {
     },
     mounted(){
         this.item.children.forEach(item=>{
+            if(!item.route) return
             if(route().current(item.route)||(item.route_check && route().current(item.route_check))){
                 this.open=true
             }

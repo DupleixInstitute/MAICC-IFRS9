@@ -46,20 +46,20 @@
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                        <th class="px-6 py-3">Transition Profile Id</th>
-                                        <th class="px-6 py-3">Portfolio Group Id</th>
-                                        <th class="px-6 py-3">Calculation Source</th>
-                                        <th class="px-6 py-3">Start Period</th>
-                                        <th class="px-6 py-3">End Period</th>
-                                        <th class="px-6 py-3">Transition Periods</th>
-                                        <th class="px-6 py-3">Records Transitioned</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Profile Id</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio Group Id</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calculation Source</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Period</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Period</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Periods</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records Transitioned</th>
                                         <!-- <th class="px-6 py-3">Records Updated</th> -->
-                                        <th class="px-6 py-3">Periods Cummulated</th>
-                                        <th class="px-6 py-3">Transition Balance</th>
-                                        <th class="px-6 py-3">Calc Runs</th>
-                                        <th class="px-6 py-3">Last Calc Date</th>
-                                          <th class="px-6 py-3">Status</th>
-                                        <th class="px-6 py-3">Actions</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periods Cummulated</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Balance</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calc Runs</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Calc Date</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">

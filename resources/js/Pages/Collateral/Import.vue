@@ -30,6 +30,12 @@
       <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-4">
         <form @submit.prevent="submit" enctype="multipart/form-data">
           <div class="space-y-6">
+               <div>
+                  <label class="block text-sm font-medium text-gray-700">Period</label>
+                  <input type="month" v-model="form.registration_date" required
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                  <p class="mt-1 text-xs text-gray-500">Select the month and year for the collateral register</p>
+              </div>
             <!-- File Upload -->
             <div class="mt-6 border-t border-gray-200 pt-6">
               <h4 class="text-lg font-medium text-gray-900 mb-4 text-align-center justify-center">Upload File</h4>
@@ -108,8 +114,10 @@ const fileName = ref('')
 const file = ref(null)
 const uploadProgress = ref(0)
 const form = ref({
+  registration_date: '',
   processing: false,
 })
+
 
 function handleFileSelect(e) {
   const selectedFile = e.target.files[0]
@@ -120,16 +128,21 @@ function handleFileSelect(e) {
 function downloadSample() {
   window.location.href = route('collateral.register.sample')
 }
-
 function submit() {
   if (!file.value) {
     alert('Please select a file before submitting.')
     return
   }
 
+  if (!form.value.registration_date) {
+    alert('Please select a registration date before submitting.')
+    return
+  }
+
   form.value.processing = true
   const formData = new FormData()
   formData.append('file', file.value)
+  formData.append('registration_date', form.value.registration_date) // ✅ Add this line
 
   router.post('/collateral/register/import', formData, {
     onProgress: (progress) => {
@@ -144,6 +157,4 @@ function submit() {
     }
   })
 }
-
-
 </script>

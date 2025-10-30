@@ -38,44 +38,7 @@ return [
         //     ],
         //     'order' => 1,
         // ],
-        [
-            'name' => 'Clients',
-            'icon' => 'users',
-            'route' => 'clients.index',
-            'permissions' => 'clients',
-            'dropdown' => false,
-            'children' => [],
-            'order' => 1,
-        ],
-        [
-            'name' => 'Loan Book',
-            'icon' => 'credit-card',
-            'route' => 'loan_applications.loan-book',
-            'permissions' => 'loan_applications.loan-book',
-            'dropdown' => true,
-            'children' => [
-                [
-                    'name' => 'View Loan Book',
-                    'icon' => 'circle',
-                    'route' => 'loan_applications.loan-book',
-                    'permissions' => 'loan_applications.loan-book',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Expected Credit Loss',
-                    'icon' => 'circle',
-                    'route' => 'expected-credit-loss.index',
-                    'route_check' => 'expected-credit-loss.index',
-                    'permissions' => 'loan_applications.loan-book',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-            ],
-            'order' => 1,
-        ],
+      
         // [
         //     'name' => 'Contracts',
         //     'icon' => 'credit-card',
@@ -116,6 +79,45 @@ return [
             ],
             'order' => 1,
         ],
+
+          [
+            'name' => 'Clients',
+            'icon' => 'users',
+            'route' => 'clients.index',
+            'permissions' => 'clients',
+            'dropdown' => false,
+            'children' => [],
+            'order' => 2,
+        ],
+        [
+            'name' => 'Loan Book',
+            'icon' => 'credit-card',
+            'route' => 'loan_applications.loan-book',
+            'permissions' => 'loan_applications.loan-book',
+            'dropdown' => true,
+            'children' => [
+                [
+                    'name' => 'View Loan Book',
+                    'icon' => 'circle',
+                    'route' => 'loan_applications.loan-book',
+                    'permissions' => 'loan_applications.loan-book',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 0,
+                ],
+                [
+                    'name' => 'Expected Credit Loss',
+                    'icon' => 'circle',
+                    'route' => 'expected-credit-loss.index',
+                    'route_check' => 'expected-credit-loss.index',
+                    'permissions' => 'loan_applications.loan-book',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 1,
+                ],
+            ],
+            'order' => 3,
+        ],
         //CUSTOM IMPORTS
         [
             'name' => 'Imports',
@@ -127,58 +129,11 @@ return [
             'order' => 1,
         ],
 
-        //FORWARD LOOKING INFORMATION
-        [
-            'name' => 'Foward Looking Info',
-            'icon' => 'chart-bar',
-            'permissions' => 'loans.products.index',
-            'dropdown' => true,
-            'children' => [
-                  [
-                    'name' => 'Macro Elements',
-                    'icon' => 'circle',
-                    'route' => 'macro-statistics.index',
-                    'permissions' => 'macro-statistics.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
+        //Collateral Management
+
                 [
-                    'name' => 'Scenarios',
-                    'icon' => 'circle',
-                    'route' => 'scenarios.profiles',
-                    'route_check' => 'scenarios.profiles',
-                    'permissions' => 'scenarios.profiles',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-                [
-                    'name' => 'Weighted Forecast',
-                    'icon' => 'circle',
-                    'route' => 'macro-forecast-weighted.index',
-                    'route_check' => 'macro-forecast-weighted.index',
-                    'permissions' => 'macro-forecast-weighted.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 2,
-                ],
-                [
-                    'name' => 'Credit Loss Data',
-                    'icon' => 'circle',
-                    'route' => 'credit-loss-data.index',
-                    'route_check' => 'credit-loss-data.index',
-                    'permissions' => 'credit-loss-data.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 3,
-                ],
-            ],
-            'order' => 6,
-        ],
-        [
             'name' => 'Collateral Management',
-            'icon' => 'chart-bar',
+            'icon' => 'building',
             'permissions' => 'loans.products.index',
             'dropdown' => true,
             'children' => [
@@ -205,6 +160,74 @@ return [
             'order' => 6,
         ],
 
+        //Transition Profiles
+
+             [
+            'name' => 'Transition Profiles',
+            'icon' => 'check',
+            'route' => '',
+            'permissions' => 'loans.products.index',
+            'dropdown' => true,
+            'children' => [
+                [
+                    'name' => 'View Transition Profiles',
+                    'icon' => 'circle',
+                    'route' => 'transition-profiles.index',
+                    'permissions' => 'loans.products.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 0,
+                ],
+                [
+                    'name' => 'Create Transition Profiles',
+                    'icon' => 'circle',
+                    'route' => 'transition-profiles.create',
+                    'route_check' => 'transition-profiles.create',
+                    'permissions' => 'transition-profiles.create',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 1,
+                ],
+            ],
+            'order' => 4,
+        ],
+
+        //Transition Matrix
+
+            [
+            'name' => 'Transition Matrix',
+            'icon' => 'chart-line',
+            'route' => '',
+            'route_check' => 'transition-matrices.index',
+            'permissions' => 'transition-matrices.index',
+            'dropdown' => true,
+            'children' => [
+
+                 [
+                    'name' => 'Monthly Probability',
+                    'icon' => 'circle',
+                    'route' => 'transition-matrices.index',
+                    'permissions' => 'transition-matrices.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 0,
+                ],
+                [
+                    'name' => 'Cummulative Probability',
+                    'icon' => 'circle',
+                    'route' => 'transition-matrix-cummulative.index',
+                    'permissions' => 'transition-matrix-cummulative.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 1,
+                ],
+
+            ],
+            'order' => 1,
+        ],
+
+
+        
 
         // [
         //     'name' => 'Loan Applications',
@@ -255,40 +278,12 @@ return [
         //     ],
         //     'order' => 4,
         // ],
-        [
-            'name' => 'Transition Profiles',
-            'icon' => 'database',
-            'route' => '',
-            'permissions' => 'loans.products.index',
-            'dropdown' => true,
-            'children' => [
-                [
-                    'name' => 'View Transition Profiles',
-                    'icon' => 'circle',
-                    'route' => 'transition-profiles.index',
-                    'permissions' => 'loans.products.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Create Transition Profiles',
-                    'icon' => 'circle',
-                    'route' => 'transition-profiles.create',
-                    'route_check' => 'transition-profiles.create',
-                    'permissions' => 'transition-profiles.create',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-            ],
-            'order' => 4,
-        ],
+   
 
         //Loss Given Default
         [
             'name' => 'Loss Given Default',
-            'icon' => 'database',
+            'icon' => 'percent',
             'route' => '',
             'permissions' => 'loans.products.index',
             'dropdown' => true,
@@ -327,37 +322,7 @@ return [
         //     'children' => [],
         //     'order' => 1,
         // ],
-        [
-            'name' => 'Transition Matrix',
-            'icon' => 'chart-line',
-            'route' => '',
-            'route_check' => 'transition-matrices.index',
-            'permissions' => 'transition-matrices.index',
-            'dropdown' => true,
-            'children' => [
-
-                 [
-                    'name' => 'Monthly Probability',
-                    'icon' => 'circle',
-                    'route' => 'transition-matrices.index',
-                    'permissions' => 'transition-matrices.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Cummulative Probability',
-                    'icon' => 'circle',
-                    'route' => 'transition-matrix-cummulative.index',
-                    'permissions' => 'transition-matrix-cummulative.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-
-            ],
-            'order' => 1,
-        ],
+    
         // [
         //     'name' => 'Communication',
         //     'icon' => 'mail-bulk',
@@ -452,17 +417,60 @@ return [
             'order' => 8,
         ],
 
+        //FORWARD LOOKING INFORMATION
         [
-            'name' => 'Reports',
+            'name' => 'Foward Looking Info',
             'icon' => 'chart-bar',
-            'route' => 'reports.index',
-            'permissions' => 'reports',
-            'dropdown' => false,
-            'children' => [],
-            'order' => 9,
+            'permissions' => 'loans.products.index',
+            'dropdown' => true,
+            'children' => [
+                  [
+                    'name' => 'Macro Elements',
+                    'icon' => 'circle',
+                    'route' => 'macro-statistics.index',
+                    'permissions' => 'macro-statistics.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 0,
+                ],
+                [
+                    'name' => 'Scenario Profiles',
+                    'icon' => 'circle',
+                    'route' => 'scenarios.profiles',
+                    'route_check' => 'scenarios.profiles',
+                    'permissions' => 'scenarios.profiles',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 1,
+                ],
+                [
+                    'name' => 'Weighted Forecast',
+                    'icon' => 'circle',
+                    'route' => 'macro-forecast-weighted.index',
+                    'route_check' => 'macro-forecast-weighted.index',
+                    'permissions' => 'macro-forecast-weighted.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 2,
+                ],
+                [
+                    'name' => 'Credit Loss Data',
+                    'icon' => 'circle',
+                    'route' => 'credit-loss-data.index',
+                    'route_check' => 'credit-loss-data.index',
+                    'permissions' => 'credit-loss-data.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 3,
+                ],
+            ],
+            'order' => 6,
         ],
+
+        //REPORTS
+
         [
-            'name' => 'Users',
+            'name' => 'User Management',
             'icon' => 'users',
             'route' => 'users.index',
             'permissions' => 'users',
@@ -533,6 +541,17 @@ return [
             'dropdown' => false,
             'children' => [],
             'order' => 12,
+        ],     
+        
+        //REPORTS
+        [
+            'name' => 'Reports',
+            'icon' => 'chart-bar',
+            'route' => 'reports.index',
+            'permissions' => 'reports',
+            'dropdown' => false,
+            'children' => [],
+            'order' => 9,
         ],
     ],
     'member' => [
