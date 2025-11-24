@@ -3,56 +3,128 @@
 namespace App\Http\Controllers;
 
 use App\Models\CreditLossData;
+use App\Models\CreditLossDefinition;
 use App\Models\LoanPortfolio;
-use App\Models\ScenarioProfiles;
-use App\Models\Scenarios;
-use Illuminate\Support\Collection;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Events\AfterImport;
-use Maatwebsite\Excel\Events\BeforeImport;
-use Maatwebsite\Excel\Events\ImportFailed;
+use App\Models\Import;
+use App\Imports\CreditLossDataImport;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Carbon\Carbon;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class CreditLossDataController extends Controller
 {
-    public function index(Request $request)
-    {
-        $profiles = ScenarioProfiles::with('scenarios')->get();
+   public function index(Request $request)
+        {
+            $totalRecords = CreditLossData::count();
+            $period = $request->input('period');
+            $definitionId = $request->input('definition_id');
 
-        $portfolioId = $request->input('portfolio_id');
-        if ($portfolioId) {
-            $portfolio = LoanPortfolio::findOrFail($portfolioId);
-            $creditLossData = CreditLossData::with(['scenarioProfile', 'scenario', 'creator'])
-                ->where('portfolio_id', $portfolio->id)
-                ->orderBy('period')
-                ->get();
-        } else {
-            $portfolio = null;
-            $creditLossData = CreditLossData::with(['scenarioProfile', 'scenario', 'creator'])
-                ->orderBy('period')
-                ->get();
+            // Get all portfolios for filters and grouping
+            $portfolios = LoanPortfolio::orderBy('name')->get();
+
+            $definitions = CreditLossDefinition::all();
+            $uniquePeriods = CreditLossData::distinct()
+                ->pluck('period')
+                ->sort()
+                ->reverse()
+                ->values();
+
+            $portfolioData = [];
+
+            foreach ($portfolios as $portfolio) {
+                $query = CreditLossData::with(['definition', 'creator'])
+                    ->where('portfolio_id', $portfolio->id)
+                    ->orderBy('period', 'desc')
+                    ->orderBy('definition_id');
+                    
+                if ($period) {
+                    [$year, $month] = explode('-', $period);
+                    $query->whereYear('period', $year)
+                        ->whereMonth('period', $month);
+                }
+
+
+                if ($definitionId) {
+                    $query->where('definition_id', $definitionId);
+                }
+
+                if ($request->has('portfolio_id')) {
+                    $query->where('portfolio_id', $request->input('portfolio_id'));
+                }
+
+                $portfolioData[$portfolio->id] = $query->paginate(5, ['*'], "portfolio_{$portfolio->id}_page")
+                                                    ->withQueryString();
+            }
+
+            return Inertia::render('FLI/CreditLossData/Index', [
+                'totalRecords' => $totalRecords,
+                'portfolios' => $portfolios,
+                'portfolioData' => $portfolioData,
+                'definitions' => $definitions,
+                'uniquePeriods' => $uniquePeriods,
+                'filters' => $request->only(['period', 'definition_id', 'portfolio_id']),
+            ]);
         }
 
-        return Inertia::render('FLI/CreditLossData/Index', [
-            'portfolio' => $portfolio,
-            'creditLossData' => $creditLossData,
-            'profiles' => $profiles,
-            'portfolios' => LoanPortfolio::all(),
+        public function period(Request $request, $period)
+            {
+                // Validate period format
+                if (!preg_match('/^\d{4}-\d{2}$/', $period)) {
+                    abort(404, 'Invalid period format');
+                }
+
+                $creditLossData = CreditLossData::with(['portfolio', 'definition', 'creator'])
+                    ->where('period', $period)
+                    ->orderBy('portfolio_id')
+                    ->orderBy('definition_id')
+                    ->get();
+
+                // Get all unique periods for navigation
+                $allPeriods = CreditLossData::select('period')
+                    ->distinct()
+                    ->orderBy('period', 'desc')
+                    ->pluck('period')
+                    ->toArray();
+
+                $definitions = CreditLossDefinition::all()->keyBy('id');
+
+                return Inertia::render('FLI/CreditLossData/PeriodView', [
+                    'period' => $period,
+                    'creditLossData' => $creditLossData,
+                    'definitions' => $definitions,
+                    'portfolios' => LoanPortfolio::all(),
+                    'allPeriods' => $allPeriods,
+                ]);
+            }
+
+    public function createDefinition()
+    {
+        return Inertia::render('FLI/CreditLossData/CreateDefinition');
+    }
+
+    public function storeDefinition(Request $request)
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:50', 'unique:credit_loss_definitions,code'], // Fixed: added code field
+            'name' => ['required', 'string', 'max:100'], // Fixed: max 100 to match migration
+            'description' => ['nullable', 'string'],
         ]);
+
+        CreditLossDefinition::create($validated);
+
+        return redirect()->route('credit-loss-data.index')
+                         ->with('success', 'Credit loss definition created successfully!');
     }
 
     public function create()
     {
-        $profiles = ScenarioProfiles::with('scenarios')->get();
-
         return Inertia::render('FLI/CreditLossData/Create', [
             'portfolios' => LoanPortfolio::all(),
-            'profiles' => $profiles,
+            'definitions' => CreditLossDefinition::all(),
         ]);
     }
 
@@ -60,220 +132,101 @@ class CreditLossDataController extends Controller
     {
         return Inertia::render('FLI/CreditLossData/Import', [
             'portfolios' => LoanPortfolio::all(),
+            'definitions' => CreditLossDefinition::all(),
         ]);
     }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
             'portfolio_id' => ['required', 'exists:loan_portfolios,id'],
-            'period' => ['required', 'date_format:Y-m'],
-            'ecl_value' => 'nullable|numeric',
-            'npl_value' => 'nullable|numeric',
-            'pd_value' => 'nullable|numeric|between:0,1',
-            'lgd_value' => 'nullable|numeric|between:0,1',
-            'ead_value' => 'nullable|numeric',
-            'stage' => 'nullable|in:1,2,3',
-            'credit_rating' => 'nullable|string|max:10',
-           // 'provision_value' => 'nullable|numeric',
-           // 'write_off_value' => 'nullable|numeric',
-           // 'recovery_value' => 'nullable|numeric',
-            //'scenario_profile_id' => 'nullable|exists:scenario_profiles,id',
-            //'scenario_id' => 'nullable|exists:scenarios,id',
-            'is_forecast' => 'nullable|boolean',
-            'source' => 'nullable|string',
-            'notes' => 'nullable|string',
+            'period' => ['required', 'date'], // We validate it's a date first
+            'definition_id' => ['required', 'exists:macro_credit_loss_definitions,id'],
+            'value' => ['nullable', 'numeric'],
+            'source' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string'],
         ]);
 
-        $validated['period'] = substr($validated['period'], 0, 7);
+
+        $carbonDate = Carbon::parse($validated['period']);
+        $validated['period'] = $carbonDate->startOfMonth()->toDateString(); 
+
         $validated['created_by'] = auth()->id();
 
-        CreditLossData::create($validated);
-
+        CreditLossData::updateOrCreate(
+            [
+                'portfolio_id' => $validated['portfolio_id'],
+                'definition_id' => $validated['definition_id'],
+                'period' => $validated['period'], 
+            ],
+            $validated
+        );
+    
         return redirect()->route('credit-loss-data.index')
                         ->with('success', 'Credit loss data added successfully!');
     }
+    public function edit(CreditLossData $creditLossData)
+        {
+            $portfolios = LoanPortfolio::all();
+            $definitions = CreditLossDefinition::all();
+
+            return Inertia::render('FLI/CreditLossData/Create', [
+                'portfolios' => $portfolios,
+                'definitions' => $definitions,
+                'editData' => $creditLossData,
+            ]);
+        }
+
 
     public function update(Request $request, CreditLossData $creditLossData)
     {
         $validated = $request->validate([
-            'period' => ['required', 'date_format:Y-m'],
-            'ecl_value' => 'nullable|numeric',
-            'npl_value' => 'nullable|numeric',
-            'pd_value' => 'nullable|numeric|between:0,1',
-            'lgd_value' => 'nullable|numeric|between:0,1',
-            'ead_value' => 'nullable|numeric',
-            'stage' => 'nullable|in:1,2,3',
-            'credit_rating' => 'nullable|string|max:10',
-            'provision_value' => 'nullable|numeric',
-            'write_off_value' => 'nullable|numeric',
-            'recovery_value' => 'nullable|numeric',
-            'scenario_profile_id' => 'nullable|exists:scenario_profiles,id',
-            'scenario_id' => 'nullable|exists:scenarios,id',
-            'is_forecast' => 'nullable|boolean',
-            'source' => 'nullable|string',
-            'notes' => 'nullable|string',
+            'value' => ['nullable', 'numeric'],
+            'source' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string'],
         ]);
-
-        $validated['period'] = substr($validated['period'], 0, 7);
 
         $creditLossData->update($validated);
 
         return redirect()->back()->with('success', 'Credit loss data updated successfully!');
     }
 
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt,xlsx|max:2048',
+            'portfolio_id' => ['required', 'exists:loan_portfolios,id'],
+        ]);
 
-   public function import(Request $request)
-        {
-            $request->validate([
-                'file' => 'required|file|mimes:csv,txt|max:2048',
-                'portfolio_id' => ['required', 'exists:loan_portfolios,id'],
+        try {
+            // Create an import record for tracking
+            $import = Import::create([
+                'name' => $request->file('file')->getClientOriginalName(),
+                'status' => 'pending',
             ]);
 
-            $file = $request->file('file');
-            $path = $file->getRealPath();
-            $rows = array_map('str_getcsv', file($path));
+            $userId = auth()->id();
 
-            // Get headers and normalize them
-            $headers = array_map('trim', array_map('strtolower', $rows[0]));
-            
-            // Skip header row
-            array_shift($rows);
+            // Import the data
+            Excel::import(
+                new CreditLossDataImport($import, $request->portfolio_id,  $userId),
+                $request->file('file')
+            );
 
-            // Define expected field mappings with validation rules
-            $fieldMappings = [
-                'period' => [
-                    'aliases' => ['period', 'date', 'month', 'year-month'],
-                    'validation' => ['required', 'date_format:Y-m']
-                ],
-                'ecl_value' => [
-                    'aliases' => ['ecl_value', 'ecl', 'expected credit loss', 'ecl value'],
-                    'validation' => ['nullable', 'numeric']
-                ],
-                'npl_value' => [
-                    'aliases' => ['npl_value', 'npl', 'non-performing loans', 'npl value'],
-                    'validation' => ['nullable', 'numeric']
-                ],
-                'pd_value' => [
-                    'aliases' => ['pd_value', 'pd', 'probability of default', 'pd value'],
-                    'validation' => ['nullable', 'numeric', 'between:0,1']
-                ],
-                'lgd_value' => [
-                    'aliases' => ['lgd_value', 'lgd', 'loss given default', 'lgd value'],
-                    'validation' => ['nullable', 'numeric', 'between:0,1']
-                ],
-                'ead_value' => [
-                    'aliases' => ['ead_value', 'ead', 'exposure at default', 'ead value'],
-                    'validation' => ['nullable', 'numeric']
-                ],
-                'stage' => [
-                    'aliases' => ['stage', 'credit stage', 'stage classification', 'ifrs9 stage'],
-                    'validation' => ['nullable', 'numeric']
-                ],
-                'credit_rating' => [
-                    'aliases' => ['credit_rating', 'rating', 'credit rating', 'credit score'],
-                    'validation' => ['nullable', 'string']
-                ],
-                'source' => [
-                    'aliases' => ['source', 'data source', 'source system'],
-                    'validation' => ['nullable', 'string']
-                ],
-                'notes' => [
-                    'aliases' => ['notes', 'comment', 'remarks', 'description'],
-                    'validation' => ['nullable', 'string']
-                ]
-            ];
-
-            // Map headers to database fields
-            $headerMapping = [];
-            foreach ($fieldMappings as $dbField => $config) {
-                foreach ($config['aliases'] as $alias) {
-                    $key = array_search($alias, $headers);
-                    if ($key !== false) {
-                        $headerMapping[$dbField] = $key;
-                        break;
-                    }
-                }
+            return redirect()
+                ->route('credit-loss-data.index')
+                ->with('success', 'Credit Loss Data imported successfully.');
+        } catch (\Throwable $e) {
+            if (isset($import)) {
+                $import->update([
+                    'status' => 'failed',
+                    'completed_at' => now(),
+                ]);
             }
 
-            // Check if required period field is found
-            if (!isset($headerMapping['period'])) {
-                return redirect()->back()
-                    ->with('error', 'Required "period" column not found in CSV. Please check your file headers.');
-            }
-
-            $importedCount = 0;
-            $skippedCount = 0;
-
-            foreach ($rows as $rowIndex => $row) {
-                // Skip empty rows
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-
-                // Normalize row data using header mapping
-                $rowData = [];
-                $validationData = [];
-                $validationRules = [];
-
-                foreach ($headerMapping as $dbField => $columnIndex) {
-                    $value = isset($row[$columnIndex]) ? trim($row[$columnIndex]) : null;
-                    
-                    // Convert empty strings to null
-                    $value = $value === '' ? null : $value;
-                    
-                    $rowData[$dbField] = $value;
-                    $validationData[$dbField] = $value;
-                    $validationRules[$dbField] = $fieldMappings[$dbField]['validation'];
-                }
-
-                // Validate the row data
-                $validator = Validator::make($validationData, $validationRules);
-
-                if ($validator->fails()) {
-                    $skippedCount++;
-                    continue;
-                }
-
-                // Prepare data for updateOrCreate
-                $createData = [
-                    'portfolio_id' => $request->input('portfolio_id'),
-                    'period' => $rowData['period'],
-                    'ecl_value' => $rowData['ecl_value'] ?? null,
-                    'npl_value' => $rowData['npl_value'] ?? null,
-                    'pd_value' => $rowData['pd_value'] ?? null,
-                    'lgd_value' => $rowData['lgd_value'] ?? null,
-                    'ead_value' => $rowData['ead_value'] ?? null,
-                    'stage' => $rowData['stage'] ?? null,
-                    'credit_rating' => $rowData['credit_rating'] ?? null,
-                    'created_by' => auth()->id(),
-                    'source' => $rowData['source'] ?? 'CSV Import',
-                    'notes' => $rowData['notes'] ?? null,
-                ];
-
-                // Remove null values that shouldn't overwrite existing data
-                $createData = array_filter($createData, function ($value) {
-                    return $value !== null;
-                });
-
-                CreditLossData::updateOrCreate(
-                    [
-                        'portfolio_id' => $request->input('portfolio_id'),
-                        'period' => $rowData['period'],
-                    ],
-                    $createData
-                );
-
-                $importedCount++;
-            }
-
-            $message = "Credit loss data imported successfully. {$importedCount} records processed.";
-            if ($skippedCount > 0) {
-                $message .= " {$skippedCount} records skipped due to validation errors.";
-            }
-
-            return redirect()->route('credit-loss-data.index')
-                            ->with('success', $message);
+            return back()->with('error', 'Import failed: ' . $e->getMessage());
         }
+    }
 
     public function destroy(CreditLossData $creditLossData)
     {
@@ -281,4 +234,10 @@ class CreditLossDataController extends Controller
 
         return redirect()->back()->with('success', 'Credit loss data deleted.');
     }
+
+    public function getDefinitions()
+    {
+        return response()->json(CreditLossDefinition::all());
+    }
+    
 }

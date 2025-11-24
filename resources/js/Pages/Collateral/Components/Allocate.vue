@@ -6,7 +6,7 @@
           Auto Allocate Collateral
         </h2>
         <p class="mt-1 text-sm text-gray-600">
-          Select Allocation Basis, Reporting Period, and Register Date
+          Select Allocation Basis, Reporting Period, and Collateral Reporting Period
         </p>
       </div>
     </template>
@@ -37,7 +37,7 @@
 
               <!-- Reporting Year -->
               <div>
-                <jet-label for="reporting_year" value="Reporting Year" />
+                <jet-label for="reporting_year" value="Loan Book Reporting Year" />
                 <input
                   type="number"
                   id="reporting_year"
@@ -53,7 +53,7 @@
 
               <!-- Reporting Month -->
               <div>
-                <jet-label for="reporting_month" value="Reporting Month" />
+                <jet-label for="reporting_month" value="Loan Book Reporting Month" />
                 <select
                   v-model="form.reporting_month"
                   id="reporting_month"
@@ -71,13 +71,13 @@
 
               <!-- Registration Date -->
               <div class="md:col-span-2 lg:col-span-1">
-                <jet-label for="registration_date" value="Collateral Register Date" />
+                <jet-label for="registration_date" value="Collateral Reporting Date" />
                 <select
                   v-model="form.registration_date"
                   id="registration_date"
                   class="mt-2 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
                 >
-                  <option disabled value="">Select Register Date</option>
+                  <option disabled value="">Select Reporting Date</option>
                   <option v-for="(date, index) in registerDates" :key="index" :value="date">
                     {{ formatDate(date) }}
                   </option>

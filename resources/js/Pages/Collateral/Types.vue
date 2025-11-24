@@ -22,11 +22,12 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100">
               <tr>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                 <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
                 <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Haircut (%)</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Realisation Period (Months)</th>
-                <th class="px-4 py-3 text-left whitespace-nowrap">Actions</th>
+                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Haircut (%)</th>
+                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Realisation Period (Months)</th>
+                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -35,10 +36,11 @@
                 :key="type.id"
                 class="bg-white divide-y divide-gray-200"
               >
+                <td class="px-3 py-4 whitespace-nowrap text-m text-gray-500">{{ type.id }}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-m text-gray-500">{{ type.type_code }}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.type_name }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.standard_haircut }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ type.realisation_period }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-right text-sm text-gray-500">{{ type.standard_haircut }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ type.realisation_period }}</td>
                 <td class="px-4 py-3 space-x-2 whitespace-nowrap">
                   <button
                     @click="editType(type)"

@@ -89,23 +89,23 @@
                                        <thead class="bg-gray-50">
                                            <tr>
                                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract ID</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IFRS Stage</th>
+                                               <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">IFRS Stage</th>
                                                <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th> -->
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Probability Of Default</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loss Given Default</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Credit Loss</th>
+                                               <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance (MKW)</th>
+                                               <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Probability Of Default</th>
+                                               <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Loss Given Default</th>
+                                               <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Credit Loss (MKW)</th>
                                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                                            </tr>
                                        </thead>
                                        <tbody class="bg-white divide-y divide-gray-200">
                                            <tr v-for="loan in loanBooks.data" :key="loan.id">
                                                <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.ifrs9stage_pre_qualitative }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(loan.carrying_amount) }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm">{{ loan.pd_value }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm" >{{ loan.lgd_value }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> {{ formatCurrency(loan.ecl_value) }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ loan.ifrs9stage_pre_qualitative }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-right text-sm text-gray-500">{{ formatCurrency(loan.carrying_amount) }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-center text-sm">{{ loan.pd_value }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-center text-sm" >{{ loan.lgd_value }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-right text-sm text-gray-500"> {{ formatCurrency(loan.ecl_value) }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
                                            </tr>
                                        </tbody>
@@ -293,7 +293,7 @@ import HelpManual from '../../Components/HelpManual.vue';
 
         const formatCurrency = (value) => {
             if (!value) return 'E0.00';
-            return 'K' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+            return  new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
         };
 
         const formatDate = (date) => {

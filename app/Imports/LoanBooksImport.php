@@ -219,7 +219,9 @@ class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithC
                     'reporting_period' => $reportingPeriod,
                     'reporting_year' => $year,
                     'reporting_month' => $month,
-                    'contract_id' => $contractId,             
+                    'contract_id' => $contractId,
+                    'product_group' => $normalizedRow['product_group'] ?? null,
+                           
                    // 'external_identity_id' => $externalId,
                     'create_date' => $this->parseDate($row['value_date']),
                     'due_date' => $this->parseDate($row['maturity_date']),

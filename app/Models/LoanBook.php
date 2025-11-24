@@ -21,7 +21,7 @@ class LoanBook extends Model
         'external_identity_id',
         'customer_id',
         'customer_name',
-        'portfolio_group',
+        'product_group',
         'reporting_year',
         'reporting_month',
         'reporting_period',

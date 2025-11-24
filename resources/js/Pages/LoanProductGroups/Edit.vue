@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('loan_products.categories.index')">ECL Variable
+                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('groups.index')">Product Groups
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Create
+                <span class="text-indigo-400 font-medium">/</span> Edit
             </h2>
         </template>
 
@@ -58,7 +58,7 @@ import TextareaInput from "@/Jetstream/TextareaInput.vue";
 
 export default {
     props: {
-
+        group: Object
     },
     components: {
         Select,
@@ -70,22 +70,22 @@ export default {
         JetInputError,
         FileInput,
         TextareaInput,
-
+        
     },
     data() {
         return {
             form: this.$inertia.form({
-                name: null,
-                description: null,
+                name: this.group.name,
+                description: this.group.description,
             }),
-            pageTitle: "Create Category",
-            pageDescription: "Create Category",
+            pageTitle: "Edit Group",
+            pageDescription: "Edit Group Details",
         }
 
     },
     methods: {
         submit() {
-            this.form.post(this.route('loan_products.categories.store'), {})
+            this.form.put(this.route('groups.update',this.group.id), {})
 
         },
 

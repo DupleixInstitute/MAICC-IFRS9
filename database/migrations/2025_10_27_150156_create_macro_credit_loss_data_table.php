@@ -9,28 +9,32 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+     public function up(): void
     {
+        // Credit Loss Definitions Table
+        Schema::create('macro_credit_loss_definitions', function (Blueprint $table) {
+            $table->id();
+            $table->string('code', 50)->unique(); // e.g. 'ECL', 'PD', 'LGD', etc.
+            $table->string('name', 100); // descriptive name
+            $table->text('description')->nullable();
+            $table->timestamps();
+        });
+
+        //  Credit Loss Data Table
         Schema::create('macro_credit_loss_data', function (Blueprint $table) {
             $table->id();
             $table->foreignId('portfolio_id')->constrained('loan_portfolios')->onDelete('cascade');
-            $table->string('period', 7); // Y-m format
-            $table->decimal('ecl_value', 15, 2)->nullable();
-            $table->decimal('npl_value', 15, 2)->nullable();
-            $table->decimal('pd_value', 8, 6)->nullable()->comment('Probability of Default');
-            $table->decimal('lgd_value', 8, 6)->nullable()->comment('Loss Given Default');
-            $table->decimal('ead_value', 15, 2)->nullable()->comment('Exposure at Default');
-            $table->string('stage', 50)->nullable();
-            $table->string('credit_rating', 10)->nullable();
+            $table->foreignId('definition_id')->constrained('macro_credit_loss_definitions')->onDelete('cascade');
+            $table->date('period')->nullable(); // Y-m format
+            $table->decimal('value', 65, 2)->nullable()->comment('Credit loss metric value');
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             $table->string('source')->default('CSV Import');
             $table->text('notes')->nullable();
-            $table->timestamps();
 
-            // Unique constraint to prevent duplicates
-            $table->unique(['portfolio_id', 'period']);
-    });
-}
+            $table->timestamps();
+            $table->unique(['portfolio_id', 'period', 'definition_id']);
+        });
+    }
 
     /**
      * Reverse the migrations.
@@ -38,5 +42,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('macro_credit_loss_data');
+        Schema::dropIfExists('macro_credit_loss_definitions');
     }
 };

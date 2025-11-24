@@ -60,14 +60,46 @@ class CollateralController extends Controller
     /**
      * Render Collateral Allocations index page
      */
-    public function indexAllocations()
+    public function indexAllocations(Request $request)
     {
-        $allocations = CollateralAllocation::with('collateral')
-            ->orderByRaw('CAST(contract_id AS UNSIGNED) ASC')
-            ->paginate(10);
+
+            $query = CollateralAllocation::query();
+
+            // --- FILTERS ---
+
+            //  Filter by registration date (exact or range)
+            if ($request->filled('reporting_period')) {
+                $query->whereDate('reporting_period', '>=', $request->reporting_period);
+            }
+
+            //  Filter by collateral type
+            // if ($request->filled('type_code')) {
+            //     $query->where('type_code', $request->type_code);
+            // }
+
+            //  Filter by nominal value / market value / execution value range
+            if ($request->filled('customer_id')) {
+                $query->where('customer_id', 'like', '%'.$request->customer_id);
+            }
+
+            if ($request->filled('customer_name')) {
+                $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
+            }
+
+            // --- SORT AND PAGINATE ---
+        $allocations = $query
+                    ->orderByRaw('CAST(contract_id AS UNSIGNED) ASC')
+                    ->paginate(10)
+                    ->appends($request->all()); 
 
         return Inertia::render('Collateral/Index', [
-            'allocations' => $allocations,
+                'allocations' => $allocations,
+                 'filters' => $request->only([
+                    'reporting_period',
+                    'type_code',
+                    'customer_id',
+                    'customer_name',
+                ]),
         ]);
     }
 
@@ -150,53 +182,60 @@ class CollateralController extends Controller
          * Collateral View Register 
          */
 
-        public function viewRegister(Request $request)
-        {
-            $query = CollateralRegister::query();
+      public function viewRegister(Request $request)
+{
+    $query = CollateralRegister::query();
 
-            // --- FILTERS ---
+    // --- STRICT FILTERS ---
 
-            //  Filter by registration date (exact or range)
-            if ($request->filled('registration_date_from')) {
-                $query->whereDate('registration_date', '>=', $request->registration_date_from);
-            }
+    // Registration date (exact or range)
+    if ($request->filled('registration_date_from') && $request->filled('registration_date_to')) {
+        $query->whereBetween('registration_date', [
+            $request->registration_date_from,
+            $request->registration_date_to,
+        ]);
+    } elseif ($request->filled('registration_date_from')) {
+        $query->whereDate('registration_date', $request->registration_date_from);
+    }
 
-            if ($request->filled('registration_date_to')) {
-                $query->whereDate('registration_date', '<=', $request->registration_date_to);
-            }
+    // Collateral type (exact match)
+    if ($request->filled('type_code')) {
+        $query->whereHas('collateralType', function ($q) use ($request) {
+            $q->where('code', $request->type_code);
+        });
+    }
 
-            //  Filter by collateral type
-            if ($request->filled('type_code')) {
-                $query->where('type_code', $request->type_code);
-            }
+    // Customer ID (exact match)
+    if ($request->filled('customer_id')) {
+        $query->where('customer_id', 'like', '%'.$request->customer_id);
+    }
 
-            //  Filter by nominal value / market value / execution value range
-            if ($request->filled('sum_min')) {
-                $query->where('nominal_value', '>=', $request->sum_min);
-            }
+    // Customer name (exact or partial, depending on what you prefer)
+    if ($request->filled('customer_name')) {
+        // Strict match
+        //$query->where('customer_name', '=', $request->customer_name);
 
-            if ($request->filled('sum_max')) {
-                $query->where('nominal_value', '<=', $request->sum_max);
-            }
+        // OR, for partial (case-insensitive)
+        $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
+    }
 
-            // --- SORT AND PAGINATE ---
-            $collateralRegisters = $query
-                ->orderBy('registration_date', 'desc')
-                ->paginate(10)
-                ->appends($request->all()); // keep filters on pagination links
+    // --- STRICT ORDERING AND LIMIT ---
+    $collateralRegisters = $query
+        ->orderBy('registration_date', 'desc')
+        ->paginate(10)
+        ->appends($request->all());
 
-         
-            return Inertia::render('Collateral/Register', [
-                'collateralRegisters' => $collateralRegisters,
-                'filters' => $request->only([
-                    'registration_date_from',
-                    'registration_date_to',
-                    'type_code',
-                    'sum_min',
-                    'sum_max',
-                ]),
-            ]);
-        }
+    return Inertia::render('Collateral/Register', [
+        'collateralRegisters' => $collateralRegisters,
+        'filters' => $request->only([
+            'registration_date_from',
+            'registration_date_to',
+            'collateral_type',
+            'customer_id',
+            'customer_name',
+        ]),
+    ]);
+}
 
 
         /**

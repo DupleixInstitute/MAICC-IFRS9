@@ -39,18 +39,97 @@
       </div>
     </template>
 
+        <!-- Filters Section -->
+    <div class="bg-white shadow-sm sm:rounded-lg mb-6">
+      <div class="p-6 border-b border-gray-200">
+        <form @submit.prevent="applyFilters" class="grid grid-cols-6 gap-4">
+          <!-- Date From -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Reporting Period</label>
+            <input
+              v-model="filters.reporting_period"
+              type="month"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <!-- Date To -->
+          <!-- <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+            <input
+              v-model="filters.registration_date_to"
+              type="month"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div> -->
+
+          <!-- Type Code -->
+          <!-- <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Collateral Type</label>
+            <input
+              v-model="filters.type_code"
+              type="text"
+              placeholder="e.g. PROPERTY"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div> -->
+
+          <!-- Min Sum -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Customer ID</label>
+            <input
+              v-model="filters.customer_id"
+              type="text"
+              placeholder="ID"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <!-- Max Sum -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+            <input
+              v-model="filters.customer_name"
+              type="text"
+              placeholder="Name"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <!-- Button -->
+           <div class="flex items-end space-x-2">
+            <button
+              type="submit"
+              class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Apply Filters
+            </button>
+
+             <button
+                type="button"
+                @click="resetFilters"
+                class="bg-gray-800 text-gray-100 px-4 py-2 rounded hover:bg-gray-500"
+                >
+                Reset
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
         <div class="p-6 bg-white border-b border-gray-200">
             <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100">
               <tr>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer ID</th>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Basis</th>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exposure (MKW)</th>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discounted Allocated (MKW)</th>
-                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Collateral Adequecy Ratio (%)</th>
+                <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Customer ID</th>
+                <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Customer Name</th>
+                <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Reporting Period</th>
+                <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Basis</th>
+                <th scope="col" class="px-3 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Exposure (MKW)</th>
+                <th scope="col" class="px-3 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Discounted Allocated (MKW)</th>
+                <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Collateral Adequecy Ratio (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -61,10 +140,11 @@
               >
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.contract_id }}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.customer_name }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.allocation_basis }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> {{ formatCurrency(item.total_customer_exposure) }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> {{ formatCurrency(item.discounted_collateral) }}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">  {{ (item.coverage_ratio * 100).toFixed(2) }} </td>
+                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ item.reporting_period }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ item.allocation_basis }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-right text-sm text-gray-500"> {{ formatCurrency(item.total_customer_exposure) }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-right text-sm text-gray-500"> {{ formatCurrency(item.discounted_collateral) }}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">  {{ (item.coverage_ratio * 100).toFixed(2) }} </td>
               </tr>
             </tbody>
           </table>
@@ -79,10 +159,35 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Pagination from '@/Components/Pagination.vue'
-import { defineProps } from 'vue'
+import { defineProps, reactive } from 'vue'
 import '@fortawesome/fontawesome-free/css/all.min.css'
+import { router } from '@inertiajs/vue3'
 
-const props = defineProps({ allocations: Object })
+const props = defineProps({ 
+  allocations: Object,
+  filters:Object,
+})
+
+const filters = reactive({
+  reporting_period: props.filters?.reporting_period || '',
+  type_code: props.filters?.type_code || '',
+  customer_id: props.filters?.customer_id || '',
+  customer_name: props.filters?.customer_name || ''
+})
+
+function applyFilters() {
+  router.get(route('collateral.allocations.index'), filters, { preserveState: true })
+}
+
+function resetFilters() {
+  filters.registration_date_from = ''
+  filters.registration_date_to = ''
+  filters.type_code = ''
+  filters.customer_id = ''
+  filters.customer_name = ''
+
+  router.get(route('collateral.allocations.index'), {}, { preserveState: false })
+}
 
 const formatCurrency = (value) => {
     if (!value) return 'E0.00';

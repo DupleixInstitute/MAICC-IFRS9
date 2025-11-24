@@ -9,6 +9,8 @@ use App\Http\Controllers\LossGivenDefaultCummulativeController;
 use App\Http\Controllers\ExpectedCreditLossController;
 use App\Http\Controllers\CollateralController;
 use App\Http\Controllers\CreditLossDataController;
+use App\Http\Controllers\CreditLossDefinitionController;
+use App\Http\Controllers\RegressionController;
 use Inertia\Inertia;
 use App\Http\Controllers\ImportsController;
 use Illuminate\Support\Facades\Artisan;
@@ -142,16 +144,6 @@ Route::prefix('loan_product')->name('loan_products.')->group(function () {
 //comments
     Route::post('/{article}/comment/store', [LoanProductsController::class, 'storeComment'])->name('comments.store');
     Route::delete('/comment/{comment}/destroy', [LoanProductsController::class, 'destroyComment'])->name('comments.destroy');
-
-    //categories
-    Route::prefix('category')->name('categories.')->group(function () {
-        Route::get('/', [LoanProductCategoriesController::class, 'index'])->name('index');
-        Route::get('/create', [LoanProductCategoriesController::class, 'create'])->name('create');
-        Route::post('/store', [LoanProductCategoriesController::class, 'store'])->name('store');
-        Route::get('/{category}/edit', [LoanProductCategoriesController::class, 'edit'])->name('edit');
-        Route::put('/{category}/update', [LoanProductCategoriesController::class, 'update'])->name('update');
-        Route::delete('/{category}/destroy', [LoanProductCategoriesController::class, 'destroy'])->name('destroy');
-    });
 });
 //events
 Route::prefix('scoring_attribute')->name('scoring_attributes.')->group(function () {
@@ -797,10 +789,26 @@ Route::delete('/macro-forecast-weighted/{id}', [MacroForecastWeightedController:
 Route::get('/credit-loss-data', [CreditLossDataController::class, 'index'])->name('credit-loss-data.index');
 Route::get('/credit-loss-data/import', [CreditLossDataController::class, 'importView'])->name('credit-loss-data.importView');
 Route::post('/credit-loss-data/import', [CreditLossDataController::class, 'import'])->name('credit-loss-data.import');
+Route::get('/credit-loss-data/definition', [CreditLossDataController::class, 'createDefinition'])->name('credit-loss-data.definition');
+Route::post('/credit-loss-data/definition/store', [CreditLossDataController::class, 'storeDefinition'])->name('credit-loss-data.definition.store');
 Route::get('/credit-loss-data/create', [CreditLossDataController::class, 'create'])->name('credit-loss-data.create');
 Route::post('/credit-loss-data', [CreditLossDataController::class, 'store'])->name('credit-loss-data.store');
+Route::get('/credit-loss-data/{creditLossData}/edit', [CreditLossDataController::class, 'edit'])->name('credit-loss-data.edit');
 Route::put('/credit-loss-data/{creditLossData}', [CreditLossDataController::class, 'update'])->name('credit-loss-data.update');
 Route::delete('/credit-loss-data/{creditLossData}', [CreditLossDataController::class, 'destroy'])->name('credit-loss-data.destroy');
+Route::get('/credit-loss-data/period/{period}', [CreditLossDataController::class, 'period'])->name('credit-loss-data.period');
+
+// Regression Routes
+Route::get('/regression',[RegressionController::class, 'index'])->name('regression.index');
+Route::get('/regression/create',[RegressionController::class,'create'])->name('regression.create');
+Route::get('/regression/{model}', [RegressionController::class, 'show'])->name('regression.view');
+Route::post('/regression/store',[RegressionController::class,'store'])->name('regression.store');
+Route::patch('/regression/{model}/toggle-active', [RegressionController::class, 'toggleActive'])->name('regression.toggle-active');
+Route::patch('/regression/{model}/approve', [RegressionController::class, 'approve'])->name('regression.approve');
+Route::get('/regression/{model}/predict', [RegressionController::class, 'predictForm'])->name('regression.predict');
+Route::post('/regression/{model}/predict', [RegressionController::class, 'predict'])->name('regression.predict.store');
+Route::get('/regression/{model}/forecast-data', [RegressionController::class, 'fetchMacroForecast'])->name('regression.forecast.data');
+
 
 // Collateral Routes
 Route::get('/collateral/types', [CollateralController::class, 'collateralType'])->name('collateral.types.index');
@@ -820,3 +828,14 @@ Route::get('/collateral/allocations', [CollateralController::class, 'indexAlloca
 // Auto Allocate (Inertia UI page)
 Route::get('/collateral/allocate', [CollateralController::class, 'allocateView'])->name('collateral.allocate');
 Route::post('/collateral/allocate/auto', [CollateralController::class, 'allocateAutomatically'])->name('collateral.allocate.auto');
+
+
+    //Product Groups
+Route::prefix('groups')->name('groups.')->group(function () {
+    Route::get('/', [LoanProductCategoriesController::class, 'index'])->name('index');
+    Route::get('/create', [LoanProductCategoriesController::class, 'create'])->name('create');
+    Route::post('/store', [LoanProductCategoriesController::class, 'store'])->name('store');
+    Route::get('/{group}/edit', [LoanProductCategoriesController::class, 'edit'])->name('edit');
+    Route::put('/{group}/update', [LoanProductCategoriesController::class, 'update'])->name('update');
+    Route::delete('/{group}/destroy', [LoanProductCategoriesController::class, 'destroy'])->name('destroy');
+});

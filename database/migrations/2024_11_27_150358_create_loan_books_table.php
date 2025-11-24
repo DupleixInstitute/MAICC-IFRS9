@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('customer_id')->index();
             $table->string('customer_name')->nullable();
             $table->string('external_identity_id')->index()->default('TBA');
-            $table->string('portfolio_group')->nullable();
+            $table->string('product_group')->nullable();
             $table->integer('reporting_year');
             $table->integer('reporting_month');
             $table->string('reporting_period', 6)->index(); // YYYYMM format

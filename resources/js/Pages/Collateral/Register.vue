@@ -42,31 +42,31 @@
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Collateral Type</label>
             <input
-              v-model="filters.type_code"
+              v-model="filters.collateral_type"
               type="text"
-              placeholder="e.g. PROPERTY"
+              placeholder="e.g. Code: 103"
               class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <!-- Min Sum -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Min Value</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Customer ID</label>
             <input
-              v-model="filters.sum_min"
-              type="number"
-              placeholder="Min"
+              v-model="filters.customer_id"
+              type="text"
+              placeholder="ID"
               class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <!-- Max Sum -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Max Value</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
             <input
-              v-model="filters.sum_max"
-              type="number"
-              placeholder="Max"
+              v-model="filters.customer_name"
+              type="text"
+              placeholder="Name"
               class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -101,11 +101,12 @@
               <tr>
                 <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer ID</th>
                 <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer Name</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type Code</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registration Date</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nominal Value</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Market Value</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Execution Value</th>
+                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Type Code</th>
+                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Reporting Period</th>
+                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Registration Date</th>
+                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Nominal Value</th>
+                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Market Value</th>
+                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Execution Value</th>
               </tr>
             </thead>
             <tbody>
@@ -116,11 +117,12 @@
               >
                 <td class="px-3 py-4 text-sm text-gray-500">{{ item.customer_id }}</td>
                 <td class="px-3 py-4 text-sm text-gray-500">{{ item.customer_name }}</td>
-                <td class="px-3 py-4 text-sm text-gray-500">{{ item.collateral_type }}</td>
-                <td class="px-3 py-4 text-sm text-gray-500">{{ item.registration_date }}</td>
-                <td class="px-3 py-4 text-sm text-gray-500">{{ formatCurrency(item.nominal_value) }}</td>
-                <td class="px-3 py-4 text-sm text-gray-500">{{ formatCurrency(item.market_value) }}</td>
-                <td class="px-3 py-4 text-sm text-gray-500">{{ formatCurrency(item.execution_value) }}</td>
+                <td class="px-3 py-4 text-center text-sm text-gray-500">{{ item.collateral_type }}</td>  
+                <td class="px-3 py-4 text-center text-sm text-gray-500">{{ item.registration_date }}</td>
+                <td class="px-3 py-4 text-center text-sm text-gray-500">N/A</td>
+                <td class="px-3 py-4 text-right text-sm text-gray-500">{{ formatCurrency(item.nominal_value) }}</td>
+                <td class="px-3 py-4 text-right text-sm text-gray-500">{{ formatCurrency(item.market_value) }}</td>
+                <td class="px-3 py-4 text-right text-sm text-gray-500">{{ formatCurrency(item.execution_value) }}</td>
               </tr>
             </tbody>
           </table>
@@ -147,9 +149,9 @@ const props = defineProps({
 const filters = reactive({
   registration_date_from: props.filters?.registration_date_from || '',
   registration_date_to: props.filters?.registration_date_to || '',
-  type_code: props.filters?.type_code || '',
-  sum_min: props.filters?.sum_min || '',
-  sum_max: props.filters?.sum_max || ''
+  collateral_type: props.filters?.collateral_type || '',
+  customer_id: props.filters?.customer_id || '',
+  customer_name: props.filters?.customer_name || ''
 })
 
 function applyFilters() {
@@ -159,9 +161,9 @@ function applyFilters() {
 function resetFilters() {
   filters.registration_date_from = ''
   filters.registration_date_to = ''
-  filters.type_code = ''
-  filters.sum_min = ''
-  filters.sum_max = ''
+  filters.collateral_type = ''
+  filters.customer_id = ''
+  filters.customer_name = ''
 
   router.get(route('collateral.register.index'), {}, { preserveState: false })
 }

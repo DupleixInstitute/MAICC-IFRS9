@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             IndustryTypesTableSeeder::class,
             ChartOfAccountsTableSeeder::class,
             ScoringAttributesTableSeeder::class,
+            CreditLossDefinitionSeeder::class,
         ]);
     }
 }

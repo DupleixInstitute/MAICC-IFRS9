@@ -76,6 +76,16 @@ return [
                     'children' => [],
                     'order' => 1,
                 ],
+                [
+                    'name' => 'Product Group',
+                    'icon' => 'circle',
+                    'route' => 'groups.index',
+                    'route_check' => 'groups.index',
+                    'permissions' => 'groups.index',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 2,
+                ]
             ],
             'order' => 1,
         ],
@@ -468,6 +478,16 @@ return [
         ],
 
         //REPORTS
+
+        [
+            'name' => 'Regression Analysis',
+            'icon' => 'chart-bar',
+            'route' => 'regression.index',
+            'permissions' => 'users',
+            'dropdown' => false,
+            'children' => [],
+            'order' => 10,
+        ],
 
         [
             'name' => 'User Management',
