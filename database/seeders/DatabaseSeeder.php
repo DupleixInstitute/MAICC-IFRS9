@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             ChartOfAccountsTableSeeder::class,
             ScoringAttributesTableSeeder::class,
             CreditLossDefinitionSeeder::class,
+            ScenarioSetSeeder::class,
         ]);
     }
 }

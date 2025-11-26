@@ -40,8 +40,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request)
     {
-        $logo = Setting::where('setting_key', 'company_logo')->first()->setting_value;
-        $smallLogo = Setting::where('setting_key', 'company_small_logo')->first()->setting_value;
+        $logo = Setting::where('setting_key', 'company_logo')->first()?->setting_value;
+        $smallLogo = Setting::where('setting_key', 'company_small_logo')->first()?->setting_value;
         return array_merge(parent::share($request), [
             'flash' => function () use ($request) {
                 return [
@@ -53,12 +53,12 @@ class HandleInertiaRequests extends Middleware
             'menu' => (Auth::check()&&Auth::user()->hasRole('member'))?config('menu.member'):config('menu.admin'),
             'logoUrl' => $logo ? asset('storage/' . $logo) : asset('images/TNMMpamba-logo.png'),
             'smallLogoUrl' => $smallLogo ? asset('storage/' . $smallLogo) : null,
-            'companyName' => Setting::where('setting_key', 'company_name')->first()->setting_value,
-            'companyAddress' => Setting::where('setting_key', 'company_address')->first()->setting_value,
-            'companyMobile' => Setting::where('setting_key', 'company_mobile')->first()->setting_value,
-            'companyTel' => Setting::where('setting_key', 'company_tel')->first()->setting_value,
-            'companyEmail' => Setting::where('setting_key', 'company_email')->first()->setting_value,
-            'currency' => Currency::find(Setting::where('setting_key', 'currency')->first()->setting_value),
+            'companyName' => Setting::where('setting_key', 'company_name')->first()?->setting_value ?? 'Company Name',
+            'companyAddress' => Setting::where('setting_key', 'company_address')->first()?->setting_value ?? '',
+            'companyMobile' => Setting::where('setting_key', 'company_mobile')->first()?->setting_value ?? '',
+            'companyTel' => Setting::where('setting_key', 'company_tel')->first()?->setting_value ?? '',
+            'companyEmail' => Setting::where('setting_key', 'company_email')->first()?->setting_value ?? 'info@company.com',
+            'currency' => Currency::find(Setting::where('setting_key', 'currency')->first()?->setting_value ?? 1),
             'route_name' => Route::currentRouteName(),
         ]);
     }

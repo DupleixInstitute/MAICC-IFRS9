@@ -28,6 +28,7 @@ class LoanBook extends Model
         'industry_code',
         'industry_type',
         'create_date',
+        'due_date',
         'value_date',
         'tenor',
         'remaining_tenor',
@@ -45,7 +46,7 @@ class LoanBook extends Model
         'loan_portfolio_id',
         'contract_status',
         'ifrs9stage_pre_qualitative',
-        'ifrs9stage_postalitative',
+        'ifrs9stage_post_qualitative',
         'sicr',
         'ifrs9_stage_prequalitative',
         'sicr_trigger',
@@ -57,6 +58,9 @@ class LoanBook extends Model
         'collection_lgd',
         '12_pd',
         'lifetime_pd',
+        'pd_post_fli_adj',
+        'fli_adj',
+        'remaining_life_in_months',
     ];
 
     /**

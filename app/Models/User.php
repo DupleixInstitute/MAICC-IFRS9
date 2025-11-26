@@ -123,7 +123,7 @@ class User extends Authenticatable
 
     public function scopeOrderByName($query)
     {
-        $query->orderBy('last_name')->orderBy('first_name');
+        $query->orderBy('name');
     }
 
     public function scopeFilter($query, array $filters)

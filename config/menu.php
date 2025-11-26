@@ -477,6 +477,36 @@ return [
             'order' => 6,
         ],
 
+        // FLI Adjustment (New Module)
+        [
+            'name' => 'FLI Adj',
+            'icon' => 'chart-line',
+            'route' => '',
+            'permissions' => '',
+            'dropdown' => true,
+            'children' => [
+                [
+                    'name' => 'Economic Scenarios',
+                    'icon' => 'circle',
+                    'route' => 'fli.scenarios.index',
+                    'permissions' => '',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 0,
+                ],
+                [
+                    'name' => 'External Calculations',
+                    'icon' => 'circle',
+                    'route' => 'fli.external.index',
+                    'permissions' => '',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 1,
+                ],
+            ],
+            'order' => 7,
+        ],
+
         //REPORTS
 
         [
