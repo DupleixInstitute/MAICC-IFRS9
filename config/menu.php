@@ -479,7 +479,7 @@ return [
 
         // FLI Adjustment (New Module)
         [
-            'name' => 'FLI Adj',
+            'name' => 'FLI Adjustments',
             'icon' => 'chart-line',
             'route' => '',
             'permissions' => '',
@@ -502,6 +502,15 @@ return [
                     'dropdown' => false,
                     'children' => [],
                     'order' => 1,
+                ],
+                [
+                    'name' => 'Calculation History',
+                    'icon' => 'circle',
+                    'route' => 'fli.external.list',
+                    'permissions' => '',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 2,
                 ],
             ],
             'order' => 7,

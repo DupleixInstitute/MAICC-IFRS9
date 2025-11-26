@@ -84,17 +84,58 @@
                             <jet-label for="base_pd" value="Base PD Proxy Value"/>
                             <jet-input id="base_pd" type="number" step="0.0001" min="0" max="100" class="block w-full" v-model="form.base_pd_proxy_value"/>
                         </div>
+                    </div>
 
-                        <!-- Regression Slope -->
-                        <div>
-                            <jet-label for="slope" value="Regression Slope"/>
-                            <jet-input id="slope" type="number" step="0.0001" class="block w-full" v-model="form.regression_slope"/>
+                    <!-- Regression Model Section -->
+                    <div class="mt-6 border-2 border-indigo-200 rounded-lg p-4 bg-indigo-50">
+                        <h4 class="text-md font-medium text-indigo-900 mb-4">Regression Model Parameters</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Regression Slope -->
+                            <div>
+                                <jet-label for="slope" value="Regression Slope"/>
+                                <jet-input id="slope" type="number" step="0.0001" class="block w-full" v-model="form.regression_slope"/>
+                                <p class="mt-1 text-xs text-gray-600">Coefficient for macro variable</p>
+                            </div>
+
+                            <!-- Regression Intercept -->
+                            <div>
+                                <jet-label for="intercept" value="Regression Intercept"/>
+                                <jet-input id="intercept" type="number" step="0.0001" class="block w-full" v-model="form.regression_intercept"/>
+                                <p class="mt-1 text-xs text-gray-600">Constant term in regression</p>
+                            </div>
                         </div>
+                    </div>
 
-                        <!-- Regression Intercept -->
+                    <!-- Supporting Documentation -->
+                    <div class="mt-6 border-2 border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h4 class="text-md font-medium text-gray-900 mb-4">Supporting Documentation</h4>
                         <div>
-                            <jet-label for="intercept" value="Regression Intercept"/>
-                            <jet-input id="intercept" type="number" step="0.0001" class="block w-full" v-model="form.regression_intercept"/>
+                            <jet-label for="attachment" value="Attach File (Optional)"/>
+                            <input 
+                                type="file" 
+                                id="attachment" 
+                                @change="handleFileUpload"
+                                accept=".pdf,.xlsx,.xls,.csv,.doc,.docx"
+                                class="mt-1 block w-full text-sm text-gray-500
+                                    file:mr-4 file:py-2 file:px-4
+                                    file:rounded file:border-0
+                                    file:text-sm file:font-semibold
+                                    file:bg-indigo-50 file:text-indigo-700
+                                    hover:file:bg-indigo-100
+                                    cursor-pointer"
+                            />
+                            <p class="mt-1 text-xs text-gray-600">Upload regression analysis, macro forecasts, or supporting documentation (Max 10MB)</p>
+                            <div v-if="form.attachment" class="mt-2 flex items-center text-sm text-green-600">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                File attached: {{ form.attachment.name }}
+                                <button @click="removeFile" class="ml-2 text-red-600 hover:text-red-800">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -254,6 +295,7 @@ export default {
                 base_pd_proxy_value: 0,
                 regression_slope: 0,
                 regression_intercept: 0,
+                attachment: null,
             },
             parameterId: null,
             showForecastTable: false,
@@ -267,6 +309,24 @@ export default {
         }
     },
     methods: {
+        handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                // Validate file size (10MB max)
+                if (file.size > 10 * 1024 * 1024) {
+                    this.$toast?.error('File size exceeds 10MB limit');
+                    event.target.value = '';
+                    return;
+                }
+                this.form.attachment = file;
+                this.$toast?.success('File attached successfully');
+            }
+        },
+        removeFile() {
+            this.form.attachment = null;
+            document.getElementById('attachment').value = '';
+            this.$toast?.info('File removed');
+        },
         async saveParameters() {
             this.loading = true;
             this.errors = {};

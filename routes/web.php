@@ -1056,6 +1056,7 @@ Route::prefix('fli-adj')->middleware(['auth'])->group(function () {
     // External Calculations
     Route::prefix('external')->name('fli.external.')->group(function () {
         Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
+        Route::get('/list', [ExternalCalculationsController::class, 'list'])->name('list');
         Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
         Route::post('/generate-forecasts', [ExternalCalculationsController::class, 'generateForecasts'])->name('generate');
         Route::post('/save-adjustments', [ExternalCalculationsController::class, 'saveAdjustments'])->name('save');

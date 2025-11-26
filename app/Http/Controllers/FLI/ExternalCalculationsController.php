@@ -45,6 +45,67 @@ class ExternalCalculationsController extends Controller
     }
 
     /**
+     * Display list of all external calculations with history.
+     */
+    public function list()
+    {
+        $parameters = FliReportingPeriodParameter::with([
+            'scenarioSet.probabilities',
+            'creator:id,name'
+        ])
+        ->orderBy('reporting_period', 'desc')
+        ->orderBy('created_at', 'desc')
+        ->get()
+        ->map(function ($param) {
+            return [
+                'id' => $param->id,
+                'reporting_period' => $param->reporting_period ? $param->reporting_period->format('Y-m') : null,
+                'scenario_set_name' => $param->scenarioSet?->name,
+                'number_of_forecasting_periods' => $param->number_of_forecasting_periods,
+                'forecasting_period_length_months' => $param->forecasting_period_length_months,
+                'economic_data_statistic' => $param->economic_data_statistic,
+                'pd_proxy_statistic' => $param->pd_proxy_statistic,
+                'base_forecast_period' => $param->base_forecast_period ? $param->base_forecast_period->format('Y-m') : null,
+                'base_macro_data_value' => $param->base_macro_data_value,
+                'base_pd_proxy_value' => $param->base_pd_proxy_value,
+                'regression_slope' => $param->regression_slope,
+                'regression_intercept' => $param->regression_intercept,
+                'created_by_name' => $param->creator?->name,
+                'created_at' => $param->created_at?->format('Y-m-d H:i:s'),
+                'scenarios' => $param->scenarioSet?->probabilities->map(function($prob) {
+                    return [
+                        'name' => $prob->scenario_name,
+                        'probability' => $prob->probability,
+                    ];
+                }),
+            ];
+        });
+
+        // Get adjustment counts per reporting period
+        $adjustmentCounts = FliAdj::select('reporting_period', DB::raw('count(*) as count'))
+            ->groupBy('reporting_period')
+            ->pluck('count', 'reporting_period');
+
+        // Get loan book update statistics
+        $loanBookStats = LoanBook::whereNotNull('fli_adj')
+            ->select('reporting_period', 
+                DB::raw('count(*) as total_loans'),
+                DB::raw('avg(fli_adj) as avg_fli_adj'),
+                DB::raw('min(fli_adj) as min_fli_adj'),
+                DB::raw('max(fli_adj) as max_fli_adj')
+            )
+            ->groupBy('reporting_period')
+            ->get()
+            ->keyBy('reporting_period');
+
+        return Inertia::render('FLI/ExternalCalculations/List', [
+            'parameters' => $parameters,
+            'adjustmentCounts' => $adjustmentCounts,
+            'loanBookStats' => $loanBookStats,
+        ]);
+    }
+
+    /**
      * Save FLI parameters.
      */
     public function saveParameters(Request $request)
@@ -224,7 +285,7 @@ class ExternalCalculationsController extends Controller
             ];
 
             // Get all loans for this reporting period
-            $loans = LoanBook::where('reporting_period', $reportingPeriod->format('Ym'))->get();
+            $loans = LoanBook::where('reporting_period', $reportingPeriod->format('Y-m'))->get();
             $stats['total_loans'] = $loans->count();
 
             if ($stats['total_loans'] == 0) {
