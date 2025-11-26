@@ -11,6 +11,7 @@ use App\Http\Controllers\CollateralController;
 use App\Http\Controllers\CreditLossDataController;
 use App\Http\Controllers\CreditLossDefinitionController;
 use App\Http\Controllers\RegressionController;
+use App\Http\Controllers\ManualForecastController;
 use Inertia\Inertia;
 use App\Http\Controllers\ImportsController;
 use Illuminate\Support\Facades\Artisan;
@@ -838,4 +839,10 @@ Route::prefix('groups')->name('groups.')->group(function () {
     Route::get('/{group}/edit', [LoanProductCategoriesController::class, 'edit'])->name('edit');
     Route::put('/{group}/update', [LoanProductCategoriesController::class, 'update'])->name('update');
     Route::delete('/{group}/destroy', [LoanProductCategoriesController::class, 'destroy'])->name('destroy');
+});
+
+// Manual Forecasting Routes
+Route::prefix('forecasting')->group(function () {
+    Route::get('/manual-forecast', [ManualForecastController::class, 'show'])->name('forecasting.manual');
+    Route::post('/manual-forecast/process', [ManualForecastController::class, 'process'])->name('forecasting.manual.process');
 });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Imports\LoanBooksImport;
+use App\Services\FieldMappingService;
 use App\Models\Import;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -21,7 +22,16 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Events\ImportProgress;
 
 class LoanBookController extends Controller
+
 {
+
+    protected $fieldMappingService;
+    
+    public function __construct(FieldMappingService $fieldMappingService)
+        {
+            $this->fieldMappingService = $fieldMappingService;
+        }
+
     public function index(Request $request)
     {
         $query = LoanBook::query()
@@ -202,9 +212,10 @@ class LoanBookController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'], // 10MB max
-            'reporting_period' => ['required', 'date_format:Y-m'],
-            'portfolio' => ['required', 'string', 'in:retail,corporate,sme'],
+            'file' => ['required', 'file', 'mimes:txt,csv'],
+            'loan_portfolio_id' => ['required'],
+            'import_type' => ['required', 'in:legacy,custom'],
+            'mapping' => ['nullable', 'array'], // Only used for custom import
         ]);
 
         try {
@@ -421,11 +432,19 @@ class LoanBookController extends Controller
 
         return $principalBalance * $provisionRate;
     }
+
+
     public function createImport(): Response
     {
+        $tableName = (new LoanBook())->getTable(); // loan_book table
+
+        // Get all columns with details from the clients table
+        $fields = $this->fieldMappingService->getTableColumns($tableName, true);
 
         return Inertia::render('LoanBooks/Import', [
             'portfolios' => LoanPortfolio::all(),
+            'availableFields'   => array_keys($fields),
+            'fieldDescriptions' => $fields,
         ]);
     }
 
@@ -434,20 +453,31 @@ class LoanBookController extends Controller
         $request->validate([
             'file' => ['required', 'file', 'mimes:txt,csv'],
             'loan_portfolio_id' => ['required'],
+            'import_type' => ['required', 'in:legacy,custom'],
+            'mapping' => ['nullable', 'array'],
         ]);
 
         $import = Import::create([
             'name' => $request->file('file')->getClientOriginalName(),
             'status' => 'pending',
         ]);
-        Excel::import(new LoanBooksImport($import, $request->only([
-            'loan_portfolio_id',
-            'reporting_period',
-            'reporting_year',
-            'reporting_month',
-        ])), $request->file('file'));
 
-        return redirect()->route('loan_applications.loan-book')->with('success', 'Import started! You will be notified once it completes.');
+        Excel::import(
+            new LoanBooksImport(
+                $import,
+                array_merge(
+                    $request->only(['loan_portfolio_id','reporting_period','reporting_year','reporting_month']),
+                    [
+                        'import_type' => $request->import_type,
+                        'mapping' => $request->input('mapping', []),
+                    ]
+                )
+            ),
+            $request->file('file')
+        );
 
+        return redirect()->route('loan_applications.loan-book')
+                        ->with('success', 'Import started! You will be notified once it completes.');
     }
+
 }
