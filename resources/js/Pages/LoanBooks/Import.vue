@@ -240,17 +240,18 @@ export default {
             const commonMappings = {
 
                 'customer_id': 'customer_id', 'customer id': 'customer_id', 'id': 'customer_id', 'Client ID': 'customer_id', 'Customer ID': 'customer_id',
-                'public_name': 'name', 'Name': 'name', 'borrower_name': 'name', 'Customer Name': 'name',
-
+                'public_name': 'Customer_name', 'Name': 'customer_name', 'borrower_name': 'customer_name', 'Customer Name': 'customer_name',
+                'Contract ID': 'contract_id', 'contract id': 'contract_id', 'loan_id': 'contract_id', 'loan id': 'contract_id', 'contract_id': 'contract_id',
                 'type': 'loan_type', 'loan_type': 'loan_type',
-                'value date': 'disbursement_date', 'disbursed': 'disbursement_date', 'disbursement_date': 'disbursement_date',
-                'maturity date': 'maturity_date', 'maturity_date': 'maturity_date','Maturity Date': 'maturity_date',
+                'value date': 'create_date', 'Value Date': 'create_date',
+                'disbursed': 'disbursement_date', 'disbursement_date': 'disbursement_date',
+                'maturity date': 'maturity_date', 'maturity_date': 'maturity_date','Maturity Date': 'maturity_date', 'Maturity': 'due_date','Due Date': 'due_date',
                 'tenor': 'tenor', 'Tenor': 'tenor',
                 'moratorium': 'moratorium', 'Moratorium Period': 'moratorium',
-                'interest rate': 'interest_rate', 'rate': 'interest_rate', 'Interest Rate': 'interest_rate',
+                'interest rate': 'interest_rate', 'rate': 'interest_rate', 'Interest Rate': 'interest_rate','interest_rate': 'interest_rate',
 
                 'principal': 'loan_amount', 'loan_amount': 'loan_amount', 'amount': 'loan_amount',
-                'carrying amount': 'carrying_amount', 'Carrying Amount': 'carrying_amount',
+                'carrying amount': 'carrying_amount', 'Carrying Amount': 'carrying_amount','carrying_amount': 'carrying_amount',
                 'approved': 'approved_amount', 
                 'disbursed': 'disbursed_amount', 'not yet disbursed': 'pending_amount','Disbursed': 'disbursed_amount', 'Disbursement Amount': 'disbursed_amount',
                 'interest': 'interest', 'total': 'total',

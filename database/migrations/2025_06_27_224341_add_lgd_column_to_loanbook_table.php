@@ -33,8 +33,15 @@ return new class extends Migration
             $table->decimal('collection_lgd',8,2)
                   ->nullable()
                   ->comment('Collection provided Loss Given Default value for the loan book');
-            
-        
+            $table->decimal('pd_prefli',8,2)
+                  ->nullable()
+                  ->comment('probability of default pre fli');
+            $table->decimal('fli_adj',8,2)
+                  ->nullable()
+                  ->comment('fli adjustment');
+            $table->decimal('pd_post_fli',8,2)
+                  ->nullable()
+                  ->comment('probability of default post fli');
             
         });
     }

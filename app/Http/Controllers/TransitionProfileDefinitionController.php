@@ -102,7 +102,7 @@ class TransitionProfileDefinitionController extends Controller
         $profile->update($request->all());
         //return Inertia::location(route('transition-profiles.index'))->with('success', 'Profile updated successfully.');
         //return redirect()->route('transition-profiles.index')->with('success', 'Profile updated successfully.');
-        return Inertia::render('TransitionProfiles/Index', ['success' => 'Profile updated successfully.']);
+        return redirect()->route('transition-profiles.index')->with('success', 'Profile updated successfully.');
 
     }
 

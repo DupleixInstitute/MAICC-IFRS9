@@ -11,7 +11,9 @@
                 v-model="form.start_period" 
                 class="w-full border rounded p-2"
                 required
-                :max="new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7)"
+                :max="new Date(new Date().setFullYear(new Date().getFullYear() + 20))
+                .toISOString()
+                .slice(0, 7)"
               >
           </div>
           
@@ -22,7 +24,9 @@
                 v-model="form.end_period" 
                 class="w-full border rounded p-2"
                 required
-                :max="new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7)"
+                 :max="new Date(new Date().setFullYear(new Date().getFullYear() + 20))
+                .toISOString()
+                .slice(0, 7)"
               >
           </div>
 

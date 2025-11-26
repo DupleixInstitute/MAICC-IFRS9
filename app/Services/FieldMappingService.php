@@ -34,8 +34,11 @@ class FieldMappingService
             'updated_at',
         ],
 
-        // Add others here:
-        // 'loans' => ['loan_status', 'created_at', 'updated_at', 'deleted_at'],
+        'loans' => [
+            'loan_status', 
+            'created_at', 
+            'updated_at', 
+            'deleted_at'],
     ];
 
     public function getTableColumns(string $tableName, bool $withDetails = false): array
