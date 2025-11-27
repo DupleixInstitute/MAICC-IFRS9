@@ -402,7 +402,7 @@ class CollateralController extends Controller
                         SET customer_lgd = GREATEST(1 - ( ? / 100 ), 0)
                         WHERE contract_id = ?
                     ", [
-                        $coverage * 100,
+                        $coverage,
                         $loan->contract_id,
                     ]);
 
