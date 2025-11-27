@@ -66,16 +66,17 @@
                                     <p class="text-xs text-green-700">12-month ECL (Performing loans)</p>
                                 </div>
                             </div>
-                            <div class="relative ">
+                            <div class="relative">
                                 <input 
                                     v-model.number="form.stage_1_threshold" 
                                     type="number" 
                                     min="0" 
                                     max="365"
-                                    class="input-threshold text-right pr-12" 
+                                    class="input-threshold text-right" 
+                                    style="padding-right: 4.5rem;"
                                     placeholder="30"
                                 />
-                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                                     <span class="text-green-600 text-sm font-medium">days</span>
                                 </div>
                             </div>
@@ -101,10 +102,11 @@
                                     type="number" 
                                     min="0" 
                                     max="365"
-                                    class="input-threshold text-right pr-12" 
+                                    class="input-threshold text-right" 
+                                    style="padding-right: 4.5rem;"
                                     placeholder="90"
                                 />
-                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                                     <span class="text-red-600 text-sm font-medium">days</span>
                                 </div>
                             </div>
