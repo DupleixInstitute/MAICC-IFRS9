@@ -54,7 +54,7 @@
                                         <div class="flex-1">
                                             <h5 class="text-sm font-medium text-gray-900">Legacy Format</h5>
                                             <p class="text-xs text-gray-500 mt-1">
-                                                Use the traditional format with customer_id and public_name fields
+                                                Use the traditional format with fields in the sample file
                                             </p>
                                         </div>
                                     </div>
@@ -100,20 +100,20 @@
                         </div>
 
                         <!-- Legacy Auto Mapping -->
-                        <div v-if="importType === 'legacy' && headers.length > 0" class="mt-6 border-t border-gray-200 pt-6">
+                        <!-- <div v-if="importType === 'legacy' && headers.length > 0" class="mt-6 border-t border-gray-200 pt-6">
                             <h4 class="text-sm font-medium text-gray-900 mb-4">Legacy Import Setup</h4>
                             <div class="bg-yellow-50 p-4 rounded-lg mb-4">
                                 <h5 class="text-sm font-medium text-yellow-800 mb-2">Legacy Format Requirements:</h5>
                                 <ul class="text-xs text-yellow-700 list-disc list-inside space-y-1">
                                     <li>Your CSV must have exactly 2 columns</li>
-                                    <li>Column 1: <strong>customer_id</strong></li>
-                                    <li>Column 2: <strong>public_name</strong></li>
+                                    <li>Column 1: <strong>contract_id</strong></li>
+                                    <li>Column 2: <strong>balance</strong></li>
                                 </ul>
                             </div>
                             <div class="bg-green-50 p-4 rounded-lg">
-                                <p class="text-sm text-green-700"><strong>Auto-mapping applied:</strong> customer_id → customer_id, public_name → public_name</p>
+                                <p class="text-sm text-green-700"><strong>Auto-mapping applied:</strong> customer_id → customer_id, contract_id → contract_id</p>
                             </div>
-                        </div>
+                        </div> -->
 
                         <!-- Custom Mapping -->
                         <div v-if="importType === 'custom' && headers.length > 0" class="mt-6 border-t border-gray-200 pt-6">
@@ -160,9 +160,6 @@
                         <div class="mt-6 flex flex-col sm:flex-row gap-4">
                             <jet-button type="button" @click="downloadTemplate('legacy')" class="flex-1 justify-center">
                                 Download Legacy Template
-                            </jet-button>
-                            <jet-button type="button" @click="downloadTemplate('custom')" class="flex-1 justify-center">
-                                Download Custom Template
                             </jet-button>
                         </div>
 
@@ -250,7 +247,7 @@ export default {
                 'moratorium': 'moratorium', 'Moratorium Period': 'moratorium',
                 'interest rate': 'interest_rate', 'rate': 'interest_rate', 'Interest Rate': 'interest_rate','interest_rate': 'interest_rate',
 
-                'principal': 'loan_amount', 'loan_amount': 'loan_amount', 'amount': 'loan_amount',
+                'principal': 'principal_balance', 'Principal': 'principal_balance', 'amount': 'principal_balance', 'loan amount': 'principal_balance','Loan Amount': 'principal_balance','principal_balance': 'principal_balance',
                 'carrying amount': 'carrying_amount', 'Carrying Amount': 'carrying_amount','carrying_amount': 'carrying_amount',
                 'approved': 'approved_amount', 
                 'disbursed': 'disbursed_amount', 'not yet disbursed': 'pending_amount','Disbursed': 'disbursed_amount', 'Disbursement Amount': 'disbursed_amount',
@@ -325,24 +322,36 @@ export default {
         },
 
 
-        downloadTemplate(type) {
-            let data = '', filename = ''
-            if (type === 'legacy') {
-                data = 'customer_id,public_name\n1001,0774892762-John Doe\n1002,0774892763-Jane Smith'
-                filename = 'loanbook_legacy_template.csv'
-            } else {
-                const fields = this.availableFields.join(',')
-                data = `${fields}\nCUST001,John Doe,1000,10%\nCUST002,Jane Smith,1500,12%`
-                filename = 'loanbook_custom_template.csv'
+   downloadTemplate(type) {
+    let data = '', filename = ''
+
+    if (type === 'legacy') {
+        // Legacy IFRS9 loanbook template with dummy data
+        data =
+            `customer_id,name,contract_id,value_date,maturity_date,tenor,interest_rate,principal,disbursed,carrying_amount,1-30 Days,31-90 Days,91-180 Days,181-270 Days
+            1,ABC Hotel,1,01/01/2020,31/12/2025,5,15.00,1000000.00,950000.00,1000000.00,50000.00,20000.00,10000.00,5000.00
+            2,XYZ Academy,2,01/03/2021,28/02/2026,5,12.50,2000000.00,1950000.00,2000000.00,100000.00,40000.00,20000.00,10000.00
+            3,GreenTech Medical,3,15/06/2022,14/06/2027,5,18.00,1500000.00,1450000.00,1500000.00,75000.00,30000.00,15000.00,7000.00
+            4,Sunrise Engineering,4,10/07/2019,09/07/2024,5,17.00,2500000.00,2450000.00,2500000.00,125000.00,50000.00,25000.00,12000.00
+            5,Riverside Transport,5,20/09/2020,19/09/2025,5,14.50,1800000.00,1750000.00,1800000.00,90000.00,36000.00,18000.00,9000.00`;
+                    
+                    filename = 'loanbook_legacy_template_dummy.csv'
+                } else {
+                    const fields = this.availableFields.join(',')
+                    data = `${fields}\nCUST001,John Doe,1000,10%\nCUST002,Jane Smith,1500,12%`
+                    filename = 'loanbook_custom_template_dummy.csv'
+                }
+
+                const blob = new Blob([data], { type: 'text/csv' })
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = filename
+                a.click()
+                window.URL.revokeObjectURL(url)
             }
-            const blob = new Blob([data], { type: 'text/csv' })
-            const url = window.URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = filename
-            a.click()
-            window.URL.revokeObjectURL(url)
-        }
+
+
     }
 }
 </script>

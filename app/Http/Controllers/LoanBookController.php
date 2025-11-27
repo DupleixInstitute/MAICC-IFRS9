@@ -36,7 +36,7 @@ class LoanBookController extends Controller
     {
         $query = LoanBook::query()
             ->with('client')
-            ->orderBy('reporting_period', 'desc');
+            ->orderBy('reporting_period', 'asc');
             // dd($query);
 
         // Apply filters

@@ -42,7 +42,7 @@
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Collateral Type</label>
             <input
-              v-model="filters.collateral_type"
+              v-model="filters.type_code"
               type="text"
               placeholder="e.g. Code: 103"
               class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
@@ -149,7 +149,7 @@ const props = defineProps({
 const filters = reactive({
   registration_date_from: props.filters?.registration_date_from || '',
   registration_date_to: props.filters?.registration_date_to || '',
-  collateral_type: props.filters?.collateral_type || '',
+  type_code: props.filters?.type_code || '',
   customer_id: props.filters?.customer_id || '',
   customer_name: props.filters?.customer_name || ''
 })
@@ -161,7 +161,7 @@ function applyFilters() {
 function resetFilters() {
   filters.registration_date_from = ''
   filters.registration_date_to = ''
-  filters.collateral_type = ''
+  filters.type_code = ''
   filters.customer_id = ''
   filters.customer_name = ''
 

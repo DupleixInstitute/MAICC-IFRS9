@@ -73,9 +73,9 @@ class CollateralController extends Controller
             }
 
             //  Filter by collateral type
-            // if ($request->filled('type_code')) {
-            //     $query->where('type_code', $request->type_code);
-            // }
+           // if ($request->filled('type_code')) {
+            //     $query->where('type_code', '>=',$request->type_code);
+            //}
 
             //  Filter by nominal value / market value / execution value range
             if ($request->filled('customer_id')) {
@@ -200,8 +200,8 @@ class CollateralController extends Controller
 
     // Collateral type (exact match)
     if ($request->filled('type_code')) {
-        $query->whereHas('collateralType', function ($q) use ($request) {
-            $q->where('code', $request->type_code);
+        $query->whereHas('type', function ($q) use ($request) {
+            $q->where('type_code', $request->type_code);
         });
     }
 
