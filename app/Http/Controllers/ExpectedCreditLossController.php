@@ -86,13 +86,13 @@ class ExpectedCreditLossController extends Controller
             $period = $periodDate->format('Y-m');
 
             // Choose PD and LGD sources based on request
-            $pdType = $validated['pd_type']; // '12_pd' or 'lifetime_pd'
+            $pdType = $validated['pd_type']; // '12_pd' or 'lifetime_pd' or 'pd_post_fli' or 'pd_pre_fli'
             $lgdType = $validated['lgd_type']; // 'customer_lgd', 'collection_lgd', or 'both'
 
             // Whitelisted expressions
             // Support either schema naming for 12-month PD: `12m_pd` or `12_pd`
-            $pdExpr = $pdType === '12_pd'
-                ? 'COALESCE(`12m_pd`, `12_pd`)'
+            $pdExpr = $pdType === 'pd_post_fli'
+                ? 'COALESCE(`pd_post_fli`, `pd_post_fli`)'
                 : 'lifetime_pd';
             $lgdExpr = $lgdType === 'both'
                 ? '(IFNULL(customer_lgd, 0) * IFNULL(collection_lgd, 0))'
@@ -102,7 +102,7 @@ class ExpectedCreditLossController extends Controller
             DB::statement("
                 UPDATE loan_books
                 SET 
-                    pd_value = IFNULL($pdExpr, 0),
+                    pd_post_fli = IFNULL($pdExpr, 0),
                     lgd_value = IFNULL($lgdExpr, 0),
                     ecl_value = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0) * IFNULL(carrying_amount, 0)
                 WHERE loan_portfolio_id = ? AND reporting_period = ?

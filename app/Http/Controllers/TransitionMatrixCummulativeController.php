@@ -116,7 +116,7 @@ class TransitionMatrixCummulativeController extends Controller
 
                 $affected = DB::update("
                     UPDATE loan_books
-                    SET pd_value = ?
+                    SET pd_prefli = ?
                     WHERE reporting_period = ?
                     AND ifrs9stage_pre_qualitative = ?
                 ", [
@@ -143,15 +143,18 @@ class TransitionMatrixCummulativeController extends Controller
 
                 DB::commit();
 
+
                 $periodParts = explode('-', $validated['reporting_period']);
-                $year = $periodParts[0] . '-01-01';
-                $month = $periodParts[0] . '-' . $periodParts[1] . '-01';
+
+                $year = (int)$periodParts[0];         // 2023
+                $month = (int)$periodParts[1];        // 12
+                $period = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01'; // 2023-12-01
 
                 ReportingPeriods::updateOrCreate(
-        ['period' => substr($validated['reporting_period'], 0, 7)],
-            [
-                        'reporting_year' => $year,
-                        'reporting_month' => $month,
+                    ['period' => $period],
+                    [
+                        'reporting_year' => $year,        // integer
+                        'reporting_month' => $month,      // integer
                         'pd_id' => $matrix->id,
                         'pd_calculation_source' => $matrix->calculation_source,
                     ]
