@@ -33,8 +33,8 @@
                             <div>
                                 <jet-label for="pd_type" value="PD Type" />
                                 <select v-model="form.pd_type" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
-                                    <option value="12_pd">12-month PD</option>
-                                    <option value="lifetime_pd">Lifetime PD</option>
+                                    <option value="pd_prefli">PD Before FLI</option>
+                                    <option value="pd_post_fli">PD After FLI</option>
                                 </select>
                             </div>
                             <div>
@@ -92,7 +92,7 @@ setup(props){
         reporting_period: props.loanBooks?.reporting_period ?? '',
         calculation_source: props.loanBooks?.calculation_source ?? '',
         mode: props.loanBooks?.mode ?? '',
-        pd_type: '12_pd',
+        pd_type: 'pd_prefli',
         lgd_type: 'collection_lgd',
     });
 

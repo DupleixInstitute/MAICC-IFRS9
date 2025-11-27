@@ -89,6 +89,7 @@
                                        <thead class="bg-gray-50">
                                            <tr>
                                                <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract ID</th>
+                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
                                                <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">IFRS Stage</th>
                                                <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th> -->
                                                <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance (MKW)</th>
@@ -101,9 +102,14 @@
                                        <tbody class="bg-white divide-y divide-gray-200">
                                            <tr v-for="loan in loanBooks.data" :key="loan.id">
                                                <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ loan.ifrs9stage_pre_qualitative }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.customer_name }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-sm">
+                                                        <span :class="getStageClass(loan.ifrs9stage_post_qualitative)" class="px-2 py-1 text-xs font-semibold rounded">
+                                                            Stage {{ loan.ifrs9stage_post_qualitative || '-' }}
+                                                        </span>
+                                               </td>
                                                <td class="px-3 py-4 whitespace-nowrap text-right text-sm text-gray-500">{{ formatCurrency(loan.carrying_amount) }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-center text-sm">{{ loan.pd_value }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-center text-sm">{{ loan.pd_prefli }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-center text-sm" >{{ loan.lgd_value }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-right text-sm text-gray-500"> {{ formatCurrency(loan.ecl_value) }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
@@ -276,11 +282,11 @@ import HelpManual from '../../Components/HelpManual.vue';
 
         const fetchData = async () => {
             try {
-                window.Inertia.get(route('loan_applications.loan-book'), {
-                    search: props.filters.search,
-                    year: props.filters.year,
-                    month: props.filters.month,
-                    overdue: props.filters.overdue
+                window.Inertia.get(route('expected-credit-loss.index'), {
+                    search: filters.value.search,
+                    year: filters.value.year,
+                    month: filters.value.month,
+                    stage: filters.value.stage,
                 }, {
                     preserveState: true,
                     preserveScroll: true,
@@ -289,6 +295,15 @@ import HelpManual from '../../Components/HelpManual.vue';
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
+        };
+
+        const getStageClass = (stage) => {
+            const classes = {
+                1: 'bg-green-100 text-green-800',
+                2: 'bg-yellow-100 text-yellow-800',
+                3: 'bg-red-100 text-red-800'
+            };
+            return classes[stage] || 'bg-gray-100 text-gray-800';
         };
 
         const formatCurrency = (value) => {

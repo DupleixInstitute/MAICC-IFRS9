@@ -18,13 +18,13 @@ class ExpectedCreditLossController extends Controller
         {
             $query = LoanBook::query()
                 ->with('client')
-                ->orderBy('reporting_period', 'desc');
+                ->orderBy('reporting_period', 'asc');
 
             
             $query->whereIn('reporting_period', function($subQuery) {
-                $subQuery->select('period')
+                $subQuery->select(DB::raw("DATE_FORMAT(period, '%Y-%m')"))
                     ->from('reporting_periods')
-                    ->where('ecl_calculated', true);
+                    ->where('ecl_calculated', 1);
             });
 
 
@@ -75,7 +75,7 @@ class ExpectedCreditLossController extends Controller
             $validated = $request->validate([
                 'portfolios' => 'required|exists:loan_portfolios,id',
                 'reporting_period' => 'required|date',
-                'pd_type' => 'required|in:12_pd,lifetime_pd',
+                'pd_type' => 'required|in:pd_prefli,pd_post_fli',
                 'lgd_type' => 'required|in:customer_lgd,collection_lgd,both',
             ]);
 
@@ -91,9 +91,9 @@ class ExpectedCreditLossController extends Controller
 
             // Whitelisted expressions
             // Support either schema naming for 12-month PD: `12m_pd` or `12_pd`
-            $pdExpr = $pdType === 'pd_post_fli'
-                ? 'COALESCE(`pd_post_fli`, `pd_post_fli`)'
-                : 'lifetime_pd';
+            $pdExpr = $pdType === 'pd_prefli'
+                ? 'COALESCE(`pd_prefli`, `pd_post_fli`)'
+                : 'pd_post_fli';
             $lgdExpr = $lgdType === 'both'
                 ? '(IFNULL(customer_lgd, 0) * IFNULL(collection_lgd, 0))'
                 : ($lgdType === 'customer_lgd' ? 'customer_lgd' : 'collection_lgd');
@@ -112,7 +112,7 @@ class ExpectedCreditLossController extends Controller
             $grouped = DB::table('loan_books')
                 ->selectRaw("\n                    
                 ifrs9stage_pre_qualitative,\n                    
-                SUM(COALESCE(carrying_amount, 0) + COALESCE(commitment, 0)) as total_ead,\n                    
+                SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0)) as total_ead,\n                    
                 SUM(ecl_value) as total_ecl,\n                    
                 AVG($pdExpr) as avg_pd,\n                    
                 AVG($lgdExpr) as avg_lgd,\n                    
@@ -144,8 +144,14 @@ class ExpectedCreditLossController extends Controller
             $endTime = microtime(true);
             $timeTaken = round(($endTime - $startTime) / 60, 2);
 
+            $periodParts = explode('-', $validated['reporting_period']);
+            $year = (int)$periodParts[0];         
+            $month = (int)$periodParts[1];        
+            $period = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01';
+
+            // Update or create reporting period record
             ReportingPeriods::updateOrCreate(
-                ['period' => $validated['reporting_period']],
+                ['period' => $period],
                 [
                     'reporting_year' => $year,
                     'reporting_month' => $month,
@@ -155,9 +161,7 @@ class ExpectedCreditLossController extends Controller
                 ]
             );
 
-            return back()->with([
-                'success' => "ECL calculation complete in {$timeTaken}s for {$period}. Data saved by stage!"
-            ]);
+            return redirect()->route('expected-credit-loss.index')->with('success', "ECL calculation complete in {$timeTaken} minutes for {$period}.");
         }
 
         public function exportECL(Request $request)

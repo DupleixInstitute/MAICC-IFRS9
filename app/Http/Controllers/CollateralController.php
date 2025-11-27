@@ -330,7 +330,8 @@ class CollateralController extends Controller
                     }
                 }
                 $haircut = count($haircuts) > 0 ? array_sum($haircuts) / count($haircuts) : 20;
-                $haircutFactor = 1 - ($haircut / 100);
+                $haircutFactor = $haircut;
+                //$haircutFactor = 1 - ($haircut / 100);
 
                 $totalCollateral = $collaterals->sum('execution_value');
                 $totalExposure = $loans->sum('carrying_amount');
@@ -357,6 +358,7 @@ class CollateralController extends Controller
                         default => min(($loan->carrying_amount / $totalExposure) * $totalCollateral, $available),
                     };
 
+                    $share = $share / 100;
 
                     $discountedValueBeforeTime = $share * $haircutFactor; 
 
@@ -366,10 +368,13 @@ class CollateralController extends Controller
                     $realisationYears = $realisationMonths / 12;
 
                     $discounted = $discountedValueBeforeTime / pow(1 + $interestRate, $realisationYears);
+                    $discounted = round($discounted, 2);
 
                     $coverage = $loan->carrying_amount > 0 
                                 ? min(($discounted / $loan->carrying_amount) * 100, 100) 
                                 : 0;
+
+                    Log::info('Discounted before saving', ['discounted' => $discounted]);
 
                     CollateralAllocation::updateOrCreate(
                         [
@@ -384,6 +389,7 @@ class CollateralController extends Controller
                             'total_customer_exposure' => $loan->carrying_amount,
                             'allocated_collateral' => $share,
                             'allocation_percentage' => min(round(($share / $totalCollateral) * 100, 2), 100),
+                            'discounted_collateral' => $discounted,
                             'coverage_ratio' => max(0, min($coverage / 100, 1)),
                             'allocation_basis' => strtoupper($request->allocation_basis),
                             'allocation_notes' => 'Auto-allocated using customer_id & customer_name',

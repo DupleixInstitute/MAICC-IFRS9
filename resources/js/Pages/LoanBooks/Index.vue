@@ -97,8 +97,8 @@
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PD Pre-FLI</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FLI Adj</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PD Post-FLI</th>
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LGD</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overdue Days</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                                     </tr>
@@ -114,15 +114,13 @@
                                                 Stage {{ loan.ifrs9stage_post_qualitative || '-' }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatPercent(loan.pd_value) }}</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatPercent(loan.pd_prefli) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm font-medium" :class="getFliAdjClass(loan.fli_adj)">
                                             {{ formatPercent(loan.fli_adj) }}
                                         </td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{{ formatPercent(loan.pd_post_fli_adj) }}</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatPercent(loan.lgd_value) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(loan.due_date) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm" :class="getOverdueClass(loan.overdue_days)">
-                                            {{ loan.overdue_days }}
-                                        </td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm">
                                             <span :class="getStatusClass(loan.overdue_status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                                                 {{ loan.overdue_status }}
