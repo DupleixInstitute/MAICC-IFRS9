@@ -473,94 +473,104 @@ class LossGiveDefaultController extends Controller
     // Function to update loan books with the LGD value
     // This function updates the loan books for a specific reporting period with the LGD value from
 
-       public function updateLoanBooks(Request $request)
-            {
-                ini_set('max_execution_time', 300);
-                $startTime = microtime(true);
+      public function updateLoanBooks(Request $request)
+        {
+            ini_set('max_execution_time', 300);
+            $startTime = microtime(true);
 
-                $request->validate([
-                    'reporting_period' => 'required|date_format:Y-m',
-                    'lgd_id' => 'required|exists:loss_given_default,id',
-                    'include_customer_lgd' => 'nullable|boolean',
-                ]);
+            // Validate request
+            $validated = $request->validate([
+                'reporting_period' => 'required|date_format:Y-m',
+                'lgd_id' => 'required|exists:loss_given_default,id',
+                'include_customer_lgd' => 'nullable|boolean',
+            ]);
 
-                $lgd = LossGivenDefault::findOrFail($request->lgd_id);
+            $lgd = LossGivenDefault::findOrFail($validated['lgd_id']);
 
-                if ($lgd->is_active_or_closed !== 'closed') {
-                    return back()->with('error', 'Cannot update loan books for an active LGD record.');
-                }
-
-                $collectionLgd = $lgd->loss_given_default_percentage;
-                $periodKey = Carbon::parse($request->reporting_period)->format('Y-m');
-                $periodMonthDate = Carbon::parse($request->reporting_period)->startOfMonth()->format('Y-m-d');
-
-                // Diagnostics: log matching row counts for the target month
-                try {
-                    $totalRowObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ?", [$periodKey]);
-                    $nonNullObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NOT NULL", [$periodKey]);
-                    $nullObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NULL", [$periodKey]);
-                    $totalRows = $totalRowObj?->c ?? 0;
-                    $nonNullRows = $nonNullObj?->c ?? 0;
-                    $nullRows = $nullObj?->c ?? 0;
-                    Log::info("LGD update diagnostics", [
-                        'period_key' => $periodKey,
-                        'total_rows_for_month' => $totalRows,
-                        'rows_with_customer_lgd' => $nonNullRows,
-                        'rows_without_customer_lgd' => $nullRows,
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('LGD update diagnostics failed: '.$e->getMessage());
-                }
-
-                if ($request->boolean('include_customer_lgd')) {
-                    // Update rows with custom LGD
-                    $rowsUpdatedCustomer = DB::update("
-                        UPDATE loan_books
-                        SET 
-                            collection_lgd = ?,
-                            lgd_value = customer_lgd * ?
-                        WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NOT NULL
-                    ", [$collectionLgd, $collectionLgd, $periodKey]);
-
-                    // Update rows without custom LGD
-                    $rowsUpdatedDefault = DB::update("
-                        UPDATE loan_books
-                        SET 
-                            collection_lgd = ?,
-                            lgd_value = ?
-                        WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NULL
-                    ", [$collectionLgd, $collectionLgd, $periodKey]);
-
-                    Log::info("Rows updated where customer_lgd IS NOT NULL: $rowsUpdatedCustomer");
-                    Log::info("Rows updated where customer_lgd IS NULL: $rowsUpdatedDefault");
-
-                } else {
-                    $rowsUpdated = DB::update("
-                        UPDATE loan_books
-                        SET 
-                            collection_lgd = ?,
-                            lgd_value = ?
-                        WHERE LEFT(reporting_period, 7) = ?
-                    ", [$collectionLgd, $collectionLgd, $periodKey]);
-
-                    Log::info("Rows updated without customer LGD: $rowsUpdated");
-                }
-
-                $timeTaken = round((microtime(true) - $startTime) / 60, 2);
-
-                ReportingPeriods::updateOrCreate(
-                    ['period' => $request->reporting_period],
-                    [
-                        'reporting_year' => Carbon::parse($request->reporting_period)->startOfYear()->format('Y-m-d'),
-                        'reporting_month' => $periodMonthDate,
-                        'lgd_id' => $lgd->id,
-                        'lgd_calculation_source' => $lgd->calculation_source,
-                        'lgd_calculation_time' => $timeTaken,
-                    ]
-                );
-
-                return back()->with('success', "Loan books updated successfully in {$timeTaken} minutes.");
+            if ($lgd->is_active_or_closed !== 'closed') {
+                return back()->with('error', 'Cannot update loan books for an active LGD record.');
             }
+
+            $collectionLgd = $lgd->loss_given_default_percentage;
+            $periodKey = Carbon::parse($validated['reporting_period'])->format('Y-m');
+            $periodMonthDate = Carbon::parse($validated['reporting_period'])->startOfMonth()->format('Y-m-d');
+
+            // Diagnostics: log matching row counts for the target month
+            try {
+                $totalRowObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ?", [$periodKey]);
+                $nonNullObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NOT NULL", [$periodKey]);
+                $nullObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NULL", [$periodKey]);
+                $totalRows = $totalRowObj?->c ?? 0;
+                $nonNullRows = $nonNullObj?->c ?? 0;
+                $nullRows = $nullObj?->c ?? 0;
+
+                Log::info("LGD update diagnostics", [
+                    'period_key' => $periodKey,
+                    'total_rows_for_month' => $totalRows,
+                    'rows_with_customer_lgd' => $nonNullRows,
+                    'rows_without_customer_lgd' => $nullRows,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('LGD update diagnostics failed: '.$e->getMessage());
+            }
+
+            // Update loan books
+            if ($request->boolean('include_customer_lgd')) {
+                // Rows with custom LGD
+                $rowsUpdatedCustomer = DB::update("
+                    UPDATE loan_books
+                    SET 
+                        collection_lgd = ?,
+                        lgd_value = customer_lgd * ?
+                    WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NOT NULL
+                ", [$collectionLgd, $collectionLgd, $periodKey]);
+
+                // Rows without custom LGD
+                $rowsUpdatedDefault = DB::update("
+                    UPDATE loan_books
+                    SET 
+                        collection_lgd = ?,
+                        lgd_value = ?
+                    WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NULL
+                ", [$collectionLgd, $collectionLgd, $periodKey]);
+
+                Log::info("Rows updated where customer_lgd IS NOT NULL: $rowsUpdatedCustomer");
+                Log::info("Rows updated where customer_lgd IS NULL: $rowsUpdatedDefault");
+            } else {
+                $rowsUpdated = DB::update("
+                    UPDATE loan_books
+                    SET 
+                        collection_lgd = ?,
+                        lgd_value = ?
+                    WHERE LEFT(reporting_period, 7) = ?
+                ", [$collectionLgd, $collectionLgd, $periodKey]);
+
+                Log::info("Rows updated without customer LGD: $rowsUpdated");
+            }
+
+            $timeTaken = round((microtime(true) - $startTime) / 60, 2);
+
+            // Prepare period parts for reporting_periods table
+            $periodParts = explode('-', $validated['reporting_period']);
+            $year = (int)$periodParts[0];         
+            $month = (int)$periodParts[1];        
+            $period = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01';
+
+            // Update or create reporting period record
+            ReportingPeriods::updateOrCreate(
+                ['period' => $period],
+                [
+                    'reporting_year' => $year,
+                    'reporting_month' => $month,
+                    'lgd_id' => $lgd->id,
+                    'lgd_calculation_source' => $lgd->calculation_source,
+                    'lgd_calculation_time' => $timeTaken,
+                ]
+            );
+
+            return back()->with('success', "Loan books updated successfully in {$timeTaken} minutes.");
+        }
+
 
 
  // Function to delete a Loss Given Default record

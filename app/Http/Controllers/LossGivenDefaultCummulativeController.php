@@ -244,64 +244,63 @@ class LossGivenDefaultCummulativeController extends Controller
         // Update loan books with the LGD value
         // @param Request $request
         // 
-      public function updateLoanBooks(Request $request)
+     public function updateLoanBooks(Request $request)
             {
                 ini_set('max_execution_time', 300);
                 $startTime = microtime(true);
 
-                $request->validate([
+                // Validate request
+                $validated = $request->validate([
                     'reporting_period' => 'required|date_format:Y-m',
                     'lgd_id' => 'required|exists:loss_given_default_cummulative,id',
                     'include_customer_lgd' => 'nullable|boolean',
                 ]);
 
-                $lgd = LossGivenDefaultCummulative::findOrFail($request->lgd_id);
+                $lgd = LossGivenDefaultCummulative::findOrFail($validated['lgd_id']);
 
                 if ($lgd->is_active_or_closed !== 'closed') {
                     return back()->with('error', 'Cannot update loan books for an active LGD record.');
                 }
 
-                $period = Carbon::parse($request->reporting_period)->format('Y-m');
-                $periodParts = explode('-', $period);
-                $year = $periodParts[0] . '-01-01';
-                $month = $periodParts[0] . '-' . $periodParts[1] . '-01';
-
+                $period = Carbon::parse($validated['reporting_period'])->format('Y-m');
                 $collectionLgd = $lgd->lgd_cummulative;
 
+                // Update loan_books table based on include_customer_lgd
                 if ($request->boolean('include_customer_lgd')) {
-                    DB::statement("
+                    $rowsUpdated = DB::update("
                         UPDATE loan_books
                         SET 
                             collection_lgd = ?,
-                            lgd_value = (COALESCE(customer_lgd, 1) * ?)
-                        WHERE reporting_period = ?
-                    ", [$collectionLgd, $collectionLgd, $request->reporting_period]);
+                            lgd_value = COALESCE(customer_lgd, ?) * ?
+                        WHERE LEFT(reporting_period, 7) = ?
+                    ", [$collectionLgd, 1, $collectionLgd, $period]);
                 } else {
-                    DB::statement("
+                    $rowsUpdated = DB::update("
                         UPDATE loan_books
                         SET 
                             collection_lgd = ?,
                             lgd_value = ?
-                        WHERE reporting_period = ?
-                    ", [$collectionLgd, $collectionLgd, $request->reporting_period]);
+                        WHERE LEFT(reporting_period, 7) = ?
+                    ", [$collectionLgd, $collectionLgd, $period]);
                 }
 
-                $endTime = microtime(true);
-                $timeTaken = round(($endTime - $startTime) / 60, 2);
+                $timeTaken = round((microtime(true) - $startTime) / 60, 2);
 
+                // Save reporting period info
                 ReportingPeriods::updateOrCreate(
-                    ['period' => $request->reporting_period],
+                    ['period' => $period . '-01'], // first day of month
                     [
-                        'reporting_year' => $year,
-                        'reporting_month' => $month,
+                        'reporting_year' => (int)substr($period, 0, 4),
+                        'reporting_month' => (int)substr($period, 5, 2),
                         'lgd_id' => $lgd->id,
                         'lgd_calculation_source' => $lgd->calculation_source,
                         'lgd_calculation_time' => $timeTaken,
                     ]
                 );
 
-                return redirect()->back()->with('success', 'Loan books updated successfully in ' . $timeTaken . ' minutes.');
+                return redirect()->back()->with('success', "Loan books updated successfully in {$timeTaken} minutes. Rows updated: {$rowsUpdated}");
             }
+
 
 
 

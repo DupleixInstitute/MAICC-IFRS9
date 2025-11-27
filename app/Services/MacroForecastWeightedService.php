@@ -67,14 +67,15 @@ class MacroForecastWeightedService
                 Log::info("Period {$period}: Weighted = {$weightedSum}");
 
                 // 1. Create/Get reporting period
-                $carbonPeriod = Carbon::parse($period);
-                $reportingPeriod = ReportingPeriods::firstOrCreate(
-                    ['period' => $period],
-                    [
-                        'reporting_year' => $carbonPeriod->startOfYear()->format('Y-m-d'),
-                        'reporting_month' => $carbonPeriod->startOfMonth()->format('Y-m-d'),
-                    ]
-                );
+                    $carbonPeriod = Carbon::parse($period);  
+                    $reportingPeriod = ReportingPeriods::firstOrCreate(
+                        ['period' => $period],
+                        [
+                            'reporting_year' => (int) $carbonPeriod->format('Y'),   // e.g., 2022
+                            'reporting_month' => (int) $carbonPeriod->format('m'),  // e.g., 1 for January
+                        ]
+                    );
+
 
                 Log::info("✅ Reporting Period ID: {$reportingPeriod->id}");
 
