@@ -2,87 +2,127 @@
 
 namespace App\Services;
 
+use App\Models\MacroStatsDefinition;
+use App\Models\MacroStatsValue;
 use App\Models\ScenarioProfiles;
+use App\Models\Scenarios;
 use App\Models\MacroForecastWeighted;
 use App\Models\ReportingPeriods;
-use Illuminate\Support\Facades\DB;
-use Exception;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class MacroForecastWeightedService
 {
-    public static function calculateWeightedForecast($scenarioProfileId, $startPeriod, $endPeriod)
+    public static function calculateWeightedForecasts(int $scenarioProfileId)
     {
-        DB::beginTransaction();
-        try {
-            $start = Carbon::parse($startPeriod)->startOfMonth();
-            $end   = Carbon::parse($endPeriod)->startOfMonth();
+        Log::info("=== START WEIGHTED FORECAST CALCULATION ===");
+        
+        $profile = ScenarioProfiles::with('scenarios')->find($scenarioProfileId);
+        if (!$profile) {
+            Log::error("Scenario Profile NOT FOUND");
+            return false;
+        }
 
-            // Load profile with scenarios and macro data
-            $profile = ScenarioProfiles::with([
-                'scenarios.macroData' => function ($q) use ($start, $end) {
-                    $q->whereBetween('period', [$start->format('Y-m'), $end->format('Y-m')]);
-                }
-            ])->findOrFail($scenarioProfileId);
+        $scenarios = $profile->scenarios;
+        if ($scenarios->isEmpty()) {
+            Log::warning("No scenarios found");
+            return false;
+        }
 
-            $scenarios = $profile->scenarios;
+        $macroDefinitions = MacroStatsDefinition::all();
+        
+        foreach ($macroDefinitions as $macro) {
+            Log::info("Processing: {$macro->statistic_name}");
+            
+            // Get all periods for this macro
+            $periods = MacroStatsValue::where('macro_stat_definition_id', $macro->id)
+                ->where('scenario_profile_id', $scenarioProfileId)
+                ->where('is_forecast', 1)
+                ->pluck('period')
+                ->unique();
 
-            // Completeness check
-            $totalProbability = $scenarios->sum('probability');
-            if ($totalProbability != 100) {
-                throw new Exception("Scenario probabilities in profile must sum to 100%");
-            }
+            foreach ($periods as $period) {
+                $weightedSum = 0;
+                $hasData = false;
 
-            // Loop through each reporting month between start and end
-            $current = $start->copy();
-            while ($current->lte($end)) {
-
-                // Find or create reporting period
-                $reportingPeriod = ReportingPeriods::firstOrCreate(
-                    ['period' => $current->format('Y-m')],
-                    [
-                        'reporting_year' => $current->copy()->startOfYear(),
-                        'reporting_month' => $current->copy(),
-                    ]
-                );
-
-                // Group macro variables for this month
-                $macroVariables = [];
                 foreach ($scenarios as $scenario) {
-                    foreach ($scenario->macroData->where('period', $current->format('Y-m')) as $data)
-                         {
-                        $macroVariables[$data->macro_stat_definition_id][] = [
-                            'value' => $data->value,
-                            'probability' => $scenario->probability
-                        ];
+                    $record = MacroStatsValue::where('macro_stat_definition_id', $macro->id)
+                        ->where('scenario_profile_id', $scenarioProfileId)
+                        ->where('scenario_id', $scenario->id)
+                        ->where('period', $period)
+                        ->first();
+
+                    if ($record) {
+                        $weightedSum += $record->value * ($scenario->probability / 100);
+                        $hasData = true;
+                        Log::info(" - Scenario {$scenario->id}: {$record->value} × {$scenario->probability}%");
                     }
                 }
 
-                // Save weighted forecast per macro variable
-                foreach ($macroVariables as $macroVarId => $points) {
-                    $weightedValue = collect($points)->sum(function ($p) {
-                        return $p['value'] * ($p['probability'] / 100);
-                    });
-
-                    MacroForecastWeighted::updateOrCreate(
-                        [
-                            'reporting_period_id' => $reportingPeriod->id,
-                            'scenario_profile_id' => $profile->id,
-                            'macro_statistic_id'  => $macroVarId,
-                        ],
-                        [
-                            'weighted_value' => $weightedValue,
-                        ]
-                    );
+                if (!$hasData) {
+                    Log::warning("No data for period {$period}");
+                    continue;
                 }
 
-                $current->addMonth();
-            }
+                Log::info("Period {$period}: Weighted = {$weightedSum}");
 
-            DB::commit();
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
+                // 1. Create/Get reporting period
+                $carbonPeriod = Carbon::parse($period);
+                $reportingPeriod = ReportingPeriods::firstOrCreate(
+                    ['period' => $period],
+                    [
+                        'reporting_year' => $carbonPeriod->startOfYear()->format('Y-m-d'),
+                        'reporting_month' => $carbonPeriod->startOfMonth()->format('Y-m-d'),
+                    ]
+                );
+
+                Log::info("✅ Reporting Period ID: {$reportingPeriod->id}");
+
+                // 2. Save to MacroStatsValue
+                MacroStatsValue::updateOrCreate(
+                    [
+                        'macro_stat_definition_id' => $macro->id,
+                        'scenario_profile_id' => $scenarioProfileId,
+                        'scenario_id' => null,
+                        'period' => $period,
+                        'is_forecast' => 1,
+                        'is_fli' => 0,
+                    ],
+                    [
+                        'value' => $weightedSum,
+                        'source' => 'Weighted Calculation',
+                        'created_by' => 1,
+                    ]
+                );
+
+                // 3. ✅ FIXED: Save to MacroForecastWeighted
+                try {
+                    MacroForecastWeighted::updateOrCreate(
+                        [
+                            'macro_statistic_id' => $macro->id,
+                            'scenario_profile_id' => $scenarioProfileId,
+                            'start_period' => $period,
+                            'end_period' => $period,
+                        ],
+                        [
+                            'reporting_period_id' => $reportingPeriod->id, // ✅ Moved here
+                            'weighted_value' => $weightedSum,
+                            'revision' => 1,
+                            'is_current' => true,
+                            'confidence_level' => 0.95,
+                        ]
+                    );
+
+                    Log::info("✅ Saved weighted forecast for {$period}");
+                    
+                } catch (\Exception $e) {
+                    Log::error("❌ Error saving weighted forecast: " . $e->getMessage());
+                    Log::error("Period: {$period}, Macro: {$macro->id}, Reporting Period ID: {$reportingPeriod->id}");
+                }
+            }
         }
+
+        Log::info("=== CALCULATION COMPLETE ===");
+        return true;
     }
 }

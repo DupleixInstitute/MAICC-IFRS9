@@ -11,6 +11,7 @@ use App\Http\Controllers\CollateralController;
 use App\Http\Controllers\CreditLossDataController;
 use App\Http\Controllers\CreditLossDefinitionController;
 use App\Http\Controllers\RegressionController;
+use App\Http\Controllers\ManualForecastController;
 use Inertia\Inertia;
 use App\Http\Controllers\ImportsController;
 use App\Http\Controllers\GeneralImportController;
@@ -1071,4 +1072,9 @@ Route::prefix('fli-adj')->middleware(['auth'])->group(function () {
         Route::post('/save-adjustments', [ExternalCalculationsController::class, 'saveAdjustments'])->name('save');
         Route::post('/update-loanbook', [ExternalCalculationsController::class, 'updateLoanBook'])->name('update-loanbook');
     });
+// Manual Forecasting Routes
+Route::prefix('forecasting')->group(function () {
+    Route::get('/manual-forecast', [ManualForecastController::class, 'show'])->name('forecasting.manual');
+    Route::post('/manual-forecast/process', [ManualForecastController::class, 'process'])->name('forecasting.manual.process');
+});
 });

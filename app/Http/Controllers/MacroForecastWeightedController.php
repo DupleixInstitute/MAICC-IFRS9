@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MacroStatsDefinition;
+use App\Models\MacroStatsValue;
 use Illuminate\Http\Request;
 use App\Services\MacroForecastWeightedService;
 use App\Models\MacroForecastWeighted;
@@ -46,7 +47,7 @@ class MacroForecastWeightedController extends Controller
         ]);
 
         try {
-            MacroForecastWeightedService::calculateWeightedForecast($request->scenario_profile_id, $request->start_period, $request->end_period);
+            MacroForecastWeightedService::calculateWeightedForecasts($request->scenario_profile_id, $request->start_period, $request->end_period);
             return redirect()->back()->with('success', 'Weighted forecast calculated successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -58,7 +59,7 @@ class MacroForecastWeightedController extends Controller
         $forecast = MacroForecastWeighted::findOrFail($id);
 
         try {
-           MacroForecastWeightedService::calculateWeightedForecast($forecast->scenario_profile_id, $forecast->start_period, $forecast   ->end_period);
+           MacroForecastWeightedService::calculateWeightedForecasts($forecast->scenario_profile_id, $forecast->start_period, $forecast   ->end_period);
             return redirect()->back()->with('success', 'Weighted forecast recalculated successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
