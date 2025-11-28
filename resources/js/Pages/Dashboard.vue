@@ -23,7 +23,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="bg-blue-500 text-white rounded-2xl shadow-xl p-6 flex flex-col items-center justify-center tooltip-wrapper" data-tooltip="Total portfolio balance including all stages.">
                     <h2 class="text-xl font-semibold">Total Loans<i class="fa fa-sort-amount-asc" aria-hidden="true"></i></h2>
-                    <p class="text-2xl font-bold">MWK{{ formatAmount(summary.total_amount) }}</p>
+                    <p class="text-2xl font-bold">MWK{{ formatAmount(summary.carrying_amount) }}</p>
                 </div>
 
                 <div class="bg-orange-500 text-white rounded-2xl shadow-xl p-6 flex flex-col items-center justify-center tooltip-wrapper" data-tooltip="Stage 3 exposures.">
@@ -65,7 +65,7 @@
                         <tbody>
                             <tr class="font-bold">
                                 <td>Total EAD </td>
-                                <td>{{ formatAmount(summary.total_amount) }}</td>
+                                <td>{{ formatAmount(summary.carrying_amount) }}</td>
                             </tr>
                             <tr>
                                 <td>Weighted PD</td>
@@ -96,7 +96,7 @@
 </template>
 
 <script setup>
-import AppLayout from '@/Layouts/AppLayout.vue';
+import AppLayout from '@/Layouts/AppLayout.vue'; 
 import { ref, onMounted, watch, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Chart, registerables } from 'chart.js';
