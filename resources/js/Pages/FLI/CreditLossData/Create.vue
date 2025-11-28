@@ -271,7 +271,7 @@ export default {
                     min: '0',
                     placeholder: '0.00',
                     suffix: '',
-                    description: 'Non-Performing Loans in currency',
+                    description: 'Non-Performing Loans in percentage',
                     class: '',
                     required: false
                 },
@@ -285,17 +285,17 @@ export default {
                     class: '',
                     required: false
                 },
-                'STAGE': {
-                    type: 'number',
-                    step: '1',
-                    min: '1',
-                    max: '3',
-                    placeholder: '1',
-                    suffix: '',
-                    description: 'IFRS 9 Stage (1, 2, or 3)',
-                    class: '',
-                    required: false
-                },
+                // 'STAGE': {
+                //     type: 'number',
+                //     step: '1',
+                //     min: '1',
+                //     max: '3',
+                //     placeholder: '1',
+                //     suffix: '',
+                //     description: 'IFRS 9 Stage (1, 2, or 3)',
+                //     class: '',
+                //     required: false
+                // },
                 'CREDIT_RATING': {
                     type: 'text',
                     step: null,

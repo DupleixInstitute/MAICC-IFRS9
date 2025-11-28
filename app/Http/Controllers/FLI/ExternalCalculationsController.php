@@ -4,6 +4,9 @@ namespace App\Http\Controllers\FLI;
 
 use App\Http\Controllers\Controller;
 use App\Models\ScenarioSet;
+use App\Models\MacroStatsDefinition;
+use App\Models\CreditLossData;
+use App\Models\CreditLossDefinition;
 use App\Models\FliReportingPeriodParameter;
 use App\Models\FliAdj;
 use App\Models\LoanBook;
@@ -24,18 +27,36 @@ class ExternalCalculationsController extends Controller
             ->with('probabilities')
             ->get();
 
-        $economicStatistics = [
-            ['value' => 'inflation', 'label' => 'Inflation'],
-            ['value' => 'exchange_rates', 'label' => 'Exchange Rates'],
-            ['value' => 'credit_index', 'label' => 'Credit Index'],
-            ['value' => 'unemployment_rate', 'label' => 'Unemployment Rate'],
-            ['value' => 'interest_rates', 'label' => 'Interest Rates'],
-        ];
+        // $economicStatistics = [
+        //     ['value' => 'inflation', 'label' => 'Inflation'],
+        //     ['value' => 'exchange_rates', 'label' => 'Exchange Rates'],
+        //     ['value' => 'credit_index', 'label' => 'Credit Index'],
+        //     ['value' => 'unemployment_rate', 'label' => 'Unemployment Rate'],
+        //     ['value' => 'interest_rates', 'label' => 'Interest Rates'],
+        // ];
 
-        $pdProxyStatistics = [
-            ['value' => 'NPLs', 'label' => 'NPLs (Non-Performing Loans)'],
-            ['value' => '12_months_PDs', 'label' => '12 Months PDs'],
-        ];
+        $economicStatistics = MacroStatsDefinition::where('is_active', true)
+                ->get()
+                ->map(function ($stat) {
+                    return [
+                        'value' => $stat->id, 
+                        'label' => $stat->statistic_name, 
+                    ];
+                });
+
+        // $pdProxyStatistics = [
+        //     ['value' => 'NPLs', 'label' => 'NPLs (Non-Performing Loans)'],
+        //     ['value' => '12_months_PDs', 'label' => '12 Months PDs'],
+        // ];
+
+        $pdProxyStatistics = CreditLossDefinition::orderBy('name')
+            ->get()
+            ->map(function ($definition) {
+                return [
+                    'value' => $definition->id,
+                    'label' => $definition->name,
+                ];
+            });
 
         return Inertia::render('FLI/ExternalCalculations/Index', [
             'scenarioSets' => $scenarioSets,
@@ -115,8 +136,8 @@ class ExternalCalculationsController extends Controller
             'scenario_set_id' => 'required|exists:scenario_sets,id',
             'number_of_forecasting_periods' => 'required|integer|min:1|max:120',
             'forecasting_period_length_months' => 'required|integer|min:1|max:12',
-            'economic_data_statistic' => 'required|in:inflation,exchange_rates,credit_index,unemployment_rate,interest_rates',
-            'pd_proxy_statistic' => 'required|in:NPLs,12_months_PDs',
+            'economic_data_statistic' => 'required|exists:macro_statistics,id',
+            'pd_proxy_statistic' => 'required|exists:macro_credit_loss_definitions,id',
             'base_forecast_period' => 'required|date_format:Y-m',
             'base_macro_data_value' => 'required|numeric',
             'base_pd_proxy_value' => 'required|numeric|min:0|max:100',
@@ -300,7 +321,7 @@ class ExternalCalculationsController extends Controller
                 // Skip Stage 3 loans (100% PD, no FLI adjustment)
                 if ($loan->ifrs9stage_post_qualitative == 3) {
                     $loan->fli_adj = null;
-                    $loan->pd_post_fli_adj = 1.0; // 100%
+                    $loan->pd_post_fli = 1.0; // 100%
                     $loan->save();
                     $stats['stage_3_skipped']++;
                     continue;
@@ -323,7 +344,7 @@ class ExternalCalculationsController extends Controller
                     $loan->fli_adj = $fliAdj->fli_adj;
                     
                     // Calculate PD after FLI adjustment
-                    $pdPostFli = $loan->pd_value * (1 + $fliAdj->fli_adj);
+                    $pdPostFli = $loan->pd_prefli * (1 + $fliAdj->fli_adj);
 
                     // Apply bounds validation
                     if ($pdPostFli < 0) {
@@ -334,7 +355,7 @@ class ExternalCalculationsController extends Controller
                         $stats['capped_at_100']++;
                     }
 
-                    $loan->pd_post_fli_adj = $pdPostFli;
+                    $loan->pd_post_fli = $pdPostFli;
                     $loan->save();
 
                     if ($loan->ifrs9stage_post_qualitative == 1) {

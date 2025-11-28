@@ -36,6 +36,16 @@ class FliAdj extends Model
         return $this->belongsTo(ScenarioSet::class);
     }
 
+    public function economicStatistics(): BelongsTo
+    {
+        return $this->belongsTo(MacroStatsDefinition::class);
+    }
+
+    public function pdProxyStatistic(): BelongsTo
+    {
+        return $this->belongsTo(CreditLossDefinition::class);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
