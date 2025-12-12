@@ -598,6 +598,8 @@ Route::group(['prefix' => 'transition-matrix', 'as' => 'transition-matrices.'], 
     Route::post('/{matrix}/update-loanbook', [TransitionMatrixController::class, 'updateLoanBook'])->name('matrix.loanbook-update');
     Route::post('/{matrix}/lock-pd',[TransitionMatrixController::class,'keyLock'])->name('lock');
 
+    Route::post('/{matrix}/attach-file', [TransitionMatrixController::class, 'attachFile'])->name('attach-file');
+    Route::get('/{id}/download-file', [TransitionMatrixController::class, 'downloadFile'])->name('download-file');
 });
 
 
@@ -636,7 +638,8 @@ Route::post('/transition-matrix-cummulative/{matrix}/rerun', [TransitionMatrixCu
 Route::post('/transition-matrix-cumulative/{matrix}/update',[TransitionMatrixCummulativeController::class,'updateLoanBook'])->name('transition-matrix-cummulative.update-loan-book');
 Route::get('/transition-matrix-cumulative/{matrix}/data', [TransitionMatrixCummulativeController::class, 'getData']);
 Route::post('/transition-matrix-cumulative/{matrix}/lock-pd',[TransitionMatrixCummulativeController::class,'keyLock'])->name('transition-matrix-cumulative.lock');
-
+Route::post('/transition-matrix-cumulative/{matrix}/attach-file', [TransitionMatrixController::class, 'attachFile'])->name('transition-matrix-cumulative.attach-file');
+Route::get('/transition-matrix-cumulative/{id}/download-file', [TransitionMatrixController::class, 'downloadFile'])->name('transition-matrix-cumulative.download-file');
 
 
 //Transition Profile Definitions
@@ -696,8 +699,14 @@ Route::get('/loss-given-default/{id}/edit', [LossGiveDefaultController::class,'e
 Route::middleware(['auth'])->group(function () {
     Route::post('/loss-given-default/{id}/lock', [LossGiveDefaultController::class, 'keyLock'])->name('loss-given-default.lock');
 });
-// LGD Cummulative Routes
+Route::post('/loss-given-default/{lgd}/attach-file', [LossGiveDefaultController::class, 'attachFile'])
+    ->name('loss-given-default.attach-file');
 
+Route::get('/loss-given-default/{id}/download-file', [LossGiveDefaultController::class, 'downloadFile'])
+    ->name('loss-given-default.download-file');
+
+
+// LGD Cummulative Routes
 Route::get('/loss-given-default/cummulative', [LossGivenDefaultCummulativeController::class,'index'])->name('lgd-cummulative.index');
 Route::get('/loss-given-default/cummulative/create', [LossGivenDefaultCummulativeController::class, 'create'])->name('lgd-cummulative.create');
 Route::post('/loss-given-default/cummulative/calculations',[LossGivenDefaultCummulativeController::class, 'cummulativeLGD'])->name('lgd-cummulative.system');
@@ -707,6 +716,11 @@ Route::delete('/loss-given-default/cummulative/{id}/delete',[LossGivenDefaultCum
 Route::middleware(['auth'])->group(function () {
     Route::post('/loss-given-default/cummulative/{id}/lock', [LossGivenDefaultCummulativeController::class, 'keyLock'])->name('lgd-cummulative.lock');
 });
+Route::post('/loss-given-default/cummulative/{lgdC}/attach-file', [LossGivenDefaultCummulativeController::class, 'attachFile'])
+    ->name('lgd-cummulative.attach-file');
+
+Route::get('/loss-given-default/cummulative/{id}/download-file', [LossGivenDefaultCummulativeController::class, 'downloadFile'])
+    ->name('lgd-cummulative.download-file');
 
 // ECL Routes
 Route::get('/expected-credit-loss/list', [ExpectedCreditLossController::class, 'index'])->name('expected-credit-loss.index');

@@ -20,16 +20,46 @@
                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             </div>
 
-                            <!-- Portfolio Group -->
+                            <!-- ECL Calculation Level -->
                             <div>
+                                <jet-label for="ecl_calculation_level" value="ECL Calculation Level" />
+                                <select v-model="form.ecl_calculation_level"
+                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-300
+                                            focus:ring focus:ring-indigo-200 focus:ring-opacity-50
+                                            rounded-md shadow-sm">
+                                    <option value="portfolio">Portfolio Level</option>
+                                    <option value="sector">Sector Level</option>
+                                </select>
+                            </div>
+
+                            <!-- Portfolio Group -->
+                            <div v-if="form.ecl_calculation_level === 'portfolio'">
                                 <jet-label for="portfolio_group" value="Portfolio Group" />
-                                <select v-model="form.portfolios" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <select v-model="form.ecl_calculation_id"
+                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-300
+                                            focus:ring focus:ring-indigo-200 focus:ring-opacity-50
+                                            rounded-md shadow-sm">
                                     <option value="">Select Portfolio</option>
-                                    <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
+                                    <option v-for="portfolio in portfolios" :key="portfolio.ecl_calculation_id" :value="portfolio.id">
                                         {{ portfolio.name }}
                                     </option>
                                 </select>
                             </div>
+
+                            <!-- Sector -->
+                            <div v-if="form.ecl_calculation_level === 'sector'">
+                                <jet-label value="Sector" />
+                                <select v-model="form.ecl_calculation_code"
+                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-300
+                                            focus:ring focus:ring-indigo-200 focus:ring-opacity-50
+                                            rounded-md shadow-sm">
+                                    <option value="">Select Sector</option>
+                                    <option v-for="sector in sectors" :key="sector.ecl_calculation_code" :value="sector.code">
+                                        {{sector.code}} - {{ sector.name }}
+                                    </option>
+                                </select>
+                            </div>
+
                             <div>
                                 <jet-label for="pd_type" value="PD Type" />
                                 <select v-model="form.pd_type" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
@@ -84,17 +114,22 @@ export default{
             type: Array,
             required: true,
         },
+
+        sectors: {
+            type: Array,
+            required: true,
+        },
     },
 
 setup(props){
-    const form = useForm({
-        portfolios: props.loanBooks?.portfolios ?? '',
-        reporting_period: props.loanBooks?.reporting_period ?? '',
-        calculation_source: props.loanBooks?.calculation_source ?? '',
-        mode: props.loanBooks?.mode ?? '',
-        pd_type: 'pd_prefli',
-        lgd_type: 'collection_lgd',
-    });
+        const form = useForm({
+            ecl_calculation_level: 'portfolio',
+            ecl_calculation_id: props.loanBooks?.portfolios ?? '',
+            ecl_calculation_code: props.loanBooks?.sectors ?? '',
+            reporting_period: props.loanBooks?.reporting_period ?? '',
+            pd_type: 'pd_prefli',
+            lgd_type: 'collection_lgd',
+        });
 
 
 

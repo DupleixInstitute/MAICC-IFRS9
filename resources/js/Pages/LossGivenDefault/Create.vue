@@ -26,16 +26,40 @@
                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             </div>
 
-                            <!-- Portfolio Group -->
-                            <div>
-                                <jet-label for="portfolio_group" value="Portfolio Group" />
-                                <select v-model="form.portfolio_group" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
-                                    <option value="">Select Portfolio</option>
-                                    <option v-for="portfolio in portfolio_group" :key="portfolio.id" :value="portfolio.id">
-                                        {{ portfolio.name }}
-                                    </option>
-                                </select>
-                            </div>
+                        <!-- LGD Calculation Level -->
+                        <div>
+                            <jet-label for="lgd_calculation_level" value="LGD Level" />
+                            <select v-model="form.lgd_calculation_level" required
+                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <option value="">Select Level</option>
+                                <option value="portfolio">Portfolio</option>
+                                <option value="sector">Sector</option>
+                            </select>
+                        </div>
+
+                        <!-- Portfolio or Sector conditional -->
+                        <div v-if="form.lgd_calculation_level === 'portfolio'">
+                            <jet-label for="lgd_calculation_id" value="Portfolio Group" />
+                            <select v-model="form.lgd_calculation_id"
+                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <option value="">Select Portfolio</option>
+                                <option v-for="portfolio in portfolio_group" :key="portfolio.id" :value="portfolio.id">
+                                    {{ portfolio.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <div v-if="form.lgd_calculation_level === 'sector'">
+                            <jet-label for="lgd_calculation_code" value="Sector Code" />
+                            <select v-model="form.lgd_calculation_code"
+                                    class="overflow-y mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                             <option value="">Select Portfolio</option>
+                              <option v-for="item in sectors" :key="item.code" :value="item.code">
+                                    {{ item.code }} - {{ item.name }}
+                                </option>
+                            </select>
+                        </div>
+
 
                             <!-- Calculation Source -->
                             <div>
@@ -66,14 +90,22 @@
             :show="showModal"
             :start-period="form.start_period"
             :reporting-period="form.reporting_period"
-            :portfolio-group="form.portfolio_group"
+
+            :lgd-calculation-level="form.lgd_calculation_level"
+            :portfolio-group="form.lgd_calculation_id"
+            :sector-code="form.lgd_calculation_code"
+
             :mode="form.calculation_source"
             :default-values="defaultManualValues"
             :is-update="isUpdateMode"
             @close="showModal = false"
         />
+
+
     </app-layout>
 </template>
+
+
 <script>
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
@@ -99,11 +131,17 @@ export default{
             type: Array,
             required: true,
         },
+        sectors: {
+            type: Array,
+            required: true,
+        },
     },
 
 setup(props){
     const form = useForm({
-        portfolio_group: props.lossGivenDefault?.portfolio_group ?? '',
+        lgd_calculation_level: props.lossGivenDefault?.lgd_calculation_level ?? '',
+        lgd_calculation_id: props.lossGivenDefault?.lgd_calculation_id ?? '',
+        lgd_calculation_code: props.lossGivenDefault?.lgd_calculation_code ?? '',
         start_period: props.lossGivenDefault?.start_period ?? '',
         reporting_period: props.lossGivenDefault?.reporting_period ?? '',
         calculation_source: props.lossGivenDefault?.calculation_source ?? '',

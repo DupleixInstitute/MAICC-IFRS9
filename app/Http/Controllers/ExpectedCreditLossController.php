@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\LoanBook;
 use App\Models\LoanPortfolio;
+use App\Models\IndustryType;
 use App\Models\ReportingPeriods;
 use App\Models\ExpectedCreditLoss;
 use Carbon\Carbon;
@@ -16,21 +17,49 @@ class ExpectedCreditLossController extends Controller
 {
    public function index(Request $request)
         {
+            /*
+            |--------------------------------------------------------------------------
+            | GET THE LATEST CALCULATED REPORTING PERIOD
+            |--------------------------------------------------------------------------
+            */
+            $latestPeriod = ReportingPeriods::where('ecl_calculated', 1)
+                ->orderByDesc('period')
+                ->value(DB::raw("DATE_FORMAT(period, '%Y-%m')"));
+
+            /*
+            |--------------------------------------------------------------------------
+            | BASE LOAN BOOK QUERY (LATEST ECL ONLY)
+            |--------------------------------------------------------------------------
+            */
             $query = LoanBook::query()
                 ->with('client')
-                ->orderBy('reporting_period', 'asc');
+                ->where('reporting_period', $latestPeriod)
+                ->orderBy('contract_id', 'asc');
 
-            
-            $query->whereIn('reporting_period', function($subQuery) {
-                $subQuery->select(DB::raw("DATE_FORMAT(period, '%Y-%m')"))
-                    ->from('reporting_periods')
-                    ->where('ecl_calculated', 1);
-            });
+            /*
+            |--------------------------------------------------------------------------
+            | FILTER BY ECL CALCULATION LEVEL
+            |--------------------------------------------------------------------------
+            */
+            if ($request->filled('ecl_calculation_level')) {
 
+                if ($request->ecl_calculation_level === 'portfolio' && $request->filled('portfolio_id')) {
+                    $query->where('loan_portfolio_id', $request->portfolio_id);
+                }
 
-            // Apply filters
+                if ($request->ecl_calculation_level === 'sector' && $request->filled('sector_code')) {
+                    $query->where('industry_code', $request->sector_code);
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | SEARCH FILTER
+            |--------------------------------------------------------------------------
+            */
             if ($request->filled('search')) {
                 $search = $request->input('search');
+
                 $query->where(function($q) use ($search) {
                     $q->where('contract_id', 'like', "%{$search}%")
                     ->orWhere('external_identity_id', 'like', "%{$search}%")
@@ -40,22 +69,29 @@ class ExpectedCreditLossController extends Controller
                 });
             }
 
-            if ($request->filled('year') && $request->filled('month')) {
-                $period = $request->input('year') . '-' . str_pad($request->input('month'), 2, '0', STR_PAD_LEFT);
-                $query->where('reporting_period', $period);
-            }
-
+            /*
+            |--------------------------------------------------------------------------
+            | IFRS9 STAGE FILTER
+            |--------------------------------------------------------------------------
+            */
             if ($request->filled('stage')) {
-                $query->where('ifrs9stage_pre_qualitative', $request->string('stage'));
-                $query->where('ifrs9stage_pre_qualitative');
+                $query->where('ifrs9stage_pre_qualitative', $request->stage);
             }
 
             $loanBooks = $query->paginate(10)->withQueryString();
 
             return Inertia::render('ExpectedCreditLoss/Index', [
-                'loanBooks' => $loanBooks,
-                'filters' => $request->only(['search', 'year', 'month', 'overdue']),
-                'portfolios' => LoanPortfolio::all(),
+                'loanBooks'   => $loanBooks,
+                'latestPeriod'=> $latestPeriod,
+                'filters'     => $request->only([
+                    'search',
+                    'stage',
+                    'ecl_calculation_level',
+                    'portfolio_id',
+                    'sector_code'
+                ]),
+                'portfolios'  => LoanPortfolio::all(),
+                'sectors'     => IndustryType::all(),
             ]);
         }
 
@@ -63,108 +99,150 @@ class ExpectedCreditLossController extends Controller
             {
                 return Inertia::render('ExpectedCreditLoss/Create', [
                     'portfolios' => LoanPortfolio::select('id', 'name')->get(),
+                    'sectors' => IndustryType::select('code', 'name')->get(),
                 ]);
             }
 
+         public function calculateECL(Request $request)
+            {
+                ini_set('max_execution_time', 300);
+                $startTime = microtime(true);
 
-  public function calculateECL(Request $request)
-        {
-            ini_set('max_execution_time', 300);
-            $startTime = microtime(true);
+                $validated = $request->validate([
+                    'ecl_calculation_level' => 'required|in:portfolio,sector',
+                    'ecl_calculation_id'    => 'nullable|required_if:ecl_calculation_level,portfolio|exists:loan_portfolios,id',
+                    'ecl_calculation_code' => 'nullable|required_if:ecl_calculation_level,sector|exists:industry_types,code',
+                    'reporting_period'     => 'required|date',
+                    'pd_type'              => 'required|in:pd_prefli,pd_post_fli',
+                    'lgd_type'             => 'required|in:customer_lgd,collection_lgd,both',
+                ]);
 
-            $validated = $request->validate([
-                'portfolios' => 'required|exists:loan_portfolios,id',
-                'reporting_period' => 'required|date',
-                'pd_type' => 'required|in:pd_prefli,pd_post_fli',
-                'lgd_type' => 'required|in:customer_lgd,collection_lgd,both',
-            ]);
+                $level       = $validated['ecl_calculation_level'];
+                $portfolioId = $validated['ecl_calculation_id'] ?? null;
+                $sectorCode  = $validated['ecl_calculation_code'] ?? null;
 
-            $portfolioId = $validated['portfolios'];
-            $periodDate = Carbon::parse($validated['reporting_period']);
-            $year = $periodDate->format('Y') . '-01-01';
-            $month = $periodDate->format('Y-m') . '-01';
-            $period = $periodDate->format('Y-m');
+                $periodDate = Carbon::parse($validated['reporting_period']);
+                $period     = $periodDate->format('Y-m');
 
-            // Choose PD and LGD sources based on request
-            $pdType = $validated['pd_type']; // '12_pd' or 'lifetime_pd' or 'pd_post_fli' or 'pd_pre_fli'
-            $lgdType = $validated['lgd_type']; // 'customer_lgd', 'collection_lgd', or 'both'
+                /*
+                |--------------------------------------------------------------------------
+                | PD & LGD EXPRESSIONS
+                |--------------------------------------------------------------------------
+                */
+                $pdExpr = $validated['pd_type'] === 'pd_prefli'
+                    ? 'COALESCE(pd_prefli, pd_post_fli)'
+                    : 'pd_post_fli';
 
-            // Whitelisted expressions
-            // Support either schema naming for 12-month PD: `12m_pd` or `12_pd`
-            $pdExpr = $pdType === 'pd_prefli'
-                ? 'COALESCE(`pd_prefli`, `pd_post_fli`)'
-                : 'pd_post_fli';
-            $lgdExpr = $lgdType === 'both'
-                ? '(IFNULL(customer_lgd, 0) * IFNULL(collection_lgd, 0))'
-                : ($lgdType === 'customer_lgd' ? 'customer_lgd' : 'collection_lgd');
+                $lgdExpr = $validated['lgd_type'] === 'both'
+                    ? '(IFNULL(customer_lgd,0) * IFNULL(collection_lgd,0))'
+                    : ($validated['lgd_type'] === 'customer_lgd' ? 'customer_lgd' : 'collection_lgd');
 
-            // Step 1: Update chosen PD/LGD and ECL values
-            DB::statement("
-                UPDATE loan_books
-                SET 
-                    pd_post_fli = IFNULL($pdExpr, 0),
-                    lgd_value = IFNULL($lgdExpr, 0),
-                    ecl_value = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0) * IFNULL(carrying_amount, 0)
-                WHERE loan_portfolio_id = ? AND reporting_period = ?
-            ", [$portfolioId, $period]);
+                /*
+                |--------------------------------------------------------------------------
+                | BASE FILTER
+                |--------------------------------------------------------------------------
+                */
+                $baseWhere = "reporting_period = ?";
+                $bindings  = [$period];
 
-            // Step 2: Calculate grouped values by IFRS9 stage
-            $grouped = DB::table('loan_books')
-                ->selectRaw("\n                    
-                ifrs9stage_pre_qualitative,\n                    
-                SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0)) as total_ead,\n                    
-                SUM(ecl_value) as total_ecl,\n                    
-                AVG($pdExpr) as avg_pd,\n                    
-                AVG($lgdExpr) as avg_lgd,\n                    
-                COUNT(*) as total_loans\n                ")
-                ->where('loan_portfolio_id', $portfolioId)
-                ->where('reporting_period', $period)
-                ->groupBy('ifrs9stage_pre_qualitative')
-                ->get();
+                if ($level === 'portfolio') {
+                    $baseWhere .= " AND loan_portfolio_id = ?";
+                    $bindings[] = $portfolioId;
+                }
 
-            // Step 3: Store each group into ExpectedCreditLoss
-            foreach ($grouped as $row) {
-                ExpectedCreditLoss::updateOrCreate(
-                    [
-                        'reporting_period' => $period,
-                        'ifrs9_stage' => $row->ifrs9stage_pre_qualitative
-                    ],
-                    [
-                        'total_ead' => $row->total_ead,
-                        'total_ecl' => $row->total_ecl,
-                        'lgd_value_used' => $row->avg_lgd,
-                        'pd_value_used' => $row->avg_pd,
-                        'total_loans' => $row->total_loans,
-                        'last_reporting_period' => $period,
+                if ($level === 'sector') {
+                    $baseWhere .= " AND industry_code = ?";
+                    $bindings[] = $sectorCode;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | STEP 1: UPDATE LOAN BOOK
+                |--------------------------------------------------------------------------
+                */
+                DB::statement("
+                    UPDATE loan_books
+                    SET 
+                        pd_post_fli = IFNULL($pdExpr, 0),
+                        lgd_value   = IFNULL($lgdExpr, 0),
+                        ecl_value   = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0) * IFNULL(carrying_amount, 0)
+                    WHERE $baseWhere
+                ", $bindings);
+
+                /*
+                |--------------------------------------------------------------------------
+                | STEP 2: GROUP BY IFRS9 STAGE 
+                |--------------------------------------------------------------------------
+                */
+                $grouped = DB::table('loan_books')
+                    ->selectRaw("
+                        ifrs9stage_pre_qualitative,
+                        SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0)) AS total_ead,
+                        SUM(ecl_value) AS total_ecl,
+                        AVG($pdExpr) AS avg_pd,
+                        AVG($lgdExpr) AS avg_lgd,
+                        COUNT(*) AS total_loans
+                    ")
+                    ->whereRaw($baseWhere, $bindings)
+                    ->groupBy('ifrs9stage_pre_qualitative')
+                    ->get();
+
+                /*
+                |--------------------------------------------------------------------------
+                | STEP 3: SAVE INTO EXPECTED CREDIT LOSS
+                |--------------------------------------------------------------------------
+                */
+                foreach ($grouped as $row) {
+                    ExpectedCreditLoss::updateOrCreate(
+                        [
+                            'reporting_period'        => $period,
+                            'ifrs9_stage'             => $row->ifrs9stage_pre_qualitative,
+                            'ecl_calculation_level'  => $level,
+                            'ecl_calculation_id'     => $portfolioId, 
+                            'ecl_calculation_code'   => $sectorCode,
+                        ],
+                        [
+                            'total_ead'              => $row->total_ead,
+                            'total_ecl'              => $row->total_ecl,
+                            'lgd_value_used'         => $row->avg_lgd,
+                            'pd_value_used'          => $row->avg_pd,
+                            'total_loans'            => $row->total_loans,
+                            'last_reporting_period' => $period,
+                        ]
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | STEP 4: MARK PERIOD AS CALCULATED
+                |--------------------------------------------------------------------------
+                */
+                $endTime   = microtime(true);
+                $timeTaken = round(($endTime - $startTime) / 60, 2);
+
+                $periodFull = $periodDate->format('Y-m-01');
+
+                ReportingPeriods::updateOrCreate(
+                    ['period' => $periodFull],
+                    [   
+                        'reporting_year'         => (int)$periodDate->format('Y'),
+                        'reporting_month'        => (int)$periodDate->format('m'),
+                        'reporting_period'      => $periodFull,
+                        'ecl_calculated'        => true,
+                        'ecl_calculation_time'  => $timeTaken,
+                        'ecl_calculation_level' => $level,
+                        'ecl_calculation_id'    => $portfolioId,
+                        'ecl_calculation_code'  => $sectorCode,
                     ]
                 );
+
+                return redirect()
+                    ->route('expected-credit-loss.index')
+                    ->with('success', "ECL calculated at {$level} level in {$timeTaken} minutes for {$period}.");
             }
 
-            // Step 4: Mark reporting period as calculated
-            $endTime = microtime(true);
-            $timeTaken = round(($endTime - $startTime) / 60, 2);
 
-            $periodParts = explode('-', $validated['reporting_period']);
-            $year = (int)$periodParts[0];         
-            $month = (int)$periodParts[1];        
-            $period = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01';
-
-            // Update or create reporting period record
-            ReportingPeriods::updateOrCreate(
-                ['period' => $period],
-                [
-                    'reporting_year' => $year,
-                    'reporting_month' => $month,
-                    'reporting_period' => $period,
-                    'ecl_calculated' => true,
-                    'ecl_calculation_time' => $timeTaken,
-                ]
-            );
-
-            return redirect()->route('expected-credit-loss.index')->with('success', "ECL calculation complete in {$timeTaken} minutes for {$period}.");
-        }
-
-        public function exportECL(Request $request)
+    public function exportECL(Request $request)
         {
             $exportable = [
                 'contract_id',

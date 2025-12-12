@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\LoanPortfolio;
+use App\Models\IndustryType;
+use App\Models\SupportingDocument;
+use App\Helpers\DocumentHelper;
 use App\Models\LossGivenDefault;
 use App\Models\LoanBook;
 use App\Models\ReportingPeriods;
@@ -13,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\Console\Input\Input;
+use Illuminate\Support\Facades\Storage;
 
 class LossGiveDefaultController extends Controller
 {
@@ -24,13 +28,32 @@ class LossGiveDefaultController extends Controller
 
      // This function returns an Inertia response to render the index view
      // It retrieves all Loss Given Default records along with their associated portfolio groups
-    public function index()
-    {
-        $lossGivenDefaults = LossGivenDefault::with('portfolioGroup')->get();
-        return inertia('LossGivenDefault/Index', [
-            'lossGivenDefaults' => $lossGivenDefaults,
-        ]);
-    }
+       public function index(Request $request)
+            {
+                $calculationLevel = $request->input('lgd_calculation_level');
+                $startDate = $request->input('start_date');
+                $endDate = $request->input('end_date');
+
+                $query = LossGivenDefault::with('portfolioGroup', 'sector')
+                    ->when($calculationLevel, function ($query, $calculationLevel) {
+                        $query->where('lgd_calculation_level', $calculationLevel);
+                    })
+                    
+                    ->when($startDate && $endDate, function ($query) use ($startDate, $endDate) {
+                        $query->whereBetween('start_period', [$startDate, $endDate])
+                            ->orWhereBetween('reporting_period', [$startDate, $endDate]);
+                    });
+
+                return inertia('LossGivenDefault/Index', [
+                    'lossGivenDefaults' => $query->latest()->paginate(10),
+                    'filters' => $request->only(['calculation_level', 'start_date', 'end_date']),
+                    'flash' => [
+                                'success' => session('success'),
+                                'error' => session('error'),
+                            ],
+            ]);
+            }
+
 
     // Function to create a new Loss Given Default record
     // This function returns an Inertia response to render the create view
@@ -39,7 +62,7 @@ class LossGiveDefaultController extends Controller
         
         return inertia('LossGivenDefault/Create',[
             'portfolio_group' => LoanPortfolio::select('id', 'name')->get(),
-            
+            'sectors' => IndustryType::select('code', 'name')->get(),
         ]);
      }
 
@@ -200,29 +223,74 @@ class LossGiveDefaultController extends Controller
             ini_set('max_execution_time', 300);
 
             request()->validate([
-                'portfolio_group' => 'required|exists:loan_portfolios,id',
+                'lgd_calculation_level' => 'required|in:portfolio,sector',
+                'lgd_calculation_id' => 'nullable|required_if:lgd_calculation_level,portfolio|exists:loan_portfolios,id',
+                'lgd_calculation_code' => 'nullable|required_if:lgd_calculation_level,sector|exists:industry_types,code',
                 'reporting_period' => 'required|date',
                 'start_period' => 'required|date|before_or_equal:reporting_period',
             ]);
 
+            $lgdCalculationLevel = $request->lgd_calculation_level;
+
+            $portfolioGroup = null;
+            $sector = null;
+
+
+            $lgdCalculationLevel = $request->lgd_calculation_level;
+
+            $portfolioGroup = null;
+            $sector = null;
+
+            if ($lgdCalculationLevel === 'portfolio') {
+                $filterColumn = 'loan_portfolio_id';
+                $filterValue = $request->input('lgd_calculation_id');  // Correct
+                $portfolioGroup = LoanPortfolio::find($filterValue);
+                if (!$portfolioGroup) {
+                    return back()->with('error', 'Selected Portfolio Group does not exist.');
+                }
+            } elseif ($lgdCalculationLevel === 'sector') {
+                $filterColumn = 'industry_code';
+                $filterValue = $request->input('lgd_calculation_code');  // FIXED: Added the missing 'l'
+                $sector = IndustryType::where('code', $filterValue)->first();
+                if (!$sector) {
+                    return back()->with('error', 'Selected Sector does not exist.');
+                }
+            }
+
+
+
+
             // Validate that start_period is not later than reporting_period
             // This ensures that the start period is not later than the reporting period
-            $portfolioGroup = LoanPortfolio::findOrFail(request()->input('portfolio_group'));
+            //$portfolioGroup = LoanPortfolio::findOrFail(request()->input('portfolio_group'));
+
+ 
+
             $startPeriod = Carbon::parse(request()->input('start_period'))->format('Y-m');
             $reportingPeriod = Carbon::parse(request()->input('reporting_period'))->format('Y-m');
 
 
             // Query to fetch loan books data for the specified reporting period and portfolio group
             // This query retrieves the start and end balances, and the closing stage for each contract
+            // DEBUG: Log the periods
+                \Log::info('LGD Calculation Periods:', [
+                    'start_period' => $startPeriod,
+                    'reporting_period' => $reportingPeriod,
+                    'filter_column' => $filterColumn,
+                    'filter_value' => $filterValue
+                ]);
+
+            // Query to fetch loan books data
+            // IMPORTANT: lb_start uses start_period (earlier), lb_end uses reporting_period (later)
             $data = DB::table('loan_books as lb_start')
-                ->leftJoin('loan_books as lb_end', function($join) use ($reportingPeriod) {
+                ->leftJoin('loan_books as lb_end', function($join) use ($reportingPeriod, $filterColumn) {
                     $join->on('lb_start.contract_id', '=', 'lb_end.contract_id')
-                        ->on('lb_start.loan_portfolio_id', '=', 'lb_end.loan_portfolio_id')
-                        ->where('lb_end.reporting_period', '=', $reportingPeriod);
+                        ->on("lb_start.$filterColumn", '=', "lb_end.$filterColumn")
+                        ->where('lb_end.reporting_period', '=', $reportingPeriod);  // Later period
                 })
-                ->where('lb_start.reporting_period', '=', $startPeriod)
+                ->where('lb_start.reporting_period', '=', $startPeriod)  // Earlier period
                 ->where('lb_start.ifrs9stage_pre_qualitative', 3)
-                ->where('lb_start.loan_portfolio_id', $portfolioGroup->id)
+                ->where("lb_start.$filterColumn", $filterValue)
                 ->select(
                     'lb_start.contract_id',
                     DB::raw('lb_start.carrying_amount as start_balance'),
@@ -230,6 +298,13 @@ class LossGiveDefaultController extends Controller
                     DB::raw('COALESCE(lb_end.ifrs9stage_pre_qualitative, 3) as closing_stage')
                 )
                 ->get();
+
+            // DEBUG: Log the query results
+            // \Log::info('LGD Query Results:', [
+            //     'data_count' => $data->count(),
+            //     'first_record' => $data->first(),
+            //     'all_data' => $data->toArray()
+            // ]);
 
             // Initialize variables to hold the calculated values
             // These variables will accumulate the totals for the LGD calculation
@@ -289,16 +364,20 @@ class LossGiveDefaultController extends Controller
             $cureRate = $curedAmount / $startBalance;
             $recoveryRate = $totalRecoveredAmount / $startBalance;
             $lgd = (1 - $cureRate) * (1 - $recoveryRate);
+            $lgd = max(0, min(1, $lgd));
 
             // Create a new LossGivenDefault record
 
             try{
             LossGivenDefault::updateOrCreate([ 
                 'reporting_period' => $reportingPeriod,
+                'lgd_calculation_level' => $lgdCalculationLevel,
+                'lgd_calculation_id' => $lgdCalculationLevel === 'portfolio' ? $portfolioGroup->id : null,
+                'lgd_calculation_code' => $lgdCalculationLevel === 'sector' ? $filterValue : null,
                 'calculation_source' => 'system',
             ], [
                 'start_period' => $startPeriod,
-                'portfolio_group' => $portfolioGroup->id,
+                //'portfolio_group' => $portfolioGroup->id,
                 'start_total_stage3' => $startBalance,
                 'end_total_stage3' => $endBalance,
                 'loss_given_default_percentage' => $lgd,
@@ -330,100 +409,80 @@ class LossGiveDefaultController extends Controller
     // Function to store manual LGD calculations
     // This function processes the request, validates inputs, and stores the manual LGD calculation in the database
         public function storeManualCalculation(Request $request)
-                
-                    {
-                        $mode = $request->input('mode');
+        {
+            $mode = $request->mode;
 
-                        $baseValidation = [
-                            'reporting_period' => 'required|date',
-                            'start_period' => 'required|date',
-                            'portfolio_group' => 'required|integer',
-                            'loss_given_default_percentage' => 'required|numeric',
-                            'mode' => 'required|in:amount,percentage',
-                        ];
+            $baseValidation = [
+                'lgd_calculation_level' => 'required|in:portfolio,sector',
+                'lgd_calculation_id' => 'nullable|required_if:lgd_calculation_level,portfolio|exists:loan_portfolios,id',
+                'lgd_calculation_code' => 'nullable|required_if:lgd_calculation_level,sector|exists:industry_types,code',
+                'reporting_period' => 'required|date',
+                'start_period' => 'required|date|before_or_equal:reporting_period',
+                'loss_given_default_percentage' => 'required|numeric|min:0|max:1',
+                'mode' => 'required|in:amount,percentage',
+            ];
 
-                        $amountFields = [
-                            'start_total_stage3' => 'required|numeric',
-                            'end_total_stage3' => 'required|numeric',
-                            'cure_amount_stage1' => 'required|numeric',
-                            'cure_amount_stage2' => 'required|numeric',
-                            'partially_recovered_amount' => 'required|numeric',
-                            'fully_recovered_amount' => 'required|numeric',
-                            'total_disbursments' => 'required|numeric',
-                        ];
+            $amountFields = [
+                'start_total_stage3' => 'required|numeric',
+                'end_total_stage3' => 'required|numeric',
+                'cure_amount_stage1' => 'required|numeric',
+                'cure_amount_stage2' => 'required|numeric',
+                'partially_recovered_amount' => 'required|numeric',
+                'fully_recovered_amount' => 'required|numeric',
+                'total_disbursments' => 'required|numeric',
+            ];
 
-                        $percentageFields = [
-                            'cure_rate' => 'required|numeric',
-                            'recovery_rate' => 'required|numeric',
-                        ];
+            $percentageFields = [
+                'cure_rate' => 'required|numeric|min:0|max:1',
+                'recovery_rate' => 'required|numeric|min:0|max:1',
+            ];
 
-                        $request->validate(array_merge(
-                            $baseValidation,
-                            $mode === 'amount' ? $amountFields : $percentageFields
-                        ));
+            $request->validate(array_merge(
+                $baseValidation,
+                $mode === 'amount' ? $amountFields : $percentageFields
+            ));
 
-                        $data = [
-                            'reporting_period' => $request->reporting_period,
-                            'start_period' => $request->start_period,
-                            'portfolio_group' => $request->portfolio_group,
-                            'loss_given_default_percentage' => $request->loss_given_default_percentage,
-                            'cure_rate' => $request->cure_rate ?? 0,
-                            'cured_amount' =>$request->cured_amount ?? 0,
-                            'recovery_rate' => $request->recovery_rate ?? 0,
-                            'recovered_amount' => $request->recovered_amount ?? 0,
-                            'total_disbursments' => $request->total_disbursments ?? 0,
-                            'partially_recovered_amount' => $request->partially_recovered_amount,
-                            'fully_recovered_amount' => $request->fully_recovered_amount,
-                            'cure_rate_average_monthly' => 0,
-                            'recovery_rate_average_monthly' => 0,
-                            'last_reporting_period' => null,
-                            'is_active_or_closed' => $request->is_active_or_closed ?? 'active',
-                            'calculation_source' => 'manual',
-                            'created_by' => auth()->id(),
-                            'updated_by' => auth()->id(),
-                        ];
+            // ✅ Clamp LGD for absolute safety
+            $lgd = max(0, min(1, $request->loss_given_default_percentage));
 
-                        if ($mode === 'amount') {
-                            $data['start_total_stage3'] = $request->start_total_stage3;
-                            $data['end_total_stage3'] = $request->end_total_stage3;
-                            $data['cure_amount_stage1'] = $request->cure_amount_stage1 ?? 0;
-                            $data['cure_amount_stage2'] = $request->cure_amount_stage2 ?? 0;
-                            $data['partially_recovered_amount'] = $request->partially_recovered_amount ?? 0;
-                            $data['fully_recovered_amount'] = $request->fully_recovered_amount ?? 0;
-                            $data['total_disbursments'] = $request->total_disbursments ?? 0;
-                        } else {
-                            $data['start_total_stage3'] = 0;
-                            $data['end_total_stage3'] = 0;
-                            $data['cured_amount'] = 0;
-                            $data['recovered_amount'] = 0;
-                        }
+            $data = [
+                'reporting_period' => $request->reporting_period,
+                'start_period' => $request->start_period,
+                'lgd_calculation_level' => $request->lgd_calculation_level,
+                'lgd_calculation_id' => $request->lgd_calculation_id,
+                'lgd_calculation_code' => $request->lgd_calculation_code,
+                'loss_given_default_percentage' => $lgd,
+                'cure_rate' => $request->cure_rate ?? 0,
+                'cured_amount' => $request->cured_amount ?? 0,
+                'recovery_rate' => $request->recovery_rate ?? 0,
+                'recovered_amount' => $request->recovered_amount ?? 0,
+                'total_disbursments' => $request->total_disbursments ?? 0,
+                'partially_recovered_amount' => $request->partially_recovered_amount ?? 0,
+                'fully_recovered_amount' => $request->fully_recovered_amount ?? 0,
+                'cure_rate_average_monthly' => 0,
+                'recovery_rate_average_monthly' => 0,
+                'last_reporting_period' => null,
+                'is_active_or_closed' => $request->is_active_or_closed ?? 'active',
+                'calculation_source' => 'manual',
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id(),
+            ];
 
-                        LossGivenDefault::create($data);
-
-                return back()->with('success', 'Loss Given Default record created successfully.');
+            if ($mode === 'amount') {
+                $data['start_total_stage3'] = $request->start_total_stage3;
+                $data['end_total_stage3'] = $request->end_total_stage3;
+            } else {
+                $data['start_total_stage3'] = 0;
+                $data['end_total_stage3'] = 0;
+                $data['cured_amount'] = 0;
+                $data['recovered_amount'] = 0;
             }
 
-    // Function to upadate manual method of LGD Calculation
-    public function updateManual($id, Request $request)
-    {
-        $request->validate([
-            'reporting_period' => 'required|date',
-            'start_period' => 'required|date',
-            'portfolio_group' => 'required|integer',
-            'loss_given_default_percentage' => 'required|numeric',
-            'mode' => 'required|in:amount,percentage',
-        ]);
+            LossGivenDefault::create($data);
 
-        $lossGivenDefault = LossGivenDefault::find($id);
-        if (!$lossGivenDefault) {
-            return back()->with('error', 'Loss Given Default record not found');
+            return redirect('loss-given-default.index')->with('success', 'Loss Given Default record created successfully.');
         }
 
-        $data = $request->all();
-        $lossGivenDefault->update($data);
-
-        return redirect()->route('loss-given-default.index')->with('success', 'Loss Given Default record updated successfully');
-    }
     
     public function editManual($id)
     {
@@ -433,8 +492,8 @@ class LossGiveDefaultController extends Controller
         }
 
         return inertia('LossGivenDefault/Create', [
-            'lossGivenDefault' => $lossGivenDefault,
-            'portfolios' => LoanPortfolio::select('id', 'name')->get(),
+            'portfolio_group' => LoanPortfolio::select('id', 'name')->get(),
+            'sectors' => IndustryType::select('code', 'name')->get(),
         ]);
     }
 
@@ -472,13 +531,12 @@ class LossGiveDefaultController extends Controller
 
     // Function to update loan books with the LGD value
     // This function updates the loan books for a specific reporting period with the LGD value from
-
-      public function updateLoanBooks(Request $request)
+        public function updateLoanBooks(Request $request)
         {
             ini_set('max_execution_time', 300);
             $startTime = microtime(true);
 
-            // Validate request
+            // ✅ VALIDATION
             $validated = $request->validate([
                 'reporting_period' => 'required|date_format:Y-m',
                 'lgd_id' => 'required|exists:loss_given_default,id',
@@ -487,92 +545,171 @@ class LossGiveDefaultController extends Controller
 
             $lgd = LossGivenDefault::findOrFail($validated['lgd_id']);
 
+            // ✅ AUTO SCOPE (portfolio OR sector)
+            $scope = $lgd->lgd_calculation_level; // 'portfolio' or 'sector'
+
+            if (!in_array($scope, ['portfolio', 'sector'])) {
+                return back()->with('error', 'Invalid LGD calculation level.');
+            }
+
             if ($lgd->is_active_or_closed !== 'closed') {
                 return back()->with('error', 'Cannot update loan books for an active LGD record.');
             }
 
             $collectionLgd = $lgd->loss_given_default_percentage;
-            $periodKey = Carbon::parse($validated['reporting_period'])->format('Y-m');
-            $periodMonthDate = Carbon::parse($validated['reporting_period'])->startOfMonth()->format('Y-m-d');
+            $period = Carbon::parse($validated['reporting_period'])->format('Y-m');
 
-            // Diagnostics: log matching row counts for the target month
-            try {
-                $totalRowObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ?", [$periodKey]);
-                $nonNullObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NOT NULL", [$periodKey]);
-                $nullObj = DB::selectOne("SELECT COUNT(*) AS c FROM loan_books WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NULL", [$periodKey]);
-                $totalRows = $totalRowObj?->c ?? 0;
-                $nonNullRows = $nonNullObj?->c ?? 0;
-                $nullRows = $nullObj?->c ?? 0;
+            $rowsUpdated = 0; // ✅ prevent undefined variable
 
-                Log::info("LGD update diagnostics", [
-                    'period_key' => $periodKey,
-                    'total_rows_for_month' => $totalRows,
-                    'rows_with_customer_lgd' => $nonNullRows,
-                    'rows_without_customer_lgd' => $nullRows,
-                ]);
-            } catch (\Throwable $e) {
-                Log::warning('LGD update diagnostics failed: '.$e->getMessage());
-            }
-
-            // Update loan books
+            // ✅ CUSTOMER LGD ENABLED
             if ($request->boolean('include_customer_lgd')) {
-                // Rows with custom LGD
-                $rowsUpdatedCustomer = DB::update("
-                    UPDATE loan_books
-                    SET 
-                        collection_lgd = ?,
-                        lgd_value = customer_lgd * ?
-                    WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NOT NULL
-                ", [$collectionLgd, $collectionLgd, $periodKey]);
 
-                // Rows without custom LGD
-                $rowsUpdatedDefault = DB::update("
-                    UPDATE loan_books
-                    SET 
-                        collection_lgd = ?,
-                        lgd_value = ?
-                    WHERE LEFT(reporting_period, 7) = ? AND customer_lgd IS NULL
-                ", [$collectionLgd, $collectionLgd, $periodKey]);
+                if ($scope === 'portfolio') {
+                    $rowsUpdated = DB::update("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = COALESCE(customer_lgd, ?) * ?
+                        WHERE LEFT(reporting_period, 7) = ?
+                        AND portfolio_group = ?
+                    ", [
+                        $collectionLgd, 1, $collectionLgd,
+                        $period, $lgd->lgd_calculation_id
+                    ]);
+                }
 
-                Log::info("Rows updated where customer_lgd IS NOT NULL: $rowsUpdatedCustomer");
-                Log::info("Rows updated where customer_lgd IS NULL: $rowsUpdatedDefault");
+                if ($scope === 'sector') {
+                    $rowsUpdated = DB::update("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = COALESCE(customer_lgd, ?) * ?
+                        WHERE LEFT(reporting_period, 7) = ?
+                        AND industry_code = ?
+                    ", [
+                        $collectionLgd, 1, $collectionLgd,
+                        $period, $lgd->lgd_calculation_code
+                    ]);
+                }
+
+            // ✅ CUSTOMER LGD DISABLED
             } else {
-                $rowsUpdated = DB::update("
-                    UPDATE loan_books
-                    SET 
-                        collection_lgd = ?,
-                        lgd_value = ?
-                    WHERE LEFT(reporting_period, 7) = ?
-                ", [$collectionLgd, $collectionLgd, $periodKey]);
 
-                Log::info("Rows updated without customer LGD: $rowsUpdated");
+                if ($scope === 'portfolio') {
+                    $rowsUpdated = DB::update("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = ?
+                        WHERE LEFT(reporting_period, 7) = ?
+                        AND portfolio_group = ?
+                    ", [
+                        $collectionLgd, $collectionLgd,
+                        $period, $lgd->lgd_calculation_id
+                    ]);
+                }
+
+                if ($scope === 'sector') {
+                    $rowsUpdated = DB::update("
+                        UPDATE loan_books
+                        SET 
+                            collection_lgd = ?,
+                            lgd_value = ?
+                        WHERE LEFT(reporting_period, 7) = ?
+                        AND industry_code = ?
+                    ", [
+                        $collectionLgd, $collectionLgd,
+                        $period, $lgd->lgd_calculation_code
+                    ]);
+                }
             }
 
             $timeTaken = round((microtime(true) - $startTime) / 60, 2);
 
-            // Prepare period parts for reporting_periods table
-            $periodParts = explode('-', $validated['reporting_period']);
-            $year = (int)$periodParts[0];         
-            $month = (int)$periodParts[1];        
-            $period = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01';
-
-            // Update or create reporting period record
+            // ✅ REPORTING PERIOD SAVE
             ReportingPeriods::updateOrCreate(
-                ['period' => $period],
+                ['period' => $period . '-01'],
                 [
-                    'reporting_year' => $year,
-                    'reporting_month' => $month,
+                    'reporting_year' => (int)substr($period, 0, 4),
+                    'reporting_month' => (int)substr($period, 5, 2),
                     'lgd_id' => $lgd->id,
                     'lgd_calculation_source' => $lgd->calculation_source,
                     'lgd_calculation_time' => $timeTaken,
                 ]
             );
 
-            return back()->with('success', "Loan books updated successfully in {$timeTaken} minutes.");
+            return back()->with(
+                'success',
+                "Loan books updated successfully in {$timeTaken} minutes. Rows updated: {$rowsUpdated}"
+            );
+        }
+
+        //Attach supporting File if it is Manual Calculation for supporting info of the calculation
+        public function attachFile(LossGivenDefault $lgd, Request $request)
+        {
+            Log::info('Attach file request started', [
+                'lgd_id' => $lgd->id,
+                'has_file' => $request->hasFile('file'),
+            ]);
+
+            $request->validate([
+                'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,jpg,png',
+            ]);
+
+            if ($lgd->is_active_or_closed === 'closed') {
+                Log::warning('Attempt to attach file to closed LGD', ['lgd_id' => $lgd->id]);
+                return back()->withErrors(['file' => 'Cannot attach file to a closed LGD record.']);
+            }
+
+            // Delete old documents
+            $deleted = $lgd->supportingDocuments()->delete();
+            Log::info('Old supporting documents deleted', ['count' => $deleted]);
+
+            try {
+                $document = \App\Helpers\DocumentHelper::upload(
+                    $request->file('file'),
+                    $lgd,
+                    'lgd_support'
+                );
+
+                Log::info('File uploaded successfully', [
+                    'document_id' => $document->id,
+                    'path' => $document->path,
+                ]);
+
+                return back()->with('success', 'File attached successfully.');
+
+            } catch (\Throwable $e) {
+
+                Log::error('File upload failed', [
+                    'error' => $e->getMessage(),
+                    'lgd_id' => $lgd->id,
+                ]);
+
+                return back()->withErrors(['file' => 'Upload failed. Check logs.']);
+            }
         }
 
 
+   public function downloadFile($id)
+    {
+        $lgd = LossGivenDefault::findOrFail($id);
 
+        $document = $lgd->supportingDocuments()
+            ->latest()
+            ->first();
+
+        if (!$document || !Storage::disk($document->disk)->exists($document->path)) {
+            return back()->with('error', 'File not found.');
+        }
+
+        return Storage::disk($document->disk)->download(
+            $document->path,
+            $document->original_name
+        );
+    }
+
+    
  // Function to delete a Loss Given Default record
         // This function finds the record by ID and deletes it from the database
     public function destroy($id){

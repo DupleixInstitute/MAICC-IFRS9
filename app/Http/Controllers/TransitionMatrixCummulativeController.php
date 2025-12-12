@@ -7,12 +7,21 @@ use App\Models\TransitionMatrixCummulative;
 use App\Models\TransitionMatrixCummulativeData;
 use App\Models\TransitionProfileDefinition;
 use App\Services\TransitionMatrixCummulativeService;
+use App\Models\ReportingPeriods;
+use App\Models\SupportingDocument;
+use App\Helpers\DocumentHelper;
 use Illuminate\Http\Request;
+use App\Models\IndustryType;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Symfony\Component\Console\Input\Input;
+use Illuminate\Support\Facades\Storage;
 use Exception;
-use App\Models\ReportingPeriods;
+
+
+
 
 class TransitionMatrixCummulativeController extends Controller
 {
@@ -22,7 +31,7 @@ class TransitionMatrixCummulativeController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $query = TransitionMatrixCummulative::with(['transitionProfile', 'portfolio'])
+        $query = TransitionMatrixCummulative::with(['transitionProfile', 'portfolio','sector'])
             ->when($search, function ($query) use ($search) {
                 $query->whereHas('transitionProfile', function ($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%');
@@ -48,6 +57,7 @@ class TransitionMatrixCummulativeController extends Controller
     {
         return Inertia::render('TransitionMatrix/CummulativeCreate', [
             'portfolios' => LoanPortfolio::select('id', 'name')->get(),
+            'sectors' => IndustryType::select('id', 'code','name')->get(),
             'profiles' => TransitionProfileDefinition::select('id', 'profile_code', 'short_name')->get(),
         ]);
     }
@@ -57,7 +67,9 @@ class TransitionMatrixCummulativeController extends Controller
         $data = $request->validate([
             'start_period' => 'required|date',
             'end_period' => 'required|date',
-            'portfolio_group' => 'required|exists:loan_portfolios,id',
+            'pd_calculation_level' => 'required|in:portfolio,sector',
+            'pd_calculation_id'   => 'required_if:pd_calculation_level,portfolio|nullable|integer',
+            'pd_calculation_code' => 'required_if:pd_calculation_level,sector|nullable|string',
             'transition_profile_id' => 'required|exists:transition_profile_definitions,id',
         ]);
 
@@ -65,125 +77,135 @@ class TransitionMatrixCummulativeController extends Controller
             TransitionMatrixCummulativeService::createCumulativeRecord(
                 $data['start_period'],
                 $data['end_period'],
-                $data['portfolio_group'],
+                $data['pd_calculation_level'],
+                $data['pd_calculation_id'] ?? null,
+                $data['pd_calculation_code'] ?? null,
                 $data['transition_profile_id']
             );
 
             return redirect()->back()->with('success', 'Cumulative record created successfully!');
         } catch (Exception $e) {
             Log::error('Failed to create cumulative record: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to create cumulative record. Please check logs.');
+            return redirect('transition-matrix-cummulative.index')->with('error', 'Failed to create cumulative record. Please check logs.');
         }
     }
 
-        public function updateLoanBook(Request $request, TransitionMatrixCummulative $matrix)
-        {
-            ini_set('max_execution_time', 300);
+    public function updateLoanBook(Request $request, TransitionMatrixCummulative $matrix)
+            {
+                ini_set('max_execution_time', 300);
 
-            $validated = $request->validate([
-                'reporting_period' => 'required|date', 
-            ]);
-
-            DB::beginTransaction();
-
-            try {
-
-                $pds = TransitionMatrixCummulativeData::where('cummulative_id', $matrix->id)
-                    ->where('end_stage', 3)
-                    ->whereNotNull('transition_probability_cummulated')
-                    ->get()
-                    ->keyBy('start_stage');
-
-                if ($pds->isEmpty()) {
-                    throw new \Exception("No PD data with end stage 3 found for this transition matrix");
-                }
-
-                $period = substr($validated['reporting_period'], 0, 7);
-
-                $totalUpdated = 0;
-
-           foreach ([1, 2, 3] as $stage) {
-                if (!isset($pds[$stage]) && $stage !== 3) {
-                    continue;
-                }
-
-                // Determine PD decimal
-                if ($stage === 3) {
-                    $pdDecimal = 1.0; // 100% as decimal
-                } else {
-                    $pdDecimal = $pds[$stage]->transition_probability_cummulated / 100;
-                }
-
-                $affected = DB::update("
-                    UPDATE loan_books
-                    SET pd_prefli = ?
-                    WHERE reporting_period = ?
-                    AND ifrs9stage_pre_qualitative = ?
-                ", [
-                    $pdDecimal,
-                    $period,
-                    $stage,
+                $validated = $request->validate([
+                    'reporting_period' => 'required|date',
                 ]);
 
-                $totalUpdated += $affected;
+                DB::beginTransaction();
 
-                DB::statement("
-                        UPDATE loan_books
-                        SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
-                        WHERE reporting_period = ?
-                        AND ifrs9stage_pre_qualitative = ?
-                        AND remaining_tenor IS NOT NULL
-                    ", [
-                        $pdDecimal,
-                        $period,
-                        $stage,
+                try {
+
+                    $scope = $matrix->pd_calculation_level; // 'portfolio' or 'sector'
+
+                    if (!in_array($scope, ['portfolio', 'sector'])) {
+                        throw new \Exception("Invalid PD calculation level.");
+                    }
+
+                    $pds = TransitionMatrixCummulativeData::where('cummulative_id', $matrix->id)
+                        ->where('end_stage', 3)
+                        ->whereNotNull('transition_probability_cummulated')
+                        ->get()
+                        ->keyBy('start_stage');
+
+                    if ($pds->isEmpty()) {
+                        throw new \Exception("No PD data with end stage 3 found for this transition matrix");
+                    }
+
+                    $periodKey = substr($validated['reporting_period'], 0, 7);
+
+                    $totalUpdated = 0;
+
+                    foreach ([1, 2, 3] as $stage) {
+
+                        if (!isset($pds[$stage]) && $stage !== 3) {
+                            continue;
+                        }
+
+                        if ($stage === 3) {
+                            $pdDecimal = 1.0;
+                        } else {
+                            $pdDecimal = $pds[$stage]->transition_probability_cummulated / 100;
+                        }
+
+                        $scopeSql = "";
+                        $scopeBindings = [];
+
+                        if ($scope === 'portfolio') {
+                            $scopeSql = " AND portfolio_group = ?";
+                            $scopeBindings[] = $matrix->pd_calculation_id;
+                        }
+
+                        if ($scope === 'sector') {
+                            $scopeSql = " AND industry_code = ?";
+                            $scopeBindings[] = $matrix->pd_calculation_code;
+                        }
+
+                        $affected = DB::update("
+                            UPDATE loan_books
+                            SET pd_prefli = ?
+                            WHERE LEFT(reporting_period, 7) = ?
+                            AND ifrs9stage_pre_qualitative = ?
+                            $scopeSql
+                        ", array_merge([
+                            $pdDecimal,
+                            $periodKey,
+                            $stage
+                        ], $scopeBindings));
+
+                        $totalUpdated += $affected;
+
+                        DB::statement("
+                            UPDATE loan_books
+                            SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
+                            WHERE LEFT(reporting_period, 7) = ?
+                            AND ifrs9stage_pre_qualitative = ?
+                            AND remaining_tenor IS NOT NULL
+                            $scopeSql
+                        ", array_merge([
+                            $pdDecimal,
+                            $periodKey,
+                            $stage
+                        ], $scopeBindings));
+                    }
+
+                    DB::commit();
+
+                    $periodParts = explode('-', $validated['reporting_period']);
+                    $year  = (int)$periodParts[0];
+                    $month = (int)$periodParts[1];
+                    $period = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01';
+
+                    ReportingPeriods::updateOrCreate(
+                        ['period' => $period],
+                        [
+                            'reporting_year' => $year,
+                            'reporting_month' => $month,
+                            'pd_id' => $matrix->id,
+                            'pd_calculation_source' => $matrix->calculation_source,
+                        ]
+                    );
+
+                    return back()->with([
+                        'success' => 'Loan book PD updated successfully',
+                        'updated_count' => $totalUpdated,
                     ]);
 
+                } catch (\Exception $e) {
+
+                    DB::rollBack();
+
+                    return back()->withErrors([
+                        'error' => 'Update failed: ' . $e->getMessage()
+                    ]);
                 }
-
-                DB::commit();
-
-
-                $periodParts = explode('-', $validated['reporting_period']);
-
-                $year = (int)$periodParts[0];         // 2023
-                $month = (int)$periodParts[1];        // 12
-                $period = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01'; // 2023-12-01
-
-                ReportingPeriods::updateOrCreate(
-                    ['period' => $period],
-                    [
-                        'reporting_year' => $year,        // integer
-                        'reporting_month' => $month,      // integer
-                        'pd_id' => $matrix->id,
-                        'pd_calculation_source' => $matrix->calculation_source,
-                    ]
-                );
-
-                // Log::channel('loan_updates')->info('Loan Book Updated with raw SQL', [
-                //     'matrix_id' => $matrix->id,
-                //     'reporting_period' => $validated['reporting_period'],
-                //     'updated_loans' => $totalUpdated,
-                //     'user_id' => auth()->id(),
-                // ]);
-
-                return back()->with([
-                    'success' => 'Loan book PD updated successfully ',
-                    'updated_count' => $totalUpdated,
-                ]);
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-
-                // Log::channel('loan_updates')->error('Loan Book Update Failed', [
-                //     'error' => $e->getMessage(),
-                //     'matrix_id' => $matrix->id,
-                //     'reporting_period' => $validated['reporting_period'] ?? null,
-                // ]);
-
-                return back()->withErrors(['error' => 'Update failed: ' . $e->getMessage()]);
             }
-        }
 
 
 
@@ -246,7 +268,9 @@ class TransitionMatrixCummulativeController extends Controller
             TransitionMatrixCummulativeService::createCumulativeRecord(
                 $matrix->start_period,
                 $matrix->end_period,
-                $matrix->portfolio_group,
+                $matrix->pd_calculation_level,
+                $matrix->pd_calculation_id,
+                $matrix->pd_calculation_code,
                 $matrix->transition_profile_id
             );
 
@@ -265,10 +289,13 @@ class TransitionMatrixCummulativeController extends Controller
         $matrix = TransitionMatrixCummulative::findOrFail($matrix);
 
         $existing = TransitionMatrixCummulative::where('id', '!=', $matrix->id)
-            ->where('start_period', $matrix->start_period)
-            ->where('end_period', $matrix->end_period)
-            ->where('status', 'closed')
-            ->exists();
+                    ->where('pd_calculation_level', $matrix->pd_calculation_level)
+                    ->where('pd_calculation_id', $matrix->pd_calculation_id)
+                    ->where('pd_calculation_code', $matrix->pd_calculation_code)
+                    ->where('start_period', $matrix->start_period)
+                    ->where('end_period', $matrix->end_period)
+                    ->where('status', 'closed')
+                    ->exists();
 
         if ($existing) {
             return back()->with('error', 'A closed record already exists for the same reporting period.');
@@ -290,6 +317,73 @@ class TransitionMatrixCummulativeController extends Controller
     // public function showList($matrix){
         
     // }
+
+          public function attachFile(TransitionMatrixCummulative $matrix, Request $request)
+        {
+            // Log::info('Attach file request started', [
+            //     'lgd_id' => $lgdC->id,
+            //     'has_file' => $request->hasFile('file'),
+            // ]);
+
+            $request->validate([
+                'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,jpg,png',
+            ]);
+
+            if ($matrix->is_active_or_closed === 'closed') {
+                //Log::warning('Attempt to attach file to closed LGD', ['lgd_id' => $lgdC->id]);
+                return back()->withErrors(['file' => 'Cannot attach file to a closed LGD record.']);
+            }
+
+            // Delete old documents
+            $deleted = $matrix->supportingDocuments()->delete();
+            //Log::info('Old supporting documents deleted', ['count' => $deleted]);
+
+            try {
+                $document = \App\Helpers\DocumentHelper::upload(
+                    $request->file('file'),
+                    $matrix,
+                    'pd_support'
+                );
+
+                // Log::info('File uploaded successfully', [
+                //     'document_id' => $document->id,
+                //     'path' => $document->path,
+                // ]);
+
+                return back()->with('success', 'File attached successfully.');
+
+            } catch (\Throwable $e) {
+
+                // Log::error('File upload failed', [
+                //     'error' => $e->getMessage(),
+                //     'lgd_id' => $lgdC->id,
+                // ]);
+
+                return back()->withErrors(['file' => 'Upload failed. Check logs.']);
+            }
+        }
+
+
+   public function downloadFile($id)
+    {
+        $matrix = TransitionMatrixCummulative::findOrFail($id);
+
+        $document = $lgd->supportingDocuments()
+            ->latest()
+            ->first();
+
+        if (!$document || !Storage::disk($document->disk)->exists($document->path)) {
+            return back()->with('error', 'File not found.');
+        }
+
+        return Storage::disk($document->disk)->download(
+            $document->path,
+            $document->original_name
+        );
+    }
+
+    
+
 
     public function destroy($matrix){
         $cummulative = TransitionMatrixCummulative::findOrFail($matrix);

@@ -16,7 +16,9 @@ return new class extends Migration
             $table->timestamps();
             $table->date('start_period')->index()->comment('Start period for this cumulative run');
             $table->date('end_period')->index()->comment('End period for this cumulative run');
-            $table->string('portfolio_group')->nullable()->index();
+            $table->string('pd_calculation_level'); // portfolio | sector | product_group
+            $table->unsignedBigInteger('pd_calculation_id')->nullable()->comment('ID for the calculation level');
+            $table->string('pd_calculation_code')->nullable()->comment('Code for the calculation level');
             $table->unsignedBigInteger('transition_profile_id')->comment('Profile ID');
             $table->integer('records_counted')->nullable();
             $table->decimal('transition_balance_total')->nullable()->comment('Total Balance Cummulated');
@@ -28,6 +30,7 @@ return new class extends Migration
             $table->boolean('default_flag')->nullable();
             $table->integer('run_no')->default(0);
             $table->string('status')->default('draft');
+            $table->json('supporting_file')->nullable();
             $table->string('user_name')->nullable();
             $table->softDeletes();
             $table->index('deleted_at');

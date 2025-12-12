@@ -11,19 +11,28 @@ use Exception;
 
 class TransitionMatrixCummulativeService
 {
-    public static function createCumulativeRecord($startPeriod, $endPeriod, $portfolioGroupId, $transitionProfileId)
-    {
+    public static function createCumulativeRecord($startPeriod,$endPeriod,$pdCalculationLevel,$pdCalculationId,$pdCalculationCode,$transitionProfileId)
+     {
         $startPeriod = strlen($startPeriod) === 7 ? $startPeriod . '-01' : $startPeriod;
         $endPeriod = strlen($endPeriod) === 7 ? $endPeriod . '-01' : $endPeriod;
 
         DB::beginTransaction();
         try {
             // First get all relevant TransitionMatrix records
-            $matrices = TransitionMatrix::where('transition_profile_id', $transitionProfileId)
-                ->where('portfolio_group_id', $portfolioGroupId)
+            $query = TransitionMatrix::where('transition_profile_id', $transitionProfileId)
                 ->where('status', 'Closed')
-                ->whereBetween('start_reporting_period', [$startPeriod, $endPeriod])
-                ->get();
+                ->whereBetween('start_reporting_period', [$startPeriod, $endPeriod]);
+
+            if ($pdCalculationLevel === 'portfolio') {
+                $query->where('pd_calculation_id', $pdCalculationId);
+            }
+
+            if ($pdCalculationLevel === 'sector') {
+                $query->where('pd_calculation_code', $pdCalculationCode);
+            }
+
+            $matrices = $query->get();
+
 
             if(!$matrices){
                 return back()->with('error','No closed PD monthly records');
@@ -41,11 +50,12 @@ class TransitionMatrixCummulativeService
             $matrixIds = $matrices->pluck('id');
 
             // Get the transition data for calculations
-            $rawData = TransitionMatrixData::whereIn('calculation_header_id', $matrixIds)
-                ->where('portfolio_group', $portfolioGroupId)
+           $rawData = TransitionMatrixData::whereIn('calculation_header_id', $matrixIds)
                 ->whereBetween('start_period', [$startPeriod, $endPeriod])
                 ->get();
 
+
+            // Initialize structures for calculations
             $startTotals = [];
             $defaultSums = [];
             $pdPercentages = [];
@@ -74,7 +84,9 @@ class TransitionMatrixCummulativeService
             $cumulative = TransitionMatrixCummulative::create([
                 'start_period' => $startPeriod,
                 'end_period' => $endPeriod,
-                'portfolio_group' => $portfolioGroupId,
+                'pd_calculation_level' => $pdCalculationLevel,
+                'pd_calculation_id' => $pdCalculationId,
+                'pd_calculation_code' => $pdCalculationCode,
                 'transition_profile_id' => $transitionProfileId,
                 'periods_count' => $totalPeriodsCount,
                 'calculation_source' => 'system',

@@ -213,8 +213,8 @@ public function index(Request $request)
         'total_eads' => $totalEad,
         'ecl_totals' => $elcTotals,
         'lgd_percentage' => $lgdPercentage,
-        'weighted_pd' => round($weightedPD, 2),
-        'weighted_lgd' => round($weightedLGD, 2),
+        'weighted_pd' => $weightedPD,
+        'weighted_lgd' => $weightedLGD,
         'reporting_period' => $selectedPeriodForDisplay, // Use YYYY-MM-DD for display
     ];
 

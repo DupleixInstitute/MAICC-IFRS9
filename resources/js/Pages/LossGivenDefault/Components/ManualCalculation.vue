@@ -90,27 +90,15 @@ export default {
         show: Boolean,
         startPeriod: String,
         reportingPeriod: String,
-        portfolioGroup: [String, Number],
-        defaultValues: {
-            type: Object,
-            default: () => ({
-                start_total_stage3: '',
-                end_total_stage3: '',
-                cure_amount_stage1: '',
-                cure_amount_stage2: '',
-                fully_recovered_amount: '',
-                partially_recovered_amount: '',
-                total_disbursments: '',
-                cure_rate: '',
-                recovery_rate: '',
-            }),
-        },
-        
-        isUpdate: {
-            type: Boolean,
-            default: false,
-        },
+
+        lgdCalculationLevel: String,
+        portfolioGroup: [String, Number], 
+        sectorCode: String,          
+
+        defaultValues: Object,
+        isUpdate: Boolean,
     },
+
     data() {
         return {
             mode: 'amount',
@@ -131,77 +119,67 @@ export default {
         this.fields = { ...this.defaultValues };
     },
     methods: {
-        submitManualCalculation() {
-            if (this.mode === 'amount') {
-                const requiredFields = [
-                    'start_total_stage3',
-                    'end_total_stage3',
-                    'cure_amount_stage1',
-                    'cure_amount_stage2',
-                    'partially_recovered_amount',
-                    'fully_recovered_amount',
-                    'total_disbursments',
-                ];
-
-                const isMissing = requiredFields.some(field => this.fields[field] === '' || isNaN(Number(this.fields[field])));
-
-                if (isMissing) {
-                    alert('Please fill all amount fields.');
-                    return;
-                }
-
-                const start = parseFloat(this.fields.start_total_stage3);
-                const cured = parseFloat(this.fields.cure_amount_stage1) + parseFloat(this.fields.cure_amount_stage2);
-                const recovered = (parseFloat(this.fields.partially_recovered_amount) + parseFloat(this.fields.fully_recovered_amount)) - parseFloat(this.fields.total_disbursments);
-                const disbursments = parseFloat(this.fields.total_disbursments);
-                const pAmount = parseFloat(this.fields.partially_recovered_amount);
-                const fAmount = parseFloat(this.fields.fully_recovered_amount);
-                const cureRate = start > 0 ? (cured) / start : 0;
-                const recoveryRate = start > 0 ? recovered / start : 0;
-                const lgd = (1 - cureRate) * (1 - recoveryRate);
-
-                this.$inertia.post(route('loss-given-default.storeManual'), {
-                    ...this.fields,
-                    cure_rate: cureRate,
-                    recovery_rate: recoveryRate,
-                    cured_amount: cured,
-                    recovered_amount: recovered,
-                    total_disbursments : disbursments,
-                    partially_recovered_amount : pAmount,
-                    fully_recovered_amount: fAmount,
-                    loss_given_default_percentage: lgd,
-                    mode: 'amount',
+       submitManualCalculation() {
+                const basePayload = {
                     start_period: this.startPeriod,
                     reporting_period: this.reportingPeriod,
-                    portfolio_group: this.portfolioGroup,
-                });
-            } else {
-                if (
-                    this.fields.cure_rate === '' ||
-                    this.fields.recovery_rate === '' ||
-                    isNaN(Number(this.fields.cure_rate)) ||
-                    isNaN(Number(this.fields.recovery_rate))
-                ) {
-                    alert('Please fill cure and recovery rate.');
-                    return;
+
+                    lgd_calculation_level: this.lgdCalculationLevel,
+                    lgd_calculation_id: this.lgdCalculationLevel === 'portfolio' ? this.portfolioGroup : null,
+                    lgd_calculation_code: this.lgdCalculationLevel === 'sector' ? this.sectorCode : null,
+                };
+
+                if (this.mode === 'amount') {
+
+                    const start = parseFloat(this.fields.start_total_stage3);
+                    const cured = parseFloat(this.fields.cure_amount_stage1) + parseFloat(this.fields.cure_amount_stage2);
+                    const recovered = (parseFloat(this.fields.partially_recovered_amount) + parseFloat(this.fields.fully_recovered_amount))
+                                        - parseFloat(this.fields.total_disbursments);
+
+                    const cureRate = start > 0 ? cured / start : 0;
+                    const recoveryRate = start > 0 ? recovered / start : 0;
+
+                    let lgd = (1 - cureRate) * (1 - recoveryRate);
+
+                   
+                    lgd = Math.max(0, Math.min(1, lgd));
+
+                    this.$inertia.post(route('loss-given-default.storeManual'), {
+                        ...this.fields,
+                        ...basePayload,
+
+                        cure_rate: cureRate,
+                        recovery_rate: recoveryRate,
+                        cured_amount: cured,
+                        recovered_amount: recovered,
+                        loss_given_default_percentage: lgd,
+
+                        mode: 'amount',
+                    });
+
+                } else {
+
+                    const cureRate = parseFloat(this.fields.cure_rate) / 100;
+                    const recoveryRate = parseFloat(this.fields.recovery_rate) / 100;
+
+                    let lgd = (1 - cureRate) * (1 - recoveryRate);
+
+                    lgd = Math.max(0, Math.min(1, lgd));
+
+                    this.$inertia.post(route('loss-given-default.storeManual'), {
+                        ...this.fields,
+                        ...basePayload,
+
+                        cure_rate: cureRate,
+                        recovery_rate: recoveryRate,
+                        loss_given_default_percentage: lgd,
+
+                        mode: 'percentage',
+                    });
                 }
 
-                const cureRate = parseFloat(this.fields.cure_rate) / 100;
-                const recoveryRate = parseFloat(this.fields.recovery_rate) / 100;
-                const lgd = (1 - cureRate) * (1 - recoveryRate);
-
-                this.$inertia.post(route('loss-given-default.storeManual'), {
-                    ...this.fields,
-                    loss_given_default_percentage: lgd,
-                    mode: 'percentage',
-                    start_period: this.startPeriod,
-                    reporting_period: this.reportingPeriod,
-                    portfolio_group: this.portfolioGroup,
-                });
+                this.$emit('close');
             }
-
-            this.$emit('close');
-        }
     }
 };
 </script>

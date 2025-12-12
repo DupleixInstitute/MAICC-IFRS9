@@ -47,7 +47,8 @@
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Profile Id</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio Group Id</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PD Level</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmentation </th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calculation Source</th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Period</th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Period</th>
@@ -69,7 +70,36 @@
                                     <tr v-for="matrix in cumMatrix.data" :key="matrix.id">
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.id }}</td>
                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.transition_profile_id}}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.portfolio?.name ?? '-' }}</td>
+                                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-full"
+                                                  :class="{
+                                                      'bg-blue-100 text-blue-800': matrix.pd_calculation_level === 'portfolio',
+                                                      'bg-green-100 text-green-800': matrix.pd_calculation_level === 'sector'
+                                                  }">
+                                                {{ matrix.pd_calculation_level ? matrix.pd_calculation_level.toUpperCase() : '-' }}
+                                            </span>
+                                        </td>       
+
+                                        <!-- Portfolio/Sector Name -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div v-if="matrix.pd_calculation_level === 'portfolio'">
+                                                <span v-if="matrix.portfolio">
+                                                    {{ matrix.portfolio.name }}
+                                                </span>
+                                                <span v-else class="text-gray-400">
+                                                    Portfolio ID: {{ matrix.pd_calculation_id }}
+                                                </span>
+                                            </div>
+                                            <div v-else-if="matrix.pd_calculation_level === 'sector'">
+                                                <span v-if="matrix.sector">
+                                                    {{ matrix.sector.code }} - {{ matrix.sector.name }}
+                                                </span>
+                                                <span v-else class="text-gray-400">
+                                                    Sector Code: {{ matrix.pd_calculation_code }}
+                                                </span>
+                                            </div>
+                                            <span v-else class="text-gray-400">-</span>
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(matrix.start_period) }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(matrix.end_period) }}</td>
@@ -221,6 +251,76 @@
             </div>
         </div>
 
+        <div
+            v-if="showUploadModal"
+            class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+            >
+            <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg animate-fadeIn">
+                <h2 class="text-xl font-bold mb-3 text-gray-800">
+                Attach Supporting Document
+                </h2>
+
+                <p class="text-sm text-gray-600 mb-4 leading-relaxed">
+                Upload a supporting document for this  calculation.  
+                This may include PDF reports, Excel models, or images validating the manual calculation.
+                </p>
+
+                <!-- File Upload Box -->
+                <label
+                class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 transition"
+                >
+                <div class="flex flex-col items-center pt-4">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-500"></i>
+                    <span class="mt-2 text-sm text-gray-600">Click to choose a file</span>
+                </div>
+
+                <input
+                    type="file"
+                    class="hidden"
+                    @change="handleModalFileChange"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.png"
+                />
+                </label>
+
+                <!-- File Info -->
+                <div
+                v-if="uploadFile"
+                class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800"
+                >
+                <strong>Selected File:</strong> {{ uploadFile.name }}  
+                <div class="text-xs mt-1 text-blue-600">
+                    Size: {{ Math.round(uploadFile.size / 1024) }} KB
+                </div>
+                </div>
+
+                <!-- Max Size & Accepted Formats Note -->
+                <div class="mt-3 text-xs text-gray-500">
+                <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG  
+                <br />
+                <strong>Max Size:</strong> 5 MB
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex justify-end space-x-3 mt-6">
+                <button
+                    @click="showUploadModal = false"
+                    class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    @click="submitUpload"
+                    :disabled="uploadLoading"
+                    class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                >
+                    <span v-if="uploadLoading">Uploading...</span>
+                    <span v-else>Upload</span>
+                </button>
+                </div>
+            </div>
+            </div>
+
         <HelpManual />
 
         <!-- ✅ INSERT MODAL HERE -->
@@ -286,6 +386,12 @@ export default {
         const loading = ref(null)
         const periodsModalVisible = ref(false)
         const currentPeriods = ref([])
+
+        const showUploadModal = ref(false);
+        const uploadTargetId = ref(null);
+        const uploadFile = ref(null);
+        const uploadLoading = ref(false);
+
 
 
         const showPeriods = (periods) => {
@@ -423,6 +529,53 @@ export default {
                 );
             }
         };
+
+         const openUploadModal = (id) => {
+                uploadTargetId.value = id;
+                uploadFile.value = null;
+                showUploadModal.value = true;
+            };
+
+            const handleModalFileChange = (e) => {
+                uploadFile.value = e.target.files[0];
+            };
+
+        const submitUpload = () => {
+            if (!uploadFile.value) {
+                alert('Please select a file first.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', uploadFile.value);
+
+            uploadLoading.value = true;
+
+            router.post(route('transition-matrix-cumulative.attach-file', uploadTargetId.value), formData, {
+                forceFormData: true,
+                preserveScroll: true,
+
+                onSuccess: () => {
+                    alert(' File attached successfully');
+                    showUploadModal.value = false;
+                    router.reload({ only: ['matrices'] });
+                },
+
+                onError: (errors) => {
+                    console.error(errors);
+                    alert(' Upload failed');
+                },
+
+                onFinish: () => {
+                    uploadLoading.value = false;
+                },
+            });
+        };
+
+            const downloadFile = (id) => {
+                window.location.href = `'/transition-matrix-cumulative/${id}/download-file'`;
+            };
+
         
 
                 // In your component's methods or mounted()
@@ -446,7 +599,12 @@ export default {
             selectedPeriod,
             loading,
             openLoanBookModal,
-            submitUpdate
+            submitUpdate,
+            showUploadModal,
+            downloadFile,
+            submitUpload,
+            handleModalFileChange,
+            openUploadModal,
         }
     }
 }

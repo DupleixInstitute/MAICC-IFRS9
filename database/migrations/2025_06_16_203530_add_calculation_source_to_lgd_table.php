@@ -18,7 +18,7 @@ return new class extends Migration
                 $table->decimal('total_disbursments', 18, 2)->nullable()->before('last_reporting_period'); 
                 $table->string('calculation_source')->default('system')->before('last_reporting_period'); // 'system' or 'manual'// 'system' or 'manual'
                 $table->decimal('written_offs', 18, 2)->nullable();
-                 $table->unique(['reporting_period', 'calculation_source'], 'lgd_period_calcsource_unique');
+                 //$table->unique(['reporting_period', 'calculation_source'], 'lgd_period_calcsource_unique');
             });
         }
 public function down()
@@ -45,7 +45,7 @@ public function down()
         }
 
         // Optional: drop the unique constraint if it exists
-        DB::statement('ALTER TABLE loss_given_default DROP INDEX IF EXISTS lgd_period_calcsource_unique');
+       // DB::statement('ALTER TABLE loss_given_default DROP INDEX IF EXISTS lgd_period_calcsource_unique');
     });
 }
 };

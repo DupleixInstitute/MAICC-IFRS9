@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\LoanProduct;
+use App\Models\IndustryType;
+use App\Models\ProductGroup;
 use App\Models\TransitionMatrix;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,6 +18,7 @@ use App\Models\TransitionMatrixData;
 use App\Models\TransitionProfileOption;
 use App\Services\TransitionMatrixService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class TransitionMatrixController extends Controller
 {
@@ -41,7 +44,11 @@ class TransitionMatrixController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $query = TransitionMatrix::with('transitionProfile', 'portfolio')
+        $query = TransitionMatrix::with(
+            'transitionProfile', 
+            'portfolio',
+            'sector'
+            )
             ->when($search, function($query) use ($search) {
                 $query->whereHas('transitionProfile', function($q) use ($search) {
                     $q->where('name', 'like', '%'.$search.'%');
@@ -67,20 +74,39 @@ class TransitionMatrixController extends Controller
         return Inertia::render('TransitionMatrix/Create', [
             'profiles' => TransitionProfileDefinition::select('id', 'profile_code', 'short_name')->get(),
             'portfolios' => LoanPortfolio::select('id', 'name')->get(),
+            'sectors' => IndustryType::select('id', 'code','name')->get(),
         ]);
     }
 
     public function store(Request $request)
     {
-        set_time_limit(300); // Increase max execution time for long calculations
+        \Log::info('Form data received:', $request->all());
 
-        $validated = $request->validate([
-            'transition_profile_id' => 'required|exists:transition_profile_definitions,id',
-            'portfolio_group_id' => 'required|exists:loan_portfolios,id',
-            'start_reporting_period' => 'required',
-            'end_reporting_period' => 'required|after:start_reporting_period',
-            'calculation_source' => 'required|in:manual,system',
-        ]);
+       set_time_limit(300);
+
+            $validated = $request->validate([
+                'transition_profile_id' => 'required|exists:transition_profile_definitions,id',
+                'pd_calculation_level' => 'required|in:portfolio,sector',
+                'pd_calculation_id' => [
+                    'nullable',
+                    'required_if:pd_calculation_level,portfolio',
+                    'integer',
+                    Rule::exists('loan_portfolios', 'id')->when($request->pd_calculation_level === 'portfolio', function($rule) {
+                        return $rule;
+                    })
+                ],
+                'pd_calculation_code' => [
+                    'nullable', 
+                    'required_if:pd_calculation_level,sector',
+                    'string',
+                    Rule::exists('industry_types', 'code')->when($request->pd_calculation_level === 'sector', function($rule) {
+                        return $rule;
+                    })
+                ],
+                'start_reporting_period' => 'required',
+                'end_reporting_period' => 'required',
+                'calculation_source' => 'required|in:manual,system',
+            ]);
 
         // Parse year and month
         $startPeriodParts = explode('-', $request->start_reporting_period);
@@ -113,7 +139,9 @@ class TransitionMatrixController extends Controller
             'start_reporting_period'     => $request->start_reporting_period,
             'end_reporting_period'       => $request->end_reporting_period,
             'pd_start_stage_total_type'  => $request->pd_start_stage_total_type,
-            'portfolio_group_id'         => $request->portfolio_group_id,
+            'pd_calculation_level'      => $request->pd_calculation_level,
+            'pd_calculation_id'         => $request->pd_calculation_id,
+            'pd_calculation_code'       => $request->pd_calculation_code,
             'calculation_source'         => $request->calculation_source,
             'start_year'                 => $startPeriodParts[0],
             'start_month'                => $startPeriodParts[1],
@@ -429,17 +457,27 @@ class TransitionMatrixController extends Controller
     //     return back()->with('success', 'Loan book updated successfully');
     // }
 
-        public function updateLoanBook(Request $request, TransitionMatrix $matrix)
+      public function updateLoanBook(Request $request, TransitionMatrix $matrix)
         {
             ini_set('max_execution_time', 300);
 
             $validated = $request->validate([
-                'reporting_period' => 'required|date', 
+                'reporting_period' => 'required|date',
             ]);
 
             DB::beginTransaction();
 
             try {
+
+                $scope = $matrix->pd_calculation_level;
+
+                if ($scope === 'sector') {
+                    $sector = $matrix->pd_calculation_code;
+                } elseif ($scope === 'portfolio') {
+                    $portfolio = $matrix->pd_calculation_id;
+                } else {
+                    throw new \Exception("Invalid PD calculation scope");
+                }
 
                 $pds = TransitionMatrixData::where('calculation_header_id', $matrix->id)
                     ->where('end_stage', 3)
@@ -452,98 +490,97 @@ class TransitionMatrixController extends Controller
                 }
 
                 $period = substr($validated['reporting_period'], 0, 7);
-
                 $totalUpdated = 0;
 
                 foreach ([1, 2, 3] as $stage) {
+
                     if (!isset($pds[$stage]) && $stage !== 3) {
                         continue;
                     }
 
-                    // Determine PD decimal
-                    if ($stage === 3) {
-                        $pdDecimal = 1.0; // 100% as decimal
-                    } else {
-                        $pdDecimal = $pds[$stage]->transition_probability_month / 100;
+                    $pdDecimal = ($stage === 3)
+                        ? 1.0
+                        : $pds[$stage]->transition_probability_month / 100;
+
+                    if ($scope === 'sector') {
+
+                        $affected = DB::update("
+                            UPDATE loan_books
+                            SET pd_prefli = ?
+                            WHERE reporting_period = ?
+                            AND ifrs9stage_pre_qualitative = ?
+                            AND industry_code = ?
+                        ", [
+                            $pdDecimal, $period, $stage, $sector
+                        ]);
+
+                        DB::statement("
+                            UPDATE loan_books
+                            SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
+                            WHERE reporting_period = ?
+                            AND ifrs9stage_pre_qualitative = ?
+                            AND remaining_tenor IS NOT NULL
+                            AND industry_code = ?
+                        ", [
+                            $pdDecimal, $period, $stage, $sector
+                        ]);
+
+                    } elseif ($scope === 'portfolio') {
+
+                        $affected = DB::update("
+                            UPDATE loan_books
+                            SET pd_prefli = ?
+                            WHERE reporting_period = ?
+                            AND ifrs9stage_pre_qualitative = ?
+                            AND portfolio_group = ?
+                        ", [
+                            $pdDecimal, $period, $stage, $portfolio
+                        ]);
+
+                        DB::statement("
+                            UPDATE loan_books
+                            SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
+                            WHERE reporting_period = ?
+                            AND ifrs9stage_pre_qualitative = ?
+                            AND remaining_tenor IS NOT NULL
+                            AND portfolio_group = ?
+                        ", [
+                            $pdDecimal, $period, $stage, $portfolio
+                        ]);
                     }
 
-                    //Log::channel('loan_updates')->info("Stage {$stage} - 12m PD: {$pdDecimal}");
+                    $totalUpdated += $affected ?? 0;
+                }
 
-                    // Update 12m PD first
-                    $affected = DB::update("
-                        UPDATE loan_books
-                        SET pd_prefli = ?
-                        WHERE reporting_period = ?
-                        AND ifrs9stage_pre_qualitative = ?
-                    ", [
-                        $pdDecimal,
-                        $period,
-                        $stage,
-                    ]);
-
-                  //  Log::channel('loan_updates')->info("Stage {$stage} - Updated {$affected} rows with 12m PD");
-
-                    $totalUpdated += $affected;
-
-                    //Lifetime PD update
-                    DB::statement("
-                        UPDATE loan_books
-                        SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
-                        WHERE reporting_period = ?
-                        AND ifrs9stage_pre_qualitative = ?
-                        AND remaining_tenor IS NOT NULL
-                    ", [
-                        $pdDecimal,
-                        $period,
-                        $stage,
-                    ]);
-
-                //     Log::channel('loan_updates')->info("Stage {$stage} - Lifetime PD update executed");
-                
-            }
-
-                
                 DB::commit();
 
+                // ✅ Save reporting period
                 $periodParts = explode('-', $validated['reporting_period']);
-
-                $year = (int)$periodParts[0];         // 2023
-                $month = (int)$periodParts[1];        // 12
-                $period = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01'; // 2023-12-01
+                $year  = (int)$periodParts[0];
+                $month = (int)$periodParts[1];
+                $periodDate = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01';
 
                 ReportingPeriods::updateOrCreate(
-                    ['period' => $period],
+                    ['period' => $periodDate],
                     [
-                        'reporting_year' => $year,        // integer
-                        'reporting_month' => $month,      // integer
+                        'reporting_year' => $year,
+                        'reporting_month' => $month,
                         'pd_id' => $matrix->id,
                         'pd_calculation_source' => $matrix->calculation_source,
                     ]
                 );
 
-
-                // Log::channel('loan_updates')->info('Loan Book Updated with raw SQL', [
-                //     'matrix_id' => $matrix->id,
-                //     'reporting_period' => $validated['reporting_period'],
-                //     'updated_loans' => $totalUpdated,
-                //     'user_id' => auth()->id(),
-                // ]);
-
                 return back()->with([
-                    'success' => 'Loan book PD updated successfully ',
+                    'success' => 'Loan book PD updated successfully using backend scope logic',
                     'updated_count' => $totalUpdated,
                 ]);
 
             } catch (\Exception $e) {
                 DB::rollBack();
 
-                // Log::channel('loan_updates')->error('Loan Book Update Failed', [
-                //     'error' => $e->getMessage(),
-                //     'matrix_id' => $matrix->id,
-                //     'reporting_period' => $validated['reporting_period'] ?? null,
-                // ]);
-
-                return back()->withErrors(['error' => 'Update failed: ' . $e->getMessage()]);
+                return back()->withErrors([
+                    'error' => 'Update failed: ' . $e->getMessage()
+                ]);
             }
         }
 
@@ -714,10 +751,13 @@ class TransitionMatrixController extends Controller
 
             // Check if another CLOSED record exists with the same start & end period
             $existing = TransitionMatrix::where('id', '!=', $matrix->id)
-                ->where('start_reporting_period', $matrix->start_reporting_period)
-                ->where('end_reporting_period', $matrix->end_reporting_period)
-                ->where('status', 'closed')
-                ->exists();
+                            ->where('pd_calculation_level', $matrix->pd_calculation_level)
+                            ->where('pd_calculation_id', $matrix->pd_calculation_id)
+                            ->where('pd_calculation_code', $matrix->pd_calculation_code)
+                            ->where('start_reporting_period', $matrix->start_reporting_period)
+                            ->where('end_reporting_period', $matrix->end_reporting_period)
+                            ->where('status', 'closed')
+                            ->exists();
 
             logger()->info('Auth check', [
                 'user_id' => auth()->user()?->id,
@@ -733,7 +773,7 @@ class TransitionMatrixController extends Controller
                 $matrix->status == 'closed'
                 && !auth()->user()?->hasRole('admin')
             ) {
-                return back()->with('error', 'Only an Administrator can unlock a closed LGD record');
+                return back()->with('error', 'Only an Administrator can unlock a closed PD record');
             }
 
             // Toggle status
@@ -742,5 +782,70 @@ class TransitionMatrixController extends Controller
 
             return back()->with('success', 'Probability Of Default (PD) record ' . ($matrix->status === 'closed' ? 'locked' : 'unlocked') . '.');
         }
+
+        
+          public function attachFile(TransitionMatrix $matrix, Request $request)
+        {
+            // Log::info('Attach file request started', [
+            //     'lgd_id' => $lgdC->id,
+            //     'has_file' => $request->hasFile('file'),
+            // ]);
+
+            $request->validate([
+                'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,jpg,png',
+            ]);
+
+            if ($matrix->is_active_or_closed === 'closed') {
+                //Log::warning('Attempt to attach file to closed LGD', ['lgd_id' => $lgdC->id]);
+                return back()->withErrors(['file' => 'Cannot attach file to a closed LGD record.']);
+            }
+
+            // Delete old documents
+            $deleted = $matrix->supportingDocuments()->delete();
+            //Log::info('Old supporting documents deleted', ['count' => $deleted]);
+
+            try {
+                $document = \App\Helpers\DocumentHelper::upload(
+                    $request->file('file'),
+                    $matrix,
+                    'pd_support'
+                );
+
+                // Log::info('File uploaded successfully', [
+                //     'document_id' => $document->id,
+                //     'path' => $document->path,
+                // ]);
+
+                return back()->with('success', 'File attached successfully.');
+
+            } catch (\Throwable $e) {
+
+                // Log::error('File upload failed', [
+                //     'error' => $e->getMessage(),
+                //     'lgd_id' => $lgdC->id,
+                // ]);
+
+                return back()->withErrors(['file' => 'Upload failed. Check logs.']);
+            }
+        }
+
+
+   public function downloadFile($id)
+    {
+        $lgd = TransitionMatrix::findOrFail($id);
+
+        $document = $matrix->supportingDocuments()
+            ->latest()
+            ->first();
+
+        if (!$document || !Storage::disk($document->disk)->exists($document->path)) {
+            return back()->with('error', 'File not found.');
+        }
+
+        return Storage::disk($document->disk)->download(
+            $document->path,
+            $document->original_name
+        );
+    }
 
 }

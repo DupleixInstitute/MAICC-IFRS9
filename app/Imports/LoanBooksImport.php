@@ -98,6 +98,14 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
             return is_numeric($value) && floatval($value) > 0;
         };
 
+        // Debug: Log what we're getting
+        // Log::debug('IFRS9 Classification row data:', [
+        //     '1_30_days' => $row['1_30_days'] ?? $row['1-30_days'] ?? null,
+        //     '31_90_days' => $row['31_90_days'] ?? $row['31-90_days'] ?? null,
+        //     '91_180_days' => $row['91_180_days'] ?? $row['91-180_days'] ?? null,
+        //     '181_270_days' => $row['181_270_days'] ?? $row['181-270_days'] ?? null,
+        // ]);
+
         // Check with both underscore and dash versions
         if ($clean($row['181_270_days'] ?? $row['181-270_days'] ?? null)) return '3';
         if ($clean($row['91_180_days'] ?? $row['91-180_days'] ?? null))  return '2';
@@ -105,6 +113,29 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
         if ($clean($row['1_30_days'] ?? $row['1-30_days'] ?? null))   return '1';
 
         return '1';
+    }
+
+    protected function normalizeKey($key): string
+    {
+        // First remove all quotes and trim
+        $key = trim($key, " \t\n\r\0\x0B\"'");
+        
+        // Replace multiple spaces with single space
+        $key = preg_replace('/\s+/', ' ', $key);
+        
+        // Replace special characters and spaces with underscores
+        $key = preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+        
+        // Remove multiple underscores
+        $key = preg_replace('/_+/', '_', $key);
+        
+        // Convert to lowercase
+        $key = strtolower($key);
+        
+        // Remove trailing underscores
+        $key = trim($key, '_');
+        
+        return $key;
     }
 
     public function collection(Collection $rows)
@@ -124,19 +155,21 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
 
         foreach ($rows as $index => $row) {
             try {
-                // Normalize keys: lowercase + replace spaces AND DASHES with underscores
+                // Normalize keys with the new method
                 $normalizedRow = collect($row->toArray())->mapWithKeys(function ($value, $key) {
-                    $normalizedKey = strtolower(str_replace([' ', '-'], '_', trim($key)));
+                    $normalizedKey = $this->normalizeKey($key);
                     return [$normalizedKey => $value];
                 })->toArray();
 
-                Log::info("Processing Loan row {$index}", $normalizedRow);
+                // Log::info("Processing Loan row {$index}", $normalizedRow);
+                // Log::info("Available normalized keys: " . implode(', ', array_keys($normalizedRow)));
 
-                // Determine import type - KEEPING YOUR ORIGINAL LOGIC
+                // Determine import type
                 $data = [];
                 if ($this->importType === 'legacy') {
-                    $data['customer_id']    = $normalizedRow['customer_id'] ?? $normalizedRow['customer_id'] ?? null;
-                    $data['contract_id']    = $normalizedRow['contract_id'] ?? $normalizedRow['contract_id'] ?? null;
+                    // Legacy logic
+                    $data['customer_id']    = $normalizedRow['customer_id'] ?? null;
+                    $data['contract_id']    = $normalizedRow['contract_id'] ?? null;
                     $data['name']           = $normalizedRow['name'] ?? $normalizedRow['customer_name'] ?? 'Unknown';
                     $data['value_date']     = $normalizedRow['value_date'] ?? null;
                     $data['maturity_date']  = $normalizedRow['maturity_date'] ?? null;
@@ -146,17 +179,64 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     $data['disbursed']      = $this->cleanNumber($normalizedRow['disbursed'] ?? 0);
                     $data['carrying_amount']= $this->cleanNumber($normalizedRow['carrying_amount'] ?? 0);
                     $data['product_group']  = $normalizedRow['type'] ?? null;
+                    $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
                 } else {
                     // Custom import type with mapping
+                   // Log::info("Using custom mapping", ['mapping' => $this->mapping]);
+
+                   $ignoredKeys = [
+                            'loan_portfolio_id',
+                            'reporting_period',
+                            'import_type',
+                            'mapping',
+                        ];
+                    
                     foreach ($this->mapping as $csv => $db) {
-                        $key = strtolower(str_replace([' ', '-'], '_', $csv));
-                        if ($db && isset($normalizedRow[$key])) {
-                            $data[$db] = $normalizedRow[$key];
+
+                         if (in_array($csv, $ignoredKeys)) {
+                                    continue;
+                                }
+
+                        if (!$db || $db === '') continue; // Skip empty mappings
+                        
+                        // Normalize the CSV header key
+                        $normalizedCsvKey = $this->normalizeKey($csv);
+                        
+                        // Log::debug("Looking for key", [
+                        //     'original_csv' => $csv,
+                        //     'normalized_csv' => $normalizedCsvKey,
+                        //     'database_field' => $db,
+                        //     'available_keys' => array_keys($normalizedRow),
+                        //     'has_key' => isset($normalizedRow[$normalizedCsvKey])
+                        // ]);
+                        
+                        if (isset($normalizedRow[$normalizedCsvKey])) {
+                            $data[$db] = $normalizedRow[$normalizedCsvKey];
+                            // Log::debug("Mapped successfully", [
+                            //     'csv_key' => $csv,
+                            //     'normalized_key' => $normalizedCsvKey,
+                            //     'db_field' => $db,
+                            //     'value' => $normalizedRow[$normalizedCsvKey]
+                            // ]);
+                        } else {
+                            Log::warning("Mapping key not found in row", [
+                                'csv_key' => $csv,
+                                'normalized_csv_key' => $normalizedCsvKey,
+                                'db_field' => $db,
+                                'available_keys' => array_keys($normalizedRow)
+                            ]);
                         }
                     }
                     
-                    // If mapping is empty, use direct field mapping as fallback
-                    if (empty($data)) {
+                    // Debug the mapped data
+                   // Log::info("Mapped data result", $data);
+                    
+                    // If mapping is empty or doesn't include essential fields, use direct field mapping as fallback
+                    $essentialFields = ['customer_id', 'contract_id'];
+                    $hasEssentialFields = count(array_intersect($essentialFields, array_keys($data))) === count($essentialFields);
+                    
+                    if (!$hasEssentialFields) {
+                        //Log::info("Missing essential fields, using fallback mapping");
                         $data['customer_id']    = $normalizedRow['customer_id'] ?? null;
                         $data['contract_id']    = $normalizedRow['contract_id'] ?? null;
                         $data['name']           = $normalizedRow['name'] ?? 'Unknown';
@@ -167,33 +247,35 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                         $data['interest_rate']  = $this->cleanNumber($normalizedRow['interest_rate'] ?? 0);
                         $data['disbursed']      = $this->cleanNumber($normalizedRow['disbursed'] ?? 0);
                         $data['carrying_amount']= $this->cleanNumber($normalizedRow['carrying_amount'] ?? 0);
+                        $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
+                        $data['industry_type']  = $normalizedRow['industry_type'] ?? null;
                         $data['product_group']  = $normalizedRow['type'] ?? null;
                     }
-                }
+             }
 
                 // FIX: Validate customer_id - get it from $data array
                 $customerId = $data['customer_id'] ?? null;
                 if (empty($customerId)) {
-                    throw new \Exception("customer_id missing in data array. Available keys in normalized row: " . implode(', ', array_keys($normalizedRow)));
+                    throw new \Exception("customer_id missing in data array. Available keys in data array: " . implode(', ', array_keys($data)));
                 }
 
                 $clientName = $data['name'] ?? 'Unknown';
 
                 // Create or update client
-                Log::info("Creating/updating client", [
-                    'customer_id' => $customerId,
-                    'customer_name' => $clientName
-                ]);
+                // Log::info("Creating/updating client", [
+                //     'customer_id' => $customerId,
+                //     'customer_name' => $clientName
+                // ]);
 
                 $client = Client::updateOrCreate(
                     ['customer_id' => $customerId],
                     ['name' => $clientName]
                 );
 
-                Log::info("Client created/updated", [
-                    'client_id' => $client->id,
-                    'customer_id' => $client->customer_id
-                ]);
+                // Log::info("Client created/updated", [
+                //     'client_id' => $client->id,
+                //     'customer_id' => $client->customer_id
+                // ]);
 
                 // Parse and validate dates
                 $createDate = $this->parseDate($data['value_date'] ?? null);
@@ -207,14 +289,14 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                 $remainingLife = $createCarbon->floatDiffInYears($reportingEnd);
 
                 // Handle principal fallback
-                $principal = $data['principal'] ?? 0;
-                $carryingAmount = $data['carrying_amount'] ?? 0;
+                $principal = $this->cleanNumber($data['principal'] ?? 0);
+                $carryingAmount = $this->cleanNumber($data['carrying_amount'] ?? 0);
                 if ($principal == 0 && $carryingAmount > 0) {
                     $principal = $carryingAmount;
                 }
 
-                // Build bulk insert
-                $bulkInsert[] = [
+                // Build bulk insert - ensure industry_code is included
+                $loanData = [
                     'customer_id'                 => $client->id,
                     'customer_name'               => $data['name'] ?? '',
                     'loan_portfolio_id'           => $portfolioId,
@@ -222,14 +304,15 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     'reporting_year'              => $year,
                     'reporting_month'             => $month,
                     'contract_id'                 => $data['contract_id'] ?? null,
+                    'industry_code'               => $data['industry_code'] ?? null, // This should now be populated
                     'product_group'               => $data['product_group'] ?? null,
                     'create_date'                 => $createDate,
                     'due_date'                    => $dueDate,
                     'tenor'                       => $data['tenor'] ?? null,
-                    'interest_rate'               => $data['interest_rate'] ?? 0,
+                    'interest_rate'               => $this->cleanNumber($data['interest_rate'] ?? 0),
                     'remaining_tenor'             => $remainingLife ?? 0,
                     'principal_balance'           => $principal,
-                    'disbursed'                   => $data['disbursed'] ?? 0,
+                    'disbursed'                   => $this->cleanNumber($data['disbursed'] ?? 0),
                     'carrying_amount'             => $carryingAmount,
                     'ifrs9stage_pre_qualitative'  => $this->classifyIFRS9Stage($normalizedRow),
                     'ifrs9stage_post_qualitative' => $this->classifyIFRS9Stage($normalizedRow),
@@ -237,12 +320,22 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     'updated_at'                  => now(),
                 ];
 
+                // Log the loan data to verify industry_code
+                Log::info("Prepared loan data for insert", [
+                    'customer_name' => $data['name'] ?? '',
+                    'industry_code' => $loanData['industry_code'],
+                    'all_data_keys' => array_keys($data)
+                ]);
+
+                $bulkInsert[] = $loanData;
+
                 $inserted++;
-                Log::info("Successfully processed row {$index} for customer: {$clientName}");
+                //Log::info("Successfully processed row {$index} for customer: {$clientName}");
 
             } catch (\Exception $e) {
-                Log::error("Error processing row {$index}: " . $e->getMessage());
-                $this->appendExceptionRow($normalizedRow, $e->getMessage());
+                //Log::error("Error processing row {$index}: " . $e->getMessage());
+                //Log::error("Row data: " . json_encode($row->toArray()));
+                $this->appendExceptionRow($row->toArray(), $e->getMessage());
                 $exceptions++;
             }
         }
@@ -264,13 +357,14 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                             'due_date', 
                             'ifrs9stage_pre_qualitative', 
                             'ifrs9stage_post_qualitative', 
-                            'updated_at'
+                            'updated_at',
+                            'industry_code' // Make sure industry_code is included in update
                         ]
                     );
                 }
                 Log::info("Successfully upserted {$inserted} records");
             } catch (\Exception $e) {
-                Log::error("Bulk insert failed: " . $e->getMessage());
+                //Log::error("Bulk insert failed: " . $e->getMessage());
             }
         }
 

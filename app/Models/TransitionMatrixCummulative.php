@@ -16,7 +16,9 @@ class TransitionMatrixCummulative extends Model
     protected $fillable = [
         'start_period',
         'end_period',
-        'portfolio_group',
+        'pd_calculation_level',
+        'pd_calculation_id',
+        'pd_calculation_code',
         'transition_profile_id',
         'records_counted',
         'periods_count',
@@ -35,7 +37,12 @@ class TransitionMatrixCummulative extends Model
 
     public function portfolio()
         {
-            return $this->belongsTo(LoanPortfolio::class, 'portfolio_group');
+            return $this->belongsTo(LoanPortfolio::class, 'pd_calculation_id');
+        }
+
+    public function sector()
+        {
+            return $this->belongsTo(IndustryType::class, 'pd_calculation_code', 'code');
         }
 
     public function transitionProfile()

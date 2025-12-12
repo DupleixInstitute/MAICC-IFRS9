@@ -20,8 +20,8 @@
                 <table class="w-full whitespace-no-wrap">
                     <thead class="bg-gray-50">
                     <tr class="text-left font-bold">
+                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Code</th>
                         <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Description</th>
                         <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Action</th>
                     </tr>
                     </thead>

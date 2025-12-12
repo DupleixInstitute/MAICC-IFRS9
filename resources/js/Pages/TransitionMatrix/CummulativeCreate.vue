@@ -69,16 +69,46 @@
                                 <jet-input-error :message="form.errors.description" class="mt-2" />
                             </div> -->
 
-                            <!-- Portfolio Group -->
+                         <!-- PD Calculation Level -->
                             <div>
-                                <jet-label for="portfolio_group_id" value="Portfolio Group" />
-                                <select v-model="form.portfolio_group" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <jet-label value="PD Calculation Level" />
+                                <select v-model="form.pd_calculation_level"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="">Select Level</option>
+                                    <option value="portfolio">Portfolio</option>
+                                    <option value="sector">Sector</option>
+                                </select>
+                                <jet-input-error :message="form.errors.pd_calculation_level" class="mt-2" />
+                            </div>
+
+                            <!-- Calculation Level -->
+                            <div v-if="form.pd_calculation_level">
+                                <jet-label value="PD Element" />
+
+                                <!-- Portfolio -->
+                                <select v-if="form.pd_calculation_level === 'portfolio'"
+                                    v-model="form.pd_calculation_id"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
                                     <option value="">Select Portfolio</option>
-                                    <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
-                                        {{ portfolio.name }}
+                                    <option v-for="item in portfolios" :key="item.id" :value="item.id">
+                                        {{ item.name }}
                                     </option>
                                 </select>
-                                <jet-input-error :message="form.errors.portfolio_group" class="mt-2" />
+
+
+                                <!-- Sector -->
+                                <select v-if="form.pd_calculation_level === 'sector'"
+                                    v-model="form.pd_calculation_code"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                                    <option value="">Select Sector</option>
+                                    <option v-for="item in sectors" :key="item.code" :value="item.code">
+                                        {{ item.code }} - {{ item.name }}
+                                    </option>
+                                </select>
+
+                               <jet-input-error :message="form.errors.pd_calculation_level === 'sector' 
+                               ? form.errors.pd_calculation_code  : form.errors.pd_calculation_id"  class="mt-2" />
+
                             </div>
 
                             <!-- Calculation Source -->
@@ -163,12 +193,20 @@ export default {
         portfolios: {
             type: Array,
             required: true
+        },
+        sectors: {
+            type: Array,
+            required: true
         }
+
     },
 
     setup() {
         const form = useForm({
-            transition_profile_id: '',
+            transition_profile_id: '',      
+            pd_calculation_level: '',
+            pd_calculation_id: null,
+            pd_calculation_code: null,
             start_period: '',
             end_period: '',
             //description: '',

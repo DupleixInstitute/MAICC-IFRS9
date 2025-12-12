@@ -175,30 +175,10 @@ return [
              [
             'name' => 'Transition Profiles',
             'icon' => 'check',
-            'route' => '',
+            'route' => 'transition-profiles.index',
             'permissions' => 'loans.products.index',
-            'dropdown' => true,
-            'children' => [
-                [
-                    'name' => 'View Transition Profiles',
-                    'icon' => 'circle',
-                    'route' => 'transition-profiles.index',
-                    'permissions' => 'loans.products.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Create Transition Profiles',
-                    'icon' => 'circle',
-                    'route' => 'transition-profiles.create',
-                    'route_check' => 'transition-profiles.create',
-                    'permissions' => 'transition-profiles.create',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-            ],
+            'dropdown' => false,
+            'children' => [],
             'order' => 4,
         ],
 

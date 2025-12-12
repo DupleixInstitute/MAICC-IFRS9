@@ -16,18 +16,35 @@ class MacroStatsValueController extends Controller
     /**
      * Display macro stat values for a specific definition.
      */
-public function index(MacroStatsDefinition $stat)
+ public function index(Request $request, MacroStatsDefinition $stat)
 {
-    $stat->load([
-        'values' => fn($q) => $q->orderBy('period')->with(['creator', 'scenario']),
-    ]);
-
     $profiles = ScenarioProfiles::with('scenarios')->get();
+
+    $query = MacroStatsValue::where('macro_stat_definition_id', $stat->id)
+                ->with(['creator', 'scenario'])
+                ->orderBy('period', 'desc');
+
+    // Optional: apply filters if sent via request
+    if ($request->filled('scenario_id')) {
+        $query->where('scenario_id', $request->scenario_id);
+    }
+
+    if ($request->filled('is_forecast')) {
+        $query->where('is_forecast', $request->is_forecast);
+    }
+
+    if ($request->filled('period')) {
+        $query->where('period', 'like', $request->period . '%');
+    }
+
+    // Paginate 10 per page and preserve query string
+    $values = $query->paginate(10)->withQueryString();
 
     return Inertia::render('FLI/MacroStats/MacroValue', [
         'statistic' => $stat,
-        'values' => $stat->values,
-        'profiles' => $profiles, 
+        'values' => $values,
+        'profiles' => $profiles,
+        'filters' => $request->only(['scenario_id', 'is_forecast', 'period']),
     ]);
 }
 

@@ -237,12 +237,15 @@ export default {
             const commonMappings = {
 
                 'customer_id': 'customer_id', 'customer id': 'customer_id', 'id': 'customer_id', 'Client ID': 'customer_id', 'Customer ID': 'customer_id',
-                'public_name': 'Customer_name', 'Name': 'customer_name', 'borrower_name': 'customer_name', 'Customer Name': 'customer_name',
+                'public_name': 'Customer_name', 'Name': 'customer_name', 'borrower_name': 'customer_name', 'Customer Name': 'customer_name','name': 'customer_name',
                 'Contract ID': 'contract_id', 'contract id': 'contract_id', 'loan_id': 'contract_id', 'loan id': 'contract_id', 'contract_id': 'contract_id',
                 'type': 'loan_type', 'loan_type': 'loan_type',
-                'value date': 'create_date', 'Value Date': 'create_date',
+                'value date': 'create_date', 'Value Date': 'create_date', 'value_date': 'value_date',
+                'industry_code':'industry_code', 'Industry Code': 'industry_code', 'IndustryCode': 'industry_code', 'Segmentation Code': 'industry_code', 'Sector Code': 'industry_code',
+                'industry_type':'industry_type', 'Industry Type': 'industry_type', 'IndustryType': 'industry_type', 'Segmentation': 'industry_type', 'Sector': 'industry_type', 'Sector Name': 'industry_code',
                 'disbursed': 'disbursement_date', 'disbursement_date': 'disbursement_date',
-                'maturity date': 'maturity_date', 'maturity_date': 'maturity_date','Maturity Date': 'maturity_date', 'Maturity': 'due_date','Due Date': 'due_date',
+                'Value Date': 'create_date', 'value_date': 'create_date','ValueDate': 'create_date', 'Value Period': 'create_date','Create Date': 'create_date','create_date': 'create_date',
+                'maturity date': 'due_date', 'maturity_date': 'due_date','Maturity Date': 'due_date', 'Maturity': 'due_date','Due Date': 'due_date',
                 'tenor': 'tenor', 'Tenor': 'tenor',
                 'moratorium': 'moratorium', 'Moratorium Period': 'moratorium',
                 'interest rate': 'interest_rate', 'rate': 'interest_rate', 'Interest Rate': 'interest_rate','interest_rate': 'interest_rate',
