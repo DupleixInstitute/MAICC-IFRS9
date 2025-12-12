@@ -532,7 +532,7 @@ class TransitionMatrixController extends Controller
                             SET pd_prefli = ?
                             WHERE reporting_period = ?
                             AND ifrs9stage_pre_qualitative = ?
-                            AND portfolio_group = ?
+                            AND loan_portfolio_id  = ?
                         ", [
                             $pdDecimal, $period, $stage, $portfolio
                         ]);
@@ -543,7 +543,7 @@ class TransitionMatrixController extends Controller
                             WHERE reporting_period = ?
                             AND ifrs9stage_pre_qualitative = ?
                             AND remaining_tenor IS NOT NULL
-                            AND portfolio_group = ?
+                            AND loan_portfolio_id  = ?
                         ", [
                             $pdDecimal, $period, $stage, $portfolio
                         ]);

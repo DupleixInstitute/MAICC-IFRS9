@@ -319,7 +319,7 @@ class LossGivenDefaultCummulativeController extends Controller
                                 collection_lgd = ?,
                                 lgd_value = COALESCE(customer_lgd, ?) * ?
                             WHERE LEFT(reporting_period, 7) = ?
-                            AND portfolio_group = ?
+                            AND loan_portfolio_id  = ?
                         ", [
                             $collectionLgd, 1, $collectionLgd,
                             $period, $lgd->lgd_calculation_id
@@ -348,7 +348,7 @@ class LossGivenDefaultCummulativeController extends Controller
                                     collection_lgd = ?,
                                     lgd_value = ?
                                 WHERE LEFT(reporting_period, 7) = ?
-                                AND portfolio_group = ?
+                                AND loan_portfolio_id  = ?
                             ", [
                                 $collectionLgd, $collectionLgd,
                                 $period, $lgd->lgd_calculation_id

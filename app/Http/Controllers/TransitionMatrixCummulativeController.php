@@ -138,7 +138,7 @@ class TransitionMatrixCummulativeController extends Controller
                         $scopeBindings = [];
 
                         if ($scope === 'portfolio') {
-                            $scopeSql = " AND portfolio_group = ?";
+                            $scopeSql = " AND loan_portfolio_id  = ?";
                             $scopeBindings[] = $matrix->pd_calculation_id;
                         }
 
