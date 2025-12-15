@@ -3,7 +3,7 @@
             <template #header>
                  <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Loss Given Default Periods
+                Loss Given Default Monthly Probability
                  <HelpManual />
             </h2>
             

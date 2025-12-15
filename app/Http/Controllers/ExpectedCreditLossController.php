@@ -247,16 +247,24 @@ class ExpectedCreditLossController extends Controller
             $exportable = [
                 'contract_id',
                 'carrying_amount',
-                'pd_value_used',
-                'lgd_value_used',
+                'pd_value',
+                'lgd_value',
                 'ecl_value',
                 'ifrs9stage_pre_qualitative',
+                'ifrs9stage_post_qualitative',
                 'reporting_period',
-                'external_identity_id',
+                'customer_name',
                 'create_date',
                 'due_date',
-                'contract_status',
-                'overdue_days'
+                'remaining_tenor',
+                'industry_code',
+                'collateral_id',
+                'collection_lgd',
+                'customer_lgd',
+                'pd_prefli',
+                'pd_post_fli',
+                'fli_adj',
+
             ];
 
             // Validate request

@@ -211,6 +211,15 @@ return [
                     'children' => [],
                     'order' => 1,
                 ],
+                [
+                    'name' => 'Internal Grades',
+                    'icon' => 'circle',
+                    'route' => 'internal-grading.profiles',
+                    'permissions' => 'internal-grading.profiles',
+                    'dropdown' => false,
+                    'children' => [],
+                    'order' => 2,
+                ],
 
             ],
             'order' => 1,

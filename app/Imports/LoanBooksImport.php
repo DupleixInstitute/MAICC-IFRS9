@@ -180,6 +180,7 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     $data['carrying_amount']= $this->cleanNumber($normalizedRow['carrying_amount'] ?? 0);
                     $data['product_group']  = $normalizedRow['type'] ?? null;
                     $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
+                    $data['internal_grade_code']  = $normalizedRow['internal_grade_code'] ?? null;
                 } else {
                     // Custom import type with mapping
                    // Log::info("Using custom mapping", ['mapping' => $this->mapping]);
@@ -249,6 +250,7 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                         $data['carrying_amount']= $this->cleanNumber($normalizedRow['carrying_amount'] ?? 0);
                         $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
                         $data['industry_type']  = $normalizedRow['industry_type'] ?? null;
+                        $data['internal_grade_code']  = $normalizedRow['internal_grade'] ?? null;
                         $data['product_group']  = $normalizedRow['type'] ?? null;
                     }
              }
@@ -304,7 +306,9 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     'reporting_year'              => $year,
                     'reporting_month'             => $month,
                     'contract_id'                 => $data['contract_id'] ?? null,
-                    'industry_code'               => $data['industry_code'] ?? null, // This should now be populated
+                    'industry_code'               => $data['industry_code'] ?? null,
+                    'industry_type'               => $data['industry_type'] ?? null,
+                    'internal_grade_code'         => $data['internal_grade_code'] ?? null, 
                     'product_group'               => $data['product_group'] ?? null,
                     'create_date'                 => $createDate,
                     'due_date'                    => $dueDate,

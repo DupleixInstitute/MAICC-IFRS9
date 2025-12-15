@@ -19,6 +19,8 @@ class ReportingPeriods extends Model
         'lgd_calculation_source',
         'pd_id',
         'pd_calculation_source',
+        'internal_grade_profile_id',
+        'internal_grade_calculation_time',
         'ecl_calculated',
         'ecl_calculation_time',
         'ecl_calculation_level',

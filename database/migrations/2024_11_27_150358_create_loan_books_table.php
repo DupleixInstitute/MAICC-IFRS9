@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('reporting_period', 6)->index(); // YYYYMM format
             $table->date('create_date');
             $table->date('due_date');
+            $table->string('internal_grade_code')->nullable();
             $table->string('industry_code')->nullable();
             $table->string('industry_type')->nullable();
             $table->integer('overdue_days')->default(0);

@@ -2,7 +2,7 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Create Transition Matrix
+                Create Transition Matrix Monthly Probability
             </h2>
         </template>
 
@@ -84,9 +84,7 @@
 
                             <!-- Calculation Level -->
                             <div v-if="form.pd_calculation_level">
-                                <jet-label value="PD Element" />
-                                <jet-label :value="selectedLevelLabel" />
-
+                                <jet-label for="pd_calculation_id" value="Portfolio Group" />
                                 <!-- Portfolio -->
                                 <select v-if="form.pd_calculation_level === 'portfolio'"
                                     v-model="form.pd_calculation_id"
@@ -99,6 +97,7 @@
 
 
                                 <!-- Sector -->
+                                <jet-label for="lgd_calculation_code" value="Sector" />
                                 <select v-if="form.pd_calculation_level === 'sector'"
                                     v-model="form.pd_calculation_code"
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">

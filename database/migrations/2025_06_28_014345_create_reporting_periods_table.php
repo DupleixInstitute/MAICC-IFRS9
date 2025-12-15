@@ -19,6 +19,8 @@ return new class extends Migration
             $table->integer('pd_id')->nullable();
             $table->string('pd_calculation_source')->nullable(); 
             $table->time('pd_calculation_time')->nullable();
+            $table->integer('internal_grade_profile_id')->nullable();
+            $table->time('internal_grade_calculation_time')->nullable();
             $table->string('ecl_calculation_level')->nullable();
             $table->unsignedBigInteger('ecl_calculation_id')->nullable()->comment('ID corresponding to the level of ECL calculation');
             $table->string('ecl_calculation_code')->nullable()->comment('ECL corresponding to the level of ECL calculation');

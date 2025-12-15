@@ -12,6 +12,7 @@ use App\Http\Controllers\CreditLossDataController;
 use App\Http\Controllers\CreditLossDefinitionController;
 use App\Http\Controllers\RegressionController;
 use App\Http\Controllers\ManualForecastController;
+use App\Http\Controllers\InternalGradingController;
 use Inertia\Inertia;
 use App\Http\Controllers\ImportsController;
 use App\Http\Controllers\GeneralImportController;
@@ -1092,3 +1093,34 @@ Route::prefix('forecasting')->group(function () {
     Route::post('/manual-forecast/process', [ManualForecastController::class, 'process'])->name('forecasting.manual.process');
 });
 });
+
+
+    Route::middleware(['auth', 'verified'])->group(function () {
+
+        // Profiles
+        Route::get('/internal-grading', [InternalGradingController::class, 'profiles'])
+            ->name('internal-grading.profiles');
+
+        Route::post('/internal-grading/profile', [InternalGradingController::class, 'storeProfile'])
+            ->name('internal-grading.profile.store');
+
+        // Grades + PD Curves per profile
+        Route::get('/internal-grading/{profile}', [InternalGradingController::class, 'index'])
+            ->name('internal-grading.grades');
+
+        Route::post('/internal-grading/{profile}/grade', [InternalGradingController::class, 'storeGrade'])
+            ->name('internal-grading.grade.store');
+        
+        Route::put('/internal-grading/{profile}/grade/{grade}', [InternalGradingController::class, 'updateGrade'])
+            ->name('internal-grading.grade.update');
+
+        
+        Route::get( '/internal-grading/{profile}/matrix', [InternalGradingController::class, 'matrix'])
+            ->name('internal-grading.matrix.view');
+
+        Route::put('/internal-grading/{profile}/toggle',[InternalGradingController::class, 'toggle'])
+            ->name('internal-grading.profile.toggle');
+
+        Route::post( '/internal-grading/loanbook/update-with-pd', [InternalGradingController::class, 'updateLoanBookWithPD'])
+            ->name('internal-grading.loanbook.updateWithPD');
+        });

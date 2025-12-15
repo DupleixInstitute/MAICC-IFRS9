@@ -166,18 +166,22 @@
                                 </button>
                                 </div>
                             <div class="grid grid-cols-2 gap-2">
-                                <label><input type="checkbox" value="external_identity_id" v-model="selectedColumns"> External ID</label>
+                                <label><input type="checkbox" value="customer_name" v-model="selectedColumns"> Customer Name</label>
                                 <label><input type="checkbox" value="contract_id" v-model="selectedColumns"> Contract ID</label>
-                                <label><input type="checkbox" value="principal_balance" v-model="selectedColumns"> Principal Balance</label>
+                                <label><input type="checkbox" value="carrying_amount" v-model="selectedColumns"> Balance</label>
                                 <label><input type="checkbox" value="pd_value" v-model="selectedColumns"> PD</label>
                                 <label><input type="checkbox" value="lgd_value" v-model="selectedColumns"> LGD</label>
                                 <label><input type="checkbox" value="ecl_value" v-model="selectedColumns"> ECL</label>
-                                <label><input type="checkbox" value="calculated_ifrs9_stage" v-model="selectedColumns"> Stage</label>
+                                <label><input type="checkbox" value="ifrs9stage_pre_qualitative" v-model="selectedColumns"> Stage (Pre-Q)</label>
+                                <label><input type="checkbox" value="ifrs9stage_post_qualitative" v-model="selectedColumns"> Stage (Post-Q)</label>
                                 <label><input type="checkbox" value="reporting_period" v-model="selectedColumns"> Reporting Period</label>
                                 <label><input type="checkbox" value="create_date" v-model="selectedColumns"> Create Date</label>
                                 <label><input type="checkbox" value="due_date" v-model="selectedColumns"> Due Date</label>
-                                <label><input type="checkbox" value="contract_status" v-model="selectedColumns"> Contract Status</label>
-                                <label><input type="checkbox" value="contract_status" v-model="selectedColumns">Overdue Days</label>
+                                <label><input type="checkbox" value="remaining_tenor" v-model="selectedColumns"> Remaining Tenor</label>
+                                <label><input type="checkbox" value="industry_code" v-model="selectedColumns">Industry Code</label>
+                                <label><input type="checkbox" value="collection_lgd" v-model="selectedColumns">Collection LGD</label>
+                                <label><input type="checkbox" value="customer_lgd" v-model="selectedColumns">Customer LGD</label>
+                                <label><input type="checkbox" value="fli_adj" v-model="selectedColumns">FLI Adjustment</label>
                             </div>
                         </div>
 
@@ -225,17 +229,24 @@ import HelpManual from '../../Components/HelpManual.vue';
         ];
         const allColumns = [
             'contract_id',
-            'principal_balance',
+            'carrying_amount',
             'pd_value',
             'lgd_value',
             'ecl_value',
-            'calculated_ifrs9_stage',
+            'ifrs9stage_post_qualitative',
+            'ifrs9stage_pre_qualitative',
             'reporting_period',
-            'external_identity_id', 
+            'customer_name', 
+            'collateral_id',
             'create_date',
-            'due_date', 
-            'contract_status',
-            'overdue_days',
+            'due_date',
+            'remaining_tenor',
+            'industry_code',
+            'collection_lgd',
+            'customer_lgd',
+            'pd_prefli',    
+            'pd_post_fli',
+            'fli_adj',
             ];
 
 
