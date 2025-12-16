@@ -71,7 +71,6 @@ class InternalGradingController extends Controller
             'grade_code' => [
                 'required',
                 'string',
-                'max:10',
                 Rule::unique('internal_grade_mappings')
                     ->where('profile_id', $profile->id),
             ],
@@ -81,9 +80,9 @@ class InternalGradingController extends Controller
             'lower_bound' => 'nullable|numeric',
             'upper_bound' => 'nullable|numeric',
 
-            'tenor_pds' => 'required|array|min:1',
-            'tenor_pds.*.tenor_years'     => 'required|integer|min:1',
-            'tenor_pds.*.pd_probability'  => 'required|numeric|min:0|max:1',
+            'tenor_pds' => 'required|array',
+            'tenor_pds.*.tenor_years'     => 'required|integer',
+            'tenor_pds.*.pd_probability'  => 'required|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($request, $profile) {
@@ -123,7 +122,6 @@ class InternalGradingController extends Controller
             'grade_code' => [
                 'required',
                 'string',
-                'max:10',
                 Rule::unique('internal_grade_mappings')
                     ->where('profile_id', $profile->id)
                     ->ignore($grade->id),
@@ -329,11 +327,11 @@ class InternalGradingController extends Controller
                         }
                     }
                     else {
-                        Log::warning('NO GRADE MAPPING FOR STAGE 1/2', [
-                            'loan_id' => $loan->id,
-                            'stage' => $stage,
-                            'grade_code' => $loan->internal_grade_code,
-                        ]);
+                        // Log::warning('NO GRADE MAPPING FOR STAGE 1/2', [
+                        //     'loan_id' => $loan->id,
+                        //     'stage' => $stage,
+                        //     'grade_code' => $loan->internal_grade_code,
+                        // ]);
                     }
 
                     $oldPd = $loan->pd_prefli;
@@ -343,11 +341,11 @@ class InternalGradingController extends Controller
                         //'internal_grade_profile_id' => $profile->id,
                     ]);
 
-                    Log::info('PD UPDATED', [
-                        'loan_id' => $loan->id,
-                        'old_pd' => $oldPd,
-                        'new_pd' => $pd,
-                    ]);
+                    // Log::info('PD UPDATED', [
+                    //     'loan_id' => $loan->id,
+                    //     'old_pd' => $oldPd,
+                    //     'new_pd' => $pd,
+                    // ]);
 
                     // 🚨 Hard guard for IFRS 9
                     if ($stage === '3' && $pd !== 1.0) {
@@ -360,6 +358,18 @@ class InternalGradingController extends Controller
                     $rowsUpdated++;
                 }
             });
+
+            
+            AuditLoggerService::log(
+                    action: 'Internal Grade Loan Book Update',
+                    entityType: 'LoanBook',
+                    entityId: $profile->id,
+                    data: [
+                        'scope' => $scope,
+                        'reporting_period' => $period,
+                        'meta' => ['rows_affected' => $rowsUpdated, 'profile_id' => $profile->id]
+                    ]
+                );
 
             $timeTaken = round((microtime(true) - $startTime) / 60, 2);
 

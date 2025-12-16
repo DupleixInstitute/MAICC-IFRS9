@@ -4,7 +4,9 @@
       
       <!-- Header -->
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-medium text-gray-900">Add Internal Grade</h2>
+       <h2 class="text-lg font-medium text-gray-900">
+          {{ grade ? 'Edit Internal Grade' : 'Add Internal Grade' }}
+        </h2>
         <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700">&times;</button>
       </div>
 
@@ -28,7 +30,7 @@
           <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mt-2">
             <div v-for="year in maxTenor" :key="year">
               <label class="block text-xs text-gray-600 mb-1">Year {{ year }}</label>
-              <input type="number" step="0.01" min="0" max="1"
+              <input type="number" step="0.01" min="0" max="100"
                 v-model.number="form.probabilities[year-1]"
                 class="block w-full border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
@@ -41,7 +43,7 @@
             class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
             Reset
           </button>
-          <button @click="saveGrade" :disabled="processing" type="button"
+          <button @click="saveGrade" type="button"
             class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
             <span v-if="processing" class="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
             Save Grade
@@ -61,7 +63,11 @@ import { router } from '@inertiajs/vue3'
 // Props
 const props = defineProps({
   show: Boolean,
-  profile: Object
+  profile: Object,
+  grade: {
+    type: Object,
+    default: null, // null = create, object = edit
+  }
 })
 
 // Emits
@@ -84,41 +90,67 @@ const initializeProbabilities = () => {
   form.probabilities = Array(maxTenor.value).fill(0)
 }
 
-watch(() => props.show, (val) => {
-  if (val) initializeProbabilities()
-}, { immediate: true })
+watch(
+  () => props.grade,
+  (grade) => {
+    if (!grade) return
+
+    form.grade_code = grade.grade_code
+    form.grade_name = grade.grade_name
+
+    // Map tenor_pds → probabilities
+    form.probabilities = Array(maxTenor.value).fill(0)
+    grade.tenor_pds.forEach(pd => {
+      form.probabilities[pd.tenor_years - 1] = pd.pd_probability * 100
+    })
+  },
+  { immediate: true }
+)
+
 
 // Reset form
 function resetForm() {
   form.grade_code = ''
   form.grade_name = ''
-  initializeProbabilities()
+  form.probabilities = Array(maxTenor.value).fill(0)
 }
+
 
 // Save grade using Inertia router post (like Manual Forecast page)
 function saveGrade() {
   processing.value = true
 
-  // Map probabilities to tenor_pds
   const payload = {
     grade_code: form.grade_code,
     grade_name: form.grade_name,
     tenor_pds: form.probabilities.map((pd, index) => ({
       tenor_years: index + 1,
-      pd_probability: pd
+      pd_probability: pd / 100
     })),
   }
 
-  router.post(route('internal-grading.grade.store', { profile: props.profile.id }), payload, {
-    onSuccess: () => {
-      emit('saved')
-      emit('close')
-      resetForm()
-      processing.value = false
-    },
-    onError: () => {
-      processing.value = false
-    }
+  const request = props.grade
+    ? router.put(
+        route('internal-grading.grade.update', {
+          profile: props.profile.id,
+          grade: props.grade.id,
+        }),
+        payload
+      )
+    : router.post(
+        route('internal-grading.grade.store', {
+          profile: props.profile.id,
+        }),
+        payload
+      )
+
+  request.then(() => {
+    emit('saved')
+    emit('close')
+    resetForm()
+    processing.value = false
+  }).catch(() => {
+    processing.value = false
   })
 }
 

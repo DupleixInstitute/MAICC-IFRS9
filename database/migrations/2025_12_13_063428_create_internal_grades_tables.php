@@ -26,11 +26,11 @@ public function up(): void
     // 2. internal_grade_mappings (Defining the core grades: a, b, c)
     Schema::create('internal_grade_mappings', function (Blueprint $table) {
         $table->id();
-        $table->integer('profile_id'); // FK to internal_grades_profiles if needed
-        $table->string('grade_code')->unique(); // e.g., 'A', 'B', 'C'
-        $table->string('grade_name')->unique(); 
-        $table->integer('upper_bound')->nullable(); // e.g., '1'
-        $table->integer('lower_bound')->nullable(); // e.g., '20
+        $table->integer('profile_id'); 
+        $table->string('grade_code')->unique();
+        $table->string('grade_name')->nullable(); 
+        $table->integer('upper_bound')->nullable();
+        $table->integer('lower_bound')->nullable();
         // You might still want to keep other relevant S&P/RBM/Ageing data here
         $table->string('rbm_class')->nullable(); 
         $table->string('sp_rating')->nullable();

@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 
-class AuditLogger
+class AuditLoggerService
 {
     public static function log(
         string $action,

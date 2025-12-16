@@ -14,6 +14,7 @@ class AuditLog extends Model
         'entity_id',
         'scope',
         'reporting_period',
+        'rows_affected',
         'old_values',
         'new_values',
         'meta',
