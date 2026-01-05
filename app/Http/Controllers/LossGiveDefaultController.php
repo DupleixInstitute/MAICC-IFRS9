@@ -624,6 +624,17 @@ class LossGiveDefaultController extends Controller
                 }
             }
 
+            AuditLoggerService::log(
+                    action: 'LGD Monthly Loan Book Update',
+                    entityType: 'LoanBook',
+                    entityId: $lgd->id,
+                    data: [
+                        'scope' => $scope,
+                        'reporting_period' => $period,
+                        'meta' => ['rows_affected' => $rowsUpdated, 'profile_id' => $profile->id]
+                    ]
+                );
+
             $timeTaken = round((microtime(true) - $startTime) / 60, 2);
 
             // ✅ REPORTING PERIOD SAVE

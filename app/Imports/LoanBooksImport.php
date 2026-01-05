@@ -107,7 +107,7 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
         // ]);
 
         // Check with both underscore and dash versions
-        if ($clean($row['181_270_days'] ?? $row['181-270_days'] ?? null)) return '3';
+        if ($clean($row['271_360_days'] ?? $row['271-360_days'] ?? null)) return '3';
         if ($clean($row['181_270_days'] ?? $row['181-270_days'] ?? null)) return '3';
         if ($clean($row['91_180_days'] ?? $row['91-180_days'] ?? null))  return '2';
         if ($clean($row['31_90_days'] ?? $row['31-90_days'] ?? null))  return '2';

@@ -177,6 +177,18 @@ class TransitionMatrixCummulativeController extends Controller
 
                     DB::commit();
 
+                    AuditLoggerService::log(
+                        action: 'PD Cummulative  Loan Book Update',
+                        entityType: 'LoanBook',
+                        entityId: $matrix->id,
+                        data: [
+                            'scope' => $scope,
+                            'reporting_period' => $period,
+                            'meta' => ['rows_affected' => $totalUpdated, 'profile_id' => $matrix->id]
+                        ]
+                    );
+
+
                     $periodParts = explode('-', $validated['reporting_period']);
                     $year  = (int)$periodParts[0];
                     $month = (int)$periodParts[1];

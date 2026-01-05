@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use App\Models\TransitionProfileDefinition;
+use App\Services\AuditLoggerService;
 use App\Models\LoanPortfolio;
 use App\Models\LoanBook;
 use App\Models\ReportingPeriods;
@@ -553,6 +554,17 @@ class TransitionMatrixController extends Controller
                 }
 
                 DB::commit();
+
+                AuditLoggerService::log(
+                    action: 'PD Monthly  Loan Book Update',
+                    entityType: 'LoanBook',
+                    entityId: $matrix->id,
+                    data: [
+                        'scope' => $scope,
+                        'reporting_period' => $period,
+                        'meta' => ['rows_affected' => $totalUpdated, 'profile_id' => $matrix->id]
+                    ]
+                );
 
                 // ✅ Save reporting period
                 $periodParts = explode('-', $validated['reporting_period']);

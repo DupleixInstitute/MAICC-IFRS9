@@ -307,6 +307,7 @@ class LossGivenDefaultCummulativeController extends Controller
                     return back()->with('error', 'Cannot update loan books for an active LGD record.');
                 }
 
+                $rowsUpdated = 0;
                 $period = Carbon::parse($validated['reporting_period'])->format('Y-m');
                 $collectionLgd = $lgd->lgd_cummulative;
 
@@ -369,7 +370,20 @@ class LossGivenDefaultCummulativeController extends Controller
                             ]);
                         }
 
+                        $rowsUpdated++;
                 }
+
+                AuditLoggerService::log(
+                    action: 'LGD Cummulative Loan Book Update',
+                    entityType: 'LoanBook',
+                    entityId: $lgd->id,
+                    data: [
+                        'scope' => $scope,
+                        'reporting_period' => $period,
+                        'meta' => ['rows_affected' => $rowsUpdated, 'profile_id' => $lgd->id]
+                    ]
+                );
+
 
                 $timeTaken = round((microtime(true) - $startTime) / 60, 2);
 
