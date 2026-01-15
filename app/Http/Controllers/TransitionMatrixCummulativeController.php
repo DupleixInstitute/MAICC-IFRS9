@@ -10,6 +10,7 @@ use App\Services\TransitionMatrixCummulativeService;
 use App\Models\ReportingPeriods;
 use App\Models\SupportingDocument;
 use App\Helpers\DocumentHelper;
+use App\Services\AuditLoggerService;
 use Illuminate\Http\Request;
 use App\Models\IndustryType;
 use Inertia\Inertia;
@@ -183,7 +184,7 @@ class TransitionMatrixCummulativeController extends Controller
                         entityId: $matrix->id,
                         data: [
                             'scope' => $scope,
-                            'reporting_period' => $period,
+                            'reporting_period' => $periodKey,
                             'meta' => ['rows_affected' => $totalUpdated, 'profile_id' => $matrix->id]
                         ]
                     );

@@ -326,6 +326,10 @@ class LossGiveDefaultController extends Controller
                 $netMovement = $row->end_balance - $row->start_balance;
                 $disbursement = $netMovement > 0 ? $netMovement : 0;
 
+                // Initialize paid variables for each row
+                $paidInFull = 0;
+                $paidPartly = 0;
+
                 $curedStage1 = $row->closing_stage == 1 ? $row->end_balance : 0;
                 $curedStage2 = $row->closing_stage == 2 ? $row->end_balance : 0;
 

@@ -287,10 +287,13 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     throw new \Exception("Missing/invalid value_date or maturity_date");
                 }
 
-                $createCarbon  = Carbon::createFromFormat('Y-m-d', $createDate);
+                $dueCarbon     = Carbon::createFromFormat('Y-m-d', $dueDate);
                 $reportingEnd  = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth();
-                $remainingLife = $createCarbon->floatDiffInYears($reportingEnd);
-
+                $remainingLife = $reportingEnd->floatDiffInYears($dueCarbon, false);
+                if ($remainingLife < 0) {
+                    $remainingLife = 0;
+                }
+                
                 // Handle principal fallback
                 $principal = $this->cleanNumber($data['principal'] ?? 0);
                 $carryingAmount = $this->cleanNumber($data['carrying_amount'] ?? 0);

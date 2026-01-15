@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('customer_name')->nullable();
             $table->string('external_identity_id')->index()->default('TBA');
             $table->string('product_group')->nullable();
+            $table->integer('loan_type_code')->default(0);
+            $table->string('funding_source')->nullable();
             $table->integer('reporting_year');
             $table->integer('reporting_month');
             $table->string('reporting_period', 6)->index(); // YYYYMM format

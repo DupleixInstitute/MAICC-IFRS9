@@ -374,7 +374,7 @@ class CollateralController extends Controller
                                 ? min(($discounted / $loan->carrying_amount) * 100, 100) 
                                 : 0;
 
-                    Log::info('Discounted before saving', ['discounted' => $discounted]);
+                   // Log::info('Discounted before saving', ['discounted' => $discounted]);
 
                     CollateralAllocation::updateOrCreate(
                         [

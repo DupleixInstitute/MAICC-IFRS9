@@ -8,6 +8,8 @@ use App\Models\LossGivenDefaultCummulative;
 use App\Models\LoanBook;
 use App\Models\LossGivenDefault;
 use App\Models\ReportingPeriods;
+use App\Services\AuditLoggerService;
+use Illuminate\Support\Facades\Storage;
 use App\Helpers\DocumentHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -117,6 +119,9 @@ class LossGivenDefaultCummulativeController extends Controller
             $recoveryRate = $startBalance > 0 ? ($recoveredAmount / $startBalance) : 0;
 
             $lgd = (1 - $cureRate) * (1 - $recoveryRate);
+            $lgd = max(0, min(1, $lgd)); // Ensure LGD is between 0 and 1
+            $lgdPercent = $lgd * 100;
+            $lgdPercent = max(0, min(100, $lgdPercent)); // Ensure LGD% is between 0 and 100
 
             // Save cummulative LGD
             LossGivenDefaultCummulative::updateOrCreate(
@@ -141,7 +146,7 @@ class LossGivenDefaultCummulativeController extends Controller
                     'recovery_rate_cummulative' => $recoveryRate,
                     'total_disbursments' => $totalDisbursments,
                     'lgd_cummulative' => $lgd,
-                    'lgd_cummulative_percent' => $lgd * 100,
+                    'lgd_cummulative_percent' => $lgdPercent,
                     'periods_count' => $periodPairs->count(),
                     'periods_list' => $periodPairs->map(function ($record) {
                         return [
@@ -182,6 +187,12 @@ class LossGivenDefaultCummulativeController extends Controller
         if ($startPeriod > $reportingPeriod) {
             return back()->withErrors(['Start period must be before or equal to reporting period.']);
         }
+
+        $lgdCummulative = $request->input('lgd_cummulative');
+        $lgdCummulative = is_numeric($lgdCummulative) ? max(0, min(1, (float)$lgdCummulative)) : 0;
+        
+        $lgdCummulativePercent = $request->input('lgd_cummulative_percent', $lgdCummulative * 100);
+        $lgdCummulativePercent = max(0, min(100, (float)$lgdCummulativePercent));
 
         // Variables to hold the data for the cummulative LGD record
         $data = [
@@ -284,24 +295,22 @@ class LossGivenDefaultCummulativeController extends Controller
         // Update loan books with the LGD value
         // @param Request $request
         // 
-     public function updateLoanBooks(Request $request)
+        public function updateLoanBooks(Request $request)
             {
                 ini_set('max_execution_time', 300);
                 $startTime = microtime(true);
 
                 // Validate request
-            $validated = $request->validate([
-                'reporting_period' => 'required|date_format:Y-m',
-                'lgd_id' => 'required|exists:loss_given_default_cummulative,id',
-                'include_customer_lgd' => 'nullable|boolean',
-            ]);
-
+                $validated = $request->validate([
+                    'reporting_period' => 'required|date_format:Y-m',
+                    'lgd_id' => 'required|exists:loss_given_default_cummulative,id',
+                    'include_customer_lgd' => 'nullable|boolean',
+                ]);
 
                 $lgd = LossGivenDefaultCummulative::findOrFail($validated['lgd_id']);
 
-                $scope = 'auto'
-                    ? $lgd->lgd_calculation_level
-                    : null;
+                // FIXED: Correct scope assignment
+                $scope = $lgd->lgd_calculation_level; // Directly use the calculation level
 
                 if ($lgd->is_active_or_closed !== 'closed') {
                     return back()->with('error', 'Cannot update loan books for an active LGD record.');
@@ -309,7 +318,7 @@ class LossGivenDefaultCummulativeController extends Controller
 
                 $rowsUpdated = 0;
                 $period = Carbon::parse($validated['reporting_period'])->format('Y-m');
-                $collectionLgd = $lgd->lgd_cummulative;
+                $collectionLgd = $lgd->lgd_cummulative; // Check if this is the correct column name
 
                 // Update loan_books table based on include_customer_lgd
                 if ($request->boolean('include_customer_lgd')) {
@@ -320,7 +329,7 @@ class LossGivenDefaultCummulativeController extends Controller
                                 collection_lgd = ?,
                                 lgd_value = COALESCE(customer_lgd, ?) * ?
                             WHERE LEFT(reporting_period, 7) = ?
-                            AND loan_portfolio_id  = ?
+                            AND loan_portfolio_id = ?
                         ", [
                             $collectionLgd, 1, $collectionLgd,
                             $period, $lgd->lgd_calculation_id
@@ -341,49 +350,69 @@ class LossGivenDefaultCummulativeController extends Controller
                         ]);
                     }
 
-                }else {
-                   if ($scope === 'portfolio') {
-                            $rowsUpdated = DB::update("
-                                UPDATE loan_books
-                                SET 
-                                    collection_lgd = ?,
-                                    lgd_value = ?
-                                WHERE LEFT(reporting_period, 7) = ?
-                                AND loan_portfolio_id  = ?
-                            ", [
-                                $collectionLgd, $collectionLgd,
-                                $period, $lgd->lgd_calculation_id
-                            ]);
-                        }
+                } else {
+                    if ($scope === 'portfolio') {
+                        $rowsUpdated = DB::update("
+                            UPDATE loan_books
+                            SET 
+                                collection_lgd = ?,
+                                lgd_value = ?
+                            WHERE LEFT(reporting_period, 7) = ?
+                            AND loan_portfolio_id = ?
+                        ", [
+                            $collectionLgd, $collectionLgd,
+                            $period, $lgd->lgd_calculation_id
+                        ]);
+                    }
 
-                        if ($scope === 'sector') {
-                            $rowsUpdated = DB::update("
-                                UPDATE loan_books
-                                SET 
-                                    collection_lgd = ?,
-                                    lgd_value = ?
-                                WHERE LEFT(reporting_period, 7) = ?
-                                AND industry_code = ?
-                            ", [
-                                $collectionLgd, $collectionLgd,
-                                $period, $lgd->lgd_calculation_code
-                            ]);
-                        }
-
-                        $rowsUpdated++;
+                    if ($scope === 'sector') {
+                        $rowsUpdated = DB::update("
+                            UPDATE loan_books
+                            SET 
+                                collection_lgd = ?,
+                                lgd_value = ?
+                            WHERE LEFT(reporting_period, 7) = ?
+                            AND industry_code = ?
+                        ", [
+                            $collectionLgd, $collectionLgd,
+                            $period, $lgd->lgd_calculation_code
+                        ]);
+                    }
+                    
+                    // FIXED: Remove the incorrect increment
+                    // $rowsUpdated++; // This was wrong - it should not be incremented here
                 }
 
-                AuditLoggerService::log(
-                    action: 'LGD Cummulative Loan Book Update',
-                    entityType: 'LoanBook',
-                    entityId: $lgd->id,
-                    data: [
-                        'scope' => $scope,
-                        'reporting_period' => $period,
-                        'meta' => ['rows_affected' => $rowsUpdated, 'profile_id' => $lgd->id]
-                    ]
-                );
-
+                // FIXED: Check if AuditLoggerService exists before using it
+                try {
+                    if (class_exists('App\Services\AuditLoggerService')) {
+                        \App\Services\AuditLoggerService::log(
+                            action: 'LGD Cummulative Loan Book Update',
+                            entityType: 'LoanBook',
+                            entityId: $lgd->id,
+                            data: [
+                                'scope' => $scope,
+                                'reporting_period' => $period,
+                                'meta' => ['rows_affected' => $rowsUpdated, 'profile_id' => $lgd->id]
+                            ]
+                        );
+                    } else {
+                        // Log using Laravel's built-in logger if service doesn't exist
+                        \Log::info('LGD Cumulative Loan Book Update', [
+                            'action' => 'LGD Cummulative Loan Book Update',
+                            'entityType' => 'LoanBook',
+                            'entityId' => $lgd->id,
+                            'data' => [
+                                'scope' => $scope,
+                                'reporting_period' => $period,
+                                'rows_affected' => $rowsUpdated,
+                                'profile_id' => $lgd->id
+                            ]
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to log audit: ' . $e->getMessage());
+                }
 
                 $timeTaken = round((microtime(true) - $startTime) / 60, 2);
 
@@ -401,7 +430,6 @@ class LossGivenDefaultCummulativeController extends Controller
 
                 return redirect()->back()->with('success', "Loan books updated successfully in {$timeTaken} minutes. Rows updated: {$rowsUpdated}");
             }
-
 
                 //Attach supporting File if it is Manual Calculation for supporting info of the calculation
         public function attachFile(LossGivenDefaultCummulative $lgdC, Request $request)
