@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('calculation_source')->default('system');
             $table->date('last_reporting_period')->nullable();
             $table->integer('periods_count')->default(1);
-            $table->string('periods_list')->nullable()->comment('List of periods for this cumulative run');
+            $table->longText('periods_list')->nullable()->comment('List of periods for this cumulative run');
             $table->integer('periods_limit')->default(60)->comment('Limit of periods to consider for this cumulative run');
             $table->boolean('default_flag')->nullable();
             $table->integer('run_no')->default(0);
