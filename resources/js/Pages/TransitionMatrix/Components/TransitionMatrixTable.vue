@@ -91,7 +91,7 @@
                         </td>
 
                         <!-- Start Balance -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
                             <input type="number" 
                                    v-model.number="entry.start_balance"
                                    @change="updateEntry(index)"
@@ -100,7 +100,7 @@
                         </td>
 
                         <!-- Start Count -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
                             <input type="number" 
                                    v-model.number="entry.start_count"
                                    @change="updateEntry(index)"
@@ -109,7 +109,7 @@
                         </td>
 
                         <!-- End Balance -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
                             <input type="number" 
                                    v-model.number="entry.end_balance"
                                    @change="updateEntry(index)"
@@ -118,7 +118,7 @@
                         </td>
 
                         <!-- End Count -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
                             <input type="number" 
                                    v-model.number="entry.end_count"
                                    @change="updateEntry(index)"

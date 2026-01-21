@@ -3,7 +3,10 @@
     <template #header>
       <div>
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          Auto Allocate Collateral
+        <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('collateral.allocations.index')">
+          Collateral
+        </inertia-link>
+        <span class="text-indigo-400 font-medium">/</span>Auto Allocate Collateral
         </h2>
         <p class="mt-1 text-sm text-gray-600">
           Select Allocation Basis, Reporting Period, and Collateral Reporting Period

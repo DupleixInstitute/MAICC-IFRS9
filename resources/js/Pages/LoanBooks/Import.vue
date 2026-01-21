@@ -10,6 +10,33 @@
         </template>
 
         <div class="mx-auto max-w-7xl">
+            <!-- Error Alert with Template Hint -->
+            <div v-if="$page.props.errors.error && $page.props.show_template_hint" class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">
+                            E-Banker Format Error
+                        </h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p>{{ $page.props.errors.error }}</p>
+                            <div class="mt-3">
+                                <button @click="downloadEbankerTemplate()" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Download E-Banker Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
                 <form @submit.prevent="submit">
                     <div class="space-y-8">
@@ -59,6 +86,23 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div 
+                                    class="border-2 rounded-lg p-4 cursor-pointer transition-all"
+                                    :class="importType === 'group' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    @click="importType = 'group'"
+                                >
+                                    <div class="flex items-center space-x-3">
+                                        <div class="flex-shrink-0">
+                                            <input type="radio" v-model="importType" value="group" class="h-4 w-4 text-indigo-600 border-gray-300"/>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h5 class="text-sm font-medium text-gray-900">E-Banker Format</h5>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                Use the E-Banker format
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
@@ -75,6 +119,29 @@
                                                 Map your CSV columns to any database fields
                                             </p>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- E-Banker Format Info -->
+                        <div v-if="importType === 'group'" class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-blue-800">E-Banker Format Requirements</h3>
+                                    <div class="mt-2 text-sm text-blue-700">
+                                        <ul class="list-disc list-inside space-y-1">
+                                            <li>File should contain at least 15-20 columns with loan data</li>
+                                            <li>Data rows should start with serial numbers (1, 2, 3, etc.)</li>
+                                            <li>May include "Loan Type :" context rows</li>
+                                            <li>Must include key columns: Contract, Customer, Dates, Balance</li>
+                                            <li>Download the template below for the correct format</li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
@@ -161,6 +228,9 @@
                             <jet-button type="button" @click="downloadTemplate('legacy')" class="flex-1 justify-center">
                                 Download Legacy Template
                             </jet-button>
+                            <jet-button type="button" @click="downloadEbankerTemplate()" class="flex-1 justify-center bg-blue-600 hover:bg-blue-500">
+                                Download E-Banker Template
+                            </jet-button>
                         </div>
 
                         <!-- Submit Buttons -->
@@ -214,6 +284,17 @@ export default {
         }
     },
 
+    watch: {
+    // Sync the local UI state with the form object
+    importType(newVal) {
+        this.form.import_type = newVal;
+        if (newVal === 'group') {
+            this.headers = []; // Clear UI mapping for group type
+            this.form.mapping = {};
+            }
+        }
+    },
+
     methods: {
         submit() {
             const formData = new FormData()
@@ -230,6 +311,17 @@ export default {
                 import_type: this.importType,
                 mapping: this.mapping,
             })).post(route('loan_applications.loan-book.import.store'))
+
+            const routeName = this.form.import_type === 'group' 
+            ? 'loan_applications.loan-book.import.group'
+            : 'loan_applications.loan-book.import.store';
+
+            this.form.post(route(routeName), {
+                forceFormData: true,
+                onSuccess: () => {
+                    // Handle success
+                },
+            });
         },
 
 
@@ -261,7 +353,11 @@ export default {
                 'collateral type': 'collateral_type', 'collateral': 'collateral', 'charge amount': 'charge_amount', 'collateral value': 'collateral_value',
 
                 'repayments': 'repayments',
-                '1-30 days': 'aging_1_30', '31-90 days': 'aging_31_90', '91-180 days': 'aging_91_180', '181-270 days': 'aging_181_270'
+                '1-30 days': 'aging_1_30', '31-90 days': 'aging_31_90', '91-180 days': 'aging_91_180', '181-270 days': 'aging_181_270',
+                'arrears_1_to_30': 'arrears_1_to_30', 'arrears_30_to_90': 'arrears_30_to_90', 'arrears_91_to_180': 'arrears_91_to_180', 'arrears_180_to_270': 'arrears_180_to_270',
+                '1-30 Days': 'arrears_1_to_30', '31-90 Days': 'arrears_30_to_90', '91-180 Days': 'arrears_91_to_180', '181-270 Days': 'arrears_180_to_270',
+                '< 30 Days': 'aging_1_30', '< 90 Days': 'aging_31_90', '< 180 Days': 'aging_91_180', '< 270 Days': 'aging_181_270',
+                
             };
 
 
@@ -354,7 +450,12 @@ export default {
                 a.download = filename
                 a.click()
                 window.URL.revokeObjectURL(url)
-            }
+            },
+
+        downloadEbankerTemplate() {
+            // Use Laravel backend to generate e-banker template
+            window.location.href = this.route('loan_applications.loan-book.download-ebanker-template')
+        }
 
 
     }

@@ -25,59 +25,115 @@
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" v-if="summary">
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                        <div class="text-sm text-gray-600">Total Loans</div>
-                        <div class="text-2xl font-semibold">{{ summary.total_loans }}</div>
+                <!-- Summary Section -->
+                <div class="mb-6" v-if="summary">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Summary</h3>
+                        <button @click="toggleSummary" 
+                                class="inline-flex items-center px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 transform transition-transform" 
+                                 :class="{ 'rotate-180': summaryExpanded }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                            {{ summaryExpanded ? 'Hide' : 'Show' }} Summary
+                        </button>
                     </div>
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                        <div class="text-sm text-gray-600">Total Balance</div>
-                        <div class="text-2xl font-semibold">{{ formatCurrency(summary.total_balance) }}</div>
-                    </div>
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                        <div class="text-sm text-gray-600">Overdue Loans</div>
-                        <div class="text-2xl font-semibold">{{ summary.overdue_loans }}</div>
-                    </div>
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                        <div class="text-sm text-gray-600">Total Provision</div>
-                        <div class="text-2xl font-semibold">{{ formatCurrency(summary.total_provision) }}</div>
-                    </div>
+                    
+                    <transition name="slide-down">
+                        <div v-show="summaryExpanded" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                                <div class="text-sm font-semibold ">Total Loans</div>
+                                <div class="text-2xl text-gray-600">{{ summary.total_loans || 0 }}</div>
+                            </div>
+                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                                <div class="text-sm ">Total Balance</div>
+                                <div class="text-2xl text-gray-600">{{ formatCurrency(summary.total_balance) }}</div>
+                            </div>
+                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                                <div class="text-sm font-semibold">Classification Count</div>
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-medium text-gray-700">Stage 1:</span>
+                                        <span :class="getStageClass(1)" class="px-2 py-1 text-xs font-semibold rounded">
+                                            {{ summary.stage_1_count || 0 }}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-medium text-gray-700">Stage 2:</span>
+                                        <span :class="getStageClass(2)" class="px-2 py-1 text-xs font-semibold rounded">
+                                            {{ summary.stage_2_count || 0 }}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-medium text-gray-700">Stage 3:</span>
+                                        <span :class="getStageClass(3)" class="px-2 py-1 text-xs font-semibold rounded">
+                                            {{ summary.stage_3_count || 0 }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                                <div class="text-sm font-semibold">Total Loss</div>
+                                <div class="text-2xl text-gray-600">{{ formatCurrency(summary.total_ecl) }}</div>
+                            </div>
+                        </div>
+                    </transition>
                 </div>
 
                 <!-- Filters -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                     <div class="p-6 bg-white border-b border-gray-200">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Year</label>
-                                <select v-model="filters.year" @change="fetchData"
+                                <select v-model="filters.year"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">All Years</option>
                                     <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Month</label>
-                                <select v-model="filters.month" @change="fetchData"
+                                <select v-model="filters.month"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">All Months</option>
                                     <option v-for="(name, index) in months" :key="index" :value="index + 1">{{ name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Status</label>
-                                <select v-model="filters.overdue" @change="fetchData"
+                                <label class="block text-sm font-medium text-gray-700">Stage</label>
+                                <select v-model="filters.stage"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">All Loans</option>
-                                    <option value="1">Overdue</option>
-                                    <option value="0">Not Overdue</option>
+                                    <option value="">All Stages</option>
+                                    <option value="1">Stage 1</option>
+                                    <option value="2">Stage 2</option>
+                                    <option value="3">Stage 3</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Portfolio</label>
+                                <select v-model="filters.portfolio"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">All Portfolios</option>
+                                    <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">{{ portfolio.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Search</label>
-                                <input type="text" v-model="filters.search" @input="fetchData"
+                                <input type="text" v-model="filters.search"
                                        placeholder="Search by Contract ID or Customer..."
                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             </div>
+                        </div>
+                        <div class="mt-4 flex justify-end space-x-3">
+                            <button @click="applyFilters"
+                                    class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Apply Filters
+                            </button>
+                            <button @click="resetFilters"
+                                    class="inline-flex items-center px-4 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                Reset Filters
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -89,44 +145,49 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporting Period</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract ID</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                                        <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th> -->
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PD Pre-FLI</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FLI Adj</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PD Post-FLI</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LGD</th>
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th>
+                                        <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance (MKW)</th>
+                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
+                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PD Pre-FLI</th>
+                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">FLI Adj</th>
+                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PD Post-FLI</th>
+                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">LGD</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                                        <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th> -->
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     <tr v-for="loan in loanBooks.data" :key="loan.id">
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ formatPeriod(loan.reporting_period) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.customer_id || loan.customer_name }}</td>
-
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(loan.carrying_amount) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm">
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <div class="font-medium text-gray-900">{{ loan.customer_name }}</div>
+                                            <div class="text-xs text-gray-400">ID: {{ loan.customer_id }}</div>
+                                        </td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-left text-sm text-gray-500">{{ loan.portfolio?.name || loan.loan_portfolio_id }} </td>
+                                        <td class="px-3 py-4 whitespace-nowrap  text-right text-sm text-gray-500">{{ formatCurrency(loan.carrying_amount) }}</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm">
                                             <span :class="getStageClass(loan.ifrs9stage_post_qualitative)" class="px-2 py-1 text-xs font-semibold rounded">
                                                 Stage {{ loan.ifrs9stage_post_qualitative || '-' }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatPercent(loan.pd_prefli) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium" :class="getFliAdjClass(loan.fli_adj)">
+                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ formatPercent(loan.pd_prefli) }}</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium" :class="getFliAdjClass(loan.fli_adj)">
                                             {{ formatPercent(loan.fli_adj) }}
                                         </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{{ formatPercent(loan.pd_post_fli_adj) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatPercent(loan.lgd_value) }}</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900 font-medium">{{ formatPercent(loan.pd_post_fli_adj) }}</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ formatPercent(loan.lgd_value) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(loan.due_date) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm">
                                             <span :class="getStatusClass(loan.overdue_status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                                                 {{ loan.overdue_status }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
+                                        <!-- <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td> -->
                                     </tr>
                                 </tbody>
                             </table>
@@ -271,8 +332,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-// import { Link } from '@inertiajs/vue3';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import Pagination from '@/Components/Pagination.vue';
@@ -281,17 +342,20 @@ import HelpManual from '../../Components/HelpManual.vue';
 const props = defineProps({
     loanBooks: Object,
     filters: Object,
-    portfolios: Array
+    portfolios: Array,
+    summary: Object,
 });
 
-const summary = ref(null);
 const filters = ref({
-    year: new Date().getFullYear(),
-    month: new Date().getMonth() + 1,
-    overdue: '',
+    year: '',
+    month: '',
+    stage: '',
+    portfolio: '',
     search: '',
     ...props.filters
 });
+
+const summary = computed(() => props.summary);
 
 const years = [2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
 const months = [
@@ -303,11 +367,16 @@ const showImportModal = ref(false);
 const importing = ref(false);
 const importProgress = ref(0);
 const importError = ref('');
+const summaryExpanded = ref(true); // Start expanded for better UX
 const importForm = ref({
     reporting_period: '',
     portfolio: '',
     file: null
 });
+
+const toggleSummary = () => {
+    summaryExpanded.value = !summaryExpanded.value;
+};
 
 const handleFileUpload = (event) => {
     importForm.value.file = event.target.files[0];
@@ -363,46 +432,60 @@ const submitImport = async () => {
     }
 };
 
+const resetFilters = () => {
+    filters.value = {
+        year: '',
+        month: '',
+        stage: '',
+        portfolio: '',
+        search: ''
+    };
+    fetchData();
+};
+
+const applyFilters = () => {
+    fetchData();
+};
+
 const fetchData = async () => {
     try {
-        await fetchSummary();
-        window.Inertia.get(route('loan_applications.loan-book'), {
-            search: filters.value.search,
-            year: filters.value.year,
-            month: filters.value.month,
-            overdue: filters.value.overdue
-        }, {
+        const params = {
+            search: filters.value.search || undefined,
+            year: filters.value.year || undefined,
+            month: filters.value.month || undefined,
+            stage: filters.value.stage || undefined,
+            portfolio: filters.value.portfolio || undefined
+        };
+        
+        // Remove undefined params but keep year/month independently
+        Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+        
+        router.get(route('loan_applications.loan-book'), params, {
             preserveState: true,
             preserveScroll: true,
-            replace: true
+            replace: true,
+            onSuccess: (page) => {
+                // Ensure the summary is updated from the page props
+                if (page.props.summary) {
+                    // Summary will be automatically updated through props
+                }
+            }
         });
     } catch (error) {
         console.error('Error fetching data:', error);
     }
 };
 
-const fetchSummary = async () => {
-    try {
-        const response = await fetch(route('loan_applications.loan-book.summary', {
-            year: filters.value.year,
-            month: filters.value.month
-        }));
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        summary.value = await response.json();
-    } catch (error) {
-        console.error('Error fetching summary:', error);
-    }
-};
-
 const formatCurrency = (value) => {
-    if (!value) return 'E0.00';
-    return 'E' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    if (!value) return '0.00';
+    return  new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 };
 
 const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+const formatPeriod = (date) => {
+    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short'});
 };
 
 const getOverdueClass = (days) => {
@@ -463,3 +546,25 @@ onMounted(() => {
     //fetchSummary();
 });
 </script>
+
+<style scoped>
+.slide-down-enter-active,
+.slide-down-leave-active {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.slide-down-enter-to,
+.slide-down-leave-from {
+    max-height: 500px;
+    opacity: 1;
+    transform: translateY(0);
+}
+</style>

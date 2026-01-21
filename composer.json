@@ -12,6 +12,7 @@
         "barryvdh/laravel-dompdf": "^2.0.0",
         "beyondcode/laravel-websockets": "^1.13",
         "binarytorch/larecipe": "^2.5",
+        "box/spout": "^3.3",
         "carbonphp/carbon-doctrine-types": "^2.0",
         "cviebrock/eloquent-sluggable": "^10.0",
         "doctrine/dbal": "^3.7",

@@ -1,17 +1,32 @@
 <template>
     <app-layout>
             <template #header>
-                 <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Loss Given Default Cummulative
-                 <HelpManual />
-            </h2>
-                    <Link :href="route('lgd-cummulative.create')"
-                      class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
-                    Calculate LGD
-                    <Icon name="calculator" class="w-4 h-4 mr-2" />
-                </Link>
-            </div>
+            <div class="flex justify-between items-center">
+                  <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                      Cummulative Loss Given Default
+                      <HelpManual />
+                  </h2>
+
+                  <div class="flex space-x-2 mt-2">
+                      <!-- Calculate -->
+                      <Link
+                          :href="route('lgd-cummulative.create')"
+                          class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                      >
+                         <i class="fa fa-calculator mr-2" aria-hidden="true"></i>
+                          Calculate LGD
+                  </Link>
+
+                      <!-- Get Report -->
+                      <button
+                          @click="openReportModal"
+                          class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                      >
+                          <i class="fas fa-file-archive mr-2"></i>
+                          Get Report
+                      </button>
+                  </div>
+              </div>
         </template>
 
           
@@ -142,8 +157,8 @@
                     {{ lgdC.is_active_or_closed === 'closed' ? 'Closed' : 'Active' }}
                   </span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-600">{{round((lgdC.start_total_stage3),2)}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-600">{{round((lgdC.end_total_stage3),2)}}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-600">{{formatCurrency(lgdC.start_total_stage3)}}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-600">{{formatCurrency(lgdC.end_total_stage3)}}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{lgdC.created_by}}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{formatDate(lgdC.created_at)}}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-600 flex space-x-2">
@@ -238,6 +253,8 @@
     </div>
   </div>
 
+  <!-- Pagination -->
+  <Pagination :links="lgdCummulatives.links" />
 
        <div 
           v-if="periodsModalVisible" 
@@ -388,6 +405,58 @@
   </div>
 </div>
 
+        
+<div
+    v-if="showReportModal"
+    class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+>
+    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+        <h2 class="text-lg font-bold mb-4">Download LGD Monthly Report</h2>
+
+        <label class="block mb-2 text-sm font-medium text-gray-700">Start Period</label>
+        <input
+            type="month"
+            v-model="reportStartPeriod"
+            class="border-gray-300 rounded-md shadow-sm w-full mb-4"
+        />
+
+        <label class="block mb-2 text-sm font-medium text-gray-700">End Period</label>
+        <input
+            type="month"
+            v-model="reportEndPeriod"
+            class="border-gray-300 rounded-md shadow-sm w-full mb-4"
+        />
+
+        <label class="block mb-2 text-sm font-medium text-gray-700">Calculation Level (Optional)</label>
+        <select
+            v-model="reportCalculationLevel"
+            class="border-gray-300 rounded-md shadow-sm w-full mb-4"
+        >
+            <option value="">All Levels</option>
+            <option value="portfolio">Portfolio</option>
+            <option value="sector">Sector</option>
+            <option value="customer">Customer</option>
+        </select>
+
+        <div class="flex justify-end space-x-2">
+            <button
+                @click="showReportModal = false"
+                class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+            >
+                Cancel
+            </button>
+
+            <button
+                @click="downloadReport"
+                :disabled="reportLoading"
+                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+                <span v-if="reportLoading">Preparing…</span>
+                <span v-else>Download</span>
+            </button>
+        </div>
+    </div>
+</div>
 
     </app-layout>
 </template>
@@ -396,6 +465,7 @@
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Pagination from '@/Shared/Pagination.vue'
 import '@fortawesome/fontawesome-free/css/all.css';
 import HelpManual from '../../Components/HelpManual.vue';
 
@@ -403,6 +473,7 @@ export default {
     components: {
         AppLayout,
         HelpManual,
+        Pagination,
     },
     props: {
         lgdCummulatives: {
@@ -432,6 +503,12 @@ export default {
         const uploadTargetId = ref(null);
         const uploadFile = ref(null);
         const uploadLoading = ref(false);
+        const showReportModal = ref(false);
+        const reportPeriod = ref('');
+        const reportLoading = ref(false);
+        const reportStartPeriod = ref('');
+        const reportEndPeriod = ref('');
+        const reportCalculationLevel = ref('');
 
         const applyFilters = () => {
               router.get(route('lgd-cummulative.index'), {
@@ -611,6 +688,51 @@ export default {
             }
         };
 
+        const formatCurrency = (value) => {
+              if (!value) return '0.00';
+              return  new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+          };
+
+           const openReportModal = () => {
+            reportPeriod.value = '';
+            reportCalculationLevel.value = '';
+            showReportModal.value = true;
+        };
+
+      const downloadReport = () => {
+        if (!reportStartPeriod.value || !reportEndPeriod.value) {
+            alert('Please select both start and end periods.');
+            return;
+        }
+
+        // Optional: check that start <= end
+        if (reportStartPeriod.value > reportEndPeriod.value) {
+            alert('Start period cannot be after end period.');
+            return;
+        }
+
+        reportLoading.value = true;
+
+        // Redirect to backend route with all parameters
+        const params = new URLSearchParams({
+            start_period: reportStartPeriod.value,
+            end_period: reportEndPeriod.value,
+        });
+
+        // Add calculation level if selected
+        if (reportCalculationLevel.value) {
+            params.append('lgd_calculation_level', reportCalculationLevel.value);
+        }
+
+        window.location.href = route('loss-given-default.report-by-period') + '?' + params.toString();
+
+        setTimeout(() => {
+            reportLoading.value = false;
+            showReportModal.value = false;
+        }, 1500);
+    };
+
+
         return {
             periodsModalVisible,
             currentPeriods,
@@ -641,9 +763,16 @@ export default {
             uploadFile,
             uploadLoading,
             showUploadModal,
-
             downloadFile,
-
+            openReportModal,
+            reportPeriod,
+            reportLoading,
+            reportStartPeriod,
+            reportEndPeriod,
+            reportCalculationLevel,
+            downloadReport,
+            showReportModal,
+            formatCurrency,
         };
     }
 };

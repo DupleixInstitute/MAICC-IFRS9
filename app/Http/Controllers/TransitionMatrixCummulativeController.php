@@ -32,6 +32,27 @@ class TransitionMatrixCummulativeController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
+        // Debug: Log received dates
+        \Log::info('TransitionMatrixCummulativeController - Received dates:', [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'start_date_type' => gettype($startDate),
+            'end_date_type' => gettype($endDate),
+            'all_request_data' => $request->all()
+        ]);
+
+        // Log all available cumulative records with their periods
+        $allRecords = TransitionMatrixCummulative::with(['transitionProfile', 'portfolio','sector'])->get();
+        \Log::info('All available cumulative records:');
+        foreach ($allRecords as $record) {
+            \Log::info('Record ID ' . $record->id . ':', [
+                'start_period' => $record->start_period,
+                'end_period' => $record->end_period,
+                'periods_count' => $record->periods_count,
+                'periods_list' => $record->periods_list
+            ]);
+        }
+
         $query = TransitionMatrixCummulative::with(['transitionProfile', 'portfolio','sector'])
             ->when($search, function ($query) use ($search) {
                 $query->whereHas('transitionProfile', function ($q) use ($search) {
@@ -39,10 +60,19 @@ class TransitionMatrixCummulativeController extends Controller
                 })
                 ->orWhere('status', 'like', '%' . $search . '%');
             })
-            ->when($startDate, fn ($q) => $q->where('start_period', '>=', $startDate))
-            ->when($endDate, fn ($q) => $q->where('end_period', '<=', $endDate));
+            ->when($startDate && $endDate, function ($q) use ($startDate, $endDate) {
+                \Log::info('Applying date filter:', [
+                    'start_date' => $startDate,
+                    'end_date' => $endDate
+                ]);
+                $q->where(function ($query) use ($startDate, $endDate) {
+                    // Find cumulative records that overlap with the selected date range
+                    $query->where('start_period', '<=', $endDate)
+                          ->where('end_period', '>=', $startDate);
+                });
+            });
 
-        $cumMatrix = $query->paginate(10);
+        $cumMatrix = $query->latest()->paginate(10);
 
         return Inertia::render('TransitionMatrix/Cummulative', [
             'cumMatrix' => $cumMatrix,

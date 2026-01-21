@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('customer_name')->nullable();
             $table->string('external_identity_id')->index()->default('TBA');
             $table->string('product_group')->nullable();
+            $table->string('product_code')->nullable();
             $table->integer('loan_type_code')->default(0);
             $table->string('funding_source')->nullable();
             $table->integer('reporting_year');
@@ -46,10 +47,10 @@ return new class extends Migration
             $table->string('ifrs9stage_pre_qualitative')->nullable();
             $table->boolean('sicr')->default(0)->nullable();
             $table->string('ifrs9stage_post_qualitative')->nullable();
-            $table->string('< 30')->nullable();
-            $table->string('30 to =< 90')->nullable();
-            $table->string('30 =< 180')->nullable();
-            $table->string('arrears > 180')->nullable();
+            $table->decimal('arrears_1_to_30',65,2)->nullable();
+            $table->decimal('arrears_30_to_90',65,2)->nullable();
+            $table->decimal('arrears_91_to_180',65,2)->nullable();
+            $table->decimal('arrears_180_to_270',65,2)->nullable();
             $table->timestamps();
             
             // Composite indexes for efficient querying

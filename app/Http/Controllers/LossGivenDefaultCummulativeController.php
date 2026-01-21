@@ -14,6 +14,7 @@ use App\Helpers\DocumentHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use ZipArchive;
 use Inertia\Inertia;
 
 class LossGivenDefaultCummulativeController extends Controller
@@ -497,6 +498,121 @@ class LossGivenDefaultCummulativeController extends Controller
     }
 
     
+
+     public function downloadReportByPeriod(Request $request)
+        {
+            $request->validate([
+                'start_period' => 'required|date_format:Y-m',
+                'end_period' => 'required|date_format:Y-m',
+                'lgd_calculation_level' => 'nullable|string',
+                'lgd_calculation_source' => 'nullable|string',
+            ]);
+
+            // Query LGD records for the report
+            $lgds = LossGivenDefaultCummulative::with('portfolioGroup', 'sector')
+                ->whereBetween('reporting_period', [$request->start_period . '-01', $request->end_period . '-01'])
+                ->when($request->lgd_calculation_level, function ($query, $level) {
+                    $query->where('lgd_calculation_level', $level);
+                })
+                ->when($request->lgd_calculation_source, function ($query, $source) {
+                    $query->where('calculation_source', $source);
+                })
+                ->get();
+
+            // $pdf = app('dompdf.wrapper');
+            // $pdf->loadView('reports.lgd_period_report', [
+            //     'lgds' => $lgds,
+            //     'period' => $request->period,
+            // ]);
+
+            // $pdfPath = storage_path("app/LGD_Report_{$request->period}.pdf");
+            // $pdf->save($pdfPath);
+
+            /* ---------- CSV ---------- */
+            $csvHeader = [
+                'Calculation Level',
+                'Portfolio',
+                'Sector',
+                'LGD %',
+                'Valid From',
+                'Valid To',
+                'Start Balance Stage 3',
+                'End Balance Stage 3',
+                'Cure Rate',
+                'Cured Amount',
+                'Cure Amount Stage 1',
+                'Cure Amount Stage 2',
+                'Recovery Rate',
+                'Recovered Amount',
+                'Partly Recovered Amount',
+                'Fully Recovered Amount',
+                'Total Disbursements',
+                'Written Offs',
+                'Source',
+                'Status',
+            ];
+
+            $csvRows = [];
+
+            // Add report range as first row
+            $csvRows[] = ["LGD Cummulative Report: From {$request->start_period} To {$request->end_period}"];
+            $csvRows[] = []; // empty row for spacing
+
+            // Add column headers
+            $csvRows[] = $csvHeader;
+
+            // Add LGD data
+            foreach ($lgds as $lgd) {
+                $csvRows[] = [
+                    $lgd->lgd_calculation_level,
+                    $lgd->portfolio_name ?? '',
+                    $lgd->sector_name ?? '',
+                    $lgd->lgd_cummulative_percent,
+                    Carbon::parse($lgd->start_period)->format('Y-m'),
+                    Carbon::parse($lgd->reporting_period)->format('Y-m'),
+                    $lgd->start_total_stage3,
+                    $lgd->end_total_stage3,
+                    $lgd->cure_rate_cummulative,
+                    $lgd->cured_amount,
+                    $lgd->cure_amount_stage1,
+                    $lgd->cure_amount_stage2,
+                    $lgd->recovery_rate_cummulative,
+                    $lgd->recovered_amount,
+                    $lgd->partially_recovered_amount,
+                    $lgd->fully_recovered_amount,
+                    $lgd->total_disbursments,
+                    $lgd->written_offs,
+                    $lgd->calculation_source,
+                    $lgd->is_active_or_closed,
+                ];
+            }
+
+            // Convert array of rows to CSV text
+            $csvContent = '';
+            foreach ($csvRows as $row) {
+                // Escape any commas in data
+                $escapedRow = array_map(function($field) {
+                    $field = str_replace('"', '""', $field); // escape quotes
+                    return "\"{$field}\"";
+                }, $row);
+                $csvContent .= implode(',', $escapedRow) . "\n";
+            }
+
+            $csvPath = storage_path("app/LGD_Cummulative_Report_{$request->start_period}_to_{$request->end_period}.csv");
+            file_put_contents($csvPath, $csvContent);
+
+
+            /* ---------- ZIP ---------- */
+            $zipPath = storage_path("app/LGD_Cummulative_Report_{$request->start_period}_to_{$request->end_period}.zip");
+
+            $zip = new ZipArchive();
+            $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+            //$zip->addFile($pdfPath, "LGD_Report_{$request->start_period}_to_{$request->end_period}.pdf");
+            $zip->addFile($csvPath, "LGD_Cummulative_Report_{$request->start_period}_to_{$request->end_period}.csv");
+            $zip->close();
+
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+        }
 
 
     // Delete a specific Loss Given Default Cummulative record

@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\Console\Input\Input;
+use ZipArchive;
 use Illuminate\Support\Facades\Storage;
 
 class LossGiveDefaultController extends Controller
@@ -484,7 +485,7 @@ class LossGiveDefaultController extends Controller
 
             LossGivenDefault::create($data);
 
-            return redirect('loss-given-default.index')->with('success', 'Loss Given Default record created successfully.');
+            return redirect()->route('loss-given-default.index')->with('success', 'Loss Given Default record created successfully.');
         }
 
     
@@ -723,6 +724,144 @@ class LossGiveDefaultController extends Controller
             $document->original_name
         );
     }
+
+    
+
+        public function downloadReportByPeriod(Request $request)
+        {
+            $request->validate([
+                'start_period' => 'required|date_format:Y-m',
+                'end_period' => 'required|date_format:Y-m',
+                'lgd_calculation_level' => 'nullable|string',
+            ]);
+
+            $start = Carbon::createFromFormat('Y-m', $request->start_period)->startOfMonth();
+            $end = Carbon::createFromFormat('Y-m', $request->end_period)->endOfMonth();
+
+            $query = LossGivenDefault::select([
+                    'loss_given_default.id',
+                    'lgd_calculation_level',
+                    'loss_given_default_percentage',
+                    'start_period',
+                    'reporting_period',
+                    'start_total_stage3',
+                    'end_total_stage3',
+                    'cure_rate',
+                    'cured_amount',
+                    'cure_amount_stage1',
+                    'cure_amount_stage2',
+                    'recovery_rate',
+                    'recovered_amount',
+                    'partially_recovered_amount',
+                    'fully_recovered_amount',
+                    'total_disbursments',
+                    'written_offs',
+                    'calculation_source',
+                    'is_active_or_closed',
+                ])
+                ->leftJoin('loan_portfolios', 'loss_given_default.lgd_calculation_id', '=', 'loan_portfolios.id')
+                ->leftJoin('industry_types', 'loss_given_default.lgd_calculation_code', '=', 'industry_types.code')
+                ->where('start_period', '<=', $end)
+                ->where('reporting_period', '>=', $start);
+
+            // Filter by calculation level if provided
+            if ($request->filled('lgd_calculation_level')) {
+                $query->where('loss_given_default.lgd_calculation_level', $request->lgd_calculation_level);
+            }
+
+            $lgds = $query->orderBy('loss_given_default.lgd_calculation_level')->get();
+
+            if ($lgds->isEmpty()) {
+                return back()->with('error', 'No LGD records valid for selected period');
+            }
+
+            /* ---------- PDF ---------- */
+            // $pdf = app('dompdf.wrapper');
+            // $pdf->loadView('reports.lgd_period_report', [
+            //     'lgds' => $lgds,
+            //     'period' => $request->period,
+            // ]);
+
+            // $pdfPath = storage_path("app/LGD_Report_{$request->period}.pdf");
+            // $pdf->save($pdfPath);
+
+            /* ---------- CSV ---------- */
+            $csvHeader = [
+                'Calculation Level',
+                'Portfolio',
+                'Sector',
+                'LGD %',
+                'Valid From',
+                'Valid To',
+                'Start Balance Stage 3',
+                'End Balance Stage 3',
+                'Cure Rate',
+                'Cured Amount',
+                'Cure Amount Stage 1',
+                'Cure Amount Stage 2',
+                'Recovery Rate',
+                'Recovered Amount',
+                'Partly Recovered Amount',
+                'Fully Recovered Amount',
+                'Total Disbursements',
+                'Written Offs',
+                'Source',
+                'Status',
+            ];
+
+            // Add LGD data
+            foreach ($lgds as $lgd) {
+                $csvRows[] = [
+                    $lgd->lgd_calculation_level,
+                    $lgd->portfolio_name ?? '',
+                    $lgd->sector_name ?? '',
+                    $lgd->loss_given_default_percentage,
+                    Carbon::parse($lgd->start_period)->format('Y-m'),
+                    Carbon::parse($lgd->reporting_period)->format('Y-m'),
+                    $lgd->start_total_stage3,
+                    $lgd->end_total_stage3,
+                    $lgd->cure_rate,
+                    $lgd->cured_amount,
+                    $lgd->cure_amount_stage1,
+                    $lgd->cure_amount_stage2,
+                    $lgd->recovery_rate,
+                    $lgd->recovered_amount,
+                    $lgd->partially_recovered_amount,
+                    $lgd->fully_recovered_amount,
+                    $lgd->total_disbursments,
+                    $lgd->written_offs,
+                    $lgd->calculation_source,
+                    $lgd->is_active_or_closed,
+                ];
+            }
+
+            // Convert array of rows to CSV text
+            $csvContent = '';
+            foreach ($csvRows as $row) {
+                // Escape any commas in data
+                $escapedRow = array_map(function($field) {
+                    $field = str_replace('"', '""', $field); // escape quotes
+                    return "\"{$field}\"";
+                }, $row);
+                $csvContent .= implode(',', $escapedRow) . "\n";
+            }
+
+            $csvPath = storage_path("app/LGD_Montly_Report_{$request->start_period}_to_{$request->end_period}.csv");
+            file_put_contents($csvPath, $csvContent);
+
+
+            /* ---------- ZIP ---------- */
+            $zipPath = storage_path("app/LGD_Monthly_Report_{$request->start_period}_to_{$request->end_period}.zip");
+
+            $zip = new ZipArchive();
+            $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+            //$zip->addFile($pdfPath, "LGD_Report_{$request->start_period}_to_{$request->end_period}.pdf");
+            $zip->addFile($csvPath, "LGD_Montly_Report_{$request->start_period}_to_{$request->end_period}.csv");
+            $zip->close();
+
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+        }
+
 
     
  // Function to delete a Loss Given Default record

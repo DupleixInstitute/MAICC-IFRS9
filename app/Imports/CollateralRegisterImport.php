@@ -1,155 +1,320 @@
 <?php
+
 namespace App\Imports;
 
 use App\Models\CollateralRegister;
-use Illuminate\Support\Collection;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Carbon\Carbon;
 use App\Models\Import;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Events\AfterImport;
 use Maatwebsite\Excel\Events\BeforeImport;
 use Maatwebsite\Excel\Events\ImportFailed;
-use Illuminate\Support\Facades\Storage;
 
-class CollateralRegisterImport implements ToCollection, WithHeadingRow, ShouldQueue, WithChunkReading, WithEvents
+class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading, ShouldQueue
 {
-    public $import;
-    protected $exceptionFilePath;
+    protected Import $import;
+    protected array $mapping;
+    protected string $importType;
+    protected string $exceptionFilePath;
 
-    public function __construct(Import $import, array $data)
-            {
-                $this->import = $import;
-                $this->data = $data;
-
-                $this->exceptionFilePath = storage_path("app/public/failed_imports/loan_books_exception_{$import->id}.csv");
-                if (!file_exists(dirname($this->exceptionFilePath))) {
-                    mkdir(dirname($this->exceptionFilePath), 0755, true);
-                }
-                if (!file_exists($this->exceptionFilePath)) {
-                    $handle = fopen($this->exceptionFilePath, 'w');
-                    fputcsv($handle, ['register_number','customer_id','customer_name','collateral_type','property_use',
-                                                        'description', 'location', 'registration_date','expiry_date','valuation_date',  
-                                                        'nominal_value',  'market_value','execution_value', 'status',
-                                                     ]);
-                    fclose($handle);
-                }
-            }
-
-    public function collection(Collection $rows)
+    public function __construct(Import $import, array $mapping = [], string $importType = 'custom')
     {
+        $this->import      = $import;
+        $this->mapping     = $mapping;
+        $this->importType  = $importType;
 
-        $bulkInsert = [];
-        $inserted = 0;
-        $exceptions = 0;
+        $this->exceptionFilePath = storage_path("app/public/failed_imports/collateral_register_exception_{$import->id}.csv");
 
-        $period = Carbon::createFromFormat('Y-m', $this->data['registration_date'])->startOfMonth();
+        if (!file_exists(dirname($this->exceptionFilePath))) {
+            mkdir(dirname($this->exceptionFilePath), 0755, true);
+        }
 
-        foreach ($rows as $row) { // Skip headers
+        if (!file_exists($this->exceptionFilePath)) {
+            $file = fopen($this->exceptionFilePath, 'w');
+            fputcsv($file, ['Row Data', 'Reason']);
+            fclose($file);
+        }
+    }
 
+    protected function parseDate($value): ?string
+    {
+        if (!$value) return null;
+
+        // Clean the value first - handle your CSV's " -   " values
+        $value = trim(str_replace(['-', ' -   ', "\xC2\xA0", "\xA0"], '', $value));
+        
+        if (empty($value)) return null;
+
+        $formats = [
+            'd/m/Y', 'd/m/Y H:i', 'd/m/Y H:i:s',
+            'm/d/Y', 'm/d/Y H:i', 'm/d/Y H:i:s', 
+            'Y-m-d', 'Y-m-d H:i:s'
+        ];
+
+        foreach ($formats as $format) {
             try {
-                $row = $row->toArray();
-                $normalizedRow = [];
-                foreach ($row as $key => $value) {
-                    $normalizedRow[strtolower(trim($key))] = $value;
+                $date = Carbon::createFromFormat($format, $value);
+                if ($date !== false) {
+                    return $date->format('Y-m-d');
                 }
-
-
-               $bulkInsert[] =
-               
-            //    CollateralRegister::create([
-            //        // 'register_number' => $normalizedRow['register_number'] ?: null,
-            //         'customer_id' => $normalizedRow['customer_id'] ?? null,
-            //         'customer_name' =>$normalizedRow['name'],
-            //         'collateral_type' => $normalizedRow['collateral_type'],
-            //         'property_use' => $normalizedRow['property_use'] ? : null,
-            //         'description' => $normalizedRow['description'] ? : null,
-            //         //'location' => $normalizedRow['location'] ? : null,
-            //         'registration_date' => Carbon::parse($normalizedRow['registration_date']) ? : null,
-            //         'expiry_date' => Carbon::parse($normalizedRow['expiry_date']) ? : null,
-            //         'valuation_date' => Carbon::parse($normalizedRow['valuation_date']) ? : null,
-            //         'nominal_value' => $normalizedRow['nominal_value'],
-            //         //'market_value' => $normalizedRow['market_value'],
-            //         'execution_value' => $normalizedRow['execution_value'] ? : null,
-            //        // 'status' => strtoupper(trim($row[13])) ?: 'ACTIVE',
-            //        // 'notes' => $row[14] ?? null,
-            //     ]);
-
-                    CollateralRegister::updateOrCreate(
-                    [
-                        'customer_id' => $normalizedRow['customer_id'] ?? null,
-                        'collateral_type' => $normalizedRow['collateral_type'] ?? null,
-                    ],
-                    [
-                        'customer_name' => $normalizedRow['name'] ?? null,
-                        'property_use' => $normalizedRow['property_use'] ?? null,
-                        'description' => $normalizedRow['description'] ?? null,
-                        'registration_date' => $period,
-                        //     ? Carbon::parse($normalizedRow['registration_date'])
-                        //     : null,
-                        // 'expiry_date' => isset($normalizedRow['expiry_date'])
-                        //     ? Carbon::parse($normalizedRow['expiry_date'])
-                        //     : null,
-                        // 'valuation_date' => isset($normalizedRow['valuation_date'])
-                        //     ? Carbon::parse($normalizedRow['valuation_date'])
-                        //     : null,
-                        'nominal_value' => $normalizedRow['nominal_value'] ?? null,
-                        'execution_value' => $normalizedRow['execution_value'] ?? null,
-                        'market_value' => $normalizedRow['market_value'] ?? null,
-                    ]
-                );
-                $inserted++;
             } catch (\Exception $e) {
-                \Log::error('Collateral import error: ' . $e->getMessage());
-                $exceptions++;
-                $this->appendExceptionRow($row);
+                // Continue to next format
             }
         }
 
-        $import = Import::find($this->import->id);
-        $import->records += $inserted;
-        $import->failed_records += $exceptions;
-        $import->save();
+        // Try generic parsing as last resort
+        try {
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Exception $e) {
+            //Log::warning("Failed to parse date: {$value}", ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
-        protected function appendExceptionRow(array $row)
-            {
-                $handle = fopen($this->exceptionFilePath, 'a');
-                fputcsv($handle, $row);
-                fclose($handle);
-            }
+    protected function cleanNumber($value): float
+    {
+        if (!$value || trim($value) === '-' || trim($value) === '' || trim($value) === ' -   ') return 0;
+        
+        // Remove commas, spaces, and special characters
+        $cleaned = str_replace([',', ' ', "\xC2\xA0", "\xA0", '"'], '', trim($value));
+        return (float) $cleaned;
+    }
 
-        public function chunkSize(): int
-            {
-                return 1000;
+    protected function normalizeKey($key): string
+    {
+        // First remove all quotes and trim
+        $key = trim($key, " \t\n\r\0\x0B\"'");
+        
+        // Replace multiple spaces with single space
+        $key = preg_replace('/\s+/', ' ', $key);
+        
+        // Replace special characters and spaces with underscores
+        $key = preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+        
+        // Remove multiple underscores
+        $key = preg_replace('/_+/', '_', $key);
+        
+        // Convert to lowercase
+        $key = strtolower($key);
+        
+        // Remove trailing underscores
+        $key = trim($key, '_');
+        
+        return $key;
+    }
+
+    public function collection(Collection $rows)
+    {
+        $bulkInsert = [];
+        $inserted   = 0;
+        $exceptions = 0;
+
+        $registrationDate = $this->mapping['registration_date'] ?? $this->import->settings['registration_date'] ?? now()->format('Y-m');
+
+        if (!str_contains($registrationDate, '-')) {
+            $registrationDate = now()->format('Y-m');
+        }
+        
+        $registrationCarbon = Carbon::createFromFormat('Y-m', $registrationDate);
+
+        foreach ($rows as $index => $row) {
+            try {
+                // Normalize keys with new method
+                $normalizedRow = collect($row->toArray())->mapWithKeys(function ($value, $key) {
+                    $normalizedKey = $this->normalizeKey($key);
+                    return [$normalizedKey => $value];
+                })->toArray();
+
+                // Determine import type
+                $data = [];
+                if ($this->importType === 'legacy') {
+                    // Legacy logic
+                    $data['customer_id']       = $normalizedRow['customer_id'] ?? null;
+                    $data['customer_name']     = $normalizedRow['customer_name'] ?? $normalizedRow['name'] ?? 'Unknown';
+                    $data['collateral_type']   = $normalizedRow['collateral_type'] ?? null;
+                    $data['property_use']      = $normalizedRow['property_use'] ?? null;
+                    $data['description']       = $normalizedRow['description'] ?? null;
+                    $data['location']          = $normalizedRow['location'] ?? null;
+                    $data['registration_date'] = $this->parseDate($normalizedRow['registration_date'] ?? null) ?? $registrationCarbon->format('Y-m-d');
+                    $data['expiry_date']       = $this->parseDate($normalizedRow['expiry_date'] ?? null);
+                    $data['valuation_date']    = $this->parseDate($normalizedRow['valuation_date'] ?? null);
+                    $data['nominal_value']     = $this->cleanNumber($normalizedRow['nominal_value'] ?? 0);
+                    $data['market_value']      = $this->cleanNumber($normalizedRow['market_value'] ?? 0);
+                    $data['execution_value']   = $this->cleanNumber($normalizedRow['execution_value'] ?? 0);
+                    $data['status']            = strtoupper(trim($normalizedRow['status'] ?? '')) ?: 'ACTIVE';
+                } else {
+                    // Custom import type with mapping
+                    $ignoredKeys = [
+                        'registration_date',
+                        'import_type',
+                        'mapping',
+                    ];
+                    
+                    foreach ($this->mapping as $csv => $db) {
+                        if (in_array($csv, $ignoredKeys)) {
+                            continue;
+                        }
+
+                        if (!$db || $db === '') continue; // Skip empty mappings
+                        
+                        // Normalize CSV header key
+                        $normalizedCsvKey = $this->normalizeKey($csv);
+                        
+                        if (isset($normalizedRow[$normalizedCsvKey])) {
+                            $data[$db] = $normalizedRow[$normalizedCsvKey];
+                        } else {
+                            // Log::warning("Mapping key not found in row", [
+                            //     'csv_key' => $csv,
+                            //     'normalized_csv_key' => $normalizedCsvKey,
+                            //     'db_field' => $db,
+                            //     'available_keys' => array_keys($normalizedRow)
+                            // ]);
+                        }
+                    }
+                    
+                    // If mapping is empty or doesn't include essential fields, use direct field mapping as fallback
+                    $essentialFields = ['customer_id', 'collateral_type'];
+                    $hasEssentialFields = count(array_intersect($essentialFields, array_keys($data))) === count($essentialFields);
+                    
+                    if (!$hasEssentialFields) {
+                        $data['customer_id']       = $normalizedRow['customer_id'] ?? null;
+                        $data['customer_name']     = $normalizedRow['customer_name'] ?? $normalizedRow['name'] ?? 'Unknown';
+                        $data['collateral_type']   = $normalizedRow['collateral_type'] ?? null;
+                        $data['property_use']      = $normalizedRow['property_use'] ?? null;
+                        $data['description']       = $normalizedRow['description'] ?? null;
+                        $data['location']          = $normalizedRow['location'] ?? null;
+                        $data['registration_date'] = $this->parseDate($normalizedRow['registration_date'] ?? null) ?? $registrationCarbon->format('Y-m-d');
+                        $data['expiry_date']       = $this->parseDate($normalizedRow['expiry_date'] ?? null);
+                        $data['valuation_date']    = $this->parseDate($normalizedRow['valuation_date'] ?? null);
+                        $data['nominal_value']     = $this->cleanNumber($normalizedRow['nominal_value'] ?? 0);
+                        $data['market_value']      = $this->cleanNumber($normalizedRow['market_value'] ?? 0);
+                        $data['execution_value']   = $this->cleanNumber($normalizedRow['execution_value'] ?? 0);
+                        $data['status']            = strtoupper(trim($normalizedRow['status'] ?? '')) ?: 'ACTIVE';
+                    }
+                }
+
+                // Validate essential fields
+                $customerId = $data['customer_id'] ?? null;
+                $collateralType = $data['collateral_type'] ?? null;
+                
+                if (empty($customerId) || empty($collateralType)) {
+                    throw new \Exception("Missing essential fields: customer_id and/or collateral_type");
+                }
+
+                // Set default registration date if not provided
+                if (empty($data['registration_date'])) {
+                    $data['registration_date'] = $registrationCarbon->format('Y-m-d');
+                }
+
+                // Set default status if not provided
+                if (empty($data['status'])) {
+                    $data['status'] = 'ACTIVE';
+                }
+
+                // Clean numeric fields
+                $numericFields = ['nominal_value', 'market_value', 'execution_value'];
+                foreach ($numericFields as $field) {
+                    if (isset($data[$field])) {
+                        $data[$field] = $this->cleanNumber($data[$field]);
+                    }
+                }
+
+                // Parse date fields
+                $dateFields = ['registration_date', 'expiry_date', 'valuation_date'];
+                foreach ($dateFields as $field) {
+                    if (isset($data[$field]) && $data[$field]) {
+                        $data[$field] = $this->parseDate($data[$field]);
+                    }
+                }
+
+                // Add timestamps
+                $data['created_at'] = now();
+                $data['updated_at'] = now();
+
+                $bulkInsert[] = $data;
+                $inserted++;
+
+            } catch (\Exception $e) {
+                Log::error("Error processing collateral row {$index}: " . $e->getMessage());
+                $this->appendExceptionRow($row->toArray(), $e->getMessage());
+                $exceptions++;
             }
+        }
+
+        // Bulk upsert
+        if (!empty($bulkInsert)) {
+            try {
+                // Insert in smaller chunks to avoid memory issues
+                $chunks = array_chunk($bulkInsert, 100);
+                foreach ($chunks as $chunk) {
+                    CollateralRegister::upsert(
+                        $chunk,
+                        ['customer_id', 'collateral_type', 'registration_date'],
+                        [
+                            'customer_name',
+                            'property_use',
+                            'description',
+                            'location',
+                            'expiry_date',
+                            'valuation_date',
+                            'nominal_value',
+                            'market_value',
+                            'execution_value',
+                            'status',
+                            'updated_at',
+                        ]
+                    );
+                }
+                Log::info("Successfully upserted {$inserted} collateral records");
+            } catch (\Exception $e) {
+                Log::error("Bulk collateral insert failed: " . $e->getMessage());
+            }
+        }
+
+        // Update import stats
+        $import = Import::find($this->import->id);
+        if ($import) {
+            $import->records += $inserted;
+            $import->failed_records += $exceptions;
+            $import->save();
+        }
+        
+        Log::info("Collateral import completed - Inserted: {$inserted}, Exceptions: {$exceptions}");
+    }
+
+    protected function appendExceptionRow(array $row, string $reason)
+    {
+        $handle = fopen($this->exceptionFilePath, 'a');
+        fputcsv($handle, [json_encode($row), $reason]);
+        fclose($handle);
+    }
+
+    public function chunkSize(): int
+    {
+        return 500;
+    }
 
     public function registerEvents(): array
     {
         return [
-            BeforeImport::class => function (BeforeImport $event) {
-                $this->import->update([
-                    'status' => 'processing',
-                ]);
+            BeforeImport::class => function() {
+                $this->import->update(['status' => 'processing']);
+                Log::info("Starting collateral import for: " . $this->import->id);
             },
-            AfterImport::class => function (AfterImport $event) {
-                $this->import->update([
-                    'status' => 'completed',
-                    'completed_at' => now(),
-                ]);
+            AfterImport::class => function() {
+                $this->import->update(['status' => 'completed', 'completed_at' => now()]);
+                Log::info("Completed collateral import for: " . $this->import->id);
             },
-            ImportFailed::class => function (ImportFailed $event) {
-                Log::error('Import failed: ' . $event->getException()->getMessage());
-                $this->import->update([
-                    'status' => 'failed',
-                    'completed_at' => now(),
-                ]);
-            },
+            ImportFailed::class => function(ImportFailed $event) {
+                $this->import->update(['status' => 'failed', 'completed_at' => now()]);
+                Log::error("Collateral import failed: " . $event->getException()->getMessage());
+            }
         ];
-}
+    }
 }

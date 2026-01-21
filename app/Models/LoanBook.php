@@ -63,6 +63,10 @@ class LoanBook extends Model
         'pd_post_fli_adj',
         'fli_adj',
         'remaining_life_in_months',
+        'arrears_1_to_30',
+        'arrears_30_to_90',
+        'arrears_91_to_180',
+        'arrears_180_to_270',
     ];
 
     /**
@@ -126,6 +130,6 @@ class LoanBook extends Model
     }
     public function portfolio()
     {
-        return $this->belongsTo(LoanPortfolio::class, 'portfolio_group');
+        return $this->belongsTo(LoanPortfolio::class, 'loan_portfolio_id');
     }
 }

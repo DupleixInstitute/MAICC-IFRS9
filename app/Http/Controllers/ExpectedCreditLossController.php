@@ -38,18 +38,29 @@ class ExpectedCreditLossController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | FILTER BY ECL CALCULATION LEVEL
+            | YEAR FILTER
             |--------------------------------------------------------------------------
             */
-            if ($request->filled('ecl_calculation_level')) {
+            if ($request->filled('year')) {
+                $query->whereYear('reporting_period', $request->input('year'));
+            }
 
-                if ($request->ecl_calculation_level === 'portfolio' && $request->filled('portfolio_id')) {
-                    $query->where('loan_portfolio_id', $request->portfolio_id);
-                }
+            /*
+            |--------------------------------------------------------------------------
+            | MONTH FILTER
+            |--------------------------------------------------------------------------
+            */
+            if ($request->filled('month')) {
+                $query->whereMonth('reporting_period', $request->input('month'));
+            }
 
-                if ($request->ecl_calculation_level === 'sector' && $request->filled('sector_code')) {
-                    $query->where('industry_code', $request->sector_code);
-                }
+            /*
+            |--------------------------------------------------------------------------
+            | PORTFOLIO FILTER
+            |--------------------------------------------------------------------------
+            */
+            if ($request->filled('portfolio')) {
+                $query->where('loan_portfolio_id', $request->input('portfolio'));
             }
 
             /*
@@ -83,16 +94,103 @@ class ExpectedCreditLossController extends Controller
             return Inertia::render('ExpectedCreditLoss/Index', [
                 'loanBooks'   => $loanBooks,
                 'latestPeriod'=> $latestPeriod,
+                'summary'     => $this->summary($request),
                 'filters'     => $request->only([
                     'search',
+                    'year',
+                    'month',
                     'stage',
-                    'ecl_calculation_level',
-                    'portfolio_id',
-                    'sector_code'
+                    'portfolio'
                 ]),
                 'portfolios'  => LoanPortfolio::all(),
                 'sectors'     => IndustryType::all(),
             ]);
+        }
+
+        public function summary(Request $request)
+        {
+            // Get the latest and previous ECL calculation periods
+            $latestPeriod = ExpectedCreditLoss::select('reporting_period')
+                ->orderBy('reporting_period', 'desc')
+                ->value('reporting_period');
+            
+            $previousPeriod = ExpectedCreditLoss::select('reporting_period')
+                ->where('reporting_period', '!=', $latestPeriod)
+                ->orderBy('reporting_period', 'desc')
+                ->value('reporting_period');
+
+            // Get current loan book data (latest ECL calculation)
+            $query = LoanBook::query()
+                ->with('client')
+                ->where('reporting_period', function($q) {
+                    $q->selectRaw('MAX(period)')
+                      ->from('reporting_periods')
+                      ->where('ecl_calculated', 1);
+                });
+
+            // Apply same filters as index
+            if ($request->filled('year')) {
+                $query->whereYear('reporting_period', $request->input('year'));
+            }
+
+            if ($request->filled('month')) {
+                $query->whereMonth('reporting_period', $request->input('month'));
+            }
+
+            if ($request->filled('portfolio')) {
+                $query->where('loan_portfolio_id', $request->input('portfolio'));
+            }
+
+            if ($request->filled('stage')) {
+                $query->where('ifrs9stage_pre_qualitative', $request->input('stage'));
+            }
+
+            // Get current summary data
+            $currentExposure = $query->sum('carrying_amount');
+            $currentLoss = $query->sum('ecl_value');
+            $currentLoans = $query->count();
+            
+            // Get previous ECL calculation data for comparison
+            $previousData = null;
+            if ($previousPeriod) {
+                $previousData = ExpectedCreditLoss::where('reporting_period', $previousPeriod)
+                    ->selectRaw('SUM(total_ead) as total_exposure, SUM(total_ecl) as total_loss, SUM(total_loans) as total_loans')
+                    ->first();
+            }
+            
+            // Calculate differences
+            $exposureChange = $previousData ? $currentExposure - $previousData->total_exposure : 0;
+            $lossChange = $previousData ? $currentLoss - $previousData->total_loss : 0;
+            $exposureChangePercent = $previousData && $previousData->total_exposure > 0 ? (($exposureChange / $previousData->total_exposure) * 100) : 0;
+            $lossChangePercent = $previousData && $previousData->total_loss > 0 ? (($lossChange / $previousData->total_loss) * 100) : 0;
+
+            // Get summary data
+            $summary = [
+                'total_calculations' => ExpectedCreditLoss::count(),
+                'current_period' => $latestPeriod,
+                'previous_period' => $previousPeriod,
+                'total_exposure' => $currentExposure,
+                'total_loss' => $currentLoss,
+                'total_loans' => $currentLoans,
+                'previous_exposure' => $previousData ? $previousData->total_exposure : 0,
+                'previous_loss' => $previousData ? $previousData->total_loss : 0,
+                'exposure_change' => $exposureChange,
+                'loss_change' => $lossChange,
+                'exposure_change_percent' => $exposureChangePercent,
+                'loss_change_percent' => $lossChangePercent,
+                'periods' => ExpectedCreditLoss::select('reporting_period')
+                    ->distinct()
+                    ->orderBy('reporting_period', 'desc')
+                    ->pluck('reporting_period')
+                    ->take(5),
+                'stage_counts' => [
+                    'stage_1' => $query->clone()->where('ifrs9stage_pre_qualitative', 1)->count(),
+                    'stage_2' => $query->clone()->where('ifrs9stage_pre_qualitative', 2)->count(),
+                    'stage_3' => $query->clone()->where('ifrs9stage_pre_qualitative', 3)->count(),
+                ]
+            ];
+
+            return $summary;
         }
 
         public function create()

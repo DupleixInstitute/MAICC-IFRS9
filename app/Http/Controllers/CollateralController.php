@@ -247,25 +247,32 @@ class CollateralController extends Controller
             $request->validate([
                 'file' => ['required', 'file', 'mimes:txt,csv'],
                 'registration_date' => ['required', 'date_format:Y-m'],
+                'mapping' => ['nullable', 'array'],
+                'import_type' => ['nullable', 'string', 'in:custom,legacy'],
             ]);
 
             try {
                 $import = Import::create([
                     'name' => $request->file('file')->getClientOriginalName(),
                     'status' => 'pending',
+                    'settings' => [
+                        'registration_date' => $request->input('registration_date'),
+                        'mapping' => $request->input('mapping', []),
+                        'import_type' => $request->input('import_type', 'custom'),
+                    ]
                 ]);
 
-                $data = [
-                    'source' => 'collateral',
-                    'uploaded_by' => auth()->id(),
-                    'registration_date' => $request->input('registration_date'), 
-                ];
+                $mapping = $request->input('mapping', []);
+                $importType = $request->input('import_type', 'custom');
 
-                Excel::import(new CollateralRegisterImport($import, $data), $request->file('file'));
+                // Add registration_date to mapping for the import class
+                $mapping['registration_date'] = $request->input('registration_date');
+
+                Excel::import(new CollateralRegisterImport($import, $mapping, $importType), $request->file('file'));
 
                 return redirect()
                     ->route('collateral.allocations.index')
-                    ->with('success', 'Collateral register imported successfully.');
+                    ->with('success', 'Collateral register import has been queued for processing.');
             } catch (\Throwable $e) {
                 return back()->with('error', 'Import failed: ' . $e->getMessage());
             }

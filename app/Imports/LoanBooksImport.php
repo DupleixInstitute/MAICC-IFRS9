@@ -93,7 +93,7 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
             if (!$value || trim($value) === '-' || trim($value) === '' || trim($value) === ' -   ') {
                 return false;
             }
-            $value = str_replace(['-', "\xC2\xA0", "\xA0", "\xE2\x80\x8B", "\xE2\x80\x8C", "\t", "\n", "\r", ',', ' ', '"'], '', $value);
+            $value = str_replace(["\xC2\xA0", "\xA0", "\xE2\x80\x8B", "\xE2\x80\x8C", "\t", "\n", "\r", ',', ' ', '"'], '', $value);
             $value = trim(preg_replace('/[\x00-\x1F\x7F\xA0\xAD]/u', '', $value));
             return is_numeric($value) && floatval($value) > 0;
         };
@@ -147,7 +147,14 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
 
         $reportingPeriod = $this->mapping['reporting_period'] ?? $this->import->settings['reporting_period'] ?? now()->format('Y-m');
         $portfolioId     = $this->mapping['loan_portfolio_id'] ?? $this->import->settings['loan_portfolio_id'] ?? 1;
-        
+        $arrearsMap = [
+                    'arrears_1_to_30'    => '1_30_days',
+                    'arrears_30_to_90'   => '31_90_days',
+                    'arrears_91_to_180'  => '91_180_days',
+                    'arrears_180_to_270' => '181_270_days',
+                    //'arrears_271_to_360' => '271_360_days',
+                ];
+
         if (!str_contains($reportingPeriod, '-')) {
             $reportingPeriod = now()->format('Y-m');
         }
@@ -301,7 +308,7 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     $principal = $carryingAmount;
                 }
 
-                // Build bulk insert - ensure industry_code is included
+                // Build bulk insert
                 $loanData = [
                     'customer_id'                 => $client->id,
                     'customer_name'               => $data['name'] ?? '',
@@ -328,12 +335,33 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     'updated_at'                  => now(),
                 ];
 
+                // --------------------
+                // ADD ARREARS SAFELY
+                // --------------------
+                foreach ($arrearsMap as $dbField => $normalizedCsvKey) {
+                    $loanData[$dbField] = $this->cleanNumber(
+                        $normalizedRow[$normalizedCsvKey] ?? 0
+                    );
+                }
+
+                // $arrearsFields = ['arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'];
+
+                // foreach ($arrearsFields as $field) {
+                //     $csvKey = $this->mapping[$field] ?? $field;
+                //     $normalizedKey = $this->normalizeKey($csvKey);
+                //     $loanData[$field] = $this->cleanNumber($normalizedRow[$normalizedKey] ?? null);
+                // }
+
                 // Log the loan data to verify industry_code
-                Log::info("Prepared loan data for insert", [
-                    'customer_name' => $data['name'] ?? '',
-                    'industry_code' => $loanData['industry_code'],
-                    'all_data_keys' => array_keys($data)
-                ]);
+                // Log::info("Prepared loan data for insert", [
+                //     'customer_name' => $data['name'] ?? '',
+                //     'industry_code' => $loanData['industry_code'],
+                //     'all_data_keys' => array_keys($data)
+                // ]);
+                // Log::info('Arrears added', array_intersect_key(
+                //             $loanData,
+                //             array_flip(array_keys($arrearsMap))
+                //         ));
 
                 $bulkInsert[] = $loanData;
 
@@ -366,7 +394,12 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                             'ifrs9stage_pre_qualitative', 
                             'ifrs9stage_post_qualitative', 
                             'updated_at',
-                            'industry_code' // Make sure industry_code is included in update
+                            'industry_code',
+                            'arrears_1_to_30',
+                            'arrears_30_to_90',
+                            'arrears_91_to_180',
+                            'arrears_180_to_270',
+                            //'arrears_271_to_360',
                         ]
                     );
                 }

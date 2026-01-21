@@ -21,7 +21,11 @@ class TransitionMatrixCummulativeService
             // First get all relevant TransitionMatrix records
             $query = TransitionMatrix::where('transition_profile_id', $transitionProfileId)
                 ->where('status', 'Closed')
-                ->whereBetween('start_reporting_period', [$startPeriod, $endPeriod]);
+               ->where(function ($q) use ($startPeriod, $endPeriod) {
+                    $q->where('start_reporting_period', '<=', $endPeriod)
+                    ->where('end_reporting_period', '>=', $startPeriod);
+                });
+
 
             if ($pdCalculationLevel === 'portfolio') {
                 $query->where('pd_calculation_id', $pdCalculationId);

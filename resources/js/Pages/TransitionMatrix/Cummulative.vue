@@ -189,7 +189,12 @@
                         </div>
 
                         <!-- Pagination -->
-                        <pagination :links="cumMatrix.links" class="mt-6" />
+                        <div v-if="cumMatrix.links && cumMatrix.links.length > 0" class="mt-6">
+                            <pagination :links="cumMatrix.links" />
+                        </div>
+                        <div v-else class="mt-6 text-sm text-gray-500">
+                            No pagination available ({{ cumMatrix.data?.length || 0 }} records)
+                        </div>
                     </div>
                 </div>
             </div>
@@ -335,7 +340,7 @@
 </template>
 
 <script>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import debounce from 'lodash/debounce'
 import AppLayout from '@/Layouts/AppLayout.vue'
@@ -377,6 +382,8 @@ export default {
     },
 
     setup(props) {
+        const cumMatrix = computed(() => props.cumMatrix)
+        
         const search = ref(props.filters.search || '')
         const startDate = ref(props.filters.start_date || '')
         const endDate = ref(props.filters.end_date || '')
@@ -432,6 +439,14 @@ export default {
 
 
         const updateSearch = debounce(() => {
+            console.log('Frontend - Sending search request:', {
+                search: search.value,
+                start_date: startDate.value,
+                end_date: endDate.value,
+                startDateType: typeof startDate.value,
+                endDateType: typeof endDate.value
+            });
+            
             router.get(
                 route('transition-matrix-cummulative.index'),
                 { 
@@ -448,6 +463,11 @@ export default {
         }, 300)
 
         watch([search, startDate, endDate], () => {
+            console.log('Frontend - Dates changed:', {
+                search: search.value,
+                startDate: startDate.value,
+                endDate: endDate.value
+            });
             updateSearch()
         })
 
@@ -605,6 +625,7 @@ export default {
             submitUpload,
             handleModalFileChange,
             openUploadModal,
+            cumMatrix,
         }
     }
 }
