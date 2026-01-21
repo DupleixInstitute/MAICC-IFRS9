@@ -287,7 +287,7 @@ class ProcessLoanImportJob implements ShouldQueue
             'create_date'      => $this->parseDate($row[6] ?? ''),
             'due_date'         => $this->parseDate($row[7] ?? ''),
             'interest_rate'    => trim($row[10] ?? ''),
-            'remaining_tenor'  => $this->calculateRemainingTenor($row[8] ?? '', $periodString),
+            'remaining_tenor'  => $this->calculateRemainingTenor($row[7] ?? '', $periodString),
             'principal_balance' => $this->cleanNumeric($row[14] ?? 0),
             'carrying_amount'   => $this->cleanNumeric($row[20] ?? 0),
             'arrears_1_to_30'   => $this->cleanNumeric($row[25] ?? 0),
