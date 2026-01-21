@@ -115,13 +115,15 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
         $inserted   = 0;
         $exceptions = 0;
 
-        $registrationDate = $this->mapping['registration_date'] ?? $this->import->settings['registration_date'] ?? now()->format('Y-m');
-
-        if (!str_contains($registrationDate, '-')) {
-            $registrationDate = now()->format('Y-m');
+        $periodInput = $this->mapping['period'] ?? $this->import->settings['period'] ?? null;
+        if ($periodInput) {
+            $periodCarbon = Carbon::createFromFormat('Y-m', $periodInput)->startOfMonth();
+        } else {
+            $periodCarbon = now()->startOfMonth();
         }
-        
-        $registrationCarbon = Carbon::createFromFormat('Y-m', $registrationDate);
+
+        $period = $periodCarbon->format('Y-m-d');
+
 
         foreach ($rows as $index => $row) {
             try {
@@ -141,7 +143,8 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
                     $data['property_use']      = $normalizedRow['property_use'] ?? null;
                     $data['description']       = $normalizedRow['description'] ?? null;
                     $data['location']          = $normalizedRow['location'] ?? null;
-                    $data['registration_date'] = $this->parseDate($normalizedRow['registration_date'] ?? null) ?? $registrationCarbon->format('Y-m-d');
+                    $data['period']            = $periodCarbon->format('Y-m-d');
+                    $data['registration_date'] = $this->parseDate($normalizedRow['registration_date'] ?? null) ?? $periodCarbon->format('Y-m-d');
                     $data['expiry_date']       = $this->parseDate($normalizedRow['expiry_date'] ?? null);
                     $data['valuation_date']    = $this->parseDate($normalizedRow['valuation_date'] ?? null);
                     $data['nominal_value']     = $this->cleanNumber($normalizedRow['nominal_value'] ?? 0);
@@ -179,7 +182,7 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
                     }
                     
                     // If mapping is empty or doesn't include essential fields, use direct field mapping as fallback
-                    $essentialFields = ['customer_id', 'collateral_type'];
+                    $essentialFields = ['customer_id', 'collateral_type', 'period'];
                     $hasEssentialFields = count(array_intersect($essentialFields, array_keys($data))) === count($essentialFields);
                     
                     if (!$hasEssentialFields) {
@@ -189,7 +192,8 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
                         $data['property_use']      = $normalizedRow['property_use'] ?? null;
                         $data['description']       = $normalizedRow['description'] ?? null;
                         $data['location']          = $normalizedRow['location'] ?? null;
-                        $data['registration_date'] = $this->parseDate($normalizedRow['registration_date'] ?? null) ?? $registrationCarbon->format('Y-m-d');
+                        $data['period']            = $periodCarbon->format('Y-m-d');
+                        $data['registration_date'] = $this->parseDate($normalizedRow['registration_date'] ?? null) ?? $periodCarbon->format('Y-m-d');
                         $data['expiry_date']       = $this->parseDate($normalizedRow['expiry_date'] ?? null);
                         $data['valuation_date']    = $this->parseDate($normalizedRow['valuation_date'] ?? null);
                         $data['nominal_value']     = $this->cleanNumber($normalizedRow['nominal_value'] ?? 0);
@@ -209,7 +213,7 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
 
                 // Set default registration date if not provided
                 if (empty($data['registration_date'])) {
-                    $data['registration_date'] = $registrationCarbon->format('Y-m-d');
+                    $data['registration_date'] = $periodCarbon->format('Y-m-d');
                 }
 
                 // Set default status if not provided
@@ -237,6 +241,17 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
                 $data['created_at'] = now();
                 $data['updated_at'] = now();
 
+                // Create a composite unique key using multiple fields
+                $uniqueKey = [
+                    'customer_id' => $data['customer_id'],
+                    'collateral_type' => $data['collateral_type'],
+                    'period' => $period,
+                    'registration_date' => $data['registration_date'] ?? $period,
+                ];
+                
+                // Add the unique key fields to the data for upsert
+                $data = array_merge($data, $uniqueKey);
+
                 $bulkInsert[] = $data;
                 $inserted++;
 
@@ -247,31 +262,79 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
             }
         }
 
-        // Bulk upsert
+        // Bulk upsert - manually check for duplicates first
         if (!empty($bulkInsert)) {
             try {
                 // Insert in smaller chunks to avoid memory issues
                 $chunks = array_chunk($bulkInsert, 100);
                 foreach ($chunks as $chunk) {
-                    CollateralRegister::upsert(
-                        $chunk,
-                        ['customer_id', 'collateral_type', 'registration_date'],
-                        [
-                            'customer_name',
-                            'property_use',
-                            'description',
-                            'location',
-                            'expiry_date',
-                            'valuation_date',
-                            'nominal_value',
-                            'market_value',
-                            'execution_value',
-                            'status',
-                            'updated_at',
-                        ]
-                    );
+                    // Check for existing records with our unique key combination
+                    $existingRecords = [];
+                    foreach ($chunk as $record) {
+                        $key = $record['customer_id'] . '|' . 
+                               $record['collateral_type'] . '|' . 
+                               $record['period'] . '|' . 
+                               $record['registration_date'];
+                        
+                        $existing = CollateralRegister::where('customer_id', $record['customer_id'])
+                            ->where('collateral_type', $record['collateral_type'])
+                            ->where('period', $record['period'])
+                            ->where('registration_date', $record['registration_date'])
+                            ->first();
+                        
+                        if ($existing) {
+                            $existingRecords[$key] = $existing->id;
+                        }
+                    }
+                    
+                    // Separate into updates and inserts
+                    $updateData = [];
+                    $insertData = [];
+                    
+                    foreach ($chunk as $record) {
+                        $key = $record['customer_id'] . '|' . 
+                               $record['collateral_type'] . '|' . 
+                               $record['period'] . '|' . 
+                               $record['registration_date'];
+                        
+                        if (isset($existingRecords[$key])) {
+                            // Update existing record
+                            $updateData[] = [
+                                'id' => $existingRecords[$key],
+                                'customer_name' => $record['customer_name'] ?? null,
+                                'property_use' => $record['property_use'] ?? null,
+                                'description' => $record['description'] ?? null,
+                                'location' => $record['location'] ?? null,
+                                'expiry_date' => $record['expiry_date'] ?? null,
+                                'valuation_date' => $record['valuation_date'] ?? null,
+                                'nominal_value' => $record['nominal_value'] ?? 0,
+                                'market_value' => $record['market_value'] ?? 0,
+                                'execution_value' => $record['execution_value'] ?? 0,
+                                'status' => $record['status'] ?? 'ACTIVE',
+                                'updated_at' => now(),
+                            ];
+                        } else {
+                            // Insert new record
+                            unset($record['created_at']); // Let Laravel handle this
+                            $insertData[] = $record;
+                        }
+                    }
+                    
+                    // Perform updates
+                    if (!empty($updateData)) {
+                        foreach ($updateData as $update) {
+                            $id = $update['id'];
+                            unset($update['id']);
+                            CollateralRegister::where('id', $id)->update($update);
+                        }
+                    }
+                    
+                    // Perform inserts
+                    if (!empty($insertData)) {
+                        CollateralRegister::insert($insertData);
+                    }
                 }
-                Log::info("Successfully upserted {$inserted} collateral records");
+                Log::info("Successfully processed {$inserted} collateral records");
             } catch (\Exception $e) {
                 Log::error("Bulk collateral insert failed: " . $e->getMessage());
             }

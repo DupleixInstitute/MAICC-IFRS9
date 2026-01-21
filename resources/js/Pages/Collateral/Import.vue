@@ -73,7 +73,7 @@
 
                <div>
                   <label class="block text-sm font-medium text-gray-700">Period</label>
-                  <input type="month" v-model="form.registration_date" required
+                  <input type="month" v-model="form.period" required
                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                   <p class="mt-1 text-xs text-gray-500">Select the month and year for the collateral register</p>
               </div>
@@ -200,7 +200,7 @@ export default {
             importType: 'legacy',
             form: this.$inertia.form({
                 file: null,
-                registration_date: '',
+                period: '',
                 mapping: {},
                 import_type: 'legacy',
             }),
@@ -232,23 +232,22 @@ export default {
         submit() {
             const formData = new FormData()
             formData.append('file', this.selectedFile)
-            formData.append('registration_date', this.form.registration_date)
+            formData.append('period', this.form.period)
             formData.append('import_type', this.importType)
             formData.append('mapping', JSON.stringify(this.mapping))
 
-            this.form.transform(() => ({
+           this.form.transform(() => ({
                 file: this.selectedFile,
-                registration_date: this.form.registration_date,
+                period: this.form.period,
                 import_type: this.importType,
                 mapping: this.mapping,
-            })).post('/collateral/register/import')
-
-            this.form.post('/collateral/register/import', {
+            })).post('/collateral/register/import', {
                 forceFormData: true,
                 onSuccess: () => {
-                    // Handle success
+                    // optional success handling
                 },
             });
+
         },
 
         autoMapFields(mapping) {

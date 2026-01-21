@@ -246,7 +246,7 @@ class CollateralController extends Controller
         {
             $request->validate([
                 'file' => ['required', 'file', 'mimes:txt,csv'],
-                'registration_date' => ['required', 'date_format:Y-m'],
+                'period' => ['required', 'date_format:Y-m'],
                 'mapping' => ['nullable', 'array'],
                 'import_type' => ['nullable', 'string', 'in:custom,legacy'],
             ]);
@@ -256,7 +256,7 @@ class CollateralController extends Controller
                     'name' => $request->file('file')->getClientOriginalName(),
                     'status' => 'pending',
                     'settings' => [
-                        'registration_date' => $request->input('registration_date'),
+                        'period' => $request->input('period'),
                         'mapping' => $request->input('mapping', []),
                         'import_type' => $request->input('import_type', 'custom'),
                     ]
@@ -265,8 +265,8 @@ class CollateralController extends Controller
                 $mapping = $request->input('mapping', []);
                 $importType = $request->input('import_type', 'custom');
 
-                // Add registration_date to mapping for the import class
-                $mapping['registration_date'] = $request->input('registration_date');
+                // Add period to mapping for the import class
+                $mapping['period'] = $request->input('period');
 
                 Excel::import(new CollateralRegisterImport($import, $mapping, $importType), $request->file('file'));
 
@@ -287,7 +287,7 @@ class CollateralController extends Controller
                 'allocation_basis' => 'required|string|in:proportional,equal,descending,ascending',
                 'reporting_year' => 'required|integer|min:2000|max:' . now()->year,
                 'reporting_month' => 'required|integer|min:1|max:12',
-                'registration_date' => 'nullable|date',
+                'period' => 'nullable|date',
             ]);
 
             
@@ -320,7 +320,7 @@ class CollateralController extends Controller
                                     ->get();
 
                  $collaterals = $customer->collateralRegisters()
-                                        ->whereDate('registration_date', $request->input('registration_date'))
+                                        ->whereDate('period', $request->input('period'))
                                         ->get();
 
 

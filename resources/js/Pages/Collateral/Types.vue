@@ -22,12 +22,12 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100">
               <tr>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Haircut (%)</th>
-                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Realisation Period (Months)</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th class="px-3 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">ID</th>
+                <th class="px-3 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Code</th>
+                <th class="px-3 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Name</th>
+                <th class="px-3 py-3 text-right text-xs font-semibold text-gray-900 uppercase tracking-wider">Haircut (%)</th>
+                <th class="px-3 py-3 text-center text-xs font-semibold text-gray-900 uppercase tracking-wider">Realisation Period (Months)</th>
+                <th class="px-3 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>

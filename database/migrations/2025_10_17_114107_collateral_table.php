@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create("collateral_types", function (Blueprint $table) {
         
-            $table->increments("id");
-            $table->tinyInteger("type_code")->unique();
+            $table->id();
+            $table->integer('type_code')->unique();
             $table->string("type_name", 100);
             $table->string("description", 255)->nullable();
             $table->integer('realisation_period')->default(12)->comment('Months');
@@ -29,6 +29,7 @@ return new class extends Migration
 
          Schema::create('collateral_registers', function (Blueprint $table) {
             $table->id();
+            $table->date('period')->nullable();
             $table->string('register_number', 50)->default('TBA');
             $table->string('customer_id', 20);
             $table->string('customer_name', 255);
@@ -54,7 +55,7 @@ return new class extends Migration
          Schema::create('collateral_allocations', function (Blueprint $table) {
             $table->id();
             $table->integer('reporting_year');
-            $table->tinyInteger('reporting_month');
+            $table->integer('reporting_month');
             $table->integer('reporting_period')->virtualAs('reporting_year * 100 + reporting_month');
             $table->foreignId('collateral_register_id')->constrained('collateral_registers');
             $table->string('customer_id', 20);

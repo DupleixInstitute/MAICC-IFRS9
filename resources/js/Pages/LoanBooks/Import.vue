@@ -297,21 +297,6 @@ export default {
 
     methods: {
         submit() {
-            const formData = new FormData()
-            formData.append('file', this.selectedFile)
-            formData.append('loan_portfolio_id', this.form.loan_portfolio_id)
-            formData.append('reporting_period', this.form.reporting_period)
-            formData.append('import_type', this.importType)
-            formData.append('mapping', JSON.stringify(this.mapping))
-
-            this.form.transform(() => ({
-                file: this.selectedFile,
-                loan_portfolio_id: this.form.loan_portfolio_id,
-                reporting_period: this.form.reporting_period,
-                import_type: this.importType,
-                mapping: this.mapping,
-            })).post(route('loan_applications.loan-book.import.store'))
-
             const routeName = this.form.import_type === 'group' 
             ? 'loan_applications.loan-book.import.group'
             : 'loan_applications.loan-book.import.store';
@@ -374,6 +359,7 @@ export default {
             const file = event.target.files[0]
             if (!file) return
             this.selectedFile = file
+            this.form.file = file  // Bind file to the form
             this.fileName = file.name
             this.readFileHeaders(file)
         },
