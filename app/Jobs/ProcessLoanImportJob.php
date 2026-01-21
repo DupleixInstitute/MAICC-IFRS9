@@ -544,7 +544,10 @@ class ProcessLoanImportJob implements ShouldQueue
             }
             
             $decimalYears = $years + ($months / 12);
-            return round($decimalYears, 2);
+            $remainingTenor = round($decimalYears, 2);
+            
+            // Ensure remaining tenor is never less than 0
+            return max(0, $remainingTenor);
             
         } catch (\Exception $e) {
             //Log::error("Error calculating remaining tenor: " . $e->getMessage());
