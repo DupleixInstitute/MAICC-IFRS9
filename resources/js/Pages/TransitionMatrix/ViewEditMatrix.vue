@@ -106,8 +106,9 @@ onMounted(async () => {
   try {
     const url =
       props.type === 'cumulative'
-        ? `/transition-matrix-cumulative/${props.transitionMatrix.id}/data`
+        ? `/transition-matrix-cummulative/${props.transitionMatrix.id}/data`
         : `/transition-matrix/${props.transitionMatrix.id}/data`
+
 
     const res = await axios.get(url)
 
@@ -141,10 +142,10 @@ function submit() {
     }
   }
 
-  const updateUrl =
-    props.type === 'cumulative'
-      ? `/transition-matrix-cumulative/${props.transitionMatrix.id}/update-data`
-      : `/transition-matrix/${props.transitionMatrix.id}/update-data`
+const updateUrl =
+  props.type === 'cumulative'
+    ? `/transition-matrix-cummulative/${props.transitionMatrix.id}/update-data`
+    : `/transition-matrix/${props.transitionMatrix.id}/update-data`
 
   axios
     .post(updateUrl, { matrix: flattened })
