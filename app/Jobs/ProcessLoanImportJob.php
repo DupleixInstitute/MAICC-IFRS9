@@ -530,8 +530,10 @@ class ProcessLoanImportJob implements ShouldQueue
             $reportingMonth = (int)substr($reportingPeriod, 5, 2);
             $reportingDate = Carbon::create($reportingYear, $reportingMonth, 1)->endOfMonth();
             $maturityDate = Carbon::parse($dueDate);
+        
             
             if ($maturityDate <= $reportingDate) {
+               // Log::info("Loan is matured, returning 0");
                 return 0;
             }
             
@@ -546,8 +548,8 @@ class ProcessLoanImportJob implements ShouldQueue
             $decimalYears = $years + ($months / 12);
             $remainingTenor = round($decimalYears, 2);
             
-            // Ensure remaining tenor is never less than 0
-            return max(0, $remainingTenor);
+            // Only apply max(0, ...) if actually negative
+            return $remainingTenor < 0 ? 0 : $remainingTenor;
             
         } catch (\Exception $e) {
             //Log::error("Error calculating remaining tenor: " . $e->getMessage());
