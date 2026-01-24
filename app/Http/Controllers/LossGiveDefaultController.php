@@ -283,22 +283,23 @@ class LossGiveDefaultController extends Controller
 
             // Query to fetch loan books data
             // IMPORTANT: lb_start uses start_period (earlier), lb_end uses reporting_period (later)
-            $data = DB::table('loan_books as lb_start')
-                ->leftJoin('loan_books as lb_end', function($join) use ($reportingPeriod, $filterColumn) {
-                    $join->on('lb_start.contract_id', '=', 'lb_end.contract_id')
-                        ->on("lb_start.$filterColumn", '=', "lb_end.$filterColumn")
-                        ->where('lb_end.reporting_period', '=', $reportingPeriod);  // Later period
-                })
-                ->where('lb_start.reporting_period', '=', $startPeriod)  // Earlier period
-                ->where('lb_start.ifrs9stage_pre_qualitative', 3)
-                ->where("lb_start.$filterColumn", $filterValue)
-                ->select(
-                    'lb_start.contract_id',
-                    DB::raw('lb_start.carrying_amount as start_balance'),
-                    DB::raw('COALESCE(lb_end.carrying_amount, 0) as end_balance'),
-                    DB::raw('COALESCE(lb_end.ifrs9stage_pre_qualitative, 3) as closing_stage')
-                )
-                ->get();
+          $data = DB::table('loan_books as lb_start')
+                    ->leftJoin('loan_books as lb_end', function($join) use ($reportingPeriod, $filterColumn) {
+                        $join->on('lb_start.contract_id', '=', 'lb_end.contract_id')
+                            ->on("lb_start.$filterColumn", '=', "lb_end.$filterColumn")
+                            ->where('lb_end.reporting_period', '=', $reportingPeriod);
+                    })
+                    ->where('lb_start.reporting_period', '=', $startPeriod)
+                    ->where('lb_start.ifrs9stage_pre_qualitative', 3)
+                    ->where("lb_start.$filterColumn", $filterValue)
+                    ->select(
+                        'lb_start.contract_id',
+                        DB::raw('lb_start.carrying_amount as start_balance'),
+                        DB::raw('lb_end.carrying_amount as end_balance'),
+                        'lb_end.ifrs9stage_pre_qualitative as closing_stage'
+                    )
+                    ->get();
+
 
             // DEBUG: Log the query results
             // \Log::info('LGD Query Results:', [
@@ -323,7 +324,11 @@ class LossGiveDefaultController extends Controller
             // This loop processes each row of data to compute the start and end balances, disbursements, recoveries, and cure amounts
             foreach ($data as $row) {
                 $startBalance += $row->start_balance;
-                $endBalance += $row->end_balance;
+
+                if ((int) $row->closing_stage === 3) {
+                            $endBalance += (float) $row->end_balance;
+                        }
+
                 $netMovement = $row->end_balance - $row->start_balance;
                 $disbursement = $netMovement > 0 ? $netMovement : 0;
 
@@ -331,8 +336,12 @@ class LossGiveDefaultController extends Controller
                 $paidInFull = 0;
                 $paidPartly = 0;
 
-                $curedStage1 = $row->closing_stage == 1 ? $row->end_balance : 0;
-                $curedStage2 = $row->closing_stage == 2 ? $row->end_balance : 0;
+                // $curedStage1 = $row->closing_stage == 1 ? $row->end_balance : 0;
+                // $curedStage2 = $row->closing_stage == 2 ? $row->end_balance : 0;
+
+                $curedStage1 = $row->closing_stage == 1 ? $row->start_balance : 0;
+                $curedStage2 = $row->closing_stage == 2 ? $row->start_balance : 0;
+
 
                 if($row->closing_stage == 3){
                     if($row->end_balance == 0){
@@ -347,8 +356,18 @@ class LossGiveDefaultController extends Controller
                     }
                     }
 
+
                 $totalDisbursments += $disbursement;
-                $totalRecoveredAmount += (($paidInFull + $paidPartly) - $totalDisbursments);
+                if ((int)$row->closing_stage === 3) {
+                        if ($row->end_balance == 0) {
+                            $paidInFull = $row->start_balance;
+                        } elseif ($row->end_balance < $row->start_balance) {
+                            $paidPartly = $row->start_balance - $row->end_balance;
+                        }
+
+                        $totalRecoveredAmount += ($paidInFull + $paidPartly);
+                    }
+
                 $cureAmountStage1 += $curedStage1;
                 $cureAmountStage2 += $curedStage2;
                 $partlyRecoveredAmount += $paidPartly;
