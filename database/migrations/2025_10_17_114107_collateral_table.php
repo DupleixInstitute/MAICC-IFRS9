@@ -56,10 +56,10 @@ return new class extends Migration
             $table->id();
             $table->integer('reporting_year');
             $table->integer('reporting_month');
-            $table->integer('reporting_period')->virtualAs('reporting_year * 100 + reporting_month');
+            $table->date('reporting_period');
             $table->foreignId('collateral_register_id')->constrained('collateral_registers');
             $table->string('customer_id', 20);
-            $table->string('customer_name', 255);
+            $table->string('customer_name', 255)->nullable();
             $table->string('contract_id', 50);
             $table->decimal('account_balance', 20, 2)->default(0);
             $table->decimal('total_customer_exposure', 20, 2)->default(0);

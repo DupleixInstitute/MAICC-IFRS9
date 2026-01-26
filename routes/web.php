@@ -848,6 +848,8 @@ Route::get('/collateral/register/list', [CollateralController::class, 'viewRegis
 
 // Collateral Allocations (Inertia UI)
 Route::get('/collateral/allocations', [CollateralController::class, 'indexAllocations'])->name('collateral.allocations.index');
+Route::post('/collateral/allocations/allocate', [CollateralController::class, 'allocateCollateral'])->name('collateral.allocations.allocate');
+Route::get('/collateral/allocations/download-report', [CollateralController::class, 'downloadAllocationReport'])->name('collateral.allocations.download-report');
 
 // Auto Allocate (Inertia UI page)
 Route::post('/transition-matrix-cummulative/{matrix}/lock-pd',[TransitionMatrixCummulativeController::class,'keyLock'])->name('transition-matrix-cumulative.lock');

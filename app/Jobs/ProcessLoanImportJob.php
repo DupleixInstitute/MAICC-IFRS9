@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Import;
 use App\Models\LoanBook;
+use App\Models\Client;
 use App\Models\LoanPortfolio;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -231,6 +232,21 @@ class ProcessLoanImportJob implements ShouldQueue
         }
     }
 
+    private function ensureClientExists(string $customerId, string $customerName)
+        {
+            if (empty($customerId)) {
+                Log::warning("Skipped creating client: empty customer_id for name '{$customerName}'");
+                return null;
+            }
+
+            // Update existing or create new client
+            return Client   ::updateOrCreate(
+                ['customer_id' => $customerId],
+                ['name' => $customerName]
+            );
+        }
+
+
     private function mapRowToData($row, $periodString)
     {
        // Log::info("mapRowToData called with row count: " . count($row));
@@ -286,7 +302,7 @@ class ProcessLoanImportJob implements ShouldQueue
             'reporting_period' => $periodString,
             'create_date'      => $this->parseDate($row[6] ?? ''),
             'due_date'         => $this->parseDate($row[7] ?? ''),
-            'interest_rate'    => trim($row[10] ?? ''),
+            'interest_rate' => $this->cleanDecimal($row[10] ?? null),
             'remaining_tenor'  => $this->calculateRemainingTenor($row[7] ?? '', $periodString),
             'principal_balance' => $this->cleanNumeric($row[14] ?? 0),
             'carrying_amount'   => $this->cleanNumeric($row[20] ?? 0),
@@ -299,6 +315,16 @@ class ProcessLoanImportJob implements ShouldQueue
             'created_at' => now(),
             'updated_at' => now(),
         ];
+
+                // Inside mapRowToDataFormat1 or mapRowToDataFormat2, after preparing $data:
+        $client = $this->ensureClientExists($data['customer_id'], $data['customer_name'] ?? 'Unknown');
+
+        // Optional: replace customer_name with the one from clients table if needed
+        if ($client) {
+            $data['customer_name'] = $client->name;
+            $data['customer_id']   = $client->customer_id;
+        }
+
         
         // Log::info("Format 1 mapped data: " . json_encode([
         //     'contract_id' => $data['contract_id'],
@@ -336,7 +362,7 @@ class ProcessLoanImportJob implements ShouldQueue
             'reporting_period' => $periodString,
             'create_date'      => $this->parseDate($row[5] ?? ''),
             'due_date'         => $this->parseDate($row[6] ?? ''),
-            'interest_rate'    => trim($row[9] ?? ''),
+            'interest_rate' => $this->cleanDecimal($row[9] ?? null),
             'remaining_tenor'  => $this->calculateRemainingTenor($row[6] ?? '', $periodString),
             'principal_balance' => $this->cleanNumeric($row[13] ?? 0),
             'carrying_amount'   => $this->cleanNumeric($row[19] ?? 0),
@@ -349,6 +375,16 @@ class ProcessLoanImportJob implements ShouldQueue
             'created_at' => now(),
             'updated_at' => now(),
         ];
+
+        // Inside mapRowToDataFormat1 or mapRowToDataFormat2, after preparing $data:
+        $client = $this->ensureClientExists($data['customer_id'], $data['customer_name'] ?? 'Unknown');
+
+        // Optional: replace customer_name with the one from clients table if needed
+        if ($client) {
+            $data['customer_name'] = $client->name;
+            $data['customer_id']   = $client->customer_id;
+        }
+
         
         // Log::info("Format 2 mapped data: " . json_encode([
         //     'contract_id' => $data['contract_id'],
@@ -446,6 +482,23 @@ class ProcessLoanImportJob implements ShouldQueue
         $clean = preg_replace('/[^0-9.-]/', '', $clean);
         return is_numeric($clean) ? (float)$clean : 0.00;
     }
+
+    private function cleanDecimal($value)
+        {
+            if ($value === null) {
+                return 0.00;
+            }
+
+            $value = trim((string) $value);
+
+            if ($value === '' || $value === '-' || strtoupper($value) === 'N/A') {
+                return 0.00;
+            }
+
+            return is_numeric($value) ? (float) $value : 0.00;
+        }
+
+
 
         
     private function convertScientificToInteger($value)

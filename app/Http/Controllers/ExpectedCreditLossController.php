@@ -275,7 +275,7 @@ class ExpectedCreditLossController extends Controller
                 $grouped = DB::table('loan_books')
                     ->selectRaw("
                         ifrs9stage_pre_qualitative,
-                        SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0)) AS total_ead,
+                        SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0) * COALESCE(facility_utilisation_rate, 1)) AS total_ead,
                         SUM(ecl_value) AS total_ecl,
                         AVG($pdExpr) AS avg_pd,
                         AVG($lgdExpr) AS avg_lgd,
@@ -357,6 +357,9 @@ class ExpectedCreditLossController extends Controller
                 'remaining_tenor',
                 'industry_code',
                 'collateral_id',
+                'allocated_gross_value',
+                'allocated_discounted_value',
+                'commitments',
                 'collection_lgd',
                 'customer_lgd',
                 'pd_prefli',

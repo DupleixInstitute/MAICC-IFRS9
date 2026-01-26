@@ -24,8 +24,8 @@ return new class extends Migration
             $table->integer('reporting_year');
             $table->integer('reporting_month');
             $table->string('reporting_period', 6)->index(); // YYYYMM format
-            $table->date('create_date');
-            $table->date('due_date');
+            $table->date('create_date')->nullable();
+            $table->date('due_date')->nullable();
             $table->string('internal_grade_code')->nullable();
             $table->string('industry_code')->nullable();
             $table->string('industry_type')->nullable();
@@ -40,6 +40,9 @@ return new class extends Migration
             $table->decimal('carrying_amount', 65, 4)->default(0);
             $table->decimal('commitments', 16,4)->default(0);            
             $table->string('collateral_id')->nullable();
+            $table->decimal('allocated_gross_value', 65, 4)->default(0);
+            $table->decimal('allocated_discounted_value', 65, 4)->default(0);
+            $table->decimal('facility_utilisation_rate',5,2)->default(1);
             $table->decimal('expected_loss_provision', 65, 4)->default(0);
             $table->string('overdue_status')->nullable();
             $table->boolean('is_month_end')->default(false);

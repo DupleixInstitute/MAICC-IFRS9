@@ -40,7 +40,10 @@ class LoanBook extends Model
         'repayments',
         'carrying_amount',
         'collateral_type',
+        'allocated_gross_value',
+        'allocated_discounted_value',
         'expected_loss_provision',
+        'facility_utilisation_rate',
         'overdue_status',
         'is_month_end',
         'client_id',
@@ -120,6 +123,12 @@ class LoanBook extends Model
             'reporting_month' => $month
         ]);
     }
+
+    public function collateralRegisters()
+        {
+            return $this->hasMany(CollateralRegister::class, 'customer_id', 'customer_id');
+        }
+
 
     /**
      * Scope a query to filter by overdue status.

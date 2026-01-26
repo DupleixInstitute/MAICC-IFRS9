@@ -61,47 +61,64 @@ class CollateralController extends Controller
      * Render Collateral Allocations index page
      */
     public function indexAllocations(Request $request)
-    {
-
+        {
             $query = CollateralAllocation::query();
 
             // --- FILTERS ---
 
-            //  Filter by registration date (exact or range)
+            // Filter by reporting period (exact month)
             if ($request->filled('reporting_period')) {
-                $query->whereDate('reporting_period', '>=', $request->reporting_period);
+                $period = date('Y-m-d', strtotime($request->reporting_period . '-01'));
+                $query->where('reporting_period', $period);
             }
 
-            //  Filter by collateral type
-           // if ($request->filled('type_code')) {
-            //     $query->where('type_code', '>=',$request->type_code);
-            //}
 
-            //  Filter by nominal value / market value / execution value range
+            // Filter by collateral type
+            if ($request->filled('type_code')) {
+                $query->whereHas('collateralRegister', function ($q) use ($request) {
+                    $q->where('collateral_type', $request->type_code);
+                });
+            }
+            // Filter by customer ID
             if ($request->filled('customer_id')) {
-                $query->where('customer_id', 'like', '%'.$request->customer_id);
+                $query->where('customer_id', 'like', '%' . $request->customer_id . '%');
             }
 
+            // Filter by customer name
             if ($request->filled('customer_name')) {
                 $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
             }
 
             // --- SORT AND PAGINATE ---
-        $allocations = $query
-                    ->orderByRaw('CAST(contract_id AS UNSIGNED) ASC')
-                    ->paginate(10)
-                    ->appends($request->all()); 
+            $allocations = $query
+                ->orderByRaw('CAST(contract_id AS UNSIGNED) ASC')
+                ->paginate(10)
+                ->appends($request->all());
 
-        return Inertia::render('Collateral/Index', [
+            // --- SUMMARY METRICS ---
+            $summary = [
+                'total_allocations' => $query->count(),
+                'total_exposure' => $query->sum('total_customer_exposure'),
+                'total_discounted' => $query->sum('discounted_collateral'),
+                'average_coverage' => $query->avg('coverage_ratio')
+            ];
+
+            // --- DISTINCT TYPES for filter dropdown ---
+            $types = CollateralType::select('type_code')->distinct()->pluck('type_code');
+
+            return Inertia::render('Collateral/Index', [
                 'allocations' => $allocations,
-                 'filters' => $request->only([
+                'summary' => $summary,
+                'types' => $types,
+                'filters' => $request->only([
                     'reporting_period',
                     'type_code',
                     'customer_id',
                     'customer_name',
                 ]),
-        ]);
-    }
+            ]);
+        }
+
 
 
     /* ============================================================
@@ -271,7 +288,7 @@ class CollateralController extends Controller
                 Excel::import(new CollateralRegisterImport($import, $mapping, $importType), $request->file('file'));
 
                 return redirect()
-                    ->route('collateral.allocations.index')
+                    ->route('collateral.register.index')
                     ->with('success', 'Collateral register import has been queued for processing.');
             } catch (\Throwable $e) {
                 return back()->with('error', 'Import failed: ' . $e->getMessage());
@@ -283,6 +300,8 @@ class CollateralController extends Controller
          */
         public function allocateAutomatically(Request $request)
         {
+            ini_set('max_execution_time', 300);
+
             $request->validate([
                 'allocation_basis' => 'required|string|in:proportional,equal,descending,ascending',
                 'reporting_year' => 'required|integer|min:2000|max:' . now()->year,
@@ -293,15 +312,38 @@ class CollateralController extends Controller
             
             $reportingYear = $request->input('reporting_year');
             $reportingMonth = $request->input('reporting_month');
+            $reportingPeriod = date('Y-m-d', strtotime("{$reportingYear}-{$reportingMonth}-01"));
+            $period = $request->input('period');
 
             // Fetch clients who have at least one loan and one collateral
-            $customers = Client::whereHas('loanBooks', fn($q) => $q->where('carrying_amount', '>', 0))
-                ->whereHas('collateralRegisters')
-                ->get();
+          // Step 1: try via Client model (if it exists)
+            $customers = Client::whereHas('loanBooks', function ($q) use ($reportingYear, $reportingMonth) {
+                $q->where('carrying_amount', '>', 0)
+                ->where('reporting_year', $reportingYear)
+                ->where('reporting_month', $reportingMonth);
+            })->whereHas('collateralRegisters', function ($q) use ($period) {
+                if ($period) {
+                    $q->whereDate('period', $period);
+                }
+            })->get();
 
-            // Debug: check if customers are fetched
+            // Step 2: fallback directly from loan_books
             if ($customers->isEmpty()) {
-                return back()->with('error', 'No clients with loans and collaterals found.');
+                $customers = LoanBook::where('carrying_amount', '>', 0)
+                    ->where('reporting_year', $reportingYear)
+                    ->where('reporting_month', $reportingMonth)
+                    ->select('customer_id')
+                    ->distinct()
+                    ->get();
+
+                if ($customers->isEmpty()) {
+                    return back()->with('error', 'No clients with loans and collaterals found.');
+                }
+
+                // Mark fallback mode
+                $fallback = true;
+            } else {
+                $fallback = false;
             }
 
             // // Log debug info instead of dd() so execution continues
@@ -313,20 +355,33 @@ class CollateralController extends Controller
 
             foreach ($customers as $customer) {
 
-                $loans = $customer->loanBooks()
-                                    ->where('carrying_amount', '>', 0)
-                                    ->where('reporting_year', $reportingYear)
-                                    ->where('reporting_month', $reportingMonth)
-                                    ->get();
+               if ($fallback) {
+                    // fetch loans directly from loan_books
+                    $loans = LoanBook::where('customer_id', $customer->customer_id)
+                        ->where('carrying_amount', '>', 0)
+                        ->where('reporting_year', $reportingYear)
+                        ->where('reporting_month', $reportingMonth)
+                        ->get();
 
-                 $collaterals = $customer->collateralRegisters()
-                                        ->whereDate('period', $request->input('period'))
-                                        ->get();
+                    // fetch collaterals directly
+                    $collaterals = CollateralRegister::where('customer_id', $customer->customer_id)
+                        ->when($period, fn($q) => $q->whereDate('period', $period))
+                        ->get();
+                } else {
+                    // existing Client-based relationships
+                    $loans = $customer->loanBooks()
+                        ->where('carrying_amount', '>', 0)
+                        ->where('reporting_year', $reportingYear)
+                        ->where('reporting_month', $reportingMonth)
+                        ->get();
 
-
-                if ($loans->isEmpty() || $collaterals->isEmpty()) {
-                    continue;
+                    $collaterals = $customer->collateralRegisters()
+                        ->when($period, fn($q) => $q->whereDate('period', $period))
+                        ->get();
                 }
+
+                if ($loans->isEmpty() || $collaterals->isEmpty()) continue;
+
 
                 // Determine average haircut from collateral types
                 $haircuts = [];
@@ -380,7 +435,9 @@ class CollateralController extends Controller
                     $coverage = $loan->carrying_amount > 0 
                                 ? min(($discounted / $loan->carrying_amount) * 100, 100) 
                                 : 0;
-
+                    
+                    $allocatedGrossValue = $share;
+                    $allocatedDiscountedValue = $discounted;
                    // Log::info('Discounted before saving', ['discounted' => $discounted]);
 
                     CollateralAllocation::updateOrCreate(
@@ -391,7 +448,8 @@ class CollateralController extends Controller
                             'collateral_register_id' => optional($collaterals->first())->id,
                             'contract_id' => $loan->contract_id,
                         ],
-                        [
+                        [   
+                            'reporting_period' => $reportingPeriod,
                             'customer_name' => $customer->name,
                             'total_customer_exposure' => $loan->carrying_amount,
                             'allocated_collateral' => $share,
@@ -406,10 +464,15 @@ class CollateralController extends Controller
                     // Update customer LGD based on coverage (per contract_id)
                     DB::statement("
                         UPDATE loan_books
-                        SET customer_lgd = GREATEST(1 - ( ? / 100 ), 0)
+                        SET 
+                            customer_lgd = GREATEST(1 - (? / 100), 0),
+                            allocated_gross_value = ?,
+                            allocated_discounted_value = ?
                         WHERE contract_id = ?
                     ", [
                         $coverage,
+                        $allocatedGrossValue,
+                        $allocatedDiscountedValue,
                         $loan->contract_id,
                     ]);
 
@@ -421,5 +484,100 @@ class CollateralController extends Controller
 
             return redirect()->route('collateral.allocations.index')->with('success', 'Collateral auto-allocated per customer successfully.');
         }
+
+        public function updateBook(Request $request)
+            {
+                $request->validate([
+                    'contract_id' => 'required|string|exists:loan_books,contract_id',
+                ]);
+
+                $loanBook = LoanBook::where('contract_id', $request->input('contract_id'))->first();
+
+                if (!$loanBook) {
+                    return back()->with('error', 'Loan book entry not found for the given contract ID.');
+                }
+
+                // Recalculate customer LGD based on existing collateral allocations
+                $totalDiscountedCollateral = CollateralAllocation::where('contract_id', $loanBook->contract_id)
+                    ->sum('discounted_collateral');
+
+                $coverage = $loanBook->carrying_amount > 0 
+                            ? min(($totalDiscountedCollateral / $loanBook->carrying_amount) * 100, 100) 
+                            : 0;
+
+                $customerLgd = GREATEST(1 - ($coverage / 100), 0);
+
+                $loanBook->customer_lgd = $customerLgd;
+                $loanBook->save();
+
+                return back()->with('success', 'Loan book entry updated successfully.');
+            }
+            
+            
+        public function downloadAllocationReport(Request $request) {
+            // Validate input
+            $request->validate([
+                'reporting_year' => 'required|integer|min:2000|max:' . now()->year,
+                'reporting_month' => 'required|integer|min:1|max:12',
+                'customer_id' => 'nullable|string',
+            ]);
+
+            $reportingYear = $request->query('reporting_year');
+            $reportingMonth = $request->query('reporting_month');
+            $customerId = $request->query('customer_id');
+
+            $fileName = "collateral_allocation_report_{$reportingYear}_{$reportingMonth}.csv";
+
+            $headers = [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => "attachment; filename=\"$fileName\"",
+            ];
+
+            $callback = function () use ($reportingYear, $reportingMonth, $customerId) {
+                $file = fopen('php://output', 'w');
+
+                fputcsv($file, [
+                    'Customer ID',
+                    'Customer Name',
+                    'Contract ID',
+                    'Total Customer Exposure',
+                    'Allocated Collateral',
+                    'Allocation Percentage',
+                    'Discounted Collateral',
+                    'Coverage Ratio',
+                    'Allocation Basis',
+                    'Allocation Notes',
+                ]);
+
+                $query = CollateralAllocation::where('reporting_year', $reportingYear)
+                    ->where('reporting_month', $reportingMonth);
+
+                if ($customerId) {
+                    $query->where('customer_id', $customerId);
+                }
+
+                $allocations = $query->get();
+
+                foreach ($allocations as $allocation) {
+                    fputcsv($file, [
+                        $allocation->customer_id,
+                        $allocation->customer_name,
+                        $allocation->contract_id,
+                        $allocation->total_customer_exposure,
+                        $allocation->allocated_collateral,
+                        $allocation->allocation_percentage,
+                        $allocation->discounted_collateral,
+                        $allocation->coverage_ratio,
+                        $allocation->allocation_basis,
+                        $allocation->allocation_notes,
+                    ]);
+                }
+
+                fclose($file);
+            };
+
+            return response()->streamDownload($callback, $fileName, $headers);
+        }
+
 
     }

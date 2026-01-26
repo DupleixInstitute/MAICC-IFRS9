@@ -196,8 +196,8 @@
                        </div>
                    </div>
                </div>
-                <div v-if="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-                    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                <div v-if="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50" @click.self="showModal = false">
+                   <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
                         <h2 class="text-lg font-bold mb-4">Export Loan Book Report</h2>
                           <label for="portfolio" class="block mb-2 text-sm font-medium text-gray-700">Select Portfolio</label>
                             <select v-model="selectedPortfolio" id="portfolio" class="border-gray-300 rounded-md shadow-sm w-full mb-4">
@@ -252,6 +252,8 @@
                                 <label><input type="checkbox" value="remaining_tenor" v-model="selectedColumns"> Remaining Tenor</label>
                                 <label><input type="checkbox" value="industry_code" v-model="selectedColumns">Industry Code</label>
                                 <label><input type="checkbox" value="collection_lgd" v-model="selectedColumns">Collection LGD</label>
+                                <label><input type="checkbox" value="allocated_gross_value" v-model="selectedColumns">Allocated Gross Value</label>
+                                <label><input type="checkbox" value="allocated_discounted_value" v-model="selectedColumns">Discounted Value</label>
                                 <label><input type="checkbox" value="customer_lgd" v-model="selectedColumns">Customer LGD</label>
                                 <label><input type="checkbox" value="fli_adj" v-model="selectedColumns">FLI Adjustment</label>
                             </div>
@@ -317,6 +319,8 @@ import HelpManual from '../../Components/HelpManual.vue';
             'due_date',
             'remaining_tenor',
             'industry_code',
+            'allocated_gross_value',
+            'allocated_discounted_value',
             'collection_lgd',
             'customer_lgd',
             'pd_prefli',    
