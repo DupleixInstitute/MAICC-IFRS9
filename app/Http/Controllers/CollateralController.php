@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+
 
 class CollateralController extends Controller
 {
@@ -200,59 +202,76 @@ class CollateralController extends Controller
          */
 
       public function viewRegister(Request $request)
-{
-    $query = CollateralRegister::query();
+        {
+            $query = CollateralRegister::query();
 
-    // --- STRICT FILTERS ---
+            // --- STRICT FILTERS ---
 
-    // Registration date (exact or range)
-    if ($request->filled('registration_date_from') && $request->filled('registration_date_to')) {
-        $query->whereBetween('registration_date', [
-            $request->registration_date_from,
-            $request->registration_date_to,
-        ]);
-    } elseif ($request->filled('registration_date_from')) {
-        $query->whereDate('registration_date', $request->registration_date_from);
-    }
+            // Registration date (exact or range)
+            if ($request->filled('registration_date_from') && $request->filled('registration_date_to')) {
 
-    // Collateral type (exact match)
-    if ($request->filled('type_code')) {
-        $query->whereHas('type', function ($q) use ($request) {
-            $q->where('type_code', $request->type_code);
-        });
-    }
+                $from = Carbon::createFromFormat('Y-m', $request->registration_date_from)
+                    ->startOfMonth()
+                    ->toDateString();
 
-    // Customer ID (exact match)
-    if ($request->filled('customer_id')) {
-        $query->where('customer_id', 'like', '%'.$request->customer_id);
-    }
+                $to = Carbon::createFromFormat('Y-m', $request->registration_date_to)
+                    ->endOfMonth()
+                    ->toDateString();
 
-    // Customer name (exact or partial, depending on what you prefer)
-    if ($request->filled('customer_name')) {
-        // Strict match
-        //$query->where('customer_name', '=', $request->customer_name);
+                $query->whereBetween('period', [$from, $to]);
 
-        // OR, for partial (case-insensitive)
-        $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
-    }
+            } elseif ($request->filled('registration_date_from')) {
 
-    // --- STRICT ORDERING AND LIMIT ---
-    $collateralRegisters = $query
-        ->orderBy('registration_date', 'desc')
-        ->paginate(10)
-        ->appends($request->all());
+                $from = Carbon::createFromFormat('Y-m', $request->registration_date_from)
+                    ->startOfMonth()
+                    ->toDateString();
 
-    return Inertia::render('Collateral/Register', [
-        'collateralRegisters' => $collateralRegisters,
-        'filters' => $request->only([
-            'registration_date_from',
-            'registration_date_to',
-            'collateral_type',
-            'customer_id',
-            'customer_name',
-        ]),
-    ]);
-}
+                $to = Carbon::createFromFormat('Y-m', $request->registration_date_from)
+                    ->endOfMonth()
+                    ->toDateString();
+
+                $query->whereBetween('period', [$from, $to]);
+            }
+
+
+            // Collateral type (exact match)
+            if ($request->filled('type_code')) {
+                $query->whereHas('type', function ($q) use ($request) {
+                    $q->where('type_code', $request->type_code);
+                });
+            }
+
+            // Customer ID (exact match)
+            if ($request->filled('customer_id')) {
+                $query->where('customer_id', 'like', '%'.$request->customer_id);
+            }
+
+            // Customer name (exact or partial, depending on what you prefer)
+            if ($request->filled('customer_name')) {
+                // Strict match
+                //$query->where('customer_name', '=', $request->customer_name);
+
+                // OR, for partial (case-insensitive)
+                $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
+            }
+
+            // --- STRICT ORDERING AND LIMIT ---
+            $collateralRegisters = $query
+                ->orderBy('period', 'desc')
+                ->paginate(10)
+                ->appends($request->all());
+
+            return Inertia::render('Collateral/Register', [
+                'collateralRegisters' => $collateralRegisters,
+                'filters' => $request->only([
+                    'registration_date_from',
+                    'registration_date_to',
+                    'collateral_type',
+                    'customer_id',
+                    'customer_name',
+                ]),
+            ]);
+        }
 
 
         /**

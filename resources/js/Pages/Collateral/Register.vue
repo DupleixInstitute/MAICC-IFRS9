@@ -114,12 +114,12 @@
                 <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer Name</th>
                 <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Type Code</th>
                 <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Reporting Period</th>
-                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Registration Date</th>
+                <!-- <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Registration Date</th> -->
                 <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Nominal Value</th>
                 <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Market Value</th>
                 <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Execution Value</th>
               </tr>
-            </thead>
+            </thead>  
             <tbody>
               <tr
                 v-for="item in collateralRegisters.data"
@@ -128,9 +128,9 @@
               >
                 <td class="px-3 py-4 text-sm text-gray-500">{{ item.customer_id }}</td>
                 <td class="px-3 py-4 text-sm text-gray-500">{{ item.customer_name }}</td>
-                <td class="px-3 py-4 text-center text-sm text-gray-500">{{ item.collateral_type }}</td>  
-                <td class="px-3 py-4 text-center text-sm text-gray-500">{{ item.registration_date }}</td>
-                <td class="px-3 py-4 text-center text-sm text-gray-500">N/A</td>
+                <td class="px-3 py-4 text-center text-sm text-gray-500">{{ item.collateral_type }}</td>
+                <td class="px-3 py-4 text-center text-sm text-gray-500">{{ formatPeriod(item.period) }}</td>
+                <!-- <td class="px-3 py-4 text-center text-sm text-gray-500">{{ formatPeriod(item.registration_date) }}</td> -->
                 <td class="px-3 py-4 text-right text-sm text-gray-500">{{ formatCurrency(item.nominal_value) }}</td>
                 <td class="px-3 py-4 text-right text-sm text-gray-500">{{ formatCurrency(item.market_value) }}</td>
                 <td class="px-3 py-4 text-right text-sm text-gray-500">{{ formatCurrency(item.execution_value) }}</td>
@@ -178,6 +178,13 @@ function resetFilters() {
 
   router.get(route('collateral.register.index'), {}, { preserveState: false })
 }
+
+
+  const formatPeriod = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+  };
     
 
 const formatCurrency = (value) => {
