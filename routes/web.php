@@ -730,6 +730,7 @@ Route::get('/loss-given-default/cummulative/reports',[LossGivenDefaultCummulativ
 
 // ECL Routes
 Route::get('/expected-credit-loss/list', [ExpectedCreditLossController::class, 'index'])->name('expected-credit-loss.index');
+Route::get('/expected-credit-loss/summary', [ExpectedCreditLossController::class, 'summary'])->name('expected-credit-loss.summary');
 Route::get('/expected-credit-loss/create', [ExpectedCreditLossController::class, 'create'])->name('expected-credit-loss.create');
 Route::post('/expected-credit-loss/calculations', [ExpectedCreditLossController::class, 'calculateECL'])->name('expected-credit-loss.calculation');
 Route::get('/expected-credit-loss/reports',[ExpectedCreditLossController::class,'exportECL'])->name('expected-credit-loss.reports');

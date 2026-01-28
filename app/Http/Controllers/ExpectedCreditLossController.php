@@ -22,18 +22,29 @@ class ExpectedCreditLossController extends Controller
             | GET THE LATEST CALCULATED REPORTING PERIOD
             |--------------------------------------------------------------------------
             */
-            $latestPeriod = ReportingPeriods::where('ecl_calculated', 1)
-                ->orderByDesc('period')
-                ->value(DB::raw("DATE_FORMAT(period, '%Y-%m')"));
+            try {
+                $latestPeriod = ReportingPeriods::where('ecl_calculated', 1)
+                    ->orderByDesc('period')
+                    ->value(DB::raw("DATE_FORMAT(period, '%Y-%m')"));
+            } catch (\Exception $e) {
+                // Fallback: get the latest period from loan_books if reporting_periods is not accessible
+                $latestPeriod = LoanBook::max('reporting_period');
+                \Log::warning('Reporting periods table not accessible, using loan_books fallback: ' . $e->getMessage());
+            }
 
             /*
             |--------------------------------------------------------------------------
-            | BASE LOAN BOOK QUERY (LATEST ECL ONLY)
+            | BASE LOAN BOOK QUERY
             |--------------------------------------------------------------------------
             */
             $query = LoanBook::query()
                 ->with('client')
-                ->where('reporting_period', $latestPeriod)
+                ->when($latestPeriod, function($q) use ($latestPeriod, $request) {
+                    // Only use latest period if no specific year/month filters are applied
+                    if (!$request->filled('year') && !$request->filled('month')) {
+                        $q->where('reporting_period', $latestPeriod);
+                    }
+                })
                 ->orderBy('contract_id', 'asc');
 
             /*
@@ -86,7 +97,7 @@ class ExpectedCreditLossController extends Controller
             |--------------------------------------------------------------------------
             */
             if ($request->filled('stage')) {
-                $query->where('ifrs9stage_pre_qualitative', $request->stage);
+                $query->where('ifrs9stage_post_qualitative', $request->input('stage'));
             }
 
             $loanBooks = $query->paginate(10)->withQueryString();
@@ -110,22 +121,33 @@ class ExpectedCreditLossController extends Controller
         public function summary(Request $request)
         {
             // Get the latest and previous ECL calculation periods
-            $latestPeriod = ExpectedCreditLoss::select('reporting_period')
-                ->orderBy('reporting_period', 'desc')
-                ->value('reporting_period');
-            
-            $previousPeriod = ExpectedCreditLoss::select('reporting_period')
-                ->where('reporting_period', '!=', $latestPeriod)
-                ->orderBy('reporting_period', 'desc')
-                ->value('reporting_period');
+            try {
+                $latestPeriod = ExpectedCreditLoss::select('reporting_period')
+                    ->orderBy('reporting_period', 'desc')
+                    ->value('reporting_period');
+                
+                $previousPeriod = ExpectedCreditLoss::select('reporting_period')
+                    ->where('reporting_period', '!=', $latestPeriod)
+                    ->orderBy('reporting_period', 'desc')
+                    ->value('reporting_period');
+            } catch (\Exception $e) {
+                // Fallback: get periods from loan_books if ExpectedCreditLoss is not accessible
+                $periods = LoanBook::select('reporting_period')
+                    ->distinct()
+                    ->orderBy('reporting_period', 'desc')
+                    ->pluck('reporting_period')
+                    ->toArray();
+                
+                $latestPeriod = $periods[0] ?? null;
+                $previousPeriod = $periods[1] ?? null;
+                \Log::warning('ExpectedCreditLoss table not accessible, using loan_books fallback: ' . $e->getMessage());
+            }
 
-            // Get current loan book data (latest ECL calculation)
+            // Get current loan book data
             $query = LoanBook::query()
                 ->with('client')
-                ->where('reporting_period', function($q) {
-                    $q->selectRaw('MAX(period)')
-                      ->from('reporting_periods')
-                      ->where('ecl_calculated', 1);
+                ->when($latestPeriod && !$request->filled('year') && !$request->filled('month'), function($q) use ($latestPeriod) {
+                    $q->where('reporting_period', $latestPeriod);
                 });
 
             // Apply same filters as index
@@ -142,19 +164,30 @@ class ExpectedCreditLossController extends Controller
             }
 
             if ($request->filled('stage')) {
-                $query->where('ifrs9stage_pre_qualitative', $request->input('stage'));
+                $query->where('ifrs9stage_post_qualitative', $request->input('stage'));
             }
 
             // Get current summary data
-            $currentExposure = $query->sum('carrying_amount');
-            $currentLoss = $query->sum('ecl_value');
-            $currentLoans = $query->count();
+            $currentExposure = $query->clone()->sum('carrying_amount');
+            $currentLoss = $query->clone()->sum('ecl_value');
+            $currentLoans = $query->clone()->count();
             
             // Get previous ECL calculation data for comparison
             $previousData = null;
-            if ($previousPeriod) {
-                $previousData = ExpectedCreditLoss::where('reporting_period', $previousPeriod)
-                    ->selectRaw('SUM(total_ead) as total_exposure, SUM(total_ecl) as total_loss, SUM(total_loans) as total_loans')
+            if ($previousPeriod && !$request->filled('year') && !$request->filled('month')) {
+                // Only compare with previous period when no specific date filters are applied
+                $previousQuery = LoanBook::where('reporting_period', $previousPeriod);
+                
+                // Apply same non-date filters as current query
+                if ($request->filled('portfolio')) {
+                    $previousQuery->where('loan_portfolio_id', $request->input('portfolio'));
+                }
+                if ($request->filled('stage')) {
+                    $previousQuery->where('ifrs9stage_post_qualitative', $request->input('stage'));
+                }
+                
+                $previousData = $previousQuery
+                    ->selectRaw('SUM(carrying_amount) as total_exposure, SUM(ecl_value) as total_loss, COUNT(*) as total_loans')
                     ->first();
             }
             
@@ -165,8 +198,26 @@ class ExpectedCreditLossController extends Controller
             $lossChangePercent = $previousData && $previousData->total_loss > 0 ? (($lossChange / $previousData->total_loss) * 100) : 0;
 
             // Get summary data
+            try {
+                $totalCalculations = ExpectedCreditLoss::select('reporting_period')->distinct()->count();
+                $periods = ExpectedCreditLoss::select('reporting_period')
+                    ->distinct()
+                    ->orderBy('reporting_period', 'desc')
+                    ->pluck('reporting_period')
+                    ->take(5);
+            } catch (\Exception $e) {
+                // Fallback: use loan_books data
+                $totalCalculations = LoanBook::select('reporting_period')->distinct()->count();
+                $periods = LoanBook::select('reporting_period')
+                    ->distinct()
+                    ->orderBy('reporting_period', 'desc')
+                    ->pluck('reporting_period')
+                    ->take(5);
+                \Log::warning('ExpectedCreditLoss table not accessible for summary, using loan_books fallback: ' . $e->getMessage());
+            }
+
             $summary = [
-                'total_calculations' => ExpectedCreditLoss::count(),
+                'total_calculations' => $totalCalculations,
                 'current_period' => $latestPeriod,
                 'previous_period' => $previousPeriod,
                 'total_exposure' => $currentExposure,
@@ -178,15 +229,11 @@ class ExpectedCreditLossController extends Controller
                 'loss_change' => $lossChange,
                 'exposure_change_percent' => $exposureChangePercent,
                 'loss_change_percent' => $lossChangePercent,
-                'periods' => ExpectedCreditLoss::select('reporting_period')
-                    ->distinct()
-                    ->orderBy('reporting_period', 'desc')
-                    ->pluck('reporting_period')
-                    ->take(5),
+                'periods' => $periods,
                 'stage_counts' => [
-                    'stage_1' => $query->clone()->where('ifrs9stage_pre_qualitative', 1)->count(),
-                    'stage_2' => $query->clone()->where('ifrs9stage_pre_qualitative', 2)->count(),
-                    'stage_3' => $query->clone()->where('ifrs9stage_pre_qualitative', 3)->count(),
+                    'stage_1' => $query->clone()->where('ifrs9stage_post_qualitative', 1)->count(),
+                    'stage_2' => $query->clone()->where('ifrs9stage_post_qualitative', 2)->count(),
+                    'stage_3' => $query->clone()->where('ifrs9stage_post_qualitative', 3)->count(),
                 ]
             ];
 

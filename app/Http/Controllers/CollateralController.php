@@ -74,7 +74,6 @@ class CollateralController extends Controller
                 $query->where('reporting_period', $period);
             }
 
-
             // Filter by collateral type
             if ($request->filled('type_code')) {
                 $query->whereHas('collateralRegister', function ($q) use ($request) {
@@ -91,18 +90,21 @@ class CollateralController extends Controller
                 $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
             }
 
+            // --- CLONE QUERY FOR SUMMARY METRICS BEFORE PAGINATION ---
+            $summaryQuery = clone $query;
+
             // --- SORT AND PAGINATE ---
             $allocations = $query
-                ->orderByRaw('CAST(contract_id AS UNSIGNED) ASC')
+                ->orderByRaw('CAST(reporting_period AS DATE) DESC')
                 ->paginate(10)
-                ->appends($request->all());
+                ->appends($request->all()); 
 
-            // --- SUMMARY METRICS ---
+            // --- SUMMARY METRICS USING FRESH QUERY ---
             $summary = [
-                'total_allocations' => $query->count(),
-                'total_exposure' => $query->sum('total_customer_exposure'),
-                'total_discounted' => $query->sum('discounted_collateral'),
-                'average_coverage' => $query->avg('coverage_ratio')
+                'total_allocations' => $summaryQuery->count(),
+                'total_exposure' => $summaryQuery->sum('total_customer_exposure'),
+                'total_discounted' => $summaryQuery->sum('discounted_collateral'),
+                'average_coverage' => $summaryQuery->avg('coverage_ratio')
             ];
 
             // --- DISTINCT TYPES for filter dropdown ---
@@ -332,7 +334,7 @@ class CollateralController extends Controller
             $reportingYear = $request->input('reporting_year');
             $reportingMonth = $request->input('reporting_month');
             $reportingPeriod = date('Y-m-d', strtotime("{$reportingYear}-{$reportingMonth}-01"));
-            $period = $request->input('period');
+            $period = $request->input('period') ?: $reportingPeriod;
 
             // Fetch clients who have at least one loan and one collateral
           // Step 1: try via Client model (if it exists)
@@ -410,9 +412,8 @@ class CollateralController extends Controller
                         $haircuts[] = $collateralType->standard_haircut;
                     }
                 }
-                $haircut = count($haircuts) > 0 ? array_sum($haircuts) / count($haircuts) : 20;
+                $haircut = count($haircuts) > 0 ? array_sum($haircuts) / count($haircuts) : 0;
                 $haircutFactor = $haircut;
-                //$haircutFactor = 1 - ($haircut / 100);
 
                 $totalCollateral = $collaterals->sum('execution_value');
                 $totalExposure = $loans->sum('carrying_amount');
@@ -438,8 +439,6 @@ class CollateralController extends Controller
                         'equal' => $available / max(1, $remainingLoans),
                         default => min(($loan->carrying_amount / $totalExposure) * $totalCollateral, $available),
                     };
-
-                    $share = $share / 100;
 
                     $discountedValueBeforeTime = $share * $haircutFactor; 
 
@@ -476,6 +475,7 @@ class CollateralController extends Controller
                             'discounted_collateral' => $discounted,
                             'coverage_ratio' => max(0, min($coverage / 100, 1)),
                             'allocation_basis' => strtoupper($request->allocation_basis),
+                            'realisation_months' => $realisationMonths,
                             'allocation_notes' => 'Auto-allocated using customer_id & customer_name',
                         ]
                     );

@@ -532,19 +532,20 @@ class LossGiveDefaultController extends Controller
                 // Find the Loss Given Default record by ID
                 $lgd = LossGivenDefault::findOrFail($id);
 
-                logger()->info('Auth check', [
-                    'user_id' => auth()->user()?->id,
-                    'roles' => auth()->user()?->getRoleNames(),
-                ]);
+                // logger()->info('Auth check', [
+                //     'user_id' => auth()->user()?->id,
+                //     'roles' => auth()->user()?->getRoleNames(),
+                // ]);
 
-                // Check if the user is trying to unlock a closed LGD record
-                // If the record is closed and the user is not an admin, return an error message
-                if (
-                    $lgd->is_active_or_closed === 'closed' &&
-                    !auth()->user()?->hasRole('admin')
-                ) {
-                    return back()->with('error', 'Only an Administrator can unlock a closed LGD record');
-                }
+                // // Check if the user is trying to unlock a closed LGD record
+                // // If the record is closed and the user is not an admin, return an error message
+                // if (
+                //     $lgd->is_active_or_closed === 'closed' &&
+                //     !auth()->user()?->hasRole('admin')
+                // ) {
+                //     return back()->with('error', 'Only an Administrator can unlock a closed LGD record');
+                // }
+
 
                 // Toggle between 'active' and 'closed'
                 $lgd->is_active_or_closed = $lgd->is_active_or_closed === 'closed' ? 'active' : 'closed';
