@@ -10,6 +10,20 @@
                             class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 hidden">
                         Import Loan Book
                     </button>
+                    <button @click="openExportModal"
+                            class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Export Summary
+                    </button>
+                    <button @click="openDisbursementModal"
+                            class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        Get Disbursements
+                    </button>
                     <Link
                         :href="route('loan_applications.loan-book.import.create')"
                         class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
@@ -25,115 +39,59 @@
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <!-- Summary Section -->
-                <div class="mb-6" v-if="summary">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-medium text-gray-900">Summary</h3>
-                        <button @click="toggleSummary" 
-                                class="inline-flex items-center px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 transform transition-transform" 
-                                 :class="{ 'rotate-180': summaryExpanded }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                            {{ summaryExpanded ? 'Hide' : 'Show' }} Summary
-                        </button>
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" v-if="summary">
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                        <div class="text-sm text-gray-600">Total Loans</div>
+                        <div class="text-2xl font-semibold">{{ summary.total_loans }}</div>
                     </div>
-                    
-                    <transition name="slide-down">
-                        <div v-show="summaryExpanded" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                                <div class="text-sm font-semibold ">Total Loans</div>
-                                <div class="text-2xl text-gray-600">{{ summary.total_loans || 0 }}</div>
-                            </div>
-                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                                <div class="text-sm ">Total Balance</div>
-                                <div class="text-2xl text-gray-600">{{ formatCurrency(summary.total_balance) }}</div>
-                            </div>
-                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                                <div class="text-sm font-semibold">Classification Count</div>
-                                <div class="space-y-2">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-sm font-medium text-gray-700">Stage 1:</span>
-                                        <span :class="getStageClass(1)" class="px-2 py-1 text-xs font-semibold rounded">
-                                            {{ summary.stage_1_count || 0 }}
-                                        </span>
-                                    </div>
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-sm font-medium text-gray-700">Stage 2:</span>
-                                        <span :class="getStageClass(2)" class="px-2 py-1 text-xs font-semibold rounded">
-                                            {{ summary.stage_2_count || 0 }}
-                                        </span>
-                                    </div>
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-sm font-medium text-gray-700">Stage 3:</span>
-                                        <span :class="getStageClass(3)" class="px-2 py-1 text-xs font-semibold rounded">
-                                            {{ summary.stage_3_count || 0 }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                                <div class="text-sm font-semibold">Total Loss</div>
-                                <div class="text-2xl text-gray-600">{{ formatCurrency(summary.total_ecl) }}</div>
-                            </div>
-                        </div>
-                    </transition>
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                        <div class="text-sm text-gray-600">Total Balance</div>
+                        <div class="text-2xl font-semibold">{{ formatCurrency(summary.total_balance) }}</div>
+                    </div>
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                        <div class="text-sm text-gray-600">Overdue Loans</div>
+                        <div class="text-2xl font-semibold">{{ summary.overdue_loans }}</div>
+                    </div>
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                        <div class="text-sm text-gray-600">Total Provision</div>
+                        <div class="text-2xl font-semibold">{{ formatCurrency(summary.total_provision) }}</div>
+                    </div>
                 </div>
 
                 <!-- Filters -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                     <div class="p-6 bg-white border-b border-gray-200">
-                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Year</label>
-                                <select v-model="filters.year"
+                                <select v-model="filters.year" @change="fetchData"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">All Years</option>
                                     <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Month</label>
-                                <select v-model="filters.month"
+                                <select v-model="filters.month" @change="fetchData"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">All Months</option>
                                     <option v-for="(name, index) in months" :key="index" :value="index + 1">{{ name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Stage</label>
-                                <select v-model="filters.stage"
+                                <label class="block text-sm font-medium text-gray-700">Status</label>
+                                <select v-model="filters.overdue" @change="fetchData"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">All Stages</option>
-                                    <option value="1">Stage 1</option>
-                                    <option value="2">Stage 2</option>
-                                    <option value="3">Stage 3</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Portfolio</label>
-                                <select v-model="filters.portfolio"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">All Portfolios</option>
-                                    <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">{{ portfolio.name }}</option>
+                                    <option value="">All Loans</option>
+                                    <option value="1">Overdue</option>
+                                    <option value="0">Not Overdue</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Search</label>
-                                <input type="text" v-model="filters.search"
+                                <input type="text" v-model="filters.search" @input="fetchData"
                                        placeholder="Search by Contract ID or Customer..."
                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             </div>
-                        </div>
-                        <div class="mt-4 flex justify-end space-x-3">
-                            <button @click="applyFilters"
-                                    class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Apply Filters
-                            </button>
-                            <button @click="resetFilters"
-                                    class="inline-flex items-center px-4 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                                Reset Filters
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -145,49 +103,32 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporting Period</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract ID</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th>
-                                        <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance (MKW)</th>
-                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
-                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PD Pre-FLI</th>
-                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">FLI Adj</th>
-                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PD Post-FLI</th>
-                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">LGD</th>
+                                        <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th> -->
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overdue Days</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th> -->
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     <tr v-for="loan in loanBooks.data" :key="loan.id">
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ formatPeriod(loan.reporting_period) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <div class="font-medium text-gray-900">{{ loan.customer_name }}</div>
-                                            <div class="text-xs text-gray-400">ID: {{ loan.customer_id }}</div>
-                                        </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-left text-sm text-gray-500">{{ loan.portfolio?.name || loan.loan_portfolio_id }} </td>
-                                        <td class="px-3 py-4 whitespace-nowrap  text-right text-sm text-gray-500">{{ formatCurrency(loan.carrying_amount) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm">
-                                            <span :class="getStageClass(loan.ifrs9stage_post_qualitative)" class="px-2 py-1 text-xs font-semibold rounded">
-                                                Stage {{ loan.ifrs9stage_post_qualitative || '-' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ formatPercent(loan.pd_prefli) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium" :class="getFliAdjClass(loan.fli_adj)">
-                                            {{ formatPercent(loan.fli_adj) }}
-                                        </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900 font-medium">{{ formatPercent(loan.pd_post_fli_adj) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ formatPercent(loan.lgd_value) }}</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.client?.name || loan.external_identity_id }}</td>
+
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(loan.principal_balance) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(loan.due_date) }}</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm" :class="getOverdueClass(loan.overdue_days)">
+                                            {{ loan.overdue_days }}
+                                        </td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm">
                                             <span :class="getStatusClass(loan.overdue_status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                                                 {{ loan.overdue_status }}
                                             </span>
                                         </td>
-                                        <!-- <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td> -->
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -329,11 +270,124 @@
             </div>
         </div>
     </Modal>
+
+    <!-- Export Modal -->
+    <div v-if="showExportModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 class="text-lg font-bold mb-4">Export Loan Book Summary Report</h2>
+
+            <div class="mb-4">
+                <label for="exportPortfolio" class="block mb-2 text-sm font-medium text-gray-700">Select Portfolio (Optional)</label>
+                <select v-model="exportForm.portfolio_id" id="exportPortfolio" class="border-gray-300 rounded-md shadow-sm w-full">
+                    <option value="">All Portfolios</option>
+                    <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
+                        {{ portfolio.name }}
+                    </option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="startPeriod" class="block mb-2 text-sm font-medium text-gray-700">Start Period</label>
+                <input type="month" v-model="exportForm.start_period" id="startPeriod" class="border-gray-300 rounded-md shadow-sm w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label for="endPeriod" class="block mb-2 text-sm font-medium text-gray-700">End Period</label>
+                <input type="month" v-model="exportForm.end_period" id="endPeriod" class="border-gray-300 rounded-md shadow-sm w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label for="exportMode" class="block mb-2 text-sm font-medium text-gray-700">Export Mode</label>
+                <input type="text" id="exportMode" value="Summary (Aggregated by period and stage)"
+                       class="border-gray-300 rounded-md shadow-sm w-full mb-4" readonly>
+                <p class="mt-1 text-xs text-gray-500">
+                    Exports aggregated Balance by IFRS9 stages for each reporting period
+                </p>
+            </div>
+
+            <div class="mb-4 bg-blue-50 rounded-lg p-3">
+                <p class="text-sm text-blue-800">
+                    <strong>Note:</strong> This export will generate a summary report showing Balance aggregated by IFRS9 stages (1, 2, 3) for each reporting period.
+                </p>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <button @click="showExportModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                <button
+                    @click="submitExport"
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    :disabled="exporting"
+                >
+                    <span v-if="exporting">Exporting...</span>
+                    <span v-else>Export</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disbursement Export Modal -->
+    <div v-if="showDisbursementModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 class="text-lg font-bold mb-4">Export Disbursement Report</h2>
+
+            <div class="mb-4">
+                <label for="disbursementPortfolio" class="block mb-2 text-sm font-medium text-gray-700">Select Portfolio (Optional)</label>
+                <select v-model="disbursementForm.portfolio_id" id="disbursementPortfolio" class="border-gray-300 rounded-md shadow-sm w-full">
+                    <option value="">All Portfolios</option>
+                    <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
+                        {{ portfolio.name }}
+                    </option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="startPeriod" class="block mb-2 text-sm font-medium text-gray-700">Start Period</label>
+                <input type="month" v-model="disbursementForm.start_period" id="startPeriod" class="border-gray-300 rounded-md shadow-sm w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label for="endPeriod" class="block mb-2 text-sm font-medium text-gray-700">End Period</label>
+                <input type="month" v-model="disbursementForm.end_period" id="endPeriod" class="border-gray-300 rounded-md shadow-sm w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-2 text-sm font-medium text-gray-700">Export Mode</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" v-model="disbursementForm.mode" value="summary" class="mr-2">
+                        <span class="text-sm">Summary Only (Aggregated data)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" v-model="disbursementForm.mode" value="detailed" class="mr-2">
+                        <span class="text-sm">Summary + Detailed (Individual contracts)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-4 bg-blue-50 rounded-lg p-3">
+                <p class="text-sm text-blue-800">
+                    <strong>Note:</strong> This export will generate a disbursement report showing total amount disbursed, contract count, and detailed breakdown of all loans originated within the selected date range.
+                </p>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <button @click="showDisbursementModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                <button
+                    @click="submitDisbursementExport"
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    :disabled="disbursementExporting"
+                >
+                    <span v-if="disbursementExporting">Exporting...</span>
+                    <span v-else>Export Disbursements</span>
+                </button>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { ref, onMounted, onUnmounted } from 'vue';
+// import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import Pagination from '@/Components/Pagination.vue';
@@ -342,20 +396,17 @@ import HelpManual from '../../Components/HelpManual.vue';
 const props = defineProps({
     loanBooks: Object,
     filters: Object,
-    portfolios: Array,
-    summary: Object,
+    portfolios: Array
 });
 
+const summary = ref(null);
 const filters = ref({
-    year: '',
-    month: '',
-    stage: '',
-    portfolio: '',
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+    overdue: '',
     search: '',
     ...props.filters
 });
-
-const summary = computed(() => props.summary);
 
 const years = [2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
 const months = [
@@ -364,19 +415,32 @@ const months = [
 ];
 
 const showImportModal = ref(false);
+const showExportModal = ref(false);
+const showDisbursementModal = ref(false);
 const importing = ref(false);
+const exporting = ref(false);
+const disbursementExporting = ref(false);
 const importProgress = ref(0);
 const importError = ref('');
-const summaryExpanded = ref(true); // Start expanded for better UX
 const importForm = ref({
     reporting_period: '',
     portfolio: '',
     file: null
 });
 
-const toggleSummary = () => {
-    summaryExpanded.value = !summaryExpanded.value;
-};
+const exportForm = ref({
+    portfolio_id: '',
+    start_period: '',
+    end_period: '',
+    mode: 'summary'
+});
+
+const disbursementForm = ref({
+    portfolio_id: '',
+    start_period: '',
+    end_period: '',
+    mode: 'summary'
+});
 
 const handleFileUpload = (event) => {
     importForm.value.file = event.target.files[0];
@@ -432,60 +496,146 @@ const submitImport = async () => {
     }
 };
 
-const resetFilters = () => {
-    filters.value = {
-        year: '',
-        month: '',
-        stage: '',
-        portfolio: '',
-        search: ''
+const openExportModal = () => {
+    exportForm.value = {
+        portfolio_id: '',
+        start_period: '',
+        end_period: '',
+        mode: 'summary'
     };
-    fetchData();
+    showExportModal.value = true;
 };
 
-const applyFilters = () => {
-    fetchData();
+const submitExport = async () => {
+    if (!exportForm.value.start_period || !exportForm.value.end_period) {
+        alert('Please select both start and end periods');
+        return;
+    }
+
+    if (exportForm.value.start_period > exportForm.value.end_period) {
+        alert('Start period cannot be later than end period');
+        return;
+    }
+
+    exporting.value = true;
+
+    try {
+        // Consolidated onto the Reports module (ReportsController@loanBookExport + LoanBookExportService).
+        const url = route('reports.loan-book-export', {
+            start_period: exportForm.value.start_period,
+            end_period: exportForm.value.end_period,
+            portfolio_id: exportForm.value.portfolio_id || null,
+            mode: 'summary',
+            export: 1
+        });
+
+        // Create a temporary link to download the file
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showExportModal.value = false;
+    } catch (error) {
+        console.error('Export failed:', error);
+        alert('Export failed. Please try again.');
+    } finally {
+        exporting.value = false;
+    }
+};
+
+const openDisbursementModal = () => {
+    disbursementForm.value = {
+        portfolio_id: '',
+        start_period: '',
+        end_period: '',
+        mode: 'summary'
+    };
+    showDisbursementModal.value = true;
+};
+
+const submitDisbursementExport = async () => {
+    if (!disbursementForm.value.start_period || !disbursementForm.value.end_period) {
+        alert('Please select both start and end periods');
+        return;
+    }
+
+    if (disbursementForm.value.start_period > disbursementForm.value.end_period) {
+        alert('Start period cannot be later than end period');
+        return;
+    }
+
+    disbursementExporting.value = true;
+
+    try {
+        // Consolidated onto the Reports module (ReportsController@disbursementReport + DisbursementReportService).
+        const url = route('reports.disbursement-report', {
+            start_period: disbursementForm.value.start_period,
+            end_period: disbursementForm.value.end_period,
+            portfolio_id: disbursementForm.value.portfolio_id || null,
+            mode: disbursementForm.value.mode,
+            export: 1
+        });
+
+        // Create a temporary link to download the file
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showDisbursementModal.value = false;
+    } catch (error) {
+        console.error('Disbursement export failed:', error);
+        alert('Disbursement export failed. Please try again.');
+    } finally {
+        disbursementExporting.value = false;
+    }
 };
 
 const fetchData = async () => {
     try {
-        const params = {
-            search: filters.value.search || undefined,
-            year: filters.value.year || undefined,
-            month: filters.value.month || undefined,
-            stage: filters.value.stage || undefined,
-            portfolio: filters.value.portfolio || undefined
-        };
-        
-        // Remove undefined params but keep year/month independently
-        Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
-        
-        router.get(route('loan_applications.loan-book'), params, {
+        await fetchSummary();
+        window.Inertia.get(route('loan_applications.loan-book'), {
+            search: filters.value.search,
+            year: filters.value.year,
+            month: filters.value.month,
+            overdue: filters.value.overdue
+        }, {
             preserveState: true,
             preserveScroll: true,
-            replace: true,
-            onSuccess: (page) => {
-                // Ensure the summary is updated from the page props
-                if (page.props.summary) {
-                    // Summary will be automatically updated through props
-                }
-            }
+            replace: true
         });
     } catch (error) {
         console.error('Error fetching data:', error);
     }
 };
 
+const fetchSummary = async () => {
+    try {
+        const response = await fetch(route('loan_applications.loan-book.summary', {
+            year: filters.value.year,
+            month: filters.value.month
+        }));
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        summary.value = await response.json();
+    } catch (error) {
+        console.error('Error fetching summary:', error);
+    }
+};
+
 const formatCurrency = (value) => {
-    if (!value) return '0.00';
-    return  new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    if (!value) return 'E0.00';
+    return 'E' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 };
 
 const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-};
-const formatPeriod = (date) => {
-    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short'});
 };
 
 const getOverdueClass = (days) => {
@@ -503,27 +653,6 @@ const getStatusClass = (status) => {
         'Loss': 'bg-red-200 text-red-900'
     };
     return classes[status] || 'bg-gray-100 text-gray-800';
-};
-
-const getStageClass = (stage) => {
-    const classes = {
-        1: 'bg-green-100 text-green-800',
-        2: 'bg-yellow-100 text-yellow-800',
-        3: 'bg-red-100 text-red-800'
-    };
-    return classes[stage] || 'bg-gray-100 text-gray-800';
-};
-
-const getFliAdjClass = (value) => {
-    if (!value) return 'text-gray-400';
-    if (value > 0) return 'text-red-600';
-    if (value < 0) return 'text-green-600';
-    return 'text-gray-600';
-};
-
-const formatPercent = (value) => {
-    if (value === null || value === undefined) return '-';
-    return (parseFloat(value) * 100).toFixed(2) + '%';
 };
 
 const downloadTemplate = () => {
@@ -546,25 +675,3 @@ onMounted(() => {
     //fetchSummary();
 });
 </script>
-
-<style scoped>
-.slide-down-enter-active,
-.slide-down-leave-active {
-    transition: all 0.3s ease;
-    overflow: hidden;
-}
-
-.slide-down-enter-from,
-.slide-down-leave-to {
-    max-height: 0;
-    opacity: 0;
-    transform: translateY(-10px);
-}
-
-.slide-down-enter-to,
-.slide-down-leave-from {
-    max-height: 500px;
-    opacity: 1;
-    transform: translateY(0);
-}
-</style>
