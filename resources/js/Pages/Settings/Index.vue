@@ -9,9 +9,9 @@
             <div class="bg-white rounded shadow overflow-x-auto">
                 <inertia-link v-if="can('settings')"
                     class="w-full border-t-2 border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                    :href="route('manuals.index')">
-                    <font-awesome-icon icon="book" class="w-4 h-4 mr-2"></font-awesome-icon>
-                    Manual Settings
+                    :href="route('lgd-calculations.index')">
+                    <font-awesome-icon icon="exchange-alt" class="w-4 h-4 mr-2"></font-awesome-icon>
+                        Payment Calculation
                 </inertia-link>
                 <inertia-link v-if="can('settings')"
                     class="w-full border-t-2 border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
@@ -48,6 +48,12 @@
                     :href="route('settings.sms')">
                     <font-awesome-icon icon="sms" class="w-4 h-4 mr-2"></font-awesome-icon>
                     SMS Settings
+                </inertia-link>
+                <inertia-link v-if="can('settings')"
+                    class="w-full border-t-2 border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
+                    :href="route('manuals.index')">
+                    <font-awesome-icon icon="book" class="w-4 h-4 mr-2"></font-awesome-icon>
+                    Manual Settings
                 </inertia-link>
                 <inertia-link v-if="can('settings')"
                     class="w-full border-t-2 border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"

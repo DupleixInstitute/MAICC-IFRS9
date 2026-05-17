@@ -5,10 +5,17 @@
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                     Transition Matrices Cummulative Probability
                 </h2>
-                <Link :href="route('transition-matrix-cummulative.create')" 
-                      class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition">
-                    Create New Matrix
-                </Link>
+                <div class="flex items-center space-x-2">
+                    <button @click="showReportModal = true"
+                          class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:outline-none focus:ring focus:ring-blue-300 transition">
+                        <i class="fas fa-file-archive mr-2"></i>
+                        Get Report
+                    </button>
+                    <Link :href="route('transition-matrix-cummulative.create')"
+                          class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition">
+                        Create New Matrix
+                    </Link>
+                </div>
             </div>
         </template>
 
@@ -333,9 +340,11 @@
             <ViewEditMatrix
             :transitionMatrix="selectedMatrix"
             :mode="mode"
-            type="cumulative" 
+            type="cumulative"
             />
         </Modal>
+
+        <CummulativeExportModal :show="showReportModal" @close="showReportModal = false" />
     </app-layout>
 </template>
 
@@ -348,6 +357,7 @@ import JetInput from '@/Jetstream/Input.vue'
 import Pagination from '@/Shared/Pagination.vue'
 import Modal from './Modal.vue' // Your modal component
 import ViewEditMatrix from './ViewEditMatrix.vue' // Your matrix table view
+import CummulativeExportModal from './Components/CummulativeExportModal.vue'
 import HelpManual from '../../Components/HelpManual.vue';
 
 export default {
@@ -358,6 +368,7 @@ export default {
         Pagination,
         Modal,
         ViewEditMatrix,
+        CummulativeExportModal,
         HelpManual,
     },
 
@@ -398,6 +409,7 @@ export default {
         const uploadTargetId = ref(null);
         const uploadFile = ref(null);
         const uploadLoading = ref(false);
+        const showReportModal = ref(false);
 
 
 
@@ -626,6 +638,7 @@ export default {
             handleModalFileChange,
             openUploadModal,
             cumMatrix,
+            showReportModal,
         }
     }
 }

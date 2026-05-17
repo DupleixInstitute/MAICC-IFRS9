@@ -518,6 +518,17 @@ return [
         //REPORTS
 
         [
+            'name' => 'Reports',
+            'icon' => 'chart-bar',
+            'route' => 'reports.index',
+            'route_check' => 'reports.index',
+            'permissions' => '',
+            'dropdown' => false,
+            'children' => [],
+            'order' => 9,
+        ],
+
+        [
             'name' => 'Regression Analysis',
             'icon' => 'chart-bar',
             'route' => 'regression.index',

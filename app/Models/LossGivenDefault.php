@@ -39,7 +39,15 @@ class LossGivenDefault extends Model
         'calculation_source',
         'supporting_file',
         'created_by',
-        'updated_by'
+        'updated_by',
+        // Discounting (2026_05_17 migration)
+        'is_discounting',
+        'discount_rate_source',
+        'interest_rate',
+        'discounted_payment_partly',
+        'discounted_payment_full',
+        'discount_loss',
+        'total_payment',
     ];
 
     protected $casts = [
@@ -64,6 +72,16 @@ class LossGivenDefault extends Model
     public function sector()
     {
         return $this->belongsTo(IndustryType::class, 'lgd_calculation_code', 'code');
+    }
+
+    /**
+     * Discounted payment rows produced for this LGD.
+     *
+     * @return HasMany
+     */
+    public function discountedPayments()
+    {
+        return $this->hasMany(DiscountedPayment::class, 'lgd_id');
     }
 
     public function supportingDocuments()

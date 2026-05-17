@@ -20,6 +20,9 @@ use App\Models\TransitionProfileOption;
 use App\Services\TransitionMatrixService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use App\Models\TransitionMatrixEntry;
+use Carbon\Carbon;
+use ZipArchive;
 
 class TransitionMatrixController extends Controller
 {
@@ -858,6 +861,355 @@ class TransitionMatrixController extends Controller
             $document->path,
             $document->original_name
         );
+    }
+
+        public function downloadReportByPeriod(Request $request)
+        {
+            $request->validate([
+                'start_period' => 'required|date_format:Y-m',
+                'end_period' => 'required|date_format:Y-m',
+                'format' => 'in:csv,excel',
+                'export_type' => 'in:summary,matrix',
+                'include_headers' => 'boolean',
+                'compress_file' => 'boolean'
+            ]);
+
+            $start = Carbon::createFromFormat('Y-m', $request->start_period)->startOfMonth();
+            $end = Carbon::createFromFormat('Y-m', $request->end_period)->endOfMonth();
+
+            $format = $request->get('format', 'csv');
+            $exportType = $request->get('export_type', 'summary');
+            $includeHeaders = $request->get('include_headers', true);
+            $compressFile = $request->get('compress_file', true);
+
+            if ($exportType === 'matrix') {
+                return $this->exportMatrixFormat($request, $start, $end, $format, $includeHeaders, $compressFile);
+            } else {
+                return $this->exportSummaryFormat($request, $start, $end, $format, $includeHeaders, $compressFile);
+            }
+        }
+
+        private function exportSummaryFormat($request, $start, $end, $format, $includeHeaders, $compressFile)
+        {
+            $matrices = TransitionMatrix::select([
+                    'id',
+                    'transition_profile_id',
+                    'portfolio_group_id',
+                    'start_reporting_period',
+                    'end_reporting_period',
+                    'transition_years',
+                    'records_count_transitioned',
+                    'records_count_updated',
+                    'reporting_periods_count',
+                    'run_no',
+                    'transition_balance',
+                    'updated_balance',
+                    'status',
+                    'last_calculation_date',
+                    'calculation_source',
+                    'comments'
+                ])
+                ->with(['portfolio:id,name', 'transitionProfile:id,name'])
+                ->where('start_reporting_period', '<=', $end)
+                ->where('end_reporting_period', '>=', $start)
+                ->where('status', 'closed')
+                ->orderBy('portfolio_group_id')
+                ->orderBy('start_reporting_period')
+                ->get();
+
+            if ($matrices->isEmpty()) {
+                return back()->with('error', 'No locked periods found for the selected date range');
+            }
+
+            // CSV Header
+            $csvHeader = [
+                'Matrix ID',
+                'Profile',
+                'Portfolio Group',
+                'Start Period',
+                'End Period',
+                'Transition Years',
+                'Records Transitioned',
+                'Records Updated',
+                'Reporting Periods',
+                'Calculation Runs',
+                'Transition Balance',
+                'Updated Balance',
+                'Status',
+                'Last Calculation Date',
+                'Calculation Source',
+                'Comments'
+            ];
+
+            $csvRows = [];
+
+            // Add report range as first row
+            $csvRows[] = ["Closed Transition Matrix Report: From {$request->start_period} To {$request->end_period}"];
+            $csvRows[] = []; // empty row for spacing
+
+            // Add column headers if requested
+            if ($includeHeaders) {
+                $csvRows[] = $csvHeader;
+            }
+
+            // Add matrix data
+            foreach ($matrices as $matrix) {
+                $csvRows[] = [
+                    $matrix->id,
+                    $matrix->transitionProfile ? $matrix->transitionProfile->name : 'N/A',
+                    $matrix->portfolio ? $matrix->portfolio->name : 'N/A',
+                    $matrix->start_reporting_period,
+                    $matrix->end_reporting_period,
+                    $matrix->transition_years,
+                    $matrix->records_count_transitioned,
+                    $matrix->records_count_updated,
+                    $matrix->reporting_periods_count,
+                    $matrix->run_no,
+                    $matrix->transition_balance,
+                    $matrix->updated_balance,
+                    $matrix->status === 'closed' ? 'Closed' : 'Draft',
+                    $matrix->last_calculation_date,
+                    ucfirst($matrix->calculation_source),
+                    $matrix->comments ?? ''
+                ];
+            }
+
+            // Convert array of rows to CSV text
+            $csvContent = '';
+            foreach ($csvRows as $row) {
+                // Escape any commas in data
+                $escapedRow = array_map(function($field) {
+                    $field = str_replace('"', '""', $field); // escape quotes
+                    return "\"{$field}\"";
+                }, $row);
+                $csvContent .= implode(',', $escapedRow) . "\n";
+            }
+
+            $filename = "Transition_Matrix_Report_{$request->start_period}_to_{$request->end_period}";
+            $csvPath = storage_path("app/{$filename}.csv");
+            file_put_contents($csvPath, $csvContent);
+
+            Log::info("CSV file created: {$csvPath}, size: " . filesize($csvPath) . " bytes");
+
+            if ($compressFile) {
+                // Create ZIP file
+                $zipPath = storage_path("app/{$filename}.zip");
+                $zip = new ZipArchive();
+                $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+                $zip->addFile($csvPath, "{$filename}.csv");
+                $zip->close();
+
+                Log::info("ZIP file created: {$zipPath}, size: " . filesize($zipPath) . " bytes");
+                Log::info("Returning ZIP download response");
+                return response()->download($zipPath, "{$filename}.zip", [
+                    'Content-Type' => 'application/zip',
+                    'Content-Disposition' => 'attachment; filename="' . $filename . '.zip"'
+                ])->deleteFileAfterSend(true);
+            } else {
+                // Return CSV directly
+                if ($format === 'excel') {
+                    // For Excel format, we'd need to use a library like Laravel Excel
+                    // For now, return CSV with Excel MIME type
+                    Log::info("Returning CSV download as Excel format");
+                    return response()->download($csvPath, "{$filename}.csv", [
+                        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    ])->deleteFileAfterSend(true);
+                } else {
+                    Log::info("Returning CSV download response");
+                    return response()->download($csvPath, "{$filename}.csv", [
+                        'Content-Type' => 'text/csv',
+                        'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"'
+                    ])->deleteFileAfterSend(true);
+                }
+            }
+        }
+
+        private function exportMatrixFormat($request, $start, $end, $format, $includeHeaders, $compressFile)
+        {
+            // Get matrices for the period
+            $matrices = TransitionMatrix::with(['portfolio', 'transitionProfile'])
+                ->where('start_reporting_period', '<=', $end)
+                ->where('end_reporting_period', '>=', $start)
+                ->where('status', 'closed')
+                ->orderBy('portfolio_group_id')
+                ->orderBy('start_reporting_period')
+                ->get();
+
+            if ($matrices->isEmpty()) {
+                return back()->with('error', 'No locked periods found for the selected date range');
+            }
+
+            Log::info("Found " . $matrices->count() . " matrices for export");
+
+            $csvRows = [];
+
+            foreach ($matrices as $matrix) {
+                // Get matrix data for this specific matrix
+                $matrixData = TransitionMatrixData::where('calculation_header_id', $matrix->id)->get();
+
+                // Matrix Header
+                $csvRows[] = ["Closed Transition Matrix Report"];
+                $csvRows[] = ["Profile: " . ($matrix->transitionProfile ? $matrix->transitionProfile->name : 'N/A')];
+                $csvRows[] = ["Period: " . $matrix->start_reporting_period . " to " . $matrix->end_reporting_period];
+                $csvRows[] = ["Portfolio Group: " . ($matrix->portfolio ? $matrix->portfolio->name : 'N/A')];
+                $csvRows[] = ["Matrix ID: " . $matrix->id];
+                $csvRows[] = []; // empty row
+
+                // State Matrix Header
+                $csvRows[] = ["STATE MATRIX (Balances):"];
+                $csvRows[] = ["", "Stage 1", "Stage 2", "Stage 3", "Write-off"];
+                $csvRows[] = ["Stage 1", "", "", "", ""];
+                $csvRows[] = ["Stage 2", "", "", "", ""];
+                $csvRows[] = ["Stage 3", "", "", "", ""];
+                $csvRows[] = ["Write-off", "", "", "", ""];
+
+                // Build transition matrix with balances
+                $states = ['1' => 'Stage 1', '2' => 'Stage 2', '3' => 'Stage 3', 'Paid' => 'Write-off'];
+                $transitionMatrix = [];
+
+                // Initialize matrix with balances
+                foreach ($states as $stateKey => $stateName) {
+                    $transitionMatrix[$stateKey] = [];
+                    foreach ($states as $toStateKey => $toStateName) {
+                        $transitionMatrix[$stateKey][$toStateKey] = 0;
+                    }
+                }
+
+                // Fill matrix from entries with balances
+                foreach ($matrixData as $entry) {
+                    $fromState = $entry->start_stage;
+                    $toState = $entry->end_stage;
+
+                    if (isset($transitionMatrix[$fromState][$toState])) {
+                        // Use transition_balance_month as the balance
+                        $balance = $entry->transition_balance_month ?? 0;
+                        $transitionMatrix[$fromState][$toState] += $balance;
+                    }
+                }
+
+                // Add matrix rows with balances
+                $rowIndex = 0;
+                foreach ($states as $stateKey => $stateName) {
+                    $row = [$stateName];
+                    foreach ($states as $toStateKey => $toStateName) {
+                        $balance = $transitionMatrix[$stateKey][$toStateKey] ?? 0;
+                        $row[] = number_format($balance, 2);
+                    }
+                    // Replace the placeholder row with actual data
+                    $csvRows[11 + $rowIndex] = $row;
+                    $rowIndex++;
+                }
+
+                $csvRows[] = []; // empty row
+
+                // Balances Header
+                $csvRows[] = ["BALANCES:"];
+                $csvRows[] = ["Portfolio Group", "Start Stage", "End Stage", "Start Balance", "Transition Balance"];
+                $csvRows[] = ["-----------------------------------------------------------------------------------------------"];
+
+                // Add balance data
+                $stateMapping = ['1' => 'Stage 1', '2' => 'Stage 2', '3' => 'Stage 3', 'Paid' => 'Write-off'];
+                foreach ($matrixData as $entry) {
+                    $startBalance = $entry->start_total_balance_month ?? 0;
+                    $transitionBalance = $entry->transition_balance_month ?? 0;
+                    $csvRows[] = [
+                        $entry->portfolio_group ?? 'N/A',
+                        $stateMapping[$entry->start_stage] ?? $entry->start_stage,
+                        $stateMapping[$entry->end_stage] ?? $entry->end_stage,
+                        number_format($startBalance, 2),
+                        number_format($transitionBalance, 2)
+                    ];
+                }
+
+                $csvRows[] = []; // empty row between matrices
+            }
+
+            // Convert to CSV content
+            $csvContent = '';
+            foreach ($csvRows as $row) {
+                $escapedRow = array_map(function($field) {
+                    $field = str_replace('"', '""', $field);
+                    return "\"{$field}\"";
+                }, $row);
+                $csvContent .= implode(',', $escapedRow) . "\n";
+            }
+
+            $filename = "Transition_Matrix_Report_{$request->start_period}_to_{$request->end_period}";
+            $csvPath = storage_path("app/{$filename}.csv");
+            file_put_contents($csvPath, $csvContent);
+
+            Log::info("Matrix CSV file created: {$csvPath}, size: " . filesize($csvPath) . " bytes");
+
+            if ($compressFile) {
+                $zipPath = storage_path("app/{$filename}.zip");
+                $zip = new ZipArchive();
+                $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+                $zip->addFile($csvPath, "{$filename}.csv");
+                $zip->close();
+
+                Log::info("Matrix ZIP file created: {$zipPath}, size: " . filesize($zipPath) . " bytes");
+                return response()->download($zipPath, "{$filename}.zip", [
+                    'Content-Type' => 'application/zip',
+                    'Content-Disposition' => 'attachment; filename="' . $filename . '.zip"'
+                ])->deleteFileAfterSend(true);
+            } else {
+                return response()->download($csvPath, "{$filename}.csv", [
+                    'Content-Type' => 'text/csv',
+                    'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"'
+                ])->deleteFileAfterSend(true);
+            }
+        }
+
+    public function delete(TransitionMatrix $matrix)
+    {
+        // Simple file logging to verify method is called
+        file_put_contents(storage_path('logs/delete_debug.log'),
+            date('Y-m-d H:i:s') . " - Delete method called for matrix ID: " . $matrix->id . "\n",
+            FILE_APPEND
+        );
+
+        Log::info('Delete method called for matrix ID: ' . $matrix->id);
+
+        DB::beginTransaction();
+
+        try {
+            Log::info('Starting deletion process for matrix ID: ' . $matrix->id);
+
+            // Delete related transition matrix data
+            $deletedData = TransitionMatrixData::where('calculation_header_id', $matrix->id)->delete();
+            Log::info('Deleted ' . $deletedData . ' transition matrix data records');
+
+            // Delete related transition matrix entries
+            $deletedEntries = TransitionMatrixEntry::where('transition_matrix_id', $matrix->id)->delete();
+            Log::info('Deleted ' . $deletedEntries . ' transition matrix entries');
+
+            // Delete the transition matrix itself (hard delete to avoid unique constraint conflicts)
+            $matrix->forceDelete();
+            Log::info('Force deleted matrix ID: ' . $matrix->id);
+
+            DB::commit();
+
+            Log::info('Delete transaction committed successfully');
+
+            file_put_contents(storage_path('logs/delete_debug.log'),
+                date('Y-m-d H:i:s') . " - Delete completed successfully for matrix ID: " . $matrix->id . "\n",
+                FILE_APPEND
+            );
+
+            return redirect()->route('transition-matrices.index')
+                ->with('success', 'Transition matrix and all related data deleted successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Delete failed for matrix ID ' . $matrix->id . ': ' . $e->getMessage());
+
+            file_put_contents(storage_path('logs/delete_debug.log'),
+                date('Y-m-d H:i:s') . " - Delete failed for matrix ID: " . $matrix->id . " - Error: " . $e->getMessage() . "\n",
+                FILE_APPEND
+            );
+
+            return back()->withErrors(['error' => 'Failed to delete transition matrix: ' . $e->getMessage()]);
+        }
     }
 
 }

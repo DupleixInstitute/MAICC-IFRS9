@@ -98,6 +98,8 @@ use App\Http\Controllers\MemberPortal\MemberPortalCourseRegistrationsController;
 // FLI Adjustment Controllers
 use App\Http\Controllers\FLI\ScenarioSetController;
 use App\Http\Controllers\FLI\ExternalCalculationsController;
+use App\Http\Controllers\LGDCalculationController;
+use App\Http\Controllers\LGDPaymentReportController;
 
 
 /*
@@ -546,6 +548,31 @@ Route::group(['prefix' => 'setting'], function () {
 Route::group(['prefix' => 'report'], function () {
     Route::get('/', [ReportsController::class, 'index'])->name('reports.index');
 
+    Route::get('/ecl-reconciliation', [ReportsController::class, 'eclReconciliation'])->name('reports.ecl-reconciliation');
+    Route::get('/loan-book-reconciliation', [ReportsController::class, 'loanBookReconciliation'])->name('reports.loan-book-reconciliation');
+    Route::get('/loan-book-export', [ReportsController::class, 'loanBookExport'])->name('reports.loan-book-export');
+    Route::get('/ecl-export', [ReportsController::class, 'eclExport'])->name('reports.ecl-export');
+    Route::get('/disbursement-report', [ReportsController::class, 'disbursementReport'])->name('reports.disbursement-report');
+});
+//lgd repayment / payment tracking
+Route::group(['prefix' => 'lgd-calculations', 'as' => 'lgd-calculations.'], function () {
+    Route::get('/', [LGDCalculationController::class, 'index'])->name('index');
+    Route::get('/create', [LGDCalculationController::class, 'create'])->name('create');
+    Route::get('/compare', [LGDCalculationController::class, 'compare'])->name('compare');
+    Route::post('/', [LGDCalculationController::class, 'store'])->name('store');
+    Route::get('/{id}', [LGDCalculationController::class, 'show'])->name('show')->whereNumber('id');
+    Route::post('/{id}/recalculate', [LGDCalculationController::class, 'recalculate'])->name('recalculate')->whereNumber('id');
+    Route::post('/{id}/cancel', [LGDCalculationController::class, 'cancel'])->name('cancel')->whereNumber('id');
+    Route::get('/{id}/export', [LGDCalculationController::class, 'export'])->name('export')->whereNumber('id');
+    Route::delete('/{id}', [LGDCalculationController::class, 'destroy'])->name('destroy')->whereNumber('id');
+});
+
+Route::group(['prefix' => 'lgd-payment-report', 'as' => 'lgd-payment-report.'], function () {
+    Route::get('/', [LGDPaymentReportController::class, 'index'])->name('index');
+    Route::match(['get', 'post'], '/generate', [LGDPaymentReportController::class, 'generateReport'])->name('generate');
+    Route::get('/monthly-summary', [LGDPaymentReportController::class, 'monthlySummary'])->name('monthly-summary');
+    Route::get('/contract-details', [LGDPaymentReportController::class, 'contractDetails'])->name('contract-details');
+    Route::get('/comparison/{id1}/{id2}', [LGDPaymentReportController::class, 'downloadComparison'])->name('download-comparison')->whereNumber(['id1', 'id2']);
 });
 //license
 Route::group(['prefix' => 'license'], function () {
@@ -604,6 +631,8 @@ Route::group(['prefix' => 'transition-matrix', 'as' => 'transition-matrices.'], 
 
     Route::post('/{matrix}/attach-file', [TransitionMatrixController::class, 'attachFile'])->name('attach-file');
     Route::get('/{id}/download-file', [TransitionMatrixController::class, 'downloadFile'])->name('download-file');
+    Route::get('/report-by-period', [TransitionMatrixController::class, 'downloadReportByPeriod'])->name('report-by-period');
+    Route::delete('/{matrix}/delete', [TransitionMatrixController::class, 'delete'])->name('delete');
 });
 
 
@@ -644,6 +673,7 @@ Route::get('/transition-matrix-cummulative/{matrix}/data', [TransitionMatrixCumm
 Route::post('/transition-matrix-cummulative/{matrix}/lock-pd',[TransitionMatrixCummulativeController::class,'keyLock'])->name('transition-matrix-cummulative.lock');
 Route::post('/transition-matrix-cummulative/{matrix}/attach-file', [TransitionMatrixCummulativeController::class, 'attachFile'])->name('transition-matrix-cummulative.attach-file');
 Route::get('/transition-matrix-cummulative/{id}/download-file', [TransitionMatrixCummulativeController::class, 'downloadFile'])->name('transition-matrix-cummulative.download-file');
+Route::get('/transition-matrix-cummulative/report-by-period', [TransitionMatrixCummulativeController::class, 'downloadReportByPeriod'])->name('transition-matrix-cummulative.report-by-period');
 
 
 //Transition Profile Definitions
@@ -694,10 +724,9 @@ Route::get('/loss-given-default/list',[LossGiveDefaultController::class,'index']
 Route::get('/loss-given-default/create',[LossGiveDefaultController::class,'create'])->name('loss-given-default.create');
 Route::post('loss-given-default/calculations',[LossGiveDefaultController::class,'calculateLGD'])->name('loss-given-default.systemCalculation');
 //Route::get('/loss-given-default/manual-calculation', [LossGiveDefaultController::class,'editManual'])->name('loss-given-default.editManual');
-Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManualCalculation'])->name('loss-given-default.updateManual');
+Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManual'])->name('loss-given-default.updateManual');
 Route::post('/loss-given-default/manual-calculation', [LossGiveDefaultController::class,'storeManualCalculation'])->name('loss-given-default.storeManual');
 Route::delete('/loss-given-default/delete/{id}', [LossGiveDefaultController::class,'destroy'])->name('loss-given-default.delete');
-Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManualCalculation'])->name('loss-given-default.updateManual');
 Route::post('/loss-given-default/update-loanbook', [LossGiveDefaultController::class, 'updateLoanBooks'])->name('loss-given-default.update-loan-book');
 Route::get('/loss-given-default/{id}/edit', [LossGiveDefaultController::class,'editManual'])->name('loss-given-default.editManual');
 Route::middleware(['auth'])->group(function () {
@@ -709,6 +738,8 @@ Route::post('/loss-given-default/{lgd}/attach-file', [LossGiveDefaultController:
 Route::get('/loss-given-default/{id}/download-file', [LossGiveDefaultController::class, 'downloadFile'])
     ->name('loss-given-default.download-file');
 Route::get('/loss-given-default/reports',[LossGiveDefaultController::class,'downloadReportByPeriod'])->name('loss-given-default.report-by-period');
+Route::get('/loss-given-default/{lgdId}/discounted-payments', [LossGiveDefaultController::class, 'discountedPaymentsIndex'])->name('loss-given-default.discounted-payments')->whereNumber('lgdId');
+Route::post('/loss-given-default/{lgdId}/trigger-discounting', [LossGiveDefaultController::class, 'triggerDiscounting'])->name('loss-given-default.trigger-discounting')->whereNumber('lgdId');
 
 // LGD Cummulative Routes
 Route::get('/loss-given-default/cummulative', [LossGivenDefaultCummulativeController::class,'index'])->name('lgd-cummulative.index');
@@ -905,10 +936,9 @@ Route::get('/loss-given-default/list',[LossGiveDefaultController::class,'index']
 Route::get('/loss-given-default/create',[LossGiveDefaultController::class,'create'])->name('loss-given-default.create');
 Route::post('loss-given-default/calculations',[LossGiveDefaultController::class,'calculateLGD'])->name('loss-given-default.systemCalculation');
 //Route::get('/loss-given-default/manual-calculation', [LossGiveDefaultController::class,'editManual'])->name('loss-given-default.editManual');
-Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManualCalculation'])->name('loss-given-default.updateManual');
+Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManual'])->name('loss-given-default.updateManual');
 Route::post('/loss-given-default/manual-calculation', [LossGiveDefaultController::class,'storeManualCalculation'])->name('loss-given-default.storeManual');
 Route::delete('/loss-given-default/delete/{id}', [LossGiveDefaultController::class,'destroy'])->name('loss-given-default.delete');
-Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManualCalculation'])->name('loss-given-default.updateManual');
 Route::post('/loss-given-default/update-loanbook', [LossGiveDefaultController::class, 'updateLoanBooks'])->name('loss-given-default.update-loan-book');
 Route::get('/loss-given-default/{id}/edit', [LossGiveDefaultController::class,'editManual'])->name('loss-given-default.editManual');
 Route::middleware(['auth'])->group(function () {
