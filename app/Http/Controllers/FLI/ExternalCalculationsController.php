@@ -141,11 +141,35 @@ class ExternalCalculationsController extends Controller
             'base_forecast_period' => 'required|date_format:Y-m',
             'base_macro_data_value' => 'required|numeric',
             'base_pd_proxy_value' => 'required|numeric|min:0|max:100',
-            'regression_slope' => 'required|numeric',
-            'regression_intercept' => 'required|numeric',
+            // Either supply slope/intercept manually, OR pick a trained
+            // regression model and the system derives them.
+            'regression_model_id' => 'nullable|exists:regression_models,id',
+            'regression_slope' => 'required_without:regression_model_id|nullable|numeric',
+            'regression_intercept' => 'required_without:regression_model_id|nullable|numeric',
         ]);
 
         try {
+            $slope = $validated['regression_slope'] ?? null;
+            $intercept = $validated['regression_intercept'] ?? null;
+
+            // Connect the trained-regression engine to the FLI adjustment:
+            // pull intercept + the (single) driver coefficient from the model.
+            if (! empty($validated['regression_model_id'])) {
+                $model = \App\Models\RegressionModel::find($validated['regression_model_id']);
+                $coeffs = $model?->coeffs ?? [];
+                $intercept = $coeffs['intercept'] ?? $intercept ?? 0;
+                $slope = collect($coeffs)
+                    ->reject(fn ($v, $k) => $k === 'intercept')
+                    ->first() ?? $slope ?? 0;
+            }
+
+            if ($slope === null || $intercept === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Provide regression slope & intercept, or select a trained regression model.',
+                ], 422);
+            }
+
             $parameter = FliReportingPeriodParameter::create([
                 'reporting_period' => Carbon::createFromFormat('Y-m', $validated['reporting_period'])->startOfMonth(),
                 'scenario_set_id' => $validated['scenario_set_id'],
@@ -156,8 +180,8 @@ class ExternalCalculationsController extends Controller
                 'base_forecast_period' => Carbon::createFromFormat('Y-m', $validated['base_forecast_period'])->startOfMonth(),
                 'base_macro_data_value' => $validated['base_macro_data_value'],
                 'base_pd_proxy_value' => $validated['base_pd_proxy_value'],
-                'regression_slope' => $validated['regression_slope'],
-                'regression_intercept' => $validated['regression_intercept'],
+                'regression_slope' => $slope,
+                'regression_intercept' => $intercept,
                 'created_by' => Auth::id(),
             ]);
 
@@ -233,11 +257,22 @@ class ExternalCalculationsController extends Controller
                 ->where('scenario_set_id', $parameter->scenario_set_id)
                 ->delete();
 
-            $basePredictedValue = null;
+            // Determine the base (window 0) predicted value up-front so the
+            // result no longer depends on the order forecasts are posted in.
+            $baseForecast = collect($validated['forecasts'])
+                ->firstWhere('forecast_window_in_months', 0)
+                ?? collect($validated['forecasts'])
+                    ->sortBy('forecast_window_in_months')->first();
+
+            $basePredictedValue = FliAdj::calculatePredictedValue(
+                $baseForecast['weighted_macro_data_value'] ?? 0,
+                $parameter->regression_slope,
+                $parameter->regression_intercept
+            );
 
             foreach ($validated['forecasts'] as $forecast) {
                 $macroValue = $forecast['weighted_macro_data_value'];
-                
+
                 // Calculate predicted value using regression formula
                 $predictedValue = FliAdj::calculatePredictedValue(
                     $macroValue,
@@ -245,13 +280,8 @@ class ExternalCalculationsController extends Controller
                     $parameter->regression_intercept
                 );
 
-                // Store base predicted value (period 0)
-                if ($forecast['forecast_window_in_months'] == 0) {
-                    $basePredictedValue = $predictedValue;
-                }
-
-                // Calculate FLI adjustment
-                $fliAdj = FliAdj::calculateFliAdj($predictedValue, $basePredictedValue ?? $predictedValue);
+                // Calculate FLI adjustment against the fixed base
+                $fliAdj = FliAdj::calculateFliAdj($predictedValue, $basePredictedValue ?: $predictedValue);
 
                 FliAdj::create([
                     'reporting_period' => $reportingPeriod,
@@ -334,11 +364,22 @@ class ExternalCalculationsController extends Controller
                     ? 12  // 12-month window for Stage 1
                     : (int) round($remainingLife);  // Lifetime for Stage 2 (convert to integer months)
 
-                // Find matching FLI adjustment
+                // Find the FLI adjustment whose forecast window is NEAREST to
+                // the loan's window. An exact match silently dropped every
+                // Stage 2 loan whose remaining tenor did not land exactly on
+                // a generated window (understating ECL). Nearest-window keeps
+                // the adjustment economically correct.
                 $fliAdj = FliAdj::where('reporting_period', $reportingPeriod)
                     ->where('scenario_set_id', $validated['scenario_set_id'])
                     ->where('forecast_window_in_months', $forecastWindow)
                     ->first();
+
+                if (! $fliAdj) {
+                    $fliAdj = FliAdj::where('reporting_period', $reportingPeriod)
+                        ->where('scenario_set_id', $validated['scenario_set_id'])
+                        ->orderByRaw('ABS(forecast_window_in_months - ?)', [$forecastWindow])
+                        ->first();
+                }
 
                 if ($fliAdj) {
                     $loan->fli_adj = $fliAdj->fli_adj;

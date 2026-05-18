@@ -14,7 +14,7 @@ class ManualForecastController extends Controller
         // Get forecast results from session if they exist
         $forecastResults = $request->session()->get('forecastResults');
         
-        return Inertia::render('FLI/Forecasting/Manual', [
+        return Inertia::render('FLI/ForecastMacroData/Manual', [
             'forecastResults' => $forecastResults
         ]);
     }

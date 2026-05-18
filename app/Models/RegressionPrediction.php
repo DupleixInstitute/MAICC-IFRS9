@@ -23,6 +23,7 @@ class RegressionPrediction extends Model
         'actual_value',
         'error',
         'is_actual',
+        'macro_data_used',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class RegressionPrediction extends Model
         'actual_value' => 'decimal:6',
         'error' => 'decimal:6',
         'is_actual' => 'boolean',
+        'macro_data_used' => 'array',
     ];
 
     public function model(): BelongsTo

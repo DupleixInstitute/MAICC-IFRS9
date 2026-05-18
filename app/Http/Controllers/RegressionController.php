@@ -195,7 +195,7 @@ class RegressionController extends Controller
                             'period' => $period,
                         ],
                         [
-                            'predicted_value' => $value,
+                            'pred_value' => $value,
                             'is_actual' => false,
                             'macro_data_used' => $validated['macro_data'][$period] ?? [], // Store inputs for audit
                         ]
@@ -210,6 +210,43 @@ class RegressionController extends Controller
             }
         }
 
+    /**
+     * Toggle a regression model active/inactive (referenced by routes & UI).
+     */
+    public function toggleActive(RegressionModel $model)
+    {
+        $model->is_active = ! $model->is_active;
+        $model->save();
 
+        return back()->with('success', 'Model ' . ($model->is_active ? 'activated' : 'deactivated') . '.');
+    }
 
+    /**
+     * Approve a regression model for use in ECL/FLI.
+     */
+    public function approve(RegressionModel $model)
+    {
+        $model->is_approved = true;
+        $model->save();
+
+        return back()->with('success', 'Model approved.');
+    }
+
+    /**
+     * Return forecast macro data for this model's independent variables,
+     * grouped by period (used by the prediction screen).
+     */
+    public function fetchMacroForecast(RegressionModel $model)
+    {
+        $indepVars = $model->indep_vars ?? [];
+
+        $data = MacroStatsValue::whereIn('macro_stat_definition_id', $indepVars)
+            ->where('is_forecast', true)
+            ->orderBy('period')
+            ->get(['macro_stat_definition_id', 'period', 'value'])
+            ->groupBy(fn ($row) => \Carbon\Carbon::parse($row->period)->format('Y-m'))
+            ->map(fn ($rows) => $rows->mapWithKeys(fn ($r) => [$r->macro_stat_definition_id => (float) $r->value]));
+
+        return response()->json(['macro_data' => $data]);
+    }
     }

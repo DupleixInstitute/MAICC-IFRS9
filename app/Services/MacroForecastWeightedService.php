@@ -92,7 +92,7 @@ class MacroForecastWeightedService
                     [
                         'value' => $weightedSum,
                         'source' => 'Weighted Calculation',
-                        'created_by' => 1,
+                        'created_by' => auth()->id() ?? 1,
                     ]
                 );
 
