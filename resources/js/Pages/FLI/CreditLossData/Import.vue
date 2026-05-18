@@ -18,7 +18,7 @@
                                 id="portfolio_id"
                                 v-model="form.portfolio_id"
                                 required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                 :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.portfolio_id }"
                             >
                                 <option value="" disabled>Select a portfolio</option>
@@ -40,7 +40,7 @@
                                 type="month" 
                                 v-model="form.period" 
                                 required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                 :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.period }"
                             >
                             <p class="mt-1 text-xs text-gray-500">Select the month and year for this credit loss data</p>
@@ -128,7 +128,7 @@
                                             </td>
                                             <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                                                 <select 
-                                                    class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                                                    class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                                                     :value="getMappedDefinition(header)"
                                                     @change="updateDefinitionMapping(header, $event.target.value)"
                                                     :disabled="isProcessing"
@@ -277,7 +277,7 @@
                         <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
                             <div
                                 :style="{ width: uploadProgress + '%' }"
-                                class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 transition-all duration-300"
+                                class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-maiic-500 transition-all duration-300"
                             ></div>
                         </div>
                     </div>

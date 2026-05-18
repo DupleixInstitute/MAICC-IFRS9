@@ -87,8 +87,8 @@ const money = (v) => Number(v || 0).toLocaleString(undefined, {
                 </div>
 
                 <div class="px-6 pb-6 flex justify-end gap-3">
-                    <button @click="generate" :disabled="!canRun" class="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50">Generate</button>
-                    <button @click="downloadReport" :disabled="!canRun" class="px-4 py-2 bg-green-600 text-white rounded-md disabled:opacity-50">Download CSV</button>
+                    <button @click="generate" :disabled="!canRun" class="px-4 py-2 bg-maiic-600 text-white rounded-md disabled:opacity-50">Generate</button>
+                    <button @click="downloadReport" :disabled="!canRun" class="px-4 py-2 bg-maiic-600 text-white rounded-md disabled:opacity-50">Download CSV</button>
                 </div>
             </div>
 

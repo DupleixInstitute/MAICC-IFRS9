@@ -35,7 +35,7 @@
             <input
               v-model="filters.registration_date_from"
               type="month"
-              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
             />
           </div>
 
@@ -45,7 +45,7 @@
             <input
               v-model="filters.registration_date_to"
               type="month"
-              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
             />
           </div>
 
@@ -56,7 +56,7 @@
               v-model="filters.type_code"
               type="text"
               placeholder="e.g. Code: 103"
-              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
             />
           </div>
 
@@ -67,7 +67,7 @@
               v-model="filters.customer_id"
               type="text"
               placeholder="ID"
-              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
             />
           </div>
 
@@ -78,7 +78,7 @@
               v-model="filters.customer_name"
               type="text"
               placeholder="Name"
-              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
             />
           </div>
 
@@ -86,7 +86,7 @@
            <div class="flex items-end space-x-2">
             <button
               type="submit"
-              class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700"
             >
               Apply Filters
             </button>

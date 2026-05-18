@@ -60,7 +60,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Reporting Period</label>
                                 <input type="month" v-model="form.reporting_period" required
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                 <p class="mt-1 text-xs text-gray-500">Select the month and year for this loan book data</p>
                             </div>
                         </div>
@@ -71,7 +71,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'legacy' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    :class="importType === 'legacy' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
                                     @click="importType = 'legacy'"
                                 >
                                     <div class="flex items-center space-x-3">
@@ -88,7 +88,7 @@
                                 </div>
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'group' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    :class="importType === 'group' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
                                     @click="importType = 'group'"
                                 >
                                     <div class="flex items-center space-x-3">
@@ -106,7 +106,7 @@
 
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'custom' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    :class="importType === 'custom' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
                                     @click="importType = 'custom'"
                                 >
                                     <div class="flex items-center space-x-3">
@@ -228,7 +228,7 @@
                             <jet-button type="button" @click="downloadTemplate('legacy')" class="flex-1 justify-center">
                                 Download Legacy Template
                             </jet-button>
-                            <jet-button type="button" @click="downloadEbankerTemplate()" class="flex-1 justify-center bg-blue-600 hover:bg-blue-500">
+                            <jet-button type="button" @click="downloadEbankerTemplate()" class="flex-1 justify-center bg-maiic-600 hover:bg-maiic-500">
                                 Download E-Banker Template
                             </jet-button>
                         </div>
@@ -238,7 +238,7 @@
                             <Link :href="route('loan_applications.loan-book')" class="inline-flex items-center px-4 py-2 bg-gray-300 text-gray-700 rounded-md mr-3">
                                 Cancel
                             </Link>
-                            <jet-button :disabled="form.processing" class="ml-3 bg-green-600 hover:bg-green-500">
+                            <jet-button :disabled="form.processing" class="ml-3 bg-maiic-600 hover:bg-maiic-500">
                                 Start Import
                             </jet-button>
                         </div>

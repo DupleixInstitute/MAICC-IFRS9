@@ -29,7 +29,12 @@ class Ifrs9ReportsController extends Controller
     // reports + interactive Sensitivity; EWS & AI under Analytics.
     private array $catalogue = [
         // Core ECL
+        'executive'            => ['Executive Summary',             'One-page ECL position: KPIs, stage split, portfolios, exposures & data quality', 'Core ECL'],
         'ecl'                  => ['ECL Summary by Stage',          'Total exposure, PD, LGD & ECL by Stage 1/2/3', 'Core ECL'],
+        'portfolio-trend'      => ['Portfolio ECL Trend',           'ECL & coverage over time, split by portfolio', 'Core ECL'],
+        'sector-ecl'           => ['ECL by Sector',                 'Exposure, PD, LGD & ECL by RBM economic sector', 'Core ECL'],
+        'product-group-ecl'    => ['ECL by Product Group',          'Exposure & ECL by lending product group', 'Core ECL'],
+        'grade-ecl'            => ['ECL by Internal Grade',          'DFI internal risk-grade scale: exposure, PD, LGD & ECL by grade', 'Core ECL'],
         'account-ecl'          => ['Account-Level ECL Calculation', 'Loan-by-loan EAD x PD x LGD calculation trail', 'Core ECL'],
         'stage-allocation'     => ['Stage Allocation',              'How every exposure is classified into Stage 1/2/3', 'Core ECL'],
         // Staging & Movement
@@ -50,6 +55,7 @@ class Ifrs9ReportsController extends Controller
         'ifrs9-vs-rbm'         => ['IFRS 9 Stage vs RBM Mapping',   'Reconciliation of IFRS 9 stages to RBM classes', 'RBM Prudential'],
         'npl-arrears'          => ['NPL & Arrears',                 'Non-performing loans and arrears ageing', 'RBM Prudential'],
         'provision-comparison' => ['Provision Comparison',          'IFRS 9 ECL vs RBM prudential provision & shortfall', 'RBM Prudential'],
+        'concentration'        => ['Concentration & Large Exposures', 'Single-name & portfolio concentration (HHI) and large exposures', 'RBM Prudential'],
         // Disclosure & Audit
         'fs-disclosure'        => ['Financial Statement Disclosure', 'IFRS 9 note tables for the annual report', 'Disclosure & Audit'],
         'data-quality'         => ['Audit Trail & Data Quality',    'Data integrity, overrides and exception checks', 'Disclosure & Audit'],
@@ -537,13 +543,14 @@ class Ifrs9ReportsController extends Controller
         $period = $this->period($request);
         $buckets = DB::table('loan_books')->where('reporting_period', $period)
             ->selectRaw("CASE
-                    WHEN COALESCE(overdue_days,0)=0 THEN '0 (current)'
-                    WHEN overdue_days BETWEEN 1 AND 30 THEN '1-30'
-                    WHEN overdue_days BETWEEN 31 AND 60 THEN '31-60'
-                    WHEN overdue_days BETWEEN 61 AND 90 THEN '61-90'
-                    ELSE '90+' END bucket,
+                    WHEN COALESCE(overdue_days,0) <= 30 THEN '0-30 (Pass)'
+                    WHEN overdue_days <= 89  THEN '31-89 (Special Mention)'
+                    WHEN overdue_days <= 179 THEN '90-179 (Substandard)'
+                    WHEN overdue_days <= 364 THEN '180-364 (Doubtful)'
+                    ELSE '365+ (Loss)' END bucket,
+                MIN(COALESCE(overdue_days,0)) ord,
                 COUNT(*) n, SUM(" . self::EAD_SQL . ") ead, SUM(COALESCE(ecl_value,0)) ecl")
-            ->groupBy('bucket')->orderBy('bucket')->get()
+            ->groupBy('bucket')->orderBy('ord')->get()
             ->map(fn ($r) => [$r->bucket, number_format($r->n), $this->money($r->ead), $this->money($r->ecl)])->all();
 
         $npl = DB::table('loan_books')->where('reporting_period', $period)
@@ -569,32 +576,35 @@ class Ifrs9ReportsController extends Controller
     public function provisionComparison(Request $request)
     {
         $period = $this->period($request);
-        $rows = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw("ifrs9stage_pre_qualitative s, SUM(" . self::EAD_SQL . ") ead, SUM(COALESCE(ecl_value,0)) ecl, COUNT(*) n")
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get();
+        $raw = DB::table('loan_books')->where('reporting_period', $period)
+            ->selectRaw($this->rbmClassCase() . " rbm, SUM(" . self::EAD_SQL . ") ead, SUM(COALESCE(ecl_value,0)) ecl, COUNT(*) n")
+            ->groupBy('rbm')->get()->keyBy('rbm');
 
         $secTot = 0;
         $eclTot = 0;
-        $out = $rows->map(function ($r) use (&$secTot, &$eclTot) {
-            $rate = $this->rbmRate((string) $r->s);
-            $prud = $r->ead * $rate;
+        $out = [];
+        foreach (self::RBM as $class => $def) {
+            $r    = $raw->get($class);
+            $ead  = (float) ($r->ead ?? 0);
+            $ecl  = (float) ($r->ecl ?? 0);
+            $prud = $ead * $def['rate'];
             $secTot += $prud;
-            $eclTot += $r->ecl;
-            return ['Stage ' . $r->s, $this->rbmClass((string) $r->s), $this->money($r->ead),
-                $this->pct($rate), $this->money($prud), $this->money($r->ecl), $this->money($r->ecl - $prud)];
-        })->all();
+            $eclTot += $ecl;
+            $out[] = [$class, $this->money($ead), $this->pct($def['rate']),
+                $this->money($prud), $this->money($ecl), $this->money($ecl - $prud)];
+        }
 
         return $this->respond(['key' => 'provision-comparison', 'period' => $period,
-            'subtitle' => 'IFRS 9 ECL vs RBM prudential provision (indicative RBM rates)',
+            'subtitle' => 'IFRS 9 ECL vs RBM prudential provision (RBM Directive 2018 rates, by DPD class)',
             'kpis' => [
                 ['label' => 'IFRS 9 ECL', 'value' => $this->money($eclTot), 'tone' => 'rose'],
                 ['label' => 'RBM Provision', 'value' => $this->money($secTot), 'tone' => 'amber'],
                 ['label' => 'Shortfall / (Excess)', 'value' => $this->money($secTot - $eclTot), 'tone' => ($secTot - $eclTot) > 0 ? 'rose' : 'emerald'],
             ],
             'sections' => [[
-                'heading' => 'IFRS 9 ECL vs RBM Prudential Provision',
-                'columns' => ['Stage', 'RBM Class', 'EAD', 'RBM Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL - RBM'],
-                'align' => ['l', 'l', 'r', 'r', 'r', 'r', 'r'],
+                'heading' => 'IFRS 9 ECL vs RBM Prudential Provision (by DPD class)',
+                'columns' => ['RBM Class', 'EAD', 'RBM Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL − RBM'],
+                'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $out,
             ]]]);
     }
@@ -629,7 +639,16 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         $b = fn ($w) => DB::table('loan_books')->where('reporting_period', $period)->whereRaw($w)->count();
+
+        // RBM prudential classification, concentration reporting and the FLI
+        // macro link all depend on every loan carrying a sector tag and a real
+        // (non-blended) portfolio. Hard-flag any gap up front.
+        $missingSector    = $b("(industry_type IS NULL OR industry_type='' OR industry_code IS NULL OR industry_code='')");
+        $unmappedPortfolio = $b('(loan_portfolio_id IS NULL OR loan_portfolio_id = 1)');
+
         $rows = [
+            ['Missing sector tag (RBM classification)', number_format($missingSector)],
+            ['Unmapped to a real portfolio (blended "Loans")', number_format($unmappedPortfolio)],
             ['Missing customer name', number_format($b("(customer_name IS NULL OR customer_name='')"))],
             ['Missing / zero EAD', number_format($b('COALESCE(carrying_amount,0)=0'))],
             ['Negative balance', number_format($b('carrying_amount < 0'))],
@@ -644,6 +663,8 @@ class Ifrs9ReportsController extends Controller
             'subtitle' => 'Data integrity & exception checks for ' . $period,
             'kpis' => [
                 ['label' => 'Loans Checked', 'value' => number_format($this->periodTotals($period)->loans ?? 0), 'tone' => 'maiic'],
+                ['label' => 'Missing Sector Tag', 'value' => number_format($missingSector), 'tone' => $missingSector > 0 ? 'rose' : 'emerald'],
+                ['label' => 'Unmapped Portfolio', 'value' => number_format($unmappedPortfolio), 'tone' => $unmappedPortfolio > 0 ? 'rose' : 'emerald'],
             ],
             'sections' => [[
                 'heading' => 'Data Quality Exceptions',
@@ -651,6 +672,279 @@ class Ifrs9ReportsController extends Controller
                 'align' => ['l', 'r'],
                 'rows' => $rows,
             ]]]);
+    }
+
+    /* ===================================================================== */
+    /*  Executive Summary — one-page composite                               */
+    /* ===================================================================== */
+
+    public function executiveSummary(Request $request)
+    {
+        $period = $this->period($request);
+        $EAD    = '(' . self::EAD_SQL . ')';
+
+        $stage = DB::table('loan_books')->where('reporting_period', $period)
+            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')
+            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n,
+                SUM($EAD) ead, SUM(COALESCE(ecl_value,0)) ecl")->get()
+            ->map(fn ($r) => ['Stage ' . $r->s, number_format($r->n), $this->money($r->ead),
+                $this->money($r->ecl), $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+
+        $port = DB::table('loan_books as lb')->leftJoin('loan_portfolios as p', 'p.id', 'lb.loan_portfolio_id')
+            ->where('reporting_period', $period)->groupBy('p.name')
+            ->selectRaw("COALESCE(p.name,'Unmapped') name, COUNT(*) n,
+                SUM($EAD) ead, SUM(COALESCE(ecl_value,0)) ecl")
+            ->orderByDesc(DB::raw('SUM(COALESCE(ecl_value,0))'))->get()
+            ->map(fn ($r) => [$r->name, number_format($r->n), $this->money($r->ead),
+                $this->money($r->ecl), $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+
+        $top = DB::table('loan_books')->where('reporting_period', $period)
+            ->selectRaw("contract_id, customer_name, ifrs9stage_pre_qualitative s,
+                $EAD ead, COALESCE(ecl_value,0) ecl")
+            ->orderByDesc(DB::raw($EAD))->limit(10)->get()
+            ->map(fn ($r) => [$r->contract_id, $r->customer_name ?: '(Unnamed)', 'Stage ' . $r->s,
+                $this->money($r->ead), $this->money($r->ecl)])->all();
+
+        $dq = fn ($w) => DB::table('loan_books')->where('reporting_period', $period)->whereRaw($w)->count();
+        $flags = [
+            ['Missing sector tag', number_format($dq("(industry_type IS NULL OR industry_type='')"))],
+            ['Unmapped portfolio', number_format($dq('(loan_portfolio_id IS NULL OR loan_portfolio_id = 1)'))],
+            ['ECL not calculated', number_format($dq('ecl_value IS NULL'))],
+            ['Zero ECL on Stage 3', number_format($dq("ifrs9stage_pre_qualitative=3 AND COALESCE(ecl_value,0)=0"))],
+        ];
+
+        return $this->respond(['key' => 'executive', 'period' => $period,
+            'subtitle' => 'Consolidated IFRS 9 ECL position for ' . $period,
+            'kpis' => $this->totalsKpis($period),
+            'sections' => [
+                ['heading' => 'ECL by IFRS 9 Stage', 'columns' => ['Stage', 'Loans', 'EAD', 'ECL', 'Coverage'],
+                 'align' => ['l', 'r', 'r', 'r', 'r'], 'rows' => $stage],
+                ['heading' => 'ECL by Portfolio', 'columns' => ['Portfolio', 'Loans', 'EAD', 'ECL', 'Coverage'],
+                 'align' => ['l', 'r', 'r', 'r', 'r'], 'rows' => $port],
+                ['heading' => 'Top 10 Exposures', 'columns' => ['Contract', 'Client', 'Stage', 'EAD', 'ECL'],
+                 'align' => ['l', 'l', 'l', 'r', 'r'], 'rows' => $top],
+                ['heading' => 'Data Quality Flags', 'columns' => ['Check', 'Records'],
+                 'align' => ['l', 'r'], 'rows' => $flags],
+            ]]);
+    }
+
+    /* ===================================================================== */
+    /*  Portfolio ECL Trend                                                  */
+    /* ===================================================================== */
+
+    public function portfolioTrend(Request $request)
+    {
+        $period = $this->period($request);
+
+        // Last 12 periods up to the selected one, per portfolio, from the ECL store.
+        $periods = collect($this->periods())->filter(fn ($p) => $p <= $period)
+            ->take(12)->values()->reverse()->values();
+
+        $rowsRaw = DB::table('expected_credit_loss as e')
+            ->leftJoin('loan_portfolios as p', 'p.id', 'e.ecl_calculation_id')
+            ->where('e.ecl_calculation_level', 'portfolio')
+            ->whereIn('e.reporting_period', $periods)
+            ->groupBy('e.reporting_period', 'p.name')
+            ->selectRaw("e.reporting_period rp, COALESCE(p.name,'Unmapped') name, SUM(e.total_ecl) ecl")
+            ->get();
+
+        $portNames = $rowsRaw->pluck('name')->unique()->sort()->values();
+        $pivot = [];
+        foreach ($rowsRaw as $r) {
+            $pivot[$r->rp][$r->name] = (float) $r->ecl;
+        }
+
+        $rows = [];
+        foreach ($periods as $p) {
+            $line = [$p];
+            $tot = 0;
+            foreach ($portNames as $n) {
+                $val = $pivot[$p][$n] ?? 0;
+                $tot += $val;
+                $line[] = $this->money($val);
+            }
+            $line[] = $this->money($tot);
+            $rows[] = $line;
+        }
+
+        return $this->respond(['key' => 'portfolio-trend', 'period' => $period,
+            'subtitle' => 'Total ECL by portfolio over the last ' . count($periods) . ' periods',
+            'kpis' => $this->totalsKpis($period),
+            'sections' => [[
+                'heading' => 'ECL by Portfolio over Time',
+                'columns' => array_merge(['Period'], $portNames->all(), ['Total']),
+                'align' => array_merge(['l'], array_fill(0, $portNames->count() + 1, 'r')),
+                'rows' => $rows,
+            ]]]);
+    }
+
+    /* ===================================================================== */
+    /*  ECL by Sector / Product Group                                        */
+    /* ===================================================================== */
+
+    public function sectorEcl(Request $request)
+    {
+        $period = $this->period($request);
+        $EAD    = '(' . self::EAD_SQL . ')';
+
+        $rows = DB::table('loan_books')->where('reporting_period', $period)
+            ->groupBy('industry_type')
+            ->selectRaw("COALESCE(NULLIF(industry_type,''),'Untagged') sec, COUNT(*) n,
+                SUM($EAD) ead, AVG(COALESCE(pd_post_fli,pd_prefli,0)) pd,
+                AVG(COALESCE(lgd_value,0)) lgd, SUM(COALESCE(ecl_value,0)) ecl")
+            ->orderByDesc(DB::raw('SUM(COALESCE(ecl_value,0))'))->get()
+            ->map(fn ($r) => [$r->sec, number_format($r->n), $this->money($r->ead),
+                $this->num($r->pd, 6), $this->num($r->lgd, 6), $this->money($r->ecl),
+                $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+
+        return $this->respond(['key' => 'sector-ecl', 'period' => $period,
+            'subtitle' => 'ECL by RBM economic sector for ' . $period,
+            'kpis' => $this->totalsKpis($period),
+            'sections' => [[
+                'heading' => 'ECL by Economic Sector',
+                'columns' => ['Sector', 'Loans', 'EAD', 'Avg PD', 'Avg LGD', 'ECL', 'Coverage'],
+                'align' => ['l', 'r', 'r', 'r', 'r', 'r', 'r'],
+                'rows' => $rows,
+            ]]]);
+    }
+
+    public function productGroupEcl(Request $request)
+    {
+        $period = $this->period($request);
+        $EAD    = '(' . self::EAD_SQL . ')';
+
+        $rows = DB::table('loan_books')->where('reporting_period', $period)
+            ->groupBy('product_group')
+            ->selectRaw("COALESCE(NULLIF(product_group,''),'Unspecified') pg, COUNT(*) n,
+                SUM($EAD) ead, SUM(COALESCE(ecl_value,0)) ecl")
+            ->orderByDesc(DB::raw('SUM(COALESCE(ecl_value,0))'))->get()
+            ->map(fn ($r) => [$r->pg, number_format($r->n), $this->money($r->ead),
+                $this->money($r->ecl), $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+
+        return $this->respond(['key' => 'product-group-ecl', 'period' => $period,
+            'subtitle' => 'ECL by lending product group for ' . $period,
+            'kpis' => $this->totalsKpis($period),
+            'sections' => [[
+                'heading' => 'ECL by Product Group',
+                'columns' => ['Product Group', 'Loans', 'EAD', 'ECL', 'Coverage'],
+                'align' => ['l', 'r', 'r', 'r', 'r'],
+                'rows' => $rows,
+            ]]]);
+    }
+
+    /**
+     * ECL by MAIIC internal risk grade. As a DFI, MAIIC reports on its own
+     * A–G master scale (mapped from the 12-month PD). Grades are shown in
+     * scale order with their PD band so the report doubles as the rating
+     * scale definition.
+     */
+    public function gradeEcl(Request $request)
+    {
+        $period = $this->period($request);
+        $EAD    = '(' . self::EAD_SQL . ')';
+
+        $bands = [
+            'A' => '0 – 2%', 'B' => '2 – 5%', 'C' => '5 – 10%', 'D' => '10 – 20%',
+            'E' => '20 – 40%', 'F' => '40 – 100%', 'G' => 'Default (100%)',
+        ];
+
+        $raw = DB::table('loan_books')->where('reporting_period', $period)
+            ->groupBy('internal_grade_code')
+            ->selectRaw("internal_grade_code g, COUNT(*) n, SUM($EAD) ead,
+                AVG(COALESCE(`12m_pd`,0)) pd, AVG(COALESCE(lgd_value,0)) lgd,
+                SUM(COALESCE(ecl_value,0)) ecl")
+            ->get()->keyBy('g');
+
+        $rows = [];
+        foreach ($bands as $g => $band) {
+            $r = $raw->get($g);
+            $ead = (float) ($r->ead ?? 0);
+            $ecl = (float) ($r->ecl ?? 0);
+            $rows[] = [$g, $band, number_format((int) ($r->n ?? 0)),
+                $this->money($ead), $this->num($r->pd ?? 0, 6), $this->num($r->lgd ?? 0, 6),
+                $this->money($ecl), $this->pct($ead ? $ecl / $ead : 0)];
+        }
+
+        return $this->respond(['key' => 'grade-ecl', 'period' => $period,
+            'subtitle' => 'MAIIC internal risk-grade master scale & ECL for ' . $period,
+            'kpis' => $this->totalsKpis($period),
+            'sections' => [[
+                'heading' => 'ECL by Internal Risk Grade (A = lowest risk … G = default)',
+                'columns' => ['Grade', 'PD Band', 'Loans', 'EAD', 'Avg PD', 'Avg LGD', 'ECL', 'Coverage'],
+                'align' => ['l', 'l', 'r', 'r', 'r', 'r', 'r', 'r'],
+                'rows' => $rows,
+            ]]]);
+    }
+
+    /* ===================================================================== */
+    /*  Concentration & Large Exposures                                      */
+    /* ===================================================================== */
+
+    public function concentration(Request $request)
+    {
+        $period    = $this->period($request);
+        $EAD       = '(' . self::EAD_SQL . ')';
+        $threshold = (float) ($request->query('threshold', 1000000));
+
+        $totEad = (float) (DB::table('loan_books')->where('reporting_period', $period)
+            ->selectRaw("SUM($EAD) e")->value('e') ?: 0);
+
+        // Single-name concentration (group by customer).
+        $names = DB::table('loan_books')->where('reporting_period', $period)
+            ->groupBy('customer_name')
+            ->selectRaw("COALESCE(customer_name,'(Unnamed)') nm, COUNT(*) n,
+                SUM($EAD) ead, SUM(COALESCE(ecl_value,0)) ecl")
+            ->orderByDesc(DB::raw("SUM($EAD)"))->limit(20)->get();
+
+        $topRows = $names->map(fn ($r) => [$r->nm, number_format($r->n), $this->money($r->ead),
+            $this->money($r->ecl), $this->pct($totEad ? $r->ead / $totEad : 0)])->all();
+
+        $top1  = $names->first();
+        $top10 = $names->take(10)->sum('ead');
+
+        // Portfolio concentration + Herfindahl-Hirschman Index.
+        $ports = DB::table('loan_books as lb')->leftJoin('loan_portfolios as p', 'p.id', 'lb.loan_portfolio_id')
+            ->where('reporting_period', $period)->groupBy('p.name')
+            ->selectRaw("COALESCE(p.name,'Unmapped') nm, SUM($EAD) ead")->get();
+        $hhi = 0.0;
+        $portRows = $ports->sortByDesc('ead')->map(function ($r) use ($totEad, &$hhi) {
+            $share = $totEad ? $r->ead / $totEad : 0;
+            $hhi  += ($share * 100) ** 2;
+            return [$r->nm, $this->money($r->ead), $this->pct($share)];
+        })->values()->all();
+
+        // Large exposures over the threshold.
+        $large = DB::table('loan_books')->where('reporting_period', $period)
+            ->whereRaw("$EAD >= ?", [$threshold])
+            ->selectRaw("contract_id, customer_name, ifrs9stage_pre_qualitative s,
+                $EAD ead, COALESCE(ecl_value,0) ecl")
+            ->orderByDesc(DB::raw($EAD))->limit(50)->get()
+            ->map(fn ($r) => [$r->contract_id, $r->customer_name ?: '(Unnamed)', 'Stage ' . $r->s,
+                $this->money($r->ead), $this->money($r->ecl)])->all();
+
+        return $this->respond(['key' => 'concentration', 'period' => $period,
+            'subtitle' => 'Single-name & portfolio concentration for ' . $period,
+            'controls' => [
+                'action' => 'ifrs9-reports.concentration',
+                'fields' => [
+                    ['name' => 'threshold', 'label' => 'Large-exposure threshold (MWK)', 'value' => (string) $threshold],
+                ],
+            ],
+            'kpis' => [
+                ['label' => 'Largest Single Name', 'value' => $this->pct($totEad && $top1 ? $top1->ead / $totEad : 0), 'tone' => 'rose'],
+                ['label' => 'Top 10 Names', 'value' => $this->pct($totEad ? $top10 / $totEad : 0), 'tone' => 'amber'],
+                ['label' => 'Portfolio HHI', 'value' => number_format($hhi, 0), 'tone' => $hhi > 2500 ? 'rose' : 'maiic'],
+                ['label' => 'Total EAD', 'value' => $this->money($totEad), 'tone' => 'emerald'],
+            ],
+            'sections' => [
+                ['heading' => 'Top 20 Single-Name Exposures', 'columns' => ['Customer', 'Loans', 'EAD', 'ECL', '% of Book'],
+                 'align' => ['l', 'r', 'r', 'r', 'r'], 'rows' => $topRows],
+                ['heading' => 'Portfolio Concentration (HHI = ' . number_format($hhi, 0) . ')',
+                 'columns' => ['Portfolio', 'EAD', '% of Book'], 'align' => ['l', 'r', 'r'], 'rows' => $portRows],
+                ['heading' => 'Large Exposures ≥ ' . $this->money($threshold),
+                 'columns' => ['Contract', 'Client', 'Stage', 'EAD', 'ECL'],
+                 'align' => ['l', 'l', 'l', 'r', 'r'], 'rows' => $large],
+            ]]);
     }
 
     /* ===================================================================== */
@@ -910,34 +1204,87 @@ class Ifrs9ReportsController extends Controller
     /*  Helpers                                                              */
     /* ===================================================================== */
 
+    /**
+     * RBM Financial Asset Classification Directive (2018) — 5 categories by
+     * days past due, with minimum provisioning rates. NPL = Substandard +
+     * Doubtful + Loss (90+ DPD).
+     */
+    private const RBM = [
+        'Pass'            => ['min' => 0,   'max' => 30,    'rate' => 0.01],
+        'Special Mention' => ['min' => 31,  'max' => 89,    'rate' => 0.01],
+        'Substandard'     => ['min' => 90,  'max' => 179,   'rate' => 0.20],
+        'Doubtful'        => ['min' => 180, 'max' => 364,   'rate' => 0.50],
+        'Loss'            => ['min' => 365, 'max' => 999999, 'rate' => 1.00],
+    ];
+
+    /** SQL CASE that maps overdue_days to the RBM class label. */
+    private function rbmClassCase(): string
+    {
+        return "CASE
+            WHEN COALESCE(overdue_days,0) <= 30  THEN 'Pass'
+            WHEN overdue_days <= 89              THEN 'Special Mention'
+            WHEN overdue_days <= 179             THEN 'Substandard'
+            WHEN overdue_days <= 364             THEN 'Doubtful'
+            ELSE 'Loss' END";
+    }
+
+    private function rbmRateForClass(string $class): float
+    {
+        return self::RBM[$class]['rate'] ?? 0.0;
+    }
+
+    /** Indicative IFRS 9 stage <-> RBM class cross-reference. */
     private function rbmClass(string $stage): string
     {
-        return ['1' => 'Performing', '2' => 'Special Mention', '3' => 'Non-Performing'][$stage] ?? 'Unclassified';
+        return ['1' => 'Pass', '2' => 'Special Mention', '3' => 'Non-Performing'][$stage] ?? 'Unclassified';
     }
 
     private function rbmRate(string $stage): float
     {
-        return ['1' => 0.01, '2' => 0.05, '3' => 0.50][$stage] ?? 0.0;
+        return ['1' => 0.01, '2' => 0.01, '3' => 0.50][$stage] ?? 0.0;
     }
 
     private function rbmBuild(string $period): array
     {
-        $rows = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n, SUM(" . self::EAD_SQL . ") ead,
+        $raw = DB::table('loan_books')->where('reporting_period', $period)
+            ->selectRaw($this->rbmClassCase() . " rbm, COUNT(*) n, SUM(" . self::EAD_SQL . ") ead,
                 SUM(COALESCE(ecl_value,0)) ecl")
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get()
-            ->map(fn ($r) => [$this->rbmClass((string) $r->s), 'Stage ' . $r->s,
-                number_format($r->n), $this->money($r->ead),
-                $this->pct($this->rbmRate((string) $r->s)),
-                $this->money($r->ead * $this->rbmRate((string) $r->s)), $this->money($r->ecl)])->all();
+            ->groupBy('rbm')->get()->keyBy('rbm');
+
+        $rows = [];
+        $totProv = 0;
+        $totEcl  = 0;
+        $nplEad  = 0;
+        $totEad  = 0;
+        foreach (self::RBM as $class => $def) {
+            $r    = $raw->get($class);
+            $n    = (int) ($r->n ?? 0);
+            $ead  = (float) ($r->ead ?? 0);
+            $ecl  = (float) ($r->ecl ?? 0);
+            $prov = $ead * $def['rate'];
+            $totProv += $prov;
+            $totEcl  += $ecl;
+            $totEad  += $ead;
+            if (in_array($class, ['Substandard', 'Doubtful', 'Loss'], true)) {
+                $nplEad += $ead;
+            }
+            $rows[] = [$class, number_format($n), $this->money($ead),
+                $this->pct($def['rate']), $this->money($prov), $this->money($ecl),
+                $this->money($ecl - $prov)];
+        }
 
         return [
-            'subtitle' => 'Prudential asset classification (RBM Financial Asset Classification Directive, 2018)',
-            'kpis' => $this->totalsKpis($period),
+            'subtitle' => 'Prudential asset classification by days past due (RBM Financial Asset Classification Directive, 2018)',
+            'kpis' => [
+                ['label' => 'NPL Ratio (90+ DPD)', 'value' => $this->pct($totEad ? $nplEad / $totEad : 0), 'tone' => 'rose'],
+                ['label' => 'RBM Provision', 'value' => $this->money($totProv), 'tone' => 'amber'],
+                ['label' => 'IFRS 9 ECL', 'value' => $this->money($totEcl), 'tone' => 'rose'],
+                ['label' => 'ECL − RBM', 'value' => $this->money($totEcl - $totProv), 'tone' => ($totEcl - $totProv) >= 0 ? 'emerald' : 'rose'],
+            ],
             'sections' => [[
-                'heading' => 'RBM Asset Classification',
-                'columns' => ['RBM Class', 'IFRS 9 Stage', 'Loans', 'Exposure', 'RBM Rate', 'RBM Provision', 'IFRS 9 ECL'],
-                'align' => ['l', 'l', 'r', 'r', 'r', 'r', 'r'],
+                'heading' => 'RBM Asset Classification (by Days Past Due)',
+                'columns' => ['RBM Class', 'Loans', 'Exposure (EAD)', 'RBM Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL − RBM'],
+                'align' => ['l', 'r', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $rows,
             ]],
         ];
@@ -958,14 +1305,49 @@ class Ifrs9ReportsController extends Controller
             ->first();
     }
 
+    /** The reporting period immediately before $period (from the period list). */
+    private function priorPeriod(?string $period): ?string
+    {
+        if (! $period) {
+            return null;
+        }
+        $periods = $this->periods();              // desc order
+        $i = array_search($period, $periods, true);
+        return ($i !== false && isset($periods[$i + 1])) ? $periods[$i + 1] : null;
+    }
+
+    /** "▲ 12.3% vs <prior>" / "▼ ..." / "no prior period". */
+    private function deltaSub(?float $current, ?float $prior, ?string $priorLabel): string
+    {
+        if ($priorLabel === null) {
+            return 'no prior period';
+        }
+        if (! $prior) {
+            return 'vs ' . $priorLabel . ' (n/a)';
+        }
+        $pct = (($current - $prior) / $prior) * 100;
+        $arrow = $pct > 0.05 ? '▲' : ($pct < -0.05 ? '▼' : '►');
+        return $arrow . ' ' . number_format(abs($pct), 1) . '% vs ' . $priorLabel;
+    }
+
     private function totalsKpis(?string $period): array
     {
-        $t = $this->periodTotals($period);
+        $t  = $this->periodTotals($period);
+        $pp = $this->priorPeriod($period);
+        $p  = $pp ? $this->periodTotals($pp) : null;
+
+        $cov  = ($t->ead ?? 0) ? $t->ecl / $t->ead : 0;
+        $pcov = ($p && ($p->ead ?? 0)) ? $p->ecl / $p->ead : 0;
+
         return [
-            ['label' => 'Exposure (EAD)', 'value' => $this->money($t->ead ?? 0), 'tone' => 'maiic'],
-            ['label' => 'ECL Provision',  'value' => $this->money($t->ecl ?? 0), 'tone' => 'rose'],
-            ['label' => 'Coverage Ratio', 'value' => $this->pct(($t->ead ?? 0) ? $t->ecl / $t->ead : 0), 'tone' => 'amber'],
-            ['label' => 'Loans',          'value' => number_format($t->loans ?? 0), 'tone' => 'emerald'],
+            ['label' => 'Exposure (EAD)', 'value' => $this->money($t->ead ?? 0), 'tone' => 'maiic',
+             'sub' => $this->deltaSub((float) ($t->ead ?? 0), $p ? (float) $p->ead : null, $pp)],
+            ['label' => 'ECL Provision',  'value' => $this->money($t->ecl ?? 0), 'tone' => 'rose',
+             'sub' => $this->deltaSub((float) ($t->ecl ?? 0), $p ? (float) $p->ecl : null, $pp)],
+            ['label' => 'Coverage Ratio', 'value' => $this->pct($cov), 'tone' => 'amber',
+             'sub' => $this->deltaSub($cov, $p ? $pcov : null, $pp)],
+            ['label' => 'Loans',          'value' => number_format($t->loans ?? 0), 'tone' => 'emerald',
+             'sub' => $this->deltaSub((float) ($t->loans ?? 0), $p ? (float) $p->loans : null, $pp)],
         ];
     }
 

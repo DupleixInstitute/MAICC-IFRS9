@@ -61,7 +61,7 @@
           <div class="flex space-x-3">
             <inertia-link
               :href="route('regression.create')"
-              class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+              class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
             >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -173,7 +173,7 @@
                 <inertia-link
                   v-else
                   :href="link.url"
-                  class="mr-1 mb-1 px-3 py-2 text-sm leading-4 border rounded hover:bg-white focus:border-indigo-500 focus:text-indigo-500 transition-colors duration-150"
+                  class="mr-1 mb-1 px-3 py-2 text-sm leading-4 border rounded hover:bg-white focus:border-maiic-500 focus:text-indigo-500 transition-colors duration-150"
                   :class="{ 'bg-white font-semibold text-indigo-700': link.active }"
                   v-html="link.label"
                 />
@@ -192,7 +192,7 @@
           <div class="mt-6">
             <inertia-link
               :href="route('regression.create')"
-              class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 transition"
+              class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 transition"
             >
               Train New Model
             </inertia-link>

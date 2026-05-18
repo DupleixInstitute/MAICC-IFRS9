@@ -13,9 +13,13 @@
 | the tabbed hub, so they are not repeated in the menu.
 */
 
-$leaf = fn ($name, $route, $icon = 'circle') => [
+// $download=true => the route returns a file (e.g. PDF). The sidebar must
+// render it as a plain <a>, not an Inertia <Link>, or the SPA hangs trying
+// to parse the binary as an Inertia response.
+$leaf = fn ($name, $route, $icon = 'circle', $download = false) => [
     'name' => $name, 'icon' => $icon, 'route' => $route, 'route_check' => $route,
     'permissions' => '', 'dropdown' => false, 'children' => [], 'order' => 0,
+    'download' => $download,
 ];
 $group = fn ($name, $icon, $children, $order) => [
     'name' => $name, 'icon' => $icon, 'route' => '', 'permissions' => '',
@@ -31,6 +35,8 @@ return [
             'children' => [], 'order' => 0,
         ],
 
+        $leaf('Workspace', 'workspace.index', 'tasks'),
+
         $group('Portfolio Setup', 'database', [
             $leaf('Loan Portfolios', 'portfolios.index'),
             $leaf('Sector Types', 'industry_types.index'),
@@ -42,6 +48,9 @@ return [
             $leaf('Loan Book', 'loan_applications.loan-book'),
             $leaf('Imports', 'imports.index'),
             $leaf('Disbursements', 'reports.disbursement-report'),
+            $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
+            $leaf('Loan Book Export', 'reports.loan-book-export'),
+            $leaf('ECL Export', 'reports.ecl-export'),
         ], 2),
 
         $group('Collateral Management', 'building', [
@@ -81,19 +90,16 @@ return [
         ], 4),
 
         $group('ECL Processing', 'check', [
-            $leaf('Run ECL Calculation', 'expected-credit-loss.index'),
-            $leaf('Expected Credit Loss', 'expected-credit-loss.index'),
+            $leaf('ECL Calculation', 'expected-credit-loss.index'),
         ], 5),
 
-        // Single, de-duplicated Reports group. The 19 IFRS 9 reports +
-        // interactive Sensitivity live inside the tabbed hub.
+        // Reports = the IFRS 9 hub (19 reports + interactive Sensitivity, all
+        // inside the tabbed hub) + the downloadable manual. Operational exports
+        // and the duplicate ECL/Disbursement reconciliations were moved out /
+        // removed so this group is not a dumping ground.
         $group('Reports', 'chart-bar', [
             $leaf('IFRS 9 Reports', 'ifrs9-reports.index'),
-            $leaf('ECL Reconciliation', 'reports.ecl-reconciliation'),
-            $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
-            $leaf('Loan Book Export', 'reports.loan-book-export'),
-            $leaf('ECL Export', 'reports.ecl-export'),
-            $leaf('Disbursement Report', 'reports.disbursement-report'),
+            $leaf('Stress Testing', 'stress-testing.index', 'bolt'),
             $leaf('User Manual', 'manual.view', 'book-open'),
         ], 6),
 

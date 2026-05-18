@@ -26,7 +26,7 @@
                 <select
                   v-model="form.allocation_basis"
                   id="allocation_basis"
-                  class="mt-2 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
+                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
                 >
                   <option value="proportional">Proportional</option>
                   <option value="descending">Descending Exposure</option>
@@ -47,7 +47,7 @@
                   v-model="form.reporting_year"
                   min="2000"
                   :max="new Date().getFullYear()"
-                  class="mt-2 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
+                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
                 />
                 <p v-if="form.errors.reporting_year" class="text-red-500 text-sm mt-1">
                   {{ form.errors.reporting_year }}
@@ -60,7 +60,7 @@
                 <select
                   v-model="form.reporting_month"
                   id="reporting_month"
-                  class="mt-2 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
+                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
                 >
                   <option disabled value="">Select Month</option>
                   <option v-for="(month, index) in months" :key="index" :value="index + 1">
@@ -78,7 +78,7 @@
                 <select
                   v-model="form.registration_date"
                   id="registration_date"
-                  class="mt-2 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
+                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
                 >
                   <option disabled value="">Select Reporting Date</option>
                   <option v-for="(date, index) in registerDates" :key="index" :value="date">
@@ -102,7 +102,7 @@
               </button>
 
               <jet-button
-                class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-lg shadow"
+                class="px-6 py-2 bg-maiic-600 hover:bg-maiic-700 transition text-white rounded-lg shadow"
                 :class="{ 'opacity-25': form.processing }"
                 :disabled="form.processing"
               >

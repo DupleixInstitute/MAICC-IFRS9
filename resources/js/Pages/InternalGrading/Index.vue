@@ -13,7 +13,7 @@
 
                 <button
                     @click="showModal = true"
-                    class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow transition"
+                    class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow transition"
                 >
                     + New Profile
                 </button>
@@ -104,7 +104,7 @@
                                     <!-- <span class="text-gray-400">Locked (Active)</span> -->
                                     <button
                                             @click.stop="openLoanBookModal(profile)"
-                                            class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded ml-2"
+                                            class="bg-maiic-500 hover:bg-maiic-600 text-white text-xs px-2 py-1 rounded ml-2"
                                             title="Update loan book for this profile"
                                         >
                                             Update Loan Book
@@ -187,7 +187,7 @@
                 </button>
                 <button
                     type="submit"
-                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    class="px-4 py-2 bg-maiic-600 text-white rounded-lg hover:bg-maiic-700"
                 >
                     Save
                 </button>
@@ -286,7 +286,7 @@
                 </button>
                 <button
                     type="submit"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                    class="px-4 py-2 bg-maiic-600 text-white rounded-lg"
                 >
                     Update
                 </button>

@@ -30,7 +30,7 @@
                                         id="portfolio_id"
                                         v-model="form.portfolio_id"
                                         required
-                                        class="mt-1 block w-full rounded-md border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-md border-gray-300 bg-white shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                         :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.portfolio_id }"
                                     >
                                         <option value="">Select a portfolio</option>
@@ -48,7 +48,7 @@
                                         type="month"
                                         v-model="form.period"
                                         required
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                         :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.period }"
                                     />
                                     <jet-input-error :message="form.errors.period" class="mt-2" />
@@ -61,7 +61,7 @@
                                         v-model="form.definition_id"
                                         required
                                         @change="updateInputConfig"
-                                        class="mt-1 block w-full rounded-md border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-md border-gray-300 bg-white shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                         :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.definition_id }"
                                     >
                                         <option value="">Select a metric</option>
@@ -86,7 +86,7 @@
                                         v-model="form.value"
                                         :class="[inputConfig.class, { 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.value }]"
                                         :placeholder="inputConfig.placeholder"
-                                        class="block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="block w-full rounded-md border-gray-300 focus:border-maiic-500 focus:ring-maiic-500"
                                     />
                                     <div v-if="inputConfig.suffix" class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                         <span class="text-gray-500 sm:text-sm">{{ inputConfig.suffix }}</span>
@@ -103,7 +103,7 @@
                                     <select
                                         id="source"
                                         v-model="form.source"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                     >
                                         <option value="Manual Entry">Manual Entry</option>
                                         <option value="System Generated">System Generated</option>
@@ -120,7 +120,7 @@
                                         id="notes"
                                         v-model="form.notes"
                                         rows="3"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                         placeholder="Additional notes or comments..."
                                     ></textarea>
                                     <jet-input-error :message="form.errors.notes" class="mt-2" />

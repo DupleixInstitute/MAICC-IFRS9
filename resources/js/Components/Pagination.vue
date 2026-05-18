@@ -10,7 +10,7 @@
                 <Link v-else
                       class="mr-1 mb-1 px-4 py-2 text-sm border rounded hover:bg-gray-100 focus:outline-none"
                       :class="{
-                          'bg-blue-600 text-white hover:bg-blue-500': link.active,
+                          'bg-maiic-600 text-white hover:bg-maiic-500': link.active,
                           'ml-auto': link.label === 'Next'
                       }"
                       :href="link.url">

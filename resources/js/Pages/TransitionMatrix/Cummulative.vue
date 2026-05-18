@@ -7,7 +7,7 @@
                 </h2>
                 <div class="flex items-center space-x-2">
                     <button @click="showReportModal = true"
-                          class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:outline-none focus:ring focus:ring-blue-300 transition">
+                          class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:ring focus:ring-blue-300 transition">
                         <i class="fas fa-file-archive mr-2"></i>
                         Get Report
                     </button>
@@ -253,7 +253,7 @@
                     <button @click="showModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
                     <button 
                         @click="submitUpdate" 
-                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                        class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                         :disabled="loading === selectedTD?.id"
                     >
                         <span v-if="loading === selectedTD?.id" class="animate-spin mr-1"></span>
@@ -324,7 +324,7 @@
                 <button
                     @click="submitUpload"
                     :disabled="uploadLoading"
-                    class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                    class="px-5 py-2 bg-maiic-600 text-white rounded-lg hover:bg-maiic-700 transition disabled:opacity-50"
                 >
                     <span v-if="uploadLoading">Uploading...</span>
                     <span v-else>Upload</span>

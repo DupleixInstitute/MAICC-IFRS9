@@ -6,7 +6,7 @@
     <!-- Select Period -->
     <div class="mb-4 flex justify-end space-x-4">
       <button @click="showForecastForm = true"
-              class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700">
         Calculate Forecast
       </button>
     </div>

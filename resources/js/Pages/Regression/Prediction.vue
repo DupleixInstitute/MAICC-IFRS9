@@ -42,7 +42,7 @@
                 :value="period" 
                 v-model="form.periods"
                 @change="fetchMacroData"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                class="rounded border-gray-300 text-blue-600 focus:ring-maiic-500"
               >
               <span class="ml-2">{{ period }}</span>
             </label>
@@ -84,7 +84,7 @@
           <button 
             @click="submitPrediction" 
             :disabled="form.processing || !form.scenario_id || form.periods.length === 0 || !macroData"
-            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             <span v-if="form.processing">Generating Predictions...</span>
             <span v-else>Generate Predictions</span>

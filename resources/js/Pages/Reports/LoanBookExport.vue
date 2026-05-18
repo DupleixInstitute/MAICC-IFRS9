@@ -66,7 +66,7 @@ const downloadReport = () => {
                     </div>
                 </div>
                 <div class="px-6 pb-6 flex justify-end">
-                    <button @click="downloadReport" :disabled="!form.portfolio_id || !form.start_period || !form.end_period" class="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50">Download CSV</button>
+                    <button @click="downloadReport" :disabled="!form.portfolio_id || !form.start_period || !form.end_period" class="px-4 py-2 bg-maiic-600 text-white rounded-md disabled:opacity-50">Download CSV</button>
                 </div>
             </div>
         </div>

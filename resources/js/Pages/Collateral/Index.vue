@@ -9,7 +9,7 @@
 
       <div class="flex space-x-2">
         <inertia-link
-          class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700"
           :href="route('collateral.register.index')"
         >
           <i class="fa fa-eye"></i> View Register
@@ -23,7 +23,7 @@
         </button>
 
         <inertia-link
-          class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700"
           :href="route('collateral.allocate')"
         >
           + Allocate
@@ -123,7 +123,7 @@
 
       <!-- Buttons -->
       <div class="flex items-end space-x-2">
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Apply</button>
+        <button type="submit" class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700">Apply</button>
         <button type="button" @click="resetFilters" class="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-500">Reset</button>
       </div>
     </form>
@@ -173,7 +173,7 @@
 
       <div class="flex justify-end space-x-2">
         <button @click="showCollateralReportModal=false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
-        <button @click="downloadCollateralReport" :disabled="collateralReportLoading" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        <button @click="downloadCollateralReport" :disabled="collateralReportLoading" class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700">
           <span v-if="collateralReportLoading">Preparing…</span>
           <span v-else>Download</span>
         </button>

@@ -18,7 +18,7 @@
     </template>
 
     <div>
-      <p v-if="message" class="bg-green-500 text-white p-4 rounded">
+      <p v-if="message" class="bg-maiic-500 text-white p-4 rounded">
         {{ message }}
       </p>
     </div>

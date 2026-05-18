@@ -15,7 +15,7 @@
     </div>
     <!-- Button -->
     <div>
-        <Link href="/scenario-profiles" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-400 text-black-700 rounded-md space-x-4">
+        <Link href="/scenario-profiles" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md space-x-4">
            <i class="fas fa-arrow-left"></i> Back
         </Link>
     </div>

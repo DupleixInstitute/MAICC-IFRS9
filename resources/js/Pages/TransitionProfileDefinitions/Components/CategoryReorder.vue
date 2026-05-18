@@ -112,7 +112,7 @@ const submit = () => {
                 <!-- Actions -->
                 <div class="mt-4 flex justify-end space-x-2">
                     <button @click="closeModal" class="px-4 py-2 bg-gray-300 rounded">Cancel</button>
-                    <button @click="submit" :disabled="form.processing" class="px-4 py-2 bg-blue-500 text-white rounded">
+                    <button @click="submit" :disabled="form.processing" class="px-4 py-2 bg-maiic-500 text-white rounded">
                         {{ form.processing ? "Saving..." : "Save" }}
                     </button>
                 </div>

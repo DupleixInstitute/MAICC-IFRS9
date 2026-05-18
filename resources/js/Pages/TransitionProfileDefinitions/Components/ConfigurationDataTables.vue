@@ -4,7 +4,7 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Configuration
             </h2>
-        <div v-if="successMessage" class="mt-4 px-4 py-3 rounded-md bg-green-500 text-white-700 text-sm">
+        <div v-if="successMessage" class="mt-4 px-4 py-3 rounded-md bg-maiic-500 text-white-700 text-sm">
           {{ successMessage }}
         </div>
         </template>
@@ -21,7 +21,7 @@
 
 
                 <div class="flex justify-end ">
-          <button @click="openModal" type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300">
+          <button @click="openModal" type="submit" class="bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300">
             Re-Order Categories
           
                 <CategoryReorder
@@ -50,7 +50,7 @@
       />
       <button
         @click="toggleAddForm('start')"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2"
+        class="bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2"
       >
         {{ isStartFormOpen ? 'Cancel' : '+ Add Category' }}
       </button>
@@ -66,7 +66,7 @@
             <label class="block text-sm font-medium text-gray-700"><strong>Configure Period:</strong></label>
             <select
               v-model="newCategory.is_start_or_end"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
             >
               <option value="Start">Start</option>
               <option value="End">End</option>
@@ -77,7 +77,7 @@
             <input
               v-model="newCategory.default_value"
               type="checkbox"
-              class="mt-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              class="mt-2 h-4 w-4 text-blue-600 focus:ring-maiic-500 border-gray-300 rounded"
             />
           </div>
         </div>
@@ -88,7 +88,7 @@
           <input
             v-model="newCategory.category_name"
             type="text"
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
           />
         </div>
 
@@ -99,7 +99,7 @@
             <input
               v-model="newCategory.min_value"
               type="number"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
             />
           </div>
           <div>
@@ -107,7 +107,7 @@
             <input
               v-model="newCategory.max_value"
               type="number"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
             />
           </div>
           <div>
@@ -115,7 +115,7 @@
             <input
               v-model="newCategory.text_value"
               type="text"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
             />
           </div>
         </div>
@@ -124,7 +124,7 @@
         <div class="flex justify-end">
           <button
             type="submit"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+            class="bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
           >
             Save Category
           </button>
@@ -226,7 +226,7 @@
       />
       <button
         @click="toggleAddForm('end')"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2"
+        class="bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2"
       >
         {{ isEndFormOpen ? 'Cancel' : '+ Add Category' }}
       </button>
@@ -244,7 +244,7 @@
             <label class="block text-sm font-medium text-gray-700"><strong>Configure Period:</strong></label>
             <select
               v-model="newCategory.is_start_or_end"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
             >
               <option value="Start">Start</option>
               <option value="End">End</option>
@@ -255,7 +255,7 @@
             <input
               v-model="newCategory.default_value"
               type="checkbox"
-              class="mt-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              class="mt-2 h-4 w-4 text-blue-600 focus:ring-maiic-500 border-gray-300 rounded"
             />
           </div>
         </div>
@@ -266,7 +266,7 @@
           <input
             v-model="newCategory.category_name"
             type="text"
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
           />
         </div>
 
@@ -277,7 +277,7 @@
             <input
               v-model="newCategory.min_value"
               type="number"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
             />
           </div>
           <div>
@@ -285,7 +285,7 @@
             <input
               v-model="newCategory.max_value"
               type="number"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
             />
           </div>
           <div>
@@ -293,7 +293,7 @@
             <input
               v-model="newCategory.text_value"
               type="text"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
             />
           </div>
         </div>
@@ -302,7 +302,7 @@
         <div class="flex justify-end">
           <button
             type="submit"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+            class="bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
           >
             Save Category
           </button>

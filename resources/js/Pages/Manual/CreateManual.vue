@@ -6,7 +6,7 @@
           {{ manual ? 'Edit Manual' : 'Create Manual' }}
         </h2>
 
-        <Link href="/manuals/list" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-400 text-black-700 rounded-md">
+        <Link href="/manuals/list" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md">
             Back
         </Link>
       </div>
@@ -34,7 +34,7 @@
         </div>
 
         <div class="flex justify-end gap-4">
-          <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+          <button type="submit" class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700">
             {{ manual ? 'Update Manual' : 'Create Manual' }}
           </button>
           <button type="button" @click="emit('cancel')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">

@@ -34,7 +34,7 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div 
                                         class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                        :class="importType === 'legacy' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                        :class="importType === 'legacy' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
                                         @click="importType = 'legacy'"
                                     >
                                         <div class="flex items-center space-x-3">
@@ -43,7 +43,7 @@
                                                     type="radio" 
                                                     v-model="importType" 
                                                     value="legacy" 
-                                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                                                    class="h-4 w-4 text-indigo-600 focus:ring-maiic-500 border-gray-300"
                                                 />
                                             </div>
                                             <div class="flex-1">
@@ -57,7 +57,7 @@
                                     
                                     <div 
                                         class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                        :class="importType === 'custom' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                        :class="importType === 'custom' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
                                         @click="importType = 'custom'"
                                     >
                                         <div class="flex items-center space-x-3">
@@ -66,7 +66,7 @@
                                                     type="radio" 
                                                     v-model="importType" 
                                                     value="custom" 
-                                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                                                    class="h-4 w-4 text-indigo-600 focus:ring-maiic-500 border-gray-300"
                                                 />
                                             </div>
                                             <div class="flex-1">
@@ -169,7 +169,7 @@
                                             {{ header }}
                                         </label>
                                         <select v-model="mapping[header]" 
-                                                class="flex-1 py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                                class="flex-1 py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 text-sm">
                                             <option value="">-- Ignore this column --</option>
                                             <option v-for="field in availableFields" :key="field" :value="field">
                                                 {{ field }}
@@ -240,7 +240,7 @@
                                     type="submit"
                                     :class="{ 'opacity-25': form.processing }"
                                     :disabled="form.processing"
-                                    class="ml-3 bg-green-600 hover:bg-green-500 focus:outline-none focus:border-green-700 focus:ring focus:ring-green-200 active:bg-green-800"
+                                    class="ml-3 bg-maiic-600 hover:bg-maiic-500 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-green-200 active:bg-green-800"
                                 >
                                     <template #icon>
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

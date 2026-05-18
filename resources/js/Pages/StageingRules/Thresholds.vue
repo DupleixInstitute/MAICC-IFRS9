@@ -56,7 +56,7 @@
                         <!-- Stage 1 Threshold -->
                         <div class="bg-green-50 border border-green-200 rounded-lg p-4 transition-all hover:shadow-md">
                             <div class="flex items-center mb-3">
-                                <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                                <div class="w-8 h-8 bg-maiic-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
                                     1
                                 </div>
                                 <div>
@@ -135,7 +135,7 @@
                         <button
                             type="submit"
                             :disabled="processing || !isValid"
-                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-green-700 to-green-500 hover:from-green-500 hover:to-green-00 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-700 to-maiic-500 hover:from-maiic-500 hover:to-green-00 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             <svg v-if="processing" class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -234,11 +234,11 @@ export default {
 
 <style scoped>
 .input-enhanced {
-    @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200;
+    @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:border-maiic-500 transition-all duration-200;
 }
 
 .input-threshold {
-    @apply block w-full px-3 py-2 border-2 border-transparent bg-white rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 font-medium;
+    @apply block w-full px-3 py-2 border-2 border-transparent bg-white rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:border-maiic-500 transition-all duration-200 font-medium;
 }
 
 .input-threshold:focus {

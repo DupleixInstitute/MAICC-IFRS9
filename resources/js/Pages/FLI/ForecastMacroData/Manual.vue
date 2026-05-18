@@ -48,7 +48,7 @@
           <div class="border-b border-gray-200">
             <button
               @click="calculationExpanded = !calculationExpanded"
-              class="w-full flex justify-between items-center p-6 text-left focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-inset"
+              class="w-full flex justify-between items-center p-6 text-left focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-inset"
             >
               <h3 class="text-lg font-medium text-gray-900">
                 Forecast Calculation Parameters
@@ -80,7 +80,7 @@
                 <select
                   v-model="form.dependent_variable"
                   id="dependent_variable"
-                  class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                   required
                 >
                   <option value="">Select...</option>
@@ -102,7 +102,7 @@
                     step="0.0001"
                     v-model="form.regression_intercept"
                     id="regression_intercept"
-                    class="mt-1 block w-full border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    class="mt-1 block w-full border-gray-300 focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                     required
                   />
                 </div>
@@ -115,7 +115,7 @@
                     step="0.0001"
                     v-model="form.regression_coefficient"
                     id="regression_coefficient"
-                    class="mt-1 block w-full border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    class="mt-1 block w-full border-gray-300 focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                     required
                   />
                 </div>
@@ -134,7 +134,7 @@
                     step="0.0001"
                     v-model="form.baseline_value"
                     id="baseline_value"
-                    class="mt-1 block w-full border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    class="mt-1 block w-full border-gray-300 focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                     required
                   />
                   <p class="mt-1 text-sm text-gray-500">Current value for comparison (e.g., current NPL %)</p>
@@ -157,7 +157,7 @@
                 <button
                   @click="addScenario"
                   type="button"
-                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-maiic-600 hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500"
                 >
                   <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -185,7 +185,7 @@
                         type="text"
                         v-model="scenario.name"
                         :id="`scenario_name_${index}`"
-                        class="mt-1 block w-full border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                        class="mt-1 block w-full border-gray-300 focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                         required
                       />
                     </div>
@@ -200,7 +200,7 @@
                         min="0"
                         max="100"
                         step="1"
-                        class="mt-1 block w-full border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                        class="mt-1 block w-full border-gray-300 focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                         required
                       />
                     </div>
@@ -231,7 +231,7 @@
                           step="0.01"
                           v-model="scenario.macro_forecast[year - 1]"
                           :id="`scenario_${index}_year_${year}`"
-                          class="block w-full border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                          class="block w-full border-gray-300 focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                           required
                         />
                       </div>
@@ -248,7 +248,7 @@
                   type="checkbox"
                   v-model="form.save_session"
                   id="save_session"
-                  class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  class="h-4 w-4 text-indigo-600 focus:ring-maiic-500 border-gray-300 rounded"
                 />
                 <label for="save_session" class="text-sm text-gray-700">
                   Save this forecast session
@@ -258,7 +258,7 @@
                   v-model="form.session_name"
                   type="text"
                   placeholder="Session name"
-                  class="block w-48 border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  class="block w-48 border-gray-300 focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                   :class="{ 'border-red-300': $page.props.errors?.session_name }"
                 />
               </div>
@@ -266,7 +266,7 @@
               <button
                 @click="generateForecast"
                 :disabled="processing"
-                class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-maiic-600 hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50"
               >
                 <svg
                   v-if="processing"
@@ -289,7 +289,7 @@
           <div class="border-b border-gray-200">
             <button
               @click="resultsExpanded = !resultsExpanded"
-              class="w-full flex justify-between items-center p-6 text-left focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-inset"
+              class="w-full flex justify-between items-center p-6 text-left focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-inset"
             >
               <h3 class="text-lg font-medium text-gray-900">
                 Forecast Results

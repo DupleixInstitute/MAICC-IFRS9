@@ -11,7 +11,7 @@
                         Import Loan Book
                     </button>
                     <button @click="openExportModal"
-                            class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 transition">
+                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -26,7 +26,7 @@
                     </button>
                     <Link
                         :href="route('loan_applications.loan-book.import.create')"
-                        class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+                        class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -66,21 +66,21 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Year</label>
                                 <select v-model="filters.year" @change="fetchData"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                     <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Month</label>
                                 <select v-model="filters.month" @change="fetchData"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                     <option v-for="(name, index) in months" :key="index" :value="index + 1">{{ name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Status</label>
                                 <select v-model="filters.overdue" @change="fetchData"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                     <option value="">All Loans</option>
                                     <option value="1">Overdue</option>
                                     <option value="0">Not Overdue</option>
@@ -90,7 +90,7 @@
                                 <label class="block text-sm font-medium text-gray-700">Search</label>
                                 <input type="text" v-model="filters.search" @input="fetchData"
                                        placeholder="Search by Contract ID or Customer..."
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                             </div>
                         </div>
                     </div>
@@ -177,14 +177,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Reporting Period</label>
                         <input type="month" v-model="importForm.reporting_period" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                         <p class="mt-1 text-xs text-gray-500">Select the month and year for this loan book data</p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Portfolio</label>
                         <select v-model="importForm.portfolio" required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                             <option value="">Select Portfolio</option>
                             <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
                                 {{ portfolio.name }}
@@ -233,7 +233,7 @@
                             </div>
                             <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
                                 <div :style="{ width: importProgress + '%' }"
-                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500">
+                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-maiic-500">
                                 </div>
                             </div>
                         </div>
@@ -262,7 +262,7 @@
                         </button>
                         <button type="submit"
                                 :disabled="importing"
-                                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-maiic-600 hover:bg-maiic-700 disabled:opacity-50">
                             {{ importing ? 'Importing...' : 'Import' }}
                         </button>
                     </div>
@@ -315,7 +315,7 @@
                 <button @click="showExportModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
                 <button
                     @click="submitExport"
-                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                     :disabled="exporting"
                 >
                     <span v-if="exporting">Exporting...</span>
@@ -374,7 +374,7 @@
                 <button @click="showDisbursementModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
                 <button
                     @click="submitDisbursementExport"
-                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                     :disabled="disbursementExporting"
                 >
                     <span v-if="disbursementExporting">Exporting...</span>

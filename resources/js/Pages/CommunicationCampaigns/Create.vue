@@ -155,7 +155,7 @@
                                              class="mt-2"/>
                         </div>
                         <div class="mt-2" id="business_rule_msg" v-if="business_rule_description">
-                            <div class=" flex items-center justify-between bg-green-500 rounded w-full">
+                            <div class=" flex items-center justify-between bg-maiic-500 rounded w-full">
                                 <div class="p-4 text-white text-sm font-medium">{{
                                         business_rule_description
                                     }}

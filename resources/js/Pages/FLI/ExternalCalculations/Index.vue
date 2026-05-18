@@ -195,7 +195,7 @@
                     </div>
 
                     <div class="mt-4 flex justify-end">
-                        <jet-button @click.native="saveAdjustments" class="bg-green-600 hover:bg-green-700" :disabled="savingAdjustments">
+                        <jet-button @click.native="saveAdjustments" class="bg-maiic-600 hover:bg-maiic-700" :disabled="savingAdjustments">
                             {{ savingAdjustments ? 'Saving...' : 'Save Adjustments' }}
                         </jet-button>
                     </div>
@@ -249,7 +249,7 @@
                     </div>
 
                     <div class="flex justify-end">
-                        <jet-button @click.native="updateLoanBook" class="bg-indigo-600 hover:bg-indigo-700" :disabled="updatingLoanbook">
+                        <jet-button @click.native="updateLoanBook" class="bg-maiic-600 hover:bg-maiic-700" :disabled="updatingLoanbook">
                             {{ updatingLoanbook ? 'Updating...' : 'Update Loanbook' }}
                         </jet-button>
                     </div>

@@ -302,84 +302,121 @@ class ExpectedCreditLossController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
-                | STEP 1: UPDATE LOAN BOOK
+                | CONCURRENCY GUARD
                 |--------------------------------------------------------------------------
+                | One MySQL named lock per (period, level, scope). Two requests for the
+                | same scope must not interleave the loan-book UPDATE with another run's
+                | aggregate, or the persisted ECL would mix two computations. Named
+                | locks are MySQL-specific; on other drivers (e.g. sqlite under tests)
+                | the surrounding transaction still guarantees atomicity, so the lock
+                | degrades to a no-op rather than failing.
                 */
-                DB::statement("
-                    UPDATE loan_books
-                    SET 
-                        pd_post_fli = IFNULL($pdExpr, 0),
-                        lgd_value   = IFNULL($lgdExpr, 0),
-                        ecl_value   = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0) * IFNULL(carrying_amount, 0)
-                    WHERE $baseWhere
-                ", $bindings);
+                $lockKey  = 'ecl_recalc_' . md5($period . '|' . $level . '|' . ($portfolioId ?? $sectorCode));
+                $useLock  = DB::connection()->getDriverName() === 'mysql';
 
-                /*
-                |--------------------------------------------------------------------------
-                | STEP 2: GROUP BY IFRS9 STAGE 
-                |--------------------------------------------------------------------------
-                */
-                $grouped = DB::table('loan_books')
-                    ->selectRaw("
-                        ifrs9stage_pre_qualitative,
-                        SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0) * COALESCE(facility_utilisation_rate, 1)) AS total_ead,
-                        SUM(ecl_value) AS total_ecl,
-                        AVG($pdExpr) AS avg_pd,
-                        AVG($lgdExpr) AS avg_lgd,
-                        COUNT(*) AS total_loans
-                    ")
-                    ->whereRaw($baseWhere, $bindings)
-                    ->groupBy('ifrs9stage_pre_qualitative')
-                    ->get();
-
-                /*
-                |--------------------------------------------------------------------------
-                | STEP 3: SAVE INTO EXPECTED CREDIT LOSS
-                |--------------------------------------------------------------------------
-                */
-                foreach ($grouped as $row) {
-                    ExpectedCreditLoss::updateOrCreate(
-                        [
-                            'reporting_period'        => $period,
-                            'ifrs9_stage'             => $row->ifrs9stage_pre_qualitative,
-                            'ecl_calculation_level'  => $level,
-                            'ecl_calculation_id'     => $portfolioId, 
-                            'ecl_calculation_code'   => $sectorCode,
-                        ],
-                        [
-                            'total_ead'              => $row->total_ead,
-                            'total_ecl'              => $row->total_ecl,
-                            'lgd_value_used'         => $row->avg_lgd,
-                            'pd_value_used'          => $row->avg_pd,
-                            'total_loans'            => $row->total_loans,
-                            'last_reporting_period' => $period,
-                        ]
-                    );
+                if ($useLock && (int) optional(DB::selectOne('SELECT GET_LOCK(?, 0) AS l', [$lockKey]))->l !== 1) {
+                    return redirect()
+                        ->route('expected-credit-loss.index')
+                        ->with('error', "An ECL calculation for {$period} ({$level}) is already running. Please try again once it finishes.");
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | STEP 4: MARK PERIOD AS CALCULATED
-                |--------------------------------------------------------------------------
-                */
-                $endTime   = microtime(true);
-                $timeTaken = round(($endTime - $startTime) / 60, 2);
+                $timeTaken = 0;
 
-                $periodFull = $periodDate->format('Y-m-01');
+                try {
+                    DB::beginTransaction();
 
-                ReportingPeriods::updateOrCreate(
-                    ['period' => $periodFull],
-                    [   
-                        'reporting_year'         => (int)$periodDate->format('Y'),
-                        'reporting_month'        => (int)$periodDate->format('m'),
-                        'reporting_period'      => $periodFull,
-                        'ecl_calculated'        => true,
-                        'ecl_calculation_time'  => $timeTaken,
-                        'ecl_calculation_level' => $level,
-                        'ecl_calculation_id'    => $portfolioId,
-                        'ecl_calculation_code'  => $sectorCode,
-                    ]
-                );
+                    /*
+                    |----------------------------------------------------------------------
+                    | STEP 1: UPDATE LOAN BOOK (ECL inputs only)
+                    |----------------------------------------------------------------------
+                    | pd_post_fli is owned by the FLI engine. Recomputing ECL must NOT
+                    | write it back: in pd_prefli mode that overwrote the genuine
+                    | post-FLI PD with the pre-FLI value and poisoned every downstream
+                    | FLI report. STEP 2 derives avg_pd from $pdExpr directly, so the
+                    | persisted column is unnecessary here anyway.
+                    */
+                    DB::statement("
+                        UPDATE loan_books
+                        SET
+                            lgd_value = IFNULL($lgdExpr, 0),
+                            ecl_value = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0) * IFNULL(carrying_amount, 0)
+                        WHERE $baseWhere
+                    ", $bindings);
+
+                    /*
+                    |----------------------------------------------------------------------
+                    | STEP 2: GROUP BY IFRS9 STAGE
+                    |----------------------------------------------------------------------
+                    */
+                    $grouped = DB::table('loan_books')
+                        ->selectRaw("
+                            ifrs9stage_pre_qualitative,
+                            SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0) * COALESCE(facility_utilisation_rate, 1)) AS total_ead,
+                            SUM(ecl_value) AS total_ecl,
+                            AVG($pdExpr) AS avg_pd,
+                            AVG($lgdExpr) AS avg_lgd,
+                            COUNT(*) AS total_loans
+                        ")
+                        ->whereRaw($baseWhere, $bindings)
+                        ->groupBy('ifrs9stage_pre_qualitative')
+                        ->get();
+
+                    /*
+                    |----------------------------------------------------------------------
+                    | STEP 3: SAVE INTO EXPECTED CREDIT LOSS
+                    |----------------------------------------------------------------------
+                    */
+                    foreach ($grouped as $row) {
+                        ExpectedCreditLoss::updateOrCreate(
+                            [
+                                'reporting_period'        => $period,
+                                'ifrs9_stage'             => $row->ifrs9stage_pre_qualitative,
+                                'ecl_calculation_level'  => $level,
+                                'ecl_calculation_id'     => $portfolioId,
+                                'ecl_calculation_code'   => $sectorCode,
+                            ],
+                            [
+                                'total_ead'              => $row->total_ead,
+                                'total_ecl'              => $row->total_ecl,
+                                'lgd_value_used'         => $row->avg_lgd,
+                                'pd_value_used'          => $row->avg_pd,
+                                'total_loans'            => $row->total_loans,
+                                'last_reporting_period' => $period,
+                            ]
+                        );
+                    }
+
+                    /*
+                    |----------------------------------------------------------------------
+                    | STEP 4: MARK PERIOD AS CALCULATED
+                    |----------------------------------------------------------------------
+                    */
+                    $timeTaken  = round((microtime(true) - $startTime) / 60, 2);
+                    $periodFull = $periodDate->format('Y-m-01');
+
+                    ReportingPeriods::updateOrCreate(
+                        ['period' => $periodFull],
+                        [
+                            'reporting_year'         => (int)$periodDate->format('Y'),
+                            'reporting_month'        => (int)$periodDate->format('m'),
+                            'reporting_period'      => $periodFull,
+                            'ecl_calculated'        => true,
+                            'ecl_calculation_time'  => $timeTaken,
+                            'ecl_calculation_level' => $level,
+                            'ecl_calculation_id'    => $portfolioId,
+                            'ecl_calculation_code'  => $sectorCode,
+                        ]
+                    );
+
+                    DB::commit();
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    throw $e;
+                } finally {
+                    if ($useLock) {
+                        DB::select('SELECT RELEASE_LOCK(?)', [$lockKey]);
+                    }
+                }
 
                 return redirect()
                     ->route('expected-credit-loss.index')

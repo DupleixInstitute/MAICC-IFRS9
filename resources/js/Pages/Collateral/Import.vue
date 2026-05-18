@@ -36,7 +36,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'legacy' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    :class="importType === 'legacy' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
                                     @click="importType = 'legacy'"
                                 >
                                     <div class="flex items-center space-x-3">
@@ -53,7 +53,7 @@
                                 </div>
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'custom' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    :class="importType === 'custom' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
                                     @click="importType = 'custom'"
                                 >
                                     <div class="flex items-center space-x-3">
@@ -74,7 +74,7 @@
                <div>
                   <label class="block text-sm font-medium text-gray-700">Period</label>
                   <input type="month" v-model="form.period" required
-                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                   <p class="mt-1 text-xs text-gray-500">Select the month and year for the collateral register</p>
               </div>
             <!-- File Upload -->
@@ -139,7 +139,7 @@
 
                         <!-- Quick Actions -->
                         <div class="mt-6 flex flex-col sm:flex-row gap-4">
-                            <button type="button" @click="downloadTemplate('legacy')" class="flex-1 justify-center inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <button type="button" @click="downloadTemplate('legacy')" class="flex-1 justify-center inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500">
                                 Download Legacy Template
                             </button>
                         </div>
@@ -149,7 +149,7 @@
             <Link :href="route('collateral.allocations.index')" class="inline-flex items-center px-4 py-2 bg-gray-300 text-gray-700 rounded-md mr-3">
                 Cancel
             </Link>
-            <button type="submit" :disabled="form.processing" class="ml-3 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md">
+            <button type="submit" :disabled="form.processing" class="ml-3 bg-maiic-600 hover:bg-maiic-500 text-white px-4 py-2 rounded-md">
                 Start Import
             </button>
           </div>
@@ -175,7 +175,7 @@
 
           <div class="relative pt-1">
             <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
-              <div :style="{ width: uploadProgress + '%' }" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 transition-all duration-300"></div>
+              <div :style="{ width: uploadProgress + '%' }" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-maiic-500 transition-all duration-300"></div>
             </div>
           </div>
 

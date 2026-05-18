@@ -19,7 +19,7 @@
                     <button
                         v-if="calculation.status === 'completed'"
                         @click="generateReport"
-                        class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                        class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
                     >
                        <i class="fas fa-file-archive mr-2"></i>
                         Export Report
@@ -116,17 +116,17 @@
         <div class="mt-6 border-b border-gray-200">
             <nav class="flex space-x-4">
                 <button @click="activeTab = 'payments'"
-                        :class="{'border-b-2 border-blue-500 text-blue-600': activeTab === 'payments'}"
+                        :class="{'border-b-2 border-maiic-500 text-blue-600': activeTab === 'payments'}"
                         class="px-3 py-2 text-sm font-medium">
                     Recent Payments
                 </button>
                 <button @click="activeTab = 'contracts'"
-                        :class="{'border-b-2 border-blue-500 text-blue-600': activeTab === 'contracts'}"
+                        :class="{'border-b-2 border-maiic-500 text-blue-600': activeTab === 'contracts'}"
                         class="px-3 py-2 text-sm font-medium">
                     Contracts
                 </button>
                 <button @click="activeTab = 'metadata'"
-                        :class="{'border-b-2 border-blue-500 text-blue-600': activeTab === 'metadata'}"
+                        :class="{'border-b-2 border-maiic-500 text-blue-600': activeTab === 'metadata'}"
                         class="px-3 py-2 text-sm font-medium">
                     Metadata
                 </button>

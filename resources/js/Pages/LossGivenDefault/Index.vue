@@ -11,7 +11,7 @@
                       <!-- Calculate -->
                       <Link
                           :href="route('loss-given-default.create')"
-                          class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                          class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
                       >
                          <i class="fa fa-calculator mr-2" aria-hidden="true"></i>
                           Calculate LGD
@@ -20,7 +20,7 @@
                       <!-- Get Report -->
                       <button
                           @click="openReportModal"
-                          class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                          class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
                       >
                           <i class="fas fa-file-archive mr-2"></i>
                           Get Report
@@ -82,7 +82,7 @@
             <td class="px-3 py-4 whitespace-nowrap text-center">
                 <span
                     v-if="lgd.is_discounting"
-                    class="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-gray-900"
+                    class="px-2 py-1 rounded-full text-xs font-semibold bg-maiic-500 text-gray-900"
                 >
                     Enabled
                 </span>
@@ -184,7 +184,7 @@
             <button @click="showModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
             <button
                 @click="submitUpdate"
-                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                 :disabled="loading === selectedLGD?.id"
             >
                 <span v-if="loading === selectedLGD?.id">Update..</span>
@@ -227,7 +227,7 @@
             <button
                 @click="downloadReport"
                 :disabled="reportLoading"
-                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
             >
                 <span v-if="reportLoading">Preparing…</span>
                 <span v-else>Download</span>

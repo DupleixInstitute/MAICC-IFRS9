@@ -65,7 +65,7 @@
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-lg font-medium text-gray-900">Discounted Payment Details</h3>
                             <div class="flex space-x-2">
-                                <button @click="exportData" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md">
+                                <button @click="exportData" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-700 text-white text-sm font-medium rounded-md">
                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
@@ -82,12 +82,12 @@
                                     type="text"
                                     v-model="search.contract_id"
                                     placeholder="Enter contract ID"
-                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                 >
                             </div>
                             <!-- <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
-                                <select v-model="search.payment_type" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <select v-model="search.payment_type" class="w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                     <option value="">All Types</option>
                                     <option value="partial">Partial</option>
                                     <option value="full">Full</option>
@@ -173,7 +173,7 @@
 
                                     <!-- Page Numbers -->
                                     <div class="flex items-center space-x-1">
-                                        <span class="px-3 py-1 text-sm bg-indigo-600 text-white rounded-md">
+                                        <span class="px-3 py-1 text-sm bg-maiic-600 text-white rounded-md">
                                             {{ discountedPayments.current_page }}
                                         </span>
                                         <span class="text-sm text-gray-500">of</span>

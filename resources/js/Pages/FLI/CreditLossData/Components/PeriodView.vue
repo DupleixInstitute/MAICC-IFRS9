@@ -70,7 +70,7 @@
                     <div class="flex space-x-3">
                         <inertia-link
                             :href="route('credit-loss-data.create')"
-                            class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
                         >
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -106,7 +106,7 @@
                         <select 
                             v-model="filters.portfolio_id" 
                             @change="applyFilters"
-                            class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            class="rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                         >
                             <option value="">All Portfolios</option>
                             <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
@@ -118,7 +118,7 @@
                         <select 
                             v-model="filters.definition_id" 
                             @change="applyFilters"
-                            class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            class="rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                         >
                             <option value="">All Metrics</option>
                             <option v-for="definition in definitions" :key="definition.id" :value="definition.id">
@@ -254,7 +254,7 @@
                     <div class="mt-6">
                         <inertia-link
                             :href="route('credit-loss-data.create')"
-                            class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 transition"
+                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 transition"
                         >
                             Add New Record
                         </inertia-link>
@@ -284,7 +284,7 @@
                                         step="0.0001"
                                         v-model="editForm.value"
                                         :class="getInputClass(editingRecord.definition?.code)"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                     >
                                     <p class="mt-1 text-xs text-gray-500" v-if="editingRecord.definition">
                                         {{ getInputDescription(editingRecord.definition.code) }}
@@ -295,7 +295,7 @@
                                     <label class="block text-sm font-medium text-gray-700">Source</label>
                                     <select
                                         v-model="editForm.source"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                     >
                                         <option value="Manual Entry">Manual Entry</option>
                                         <option value="CSV Import">CSV Import</option>
@@ -311,7 +311,7 @@
                                     <textarea
                                         v-model="editForm.notes"
                                         rows="3"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                     ></textarea>
                                 </div>
 
@@ -326,7 +326,7 @@
                                     <button
                                         type="submit"
                                         :disabled="updating"
-                                        class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 disabled:opacity-25 transition"
+                                        class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 disabled:opacity-25 transition"
                                     >
                                         {{ updating ? 'Updating...' : 'Update' }}
                                     </button>

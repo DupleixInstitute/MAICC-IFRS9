@@ -25,7 +25,7 @@
                       v-model="form.name" 
                       type="text" 
                       required
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                       placeholder="e.g., Corporate PD Model Q4 2024"
                     >
                     <p class="mt-1 text-sm text-gray-500">Descriptive name for your model</p>
@@ -36,7 +36,7 @@
                     <select 
                       v-model="form.type" 
                       required
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     >
                       <option value="">Select Type</option>
                       <option value="pd">Probability of Default (PD)</option>
@@ -51,7 +51,7 @@
                     <select 
                       v-model="form.portfolio_id" 
                       required
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     >
                       <option value="">Select Portfolio</option>
                       <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
@@ -65,7 +65,7 @@
                     <select 
                       v-model="form.dep_var_id" 
                       required
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     >
                       <option value="">Select Variable</option>
                       <option v-for="variable in dependentVariables" :key="variable.id" :value="variable.id">
@@ -81,7 +81,7 @@
                       v-model="form.train_start" 
                       type="month" 
                       required
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     >
                   </div>
 
@@ -91,7 +91,7 @@
                       v-model="form.train_end" 
                       type="month" 
                       required
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     >
                   </div>
                 </div>
@@ -111,7 +111,7 @@
                         type="checkbox" 
                         :checked="allVariablesSelected"
                         @change="toggleAllVariables"
-                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        class="rounded border-gray-300 text-indigo-600 focus:ring-maiic-500"
                       >
                       <label class="ml-2 text-sm font-medium text-gray-700">Select All Variables</label>
                     </div>
@@ -129,7 +129,7 @@
                           type="checkbox" 
                           :value="variable.id"
                           v-model="form.indep_vars"
-                          class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          class="rounded border-gray-300 text-indigo-600 focus:ring-maiic-500"
                         >
                         <label :for="`var-${variable.id}`" class="ml-3 flex-1">
                           <div class="text-sm font-medium text-gray-900">{{ variable.statistic_name }}</div>
@@ -179,14 +179,14 @@
               <div class="flex justify-end space-x-3 pt-6 border-t">
                 <inertia-link
                   :href="route('regression.index')"
-                  class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500"
                 >
                   Cancel
                 </inertia-link>
                 <button
                   type="submit"
                   :disabled="processing || form.indep_vars.length === 0"
-                  class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 transition disabled:opacity-25"
+                  class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 transition disabled:opacity-25"
                 >
                   <svg v-if="processing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

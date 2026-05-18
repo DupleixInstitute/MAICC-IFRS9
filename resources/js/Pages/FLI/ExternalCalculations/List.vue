@@ -17,7 +17,7 @@
                             </h3>
                             <a
                                 :href="route('fli.external.index')"
-                                class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                                class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2 transition ease-in-out duration-150"
                             >
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -50,14 +50,14 @@
                                     v-model="searchQuery"
                                     type="text"
                                     placeholder="Search by period, statistic, creator..."
-                                    class="w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                    class="w-full border-gray-300 focus:border-maiic-500 focus:ring-maiic-500 rounded-md shadow-sm"
                                 />
                             </div>
                             <div class="min-w-[200px]">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Statistic</label>
                                 <select
                                     v-model="filterStatistic"
-                                    class="w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                    class="w-full border-gray-300 focus:border-maiic-500 focus:ring-maiic-500 rounded-md shadow-sm"
                                 >
                                     <option value="">All Statistics</option>
                                     <option value="inflation">Inflation</option>

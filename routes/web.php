@@ -118,6 +118,12 @@ Route::group(['prefix' => 'dashboard'], function () {
     Route::get('filter-results', [DashboardController::class, 'filterResults'])->name('dashboard.filter-results');
     Route::get('my-workspace', [DashboardController::class, 'myWorkspace'])->name('dashboard.my-workspace');
 });
+
+// IFRS 9 period-close workspace (role-aware checklist).
+Route::middleware(['auth'])->group(function () {
+    Route::get('/workspace', [\App\Http\Controllers\WorkspaceController::class, 'index'])->name('workspace.index');
+    Route::post('/workspace/toggle', [\App\Http\Controllers\WorkspaceController::class, 'toggle'])->name('workspace.toggle');
+});
 //users
 Route::group(['prefix' => 'user'], function () {
     Route::get('/', [UsersController::class, 'index'])->name('users.index');
@@ -1049,9 +1055,10 @@ Route::prefix('forecasting')->group(function () {
 // IFRS 9 Regulatory Reporting Suite (MAIIC) + downloadable User Manual
 // Appended at EOF so it never collides with the team's /report module.
 // ============================================================================
-Route::middleware(['auth', 'permission:manual.view'])
-    ->get('/manual', [\App\Http\Controllers\ManualController::class, 'show'])
-    ->name('manual.view');
+Route::middleware(['auth', 'permission:manual.view'])->group(function () {
+    Route::get('/manual', [\App\Http\Controllers\ManualController::class, 'page'])->name('manual.view');
+    Route::get('/manual/pdf', [\App\Http\Controllers\ManualController::class, 'show'])->name('manual.pdf');
+});
 
 Route::middleware(['auth', 'permission:reports.ifrs9'])
     ->prefix('ifrs9-reports')
@@ -1059,6 +1066,12 @@ Route::middleware(['auth', 'permission:reports.ifrs9'])
     ->group(function () {
         $c = \App\Http\Controllers\Reports\Ifrs9ReportsController::class;
         Route::get('/', [$c, 'index'])->name('index');
+        Route::get('/executive', [$c, 'executiveSummary'])->name('executive');
+        Route::get('/portfolio-trend', [$c, 'portfolioTrend'])->name('portfolio-trend');
+        Route::get('/sector-ecl', [$c, 'sectorEcl'])->name('sector-ecl');
+        Route::get('/product-group-ecl', [$c, 'productGroupEcl'])->name('product-group-ecl');
+        Route::get('/grade-ecl', [$c, 'gradeEcl'])->name('grade-ecl');
+        Route::get('/concentration', [$c, 'concentration'])->name('concentration');
         Route::get('/ecl', [$c, 'ecl'])->name('ecl');
         Route::get('/account-ecl', [$c, 'accountEcl'])->name('account-ecl');
         Route::get('/stage-allocation', [$c, 'stageAllocation'])->name('stage-allocation');
@@ -1081,4 +1094,17 @@ Route::middleware(['auth', 'permission:reports.ifrs9'])
         Route::get('/sensitivity', [$c, 'sensitivity'])->name('sensitivity');
         Route::get('/ews', [$c, 'ews'])->name('ews');
         Route::get('/ai-narrative', [$c, 'aiNarrative'])->name('ai-narrative');
+    });
+
+// Stress Testing — a dedicated standalone module under Reports (NOT a tab in
+// the IFRS 9 hub). Own controller, page and saved-scenario persistence.
+Route::middleware(['auth', 'permission:reports.ifrs9'])
+    ->prefix('stress-testing')
+    ->name('stress-testing.')
+    ->group(function () {
+        $s = \App\Http\Controllers\Reports\StressTestingController::class;
+        Route::get('/', [$s, 'index'])->name('index');
+        Route::match(['get', 'post'], '/run', [$s, 'run'])->name('run');
+        Route::post('/save', [$s, 'save'])->name('save');
+        Route::delete('/{stressScenario}', [$s, 'destroy'])->name('destroy');
     });

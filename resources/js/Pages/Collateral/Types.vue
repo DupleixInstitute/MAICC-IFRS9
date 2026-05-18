@@ -8,7 +8,7 @@
         </div>
         <button
           @click="showModal = true"
-          class="bg-gradient-to-r from-green-700 to-green-700 hover:from-green-500 hover:to-green-500 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"
+          class="bg-gradient-to-r from-maiic-700 to-maiic-700 hover:from-maiic-500 hover:to-maiic-500 text-white px-4 py-2 rounded hover:bg-maiic-700 flex items-center"
         >
           + Add Type
         </button>
@@ -96,7 +96,7 @@
           <label class="block font-medium text-sm text-gray-700 mb-1">Description</label>
           <textarea v-model="form.description" placeholder="Description" class="w-full border p-2 mb-2 rounded"></textarea>
 
-          <button class="bg-green-600 text-white px-4 py-2 rounded w-full hover:bg-green-700">
+          <button class="bg-maiic-600 text-white px-4 py-2 rounded w-full hover:bg-maiic-700">
             {{ isEdit ? 'Update' : 'Submit' }}
           </button>
         </form>

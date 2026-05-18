@@ -8,7 +8,7 @@
                        </h2>
                        <div class="flex space-x-4">
                             <Link :href="route('expected-credit-loss.create')"
-                                class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
+                                class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
                                 Calculate ECL
                                 <Icon name="calculator" class="w-4 h-4 mr-2" />
                             </Link>
@@ -18,7 +18,7 @@
                                 ECL Reconciliation
                             </button>
                             <button @click="openReportModal"
-                                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
+                                class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
                                 <Icon name="file-export" class="w-4 h-4 mr-2" />
                                 Export Report
                             </button>
@@ -55,21 +55,21 @@
                                    <div>
                                        <label class="block text-sm font-medium text-gray-700">Year</label>
                                        <select v-model="filters.year" @change="fetchData"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                            <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                                        </select>
                                    </div>
                                    <div>
                                        <label class="block text-sm font-medium text-gray-700">Month</label>
                                        <select v-model="filters.month" @change="fetchData"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                            <option v-for="(name, index) in months" :key="index" :value="index + 1">{{ name }}</option>
                                        </select>
                                    </div>
                                    <div>
                                        <label class="block text-sm font-medium text-gray-700">Stages</label>
                                        <select v-model="filters.stage" @change="fetchData"
-                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                            <option value="">All Stages</option>
                                            <option value="1">Stage 1</option>
                                            <option value="2">Stage 2</option>
@@ -80,12 +80,12 @@
                                        <label class="block text-sm font-medium text-gray-700">Search</label>
                                        <input type="text" v-model="filters.search" @input="fetchData"
                                               placeholder="Search by Contract ID or Customer..."
-                                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                    </div>
                                </div>
                                <div class="col-span-4 mt-4 flex justify-end">
                                     <button @click="applyFilters"
-                                            class="inline-flex mr-4 items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300">
+                                            class="inline-flex mr-4 items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300">
                                         Apply Filters
                                     </button>
                                     <button @click="resetFilters"
@@ -194,7 +194,7 @@
                             <button @click="showModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
                             <button
                                 @click="submitUpdate"
-                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                                 :disabled="loading"
                             >
                                 <span v-if="loading">Exporting...</span>

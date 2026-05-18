@@ -29,7 +29,7 @@
                             <div>
                                 <jet-label for="start_date" value="Start Period" />
                                 <input type="month" v-model="form.start_reporting_period" required
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                 <jet-input-error :message="form.errors.start_reporting_period" class="mt-2" />
                             </div>
 
@@ -37,7 +37,7 @@
                             <div>
                                 <jet-label for="end_date" value="End Period" />
                                 <input type="month" v-model="form.end_reporting_period" required
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                 <jet-input-error :message="form.errors.end_reporting_period" class="mt-2" />
                             </div>
 
@@ -129,7 +129,7 @@
                                 Proceed to Matrix Entry
                             </jet-button>
 
-                            <Link href="/transition-matrix" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-400 text-black-700 rounded-md">
+                            <Link href="/transition-matrix" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md">
                                 Back
                             </Link>
                         </div>

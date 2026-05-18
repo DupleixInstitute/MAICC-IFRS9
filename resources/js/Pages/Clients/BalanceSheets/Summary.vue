@@ -62,7 +62,7 @@
                                         }}</span>
                                 </td>
                             </tr>
-                            <tr class="bg-blue-700 text-white">
+                            <tr class="bg-maiic-700 text-white">
                                 <td class="border-t px-6 py-4">
                                     <span class="">Total Assets</span>
                                 </td>
@@ -107,7 +107,7 @@
                                         }}</span>
                                 </td>
                             </tr>
-                            <tr class="bg-blue-700 text-white">
+                            <tr class="bg-maiic-700 text-white">
                                 <td class="border-t px-6 py-4">
                                     <span class="">Total Equity and Liabilities</span>
                                 </td>

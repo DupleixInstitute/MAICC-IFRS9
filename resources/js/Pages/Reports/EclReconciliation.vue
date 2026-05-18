@@ -30,7 +30,7 @@
                             <select
                                 v-model="form.portfolio_id"
                                 @change="handlePortfolioChange"
-                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                             >
                                 <option value="">Select a portfolio</option>
                                 <option v-for="portfolio in portfolios" :key="portfolio.value" :value="portfolio.value">
@@ -43,22 +43,32 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Start Period
                             </label>
-                            <input
+                            <select
                                 v-model="form.start_period"
-                                type="month"
-                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                :disabled="!periods.length"
+                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md disabled:bg-gray-100"
                             >
+                                <option value="">{{ periods.length ? 'Select start period' : 'Choose a portfolio first' }}</option>
+                                <option v-for="p in periods" :key="'s-' + p.value" :value="p.value">
+                                    {{ p.label }}
+                                </option>
+                            </select>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 End Period
                             </label>
-                            <input
+                            <select
                                 v-model="form.end_period"
-                                type="month"
-                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                :disabled="!periods.length"
+                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md disabled:bg-gray-100"
                             >
+                                <option value="">{{ periods.length ? 'Select end period' : 'Choose a portfolio first' }}</option>
+                                <option v-for="p in periods" :key="'e-' + p.value" :value="p.value">
+                                    {{ p.label }}
+                                </option>
+                            </select>
                         </div>
 
                         <div>
@@ -67,7 +77,7 @@
                             </label>
                             <select
                                 v-model="form.movement_type"
-                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                             >
                                 <option value="ecl_value">ECL Value</option>
                                 <option value="principal_balance">Carrying Amount</option>
@@ -80,7 +90,7 @@
                             </label>
                             <select
                                 v-model="form.report_type"
-                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                             >
                                 <option value="summary">Summary</option>
                                 <option value="detailed">Detailed</option>
@@ -93,7 +103,7 @@
                             </label>
                             <select
                                 v-model="form.detail_type"
-                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                class="mt-1 block w-full border-gray-300 focus:outline-none focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm rounded-md"
                             >
                                 <option value="">Select a section</option>
                                 <option value="new_loans">New Loans</option>
@@ -109,7 +119,7 @@
                             type="button"
                             @click="handleExport"
                             :disabled="isExporting || !isFormValid"
-                            class="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <font-awesome-icon v-if="isExporting" icon="spinner" class="animate-spin -ml-1 mr-2 h-4 w-4"></font-awesome-icon>
                             <font-awesome-icon v-else icon="download" class="-ml-1 mr-2 h-4 w-4"></font-awesome-icon>
@@ -119,7 +129,7 @@
                         <button
                             type="submit"
                             :disabled="isGenerating || !isFormValid"
-                            class="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-maiic-600 text-base font-medium text-white hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <font-awesome-icon v-if="isGenerating" icon="spinner" class="animate-spin -ml-1 mr-2 h-4 w-4"></font-awesome-icon>
                             <font-awesome-icon v-else icon="chart-bar" class="-ml-1 mr-2 h-4 w-4"></font-awesome-icon>

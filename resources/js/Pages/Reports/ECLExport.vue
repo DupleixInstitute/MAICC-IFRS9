@@ -48,7 +48,7 @@
 
                     <div class="flex justify-end mt-6 gap-3">
                         <a v-if="canRun" :href="exportUrl"
-                           class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm rounded-md">
+                           class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-500 text-white text-sm rounded-md">
                             Export CSV
                         </a>
                         <span v-else class="text-sm text-gray-500 self-center">Select portfolio and period to export</span>

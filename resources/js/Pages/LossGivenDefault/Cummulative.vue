@@ -11,7 +11,7 @@
                       <!-- Calculate -->
                       <Link
                           :href="route('lgd-cummulative.create')"
-                          class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                          class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
                       >
                          <i class="fa fa-calculator mr-2" aria-hidden="true"></i>
                           Calculate LGD
@@ -20,7 +20,7 @@
                       <!-- Get Report -->
                       <button
                           @click="openReportModal"
-                          class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                          class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
                       >
                           <i class="fas fa-file-archive mr-2"></i>
                           Get Report
@@ -36,7 +36,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Calculation Level</label>
               <select
                   v-model="filters.lgd_calculation_level"
-                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
               >
                   <option value="">All</option>
                   <option value="portfolio">Portfolio</option>
@@ -50,7 +50,7 @@
             <input
                   v-model="startDate"
                   type="month"
-                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
               />
         </div>
 
@@ -60,7 +60,7 @@
             <input
                 v-model="endDate"
                 type="month"
-                class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
             />
         </div>
 
@@ -68,7 +68,7 @@
         <div class="flex items-end space-x-2">
             <button
                 type="submit"
-                class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700"
             >
                 Apply Filters
             </button>
@@ -309,7 +309,7 @@
                     id="include_customer_lgd" 
                     type="checkbox" 
                     v-model="includeCustomerLGD"
-                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-maiic-500"
                 >
                 <label for="include_customer_lgd" class="ml-2 text-sm text-gray-700">
                     Include Customer LGD in Update
@@ -325,7 +325,7 @@
 
                 <button 
                     @click="submitUpdate" 
-                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                     :disabled="loading === selectedLGD?.id"
                 >
                     <span v-if="loading === selectedLGD?.id">Updating...</span>
@@ -396,7 +396,7 @@
       <button
         @click="submitUpload"
         :disabled="uploadLoading"
-        class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+        class="px-5 py-2 bg-maiic-600 text-white rounded-lg hover:bg-maiic-700 transition disabled:opacity-50"
       >
         <span v-if="uploadLoading">Uploading...</span>
         <span v-else>Upload</span>
@@ -449,7 +449,7 @@
             <button
                 @click="downloadReport"
                 :disabled="reportLoading"
-                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
             >
                 <span v-if="reportLoading">Preparing…</span>
                 <span v-else>Download</span>

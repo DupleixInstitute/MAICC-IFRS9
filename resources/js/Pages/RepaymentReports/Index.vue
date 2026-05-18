@@ -11,7 +11,7 @@
                     <!-- New Calculation -->
                     <Link
                         :href="route('lgd-calculations.create')"
-                        class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                        class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
                     >
                         <i class="fa fa-calculator mr-2" aria-hidden="true"></i>
                         New Calculation
@@ -29,7 +29,7 @@
                     <!-- Refresh -->
                     <button
                         @click="refreshData"
-                        class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                        class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
                     >
                         <i class="fas fa-sync-alt mr-2"></i>
                         Refresh
@@ -69,7 +69,7 @@
             </div>
             <div class="flex justify-end mt-4 space-x-2">
                 <button @click="clearFilters" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Reset</button>
-                <button @click="applyFilters" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Apply</button>
+                <button @click="applyFilters" class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700">Apply</button>
             </div>
         </div>
 

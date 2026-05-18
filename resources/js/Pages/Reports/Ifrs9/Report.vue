@@ -7,6 +7,8 @@ const props = defineProps({
     report: { type: Object, required: true },
 })
 
+const PAGE_SIZE = 10
+
 const toneClass = {
     maiic: 'from-maiic-500 to-maiic-600',
     rose: 'from-rose-500 to-rose-600',
@@ -21,7 +23,36 @@ const controlValues = reactive(
     }, {})
 )
 
-// Fields with a `show_when` only render when the named control matches.
+// Per-section current page (1-based), keyed by section index.
+const pages = reactive({})
+const pageOf = (si) => pages[si] || 1
+const pageCount = (sec) => Math.max(1, Math.ceil(sec.rows.length / PAGE_SIZE))
+
+function pagedRows(sec, si) {
+    if (sec.rows.length <= PAGE_SIZE) return sec.rows
+    const start = (pageOf(si) - 1) * PAGE_SIZE
+    return sec.rows.slice(start, start + PAGE_SIZE)
+}
+
+function goto(sec, si, p) {
+    pages[si] = Math.min(Math.max(1, p), pageCount(sec))
+}
+
+// Windowed page numbers: first, last, and a window around the current page.
+function pageNumbers(sec, si) {
+    const total = pageCount(sec)
+    const cur = pageOf(si)
+    const out = []
+    for (let p = 1; p <= total; p++) {
+        if (p === 1 || p === total || (p >= cur - 2 && p <= cur + 2)) {
+            out.push(p)
+        } else if (out[out.length - 1] !== '…') {
+            out.push('…')
+        }
+    }
+    return out
+}
+
 const visibleControls = computed(() =>
     (props.report.controls?.fields || []).filter(f => {
         if (!f.show_when) return true
@@ -34,6 +65,28 @@ function pdfUrl() {
     if (props.report.period) params.set('period', props.report.period)
     params.set('download', 'pdf')
     return route('ifrs9-reports.' + props.report.key) + '?' + params.toString()
+}
+
+function csvCell(v) {
+    const s = String(v ?? '')
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+}
+
+function exportCsv() {
+    const lines = []
+    for (const sec of props.report.sections || []) {
+        if (sec.heading) lines.push(csvCell(sec.heading))
+        if (sec.columns) lines.push(sec.columns.map(csvCell).join(','))
+        for (const row of sec.rows || []) lines.push(row.map(csvCell).join(','))
+        lines.push('')
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = (props.report.title || 'report').replace(/[^\w.-]+/g, '_')
+        + '_' + (props.report.period || '') + '.csv'
+    a.click()
+    URL.revokeObjectURL(a.href)
 }
 
 function changePeriod(e) {
@@ -80,6 +133,14 @@ function runControls() {
                                     <option v-for="p in report.periods" :key="p" :value="p">{{ p }}</option>
                                 </select>
                             </div>
+                            <button @click="exportCsv"
+                                    class="inline-flex items-center px-4 py-2 bg-white border border-maiic-600 text-maiic-700 hover:bg-maiic-50 text-sm font-medium rounded-lg shadow self-end">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7M3 7l9 6 9-6M3 7h18"/>
+                                </svg>
+                                Export CSV
+                            </button>
                             <a :href="pdfUrl()"
                                class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-700 text-white text-sm font-medium rounded-lg shadow self-end">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,30 +179,34 @@ function runControls() {
                          :class="['rounded-2xl p-5 text-white bg-gradient-to-br shadow', toneClass[k.tone] || toneClass.maiic]">
                         <p class="text-xs uppercase tracking-wider opacity-85">{{ k.label }}</p>
                         <p class="text-2xl font-bold mt-2">{{ k.value }}</p>
+                        <p v-if="k.sub" class="text-xs mt-1 opacity-80">{{ k.sub }}</p>
                     </div>
                 </div>
 
                 <div v-for="(sec, si) in report.sections" :key="si"
                      class="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
-                    <div class="px-6 py-4 border-l-4 border-maiic-600">
+                    <div class="px-6 py-4 border-l-4 border-maiic-600 flex items-center justify-between">
                         <h3 class="font-semibold text-gray-900">{{ sec.heading }}</h3>
+                        <span v-if="sec.rows.length > PAGE_SIZE" class="text-xs text-gray-400">
+                            {{ sec.rows.length }} rows
+                        </span>
                     </div>
                     <div class="overflow-x-auto">
                         <table v-if="sec.rows.length" class="min-w-full text-sm">
                             <thead class="bg-maiic-900 text-white">
                                 <tr>
                                     <th v-for="(c, ci) in sec.columns" :key="ci"
-                                        :class="['px-5 py-3 font-medium uppercase text-xs tracking-wider',
+                                        :class="['px-5 py-3 font-medium uppercase text-xs tracking-wider whitespace-nowrap',
                                                  (sec.align && sec.align[ci] === 'r') ? 'text-right' : 'text-left']">
                                         {{ c }}
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
-                                <tr v-for="(row, ri) in sec.rows" :key="ri"
+                                <tr v-for="(row, ri) in pagedRows(sec, si)" :key="ri"
                                     :class="ri % 2 ? 'bg-maiic-50/40' : 'bg-white'">
                                     <td v-for="(cell, ci) in row" :key="ci"
-                                        :class="['px-5 py-3 text-gray-700',
+                                        :class="['px-5 py-3 text-gray-700 whitespace-nowrap',
                                                  (sec.align && sec.align[ci] === 'r') ? 'text-right tabular-nums' : 'text-left']">
                                         {{ cell }}
                                     </td>
@@ -149,6 +214,34 @@ function runControls() {
                             </tbody>
                         </table>
                         <p v-else class="px-6 py-8 text-gray-400 italic">No data available for this section.</p>
+                    </div>
+
+                    <div v-if="sec.rows.length > PAGE_SIZE"
+                         class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-t border-gray-100 bg-gray-50/60">
+                        <p class="text-xs text-gray-500">
+                            Showing {{ (pageOf(si) - 1) * PAGE_SIZE + 1 }}–{{ Math.min(pageOf(si) * PAGE_SIZE, sec.rows.length) }}
+                            of {{ sec.rows.length }}
+                        </p>
+                        <div class="flex items-center gap-1">
+                            <button @click="goto(sec, si, pageOf(si) - 1)" :disabled="pageOf(si) === 1"
+                                    class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-maiic-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                                Prev
+                            </button>
+                            <template v-for="(p, idx) in pageNumbers(sec, si)" :key="idx">
+                                <span v-if="p === '…'" class="px-2 text-gray-400">…</span>
+                                <button v-else @click="goto(sec, si, p)"
+                                        :class="['px-3 py-1.5 text-sm rounded-md border',
+                                                 p === pageOf(si)
+                                                    ? 'bg-maiic-600 border-maiic-600 text-white'
+                                                    : 'bg-white border-gray-300 text-gray-600 hover:bg-maiic-50']">
+                                    {{ p }}
+                                </button>
+                            </template>
+                            <button @click="goto(sec, si, pageOf(si) + 1)" :disabled="pageOf(si) === pageCount(sec)"
+                                    class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-maiic-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                                Next
+                            </button>
+                        </div>
                     </div>
                 </div>
 

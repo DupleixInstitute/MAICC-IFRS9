@@ -10,7 +10,7 @@
         <button
           v-if="!profile.is_active"
           @click="openCreate"
-          class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow"
+          class="bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow"
         >
           + Add Grade
         </button>

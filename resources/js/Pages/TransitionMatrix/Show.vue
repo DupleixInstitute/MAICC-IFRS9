@@ -52,7 +52,7 @@
                                 <h3 class="text-lg font-medium text-gray-900">Actions</h3>
                                 <div class="mt-2 space-y-2">
                                     <button @click="showUpdateLoanBookModal = true"
-                                            class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition">
+                                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition">
                                         Update Loan Book
                                     </button>
                                     <button v-if="matrix.external_file_path"
@@ -63,13 +63,13 @@
                                     <button
                                         disabled
                                         title="Coming soon"
-                                        class="ml-2 inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 disabled:cursor-not-allowed transition">
+                                        class="ml-2 inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 disabled:cursor-not-allowed transition">
                                         Download Entries (Excel)
                                     </button>
                                     <button
                                         disabled
                                         title="Coming soon"
-                                        class="ml-2 inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring focus:ring-blue-300 disabled:opacity-25 disabled:cursor-not-allowed transition">
+                                        class="ml-2 inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring focus:ring-blue-300 disabled:opacity-25 disabled:cursor-not-allowed transition">
                                         Import Entries
                                     </button>
                                 </div>

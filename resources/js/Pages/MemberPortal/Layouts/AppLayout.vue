@@ -15,7 +15,7 @@
                                      enter-from="-translate-x-full" enter-to="translate-x-0"
                                      leave="transition ease-in-out duration-300 transform" leave-from="translate-x-0"
                                      leave-to="-translate-x-full">
-                        <DialogPanel class="relative flex w-full max-w-xs flex-1 flex-col bg-indigo-700 pt-5 pb-4">
+                        <DialogPanel class="relative flex w-full max-w-xs flex-1 flex-col bg-maiic-700 pt-5 pb-4">
                             <TransitionChild as="template" enter="ease-in-out duration-300" enter-from="opacity-0"
                                              enter-to="opacity-100" leave="ease-in-out duration-300"
                                              leave-from="opacity-100" leave-to="opacity-0">
@@ -35,7 +35,7 @@
                                 <nav class="space-y-1 px-2">
                                     <div v-for="item in $page.props.menu" :key="item.name">
                                         <Link v-if="!item.dropdown && item.route" :href="route(item.route)"
-                                              :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
+                                              :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
                                             <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300"
                                                                aria-hidden="true" v-if="item.icon" :icon="item.icon"/>
                                             {{ item.name }}
@@ -56,7 +56,7 @@
         <!-- Static sidebar for desktop -->
         <div class="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
             <!-- Sidebar component, swap this element with another sidebar if you like -->
-            <div class="flex flex-grow flex-col overflow-y-auto bg-indigo-700 pt-5">
+            <div class="flex flex-grow flex-col overflow-y-auto bg-maiic-700 pt-5">
                 <div class="flex flex-shrink-0 items-center px-4">
                     <ApplicationMark class="block h-8 w-auto"/>
                 </div>
@@ -64,7 +64,7 @@
                     <nav class="flex-1 space-y-1 px-2 pb-4">
                         <div v-for="item in $page.props.menu" :key="item.name">
                             <Link v-if="!item.dropdown && item.route" :href="route(item.route)"
-                                  :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
+                                  :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
                                 <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300" aria-hidden="true"
                                                    v-if="item.icon" :icon="item.icon"/>
                                 {{ item.name }}
@@ -78,7 +78,7 @@
         <div class="flex flex-1 flex-col md:pl-64">
             <div class="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white shadow">
                 <button type="button"
-                        class="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 md:hidden"
+                        class="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-maiic-500 md:hidden"
                         @click="sidebarOpen = true">
                     <span class="sr-only">Open sidebar</span>
                     <Bars3BottomLeftIcon class="h-6 w-6" aria-hidden="true"/>
@@ -99,7 +99,7 @@
                     </div>
                     <div class="ml-4 flex items-center md:ml-6">
                         <button type="button"
-                                class="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                class="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2">
                             <span class="sr-only">View notifications</span>
                             <BellIcon class="h-6 w-6" aria-hidden="true"/>
                         </button>
@@ -108,7 +108,7 @@
                         <Menu as="div" class="relative ml-3">
                             <div>
                                 <MenuButton
-                                    class="flex max-w-xs items-center rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                    class="flex max-w-xs items-center rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2">
                                     <span class="sr-only">Open user menu</span>
                                     <img class="h-8 w-8 rounded-full"
                                          :src="$page.props.user.profile_photo_url"

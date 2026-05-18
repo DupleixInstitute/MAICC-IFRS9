@@ -15,14 +15,14 @@
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700">Grade Code *</label>
           <input v-model="form.grade_code" type="text"
-            class="mt-1 block w-full border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+            class="mt-1 block w-full border-gray-300 rounded-md focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm" />
         </div>
 
       <div>
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700">Grade Name *</label>
           <input v-model="form.grade_name" type="text"
-            class="mt-1 block w-full border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+            class="mt-1 block w-full border-gray-300 rounded-md focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm" />
         </div>
 
         <div class="mb-4">
@@ -32,7 +32,7 @@
               <label class="block text-xs text-gray-600 mb-1">Year {{ year }}</label>
               <input type="number" step="0.01" min="0" max="100"
                 v-model.number="form.probabilities[year-1]"
-                class="block w-full border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                class="block w-full border-gray-300 rounded-md focus:ring-maiic-500 focus:border-maiic-500 sm:text-sm" />
             </div>
           </div>
         </div>
@@ -44,7 +44,7 @@
             Reset
           </button>
           <button @click="saveGrade" type="button"
-            class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+            class="px-4 py-2 rounded-md bg-maiic-600 text-white hover:bg-maiic-700 disabled:opacity-50">
             <span v-if="processing" class="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
             Save Grade
           </button>

@@ -11,7 +11,7 @@
                         type="month"
                         v-model="form.start_period"
                         required
-                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     />
                 </div>
 
@@ -22,7 +22,7 @@
                         type="month"
                         v-model="form.end_period"
                         required
-                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     />
                 </div>
 
@@ -31,7 +31,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Export Format</label>
                     <select
                         v-model="form.format"
-                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     >
                         <option value="csv">CSV</option>
                         <option value="excel">Excel</option>
@@ -43,7 +43,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Export Type</label>
                     <select
                         v-model="form.export_type"
-                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                     >
                         <option value="summary">Summary (Current)</option>
                         <option value="matrix">Matrix Format</option>
@@ -58,7 +58,7 @@
                             <input
                                 type="checkbox"
                                 v-model="form.include_headers"
-                                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                class="rounded border-gray-300 text-indigo-600 focus:ring-maiic-500"
                             />
                             <span class="ml-2 text-sm text-gray-700">Include Headers</span>
                         </label>
@@ -66,7 +66,7 @@
                             <input
                                 type="checkbox"
                                 v-model="form.compress_file"
-                                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                class="rounded border-gray-300 text-indigo-600 focus:ring-maiic-500"
                             />
                             <span class="ml-2 text-sm text-gray-700">Compress as ZIP</span>
                         </label>
@@ -83,14 +83,14 @@
                     <button
                         type="button"
                         @click="closeModal"
-                        class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         :disabled="processing"
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-maiic-600 hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50"
                     >
                         <span v-if="processing" class="animate-spin mr-2">⏳</span>
                         {{ processing ? 'Exporting...' : 'Export' }}

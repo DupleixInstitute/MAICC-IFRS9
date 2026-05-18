@@ -17,7 +17,7 @@
 
                     <a
                         :href="route('lgd-payment-report.download-comparison', { id1: calculation1.id, id2: calculation2.id })"
-                        class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+                        class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
                     >
                         <i class="fas fa-download mr-2"></i>
                         Download CSV

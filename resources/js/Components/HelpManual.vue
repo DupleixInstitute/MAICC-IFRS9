@@ -2,7 +2,7 @@
   <div>
     <button
       @click="showHelp = true"
-      class="fixed bottom-6 right-6 bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition"
+      class="fixed bottom-6 right-6 bg-maiic-600 text-white p-3 rounded-full shadow-lg hover:bg-maiic-700 transition"
       title="Help"
     >
       <i class="fas fa-question"></i>

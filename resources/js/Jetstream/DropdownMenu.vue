@@ -14,6 +14,16 @@
             <template v-for="child in (item.children || [])" :key="child.name">
                 <DropdownMenu v-if="child.dropdown && (child.children || []).length"
                               :item="child" :depth="depth + 1"/>
+                <a v-else-if="child.download && child.route"
+                   :href="route(child.route)"
+                   rel="noopener"
+                   :class="['text-maiic-100 hover:bg-maiic-600',
+                            'group flex items-center px-2 py-2 text-sm font-medium rounded-md']"
+                   :style="{ paddingLeft: ((depth + 1) * 12 + 8) + 'px' }">
+                    <font-awesome-icon class="mr-3 h-4 w-4 flex-shrink-0 text-maiic-300" aria-hidden="true"
+                                       v-if="child.icon" :icon="child.icon"/>
+                    {{ child.name }}
+                </a>
                 <Link v-else-if="child.route"
                       :href="route(child.route)"
                       :class="[isCurrent(child) ? 'bg-maiic-800 text-white' : 'text-maiic-100 hover:bg-maiic-600',

@@ -9,7 +9,7 @@
         </Link>{{ statistic.statistic_name }} Values
           <span class="ml-2 text-sm text-gray-500">{{ statistic.unit }}</span>
         </h1>
-        <button @click="openForm()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        <button @click="openForm()" class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700">
           + Add Value
         </button>
       </div>
@@ -84,7 +84,7 @@
               :key="page"
               @click="goToPage(page)"
               :class="page === values.current_page 
-                ? 'bg-blue-600 text-white px-3 py-1 rounded' 
+                ? 'bg-maiic-600 text-white px-3 py-1 rounded' 
                 : 'bg-gray-200 px-3 py-1 rounded'"
             >
               {{ page }}

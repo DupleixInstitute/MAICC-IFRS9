@@ -77,7 +77,7 @@
 
                 <button @click="generate"
                         :disabled="loading"
-                        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                        class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700 disabled:opacity-50">
                     <span v-if="loading">Generating...</span>
                     <span v-else>Download</span>
                 </button>
