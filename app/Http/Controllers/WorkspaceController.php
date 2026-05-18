@@ -67,6 +67,16 @@ class WorkspaceController extends Controller
         $done = $tasks->where('status', 'done')->count();
         $user = $request->user();
 
+        $messages = \App\Models\WorkspaceMessage::query()
+            ->where(fn ($q) => $q->where('reporting_period', $period)->orWhereNull('reporting_period'))
+            ->orderByDesc('id')->limit(50)->get()
+            ->map(fn ($m) => [
+                'user_name' => $m->user_name,
+                'body'      => $m->body,
+                'when'      => $m->created_at?->diffForHumans(),
+                'mine'      => $m->user_id === optional($user)->id,
+            ])->reverse()->values();
+
         return Inertia::render('Workspace/Index', [
             'periods'   => $periods,
             'period'    => $period,
@@ -78,7 +88,25 @@ class WorkspaceController extends Controller
             ],
             'me'        => ['name' => optional($user)->name, 'email' => optional($user)->email],
             'is_admin'  => $this->isAdmin($user),
+            'messages'  => $messages,
         ]);
+    }
+
+    public function postMessage(Request $request)
+    {
+        $v = $request->validate([
+            'period' => 'nullable|string',
+            'body'   => 'required|string|max:2000',
+        ]);
+
+        \App\Models\WorkspaceMessage::create([
+            'reporting_period' => $v['period'] ?? null,
+            'user_id'          => optional($request->user())->id,
+            'user_name'        => optional($request->user())->name ?? 'User',
+            'body'             => trim($v['body']),
+        ]);
+
+        return back();
     }
 
     public function toggle(Request $request)

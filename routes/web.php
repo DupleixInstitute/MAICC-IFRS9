@@ -123,6 +123,7 @@ Route::group(['prefix' => 'dashboard'], function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/workspace', [\App\Http\Controllers\WorkspaceController::class, 'index'])->name('workspace.index');
     Route::post('/workspace/toggle', [\App\Http\Controllers\WorkspaceController::class, 'toggle'])->name('workspace.toggle');
+    Route::post('/workspace/message', [\App\Http\Controllers\WorkspaceController::class, 'postMessage'])->name('workspace.message');
 });
 //users
 Route::group(['prefix' => 'user'], function () {
@@ -1071,6 +1072,8 @@ Route::middleware(['auth', 'permission:reports.ifrs9'])
         Route::get('/sector-ecl', [$c, 'sectorEcl'])->name('sector-ecl');
         Route::get('/product-group-ecl', [$c, 'productGroupEcl'])->name('product-group-ecl');
         Route::get('/grade-ecl', [$c, 'gradeEcl'])->name('grade-ecl');
+        Route::get('/crm-agri', [$c, 'crmAgri'])->name('crm-agri');
+        Route::get('/coop-linkage', [$c, 'coopLinkage'])->name('coop-linkage');
         Route::get('/concentration', [$c, 'concentration'])->name('concentration');
         Route::get('/ecl', [$c, 'ecl'])->name('ecl');
         Route::get('/account-ecl', [$c, 'accountEcl'])->name('account-ecl');

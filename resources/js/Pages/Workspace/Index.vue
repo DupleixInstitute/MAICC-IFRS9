@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -9,7 +10,18 @@ const props = defineProps({
     progress: { type: Object, default: () => ({ done: 0, total: 0, percent: 0 }) },
     me: { type: Object, default: () => ({}) },
     is_admin: { type: Boolean, default: false },
+    messages: { type: Array, default: () => [] },
 })
+
+const draft = ref('')
+
+function sendMessage() {
+    const body = draft.value.trim()
+    if (!body) return
+    router.post(route('workspace.message'),
+        { period: props.period, body },
+        { preserveScroll: true, onSuccess: () => { draft.value = '' } })
+}
 
 function changePeriod(e) {
     router.get(route('workspace.index'), { period: e.target.value }, { preserveScroll: true })
@@ -105,6 +117,41 @@ function toggle(t) {
                 <p v-if="!is_admin" class="text-xs text-gray-400">
                     You are viewing the workspace in read-only mode. Ask an administrator to mark steps complete.
                 </p>
+
+                <!-- Team message board -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-l-4 border-maiic-600 flex items-center justify-between">
+                        <h3 class="font-semibold text-gray-900">Team Messages</h3>
+                        <span class="text-xs text-gray-400">Period {{ period }} · visible to everyone signed in</span>
+                    </div>
+
+                    <div class="max-h-80 overflow-y-auto px-6 py-4 space-y-3 bg-gray-50/50">
+                        <p v-if="!messages.length" class="text-sm text-gray-400 italic text-center py-6">
+                            No messages yet. Start the conversation for this period.
+                        </p>
+                        <div v-for="(m, i) in messages" :key="i"
+                             :class="['flex', m.mine ? 'justify-end' : 'justify-start']">
+                            <div :class="['max-w-lg rounded-2xl px-4 py-2 shadow-sm',
+                                          m.mine ? 'bg-maiic-600 text-white' : 'bg-white border border-gray-100 text-gray-800']">
+                                <p :class="['text-xs font-semibold mb-0.5', m.mine ? 'text-white/80' : 'text-maiic-700']">
+                                    {{ m.mine ? 'You' : m.user_name }}
+                                    <span :class="['font-normal ml-2', m.mine ? 'text-white/60' : 'text-gray-400']">{{ m.when }}</span>
+                                </p>
+                                <p class="text-sm whitespace-pre-wrap break-words">{{ m.body }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form @submit.prevent="sendMessage" class="flex items-center gap-3 border-t border-gray-100 p-4">
+                        <input v-model="draft" type="text" maxlength="2000"
+                               placeholder="Message the team about this period…"
+                               class="flex-1 rounded-lg border-gray-300 text-sm py-2.5 px-3 focus:ring-maiic-500 focus:border-maiic-500"/>
+                        <button type="submit" :disabled="!draft.trim()"
+                                class="px-5 py-2.5 bg-maiic-600 hover:bg-maiic-700 text-white text-sm font-medium rounded-lg shadow disabled:opacity-50">
+                            Send
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </AppLayout>

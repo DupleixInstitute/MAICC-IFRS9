@@ -6,12 +6,21 @@
                     IFRS 9 ECL Dashboard
                     <HelpManual />
                 </h2>
-                <form @change="handlePeriodChange">
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Reporting Period</label>
-                    <select v-model="currentPeriod"
-                            class="rounded-lg border-gray-300 text-sm py-2 px-3 shadow-sm focus:ring-maiic-500 focus:border-maiic-500">
-                        <option v-for="period in periods" :key="period" :value="period">{{ period }}</option>
-                    </select>
+                <form @change="handlePeriodChange"
+                      class="flex items-center gap-3 bg-maiic-600 rounded-xl px-4 py-2.5 shadow-md">
+                    <svg class="w-5 h-5 text-white/90 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
+                            Reporting Period
+                        </label>
+                        <select v-model="currentPeriod"
+                                class="rounded-lg border-0 bg-white text-maiic-800 text-base font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
+                            <option v-for="period in periods" :key="period" :value="period">{{ period }}</option>
+                        </select>
+                    </div>
                 </form>
             </div>
         </template>

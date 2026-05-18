@@ -46,6 +46,7 @@ class Ifrs9ReportsController extends Controller
         // Model Components
         'pd-report'            => ['PD Report',                     '12-month and lifetime probability of default', 'Model Components'],
         'lgd-collateral'       => ['LGD & Collateral',              'Recovery, collateral cover and net unsecured exposure', 'Model Components'],
+        'crm-agri'             => ['Credit Risk Mitigation (Agri)',  'Off-take, warehouse-receipt, group-guarantee & AIP cover vs LGD', 'Model Components'],
         'ead-report'           => ['EAD & Off-Balance Sheet',       'Exposure at default incl. undrawn commitments / CCF', 'Model Components'],
         // Forward-Looking
         'macro-scenario'       => ['Macro Scenario & Forward-Looking', 'Macro assumptions and economic scenarios', 'Forward-Looking'],
@@ -56,6 +57,7 @@ class Ifrs9ReportsController extends Controller
         'npl-arrears'          => ['NPL & Arrears',                 'Non-performing loans and arrears ageing', 'RBM Prudential'],
         'provision-comparison' => ['Provision Comparison',          'IFRS 9 ECL vs RBM prudential provision & shortfall', 'RBM Prudential'],
         'concentration'        => ['Concentration & Large Exposures', 'Single-name & portfolio concentration (HHI) and large exposures', 'RBM Prudential'],
+        'coop-linkage'         => ['Cooperative & Anchor Linkage',   'Correlated (contagion) exposure by cooperative / anchor buyer', 'RBM Prudential'],
         // Disclosure & Audit
         'fs-disclosure'        => ['Financial Statement Disclosure', 'IFRS 9 note tables for the annual report', 'Disclosure & Audit'],
         'data-quality'         => ['Audit Trail & Data Quality',    'Data integrity, overrides and exception checks', 'Disclosure & Audit'],
@@ -872,6 +874,83 @@ class Ifrs9ReportsController extends Controller
                 'heading' => 'ECL by Internal Risk Grade (A = lowest risk … G = default)',
                 'columns' => ['Grade', 'PD Band', 'Loans', 'EAD', 'Avg PD', 'Avg LGD', 'ECL', 'Coverage'],
                 'align' => ['l', 'l', 'r', 'r', 'r', 'r', 'r', 'r'],
+                'rows' => $rows,
+            ]]]);
+    }
+
+    /**
+     * Credit Risk Mitigation for agri lending. Smallholder input loans are
+     * secured by off-take/contract-farming, warehouse receipts, group/
+     * cooperative guarantees or AIP backing — not real estate — and LGD
+     * follows the enhancement's typical recovery.
+     */
+    public function crmAgri(Request $request)
+    {
+        $period = $this->period($request);
+        $EAD    = '(' . self::EAD_SQL . ')';
+
+        $rows = DB::table('loan_books')->where('reporting_period', $period)
+            ->groupBy('credit_enhancement')
+            ->selectRaw("COALESCE(NULLIF(credit_enhancement,''),'Unspecified') ce, COUNT(*) n,
+                SUM($EAD) ead, AVG(COALESCE(collection_lgd,0)) lgd,
+                SUM(COALESCE(ecl_value,0)) ecl")
+            ->orderByDesc(DB::raw("SUM($EAD)"))->get()
+            ->map(fn ($r) => [$r->ce, number_format($r->n), $this->money($r->ead),
+                $this->pct($r->lgd), $this->money($r->ecl),
+                $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+
+        return $this->respond(['key' => 'crm-agri', 'period' => $period,
+            'subtitle' => 'How the book is actually secured, and the LGD each enhancement implies — ' . $period,
+            'kpis' => $this->totalsKpis($period),
+            'sections' => [[
+                'heading' => 'Exposure & LGD by Credit Enhancement',
+                'columns' => ['Credit Enhancement', 'Loans', 'EAD', 'Avg LGD', 'ECL', 'Coverage'],
+                'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
+                'rows' => $rows,
+            ]]]);
+    }
+
+    /**
+     * Cooperative / anchor linkage. Individual smallholder loans tied to the
+     * same cooperative or anchor buyer default together. This shows exposure
+     * by linkage and an indicative contagion loss if the largest linkage
+     * group migrated wholesale to default (simplified — full asset-
+     * correlation modelling is a separate workstream).
+     */
+    public function coopLinkage(Request $request)
+    {
+        $period = $this->period($request);
+        $EAD    = '(' . self::EAD_SQL . ')';
+
+        $g = DB::table('loan_books')->where('reporting_period', $period)
+            ->groupBy('cooperative')
+            ->selectRaw("COALESCE(NULLIF(cooperative,''),'Unspecified') coop, COUNT(*) n,
+                SUM($EAD) ead, AVG(COALESCE(collection_lgd,0)) lgd,
+                SUM(COALESCE(ecl_value,0)) ecl")
+            ->orderByDesc(DB::raw("SUM($EAD)"))->get();
+
+        $totEad = (float) $g->sum('ead');
+        $rows = $g->map(fn ($r) => [$r->coop, number_format($r->n), $this->money($r->ead),
+            $this->pct($totEad ? $r->ead / $totEad : 0), $this->money($r->ecl)])->all();
+
+        // Indicative contagion: the largest linked group migrates to default
+        // (ECL ≈ EAD × its average LGD), less the ECL already held on it.
+        $linked = $g->reject(fn ($r) => str_starts_with($r->coop, 'Direct'));
+        $top = $linked->first();
+        $contagion = $top ? ($top->ead * $top->lgd - $top->ecl) : 0;
+
+        return $this->respond(['key' => 'coop-linkage', 'period' => $period,
+            'subtitle' => 'Correlated exposure by cooperative / anchor buyer — ' . $period,
+            'kpis' => [
+                ['label' => 'Cooperative/Anchor Groups', 'value' => number_format($linked->count()), 'tone' => 'maiic'],
+                ['label' => 'Largest Linked Group', 'value' => $top ? $top->coop : '—', 'tone' => 'amber'],
+                ['label' => 'Largest Group Exposure', 'value' => $this->money($top->ead ?? 0), 'tone' => 'rose'],
+                ['label' => 'Contagion Loss (top group defaults)', 'value' => $this->money(max(0, $contagion)), 'tone' => 'rose'],
+            ],
+            'sections' => [[
+                'heading' => 'Exposure by Cooperative / Anchor (correlated default risk)',
+                'columns' => ['Cooperative / Anchor', 'Loans', 'EAD', '% of Book', 'ECL'],
+                'align' => ['l', 'r', 'r', 'r', 'r'],
                 'rows' => $rows,
             ]]]);
     }
