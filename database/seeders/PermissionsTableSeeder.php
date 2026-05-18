@@ -653,6 +653,18 @@ class PermissionsTableSeeder extends Seeder
                 'display_name' => 'Access Reports',
                 'guard_name' => 'web',
             ],
+            [
+                'name' => 'reports.ifrs9',
+                'module' => 'Reports',
+                'display_name' => 'Access IFRS 9 Regulatory Reports',
+                'guard_name' => 'web',
+            ],
+            [
+                'name' => 'manual.view',
+                'module' => 'Reports',
+                'display_name' => 'Access IFRS 9 User Manual',
+                'guard_name' => 'web',
+            ],
             //audit logs
             [
                 'name' => 'activity_logs',

@@ -1,63 +1,72 @@
 <template>
-
     <div>
-        <a @click="open = ! open"
-           :class="[item.current ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer']">
-
-            <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300" aria-hidden="true" v-if="item.icon"
-                               :icon="item.icon"/>
-            {{ item.name }}
-            <div class="flex grow justify-end">
-                <font-awesome-icon class=" h-4 w-4" icon="chevron-down" v-if="open"/>
-                <font-awesome-icon class=" h-4 w-4" icon="chevron-right" v-if="!open"/>
-            </div>
-
+        <a @click="toggle"
+           :class="[active ? 'bg-maiic-800 text-white' : 'text-maiic-100 hover:bg-maiic-600',
+                    'group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer']"
+           :style="{ paddingLeft: (depth * 12 + 8) + 'px' }">
+            <font-awesome-icon class="mr-3 h-5 w-5 flex-shrink-0 text-maiic-300" aria-hidden="true"
+                               v-if="item.icon" :icon="item.icon"/>
+            <span class="flex-1">{{ item.name }}</span>
+            <font-awesome-icon class="h-3 w-3" :icon="open ? 'chevron-down' : 'chevron-right'"/>
         </a>
-        <div class="ml-2" v-for="child in item.children" v-if="open"
-             :key="child.name">
-            <Link v-if="child.route" :href="route(child.route)"
-                  :class="[(route().current(child.route)||(child.route_check && route().current(child.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
-                <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300" aria-hidden="true"
-                                   v-if="child.icon" :icon="child.icon"/>
-                {{ child.name }}
-            </Link>
+
+        <div v-show="open" class="mt-1 space-y-1">
+            <template v-for="child in (item.children || [])" :key="child.name">
+                <DropdownMenu v-if="child.dropdown && (child.children || []).length"
+                              :item="child" :depth="depth + 1"/>
+                <Link v-else-if="child.route"
+                      :href="route(child.route)"
+                      :class="[isCurrent(child) ? 'bg-maiic-800 text-white' : 'text-maiic-100 hover:bg-maiic-600',
+                               'group flex items-center px-2 py-2 text-sm font-medium rounded-md']"
+                      :style="{ paddingLeft: ((depth + 1) * 12 + 8) + 'px' }">
+                    <font-awesome-icon class="mr-3 h-4 w-4 flex-shrink-0 text-maiic-300" aria-hidden="true"
+                                       v-if="child.icon" :icon="child.icon"/>
+                    {{ child.name }}
+                </Link>
+            </template>
         </div>
     </div>
 </template>
 
 <script>
-import {Link} from '@inertiajs/vue3'
+import { Link } from '@inertiajs/vue3'
 
 export default {
-    components: {Link},
+    name: 'DropdownMenu',
+    components: { Link },
     props: {
-        opened: {
-            type: Boolean,
-            default: false
-        },
-        item: {
-            type: [Array, Object]
-        },
+        item: { type: [Array, Object], required: true },
+        depth: { type: Number, default: 0 },
+        opened: { type: Boolean, default: false },
     },
     data() {
-        return {
-            open: this.opened,
-        }
+        return { open: this.opened }
     },
     computed: {
-        classes() {
-            return this.open
-                ? 'inline-flex items-center px-1 pt-1 border-b-2 border-indigo-400 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-indigo-700 transition duration-150 ease-in-out'
-                : 'inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out'
-        }
+        active() {
+            return this.containsCurrent(this.item)
+        },
     },
-    mounted(){
-        this.item.children.forEach(item=>{
-            if(!item.route) return
-            if(route().current(item.route)||(item.route_check && route().current(item.route_check))){
-                this.open=true
+    methods: {
+        toggle() {
+            this.open = !this.open
+        },
+        isCurrent(node) {
+            if (!node || !node.route) return false
+            try {
+                return route().current(node.route) ||
+                    (node.route_check && route().current(node.route_check))
+            } catch (e) {
+                return false
             }
-        })
-    }
+        },
+        containsCurrent(node) {
+            if (this.isCurrent(node)) return true
+            return (node.children || []).some(c => this.containsCurrent(c))
+        },
+    },
+    mounted() {
+        if (this.containsCurrent(this.item)) this.open = true
+    },
 }
 </script>

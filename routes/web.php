@@ -1162,3 +1162,41 @@ Route::prefix('forecasting')->group(function () {
         Route::post( '/internal-grading/loanbook/update-with-pd', [InternalGradingController::class, 'updateLoanBookWithPD'])
             ->name('internal-grading.loanbook.updateWithPD');
         });
+
+// ============================================================================
+// IFRS 9 Regulatory Reporting Suite (MAIIC) + downloadable User Manual
+// Appended at EOF so it never collides with the team's /report module.
+// ============================================================================
+Route::middleware(['auth', 'permission:manual.view'])
+    ->get('/manual', [\App\Http\Controllers\ManualController::class, 'show'])
+    ->name('manual.view');
+
+Route::middleware(['auth', 'permission:reports.ifrs9'])
+    ->prefix('ifrs9-reports')
+    ->name('ifrs9-reports.')
+    ->group(function () {
+        $c = \App\Http\Controllers\Reports\Ifrs9ReportsController::class;
+        Route::get('/', [$c, 'index'])->name('index');
+        Route::get('/ecl', [$c, 'ecl'])->name('ecl');
+        Route::get('/account-ecl', [$c, 'accountEcl'])->name('account-ecl');
+        Route::get('/stage-allocation', [$c, 'stageAllocation'])->name('stage-allocation');
+        Route::get('/sicr-trigger', [$c, 'sicrTrigger'])->name('sicr-trigger');
+        Route::get('/stage-migration', [$c, 'stageMigration'])->name('stage-migration');
+        Route::get('/ecl-reconciliation', [$c, 'eclReconciliation'])->name('ecl-reconciliation');
+        Route::get('/gross-movement', [$c, 'grossMovement'])->name('gross-movement');
+        Route::get('/ecl-charge', [$c, 'eclCharge'])->name('ecl-charge');
+        Route::get('/pd-report', [$c, 'pdReport'])->name('pd-report');
+        Route::get('/lgd-collateral', [$c, 'lgdCollateral'])->name('lgd-collateral');
+        Route::get('/ead-report', [$c, 'eadReport'])->name('ead-report');
+        Route::get('/macro-scenario', [$c, 'macroScenario'])->name('macro-scenario');
+        Route::get('/scenario-ecl', [$c, 'scenarioEcl'])->name('scenario-ecl');
+        Route::get('/rbm-classification', [$c, 'rbmClassification'])->name('rbm-classification');
+        Route::get('/ifrs9-vs-rbm', [$c, 'ifrs9VsRbm'])->name('ifrs9-vs-rbm');
+        Route::get('/npl-arrears', [$c, 'nplArrears'])->name('npl-arrears');
+        Route::get('/provision-comparison', [$c, 'provisionComparison'])->name('provision-comparison');
+        Route::get('/fs-disclosure', [$c, 'fsDisclosure'])->name('fs-disclosure');
+        Route::get('/data-quality', [$c, 'dataQuality'])->name('data-quality');
+        Route::get('/sensitivity', [$c, 'sensitivity'])->name('sensitivity');
+        Route::get('/ews', [$c, 'ews'])->name('ews');
+        Route::get('/ai-narrative', [$c, 'aiNarrative'])->name('ai-narrative');
+    });
