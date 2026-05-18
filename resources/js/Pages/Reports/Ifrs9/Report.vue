@@ -1,5 +1,5 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, computed } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -19,6 +19,14 @@ const controlValues = reactive(
         acc[f.name] = f.value ?? ''
         return acc
     }, {})
+)
+
+// Fields with a `show_when` only render when the named control matches.
+const visibleControls = computed(() =>
+    (props.report.controls?.fields || []).filter(f => {
+        if (!f.show_when) return true
+        return Object.entries(f.show_when).every(([k, v]) => controlValues[k] === v)
+    })
 )
 
 function pdfUrl() {
@@ -87,9 +95,13 @@ function runControls() {
                 <div v-if="report.controls" class="bg-white rounded-2xl shadow-sm border border-maiic-200 p-6 mb-6">
                     <h3 class="font-semibold text-gray-900 mb-3">Run with your own inputs</h3>
                     <div class="flex flex-wrap items-end gap-4">
-                        <div v-for="f in report.controls.fields" :key="f.name">
+                        <div v-for="f in visibleControls" :key="f.name">
                             <label class="block text-xs font-medium text-gray-500 mb-1">{{ f.label }}</label>
-                            <input v-model="controlValues[f.name]" type="text"
+                            <select v-if="f.type === 'select'" v-model="controlValues[f.name]"
+                                    class="rounded-lg border-gray-300 text-sm py-2 px-3 shadow-sm focus:ring-maiic-500 focus:border-maiic-500 w-52">
+                                <option v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</option>
+                            </select>
+                            <input v-else v-model="controlValues[f.name]" type="text"
                                    class="rounded-lg border-gray-300 text-sm py-2 px-3 shadow-sm focus:ring-maiic-500 focus:border-maiic-500 w-44"
                                    placeholder="e.g. 10,25,50"/>
                         </div>

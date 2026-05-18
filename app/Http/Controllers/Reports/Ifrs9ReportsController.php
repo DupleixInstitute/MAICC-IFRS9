@@ -658,13 +658,17 @@ class Ifrs9ReportsController extends Controller
     /* ===================================================================== */
 
     /**
-     * The user supplies their own shock percentages for PD, LGD and a
-     * combined PD+LGD shock; ECL is recomputed for each. No hardcoded
-     * scenarios — driven by query params from the on-page controls form.
+     * Interactive stress test with two modes:
+     *  - driver: user shocks PD / LGD / combined directly.
+     *  - macro : user shocks a macro variable; it is run through a trained
+     *            regression (or manual slope/intercept) to a predicted PD
+     *            proxy, the implied FLI factor uplifts PD, and ECL is
+     *            recomputed. No hardcoded scenarios.
      */
     public function sensitivity(Request $request)
     {
         $period = $this->period($request);
+        $mode   = $request->query('mode', 'driver') === 'macro' ? 'macro' : 'driver';
 
         $parse = function ($raw, $default) {
             $raw = trim((string) ($raw ?? '')) === '' ? $default : $raw;
@@ -674,13 +678,86 @@ class Ifrs9ReportsController extends Controller
                 ->unique()->values()->all();
         };
 
-        $pdShocks       = $parse($request->query('pd_shocks'), '10,25,50');
-        $lgdShocks      = $parse($request->query('lgd_shocks'), '10,25,50');
-        $combinedShocks = $parse($request->query('combined_shocks'), '10,25,50');
-
         $base = (float) (DB::table('loan_books')->where('reporting_period', $period)
             ->selectRaw("SUM(" . self::EAD_SQL . " * COALESCE(pd_post_fli,pd_prefli,0) * COALESCE(lgd_value,0)) ecl")
             ->value('ecl') ?: 0);
+
+        // Regression models available for macro mode.
+        $models = [];
+        try {
+            $models = \App\Models\RegressionModel::select('id', 'name')->orderByDesc('id')->get()
+                ->map(fn ($m) => ['value' => (string) $m->id, 'label' => $m->name])->all();
+        } catch (\Throwable $e) {
+            $models = [];
+        }
+
+        if ($mode === 'macro') {
+            $modelId   = $request->query('regression_model_id');
+            $baseMacro = (float) ($request->query('base_macro', 100));
+            $slope     = (float) ($request->query('reg_slope', 1));
+            $intercept = (float) ($request->query('reg_intercept', 0));
+
+            if ($modelId) {
+                $rm = \App\Models\RegressionModel::find($modelId);
+                $coeffs = $rm?->coeffs ?? [];
+                $intercept = (float) ($coeffs['intercept'] ?? $intercept);
+                $slope = (float) (collect($coeffs)->reject(fn ($v, $k) => $k === 'intercept')->first() ?? $slope);
+            }
+
+            $macroShocks = $parse($request->query('macro_shocks'), '10,25,50');
+            $predBase = $slope * $baseMacro + $intercept;
+
+            $rows = [];
+            foreach ($macroShocks as $s) {
+                $macroShocked = $baseMacro * (1 + $s / 100);
+                $predShocked  = $slope * $macroShocked + $intercept;
+                $adj = $predBase != 0.0 ? ($predShocked / $predBase) - 1 : 0.0;
+                $f = 1 + $adj;
+                $val = (float) (DB::table('loan_books')->where('reporting_period', $period)
+                    ->selectRaw("SUM(" . self::EAD_SQL . " * LEAST(1,GREATEST(0,COALESCE(pd_post_fli,pd_prefli,0)*?)) * COALESCE(lgd_value,0)) ecl", [$f])
+                    ->value('ecl') ?: 0);
+                $rows[] = ['Macro +' . $s . '%', $this->num($macroShocked, 4), $this->pct($adj),
+                    $this->money($base), $this->money($val), $this->money($val - $base),
+                    $this->pct($base ? ($val - $base) / $base : 0)];
+            }
+
+            $section = [
+                'heading' => 'ECL Sensitivity to a Macro Shock (regression → PD → ECL)',
+                'columns' => ['Scenario', 'Shocked Macro', 'Implied PD Adj.', 'Base ECL', 'Stressed ECL', 'Increase', '% Increase'],
+                'align'   => ['l', 'r', 'r', 'r', 'r', 'r', 'r'],
+                'rows'    => $rows,
+            ];
+            $controls = [
+                'action' => 'ifrs9-reports.sensitivity',
+                'fields' => [
+                    ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'value' => 'macro',
+                     'options' => [['value' => 'driver', 'label' => 'PD / LGD drivers'],
+                                   ['value' => 'macro', 'label' => 'Macro → regression → PD']]],
+                    ['name' => 'regression_model_id', 'label' => 'Regression model', 'type' => 'select',
+                     'value' => (string) ($modelId ?? ''), 'show_when' => ['mode' => 'macro'],
+                     'options' => array_merge([['value' => '', 'label' => 'Manual slope/intercept']], $models)],
+                    ['name' => 'reg_slope', 'label' => 'Slope (if manual)', 'value' => (string) $slope, 'show_when' => ['mode' => 'macro']],
+                    ['name' => 'reg_intercept', 'label' => 'Intercept (if manual)', 'value' => (string) $intercept, 'show_when' => ['mode' => 'macro']],
+                    ['name' => 'base_macro', 'label' => 'Base macro value', 'value' => (string) $baseMacro, 'show_when' => ['mode' => 'macro']],
+                    ['name' => 'macro_shocks', 'label' => 'Macro shocks (%)', 'value' => implode(',', $macroShocks), 'show_when' => ['mode' => 'macro']],
+                ],
+            ];
+
+            return $this->respond(['key' => 'sensitivity', 'period' => $period,
+                'subtitle' => 'Macro shock run through the regression to PD, then ECL.',
+                'controls' => $controls,
+                'kpis' => [
+                    ['label' => 'Base ECL', 'value' => $this->money($base), 'tone' => 'maiic'],
+                    ['label' => 'Regression', 'value' => $modelId ? 'Model #' . $modelId : 'Manual', 'tone' => 'amber'],
+                    ['label' => 'Period', 'value' => $period, 'tone' => 'emerald'],
+                ],
+                'sections' => [$section]]);
+        }
+
+        // ---- driver mode (PD / LGD) ----
+        $pdShocks       = $parse($request->query('pd_shocks'), '10,25,50');
+        $lgdShocks      = $parse($request->query('lgd_shocks'), '10,25,50');
+        $combinedShocks = $parse($request->query('combined_shocks'), '10,25,50');
 
         $stressed = function (float $pdPct, float $lgdPct) use ($period, $base) {
             $pdF  = 1 + $pdPct / 100;
@@ -708,9 +785,12 @@ class Ifrs9ReportsController extends Controller
             'controls' => [
                 'action' => 'ifrs9-reports.sensitivity',
                 'fields' => [
-                    ['name' => 'pd_shocks',       'label' => 'PD shocks (%)',       'value' => implode(',', $pdShocks)],
-                    ['name' => 'lgd_shocks',      'label' => 'LGD shocks (%)',      'value' => implode(',', $lgdShocks)],
-                    ['name' => 'combined_shocks', 'label' => 'PD & LGD shocks (%)', 'value' => implode(',', $combinedShocks)],
+                    ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'value' => 'driver',
+                     'options' => [['value' => 'driver', 'label' => 'PD / LGD drivers'],
+                                   ['value' => 'macro', 'label' => 'Macro → regression → PD']]],
+                    ['name' => 'pd_shocks',       'label' => 'PD shocks (%)',       'value' => implode(',', $pdShocks),       'show_when' => ['mode' => 'driver']],
+                    ['name' => 'lgd_shocks',      'label' => 'LGD shocks (%)',      'value' => implode(',', $lgdShocks),      'show_when' => ['mode' => 'driver']],
+                    ['name' => 'combined_shocks', 'label' => 'PD & LGD shocks (%)', 'value' => implode(',', $combinedShocks), 'show_when' => ['mode' => 'driver']],
                 ],
             ],
             'kpis' => [
