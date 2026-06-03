@@ -19,7 +19,7 @@
                                 </div>
                                 <div class="relative w-auto pl-4 flex-initial">
                                     <div
-                                        class="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 shadow-lg rounded-full bg-blue-500">
+                                        class="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 shadow-lg rounded-full bg-maiic-500">
                                         <font-awesome-icon icon="graduation-cap"/>
                                     </div>
                                 </div>
@@ -39,7 +39,7 @@
                                 </div>
                                 <div class="relative w-auto pl-4 flex-initial">
                                     <div
-                                        class="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 shadow-lg rounded-full bg-green-500">
+                                        class="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 shadow-lg rounded-full bg-maiic-500">
                                         <font-awesome-icon icon="money-bill"/>
                                     </div>
                                 </div>
@@ -80,7 +80,7 @@
                                 </div>
                                 <div class="relative w-auto pl-4 flex-initial">
                                     <div
-                                        class="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 shadow-lg rounded-full bg-green-500">
+                                        class="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 shadow-lg rounded-full bg-maiic-500">
                                         <font-awesome-icon icon="dollar-sign"/>
                                     </div>
                                 </div>

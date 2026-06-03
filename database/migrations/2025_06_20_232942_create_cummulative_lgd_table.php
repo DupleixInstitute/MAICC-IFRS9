@@ -16,7 +16,9 @@ return new class extends Migration
             $table->timestamps();
             $table->date('reporting_period')->index()->comment('Reporting period for the loss given default');
             $table->date('start_period')->index()->comment('Start date of the reporting period');
-            $table->string('portfolio_group')->nullable()->index();
+            $table->string('lgd_calculation_level')->nullable()->comment('Level at which LGD is calculated (e.g., portfolio, sector, customer)');
+            $table->unsignedBigInteger('lgd_calculation_id')->nullable()->comment('ID corresponding to the level of LGD calculation');
+            $table->string('lgd_calculation_code')->nullable()->comment('Code corresponding to the level of LGD calculation');
             $table->decimal('start_total_stage3', 18, 4)->comment('Total amount in stage 3');
             $table->decimal('end_total_stage3', 18, 4)->comment('Total amount in stage 3 at the end of the reporting period');
             $table->decimal('lgd_cummulative', 18, 4)->comment('Loss given default percentage');
@@ -40,6 +42,7 @@ return new class extends Migration
             $table->integer('periods_count')->default(1);
             $table->json('periods_list')->nullable()->comment('List of Periods In cummulative');
             $table->string('calculation_source')->default('system');
+            $table->json('supporting_file')->nullable();
             $table->softDeletes();
             $table->index('deleted_at');
         });

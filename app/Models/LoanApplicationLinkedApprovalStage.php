@@ -17,7 +17,7 @@ class LoanApplicationLinkedApprovalStage extends Model
         'is_current' => 'boolean',
         'completed' => 'boolean',
     ];
-    protected $appends = ['was_sent_back', 'has_same_role_as_approver'];
+    protected $appends = [];
     protected $fillable = [
         'is_current',
     ];

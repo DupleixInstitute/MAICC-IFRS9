@@ -3,12 +3,19 @@
         <template #header>
             <div class="flex justify-between items-center">
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Transition Matrices
+                    Transition Matrix Monthly Probability
                 </h2>
-                <Link :href="route('transition-matrices.create')" 
-                      class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition">
-                    Create New Matrix
-                </Link>
+                <div class="flex items-center space-x-2">
+                    <button @click="showReportModal = true"
+                          class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:ring focus:ring-blue-300 transition">
+                        <i class="fas fa-file-archive mr-2"></i>
+                        Get Report
+                    </button>
+                    <Link :href="route('transition-matrices.create')"
+                          class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition">
+                        Create New Matrix
+                    </Link>
+                </div>
             </div>
         </template>
 
@@ -45,24 +52,25 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                        <th class="px-6 py-3">Transition Profile Id</th>
-                                        <th class="px-6 py-3">Portfolio Group Id</th>
-                                        <th class="px-6 py-3">Calculation Source</th>
-                                        <th class="px-6 py-3">Payments Included?</th>
-                                        <th class="px-6 py-3">Start Period</th>
-                                        <th class="px-6 py-3">End Period</th>
-                                        <th class="px-6 py-3">Transition Years</th>
-                                        <th class="px-6 py-3">Records Transitioned</th>
-                                        <th class="px-6 py-3">Records Updated</th>
-                                        <th class="px-6 py-3">Reporting Periods</th>
-                                        <th class="px-6 py-3">No of Calc Runs</th>
-                                        <th class="px-6 py-3">Transition Balance</th>
-                                        <th class="px-6 py-3">Updated Balance</th>
-                                        <th class="px-6 py-3">Status</th>
-                                        <th class="px-6 py-3">Last Calc Date</th>
-                                        <th class="px-6 py-3">Comments</th>
-                                        <th class="px-6 py-3">Actions</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Profile Id</th>
+                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PD Level</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmentation </th>
+                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Calculation Source</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payments Included?</th>
+                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Start Period</th>
+                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">End Period</th>
+                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Years</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records Transitioned</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records Updated</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporting Periods</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No of Calc Runs</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Balance</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated Balance</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Calc Date</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
@@ -72,8 +80,37 @@
                                     <tr v-for="matrix in matrices.data" :key="matrix.id">
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.id }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.transition_profile_id }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.portfolio?.name ?? '-' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 py-1 text-center text-xs font-semibold rounded-full"
+                                                  :class="{
+                                                      'bg-blue-100 text-blue-800': matrix.pd_calculation_level === 'portfolio',
+                                                      'bg-green-100 text-green-800': matrix.pd_calculation_level === 'sector'
+                                                  }">
+                                                {{ matrix.pd_calculation_level ? matrix.pd_calculation_level.toUpperCase() : '-' }}
+                                            </span>
+                                        </td>       
+
+                                        <!-- Portfolio/Sector Name -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div v-if="matrix.pd_calculation_level === 'portfolio'">
+                                                <span v-if="matrix.portfolio">
+                                                    {{ matrix.portfolio.name }}
+                                                </span>
+                                                <span v-else class="text-gray-400">
+                                                    Portfolio ID: {{ matrix.pd_calculation_id }}
+                                                </span>
+                                            </div>
+                                            <div v-else-if="matrix.pd_calculation_level === 'sector'">
+                                                <span v-if="matrix.sector">
+                                                    {{ matrix.sector.code }} - {{ matrix.sector.name }}
+                                                </span>
+                                                <span v-else class="text-gray-400">
+                                                    Sector Code: {{ matrix.pd_calculation_code }}
+                                                </span>
+                                            </div>
+                                            <span v-else class="text-gray-400">-</span>
+                                        </td>
+                                        <td class="px-6 py-4 text-center whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.pd_start_stage_total_type }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.start_reporting_period }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.end_reporting_period }}</td>
@@ -82,7 +119,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.records_count_updated }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.reporting_periods_count }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.run_no }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.transition_balance }}</td>
+                                        <td class="px-6 py-4 text-right whitespace-nowrap">{{ formatCurrency(matrix.transition_balance )}}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">{{ matrix.updated_balance }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-gray-600">
                                         <span
@@ -101,7 +138,7 @@
                                             <Link :href="route('transition-matrices.show', matrix.id)" class="text-indigo-600 hover:text-indigo-900 mr-4">View</Link>
                                         </td> -->
                                         <td class="px-6 py-4 text-right text-sm font-medium">
-                                            <div class="flex items-center justify-end space-x-4 text-blue-600">
+                                            <div class="flex  flex-wrap gap-2 w-20">
                                                 <button
                                                     @click="openModal('view', matrix)"
                                                     class="text-gray-600 hover:text-gray-800" title="View"
@@ -123,6 +160,34 @@
                                                     class="text-gray-600 hover:text-gray-800" title="Re-run"
                                                 >
                                                     <font-awesome-icon :icon="['fas', 'calculator']" class="w-8 h-8" />
+                                                </button>
+
+                                                 <button 
+                                                        v-if="matrix.calculation_source === 'manual'"
+                                                        @click="matrix.has_supporting_document ? downloadFile(matrix.id) : downloadFile(matrix.id)"
+                                                        :class="[
+                                                        matrix.has_supporting_document 
+                                                            ? 'text-gray-600 hover:text-gray-800' 
+                                                            : 'text-gray-600 hover:text-gray-800'
+                                                        ]"
+                                                        :title="matrix.has_supporting_document ? 'Download Support Doc' : 'Attach Support Doc First'"
+                                                    >
+                                                        <i v-if="matrix.has_supporting_document"> 
+                                                            <font-awesome-icon :icon="['fas', 'check-circle']" class="w-8 h-8" />
+                                                        </i>
+                                                        <i v-else>
+                                                             <font-awesome-icon :icon="['fas', 'file-download']" class="w-8 h-8" />
+                                                        </i>
+                                                 </button>
+
+                                                    <button 
+                                                        v-if="matrix.calculation_source === 'manual'"
+                                                        @click="openUploadModal(matrix.id)" 
+                                                        class="text-gray-600 hover:text-gray-800 transition-colors"
+                                                        aria-label="Attach File"
+                                                        title="Attach File"
+                                                    >
+                                                        <font-awesome-icon :icon="['fas', 'paperclip']" class="w-8 h-8" />
                                                 </button>
 
                                                  <!-- LOCKED STATE -->
@@ -182,7 +247,7 @@
                     <button @click="showModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
                     <button 
                         @click="submitUpdate" 
-                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                        class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                         :disabled="loading === selectedTD?.id"
                     >
                         <span v-if="loading === selectedTD?.id" class="animate-spin mr-1"></span>
@@ -191,6 +256,76 @@
                 </div>
             </div>
         </div>
+
+        
+        <div
+            v-if="showUploadModal"
+            class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+            >
+            <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg animate-fadeIn">
+                <h2 class="text-xl font-bold mb-3 text-gray-800">
+                Attach Supporting Document
+                </h2>
+
+                <p class="text-sm text-gray-600 mb-4 leading-relaxed">
+                Upload a supporting document for this  calculation.  
+                This may include PDF reports, Excel models, or images validating the manual calculation.
+                </p>
+                <!-- File Upload Box -->
+                <label
+                class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 transition"
+                >
+                <div class="flex flex-col items-center pt-4">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-500"></i>
+                    <span class="mt-2 text-sm text-gray-600">Click to choose a file</span>
+                </div>
+
+                <input
+                    type="file"
+                    class="hidden"
+                    @change="handleModalFileChange"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.png"
+                />
+                </label>
+
+                <!-- File Info -->
+                <div
+                v-if="uploadFile"
+                class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800"
+                >
+                <strong>Selected File:</strong> {{ uploadFile.name }}  
+                <div class="text-xs mt-1 text-blue-600">
+                    Size: {{ Math.round(uploadFile.size / 1024) }} KB
+                </div>
+                </div>
+
+                <!-- Max Size & Accepted Formats Note -->
+                <div class="mt-3 text-xs text-gray-500">
+                <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG  
+                <br />
+                <strong>Max Size:</strong> 5 MB
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex justify-end space-x-3 mt-6">
+                <button
+                    @click="showUploadModal = false"
+                    class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    @click="submitUpload"
+                    :disabled="uploadLoading"
+                    class="px-5 py-2 bg-maiic-600 text-white rounded-lg hover:bg-maiic-700 transition disabled:opacity-50"
+                >
+                    <span v-if="uploadLoading">Uploading...</span>
+                    <span v-else>Upload</span>
+                </button>
+                </div>
+            </div>
+            </div>
 
         <HelpManual />
 
@@ -202,6 +337,8 @@
                 type="normal"
                 />
         </Modal>
+
+        <ExportModal :show="showReportModal" @close="showReportModal = false" />
     </app-layout>
 </template>
 <script>
@@ -213,6 +350,7 @@ import JetInput from '@/Jetstream/Input.vue'
 import Pagination from '@/Shared/Pagination.vue'
 import Modal from './Modal.vue'
 import ViewEditMatrix from './ViewEditMatrix.vue'
+import ExportModal from './Components/ExportModal.vue'
 import HelpManual from '../../Components/HelpManual.vue';
 
 export default {
@@ -222,6 +360,7 @@ export default {
         Pagination,
         Modal,
         ViewEditMatrix,
+        ExportModal,
         HelpManual,
     },
 
@@ -249,6 +388,13 @@ export default {
         const selectedTD = ref(null)
         const selectedPeriod = ref('')
         const loading = ref(null)
+
+        const showUploadModal = ref(false);
+        const uploadTargetId = ref(null);
+        const uploadFile = ref(null);
+        const uploadLoading = ref(false);
+        const showReportModal = ref(false);
+
 
         const calculationSourceLabels = {
             manual: 'Manual',
@@ -343,7 +489,62 @@ export default {
             })
         }
 
+        
+           const openUploadModal = (id) => {
+                uploadTargetId.value = id;
+                uploadFile.value = null;
+                showUploadModal.value = true;
+            };
+
+            const handleModalFileChange = (e) => {
+                uploadFile.value = e.target.files[0];
+            };
+
+        const submitUpload = () => {
+            if (!uploadFile.value) {
+                alert('Please select a file first.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', uploadFile.value);
+
+            uploadLoading.value = true;
+
+            router.post(route('transition-matrices.attach-file', uploadTargetId.value), formData, {
+                forceFormData: true,
+                preserveScroll: true,
+
+                onSuccess: () => {
+                    alert(' File attached successfully');
+                    showUploadModal.value = false;
+                    router.reload({ only: ['matrices'] });
+                },
+
+                onError: (errors) => {
+                    console.error(errors);
+                    alert(' Upload failed');
+                },
+
+                onFinish: () => {
+                    uploadLoading.value = false;
+                },
+            });
+        };
+
+            const downloadFile = (id) => {
+                window.location.href = `/transition-matrix/${id}/download-file`;
+            };
+
+        
+        const formatCurrency = (value) => {
+            if (!value) return 'E0.00';
+            return  new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+        };
+                    
+
         return {
+            formatCurrency,
             search,
             startDate,
             endDate,
@@ -361,7 +562,13 @@ export default {
             reRunMatrix,
             lockPD,
             formatDate,
-            calculationSourceLabels, // ✅ Now returned
+            calculationSourceLabels,
+            showUploadModal,
+            downloadFile,
+            submitUpload,
+            handleModalFileChange,
+            openUploadModal,
+            showReportModal,
         }
     },
 }

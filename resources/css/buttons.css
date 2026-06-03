@@ -1,6 +1,9 @@
 .btn {
-    @apply px-4 py-2 bg-blue-600 text-white rounded;
+    @apply px-4 py-2 bg-maiic-600 hover:bg-maiic-700 text-white rounded transition;
 }
+.btn-primary { @apply bg-maiic-600 hover:bg-maiic-700 text-white; }
+.btn-success { @apply bg-maiic-600 hover:bg-maiic-700 text-white; }
+.btn-info    { @apply bg-maiic-600 hover:bg-maiic-700 text-white; }
 .btn-spinner,
 .btn-spinner:after {
     border-radius: 50%;

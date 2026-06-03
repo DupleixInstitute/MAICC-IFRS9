@@ -6,23 +6,19 @@
             </h2>
         </template>
         <div class=" mx-auto">
-            <div class="columns-1 md:columns-3 space-y-4">
-                <div v-for="category in reports" class="relative mb-4 break-inside-avoid-column">
-                    <div>
-                        <div class="border py-2 px-4 bg-white">
-                            <h4>{{ category.symbol }}. {{ category.name }}</h4>
-                        </div>
-                        <div class="border bg-white">
-                            <div v-for="report in category.reports">
-                                <inertia-link v-if="can(report.permission)"
-                                              class="w-full border-t-2 border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                                              :href="route(report.route)">
-                                    {{ report.symbol }}. {{ report.name }}
-                                </inertia-link>
-                            </div>
-                        </div>
-                    </div>
-
+            <div v-for="category in reports" :key="category.symbol" class="mb-6">
+                <h3 class="font-semibold text-gray-700 mb-2">
+                    {{ category.name }}
+                </h3>
+                <div class="bg-white rounded shadow overflow-x-auto">
+                    <inertia-link v-for="report in category.reports"
+                                  :key="report.route"
+                                  v-show="can(report.permission)"
+                                  class="w-full border-t-2 border-gray-100 font-medium text-gray-600 py-2 px-4 block hover:bg-gray-100 transition duration-150"
+                                  :href="route(report.route)">
+                        <font-awesome-icon :icon="reportIcon(category)" class="w-4 h-4 mr-2"></font-awesome-icon>
+                        {{ report.name }}
+                    </inertia-link>
                 </div>
             </div>
         </div>
@@ -75,6 +71,9 @@ export default {
     },
 
     methods: {
+        reportIcon(category) {
+            return /export/i.test(category.name) ? 'file-export' : 'balance-scale'
+        },
         reset() {
             this.form = mapValues(this.form, () => null)
         },

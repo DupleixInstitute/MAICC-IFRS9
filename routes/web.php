@@ -7,8 +7,16 @@ use App\Http\Controllers\ManualsController;
 use App\Http\Controllers\LossGiveDefaultController;
 use App\Http\Controllers\LossGivenDefaultCummulativeController;
 use App\Http\Controllers\ExpectedCreditLossController;
+use App\Http\Controllers\CollateralController;
+use App\Http\Controllers\CreditLossDataController;
+use App\Http\Controllers\CreditLossDefinitionController;
+use App\Http\Controllers\RegressionController;
+use App\Http\Controllers\ManualForecastController;
+use App\Http\Controllers\InternalGradingController;
 use Inertia\Inertia;
 use App\Http\Controllers\ImportsController;
+use App\Http\Controllers\GeneralImportController;
+use App\Http\Controllers\GeneralImportConfigurationController;
 use Illuminate\Support\Facades\Artisan;
 use Webit\Util\EvalMath\EvalMath;
 use Illuminate\Support\Facades\Route;
@@ -43,32 +51,34 @@ use App\Http\Controllers\ClientFilesController;
 use App\Http\Controllers\ClientNotesController;
 use App\Http\Controllers\ExcelExportController;
 use App\Http\Controllers\ExpenseTypeController;
+use App\Http\Controllers\IndustryTypesController;
 use App\Http\Controllers\PaymentTypeController;
 use App\Http\Controllers\SmsGatewaysController;
 use App\Http\Controllers\ClientImportController;
 use App\Http\Controllers\ClientIncomeController;
 use App\Http\Controllers\ClientPotersController;
 use App\Http\Controllers\JournalEntryController;
-use App\Http\Controllers\LoanProductsController;
-use App\Http\Controllers\CommunicationController;
-use App\Http\Controllers\IndustryTypesController;
-use  App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\ChartOfAccountController;
-use App\Http\Controllers\LoanGuarantorsController;
-use App\Http\Controllers\TransitionProfileDefinitionController;
-use App\Http\Controllers\TransitionProfileOptionController;
-use App\Http\Controllers\TransitionMatrixCummulativeController;
-
-// use App\Http\Controllers\LoanApplicationFilesController;
-
-use App\Http\Controllers\LoanPortfoliosController;
-use App\Http\Controllers\CourseMaterialsController;
 use App\Http\Controllers\EventCategoriesController;
 use App\Http\Controllers\FinancialPeriodController;
 use App\Http\Controllers\CommunicationLogController;
+use App\Http\Controllers\CommunicationController;
 use App\Http\Controllers\CourseCategoriesController;
 use App\Http\Controllers\LoanApplicationsController;
+use App\Http\Controllers\LoanProductCategoriesController;
+use App\Http\Controllers\LoanProductsController;
+use App\Http\Controllers\LoanGuarantorsController;
+use App\Http\Controllers\LoanPortfoliosController;
+use App\Http\Controllers\MemberPortal\MemberPortalLoansController;
+use App\Http\Controllers\MemberPortal\MemberPortalUsersController;
+use App\Http\Controllers\MemberPortal\MemberPortalEventsController;
+use App\Http\Controllers\MemberPortal\MemberPortalCoursesController;
+use App\Http\Controllers\MemberPortal\MemberPortalArticlesController;
 use App\Http\Controllers\TransitionMatrixController;
+use App\Http\Controllers\TransitionMatrixCummulativeController;
+use App\Http\Controllers\TransitionMatrixDataController;
+use App\Http\Controllers\TransitionProfileDefinitionController;
+use App\Http\Controllers\TransitionProfileOptionController;
 use App\Http\Controllers\ArticleCategoriesController;
 use App\Http\Controllers\ScoringAttributesController;
 use App\Http\Controllers\ClientBalanceSheetController;
@@ -79,17 +89,18 @@ use App\Http\Controllers\ClientRatioAnalysisController;
 use App\Http\Controllers\CourseRegistrationsController;
 use App\Http\Controllers\CommunicationCampaignController;
 use App\Http\Controllers\CommunicationTemplateController;
-use App\Http\Controllers\LoanProductCategoriesController;
-use App\Http\Controllers\MemberPortal\MemberPortalLoansController;
-use App\Http\Controllers\MemberPortal\MemberPortalUsersController;
-use App\Http\Controllers\MemberPortal\MemberPortalEventsController;
-use App\Http\Controllers\MemberPortal\MemberPortalCoursesController;
-use App\Http\Controllers\MemberPortal\MemberPortalArticlesController;
 use App\Http\Controllers\MemberPortal\MemberPortalLoanFilesController;
 use App\Http\Controllers\MemberPortal\MemberPortalLoanNotesController;
 use App\Http\Controllers\MemberPortal\MemberPortalLoanGuarantorsController;
 use App\Http\Controllers\MemberPortal\MemberPortalCourseMaterialsController;
 use App\Http\Controllers\MemberPortal\MemberPortalCourseRegistrationsController;
+
+// FLI Adjustment Controllers
+use App\Http\Controllers\FLI\ScenarioSetController;
+use App\Http\Controllers\FLI\ExternalCalculationsController;
+use App\Http\Controllers\LGDCalculationController;
+use App\Http\Controllers\LGDPaymentReportController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -106,6 +117,13 @@ Route::group(['prefix' => 'dashboard'], function () {
     Route::get('{scope}/create-filter', [DashboardController::class, 'filter'])->name('dashboard.filter');
     Route::get('filter-results', [DashboardController::class, 'filterResults'])->name('dashboard.filter-results');
     Route::get('my-workspace', [DashboardController::class, 'myWorkspace'])->name('dashboard.my-workspace');
+});
+
+// IFRS 9 period-close workspace (role-aware checklist).
+Route::middleware(['auth'])->group(function () {
+    Route::get('/workspace', [\App\Http\Controllers\WorkspaceController::class, 'index'])->name('workspace.index');
+    Route::post('/workspace/toggle', [\App\Http\Controllers\WorkspaceController::class, 'toggle'])->name('workspace.toggle');
+    Route::post('/workspace/message', [\App\Http\Controllers\WorkspaceController::class, 'postMessage'])->name('workspace.message');
 });
 //users
 Route::group(['prefix' => 'user'], function () {
@@ -140,16 +158,6 @@ Route::prefix('loan_product')->name('loan_products.')->group(function () {
 //comments
     Route::post('/{article}/comment/store', [LoanProductsController::class, 'storeComment'])->name('comments.store');
     Route::delete('/comment/{comment}/destroy', [LoanProductsController::class, 'destroyComment'])->name('comments.destroy');
-
-    //categories
-    Route::prefix('category')->name('categories.')->group(function () {
-        Route::get('/', [LoanProductCategoriesController::class, 'index'])->name('index');
-        Route::get('/create', [LoanProductCategoriesController::class, 'create'])->name('create');
-        Route::post('/store', [LoanProductCategoriesController::class, 'store'])->name('store');
-        Route::get('/{category}/edit', [LoanProductCategoriesController::class, 'edit'])->name('edit');
-        Route::put('/{category}/update', [LoanProductCategoriesController::class, 'update'])->name('update');
-        Route::delete('/{category}/destroy', [LoanProductCategoriesController::class, 'destroy'])->name('destroy');
-    });
 });
 //events
 Route::prefix('scoring_attribute')->name('scoring_attributes.')->group(function () {
@@ -279,9 +287,12 @@ Route::group(['prefix' => 'loan_application', 'as' => 'loan_applications.'], fun
 
     //loan books
     Route::get('/loan-books', [LoanBookController::class, 'index'])->name('loan-book');
+    Route::get('/loan-books/summary', [LoanBookController::class, 'summary'])->name('loan-book.summary');
     Route::post('/save-loan-book', [LoanBookController::class, 'import'])->name('loan-book.save-loan-book');
     Route::get('/loan-books/import', [LoanBookController::class, 'createImport'])->name('loan-book.import.create');
     Route::post('/loan-books/import', [LoanBookController::class, 'import'])->name('loan-book.import.store');
+    Route::post('/loan-books/import-group', [LoanBookController::class, 'importGroup'])->name('loan-book.import.group');
+    Route::get('/loan-books/download-ebanker-template', [LoanBookController::class, 'downloadEbanker'])->name('loan-book.download-ebanker-template');
 
     //TABLE COLUMNS
 
@@ -544,6 +555,31 @@ Route::group(['prefix' => 'setting'], function () {
 Route::group(['prefix' => 'report'], function () {
     Route::get('/', [ReportsController::class, 'index'])->name('reports.index');
 
+    Route::get('/ecl-reconciliation', [ReportsController::class, 'eclReconciliation'])->name('reports.ecl-reconciliation');
+    Route::get('/loan-book-reconciliation', [ReportsController::class, 'loanBookReconciliation'])->name('reports.loan-book-reconciliation');
+    Route::get('/loan-book-export', [ReportsController::class, 'loanBookExport'])->name('reports.loan-book-export');
+    Route::get('/ecl-export', [ReportsController::class, 'eclExport'])->name('reports.ecl-export');
+    Route::get('/disbursement-report', [ReportsController::class, 'disbursementReport'])->name('reports.disbursement-report');
+});
+//lgd repayment / payment tracking
+Route::group(['prefix' => 'lgd-calculations', 'as' => 'lgd-calculations.'], function () {
+    Route::get('/', [LGDCalculationController::class, 'index'])->name('index');
+    Route::get('/create', [LGDCalculationController::class, 'create'])->name('create');
+    Route::get('/compare', [LGDCalculationController::class, 'compare'])->name('compare');
+    Route::post('/', [LGDCalculationController::class, 'store'])->name('store');
+    Route::get('/{id}', [LGDCalculationController::class, 'show'])->name('show')->whereNumber('id');
+    Route::post('/{id}/recalculate', [LGDCalculationController::class, 'recalculate'])->name('recalculate')->whereNumber('id');
+    Route::post('/{id}/cancel', [LGDCalculationController::class, 'cancel'])->name('cancel')->whereNumber('id');
+    Route::get('/{id}/export', [LGDCalculationController::class, 'export'])->name('export')->whereNumber('id');
+    Route::delete('/{id}', [LGDCalculationController::class, 'destroy'])->name('destroy')->whereNumber('id');
+});
+
+Route::group(['prefix' => 'lgd-payment-report', 'as' => 'lgd-payment-report.'], function () {
+    Route::get('/', [LGDPaymentReportController::class, 'index'])->name('index');
+    Route::match(['get', 'post'], '/generate', [LGDPaymentReportController::class, 'generateReport'])->name('generate');
+    Route::get('/monthly-summary', [LGDPaymentReportController::class, 'monthlySummary'])->name('monthly-summary');
+    Route::get('/contract-details', [LGDPaymentReportController::class, 'contractDetails'])->name('contract-details');
+    Route::get('/comparison/{id1}/{id2}', [LGDPaymentReportController::class, 'downloadComparison'])->name('download-comparison')->whereNumber(['id1', 'id2']);
 });
 //license
 Route::group(['prefix' => 'license'], function () {
@@ -600,6 +636,10 @@ Route::group(['prefix' => 'transition-matrix', 'as' => 'transition-matrices.'], 
     Route::post('/{matrix}/update-loanbook', [TransitionMatrixController::class, 'updateLoanBook'])->name('matrix.loanbook-update');
     Route::post('/{matrix}/lock-pd',[TransitionMatrixController::class,'keyLock'])->name('lock');
 
+    Route::post('/{matrix}/attach-file', [TransitionMatrixController::class, 'attachFile'])->name('attach-file');
+    Route::get('/{id}/download-file', [TransitionMatrixController::class, 'downloadFile'])->name('download-file');
+    Route::get('/report-by-period', [TransitionMatrixController::class, 'downloadReportByPeriod'])->name('report-by-period');
+    Route::delete('/{matrix}/delete', [TransitionMatrixController::class, 'delete'])->name('delete');
 });
 
 
@@ -635,9 +675,105 @@ Route::get('/transition-matrix-cummulative', [TransitionMatrixCummulativeControl
 Route::get('/transition-matrix-cummulative/create', [TransitionMatrixCummulativeController::class, 'create'])->name('transition-matrix-cummulative.create');
 Route::post('/transition-matrix-cummulative', [TransitionMatrixCummulativeController::class, 'store'])->name('transition-matrix-cummulative.store');
 Route::post('/transition-matrix-cummulative/{matrix}/rerun', [TransitionMatrixCummulativeController::class, 'rerun'])->name('transition-matrix-cummulative.rerun');
-Route::post('/transition-matrix-cumulative/{matrix}/update',[TransitionMatrixCummulativeController::class,'updateLoanBook'])->name('transition-matrix-cummulative.update-loan-book');
-Route::get('/transition-matrix-cumulative/{matrix}/data', [TransitionMatrixCummulativeController::class, 'getData']);
-Route::post('/transition-matrix-cumulative/{matrix}/lock-pd',[TransitionMatrixCummulativeController::class,'keyLock'])->name('transition-matrix-cumulative.lock');
+Route::post('/transition-matrix-cummulative/{matrix}/update',[TransitionMatrixCummulativeController::class,'updateLoanBook'])->name('transition-matrix-cummulative.update-loan-book');
+Route::get('/transition-matrix-cummulative/{matrix}/data', [TransitionMatrixCummulativeController::class, 'getData']);
+Route::post('/transition-matrix-cummulative/{matrix}/lock-pd',[TransitionMatrixCummulativeController::class,'keyLock'])->name('transition-matrix-cummulative.lock');
+Route::post('/transition-matrix-cummulative/{matrix}/attach-file', [TransitionMatrixCummulativeController::class, 'attachFile'])->name('transition-matrix-cummulative.attach-file');
+Route::get('/transition-matrix-cummulative/{id}/download-file', [TransitionMatrixCummulativeController::class, 'downloadFile'])->name('transition-matrix-cummulative.download-file');
+Route::get('/transition-matrix-cummulative/report-by-period', [TransitionMatrixCummulativeController::class, 'downloadReportByPeriod'])->name('transition-matrix-cummulative.report-by-period');
+
+
+//Transition Profile Definitions
+// Route::group(['prefix' => 'transition-profile-definitions', 'as' => 'transition-profile-definitions.'], function () {
+//     Route::get('/', [TransitionProfileDefinitionController::class, 'index'])->name('index');
+//     Route::get('/create', [TransitionProfileDefinitionController::class, 'create'])->name('create');
+//     Route::post('/', [TransitionProfileDefinitionController::class, 'store'])->name('store');
+//     Route::get('/{definition}/edit', [TransitionProfileDefinitionController::class, 'edit'])->name('edit');
+//     Route::put('/{definition}', [TransitionProfileDefinitionController::class, 'update'])->name('update');
+//     Route::delete('/{definition}', [TransitionProfileDefinitionController::class, 'destroy'])->name('destroy');
+// });
+
+
+
+// Route::resource('transition-profile-definitions', TransitionProfileDefinitionController::class); // This will cover index, store, update, and destroy routes
+
+
+// Custom API Routes for DataTable
+Route::middleware(['auth'])->group(function () {
+    Route::get('/transition-profiles', [TransitionProfileDefinitionController::class, 'index'])->name('transition-profiles.index');
+Route::get('/transition-profiles/create', [TransitionProfileDefinitionController::class, 'create'])->name('transition-profiles.create')->middleware('auth');
+
+    Route::post('/transition-profiles', [TransitionProfileDefinitionController::class, 'store'])->name('transition-profiles.store');
+    Route::get('/transition-profiles/{id}/edit', [TransitionProfileDefinitionController::class, 'edit'])->name('transition-profiles.edit');
+    Route::put('/transition-profiles/update/{id}', [TransitionProfileDefinitionController::class, 'update'])->name('transition-profiles.update');
+    Route::delete('/transition-profiles/delete/{id}', [TransitionProfileDefinitionController::class, 'destroy']);
+});
+
+// Separate route for DataTables AJAX request
+Route::get('/api/transition-profiles', [TransitionProfileDefinitionController::class, 'getProfiles']); // For DataTables data
+Route::get('/api/transition-profiles/tables', [TransitionProfileDefinitionController::class, 'getTables']); // For getting tables
+Route::get('/api/transition-profiles/columns', [TransitionProfileDefinitionController::class, 'getColumns']);
+
+
+// Transition Profile Options
+
+Route::get('/transition-profile/categories/{profileId}', [TransitionProfileOptionController::class, 'categories'])->name('transition-profile.categories');
+Route::get('/transition-profiles/{id}/config', [TransitionProfileOptionController::class, 'index'])->name('transition-profiles.config');
+Route::post('/transition-profile/categories', [TransitionProfileOptionController::class, 'store']);
+Route::post('/transition-profile/categories/reorder', [TransitionProfileOptionController::class, 'sortingIndex']);
+Route::delete('/transition-profile/categories/{id}/delete', [TransitionProfileOptionController::class, 'destroy']);
+Route::put('/transition-profile/categories/{id}', [TransitionProfileOptionController::class, 'update']);
+
+
+// LGD Routes
+
+Route::get('/loss-given-default/list',[LossGiveDefaultController::class,'index'])->name('loss-given-default.index');
+Route::get('/loss-given-default/create',[LossGiveDefaultController::class,'create'])->name('loss-given-default.create');
+Route::post('loss-given-default/calculations',[LossGiveDefaultController::class,'calculateLGD'])->name('loss-given-default.systemCalculation');
+//Route::get('/loss-given-default/manual-calculation', [LossGiveDefaultController::class,'editManual'])->name('loss-given-default.editManual');
+Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManual'])->name('loss-given-default.updateManual');
+Route::post('/loss-given-default/manual-calculation', [LossGiveDefaultController::class,'storeManualCalculation'])->name('loss-given-default.storeManual');
+Route::delete('/loss-given-default/delete/{id}', [LossGiveDefaultController::class,'destroy'])->name('loss-given-default.delete');
+Route::post('/loss-given-default/update-loanbook', [LossGiveDefaultController::class, 'updateLoanBooks'])->name('loss-given-default.update-loan-book');
+Route::get('/loss-given-default/{id}/edit', [LossGiveDefaultController::class,'editManual'])->name('loss-given-default.editManual');
+Route::middleware(['auth'])->group(function () {
+    Route::post('/loss-given-default/{id}/lock', [LossGiveDefaultController::class, 'keyLock'])->name('loss-given-default.lock');
+});
+Route::post('/loss-given-default/{lgd}/attach-file', [LossGiveDefaultController::class, 'attachFile'])
+    ->name('loss-given-default.attach-file');
+
+Route::get('/loss-given-default/{id}/download-file', [LossGiveDefaultController::class, 'downloadFile'])
+    ->name('loss-given-default.download-file');
+Route::get('/loss-given-default/reports',[LossGiveDefaultController::class,'downloadReportByPeriod'])->name('loss-given-default.report-by-period');
+Route::get('/loss-given-default/{lgdId}/discounted-payments', [LossGiveDefaultController::class, 'discountedPaymentsIndex'])->name('loss-given-default.discounted-payments')->whereNumber('lgdId');
+Route::post('/loss-given-default/{lgdId}/trigger-discounting', [LossGiveDefaultController::class, 'triggerDiscounting'])->name('loss-given-default.trigger-discounting')->whereNumber('lgdId');
+
+// LGD Cummulative Routes
+Route::get('/loss-given-default/cummulative', [LossGivenDefaultCummulativeController::class,'index'])->name('lgd-cummulative.index');
+Route::get('/loss-given-default/cummulative/create', [LossGivenDefaultCummulativeController::class, 'create'])->name('lgd-cummulative.create');
+Route::post('/loss-given-default/cummulative/calculations',[LossGivenDefaultCummulativeController::class, 'cummulativeLGD'])->name('lgd-cummulative.system');
+Route::post('/loss-given-default/cummulative/manual-calculation', [LossGivenDefaultCummulativeController::class, 'manualCummulativeLGD'])->name('lgd-cummulative.manual');
+Route::post('/loss-given-default/cummulative/update-loanbook',[LossGivenDefaultCummulativeController::class, 'updateLoanBooks'])->name('lgd-cummulative.update-loanbook');
+Route::delete('/loss-given-default/cummulative/{id}/delete',[LossGivenDefaultCummulativeController::class,'destroy'])->name('lgd-cummulative.delete');
+Route::middleware(['auth'])->group(function () {
+    Route::post('/loss-given-default/cummulative/{id}/lock', [LossGivenDefaultCummulativeController::class, 'keyLock'])->name('lgd-cummulative.lock');
+});
+Route::post('/loss-given-default/cummulative/{lgdC}/attach-file', [LossGivenDefaultCummulativeController::class, 'attachFile'])
+    ->name('lgd-cummulative.attach-file');
+
+Route::get('/loss-given-default/cummulative/{id}/download-file', [LossGivenDefaultCummulativeController::class, 'downloadFile'])
+    ->name('lgd-cummulative.download-file');
+
+Route::get('/loss-given-default/cummulative/reports',[LossGivenDefaultCummulativeController::class,'downloadReportByPeriod'])->name('lgd-cummulative.report-by-period');
+
+// ECL Routes
+Route::get('/expected-credit-loss/list', [ExpectedCreditLossController::class, 'index'])->name('expected-credit-loss.index');
+Route::get('/expected-credit-loss/summary', [ExpectedCreditLossController::class, 'summary'])->name('expected-credit-loss.summary');
+Route::post('/collateral/allocations/allocate', [CollateralController::class, 'allocateCollateral'])->name('collateral.allocations.allocate');
+Route::get('/collateral/allocations/download-report', [CollateralController::class, 'downloadAllocationReport'])->name('collateral.allocations.download-report');
+
+// Auto Allocate (Inertia UI page)
+Route::post('/transition-matrix-cummulative/{matrix}/lock-pd',[TransitionMatrixCummulativeController::class,'keyLock'])->name('transition-matrix-cumulative.lock');
 
 
 
@@ -689,10 +825,9 @@ Route::get('/loss-given-default/list',[LossGiveDefaultController::class,'index']
 Route::get('/loss-given-default/create',[LossGiveDefaultController::class,'create'])->name('loss-given-default.create');
 Route::post('loss-given-default/calculations',[LossGiveDefaultController::class,'calculateLGD'])->name('loss-given-default.systemCalculation');
 //Route::get('/loss-given-default/manual-calculation', [LossGiveDefaultController::class,'editManual'])->name('loss-given-default.editManual');
-Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManualCalculation'])->name('loss-given-default.updateManual');
+Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManual'])->name('loss-given-default.updateManual');
 Route::post('/loss-given-default/manual-calculation', [LossGiveDefaultController::class,'storeManualCalculation'])->name('loss-given-default.storeManual');
 Route::delete('/loss-given-default/delete/{id}', [LossGiveDefaultController::class,'destroy'])->name('loss-given-default.delete');
-Route::put('/loss-given-default/update/{id}', [LossGiveDefaultController::class,'updateManualCalculation'])->name('loss-given-default.updateManual');
 Route::post('/loss-given-default/update-loanbook', [LossGiveDefaultController::class, 'updateLoanBooks'])->name('loss-given-default.update-loan-book');
 Route::get('/loss-given-default/{id}/edit', [LossGiveDefaultController::class,'editManual'])->name('loss-given-default.editManual');
 Route::middleware(['auth'])->group(function () {
@@ -715,6 +850,37 @@ Route::get('/expected-credit-loss/list', [ExpectedCreditLossController::class, '
 Route::get('/expected-credit-loss/create', [ExpectedCreditLossController::class, 'create'])->name('expected-credit-loss.create');
 Route::post('/expected-credit-loss/calculations', [ExpectedCreditLossController::class, 'calculateECL'])->name('expected-credit-loss.calculation');
 Route::get('/expected-credit-loss/reports',[ExpectedCreditLossController::class,'exportECL'])->name('expected-credit-loss.reports');
+
+// Stageing Rules Routes
+Route::group(['prefix' => 'stageing-rules', 'as' => 'stageing-rules.'], function () {
+    Route::get('/', [\App\Http\Controllers\StageingRulesController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\StageingRulesController::class, 'store'])->name('store');
+});
+
+Route::group(['prefix' => 'sicr-groups', 'as' => 'sicr-groups.'], function () {
+    Route::get('/', [\App\Http\Controllers\SicrGroupController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\SicrGroupController::class, 'store'])->name('store');
+    Route::post('/import', [\App\Http\Controllers\SicrGroupController::class, 'import'])->name('import');
+    Route::put('/{group}/update', [\App\Http\Controllers\SicrGroupController::class, 'update'])->name('update');
+    Route::delete('/{group}/destroy', [\App\Http\Controllers\SicrGroupController::class, 'destroy'])->name('destroy');
+});
+
+Route::group(['prefix' => 'sicr-items', 'as' => 'sicr-items.'], function () {
+    Route::get('/', [\App\Http\Controllers\SicrItemController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\SicrItemController::class, 'store'])->name('store');
+    Route::post('/import', [\App\Http\Controllers\SicrItemController::class, 'import'])->name('import');
+    Route::put('/{item}/update', [\App\Http\Controllers\SicrItemController::class, 'update'])->name('update');
+    Route::post('/{item}/toggle', [\App\Http\Controllers\SicrItemController::class, 'toggle'])->name('toggle');
+    Route::delete('/{item}/destroy', [\App\Http\Controllers\SicrItemController::class, 'destroy'])->name('destroy');
+});
+
+Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function () {
+    Route::get('/', [\App\Http\Controllers\SicrTriggerController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\SicrTriggerController::class, 'store'])->name('store');
+    Route::post('/{trigger}/update-loan-book', [\App\Http\Controllers\SicrTriggerController::class, 'updateLoanBook'])->name('update-loan-book');
+    Route::post('/{trigger}/remove-alert', [\App\Http\Controllers\SicrTriggerController::class, 'removeAlert'])->name('remove-alert');
+    Route::get('/customers', [\App\Http\Controllers\SicrTriggerController::class, 'getCustomers'])->name('customers');
+});
 
 //Manual Routes
 Route::get('/manuals/list',[ManualsController::class,'index'])->name('manuals.index');
@@ -759,3 +925,189 @@ Route::post('/macro-forecast-weighted', [MacroForecastWeightedController::class,
 Route::post('/macro-forecast-weighted/calculate', [MacroForecastWeightedController::class, 'calculate'])->name('macro-forecast-weighted.calculate');
 Route::post('/macro-forecast-weighted/{id}/rerun', [MacroForecastWeightedController::class, 'rerun'])->name('macro-forecast-weighted.rerun');
 Route::delete('/macro-forecast-weighted/{id}', [MacroForecastWeightedController::class, 'destroy'])->name('macro-forecast-weighted.destroy');
+
+// Credit Loss Data Routes
+Route::get('/credit-loss-data', [CreditLossDataController::class, 'index'])->name('credit-loss-data.index');
+Route::get('/credit-loss-data/import', [CreditLossDataController::class, 'importView'])->name('credit-loss-data.importView');
+Route::post('/credit-loss-data/import', [CreditLossDataController::class, 'import'])->name('credit-loss-data.import');
+Route::get('/credit-loss-data/definition', [CreditLossDataController::class, 'createDefinition'])->name('credit-loss-data.definition');
+Route::post('/credit-loss-data/definition/store', [CreditLossDataController::class, 'storeDefinition'])->name('credit-loss-data.definition.store');
+Route::get('/credit-loss-data/create', [CreditLossDataController::class, 'create'])->name('credit-loss-data.create');
+Route::post('/credit-loss-data', [CreditLossDataController::class, 'store'])->name('credit-loss-data.store');
+Route::get('/credit-loss-data/{creditLossData}/edit', [CreditLossDataController::class, 'edit'])->name('credit-loss-data.edit');
+Route::put('/credit-loss-data/{creditLossData}', [CreditLossDataController::class, 'update'])->name('credit-loss-data.update');
+Route::delete('/credit-loss-data/{creditLossData}', [CreditLossDataController::class, 'destroy'])->name('credit-loss-data.destroy');
+Route::get('/credit-loss-data/period/{period}', [CreditLossDataController::class, 'period'])->name('credit-loss-data.period');
+
+// Regression Routes
+Route::get('/regression',[RegressionController::class, 'index'])->name('regression.index');
+Route::get('/regression/create',[RegressionController::class,'create'])->name('regression.create');
+Route::get('/regression/{model}', [RegressionController::class, 'show'])->name('regression.view');
+Route::post('/regression/store',[RegressionController::class,'store'])->name('regression.store');
+Route::patch('/regression/{model}/toggle-active', [RegressionController::class, 'toggleActive'])->name('regression.toggle-active');
+Route::patch('/regression/{model}/approve', [RegressionController::class, 'approve'])->name('regression.approve');
+Route::get('/regression/{model}/predict', [RegressionController::class, 'predictForm'])->name('regression.predict');
+Route::post('/regression/{model}/predict', [RegressionController::class, 'predict'])->name('regression.predict.store');
+Route::get('/regression/{model}/forecast-data', [RegressionController::class, 'fetchMacroForecast'])->name('regression.forecast.data');
+
+
+// Collateral Routes
+Route::get('/collateral/types', [CollateralController::class, 'collateralType'])->name('collateral.types.index');
+Route::post('/collateral/types', [CollateralController::class, 'store'])->name('collateral.types.store');
+Route::put('/collateral/types/{id}', [CollateralController::class, 'update'])->name('collateral.types.update');
+Route::delete('/collateral/types/{id}', [CollateralController::class, 'destroy'])->name('collateral.types.delete');
+
+// Collateral Register Import (Inertia UI)
+Route::get('/collateral/register', [CollateralController::class, 'importView'])->name('collateral.register.import');
+Route::post('/collateral/register/import', [CollateralController::class, 'importCollateralRegister'])->name('collateral.register.import.store');
+Route::get('/collateral/register/sample', [CollateralController::class, 'downloadSample'])->name('collateral.register.sample');
+Route::get('/collateral/register/list', [CollateralController::class, 'viewRegister'])->name('collateral.register.index');
+
+// Collateral Allocations (Inertia UI)
+Route::get('/collateral/allocations', [CollateralController::class, 'indexAllocations'])->name('collateral.allocations.index');
+
+// Auto Allocate (Inertia UI page)
+Route::get('/collateral/allocate', [CollateralController::class, 'allocateView'])->name('collateral.allocate');
+Route::post('/collateral/allocate/auto', [CollateralController::class, 'allocateAutomatically'])->name('collateral.allocate.auto');
+
+
+    //Product Groups
+Route::prefix('groups')->name('groups.')->group(function () {
+    Route::get('/', [LoanProductCategoriesController::class, 'index'])->name('index');
+    Route::get('/create', [LoanProductCategoriesController::class, 'create'])->name('create');
+    Route::post('/store', [LoanProductCategoriesController::class, 'store'])->name('store');
+    Route::get('/{group}/edit', [LoanProductCategoriesController::class, 'edit'])->name('edit');
+    Route::put('/{group}/update', [LoanProductCategoriesController::class, 'update'])->name('update');
+    Route::delete('/{group}/destroy', [LoanProductCategoriesController::class, 'destroy'])->name('destroy');
+});
+
+// ============================================================================
+// FLI Adjustment Routes
+// ============================================================================
+Route::prefix('fli-adj')->middleware(['auth'])->group(function () {
+    
+    // Economic Scenarios Set
+    Route::prefix('scenarios')->name('fli.scenarios.')->group(function () {
+        Route::get('/', [ScenarioSetController::class, 'index'])->name('index');
+        Route::get('/create', [ScenarioSetController::class, 'create'])->name('create');
+        Route::post('/', [ScenarioSetController::class, 'store'])->name('store');
+        Route::get('/{scenarioSet}/edit', [ScenarioSetController::class, 'edit'])->name('edit');
+        Route::put('/{scenarioSet}', [ScenarioSetController::class, 'update'])->name('update');
+        Route::delete('/{scenarioSet}', [ScenarioSetController::class, 'destroy'])->name('destroy');
+    });
+
+    // External Calculations
+    Route::prefix('external')->name('fli.external.')->group(function () {
+        Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
+        Route::get('/list', [ExternalCalculationsController::class, 'list'])->name('list');
+        Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
+        Route::post('/generate-forecasts', [ExternalCalculationsController::class, 'generateForecasts'])->name('generate');
+        Route::post('/save-adjustments', [ExternalCalculationsController::class, 'saveAdjustments'])->name('save');
+        Route::post('/update-loanbook', [ExternalCalculationsController::class, 'updateLoanBook'])->name('update-loanbook');
+    });
+
+    // System Calculations (Regression Analysis) - Reuses ExternalCalculationsController
+    Route::prefix('regression')->name('fli.regression.')->group(function () {
+        Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
+        Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
+        Route::post('/generate-forecasts', [ExternalCalculationsController::class, 'generateForecasts'])->name('generate');
+        Route::post('/save-adjustments', [ExternalCalculationsController::class, 'saveAdjustments'])->name('save');
+        Route::post('/update-loanbook', [ExternalCalculationsController::class, 'updateLoanBook'])->name('update-loanbook');
+    });
+// Manual Forecasting Routes
+Route::prefix('forecasting')->group(function () {
+    Route::get('/manual-forecast', [ManualForecastController::class, 'show'])->name('forecasting.manual');
+    Route::post('/manual-forecast/process', [ManualForecastController::class, 'process'])->name('forecasting.manual.process');
+});
+});
+
+
+    Route::middleware(['auth', 'verified'])->group(function () {
+
+        // Profiles
+        Route::get('/internal-grading', [InternalGradingController::class, 'profiles'])
+            ->name('internal-grading.profiles');
+
+        Route::post('/internal-grading/profile', [InternalGradingController::class, 'storeProfile'])
+            ->name('internal-grading.profile.store');
+
+        // Grades + PD Curves per profile
+        Route::get('/internal-grading/{profile}', [InternalGradingController::class, 'index'])
+            ->name('internal-grading.grades');
+
+        Route::post('/internal-grading/{profile}/grade', [InternalGradingController::class, 'storeGrade'])
+            ->name('internal-grading.grade.store');
+        
+        Route::put('/internal-grading/{profile}/grade/{grade}', [InternalGradingController::class, 'updateGrade'])
+            ->name('internal-grading.grade.update');
+
+        
+        Route::get( '/internal-grading/{profile}/matrix', [InternalGradingController::class, 'matrix'])
+            ->name('internal-grading.matrix.view');
+
+        Route::put('/internal-grading/{profile}/toggle',[InternalGradingController::class, 'toggle'])
+            ->name('internal-grading.profile.toggle');
+
+        Route::post( '/internal-grading/loanbook/update-with-pd', [InternalGradingController::class, 'updateLoanBookWithPD'])
+            ->name('internal-grading.loanbook.updateWithPD');
+        });
+
+// ============================================================================
+// IFRS 9 Regulatory Reporting Suite (MAIIC) + downloadable User Manual
+// Appended at EOF so it never collides with the team's /report module.
+// ============================================================================
+Route::middleware(['auth', 'permission:manual.view'])->group(function () {
+    Route::get('/manual', [\App\Http\Controllers\ManualController::class, 'page'])->name('manual.view');
+    Route::get('/manual/pdf', [\App\Http\Controllers\ManualController::class, 'show'])->name('manual.pdf');
+});
+
+Route::middleware(['auth', 'permission:reports.ifrs9'])
+    ->prefix('ifrs9-reports')
+    ->name('ifrs9-reports.')
+    ->group(function () {
+        $c = \App\Http\Controllers\Reports\Ifrs9ReportsController::class;
+        Route::get('/', [$c, 'index'])->name('index');
+        Route::get('/executive', [$c, 'executiveSummary'])->name('executive');
+        Route::get('/portfolio-trend', [$c, 'portfolioTrend'])->name('portfolio-trend');
+        Route::get('/sector-ecl', [$c, 'sectorEcl'])->name('sector-ecl');
+        Route::get('/product-group-ecl', [$c, 'productGroupEcl'])->name('product-group-ecl');
+        Route::get('/grade-ecl', [$c, 'gradeEcl'])->name('grade-ecl');
+        Route::get('/crm-agri', [$c, 'crmAgri'])->name('crm-agri');
+        Route::get('/coop-linkage', [$c, 'coopLinkage'])->name('coop-linkage');
+        Route::get('/concentration', [$c, 'concentration'])->name('concentration');
+        Route::get('/ecl', [$c, 'ecl'])->name('ecl');
+        Route::get('/account-ecl', [$c, 'accountEcl'])->name('account-ecl');
+        Route::get('/stage-allocation', [$c, 'stageAllocation'])->name('stage-allocation');
+        Route::get('/sicr-trigger', [$c, 'sicrTrigger'])->name('sicr-trigger');
+        Route::get('/stage-migration', [$c, 'stageMigration'])->name('stage-migration');
+        Route::get('/ecl-reconciliation', [$c, 'eclReconciliation'])->name('ecl-reconciliation');
+        Route::get('/gross-movement', [$c, 'grossMovement'])->name('gross-movement');
+        Route::get('/ecl-charge', [$c, 'eclCharge'])->name('ecl-charge');
+        Route::get('/pd-report', [$c, 'pdReport'])->name('pd-report');
+        Route::get('/lgd-collateral', [$c, 'lgdCollateral'])->name('lgd-collateral');
+        Route::get('/ead-report', [$c, 'eadReport'])->name('ead-report');
+        Route::get('/macro-scenario', [$c, 'macroScenario'])->name('macro-scenario');
+        Route::get('/scenario-ecl', [$c, 'scenarioEcl'])->name('scenario-ecl');
+        Route::get('/rbm-classification', [$c, 'rbmClassification'])->name('rbm-classification');
+        Route::get('/ifrs9-vs-rbm', [$c, 'ifrs9VsRbm'])->name('ifrs9-vs-rbm');
+        Route::get('/npl-arrears', [$c, 'nplArrears'])->name('npl-arrears');
+        Route::get('/provision-comparison', [$c, 'provisionComparison'])->name('provision-comparison');
+        Route::get('/fs-disclosure', [$c, 'fsDisclosure'])->name('fs-disclosure');
+        Route::get('/data-quality', [$c, 'dataQuality'])->name('data-quality');
+        Route::get('/sensitivity', [$c, 'sensitivity'])->name('sensitivity');
+        Route::get('/ews', [$c, 'ews'])->name('ews');
+        Route::get('/ai-narrative', [$c, 'aiNarrative'])->name('ai-narrative');
+    });
+
+// Stress Testing — a dedicated standalone module under Reports (NOT a tab in
+// the IFRS 9 hub). Own controller, page and saved-scenario persistence.
+Route::middleware(['auth', 'permission:reports.ifrs9'])
+    ->prefix('stress-testing')
+    ->name('stress-testing.')
+    ->group(function () {
+        $s = \App\Http\Controllers\Reports\StressTestingController::class;
+        Route::get('/', [$s, 'index'])->name('index');
+        Route::match(['get', 'post'], '/run', [$s, 'run'])->name('run');
+        Route::post('/save', [$s, 'save'])->name('save');
+        Route::delete('/{stressScenario}', [$s, 'destroy'])->name('destroy');
+    });

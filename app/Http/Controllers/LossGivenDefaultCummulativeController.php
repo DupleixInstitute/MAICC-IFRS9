@@ -3,32 +3,53 @@
 namespace App\Http\Controllers;
 
 use App\Models\LoanPortfolio;
+use App\Models\IndustryType;
 use App\Models\LossGivenDefaultCummulative;
 use App\Models\LoanBook;
 use App\Models\LossGivenDefault;
 use App\Models\ReportingPeriods;
+use App\Services\AuditLoggerService;
+use Illuminate\Support\Facades\Storage;
+use App\Helpers\DocumentHelper;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use ZipArchive;
 use Inertia\Inertia;
 
 class LossGivenDefaultCummulativeController extends Controller
 {
     // Function to display the list of cummulative LGD records
     // This function retrieves all cummulative LGD records and their associated portfolio groups
-    public function index()
-    {
-        $lgdCummulatives = LossGivenDefaultCummulative::with('portfolioGroup')->get();
-        return inertia('LossGivenDefault/Cummulative', [
-            'lgdCummulatives' => $lgdCummulatives,
-        ]);
-    }
+    public function index(Request $request)
+        {
+                $calculationLevel = $request->input('lgd_calculation_level');
+                $startDate = $request->input('start_date');
+                $endDate = $request->input('end_date');
+
+                $query = LossGivenDefaultCummulative::with('portfolioGroup', 'sector')
+                        ->when($calculationLevel, function ($query, $calculationLevel) {
+                            $query->where('lgd_calculation_level', $calculationLevel);
+                        })
+                        ->when($startDate && $endDate, function ($query) use ($startDate, $endDate) {
+                            $query->whereBetween('start_period', [$startDate, $endDate])
+                                ->orWhereBetween('reporting_period', [$startDate, $endDate]);
+                        });
+
+            return inertia('LossGivenDefault/Cummulative', [
+                'lgdCummulatives' => $query->latest()->paginate(10)->withQueryString(),
+                'filters' => $request->only(['lgd_calculation_level', 'start_date', 'end_date'])
+            ]);
+        }
+
 
     // Function to create a new cummulative LGD record
     // This function returns an Inertia response to render the create view
     public function create()
     {
         return inertia('LossGivenDefault/CummulativeCreate', [
-            'portfolio_group' => LoanPortfolio::select('id', 'name')->get()
+            'portfolio_group' => LoanPortfolio::select('id', 'name')->get(),
+            'sectors' => IndustryType::select('code', 'name')->get(),
         ]);
     }
 
@@ -40,7 +61,9 @@ class LossGivenDefaultCummulativeController extends Controller
             ini_set('max_execution_time', 300);
 
             request()->validate([
-                'portfolio_group' => 'required|exists:loan_portfolios,id',
+                'lgd_calculation_level' => 'required|in:portfolio,sector',
+                'lgd_calculation_id' => 'nullable|required_if:lgd_calculation_level,portfolio|exists:loan_portfolios,id',
+                'lgd_calculation_code' => 'nullable|required_if:lgd_calculation_level,sector|exists:industry_types,code',
                 'reporting_period' => 'required|date',
                 'start_period' => 'required|date|before_or_equal:reporting_period',
             ]);
@@ -50,7 +73,11 @@ class LossGivenDefaultCummulativeController extends Controller
 
             $startPeriod = Carbon::parse(request()->input('start_period'))->format('Y-m-01');
             $reportingPeriod = Carbon::parse(request()->input('reporting_period'))->format('Y-m-01');
-            $portfolioGroupId = request()->input('portfolio_group');
+
+            $level = request()->input('lgd_calculation_level');
+            $levelId = request()->input('lgd_calculation_id');
+            $levelCode = request()->input('lgd_calculation_code');
+
 
             // Validate that start period is before or equal to reporting period
             if($startPeriod > $reportingPeriod) {
@@ -58,11 +85,18 @@ class LossGivenDefaultCummulativeController extends Controller
             }
 
             // Variables to hold the data for the cummulative LGD record
-            // Retrieve records for the LossGivenDefault model based on the portfolio group and reporting period
-            $records = LossGivenDefault::where('portfolio_group', $portfolioGroupId)
-                ->whereBetween('reporting_period', [$startPeriod, $reportingPeriod])
+            $records = LossGivenDefault::whereBetween('reporting_period', [$startPeriod, $reportingPeriod])
                 ->where('is_active_or_closed', 'closed')
+                ->when($level === 'portfolio', function ($q) use ($levelId) {
+                    $q->where('lgd_calculation_level', 'portfolio')
+                    ->where('lgd_calculation_id', $levelId);
+                })
+                ->when($level === 'sector', function ($q) use ($levelCode) {
+                    $q->where('lgd_calculation_level', 'sector')
+                    ->where('lgd_calculation_code', $levelCode);
+                })
                 ->get();
+
 
             if ($records->isEmpty()) {
                 return back()->withErrors(['No closed LGD records found in the selected period.']);
@@ -86,37 +120,46 @@ class LossGivenDefaultCummulativeController extends Controller
             $recoveryRate = $startBalance > 0 ? ($recoveredAmount / $startBalance) : 0;
 
             $lgd = (1 - $cureRate) * (1 - $recoveryRate);
+            $lgd = max(0, min(1, $lgd)); // Ensure LGD is between 0 and 1
+            $lgdPercent = $lgd * 100;
+            $lgdPercent = max(0, min(100, $lgdPercent)); // Ensure LGD% is between 0 and 100
 
             // Save cummulative LGD
-            LossGivenDefaultCummulative::create([
-                'reporting_period' => $reportingPeriod,
-                'start_period' => $startPeriod,
-                'portfolio_group' => $portfolioGroupId,
-                'start_total_stage3' => $startBalance,
-                'end_total_stage3' => $endBalance,
-                'cured_amount' => $curedAmount,
-                'cure_amount_stage1' => $records->sum('cure_amount_stage1'),
-                'cure_amount_stage2' => $records->sum('cure_amount_stage2'),
-                'cure_rate_cummulative' => $cureRate,
-                'recovered_amount' => $recoveredAmount,
-                'partially_recovered_amount' => $partlyRecoveredAmount,
-                'fully_recovered_amount' => $fullyRecoveredAmount,
-                'recovery_rate_cummulative' => $recoveryRate,
-                'total_disbursments' => $totalDisbursments,
-                'lgd_cummulative' => $lgd,
-                'lgd_cummulative_percent' => $lgd * 100,
-                'periods_count' => $periodPairs->count(),
-                'periods_list' => $periodPairs->map(function ($record) {
-                                    return [
-                                       'start' => Carbon::parse($record->start_period)->format('Y-m'),
-                                        'end' => Carbon::parse($record->reporting_period)->format('Y-m'),
-                                    ];
-                                })->values()->toArray(),
-                'calculation_source' => 'system',
-                'created_by' => auth()->id(),
-                'updated_by' => auth()->id(),
-                'is_active_or_closed' => 'active',
-            ]);
+            LossGivenDefaultCummulative::updateOrCreate(
+                [
+                    'reporting_period' => $reportingPeriod,
+                    'start_period' => $startPeriod,
+                    'lgd_calculation_level' => $level,
+                    'lgd_calculation_id' => $level === 'portfolio' ? $levelId : null,
+                    'lgd_calculation_code' => $level === 'sector' ? $levelCode : null,
+                    'calculation_source' => 'system',
+                ],
+                [
+                    'start_total_stage3' => $startBalance,
+                    'end_total_stage3' => $endBalance,
+                    'cured_amount' => $curedAmount,
+                    'cure_amount_stage1' => $records->sum('cure_amount_stage1'),
+                    'cure_amount_stage2' => $records->sum('cure_amount_stage2'),
+                    'cure_rate_cummulative' => $cureRate,
+                    'recovered_amount' => $recoveredAmount,
+                    'partially_recovered_amount' => $partlyRecoveredAmount,
+                    'fully_recovered_amount' => $fullyRecoveredAmount,
+                    'recovery_rate_cummulative' => $recoveryRate,
+                    'total_disbursments' => $totalDisbursments,
+                    'lgd_cummulative' => $lgd,
+                    'lgd_cummulative_percent' => $lgdPercent,
+                    'periods_count' => $periodPairs->count(),
+                    'periods_list' => $periodPairs->map(function ($record) {
+                        return [
+                            'start' => Carbon::parse($record->start_period)->format('Y-m'),
+                            'end'   => Carbon::parse($record->reporting_period)->format('Y-m'),
+                        ];
+                    })->values()->toArray(),
+                    'is_active_or_closed' => 'active',
+                    'updated_by' => auth()->id(),
+                ]
+            );
+
 
             
 
@@ -127,12 +170,14 @@ class LossGivenDefaultCummulativeController extends Controller
     // @param Request $request
     public function manualCummulativeLGD(Request $request)
     {
-        $request->validate([
-            'portfolio_group' => 'required|exists:loan_portfolios,id',
-            'reporting_period' => 'required|date',
-            'start_period' => 'required|date|before_or_equal:reporting_period',
-            'mode' => 'required|in:amount,percentage',
-        ]);
+            $request->validate([
+                'lgd_calculation_level' => 'required|in:portfolio,sector',
+                'lgd_calculation_id' => 'nullable|required_if:lgd_calculation_level,portfolio|exists:loan_portfolios,id',
+                'lgd_calculation_code' => 'nullable|required_if:lgd_calculation_level,sector|exists:industry_types,code',
+                'reporting_period' => 'required|date',
+                'start_period' => 'required|date|before_or_equal:reporting_period',
+                'mode' => 'required|in:amount,percentage',
+            ]);
 
         // Periods for calculation must be in the format 'Y-m-01'
         $reportingPeriod = Carbon::parse($request->input('reporting_period'))->format('Y-m-01');
@@ -144,11 +189,19 @@ class LossGivenDefaultCummulativeController extends Controller
             return back()->withErrors(['Start period must be before or equal to reporting period.']);
         }
 
+        $lgdCummulative = $request->input('lgd_cummulative');
+        $lgdCummulative = is_numeric($lgdCummulative) ? max(0, min(1, (float)$lgdCummulative)) : 0;
+        
+        $lgdCummulativePercent = $request->input('lgd_cummulative_percent', $lgdCummulative * 100);
+        $lgdCummulativePercent = max(0, min(100, (float)$lgdCummulativePercent));
+
         // Variables to hold the data for the cummulative LGD record
         $data = [
             'reporting_period' => $reportingPeriod,
             'start_period' => $startPeriod,
-            'portfolio_group' => $request->input('portfolio_group'),
+            'lgd_calculation_level' => $request->lgd_calculation_level,
+            'lgd_calculation_id' => $request->lgd_calculation_id,
+            'lgd_calculation_code' => $request->lgd_calculation_code,
             'lgd_cummulative' => $request->input('lgd_cummulative'),
             'lgd_cummulative_percent' => $request->input('lgd_cummulative_percent',0),
             'cured_amount' => $request->input('cured_amount'),
@@ -190,11 +243,11 @@ class LossGivenDefaultCummulativeController extends Controller
                 'periods_count' => $request->input('periods_count')
             ];
         } else {
-            $request->validate([
-                'cure_rate_cummulative' => 'required|numeric',
-                'recovery_rate_cummulative' => 'required|numeric',
-                'period_count' => 'required|numeric'
-            ]);
+                $request->validate([
+                    'cure_rate_cummulative' => 'required|numeric',
+                    'recovery_rate_cummulative' => 'required|numeric',
+                    'periods_count' => 'required|numeric'
+                ]);
 
             $data += [
                 'start_total_stage3' => 0,
@@ -243,49 +296,324 @@ class LossGivenDefaultCummulativeController extends Controller
         // Update loan books with the LGD value
         // @param Request $request
         // 
-       public function updateLoanBooks(Request $request)
+        public function updateLoanBooks(Request $request)
+            {
+                ini_set('max_execution_time', 300);
+                $startTime = microtime(true);
+
+                // Validate request
+                $validated = $request->validate([
+                    'reporting_period' => 'required|date_format:Y-m',
+                    'lgd_id' => 'required|exists:loss_given_default_cummulative,id',
+                    'include_customer_lgd' => 'nullable|boolean',
+                ]);
+
+                $lgd = LossGivenDefaultCummulative::findOrFail($validated['lgd_id']);
+
+                // FIXED: Correct scope assignment
+                $scope = $lgd->lgd_calculation_level; // Directly use the calculation level
+
+                if ($lgd->is_active_or_closed !== 'closed') {
+                    return back()->with('error', 'Cannot update loan books for an active LGD record.');
+                }
+
+                $rowsUpdated = 0;
+                $period = Carbon::parse($validated['reporting_period'])->format('Y-m');
+                $collectionLgd = $lgd->lgd_cummulative; // Check if this is the correct column name
+
+                // Update loan_books table based on include_customer_lgd
+                if ($request->boolean('include_customer_lgd')) {
+                    if ($scope === 'portfolio') {
+                        $rowsUpdated = DB::update("
+                            UPDATE loan_books
+                            SET 
+                                collection_lgd = ?,
+                                lgd_value = COALESCE(customer_lgd, ?) * ?
+                            WHERE LEFT(reporting_period, 7) = ?
+                            AND loan_portfolio_id = ?
+                        ", [
+                            $collectionLgd, 1, $collectionLgd,
+                            $period, $lgd->lgd_calculation_id
+                        ]);
+                    }
+
+                    if ($scope === 'sector') {
+                        $rowsUpdated = DB::update("
+                            UPDATE loan_books
+                            SET 
+                                collection_lgd = ?,
+                                lgd_value = COALESCE(customer_lgd, ?) * ?
+                            WHERE LEFT(reporting_period, 7) = ?
+                            AND industry_code = ?
+                        ", [
+                            $collectionLgd, 1, $collectionLgd,
+                            $period, $lgd->lgd_calculation_code
+                        ]);
+                    }
+
+                } else {
+                    if ($scope === 'portfolio') {
+                        $rowsUpdated = DB::update("
+                            UPDATE loan_books
+                            SET 
+                                collection_lgd = ?,
+                                lgd_value = ?
+                            WHERE LEFT(reporting_period, 7) = ?
+                            AND loan_portfolio_id = ?
+                        ", [
+                            $collectionLgd, $collectionLgd,
+                            $period, $lgd->lgd_calculation_id
+                        ]);
+                    }
+
+                    if ($scope === 'sector') {
+                        $rowsUpdated = DB::update("
+                            UPDATE loan_books
+                            SET 
+                                collection_lgd = ?,
+                                lgd_value = ?
+                            WHERE LEFT(reporting_period, 7) = ?
+                            AND industry_code = ?
+                        ", [
+                            $collectionLgd, $collectionLgd,
+                            $period, $lgd->lgd_calculation_code
+                        ]);
+                    }
+                    
+                    // FIXED: Remove the incorrect increment
+                    // $rowsUpdated++; // This was wrong - it should not be incremented here
+                }
+
+                // FIXED: Check if AuditLoggerService exists before using it
+                try {
+                    if (class_exists('App\Services\AuditLoggerService')) {
+                        \App\Services\AuditLoggerService::log(
+                            action: 'LGD Cummulative Loan Book Update',
+                            entityType: 'LoanBook',
+                            entityId: $lgd->id,
+                            data: [
+                                'scope' => $scope,
+                                'reporting_period' => $period,
+                                'meta' => ['rows_affected' => $rowsUpdated, 'profile_id' => $lgd->id]
+                            ]
+                        );
+                    } else {
+                        // Log using Laravel's built-in logger if service doesn't exist
+                        \Log::info('LGD Cumulative Loan Book Update', [
+                            'action' => 'LGD Cummulative Loan Book Update',
+                            'entityType' => 'LoanBook',
+                            'entityId' => $lgd->id,
+                            'data' => [
+                                'scope' => $scope,
+                                'reporting_period' => $period,
+                                'rows_affected' => $rowsUpdated,
+                                'profile_id' => $lgd->id
+                            ]
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to log audit: ' . $e->getMessage());
+                }
+
+                $timeTaken = round((microtime(true) - $startTime) / 60, 2);
+
+                // Save reporting period info
+                ReportingPeriods::updateOrCreate(
+                    ['period' => $period . '-01'], // first day of month
+                    [
+                        'reporting_year' => (int)substr($period, 0, 4),
+                        'reporting_month' => (int)substr($period, 5, 2),
+                        'lgd_id' => $lgd->id,
+                        'lgd_calculation_source' => $lgd->calculation_source,
+                        'lgd_calculation_time' => $timeTaken,
+                    ]
+                );
+
+                return redirect()->back()->with('success', "Loan books updated successfully in {$timeTaken} minutes. Rows updated: {$rowsUpdated}");
+            }
+
+                //Attach supporting File if it is Manual Calculation for supporting info of the calculation
+        public function attachFile(LossGivenDefaultCummulative $lgdC, Request $request)
         {
-            ini_set('max_execution_time', 300);
-            $startTime = microtime(true);
+            // Log::info('Attach file request started', [
+            //     'lgd_id' => $lgdC->id,
+            //     'has_file' => $request->hasFile('file'),
+            // ]);
 
             $request->validate([
-                'reporting_period' => 'required|date_format:Y-m',
-                'lgd_id' => 'required|exists:loss_given_default_cummulative,id',
+                'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,jpg,png',
             ]);
 
-            $lgd = LossGivenDefaultCummulative::findOrFail($request->lgd_id);
-           
+            if ($lgdC->is_active_or_closed === 'closed') {
+                //Log::warning('Attempt to attach file to closed LGD', ['lgd_id' => $lgdC->id]);
+                return back()->withErrors(['file' => 'Cannot attach file to a closed LGD record.']);
+            }
 
-            // 2. Update loan_books with LGD value
-            if($lgd->is_active_or_closed !== 'closed'){
-                return back()->with('error', 'Cannot update loan books for an active LGD record.');
-            } else{
-            LoanBook::where('reporting_period', $request->reporting_period)
-                ->update(['lgd_value' => $lgd->lgd_cummulative]); 
-                } 
+            // Delete old documents
+            $deleted = $lgdC->supportingDocuments()->delete();
+            //Log::info('Old supporting documents deleted', ['count' => $deleted]);
 
-            $endTime = microtime(true);
-            $timeTaken = round(($endTime - $startTime) / 60, 2);
-                
-            // Parse year and month from reporting_period (e.g., '2025-06')
-            $period = Carbon::parse($request->reporting_period)->format('Y-m'); // e.g., "2025-06"
-            $periodParts = explode('-', $period); // ["2025", "06"]
+            try {
+                $document = \App\Helpers\DocumentHelper::upload(
+                    $request->file('file'),
+                    $lgdC,
+                    'lgd_support'
+                );
 
-            $year = $periodParts[0] . '-01-01';     // "2025-01-01"
-            $month = $periodParts[0] . '-' . $periodParts[1] . '-01'; // "2025-06-01"
-            // 2. Save or update reporting_period record
-            ReportingPeriods::updateOrCreate(
-                ['period' => $request->reporting_period],
-                [
-                    'reporting_year' => $year,
-                    'reporting_month' => $month,
-                    'lgd_id' => $lgd->id,
-                    'lgd_calculation_source' => $lgd->calculation_source,
-                    'lgd_calculation_time' => $timeTaken,
-                ]
-            );
-            return redirect()->back()->with('success', 'Loan books updated');
+                // Log::info('File uploaded successfully', [
+                //     'document_id' => $document->id,
+                //     'path' => $document->path,
+                // ]);
+
+                return back()->with('success', 'File attached successfully.');
+
+            } catch (\Throwable $e) {
+
+                // Log::error('File upload failed', [
+                //     'error' => $e->getMessage(),
+                //     'lgd_id' => $lgdC->id,
+                // ]);
+
+                return back()->withErrors(['file' => 'Upload failed. Check logs.']);
+            }
         }
+
+
+   public function downloadFile($id)
+    {
+        $lgd = LossGivenDefault::findOrFail($id);
+
+        $document = $lgd->supportingDocuments()
+            ->latest()
+            ->first();
+
+        if (!$document || !Storage::disk($document->disk)->exists($document->path)) {
+            return back()->with('error', 'File not found.');
+        }
+
+        return Storage::disk($document->disk)->download(
+            $document->path,
+            $document->original_name
+        );
+    }
+
+    
+
+     public function downloadReportByPeriod(Request $request)
+        {
+            $request->validate([
+                'start_period' => 'required|date_format:Y-m',
+                'end_period' => 'required|date_format:Y-m',
+                'lgd_calculation_level' => 'nullable|string',
+                'lgd_calculation_source' => 'nullable|string',
+            ]);
+
+            // Query LGD records for the report
+            $lgds = LossGivenDefaultCummulative::with('portfolioGroup', 'sector')
+                ->whereBetween('reporting_period', [$request->start_period . '-01', $request->end_period . '-01'])
+                ->when($request->lgd_calculation_level, function ($query, $level) {
+                    $query->where('lgd_calculation_level', $level);
+                })
+                ->when($request->lgd_calculation_source, function ($query, $source) {
+                    $query->where('calculation_source', $source);
+                })
+                ->get();
+
+            // $pdf = app('dompdf.wrapper');
+            // $pdf->loadView('reports.lgd_period_report', [
+            //     'lgds' => $lgds,
+            //     'period' => $request->period,
+            // ]);
+
+            // $pdfPath = storage_path("app/LGD_Report_{$request->period}.pdf");
+            // $pdf->save($pdfPath);
+
+            /* ---------- CSV ---------- */
+            $csvHeader = [
+                'Calculation Level',
+                'Portfolio',
+                'Sector',
+                'LGD %',
+                'Valid From',
+                'Valid To',
+                'Start Balance Stage 3',
+                'End Balance Stage 3',
+                'Cure Rate',
+                'Cured Amount',
+                'Cure Amount Stage 1',
+                'Cure Amount Stage 2',
+                'Recovery Rate',
+                'Recovered Amount',
+                'Partly Recovered Amount',
+                'Fully Recovered Amount',
+                'Total Disbursements',
+                'Written Offs',
+                'Source',
+                'Status',
+            ];
+
+            $csvRows = [];
+
+            // Add report range as first row
+            $csvRows[] = ["LGD Cummulative Report: From {$request->start_period} To {$request->end_period}"];
+            $csvRows[] = []; // empty row for spacing
+
+            // Add column headers
+            $csvRows[] = $csvHeader;
+
+            // Add LGD data
+            foreach ($lgds as $lgd) {
+                $csvRows[] = [
+                    $lgd->lgd_calculation_level,
+                    $lgd->portfolio_name ?? '',
+                    $lgd->sector_name ?? '',
+                    $lgd->lgd_cummulative_percent,
+                    Carbon::parse($lgd->start_period)->format('Y-m'),
+                    Carbon::parse($lgd->reporting_period)->format('Y-m'),
+                    $lgd->start_total_stage3,
+                    $lgd->end_total_stage3,
+                    $lgd->cure_rate_cummulative,
+                    $lgd->cured_amount,
+                    $lgd->cure_amount_stage1,
+                    $lgd->cure_amount_stage2,
+                    $lgd->recovery_rate_cummulative,
+                    $lgd->recovered_amount,
+                    $lgd->partially_recovered_amount,
+                    $lgd->fully_recovered_amount,
+                    $lgd->total_disbursments,
+                    $lgd->written_offs,
+                    $lgd->calculation_source,
+                    $lgd->is_active_or_closed,
+                ];
+            }
+
+            // Convert array of rows to CSV text
+            $csvContent = '';
+            foreach ($csvRows as $row) {
+                // Escape any commas in data
+                $escapedRow = array_map(function($field) {
+                    $field = str_replace('"', '""', $field); // escape quotes
+                    return "\"{$field}\"";
+                }, $row);
+                $csvContent .= implode(',', $escapedRow) . "\n";
+            }
+
+            $csvPath = storage_path("app/LGD_Cummulative_Report_{$request->start_period}_to_{$request->end_period}.csv");
+            file_put_contents($csvPath, $csvContent);
+
+
+            /* ---------- ZIP ---------- */
+            $zipPath = storage_path("app/LGD_Cummulative_Report_{$request->start_period}_to_{$request->end_period}.zip");
+
+            $zip = new ZipArchive();
+            $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+            //$zip->addFile($pdfPath, "LGD_Report_{$request->start_period}_to_{$request->end_period}.pdf");
+            $zip->addFile($csvPath, "LGD_Cummulative_Report_{$request->start_period}_to_{$request->end_period}.csv");
+            $zip->close();
+
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+        }
+
 
     // Delete a specific Loss Given Default Cummulative record
     // @param int $id

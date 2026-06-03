@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->id();
             $table->string('status')->default('pending');
             $table->integer('records')->nullable();
+            $table->integer('rows_processed')->nullable();
             $table->integer('failed_records')->nullable();
             $table->string('name')->nullable();
             $table->timestamps();

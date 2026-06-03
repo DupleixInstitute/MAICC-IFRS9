@@ -12,8 +12,8 @@ return new class extends Migration
     public function up()
     {
         Schema::table('imports', function (Blueprint $table) {
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
+            $table->dateTime('started_at')->nullable();
+            $table->dateTime('completed_at')->nullable();
         });
     }
 

@@ -8,14 +8,14 @@ return new class extends Migration {
     public function up()
     {
         Schema::table('imports', function (Blueprint $table) {
-            $table->timestamp('started_at')->nullable()->default(null)->change();
+            $table->dateTime('started_at')->nullable()->default(null)->change();
         });
     }
 
     public function down()
     {
         Schema::table('imports', function (Blueprint $table) {
-            $table->timestamp('started_at')->nullable(false)->default(now())->change();
+            $table->dateTime('started_at')->nullable(false)->default(now())->change();
         });
     }
 };

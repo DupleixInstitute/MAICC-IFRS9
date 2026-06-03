@@ -21,49 +21,61 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\FieldMappingService;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Role;
 
 class ClientsController extends Controller
 {
-    public function __construct()
+    /**
+     * FieldMappingService instance
+     *
+     * @var FieldMappingService
+     */
+    protected $fieldMappingService;
+
+    public function __construct(FieldMappingService $fieldMappingService)
     {
         $this->middleware('auth');
         $this->middleware(['permission:clients.index'])->only(['index', 'show']);
         $this->middleware(['permission:clients.create'])->only(['create', 'store', 'import']);
         $this->middleware(['permission:clients.update'])->only(['edit', 'update']);
         $this->middleware(['permission:clients.destroy'])->only(['destroy']);
-    }
 
-    public function index(Request $request)
-    {
-        return Inertia::render('Clients/Index', [
-            'filters' => $request->all('search', 'trashed'),
-            'can' => [
-                'create' => Auth::user()->can('clients.create'),
-                'edit' => Auth::user()->can('clients.update'),
-                'delete' => Auth::user()->can('clients.destroy'),
-            ],
-            'clients' => Client::query()
-                ->when($request->input('search'), function ($query, $search) {
-                    $query->where(function ($query) use ($search) {
-                        $query->where('external_id', 'like', "%{$search}%")
-                            ->orWhere('name', 'like', "%{$search}%")
-                            ->orWhere('mobile', 'like', "%{$search}%");
-                    });
-                })
-                ->paginate(10)
-                ->withQueryString()
-                ->through(fn ($client) => [
-                    'id' => $client->id,
-                    'external_id' => $client->customer_id,
-                    'name' => $client->name,
-                    'mobile' => $client->mobile,
-                    'updated_at' => $client->updated_at->format('Y-m-d H:i'),
-                    'deleted_at' => $client->deleted_at,
-                ]),
-        ]);
+        $this->fieldMappingService = $fieldMappingService;
     }
+public function index(Request $request)
+{
+    return Inertia::render('Clients/Index', [
+        'filters' => $request->all('search', 'trashed'),
+        'can' => [
+            'create' => Auth::user()->can('clients.create'),
+            'edit' => Auth::user()->can('clients.update'),
+            'delete' => Auth::user()->can('clients.destroy'),
+        ],
+        'clients' => Client::query()
+            ->when($request->input('search'), function ($query, $search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('external_id', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn ($client) => [
+                'id' => $client->id,
+                'external_id' => $client->customer_id,
+                'name' => $client->name,
+                'mobile' => $client->mobile,
+                'updated_at' => $client->updated_at->format('Y-m-d H:i'),
+                'deleted_at' => $client->deleted_at,
+            ]),
+    ]);
+}
+
 
     public function create()
     {
@@ -242,26 +254,64 @@ class ClientsController extends Controller
             'errors' => $errors,
         ]);
     }*/
-    public function createImport(): Response
-    {
+   
+      public function createImport()
+            {
+                $tableName = (new Client())->getTable(); // clients table
 
-        return Inertia::render('Clients/Import', [
-        ]);
-    }
+                // Get all columns with details from the clients table
+                $fields = $this->fieldMappingService->getTableColumns($tableName, true);
 
-    public function import(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:txt,csv'],
-        ]);
+                return Inertia::render('Clients/Import', [
+                    'availableFields'   => array_keys($fields),
+                    'fieldDescriptions' => $fields,
+                ]);
+            }
 
-        $import = Import::create([
-            'name' => $request->file('file')->getClientOriginalName(),
-            'status' => 'pending',
-        ]);
-        Excel::queueImport(new ClientsImport($import), $request->file('file'));
 
-        return redirect()->route('clients.index')->with('success', 'Import started! You will be notified once it completes.');
+    public function import(Request $request)
+        {
+            $request->validate([
+                'names_file'  => 'required|file|mimes:csv,txt,xlsx,xls',
+                'import_type' => 'required|string|in:legacy,custom',
+            ]);
 
-    }
+            $mapping = $request->input('mapping', []);
+            if (!is_array($mapping)) {
+                $mapping = json_decode($mapping, true) ?? [];
+            }
+
+            Log::info('Original mapping from request:', $mapping);
+
+            // NORMALIZE THE MAPPING KEYS TO LOWERCASE
+          $normalizedMapping = [];
+                foreach ($mapping as $csvColumn => $dbColumn) {
+                    // Convert spaces to underscores and lowercase
+                    $key = strtolower(str_replace(' ', '_', $csvColumn));
+                    $normalizedMapping[$key] = $dbColumn;
+                }
+
+            Log::info('Normalized mapping to send to import:', $normalizedMapping);
+
+            // Validate that customer_id is mapped in custom import
+            if ($request->import_type === 'custom') {
+                $hasCustomerId = in_array('customer_id', array_values($normalizedMapping));
+                if (!$hasCustomerId) {
+                    return back()->withErrors(['mapping' => 'The customer_id field must be mapped.']);
+                }
+            }
+
+            $import = Import::create([
+                'status' => 'pending',
+                'name'   => $request->file('names_file')->getClientOriginalName(),
+            ]);
+
+            // Pass the NORMALIZED mapping to the import class
+            Excel::queueImport(
+                new ClientsImport($import, $normalizedMapping, $request->import_type),
+                $request->file('names_file')
+            );
+
+            return redirect()->route('clients.index')->with('success', 'Import started successfully!');
+        }
 }

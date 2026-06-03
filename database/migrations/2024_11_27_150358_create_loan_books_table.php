@@ -14,37 +14,51 @@ return new class extends Migration
         Schema::create('loan_books', function (Blueprint $table) {
             $table->id();
             $table->string('contract_id')->unique()->index();
-            $table->string('external_identity_id')->index();
-            $table->string('portfolio_group')->nullable();
+            $table->string('customer_id')->index();
+            $table->string('customer_name')->nullable();
+            $table->string('external_identity_id')->index()->default('TBA');
+            $table->string('product_group')->nullable();
+            $table->string('product_code')->nullable();
+            $table->integer('loan_type_code')->default(0);
+            $table->string('funding_source')->nullable();
             $table->integer('reporting_year');
             $table->integer('reporting_month');
             $table->string('reporting_period', 6)->index(); // YYYYMM format
-            $table->date('create_date');
-            $table->date('due_date');
+            $table->date('create_date')->nullable();
+            $table->date('due_date')->nullable();
+            $table->string('internal_grade_code')->nullable();
+            $table->string('industry_code')->nullable();
+            $table->string('industry_type')->nullable();
             $table->integer('overdue_days')->default(0);
+            $table->decimal('remaining_tenor',5,2)->default(0);
             $table->integer('tenor')->default(0);
             $table->decimal('interest_rate',8,2)->default(0);
-            $table->decimal('principal_balance', 65, 2)->default(0);
-            $table->decimal('disbursed',16,2)->default(0);
-            $table->decimal('repayments',16,2)->default(0);
-            $table->string('collateral_type')->nullable();
-            $table->decimal('commitments', 16,2)->default(0);
-            $table->decimal('expected_loss_provision', 65, 2)->default(0);
+            $table->decimal('principal_balance', 65, 4)->default(0);
+            $table->decimal('approved_amount', 65, 4)->default(0);
+            $table->decimal('disbursed',65,4)->default(0);
+            $table->decimal('repayments',65,4)->default(0);
+            $table->decimal('carrying_amount', 65, 4)->default(0);
+            $table->decimal('commitments', 16,4)->default(0);            
+            $table->string('collateral_id')->nullable();
+            $table->decimal('allocated_gross_value', 65, 4)->default(0);
+            $table->decimal('allocated_discounted_value', 65, 4)->default(0);
+            $table->decimal('facility_utilisation_rate',5,2)->default(1);
+            $table->decimal('expected_loss_provision', 65, 4)->default(0);
             $table->string('overdue_status')->nullable();
             $table->boolean('is_month_end')->default(false);
             $table->integer('ifrs9_stage')->default(0);
             $table->string('ifrs9stage_pre_qualitative')->nullable();
             $table->boolean('sicr')->default(0)->nullable();
             $table->string('ifrs9stage_post_qualitative')->nullable();
-            $table->string('< 30')->nullable();
-            $table->string('30 to =< 90')->nullable();
-            $table->string('30 =< 180')->nullable();
-            $table->string('arrears > 180')->nullable();
+            $table->decimal('arrears_1_to_30',65,2)->nullable();
+            $table->decimal('arrears_30_to_90',65,2)->nullable();
+            $table->decimal('arrears_91_to_180',65,2)->nullable();
+            $table->decimal('arrears_180_to_270',65,2)->nullable();
             $table->timestamps();
             
             // Composite indexes for efficient querying
             $table->index(['reporting_year', 'reporting_month']);
-            $table->index(['external_identity_id', 'reporting_period']);
+            $table->index(['customer_id', 'reporting_period']);
             $table->index(['overdue_status', 'reporting_period']);
         });
     }

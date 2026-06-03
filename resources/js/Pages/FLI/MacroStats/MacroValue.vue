@@ -9,7 +9,7 @@
         </Link>{{ statistic.statistic_name }} Values
           <span class="ml-2 text-sm text-gray-500">{{ statistic.unit }}</span>
         </h1>
-        <button @click="openForm()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        <button @click="openForm()" class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700">
           + Add Value
         </button>
       </div>
@@ -40,44 +40,58 @@
       </section>
 
       <!-- Values Table -->
-      <section class="bg-white rounded-lg shadow overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scenario</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="value in filteredValues" :key="value.id">
-              <td class="px-6 py-4 whitespace-nowrap">{{ formatPeriod(value.period) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">{{ value.value }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">{{ value.scenario?.name || 'Base' }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span :class="{
-                  'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800': !value.is_forecast,
-                  'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800': value.is_forecast
-                }">
-                  {{ value.is_forecast ? 'Forecast' : 'Historical' }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">{{ value.source || '-' }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-center">
-                <button @click="editValue(value)" class="text-blue-600 hover:text-blue-900 mr-3">
-                  <i class="fas fa-edit"></i> 
-                </button>
-                <button @click="deleteValue(value)" class="text-red-600 hover:text-red-900">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+        <section class="bg-white rounded-lg shadow overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scenario</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="value in values.data" :key="value.id">
+                <td class="px-6 py-4 whitespace-nowrap">{{ formatPeriod(value.period) }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ value.value }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ value.scenario?.name || 'Base' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span :class="value.is_forecast 
+                    ? 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800'
+                    : 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800'">
+                    {{ value.is_forecast ? 'Forecast' : 'Historical' }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ value.source || '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                  <button @click="editValue(value)" class="text-blue-600 hover:text-blue-900 mr-3">
+                    <i class="fas fa-edit"></i> 
+                  </button>
+                  <button @click="deleteValue(value)" class="text-red-600 hover:text-red-900">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Pagination Buttons -->
+          <div class="mt-4 flex justify-center space-x-2 p-4">
+            <button
+              v-for="page in values.last_page"
+              :key="page"
+              @click="goToPage(page)"
+              :class="page === values.current_page 
+                ? 'bg-maiic-600 text-white px-3 py-1 rounded' 
+                : 'bg-gray-200 px-3 py-1 rounded'"
+            >
+              {{ page }}
+            </button>
+          </div>
+        </section>
+
 
       <!-- Modal Form -->
       <div v-if="showValueForm" class="fixed inset-0 z-50 flex items-center justify-center">
@@ -105,9 +119,19 @@ import '@fortawesome/fontawesome-free/css/all.css';
 
 const props = defineProps({
   statistic: Object,
-  values: Array,
+  values: Object,
   profiles: Array
 });
+
+function goToPage(page) {
+  router.get(route('macro-values.index', { 
+    statId: props.statistic.id, 
+    page, 
+    ...filters.value // include filters in the query
+  }));
+}
+
+
 
 const showValueForm = ref(false);
 const currentValue = ref(null);
@@ -167,12 +191,13 @@ const parsedForecast = computed(() => {
 });
 
 const filteredValues = computed(() => {
-  return props.values.filter(v =>
+  return props.values.data.filter(v =>
     (!filters.value.scenario_id || v.scenario_id == filters.value.scenario_id) &&
     (parsedForecast.value === null || v.is_forecast === parsedForecast.value) &&
     (!filters.value.period || v.period.startsWith(filters.value.period))
   );
 });
+
 
 
 </script>

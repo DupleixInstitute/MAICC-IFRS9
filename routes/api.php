@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TransitionProfileDefinitionController;
 use App\Http\Controllers\ManualsController;
+use App\Http\Controllers\CollateralController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,3 +33,8 @@ Route::delete('/api/transition-profiles-definitions/{id}', [TransitionProfileDef
 Route::get('/manuals/routes', [ManualsController::class, 'getAvailableRoutes'])->name('manuals.routes');
 Route::get('/manuals/route/{route}', [ManualsController::class, 'showByRoute'])
     ->where('route', '.*');
+
+
+// api.php (logic endpoints)
+Route::get('/collateral-registers', fn () => \App\Models\CollateralRegister::all());
+Route::post('/collateral/allocate-by-client', [CollateralController::class, 'allocateByClient']);

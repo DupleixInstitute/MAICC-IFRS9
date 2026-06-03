@@ -6,14 +6,14 @@
             <!-- Toggle between Modes -->
             <div class="mt-4">
                 <label class="block font-medium text-sm text-gray-700">Calculation Mode</label>
-                <select v-model="mode" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                <select v-model="localMode" @change="onModeChange" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
                     <option value="amount">By Amount</option>
                     <option value="percentage">By Percentage</option>
                 </select>
             </div>
 
             <!-- Amount-based Inputs -->
-            <div v-if="mode === 'amount'" class="space-y-4 mt-4">
+            <div v-if="localMode === 'amount'" class="space-y-4 mt-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <jet-label for="start_total_stage3" value="Start Total Stage 3" />
@@ -101,7 +101,13 @@ export default {
         show: Boolean,
         startPeriod: String,
         reportingPeriod: String,
-        portfolioGroup: [String, Number],
+        lgdCalculationLevel: String,
+        lgdCalculationId: [String, Number],
+        lgdCalculationCode: String,
+        mode: {  // This is a prop - don't mutate it directly
+            type: String,
+            default: 'amount'
+        },
         defaultValues: {
             type: Object,
             default: () => ({
@@ -124,7 +130,7 @@ export default {
     },
     data() {
         return {
-            mode: 'amount',
+            localMode: this.mode,  // Create a local copy for v-model
             fields: {
                 start_total_stage3: '',
                 end_total_stage3: '',
@@ -133,18 +139,52 @@ export default {
                 partially_recovered_amount: '',
                 fully_recovered_amount: '',
                 total_disbursments: '',
-                cure_rate: '',
-                recovery_rate: '',
+                cure_rate_cummulative: '',
+                recovery_rate_cummulative: '',
                 periods_count:'',
             },
         };
     },
+    watch: {
+        // Watch for prop changes
+        mode(newMode) {
+            this.localMode = newMode;
+        }
+    },
     mounted() {
         this.fields = { ...this.defaultValues };
+        
+        // Set the mode based on defaultValues if available
+        if (this.defaultValues.mode) {
+            this.localMode = this.defaultValues.mode;
+        } else if (this.defaultValues.cure_rate_cummulative || this.defaultValues.recovery_rate_cummulative) {
+            // If percentage fields have values, default to percentage mode
+            this.localMode = 'percentage';
+        }
     },
     methods: {
+        onModeChange() {
+            // Clear fields when mode changes
+            if (this.localMode === 'amount') {
+                // Clear percentage fields
+                this.fields.cure_rate_cummulative = '';
+                this.fields.recovery_rate_cummulative = '';
+            } else {
+                // Clear amount fields
+                this.fields.start_total_stage3 = '';
+                this.fields.end_total_stage3 = '';
+                this.fields.cure_amount_stage1 = '';
+                this.fields.cure_amount_stage2 = '';
+                this.fields.partially_recovered_amount = '';
+                this.fields.fully_recovered_amount = '';
+                this.fields.total_disbursments = '';
+            }
+            // Keep periods_count if it exists
+        },
+        
         submitManualCalculation() {
-            if (this.mode === 'amount') {
+            // Use localMode for validation
+            if (this.localMode === 'amount') {
                 const requiredFields = [
                     'start_total_stage3',
                     'end_total_stage3',
@@ -156,7 +196,10 @@ export default {
                     'periods_count'
                 ];
 
-                const isMissing = requiredFields.some(field => this.fields[field] === '' || isNaN(Number(this.fields[field])));
+                const isMissing = requiredFields.some(field => {
+                    const value = this.fields[field];
+                    return value === '' || value === null || isNaN(Number(value));
+                });
 
                 if (isMissing) {
                     alert('Please fill all amount fields.');
@@ -169,7 +212,7 @@ export default {
                 const cureRate = start > 0 ? (cured) / start : 0;
                 const recoveryRate = start > 0 ? recovered / start : 0;
                 const lgd = (1 - cureRate) * (1 - recoveryRate);
-                const periods = parseFloat(this.fields.periods_count)
+                const periods = parseFloat(this.fields.periods_count);
 
                 this.$inertia.post(route('lgd-cummulative.manual'), {
                     ...this.fields,
@@ -177,21 +220,29 @@ export default {
                     recovery_rate_cummulative: recoveryRate,
                     cured_amount: cured,
                     lgd_cummulative: lgd,
+                    lgd_cummulative_percent: lgd * 100,
                     periods_count: periods,
                     mode: 'amount',
                     start_period: this.startPeriod,
                     reporting_period: this.reportingPeriod,
-                    portfolio_group: this.portfolioGroup,
+                    lgd_calculation_level: this.lgdCalculationLevel,
+                    lgd_calculation_id: this.lgdCalculationId,
+                    lgd_calculation_code: this.lgdCalculationCode,
                 });
             } else {
+                // Percentage mode validation
                 if (
                     this.fields.cure_rate_cummulative === '' ||
+                    this.fields.cure_rate_cummulative === null ||
                     this.fields.recovery_rate_cummulative === '' ||
+                    this.fields.recovery_rate_cummulative === null ||
                     this.fields.periods_count === '' ||
+                    this.fields.periods_count === null ||
                     isNaN(Number(this.fields.cure_rate_cummulative)) ||
-                    isNaN(Number(this.fields.recovery_rate_cummulative))
+                    isNaN(Number(this.fields.recovery_rate_cummulative)) ||
+                    isNaN(Number(this.fields.periods_count))
                 ) {
-                    alert('Please fill cure and recovery rate.');
+                    alert('Please fill cure rate, recovery rate, and periods count.');
                     return;
                 }
 
@@ -202,13 +253,24 @@ export default {
 
                 this.$inertia.post(route('lgd-cummulative.manual'), {
                     ...this.fields,
-                    loss_given_default_percentage: lgd,
-                    
+                    start_total_stage3: 0,
+                    end_total_stage3: 0,
+                    cure_amount_stage1: 0,
+                    cure_amount_stage2: 0,
+                    partially_recovered_amount: 0,
+                    fully_recovered_amount: 0,
+                    total_disbursments: 0,
+                    cure_rate_cummulative: cureRate,
+                    recovery_rate_cummulative: recoveryRate,
+                    lgd_cummulative: lgd,
+                    lgd_cummulative_percent: lgd * 100,
+                    periods_count: periods,
                     mode: 'percentage',
                     start_period: this.startPeriod,
                     reporting_period: this.reportingPeriod,
-                    portfolio_group: this.portfolioGroup,
-
+                    lgd_calculation_level: this.lgdCalculationLevel,
+                    lgd_calculation_id: this.lgdCalculationId,
+                    lgd_calculation_code: this.lgdCalculationCode,
                 });
             }
 

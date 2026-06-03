@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('macro_stat_definition_id')->constrained('macro_statistics')->onDelete('cascade');
             $table->foreignId('scenario_profile_id')->constrained('scenario_profiles')->nullable();
-            $table->foreignId('scenario_id')->constrained('scenarios')->nullable();
-            $table->string('period',7);
+            $table->unsignedBigInteger('scenario_id')->nullable();
+            $table->date('period')->nullable();
             $table->decimal('value', 15, 4);
             $table->boolean('is_forecast')->default(false);
             $table->boolean('is_fli')->default(false);

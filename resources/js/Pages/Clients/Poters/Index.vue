@@ -45,7 +45,7 @@
                                 </td>
                                 <td class="border-t px-2 py-2">
                                     <div class="border border-gray-300 p-2 rounded-md shadow-sm w-26"
-                                         :class="{'bg-green-600':form.threats_of_new_entry>0},{'bg-yellow-400':form.threats_of_new_entry==0},{'bg-red-600':form.threats_of_new_entry<0}">
+                                         :class="{'bg-maiic-600':form.threats_of_new_entry>0},{'bg-yellow-400':form.threats_of_new_entry==0},{'bg-red-600':form.threats_of_new_entry<0}">
                                         <span v-if="form.threats_of_new_entry>0">Low</span>
                                         <span v-if="form.threats_of_new_entry==0">Medium</span>
                                         <span v-if="form.threats_of_new_entry<0">High</span>
@@ -74,7 +74,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="threats_of_new_entry" v-model="form.time_and_cost_of_entry"
                                             id="threats_of_new_entry"
-                                            :class="{'bg-green-600':form.time_and_cost_of_entry>0},{'bg-yellow-400':form.time_and_cost_of_entry==0},{'bg-red-600':form.time_and_cost_of_entry<0}">
+                                            :class="{'bg-maiic-600':form.time_and_cost_of_entry>0},{'bg-yellow-400':form.time_and_cost_of_entry==0},{'bg-red-600':form.time_and_cost_of_entry<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -102,7 +102,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="threats_of_new_entry" v-model="form.specialist_knowledge"
                                             id="threats_of_new_entry"
-                                            :class="{'bg-green-600':form.specialist_knowledge>0},{'bg-yellow-400':form.specialist_knowledge==0},{'bg-red-600':form.specialist_knowledge<0}">
+                                            :class="{'bg-maiic-600':form.specialist_knowledge>0},{'bg-yellow-400':form.specialist_knowledge==0},{'bg-red-600':form.specialist_knowledge<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -130,7 +130,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="threats_of_new_entry" v-model="form.economies_of_scale"
                                             id="threats_of_new_entry"
-                                            :class="{'bg-green-600':form.economies_of_scale>0},{'bg-yellow-400':form.economies_of_scale==0},{'bg-red-600':form.economies_of_scale<0}">
+                                            :class="{'bg-maiic-600':form.economies_of_scale>0},{'bg-yellow-400':form.economies_of_scale==0},{'bg-red-600':form.economies_of_scale<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -158,7 +158,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="threats_of_new_entry" v-model="form.cost_advantages"
                                             id="threats_of_new_entry"
-                                            :class="{'bg-green-600':form.cost_advantages>0},{'bg-yellow-400':form.cost_advantages==0},{'bg-red-600':form.cost_advantages<0}">
+                                            :class="{'bg-maiic-600':form.cost_advantages>0},{'bg-yellow-400':form.cost_advantages==0},{'bg-red-600':form.cost_advantages<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -185,7 +185,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="threats_of_new_entry" v-model="form.technology_protection"
                                             id="threats_of_new_entry"
-                                            :class="{'bg-green-600':form.technology_protection>0},{'bg-yellow-400':form.technology_protection==0},{'bg-red-600':form.technology_protection<0}">
+                                            :class="{'bg-maiic-600':form.technology_protection>0},{'bg-yellow-400':form.technology_protection==0},{'bg-red-600':form.technology_protection<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -213,7 +213,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="threats_of_new_entry" v-model="form.barriers_to_entry"
                                             id="threats_of_new_entry"
-                                            :class="{'bg-green-600':form.barriers_to_entry>0},{'bg-yellow-400':form.barriers_to_entry==0},{'bg-red-600':form.barriers_to_entry<0}">
+                                            :class="{'bg-maiic-600':form.barriers_to_entry>0},{'bg-yellow-400':form.barriers_to_entry==0},{'bg-red-600':form.barriers_to_entry<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -238,7 +238,7 @@
                                 </td>
                                 <td class="border-t px-2 py-2">
                                     <div class="border border-gray-300 p-2 rounded-md shadow-sm w-26"
-                                         :class="{'bg-green-600':form.competitive_rivalry>0},{'bg-yellow-400':form.competitive_rivalry==0},{'bg-red-600':form.competitive_rivalry<0}">
+                                         :class="{'bg-maiic-600':form.competitive_rivalry>0},{'bg-yellow-400':form.competitive_rivalry==0},{'bg-red-600':form.competitive_rivalry<0}">
                                         <span v-if="form.competitive_rivalry>0">Low</span>
                                         <span v-if="form.competitive_rivalry==0">Medium</span>
                                         <span v-if="form.competitive_rivalry<0">High</span>
@@ -265,7 +265,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="number_of_competitors" v-model="form.number_of_competitors"
                                             id="number_of_competitors"
-                                            :class="{'bg-green-600':form.number_of_competitors>0},{'bg-yellow-400':form.number_of_competitors==0},{'bg-red-600':form.number_of_competitors<0}">
+                                            :class="{'bg-maiic-600':form.number_of_competitors>0},{'bg-yellow-400':form.number_of_competitors==0},{'bg-red-600':form.number_of_competitors<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -293,7 +293,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="quality_differences" v-model="form.quality_differences"
                                             id="quality_differences"
-                                            :class="{'bg-green-600':form.quality_differences>0},{'bg-yellow-400':form.quality_differences==0},{'bg-red-600':form.quality_differences<0}">
+                                            :class="{'bg-maiic-600':form.quality_differences>0},{'bg-yellow-400':form.quality_differences==0},{'bg-red-600':form.quality_differences<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -321,7 +321,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="other_differences" v-model="form.other_differences"
                                             id="other_differences"
-                                            :class="{'bg-green-600':form.other_differences>0},{'bg-yellow-400':form.other_differences==0},{'bg-red-600':form.other_differences<0}">
+                                            :class="{'bg-maiic-600':form.other_differences>0},{'bg-yellow-400':form.other_differences==0},{'bg-red-600':form.other_differences<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -349,7 +349,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="switching_costs" v-model="form.switching_costs"
                                             id="switching_costs"
-                                            :class="{'bg-green-600':form.switching_costs>0},{'bg-yellow-400':form.switching_costs==0},{'bg-red-600':form.switching_costs<0}">
+                                            :class="{'bg-maiic-600':form.switching_costs>0},{'bg-yellow-400':form.switching_costs==0},{'bg-red-600':form.switching_costs<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -377,7 +377,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="customer_loyalty" v-model="form.customer_loyalty"
                                             id="customer_loyalty"
-                                            :class="{'bg-green-600':form.customer_loyalty>0},{'bg-yellow-400':form.customer_loyalty==0},{'bg-red-600':form.customer_loyalty<0}">
+                                            :class="{'bg-maiic-600':form.customer_loyalty>0},{'bg-yellow-400':form.customer_loyalty==0},{'bg-red-600':form.customer_loyalty<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -402,7 +402,7 @@
                                 </td>
                                 <td class="border-t px-2 py-2">
                                     <div class="border border-gray-300 p-2 rounded-md shadow-sm w-26"
-                                         :class="{'bg-green-600':form.supplier_power>0},{'bg-yellow-400':form.supplier_power==0},{'bg-red-600':form.supplier_power<0}">
+                                         :class="{'bg-maiic-600':form.supplier_power>0},{'bg-yellow-400':form.supplier_power==0},{'bg-red-600':form.supplier_power<0}">
                                         <span v-if="form.supplier_power>0">Low</span>
                                         <span v-if="form.supplier_power==0">Medium</span>
                                         <span v-if="form.supplier_power<0">High</span>
@@ -429,7 +429,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="size_of_suppliers" v-model="form.size_of_suppliers"
                                             id="size_of_suppliers"
-                                            :class="{'bg-green-600':form.size_of_suppliers>0},{'bg-yellow-400':form.size_of_suppliers==0},{'bg-red-600':form.size_of_suppliers<0}">
+                                            :class="{'bg-maiic-600':form.size_of_suppliers>0},{'bg-yellow-400':form.size_of_suppliers==0},{'bg-red-600':form.size_of_suppliers<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -458,7 +458,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="uniqueness_of_service" v-model="form.uniqueness_of_service"
                                             id="uniqueness_of_service"
-                                            :class="{'bg-green-600':form.uniqueness_of_service>0},{'bg-yellow-400':form.uniqueness_of_service==0},{'bg-red-600':form.uniqueness_of_service<0}">
+                                            :class="{'bg-maiic-600':form.uniqueness_of_service>0},{'bg-yellow-400':form.uniqueness_of_service==0},{'bg-red-600':form.uniqueness_of_service<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -486,7 +486,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="costs_of_supplier_change" v-model="form.costs_of_supplier_change"
                                             id="costs_of_supplier_change"
-                                            :class="{'bg-green-600':form.costs_of_supplier_change>0},{'bg-yellow-400':form.costs_of_supplier_change==0},{'bg-red-600':form.costs_of_supplier_change<0}">
+                                            :class="{'bg-maiic-600':form.costs_of_supplier_change>0},{'bg-yellow-400':form.costs_of_supplier_change==0},{'bg-red-600':form.costs_of_supplier_change<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -514,7 +514,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="supplier_switching_costs" v-model="form.supplier_switching_costs"
                                             id="supplier_switching_costs"
-                                            :class="{'bg-green-600':form.supplier_switching_costs>0},{'bg-yellow-400':form.supplier_switching_costs==0},{'bg-red-600':form.supplier_switching_costs<0}">
+                                            :class="{'bg-maiic-600':form.supplier_switching_costs>0},{'bg-yellow-400':form.supplier_switching_costs==0},{'bg-red-600':form.supplier_switching_costs<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -539,7 +539,7 @@
                                 </td>
                                 <td class="border-t px-2 py-2">
                                     <div class="border border-gray-300 p-2 rounded-md shadow-sm w-26"
-                                         :class="{'bg-green-600':form.threats_of_substitution>0},{'bg-yellow-400':form.threats_of_substitution==0},{'bg-red-600':form.threats_of_substitution<0}">
+                                         :class="{'bg-maiic-600':form.threats_of_substitution>0},{'bg-yellow-400':form.threats_of_substitution==0},{'bg-red-600':form.threats_of_substitution<0}">
                                         <span v-if="form.threats_of_substitution>0">Low</span>
                                         <span v-if="form.threats_of_substitution==0">Medium</span>
                                         <span v-if="form.threats_of_substitution<0">High</span>
@@ -565,7 +565,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="substitute_performance" v-model="form.substitute_performance"
                                             id="substitute_performance"
-                                            :class="{'bg-green-600':form.substitute_performance>0},{'bg-yellow-400':form.substitute_performance==0},{'bg-red-600':form.substitute_performance<0}">
+                                            :class="{'bg-maiic-600':form.substitute_performance>0},{'bg-yellow-400':form.substitute_performance==0},{'bg-red-600':form.substitute_performance<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -593,7 +593,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="costs_of_substitution" v-model="form.costs_of_substitution"
                                             id="costs_of_substitution"
-                                            :class="{'bg-green-600':form.costs_of_substitution>0},{'bg-yellow-400':form.costs_of_substitution==0},{'bg-red-600':form.costs_of_substitution<0}">
+                                            :class="{'bg-maiic-600':form.costs_of_substitution>0},{'bg-yellow-400':form.costs_of_substitution==0},{'bg-red-600':form.costs_of_substitution<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -618,7 +618,7 @@
                                 </td>
                                 <td class="border-t px-2 py-2">
                                     <div class="border border-gray-300 p-2 rounded-md shadow-sm w-26"
-                                         :class="{'bg-green-600':form.buyer_power>0},{'bg-yellow-400':form.buyer_power==0},{'bg-red-600':form.buyer_power<0}">
+                                         :class="{'bg-maiic-600':form.buyer_power>0},{'bg-yellow-400':form.buyer_power==0},{'bg-red-600':form.buyer_power<0}">
                                         <span v-if="form.buyer_power>0">Low</span>
                                         <span v-if="form.buyer_power==0">Medium</span>
                                         <span v-if="form.buyer_power<0">High</span>
@@ -644,7 +644,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="number_of_customers" v-model="form.number_of_customers"
                                             id="number_of_customers"
-                                            :class="{'bg-green-600':form.number_of_customers>0},{'bg-yellow-400':form.number_of_customers==0},{'bg-red-600':form.number_of_customers<0}">
+                                            :class="{'bg-maiic-600':form.number_of_customers>0},{'bg-yellow-400':form.number_of_customers==0},{'bg-red-600':form.number_of_customers<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -672,7 +672,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="single_order_size" v-model="form.single_order_size"
                                             id="single_order_size"
-                                            :class="{'bg-green-600':form.single_order_size>0},{'bg-yellow-400':form.single_order_size==0},{'bg-red-600':form.single_order_size<0}">
+                                            :class="{'bg-maiic-600':form.single_order_size>0},{'bg-yellow-400':form.single_order_size==0},{'bg-red-600':form.single_order_size<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -700,7 +700,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="competitor_differences" v-model="form.competitor_differences"
                                             id="competitor_differences"
-                                            :class="{'bg-green-600':form.competitor_differences>0},{'bg-yellow-400':form.competitor_differences==0},{'bg-red-600':form.competitor_differences<0}">
+                                            :class="{'bg-maiic-600':form.competitor_differences>0},{'bg-yellow-400':form.competitor_differences==0},{'bg-red-600':form.competitor_differences<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -728,7 +728,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="price_sensitivity" v-model="form.price_sensitivity"
                                             id="price_sensitivity"
-                                            :class="{'bg-green-600':form.price_sensitivity>0},{'bg-yellow-400':form.price_sensitivity==0},{'bg-red-600':form.price_sensitivity<0}">
+                                            :class="{'bg-maiic-600':form.price_sensitivity>0},{'bg-yellow-400':form.price_sensitivity==0},{'bg-red-600':form.price_sensitivity<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -756,7 +756,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="ability_to_substitute" v-model="form.ability_to_substitute"
                                             id="ability_to_substitute"
-                                            :class="{'bg-green-600':form.ability_to_substitute>0},{'bg-yellow-400':form.ability_to_substitute==0},{'bg-red-600':form.ability_to_substitute<0}">
+                                            :class="{'bg-maiic-600':form.ability_to_substitute>0},{'bg-yellow-400':form.ability_to_substitute==0},{'bg-red-600':form.ability_to_substitute<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -785,7 +785,7 @@
                                             class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-26"
                                             name="customers_switching_costs" v-model="form.customers_switching_costs"
                                             id="customers_switching_costs"
-                                            :class="{'bg-green-600':form.customers_switching_costs>0},{'bg-yellow-400':form.customers_switching_costs==0},{'bg-red-600':form.customers_switching_costs<0}">
+                                            :class="{'bg-maiic-600':form.customers_switching_costs>0},{'bg-yellow-400':form.customers_switching_costs==0},{'bg-red-600':form.customers_switching_costs<0}">
                                         <option value="1">Low</option>
                                         <option value="0">Medium</option>
                                         <option value="-1">High</option>
@@ -810,7 +810,7 @@
                                 </td>
                                 <td class="border-t px-2 py-2">
                                     <div class="border border-gray-300 p-2 rounded-md shadow-sm w-26"
-                                         :class="{'bg-green-600':form.grand_total>0},{'bg-yellow-400':form.grand_total==0},{'bg-red-600':form.grand_total<0}">
+                                         :class="{'bg-maiic-600':form.grand_total>0},{'bg-yellow-400':form.grand_total==0},{'bg-red-600':form.grand_total<0}">
                                         <span v-if="form.grand_total>0">Low</span>
                                         <span v-if="form.grand_total==0">Medium</span>
                                         <span v-if="form.grand_total<0">High</span>

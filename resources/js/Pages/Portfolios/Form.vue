@@ -73,7 +73,7 @@ export default {
     @apply text-red-500 mt-1 text-sm;
 }
 .btn-indigo {
-    @apply px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50;
+    @apply px-6 py-3 bg-maiic-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-maiic-500 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2 disabled:opacity-50;
 }
 .error {
     @apply border-red-500 focus:ring-red-200;

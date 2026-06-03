@@ -29,7 +29,7 @@ class MacroStatsValue extends Model
     ];
 
     protected $casts = [
-        'period' => 'string',
+        'period' => 'date',
         'is_forecast' => 'boolean',
         'is_fli' => 'boolean', 
         'value' => 'decimal:4',

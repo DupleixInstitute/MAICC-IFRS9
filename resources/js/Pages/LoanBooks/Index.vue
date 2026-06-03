@@ -10,9 +10,23 @@
                             class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 hidden">
                         Import Loan Book
                     </button>
+                    <button @click="openExportModal"
+                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Export Summary
+                    </button>
+                    <button @click="openDisbursementModal"
+                            class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        Get Disbursements
+                    </button>
                     <Link
                         :href="route('loan_applications.loan-book.import.create')"
-                        class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+                        class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -52,21 +66,21 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Year</label>
                                 <select v-model="filters.year" @change="fetchData"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                     <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Month</label>
                                 <select v-model="filters.month" @change="fetchData"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                     <option v-for="(name, index) in months" :key="index" :value="index + 1">{{ name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Status</label>
                                 <select v-model="filters.overdue" @change="fetchData"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                                     <option value="">All Loans</option>
                                     <option value="1">Overdue</option>
                                     <option value="0">Not Overdue</option>
@@ -76,7 +90,7 @@
                                 <label class="block text-sm font-medium text-gray-700">Search</label>
                                 <input type="text" v-model="filters.search" @input="fetchData"
                                        placeholder="Search by Contract ID or Customer..."
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                             </div>
                         </div>
                     </div>
@@ -163,14 +177,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Reporting Period</label>
                         <input type="month" v-model="importForm.reporting_period" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                         <p class="mt-1 text-xs text-gray-500">Select the month and year for this loan book data</p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Portfolio</label>
                         <select v-model="importForm.portfolio" required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                             <option value="">Select Portfolio</option>
                             <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
                                 {{ portfolio.name }}
@@ -219,7 +233,7 @@
                             </div>
                             <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
                                 <div :style="{ width: importProgress + '%' }"
-                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500">
+                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-maiic-500">
                                 </div>
                             </div>
                         </div>
@@ -248,7 +262,7 @@
                         </button>
                         <button type="submit"
                                 :disabled="importing"
-                                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-maiic-600 hover:bg-maiic-700 disabled:opacity-50">
                             {{ importing ? 'Importing...' : 'Import' }}
                         </button>
                     </div>
@@ -256,6 +270,119 @@
             </div>
         </div>
     </Modal>
+
+    <!-- Export Modal -->
+    <div v-if="showExportModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 class="text-lg font-bold mb-4">Export Loan Book Summary Report</h2>
+
+            <div class="mb-4">
+                <label for="exportPortfolio" class="block mb-2 text-sm font-medium text-gray-700">Select Portfolio (Optional)</label>
+                <select v-model="exportForm.portfolio_id" id="exportPortfolio" class="border-gray-300 rounded-md shadow-sm w-full">
+                    <option value="">All Portfolios</option>
+                    <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
+                        {{ portfolio.name }}
+                    </option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="startPeriod" class="block mb-2 text-sm font-medium text-gray-700">Start Period</label>
+                <input type="month" v-model="exportForm.start_period" id="startPeriod" class="border-gray-300 rounded-md shadow-sm w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label for="endPeriod" class="block mb-2 text-sm font-medium text-gray-700">End Period</label>
+                <input type="month" v-model="exportForm.end_period" id="endPeriod" class="border-gray-300 rounded-md shadow-sm w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label for="exportMode" class="block mb-2 text-sm font-medium text-gray-700">Export Mode</label>
+                <input type="text" id="exportMode" value="Summary (Aggregated by period and stage)"
+                       class="border-gray-300 rounded-md shadow-sm w-full mb-4" readonly>
+                <p class="mt-1 text-xs text-gray-500">
+                    Exports aggregated Balance by IFRS9 stages for each reporting period
+                </p>
+            </div>
+
+            <div class="mb-4 bg-blue-50 rounded-lg p-3">
+                <p class="text-sm text-blue-800">
+                    <strong>Note:</strong> This export will generate a summary report showing Balance aggregated by IFRS9 stages (1, 2, 3) for each reporting period.
+                </p>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <button @click="showExportModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                <button
+                    @click="submitExport"
+                    class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
+                    :disabled="exporting"
+                >
+                    <span v-if="exporting">Exporting...</span>
+                    <span v-else>Export</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disbursement Export Modal -->
+    <div v-if="showDisbursementModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 class="text-lg font-bold mb-4">Export Disbursement Report</h2>
+
+            <div class="mb-4">
+                <label for="disbursementPortfolio" class="block mb-2 text-sm font-medium text-gray-700">Select Portfolio (Optional)</label>
+                <select v-model="disbursementForm.portfolio_id" id="disbursementPortfolio" class="border-gray-300 rounded-md shadow-sm w-full">
+                    <option value="">All Portfolios</option>
+                    <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
+                        {{ portfolio.name }}
+                    </option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="startPeriod" class="block mb-2 text-sm font-medium text-gray-700">Start Period</label>
+                <input type="month" v-model="disbursementForm.start_period" id="startPeriod" class="border-gray-300 rounded-md shadow-sm w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label for="endPeriod" class="block mb-2 text-sm font-medium text-gray-700">End Period</label>
+                <input type="month" v-model="disbursementForm.end_period" id="endPeriod" class="border-gray-300 rounded-md shadow-sm w-full" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-2 text-sm font-medium text-gray-700">Export Mode</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" v-model="disbursementForm.mode" value="summary" class="mr-2">
+                        <span class="text-sm">Summary Only (Aggregated data)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" v-model="disbursementForm.mode" value="detailed" class="mr-2">
+                        <span class="text-sm">Summary + Detailed (Individual contracts)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-4 bg-blue-50 rounded-lg p-3">
+                <p class="text-sm text-blue-800">
+                    <strong>Note:</strong> This export will generate a disbursement report showing total amount disbursed, contract count, and detailed breakdown of all loans originated within the selected date range.
+                </p>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <button @click="showDisbursementModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                <button
+                    @click="submitDisbursementExport"
+                    class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
+                    :disabled="disbursementExporting"
+                >
+                    <span v-if="disbursementExporting">Exporting...</span>
+                    <span v-else>Export Disbursements</span>
+                </button>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup>
@@ -288,13 +415,31 @@ const months = [
 ];
 
 const showImportModal = ref(false);
+const showExportModal = ref(false);
+const showDisbursementModal = ref(false);
 const importing = ref(false);
+const exporting = ref(false);
+const disbursementExporting = ref(false);
 const importProgress = ref(0);
 const importError = ref('');
 const importForm = ref({
     reporting_period: '',
     portfolio: '',
     file: null
+});
+
+const exportForm = ref({
+    portfolio_id: '',
+    start_period: '',
+    end_period: '',
+    mode: 'summary'
+});
+
+const disbursementForm = ref({
+    portfolio_id: '',
+    start_period: '',
+    end_period: '',
+    mode: 'summary'
 });
 
 const handleFileUpload = (event) => {
@@ -348,6 +493,106 @@ const submitImport = async () => {
                 file: null
             };
         }
+    }
+};
+
+const openExportModal = () => {
+    exportForm.value = {
+        portfolio_id: '',
+        start_period: '',
+        end_period: '',
+        mode: 'summary'
+    };
+    showExportModal.value = true;
+};
+
+const submitExport = async () => {
+    if (!exportForm.value.start_period || !exportForm.value.end_period) {
+        alert('Please select both start and end periods');
+        return;
+    }
+
+    if (exportForm.value.start_period > exportForm.value.end_period) {
+        alert('Start period cannot be later than end period');
+        return;
+    }
+
+    exporting.value = true;
+
+    try {
+        // Consolidated onto the Reports module (ReportsController@loanBookExport + LoanBookExportService).
+        const url = route('reports.loan-book-export', {
+            start_period: exportForm.value.start_period,
+            end_period: exportForm.value.end_period,
+            portfolio_id: exportForm.value.portfolio_id || null,
+            mode: 'summary',
+            export: 1
+        });
+
+        // Create a temporary link to download the file
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showExportModal.value = false;
+    } catch (error) {
+        console.error('Export failed:', error);
+        alert('Export failed. Please try again.');
+    } finally {
+        exporting.value = false;
+    }
+};
+
+const openDisbursementModal = () => {
+    disbursementForm.value = {
+        portfolio_id: '',
+        start_period: '',
+        end_period: '',
+        mode: 'summary'
+    };
+    showDisbursementModal.value = true;
+};
+
+const submitDisbursementExport = async () => {
+    if (!disbursementForm.value.start_period || !disbursementForm.value.end_period) {
+        alert('Please select both start and end periods');
+        return;
+    }
+
+    if (disbursementForm.value.start_period > disbursementForm.value.end_period) {
+        alert('Start period cannot be later than end period');
+        return;
+    }
+
+    disbursementExporting.value = true;
+
+    try {
+        // Consolidated onto the Reports module (ReportsController@disbursementReport + DisbursementReportService).
+        const url = route('reports.disbursement-report', {
+            start_period: disbursementForm.value.start_period,
+            end_period: disbursementForm.value.end_period,
+            portfolio_id: disbursementForm.value.portfolio_id || null,
+            mode: disbursementForm.value.mode,
+            export: 1
+        });
+
+        // Create a temporary link to download the file
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showDisbursementModal.value = false;
+    } catch (error) {
+        console.error('Disbursement export failed:', error);
+        alert('Disbursement export failed. Please try again.');
+    } finally {
+        disbursementExporting.value = false;
     }
 };
 

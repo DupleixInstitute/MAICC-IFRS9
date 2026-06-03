@@ -15,15 +15,21 @@
                     <form @submit.prevent="submit">
                         <div class="grid grid-cols-1 gap-2">
                             <div class="">
-                                <jet-label for="code" value="Name"/>
+                                <jet-label for="code" value="Code"/>
                                 <jet-input id="code" type="text" class="mt-1 block w-full" v-model="form.code"
                                            required/>
                                 <jet-input-error :message="form.errors.code" class="mt-2"/>
                             </div>
                             <div>
+                                <jet-label for="name" value="Name"/>
+                            <jet-input id="name" type="text" class="mt-1 block w-full" v-model="form.name"
+                                           required/>
+                                <jet-input-error :message="form.errors.name" class="mt-2"/>
+                            </div>
+                            <div>
                                 <jet-label for="name" value="Description"/>
                                 <textarea-input id="name" class="mt-1 block w-full"
-                                                v-model="form.name"/>
+                                                v-model="form.description"/>
                                 <jet-input-error :message="form.errors.name" class="mt-2"/>
                             </div>
                             <!-- <h4>Liquidity Ratios</h4>

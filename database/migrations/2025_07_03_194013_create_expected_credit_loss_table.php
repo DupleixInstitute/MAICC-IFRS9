@@ -14,6 +14,9 @@ return new class extends Migration
         Schema::create('expected_credit_loss', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
+            $table->string('ecl_calculation_level')->nullable();
+            $table->unsignedBigInteger('ecl_calculation_id')->nullable()->comment('ID corresponding to the level of ECL calculation');
+            $table->string('ecl_calculation_code')->nullable()->comment('ECL corresponding to the level of ECL calculation');
             $table->decimal('total_ead',18,2)->nullable();
             $table->decimal('total_ecl', 18,2)->nullable();
             $table->decimal('lgd_value_used', 8,2)->nullable();

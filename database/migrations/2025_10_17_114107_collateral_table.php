@@ -13,14 +13,15 @@ return new class extends Migration
     {
         Schema::create("collateral_types", function (Blueprint $table) {
         
-            $table->increments("id");
-            $table->tinyInteger("type_code")->unique();
+            $table->id();
+            $table->integer('type_code')->unique();
             $table->string("type_name", 100);
             $table->string("description", 255)->nullable();
-            $table->unsignedInteger("realisation_period")->comment('Months')->nullable();
+            $table->integer('realisation_period')->default(12)->comment('Months');
             $table->decimal("standard_haircut", 10, 2)->comment('Percentage')->nullable();
             $table->decimal('liquidity_factor',10,2)->default(0)->nullable();
             $table->boolean("is_active")->default(true);
+            $table->timestamps();
 
             $table->index(["type_code","is_active"]);
         
@@ -28,16 +29,17 @@ return new class extends Migration
 
          Schema::create('collateral_registers', function (Blueprint $table) {
             $table->id();
-            $table->string('register_number', 50)->unique();
-            $table->string('client_id', 20);
+            $table->date('period')->nullable();
+            $table->string('register_number', 50)->default('TBA');
+            $table->string('customer_id', 20);
             $table->string('customer_name', 255);
             $table->string('collateral_type', 100);
             $table->string('property_use', 100)->nullable();
             $table->string('description', 500)->nullable();
             $table->string('location', 255)->nullable();
-            $table->date('registration_date');
-            $table->date('expiry_date');
-            $table->date('valuation_date');
+            $table->date('registration_date')->nullable();
+            $table->date('expiry_date')->nullable();
+            $table->date('valuation_date')->nullable();
             $table->decimal('nominal_value', 20, 2)->default(0);
             $table->decimal('market_value', 20, 2)->default(0);
             $table->decimal('execution_value', 20, 2)->default(0);
@@ -45,7 +47,7 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
             
-            $table->index(['client_id']);
+            $table->index(['customer_id']);
             $table->index(['status']);
             $table->index(['expiry_date']);
         });
@@ -53,11 +55,11 @@ return new class extends Migration
          Schema::create('collateral_allocations', function (Blueprint $table) {
             $table->id();
             $table->integer('reporting_year');
-            $table->tinyInteger('reporting_month');
-            $table->integer('reporting_period')->virtualAs('reporting_year * 100 + reporting_month');
+            $table->integer('reporting_month');
+            $table->date('reporting_period');
             $table->foreignId('collateral_register_id')->constrained('collateral_registers');
-            $table->string('client_id', 20);
-            $table->string('client_name', 255);
+            $table->string('customer_id', 20);
+            $table->string('customer_name', 255)->nullable();
             $table->string('contract_id', 50);
             $table->decimal('account_balance', 20, 2)->default(0);
             $table->decimal('total_customer_exposure', 20, 2)->default(0);
@@ -69,7 +71,7 @@ return new class extends Migration
             $table->decimal('discounted_collateral', 20, 2)->default(0);
             $table->decimal('coverage_ratio', 8, 4)->default(0)
                   ->comment('account_balance / allocated_collateral * 100');
-            $table->enum('allocation_basis', ['AVERAGE', 'ACTUAL'])->default('AVERAGE');
+            $table->enum('allocation_basis', ['AVERAGE','ACTUAL','PROPORTIONAL','EQUAL','ASCENDING','DESCENDING'])->default('AVERAGE');
             $table->text('allocation_notes')->nullable();
             $table->timestamp('allocation_date')->useCurrent();
             $table->timestamps();
@@ -81,7 +83,7 @@ return new class extends Migration
             ], 'unique_monthly_allocation');
             
             $table->index(['reporting_period']);
-            $table->index(['client_id', 'contract_id']);
+            $table->index(['customer_id', 'contract_id']);
             $table->index(['allocation_date']);
         });
 

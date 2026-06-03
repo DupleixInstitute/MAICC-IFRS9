@@ -1,455 +1,119 @@
 <?php
+
+/*
+|--------------------------------------------------------------------------
+| MAIIC IFRS 9 — workflow-based navigation
+|--------------------------------------------------------------------------
+| Organised by how the bank uses the system (setup -> data -> model ->
+| ECL -> reports -> analytics -> admin), not by database tables. The
+| sidebar renderer (Jetstream/DropdownMenu.vue) is recursive with
+| accordion behaviour, so groups may nest. Every leaf points to a real
+| registered route. The legacy /report (reports.index) is intentionally
+| NOT linked. The 19 IFRS 9 reports + interactive Sensitivity live inside
+| the tabbed hub, so they are not repeated in the menu.
+*/
+
+// $download=true => the route returns a file (e.g. PDF). The sidebar must
+// render it as a plain <a>, not an Inertia <Link>, or the SPA hangs trying
+// to parse the binary as an Inertia response.
+$leaf = fn ($name, $route, $icon = 'circle', $download = false) => [
+    'name' => $name, 'icon' => $icon, 'route' => $route, 'route_check' => $route,
+    'permissions' => '', 'dropdown' => false, 'children' => [], 'order' => 0,
+    'download' => $download,
+];
+$group = fn ($name, $icon, $children, $order) => [
+    'name' => $name, 'icon' => $icon, 'route' => '', 'permissions' => '',
+    'dropdown' => true, 'children' => $children, 'order' => $order,
+];
+
 return [
     'admin' => [
-        [
-            'name' => 'Dashboard',
-            'icon' => 'home',
-            'route' => 'dashboard',
-            'permissions' => '',
-            'dropdown' => false,
-            'children' => [],
-            'order' => 0,
-        ],
-        // [
-        //     'name' => 'Clients',
-        //     'icon' => 'users',
-        //     'route' => 'clients.index',
-        //     'permissions' => 'clients',
-        //     'dropdown' => true,
-        //     'children' => [
-        //         [
-        //             'name' => 'View Names File',
-        //             'icon' => 'circle',
-        //             'route' => 'clients.index',
-        //             'permissions' => 'clients',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 0,
-        //         ],
-        //         [
-        //             'name' => 'Loan Book',
-        //             'icon' => 'circle',
-        //             'route' => 'loan_applications.loan-book',
-        //             'permissions' => 'loan_applications.loan-book',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 1,
-        //         ],
-        //     ],
-        //     'order' => 1,
-        // ],
-        [
-            'name' => 'Clients',
-            'icon' => 'users',
-            'route' => 'clients.index',
-            'permissions' => 'clients',
-            'dropdown' => false,
-            'children' => [],
-            'order' => 1,
-        ],
-        [
-            'name' => 'Loan Book',
-            'icon' => 'credit-card',
-            'route' => 'loan_applications.loan-book',
-            'permissions' => 'loan_applications.loan-book',
-            'dropdown' => true,
-            'children' => [
-                [
-                    'name' => 'View Loan Book',
-                    'icon' => 'circle',
-                    'route' => 'loan_applications.loan-book',
-                    'permissions' => 'loan_applications.loan-book',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Expected Credit Loss',
-                    'icon' => 'circle',
-                    'route' => 'expected-credit-loss.index',
-                    'route_check' => 'expected-credit-loss.index',
-                    'permissions' => 'loan_applications.loan-book',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-            ],
-            'order' => 1,
-        ],
-        // [
-        //     'name' => 'Contracts',
-        //     'icon' => 'credit-card',
-        //     'route' => 'loan_applications.contracts.index',
-        //     'permissions' => 'loan_applications.contracts.index',
-        //     'dropdown' => false,
-        //     'children' => [],
-        //     'order' => 1,
-        // ],
 
-        //Loan Portfolios
         [
-            'name' => 'Portfolios',
-            'icon' => 'database',
-            'route' => '',
-            'permissions' => '',
-            'dropdown' => true,
-            'children' => [
-                                [
-                    'name' => 'Loan Portfolio',
-                    'icon' => 'circle',
-                    'route' => 'portfolios.index',
-                    'permissions' => 'portfolios.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Sector Types',
-                    'icon' => 'circle',
-                    'route' => 'industry_types.index',
-                    'route_check' => 'industry_types.index',
-                    'permissions' => 'industry_types.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-            ],
-            'order' => 1,
-        ],
-        //CUSTOM IMPORTS
-        [
-            'name' => 'Imports',
-            'icon' => 'database',
-            'route' => 'imports.index',
-            'permissions' => 'custom_imports.index',
-            'dropdown' => false,
-            'children' => [],
-            'order' => 1,
+            'name' => 'Dashboard', 'icon' => 'home', 'route' => 'dashboard',
+            'route_check' => 'dashboard', 'permissions' => '', 'dropdown' => false,
+            'children' => [], 'order' => 0,
         ],
 
-        //FORWARD LOOKING INFORMATION
-        [
-            'name' => 'Foward Looking Info',
-            'icon' => 'chart-bar',
-            'permissions' => 'loans.products.index',
-            'dropdown' => true,
-            'children' => [
-                  [
-                    'name' => 'Macro Elements',
-                    'icon' => 'circle',
-                    'route' => 'macro-statistics.index',
-                    'permissions' => 'macro-statistics.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Scenarios',
-                    'icon' => 'circle',
-                    'route' => 'scenarios.profiles',
-                    'route_check' => 'scenarios.profiles',
-                    'permissions' => 'scenarios.profiles',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-                [
-                    'name' => 'Weighted Forecast',
-                    'icon' => 'circle',
-                    'route' => 'macro-forecast-weighted.index',
-                    'route_check' => 'macro-forecast-weighted.index',
-                    'permissions' => 'macro-forecast-weighted.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 2,
-                ],
-            ],
-            'order' => 6,
-        ],
+        $leaf('Workspace', 'workspace.index', 'tasks'),
 
+        $group('Portfolio Setup', 'database', [
+            $leaf('Loan Portfolios', 'portfolios.index'),
+            $leaf('Sector Types', 'industry_types.index'),
+            $leaf('Product Groups', 'groups.index'),
+        ], 1),
 
-        // [
-        //     'name' => 'Loan Applications',
-        //     'icon' => 'landmark',
-        //     'route' => 'loan_applications.index',
-        //     'permissions' => 'loans.applications.index',
-        //     'dropdown' => false,
-        //     'children' => [],
-        //     'order' => 1,
-        // ],
-        // [
-        //     'name' => 'Transition Profiles',
-        //     'icon' => 'database',
-        //     'route' => '',
-        //     'permissions' => 'loans.products.index',
-        //     'dropdown' => true,
-        //     'children' => [
-        //         [
-        //             'name' => 'View Transition Profiles',
-        //             'icon' => 'circle',
-        //             'route' => 'loan_products.index',
-        //             'permissions' => 'loans.products.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 0,
-        //         ],
-        //         [
-        //             'name' => 'Create Transition Profiles',
-        //             'icon' => 'circle',
-        //             'route' => 'loan_products.create',
-        //             'route_check' => 'loan_products.create',
-        //             'permissions' => 'loans.products.create',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 1,
-        //         ],
-                
-        //         [
-        //             'name' => 'Manage ECL Variables',
-        //             'icon' => 'circle',
-        //             'route' => 'loan_products.categories.index',
-        //             'route_check' => 'loan_products.categories.*',
-        //             'permissions' => 'loans.products.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 2,
-        //         ],
-        //     ],
-        //     'order' => 4,
-        // ],
-        [
-            'name' => 'Transition Profiles',
-            'icon' => 'database',
-            'route' => '',
-            'permissions' => 'loans.products.index',
-            'dropdown' => true,
-            'children' => [
-                [
-                    'name' => 'View Transition Profiles',
-                    'icon' => 'circle',
-                    'route' => 'transition-profiles.index',
-                    'permissions' => 'loans.products.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Create Transition Profiles',
-                    'icon' => 'circle',
-                    'route' => 'transition-profiles.create',
-                    'route_check' => 'transition-profiles.create',
-                    'permissions' => 'transition-profiles.create',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
-            ],
-            'order' => 4,
-        ],
+        $group('Customer & Loan Data', 'users', [
+            $leaf('Clients', 'clients.index'),
+            $leaf('Loan Book', 'loan_applications.loan-book'),
+            $leaf('Imports', 'imports.index'),
+            $leaf('Disbursements', 'reports.disbursement-report'),
+            $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
+            $leaf('Loan Book Export', 'reports.loan-book-export'),
+            $leaf('ECL Export', 'reports.ecl-export'),
+        ], 2),
 
-        //Loss Given Default
-        [
-            'name' => 'Loss Given Default',
-            'icon' => 'database',
-            'route' => '',
-            'permissions' => 'loans.products.index',
-            'dropdown' => true,
-            'children' => [
-            
-                 [
-                    'name' => 'Monthly LGD',
-                    'icon' => 'circle',
-                    'route' => 'loss-given-default.index',
-                    'permissions' => 'loss-given-default.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Cummulative LGD',
-                    'icon' => 'circle',
-                    'route' => 'lgd-cummulative.index',
-                    'permissions' => 'lgd-cummulative.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
+        $group('Collateral Management', 'building', [
+            $leaf('Collateral Types', 'collateral.types.index'),
+            $leaf('Collateral Allocation', 'collateral.allocations.index'),
+        ], 3),
 
-            ],
-            'order' => 4,
-        ],
-        
-        // [
-        //     'name' => 'Transition Profile Column',
-        //     'icon' => 'check',
-        //     'route' => 'scoring_attributes.index',
-        //     'route_check' => 'scoring_attributes.*',
-        //     'permissions' => 'loans.scoring_attributes.index',
-        //     'dropdown' => false,
-        //     'children' => [],
-        //     'order' => 1,
-        // ],
-        [
-            'name' => 'Transition Matrix',
-            'icon' => 'chart-line',
-            'route' => '',
-            'route_check' => 'transition-matrices.index',
-            'permissions' => 'transition-matrices.index',
-            'dropdown' => true,
-            'children' => [
+        $group('IFRS 9 Model Setup', 'chart-line', [
+            $group('Staging & SICR Rules', 'circle', [
+                $leaf('Quantitative Thresholds', 'stageing-rules.index'),
+                $leaf('SICR Groups Setup', 'sicr-groups.index'),
+                $leaf('SICR Alert Items', 'sicr-items.index'),
+                $leaf('SICR Trigger Alerts', 'sicr-triggers.index'),
+            ], 0),
+            $group('PD Model Setup', 'circle', [
+                $leaf('Transition Profiles', 'transition-profiles.index'),
+                $leaf('Monthly Probability', 'transition-matrices.index'),
+                $leaf('Cumulative Probability', 'transition-matrix-cummulative.index'),
+                $leaf('Internal Grades', 'internal-grading.profiles'),
+            ], 1),
+            $group('LGD Model Setup', 'circle', [
+                $leaf('Monthly LGD', 'loss-given-default.index'),
+                $leaf('Cumulative LGD', 'lgd-cummulative.index'),
+            ], 2),
+            $group('Forward-Looking Model', 'circle', [
+                $leaf('Macro Elements', 'macro-statistics.index'),
+                $leaf('Scenario Profiles', 'scenarios.profiles'),
+                $leaf('Weighted Forecast', 'macro-forecast-weighted.index'),
+                $leaf('Credit Loss Data', 'credit-loss-data.index'),
+                $leaf('Adjusted Forecast', 'forecasting.manual'),
+            ], 3),
+            $group('Management Overlays', 'circle', [
+                $leaf('Economic Scenarios', 'fli.scenarios.index'),
+                $leaf('External Calculations', 'fli.external.index'),
+                $leaf('Calculation History', 'fli.external.list'),
+            ], 4),
+        ], 4),
 
-                 [
-                    'name' => 'Monthly Probability',
-                    'icon' => 'circle',
-                    'route' => 'transition-matrices.index',
-                    'permissions' => 'transition-matrices.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 0,
-                ],
-                [
-                    'name' => 'Cummulative Probability',
-                    'icon' => 'circle',
-                    'route' => 'transition-matrix-cummulative.index',
-                    'permissions' => 'transition-matrix-cummulative.index',
-                    'dropdown' => false,
-                    'children' => [],
-                    'order' => 1,
-                ],
+        $group('ECL Processing', 'check', [
+            $leaf('ECL Calculation', 'expected-credit-loss.index'),
+        ], 5),
 
-            ],
-            'order' => 1,
-        ],
-        // [
-        //     'name' => 'Communication',
-        //     'icon' => 'mail-bulk',
-        //     'route' => '',
-        //     'permissions' => 'communication',
-        //     'dropdown' => true,
-        //     'children' => [
-        //         [
-        //             'name' => 'View Campaigns',
-        //             'icon' => 'circle',
-        //             'route' => 'communication.campaigns.index',
-        //             'permissions' => 'communication.campaigns.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 0,
-        //         ],
-        //         [
-        //             'name' => 'Create Campaign',
-        //             'icon' => 'circle',
-        //             'route' => 'communication.campaigns.create',
-        //             'permissions' => 'communication.campaigns.create',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 1,
-        //         ],
-        //         [
-        //             'name' => 'Manage Templates',
-        //             'icon' => 'circle',
-        //             'route' => 'communication.templates.index',
-        //             'permissions' => 'communication.templates.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 2,
-        //         ],
-        //         [
-        //             'name' => ' SMS Gateways',
-        //             'icon' => 'circle',
-        //             'route' => 'communication.sms_gateways.index',
-        //             'permissions' => 'communication.sms_gateways.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 3,
-        //         ],
-        //     ],
-        //     'order' => 6,
-        // ],
-        [
-            'name' => 'Reports',
-            'icon' => 'chart-bar',
-            'route' => 'reports.index',
-            'permissions' => 'reports',
-            'dropdown' => false,
-            'children' => [],
-            'order' => 9,
-        ],
-        [
-            'name' => 'Users',
-            'icon' => 'users',
-            'route' => 'users.index',
-            'permissions' => 'users',
-            'dropdown' => false,
-            'children' => [],
-            'order' => 10,
-        ],
-        // [
-        //     'name' => 'Branches',
-        //     'icon' => 'building',
-        //     'route' => 'branches.index',
-        //     'permissions' => 'branches.index',
-        //     'dropdown' => false,
-        //     'children' => [],
-        //     'order' => 11,
-        // ],
-        // [
-        //     'name' => 'Locations',
-        //     'icon' => 'map-marker',
-        //     'route' => '',
-        //     'permissions' => 'locations',
-        //     'dropdown' => true,
-        //     'children' => [
-        //         [
-        //             'name' => 'Regions',
-        //             'icon' => 'circle',
-        //             'route' => 'locations.regions.index',
-        //             'permissions' => 'locations.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 0,
-        //         ],
-        //         [
-        //             'name' => 'Inkhundla',
-        //             'icon' => 'circle',
-        //             'route' => 'locations.inkhundla.index',
-        //             'permissions' => 'locations.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 1,
-        //         ],
-        //         /*[
-        //             'name' => 'Wards',
-        //             'icon' => 'circle',
-        //             'route' => 'locations.wards.index',
-        //             'permissions' => 'locations.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 2,
-        //         ],
-        //         [
-        //             'name' => 'Villages',
-        //             'icon' => 'circle',
-        //             'route' => 'locations.villages.index',
-        //             'permissions' => 'locations.index',
-        //             'dropdown' => false,
-        //             'children' => [],
-        //             'order' => 3,
-        //         ],*/
-        //     ],
-        //     'order' => 6,
-        // ],
-        [
-            'name' => 'Settings',
-            'icon' => 'cogs',
-            'route' => 'settings.index',
-            'permissions' => 'settings',
-            'dropdown' => false,
-            'children' => [],
-            'order' => 12,
-        ],
+        // Reports = the IFRS 9 hub (19 reports + interactive Sensitivity, all
+        // inside the tabbed hub) + the downloadable manual. Operational exports
+        // and the duplicate ECL/Disbursement reconciliations were moved out /
+        // removed so this group is not a dumping ground.
+        $group('Reports', 'chart-bar', [
+            $leaf('IFRS 9 Reports', 'ifrs9-reports.index'),
+            $leaf('Stress Testing', 'stress-testing.index', 'bolt'),
+            $leaf('User Manual', 'manual.view', 'book-open'),
+        ], 6),
+
+        $group('Analytics', 'chart-line', [
+            $leaf('Early Warning System', 'ifrs9-reports.ews'),
+            $leaf('AI Executive Commentary', 'ifrs9-reports.ai-narrative'),
+            $leaf('Regression Analysis', 'regression.index'),
+        ], 7),
+
+        $group('Administration', 'cog', [
+            $leaf('User Management', 'users.index'),
+            $leaf('Settings', 'settings.index'),
+        ], 8),
+
     ],
-    'member' => [
-
-    ]
+    'member' => [],
 ];

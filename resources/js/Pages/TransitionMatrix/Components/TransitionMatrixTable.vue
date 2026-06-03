@@ -3,10 +3,10 @@
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium">Transition Matrix Entries</h3>
             <div class="space-x-2">
-                <jet-button @click="addNewRow" class="bg-green-600 hover:bg-green-500">
+                <jet-button @click="addNewRow" class="bg-maiic-600 hover:bg-maiic-500">
                     Add Transition
                 </jet-button>
-                <jet-button @click="saveEntries" :disabled="!hasChanges" class="bg-blue-600 hover:bg-blue-500">
+                <jet-button @click="saveEntries" :disabled="!hasChanges" class="bg-maiic-600 hover:bg-maiic-500">
                     Save Changes
                 </jet-button>
             </div>
@@ -91,7 +91,7 @@
                         </td>
 
                         <!-- Start Balance -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
                             <input type="number" 
                                    v-model.number="entry.start_balance"
                                    @change="updateEntry(index)"
@@ -100,7 +100,7 @@
                         </td>
 
                         <!-- Start Count -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
                             <input type="number" 
                                    v-model.number="entry.start_count"
                                    @change="updateEntry(index)"
@@ -109,7 +109,7 @@
                         </td>
 
                         <!-- End Balance -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
                             <input type="number" 
                                    v-model.number="entry.end_balance"
                                    @change="updateEntry(index)"
@@ -118,7 +118,7 @@
                         </td>
 
                         <!-- End Count -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
                             <input type="number" 
                                    v-model.number="entry.end_count"
                                    @change="updateEntry(index)"

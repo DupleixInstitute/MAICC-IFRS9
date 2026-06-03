@@ -9,7 +9,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -17,272 +16,437 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Events\AfterImport;
 use Maatwebsite\Excel\Events\BeforeImport;
 use Maatwebsite\Excel\Events\ImportFailed;
-use Maatwebsite\Excel\Facades\Excel;
 
-class LoanBooksImport implements ToCollection, WithEvents, WithHeadingRow, WithChunkReading, ShouldQueue
+class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading, ShouldQueue
 {
-    /** @var Import */
-    public $import;
-    /** @var array */
-    public $data;
-    /** @var string */
-    protected $exceptionFilePath;
+    protected Import $import;
+    protected array $mapping;
+    protected string $importType;
+    protected string $exceptionFilePath;
+
+    public function __construct(Import $import, array $mapping = [], string $importType = 'custom')
+    {
+        $this->import      = $import;
+        $this->mapping     = $mapping;
+        $this->importType  = $importType;
+
+        $this->exceptionFilePath = storage_path("app/public/failed_imports/loan_books_exception_{$import->id}.csv");
+
+        if (!file_exists(dirname($this->exceptionFilePath))) {
+            mkdir(dirname($this->exceptionFilePath), 0755, true);
+        }
+
+        if (!file_exists($this->exceptionFilePath)) {
+            $file = fopen($this->exceptionFilePath, 'w');
+            fputcsv($file, ['Row Data', 'Reason']);
+            fclose($file);
+        }
+    }
 
     protected function parseDate($value): ?string
     {
+        if (!$value) return null;
+
+        // Clean the value first - handle your CSV's " -   " values
+        $value = trim(str_replace(['-', ' -   ', "\xC2\xA0", "\xA0"], '', $value));
+        
+        if (empty($value)) return null;
+
         $formats = [
-            'd/m/Y H:i',
-            'd/m/Y H:i:s',
-            'd/m/Y',
-            'm/d/Y H:i:s',
-            'm/d/Y H:i',
-            'm/d/Y',
-            'Y-m-d H:i:s',
-            'Y-m-d',
+            'd/m/Y', 'd/m/Y H:i', 'd/m/Y H:i:s',
+            'm/d/Y', 'm/d/Y H:i', 'm/d/Y H:i:s', 
+            'Y-m-d', 'Y-m-d H:i:s'
         ];
 
         foreach ($formats as $format) {
             try {
-                $date = Carbon::createFromFormat($format, trim($value));
+                $date = Carbon::createFromFormat($format, $value);
                 if ($date !== false) {
                     return $date->format('Y-m-d');
                 }
             } catch (\Exception $e) {
-                continue;
+                // Continue to next format
             }
         }
 
-            // Fallback to general parse
+        // Try generic parsing as last resort
         try {
             return Carbon::parse($value)->format('Y-m-d');
         } catch (\Exception $e) {
-            return null; 
+            Log::warning("Failed to parse date: {$value}", ['error' => $e->getMessage()]);
+            return null;
         }
     }
 
-    public function __construct(Import $import, array $data)
+    protected function cleanNumber($value): float
     {
-        $this->import = $import;
-        $this->data = $data;
-
-        $this->exceptionFilePath = storage_path("app/public/failed_imports/loan_books_exception_{$import->id}.csv");
-        if (!file_exists(dirname($this->exceptionFilePath))) {
-            mkdir(dirname($this->exceptionFilePath), 0755, true);
-        }
-        if (!file_exists($this->exceptionFilePath)) {
-            $handle = fopen($this->exceptionFilePath, 'w');
-            fputcsv($handle, ['CONTRACT_ID', 'EXTERNAL_IDENTITY_ID', 'STATUS', 'CREATE_TIME', 'OVER_DUE_DATE', 'OVERDUE_DAYS', 'AMOUNT']);
-            fclose($handle);
-        }
+        if (!$value || trim($value) === '-' || trim($value) === '' || trim($value) === ' -   ') return 0;
+        
+        // Remove commas, spaces, and special characters
+        $cleaned = str_replace([',', ' ', "\xC2\xA0", "\xA0", '"'], '', trim($value));
+        return (float) $cleaned;
     }
 
-    public function classifyIFRS9Stage($row) {
-                $ifrs9stage = 'Stage 1'; // Default stage
-
-                if (!empty($row['181-270 Days']) && floatval($row['181-270 Days']) > 0) {
-                    $ifrs9stage = 'Stage 3';
-                } elseif (!empty($row['91-180 Days']) && floatval($row['91-180 Days']) > 0) {
-                    $ifrs9stage = 'Stage 2';
-                } elseif (!empty($row['31-90 Days']) && floatval($row['31-90 Days']) > 0) {
-                    $ifrs9stage = 'Stage 2';
-                } elseif (!empty($row['1-30 Days']) && floatval($row['1-30 Days']) > 0) {
-                    $ifrs9stage = 'Stage 1';
-                }
-
-                return $ifrs9stage;
+    public function classifyIFRS9Stage($row)
+    {
+        $clean = function($value) {
+            if (!$value || trim($value) === '-' || trim($value) === '' || trim($value) === ' -   ') {
+                return false;
             }
+            $value = str_replace(["\xC2\xA0", "\xA0", "\xE2\x80\x8B", "\xE2\x80\x8C", "\t", "\n", "\r", ',', ' ', '"'], '', $value);
+            $value = trim(preg_replace('/[\x00-\x1F\x7F\xA0\xAD]/u', '', $value));
+            return is_numeric($value) && floatval($value) > 0;
+        };
+
+        // Debug: Log what we're getting
+        // Log::debug('IFRS9 Classification row data:', [
+        //     '1_30_days' => $row['1_30_days'] ?? $row['1-30_days'] ?? null,
+        //     '31_90_days' => $row['31_90_days'] ?? $row['31-90_days'] ?? null,
+        //     '91_180_days' => $row['91_180_days'] ?? $row['91-180_days'] ?? null,
+        //     '181_270_days' => $row['181_270_days'] ?? $row['181-270_days'] ?? null,
+        // ]);
+
+        // Check with both underscore and dash versions
+        if ($clean($row['271_360_days'] ?? $row['271-360_days'] ?? null)) return '3';
+        if ($clean($row['181_270_days'] ?? $row['181-270_days'] ?? null)) return '3';
+        if ($clean($row['91_180_days'] ?? $row['91-180_days'] ?? null))  return '2';
+        if ($clean($row['31_90_days'] ?? $row['31-90_days'] ?? null))  return '2';
+        if ($clean($row['1_30_days'] ?? $row['1-30_days'] ?? null))   return '1';
+
+        return '1';
+    }
+
+    protected function normalizeKey($key): string
+    {
+        // First remove all quotes and trim
+        $key = trim($key, " \t\n\r\0\x0B\"'");
+        
+        // Replace multiple spaces with single space
+        $key = preg_replace('/\s+/', ' ', $key);
+        
+        // Replace special characters and spaces with underscores
+        $key = preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+        
+        // Remove multiple underscores
+        $key = preg_replace('/_+/', '_', $key);
+        
+        // Convert to lowercase
+        $key = strtolower($key);
+        
+        // Remove trailing underscores
+        $key = trim($key, '_');
+        
+        return $key;
+    }
 
     public function collection(Collection $rows)
     {
         $bulkInsert = [];
-        $inserted = 0;
+        $inserted   = 0;
         $exceptions = 0;
 
-        if (!Import::where('id', $this->import->id)->whereNull('started_at')->exists()) {
-            // already started
-        } else {
-            $this->import->update([
-                'started_at' => now(),
-                'failed_file_path' => 'failed_imports/' . basename($this->exceptionFilePath),
-            ]);
+        $reportingPeriod = $this->mapping['reporting_period'] ?? $this->import->settings['reporting_period'] ?? now()->format('Y-m');
+        $portfolioId     = $this->mapping['loan_portfolio_id'] ?? $this->import->settings['loan_portfolio_id'] ?? 1;
+        $arrearsMap = [
+                    'arrears_1_to_30'    => '1_30_days',
+                    'arrears_30_to_90'   => '31_90_days',
+                    'arrears_91_to_180'  => '91_180_days',
+                    'arrears_180_to_270' => '181_270_days',
+                    //'arrears_271_to_360' => '271_360_days',
+                ];
+
+        if (!str_contains($reportingPeriod, '-')) {
+            $reportingPeriod = now()->format('Y-m');
         }
+        
+        [$year, $month]  = explode('-', $reportingPeriod);
 
-        $reportingPeriod = $this->data['reporting_period'];
-        [$year, $month] = explode('-', $reportingPeriod);
-
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
             try {
-                $customerId = trim($row['customer_id']);
-                $contractId = $row['contract_id'];
+                // Normalize keys with the new method
+                $normalizedRow = collect($row->toArray())->mapWithKeys(function ($value, $key) {
+                    $normalizedKey = $this->normalizeKey($key);
+                    return [$normalizedKey => $value];
+                })->toArray();
 
-                $customer = Client::where('customer_id', $customerId)->first();
+                // Log::info("Processing Loan row {$index}", $normalizedRow);
+                // Log::info("Available normalized keys: " . implode(', ', array_keys($normalizedRow)));
 
-               $client = Client::where('customer_id', $customerId)->first();
+                // Determine import type
+                $data = [];
+                if ($this->importType === 'legacy') {
+                    // Legacy logic
+                    $data['customer_id']    = $normalizedRow['customer_id'] ?? null;
+                    $data['contract_id']    = $normalizedRow['contract_id'] ?? null;
+                    $data['name']           = $normalizedRow['name'] ?? $normalizedRow['customer_name'] ?? 'Unknown';
+                    $data['value_date']     = $normalizedRow['value_date'] ?? null;
+                    $data['maturity_date']  = $normalizedRow['maturity_date'] ?? null;
+                    $data['principal']      = $this->cleanNumber($normalizedRow['principal'] ?? 0);
+                    $data['tenor']          = $normalizedRow['tenor'] ?? null;
+                    $data['interest_rate']  = $this->cleanNumber($normalizedRow['interest_rate'] ?? 0);
+                    $data['disbursed']      = $this->cleanNumber($normalizedRow['disbursed'] ?? 0);
+                    $data['carrying_amount']= $this->cleanNumber($normalizedRow['carrying_amount'] ?? 0);
+                    $data['product_group']  = $normalizedRow['type'] ?? null;
+                    $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
+                    $data['internal_grade_code']  = $normalizedRow['internal_grade_code'] ?? null;
+                } else {
+                    // Custom import type with mapping
+                   // Log::info("Using custom mapping", ['mapping' => $this->mapping]);
 
-                    if (!$client) {
-                        $publicName = explode('-', $row['public_name'] ?? $row['name'] ?? '');
-                        $phone = isset($publicName[0]) && trim($publicName[0]) !== '' ? trim($publicName[0]) : '00000000000';
-                        $name = isset($publicName[1]) && trim($publicName[1]) !== '' ? trim($publicName[1]) : 'TBA';
+                   $ignoredKeys = [
+                            'loan_portfolio_id',
+                            'reporting_period',
+                            'import_type',
+                            'mapping',
+                        ];
+                    
+                    foreach ($this->mapping as $csv => $db) {
 
-                        if (!isset($publicName[1]) || empty(trim($publicName[1]))) {
-                            $exceptions++;
-                            $this->appendExceptionRow($row->toArray());
+                         if (in_array($csv, $ignoredKeys)) {
+                                    continue;
+                                }
+
+                        if (!$db || $db === '') continue; // Skip empty mappings
+                        
+                        // Normalize the CSV header key
+                        $normalizedCsvKey = $this->normalizeKey($csv);
+                        
+                        // Log::debug("Looking for key", [
+                        //     'original_csv' => $csv,
+                        //     'normalized_csv' => $normalizedCsvKey,
+                        //     'database_field' => $db,
+                        //     'available_keys' => array_keys($normalizedRow),
+                        //     'has_key' => isset($normalizedRow[$normalizedCsvKey])
+                        // ]);
+                        
+                        if (isset($normalizedRow[$normalizedCsvKey])) {
+                            $data[$db] = $normalizedRow[$normalizedCsvKey];
+                            // Log::debug("Mapped successfully", [
+                            //     'csv_key' => $csv,
+                            //     'normalized_key' => $normalizedCsvKey,
+                            //     'db_field' => $db,
+                            //     'value' => $normalizedRow[$normalizedCsvKey]
+                            // ]);
+                        } else {
+                            Log::warning("Mapping key not found in row", [
+                                'csv_key' => $csv,
+                                'normalized_csv_key' => $normalizedCsvKey,
+                                'db_field' => $db,
+                                'available_keys' => array_keys($normalizedRow)
+                            ]);
                         }
-
-                        $client = Client::updateOrCreate(
-                            ['customer_id' => $customerId],
-                            ['name' => $name]
-                        );
                     }
-                // Date parsing
-                //$createDate = Carbon::createFromFormat('d-m-Y H:i', trim($row['create_time']))->startOfDay();
-                //Log::debug('Hex create_time: ' . bin2hex($row['create_time']));
-                $rawCreateTime = $row['create_time'] ?? '';
+                    
+                    // Debug the mapped data
+                   // Log::info("Mapped data result", $data);
+                    
+                    // If mapping is empty or doesn't include essential fields, use direct field mapping as fallback
+                    $essentialFields = ['customer_id', 'contract_id'];
+                    $hasEssentialFields = count(array_intersect($essentialFields, array_keys($data))) === count($essentialFields);
+                    
+                    if (!$hasEssentialFields) {
+                        //Log::info("Missing essential fields, using fallback mapping");
+                        $data['customer_id']    = $normalizedRow['customer_id'] ?? null;
+                        $data['contract_id']    = $normalizedRow['contract_id'] ?? null;
+                        $data['name']           = $normalizedRow['name'] ?? 'Unknown';
+                        $data['value_date']     = $normalizedRow['value_date'] ?? null;
+                        $data['maturity_date']  = $normalizedRow['maturity_date'] ?? null;
+                        $data['principal']      = $this->cleanNumber($normalizedRow['principal'] ?? 0);
+                        $data['tenor']          = $normalizedRow['tenor'] ?? null;
+                        $data['interest_rate']  = $this->cleanNumber($normalizedRow['interest_rate'] ?? 0);
+                        $data['disbursed']      = $this->cleanNumber($normalizedRow['disbursed'] ?? 0);
+                        $data['carrying_amount']= $this->cleanNumber($normalizedRow['carrying_amount'] ?? 0);
+                        $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
+                        $data['industry_type']  = $normalizedRow['industry_type'] ?? null;
+                        $data['internal_grade_code']  = $normalizedRow['internal_grade'] ?? null;
+                        $data['product_group']  = $normalizedRow['type'] ?? null;
+                    }
+             }
 
-                // Normalize encoding and remove invisible characters
-                $cleanCreateTime = trim(
-                    preg_replace('/[\x00-\x1F\x7F\xA0\xAD]/u', '', mb_convert_encoding($rawCreateTime, 'UTF-8'))
+                // FIX: Validate customer_id - get it from $data array
+                $customerId = $data['customer_id'] ?? null;
+                if (empty($customerId)) {
+                    throw new \Exception("customer_id missing in data array. Available keys in data array: " . implode(', ', array_keys($data)));
+                }
+
+                $clientName = $data['name'] ?? 'Unknown';
+
+                // Create or update client
+                // Log::info("Creating/updating client", [
+                //     'customer_id' => $customerId,
+                //     'customer_name' => $clientName
+                // ]);
+
+                $client = Client::updateOrCreate(
+                    ['customer_id' => $customerId],
+                    ['name' => $clientName]
                 );
 
-                // try {
-                //     $createDate = Carbon::createFromFormat('d/m/Y H:i', $cleanCreateTime)->startOfDay();
-                //     $reportingEndDate = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth()->startOfDay();
+                // Log::info("Client created/updated", [
+                //     'client_id' => $client->id,
+                //     'customer_id' => $client->customer_id
+                // ]);
 
-                //     $diffDays = $reportingEndDate->diffInDays($createDate, false);
+                // Parse and validate dates
+                $createDate = $this->parseDate($data['value_date'] ?? null);
+                $dueDate    = $this->parseDate($data['maturity_date'] ?? null);
+                if (!$createDate || !$dueDate) {
+                    throw new \Exception("Missing/invalid value_date or maturity_date");
+                }
 
-                //     if ($diffDays <= 30) {
-                //         $ifrs9Stage = 1;
-                //     } elseif ($diffDays <= 90) {
-                //         $ifrs9Stage = 2;
-                //     } else {
-                //         $ifrs9Stage = 3;
-                //     }
-                // } catch (\Exception $e) {
-                //     Log::error("Row import exception: " . $e->getMessage());
-                //     $this->appendExceptionRow($row->toArray());
-                //     continue;
-                // }
-
-              //  try {
-                    // $createDate = Carbon::createFromFormat('d/m/Y H:i', $cleanCreateTime)->startOfDay();
-                    // $reportingEndDate = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth()->startOfDay();
-
-                    // $diffDays = $createDate->diffInDays($reportingEndDate, false);
-
-
-                    // if ($diffDays >= 0 && $diffDays <= 30) {
-                    //     $ifrs9Stage = 1;
-                    // } elseif ($diffDays > 30 && $diffDays <= 90) {
-                    //     $ifrs9Stage = 2;
-                    // } elseif ($diffDays > 90) {
-                    //     $ifrs9Stage = 3;
-                    // } else {
-                        
-                    //     $ifrs9Stage = 1;
-                    // }
-
-                    // if(isset($row->overdue_days)){
-                    //     $daysValue = (int)$row->overdue_days;
-
-                    //     if ($daysValue >= 0 && $daysValue <= 30) {
-                    //         $ifrs9Stage = 1;
-                    //     } elseif ($daysValue > 30 && $daysValue <= 180) {
-                    //         $ifrs9Stage = 2;
-                    //     } elseif ($daysValue > 180) {
-                    //         $ifrs9Stage = 3;
-                    //     }
-                    // }
-
-                    // Optional for debugging
-                    //Log::debug("Contract {$contractId} - Create: {$createDate}, ReportEnd: {$reportingEndDate}, Days: {$diffDays}, Stage: {$ifrs9Stage}");
-
-                // } catch (\Exception $e) {
-                //     Log::error("Failed to parse date or calculate stage: " . $e->getMessage());
-                //     $this->appendExceptionRow($row->toArray());
-                //     continue;
-                // }
-
-
-                $bulkInsert[] = [
-                    'customer_id' => $client->id,
-                    'customer_name'=>$row['name'],
-                    'loan_portfolio_id' => $this->data['loan_portfolio_id'],
-                    'reporting_period' => $reportingPeriod,
-                    'reporting_year' => $year,
-                    'reporting_month' => $month,
-                    'contract_id' => $contractId,
-                   // 'external_identity_id' => $externalId,
-                    'create_date' => $this->parseDate($row['value_date']),
-                    'due_date' => $this->parseDate($row['maturity_date']),
-                    'tenor'=> $row['tenor'],
-                    'interest_rate'=>$row['interest_rate'],
-                    'overdue_days' => $row['overdue_days'],
-                    'principal_balance' => $row['principal'],
-                    'disbursed'=>$row['disbursed'],
+                $dueCarbon     = Carbon::createFromFormat('Y-m-d', $dueDate);
+                $reportingEnd  = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth();
+                $remainingLife = $reportingEnd->floatDiffInYears($dueCarbon, false);
+                if ($remainingLife < 0) {
+                    $remainingLife = 0;
+                }
                 
-                    'contract_status' => $row['status'],
-                    'ifrs9stage_pre_qualitative' => $this->classifyIFRS9Stage($row),
-                    'ifrs9stage_post_qualitative' => $this->classifyIFRS9Stage($row),
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                // Handle principal fallback
+                $principal = $this->cleanNumber($data['principal'] ?? 0);
+                $carryingAmount = $this->cleanNumber($data['carrying_amount'] ?? 0);
+                if ($principal == 0 && $carryingAmount > 0) {
+                    $principal = $carryingAmount;
+                }
+
+                // Build bulk insert
+                $loanData = [
+                    'customer_id'                 => $client->id,
+                    'customer_name'               => $data['name'] ?? '',
+                    'loan_portfolio_id'           => $portfolioId,
+                    'reporting_period'            => $reportingPeriod,
+                    'reporting_year'              => $year,
+                    'reporting_month'             => $month,
+                    'contract_id'                 => $data['contract_id'] ?? null,
+                    'industry_code'               => $data['industry_code'] ?? null,
+                    'industry_type'               => $data['industry_type'] ?? null,
+                    'internal_grade_code'         => $data['internal_grade_code'] ?? null, 
+                    'product_group'               => $data['product_group'] ?? null,
+                    'create_date'                 => $createDate,
+                    'due_date'                    => $dueDate,
+                    'tenor'                       => $data['tenor'] ?? null,
+                    'interest_rate'               => $this->cleanNumber($data['interest_rate'] ?? 0),
+                    'remaining_tenor'             => $remainingLife ?? 0,
+                    'principal_balance'           => $principal,
+                    'disbursed'                   => $this->cleanNumber($data['disbursed'] ?? 0),
+                    'carrying_amount'             => $carryingAmount,
+                    'ifrs9stage_pre_qualitative'  => $this->classifyIFRS9Stage($normalizedRow),
+                    'ifrs9stage_post_qualitative' => $this->classifyIFRS9Stage($normalizedRow),
+                    'created_at'                  => now(),
+                    'updated_at'                  => now(),
                 ];
+
+                // --------------------
+                // ADD ARREARS SAFELY
+                // --------------------
+                foreach ($arrearsMap as $dbField => $normalizedCsvKey) {
+                    $loanData[$dbField] = $this->cleanNumber(
+                        $normalizedRow[$normalizedCsvKey] ?? 0
+                    );
+                }
+
+                // $arrearsFields = ['arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'];
+
+                // foreach ($arrearsFields as $field) {
+                //     $csvKey = $this->mapping[$field] ?? $field;
+                //     $normalizedKey = $this->normalizeKey($csvKey);
+                //     $loanData[$field] = $this->cleanNumber($normalizedRow[$normalizedKey] ?? null);
+                // }
+
+                // Log the loan data to verify industry_code
+                // Log::info("Prepared loan data for insert", [
+                //     'customer_name' => $data['name'] ?? '',
+                //     'industry_code' => $loanData['industry_code'],
+                //     'all_data_keys' => array_keys($data)
+                // ]);
+                // Log::info('Arrears added', array_intersect_key(
+                //             $loanData,
+                //             array_flip(array_keys($arrearsMap))
+                //         ));
+
+                $bulkInsert[] = $loanData;
+
                 $inserted++;
+                //Log::info("Successfully processed row {$index} for customer: {$clientName}");
+
             } catch (\Exception $e) {
-                Log::error("Row import exception: " . $e->getMessage());
+                //Log::error("Error processing row {$index}: " . $e->getMessage());
+                //Log::error("Row data: " . json_encode($row->toArray()));
+                $this->appendExceptionRow($row->toArray(), $e->getMessage());
                 $exceptions++;
-                $this->appendExceptionRow($row->toArray());
             }
         }
 
+        // Bulk upsert
         if (!empty($bulkInsert)) {
-            LoanBook::upsert(
-                $bulkInsert,
-                ['client_id', 'loan_portfolio_id', 'reporting_period', 'contract_id', 'external_identity_id'],
-                ['reporting_year', 'reporting_month', 'create_date', 'due_date', 'overdue_days', 'principal_balance', 'contract_status', 'calculated_ifrs9_stage', 'updated_at']
-            );
+            try {
+                // Insert in smaller chunks to avoid memory issues
+                $chunks = array_chunk($bulkInsert, 100);
+                foreach ($chunks as $chunk) {
+                    LoanBook::upsert(
+                        $chunk,
+                        ['customer_id', 'loan_portfolio_id', 'reporting_period', 'contract_id'],
+                        [
+                            'principal_balance', 
+                            'carrying_amount',
+                            'disbursed',
+                            'create_date', 
+                            'due_date', 
+                            'ifrs9stage_pre_qualitative', 
+                            'ifrs9stage_post_qualitative', 
+                            'updated_at',
+                            'industry_code',
+                            'arrears_1_to_30',
+                            'arrears_30_to_90',
+                            'arrears_91_to_180',
+                            'arrears_180_to_270',
+                            //'arrears_271_to_360',
+                        ]
+                    );
+                }
+                Log::info("Successfully upserted {$inserted} records");
+            } catch (\Exception $e) {
+                //Log::error("Bulk insert failed: " . $e->getMessage());
+            }
         }
 
+        // Update import stats
         $import = Import::find($this->import->id);
-        $import->records += $inserted;
-        $import->failed_records += $exceptions; // still using this DB column
-        $import->save();
+        if ($import) {
+            $import->records += $inserted;
+            $import->failed_records += $exceptions;
+            $import->save();
+        }
+        
+        Log::info("Import completed - Inserted: {$inserted}, Exceptions: {$exceptions}");
     }
 
-    protected function appendExceptionRow(array $row)
+    protected function appendExceptionRow(array $row, string $reason)
     {
         $handle = fopen($this->exceptionFilePath, 'a');
-        fputcsv($handle, $row);
+        fputcsv($handle, [json_encode($row), $reason]);
         fclose($handle);
     }
 
     public function chunkSize(): int
     {
-        return 1000;
+        return 500;
     }
 
     public function registerEvents(): array
     {
         return [
-            BeforeImport::class => function (BeforeImport $event) {
-                $this->import->update([
-                    'status' => 'processing',
-                ]);
-                Log::info("LoanBooksImport started: Import ID {$this->import->id}");
+            BeforeImport::class => function() {
+                $this->import->update(['status' => 'processing']);
+                Log::info("Starting import for: " . $this->import->id);
             },
-            AfterImport::class => function (AfterImport $event) {
-                $this->import->update([
-                    'status' => 'completed',
-                    'completed_at' => now(),
-                ]);
-                Log::info("LoanBooksImport completed: Import ID {$this->import->id}");
+            AfterImport::class => function() {
+                $this->import->update(['status' => 'completed', 'completed_at' => now()]);
+                Log::info("Completed import for: " . $this->import->id);
             },
-            ImportFailed::class => function (ImportFailed $event) {
-                $this->import->update([
-                    'status' => 'failed',
-                    'completed_at' => now(),
-                ]);
-                Log::error("LoanBooksImport failed: " . $event->getException()->getMessage());
-            },
+            ImportFailed::class => function(ImportFailed $event) {
+                $this->import->update(['status' => 'failed', 'completed_at' => now()]);
+                Log::error("Import failed: " . $event->getException()->getMessage());
+            }
         ];
     }
 }

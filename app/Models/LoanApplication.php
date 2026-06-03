@@ -14,7 +14,7 @@ class LoanApplication extends Model
     use LogsActivity, HasFactory;
 
     protected $casts = [];
-    protected $appends = ['approver_name', 'loan_application_band'];
+    protected $appends = ['loan_application_band'];
     protected $fillable = ['current_loan_application_approval_stage_id', 'was_resend', 'branch_id'];
 
 
@@ -112,7 +112,7 @@ class LoanApplication extends Model
     }
     public function getApproverNameAttribute()
     {
-        $result = $this->currentLinkedStage?->status == 'approved' ? User::find($this->currentLinkedStage->approver_id)->name : 'Not Approved Yet';
+        $result = $this->currentLinkedStage?->status == 'approved' ? $this->currentLinkedStage->approver?->name : 'Not Approved Yet';
         return $result;
     }
     public function reminders()

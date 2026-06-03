@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('loan_products.categories.index')">Loan Categories
+                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('groups.index')">Product Groups
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Edit
+                <span class="text-indigo-400 font-medium">/</span> Create
             </h2>
         </template>
 
@@ -58,7 +58,7 @@ import TextareaInput from "@/Jetstream/TextareaInput.vue";
 
 export default {
     props: {
-        category: Object
+        group: Object
     },
     components: {
         Select,
@@ -75,17 +75,17 @@ export default {
     data() {
         return {
             form: this.$inertia.form({
-                name: this.category.name,
-                description: this.category.description,
+                name: null,
+                description: null,
             }),
-            pageTitle: "Edit Category",
-            pageDescription: "Edit Category",
+            pageTitle: "Create Group",
+            pageDescription: "Create Group",
         }
 
     },
     methods: {
         submit() {
-            this.form.put(this.route('loan_products.categories.update',this.category.id), {})
+            this.form.post(this.route('groups.store'), {})
 
         },
 

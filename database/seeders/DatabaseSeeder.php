@@ -27,8 +27,11 @@ class DatabaseSeeder extends Seeder
             CommunicationCampaignBusinessRulesTableSeederTableSeeder::class,
             LegalTypesTableSeeder::class,
             IndustryTypesTableSeeder::class,
+            IndustryTypeSeeder::class,
             ChartOfAccountsTableSeeder::class,
             ScoringAttributesTableSeeder::class,
+            CreditLossDefinitionSeeder::class,
+            ScenarioSetSeeder::class,
         ]);
     }
 }

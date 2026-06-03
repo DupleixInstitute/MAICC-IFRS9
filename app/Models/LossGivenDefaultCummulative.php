@@ -15,7 +15,9 @@ class LossGivenDefaultCummulative extends Model
 
     protected $fillable = [
         'id',
-        'portfolio_group',
+        'lgd_calculation_level',
+        'lgd_calculation_id',    
+        'lgd_calculation_code',
         'reporting_period',
         'start_period',
         'loss_given_default_id',
@@ -36,6 +38,7 @@ class LossGivenDefaultCummulative extends Model
         'periods_list',
         'calculation_source',
         'is_active_or_closed',
+        'supporting_file',
         'created_at',
         'updated_at'
     ];
@@ -46,6 +49,7 @@ class LossGivenDefaultCummulative extends Model
         'last_reporting_period' => 'date',
         'is_active_or_closed' => 'string',
         'calculation_source' => 'string',
+        'lgd_calculation_level' => 'string',
         'periods_count' => 'integer',
         'periods_list' => 'array',
     ];
@@ -56,7 +60,34 @@ class LossGivenDefaultCummulative extends Model
      * @return BelongsTo
      */
     public function portfolioGroup()
+         {
+        return $this->belongsTo(LoanPortfolio::class, 'lgd_calculation_id', 'id');
+        }
+
+    public function sector(){
+        return $this->belongsTo(IndustryType::class, 'lgd_calculation_code', 'code');
+    }
+        public function supportingDocuments()
     {
-        return $this->belongsTo(LoanPortfolio::class, 'portfolio_group');
-}
+        return $this->morphMany(
+            SupportingDocument::class,
+            'documentable'
+        );
+    }
+
+    
+    /**
+     * Get the main supporting document
+     */
+    public function supportingDocument()
+    {
+        return $this->supportingDocuments()->latest()->first();
+    }
+
+    protected $appends = ['has_supporting_document'];
+
+    public function getHasSupportingDocumentAttribute()
+    {
+        return $this->supportingDocuments()->exists();
+    }
 }

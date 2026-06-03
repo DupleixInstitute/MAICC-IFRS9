@@ -30,6 +30,11 @@ class LoanPortfolio extends Model
         return $this->hasMany(LoanBook::class, 'portfolio_group');
     }
 
+    public function creditLossData()
+    {
+        return $this->hasMany(CreditLossData::class, 'portfolio_id');
+    }
+
     public function scopeFilter($query, array $filters)
     {
         $query->when($filters['search'] ?? null, function ($query, $search) {

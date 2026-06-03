@@ -21,13 +21,13 @@
                         <a
                             :href="route('loan_applications.contracts.download-sample')"
                             @click.prevent="downloadSample"
-                            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500"
                         >
                             Download Sample
                         </a>
                         <button
                             @click="showImportModal = true"
-                            class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto"
+                            class="inline-flex items-center justify-center rounded-md border border-transparent bg-maiic-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2 sm:w-auto"
                         >
                             Import Contracts
                         </button>
@@ -41,7 +41,7 @@
                             v-model="form.search"
                             type="text"
                             placeholder="Search contracts..."
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500 sm:text-sm"
                             @input="debouncedSearch"
                         />
                     </div>
@@ -49,7 +49,7 @@
                         <input
                             v-model="form.period"
                             type="month"
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500 sm:text-sm"
                             @change="submit"
                         />
                     </div>
@@ -144,7 +144,7 @@
                                     v-model="importForm.opening_score_period"
                                     type="month"
                                     required
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500 sm:text-sm"
                                 />
                             </div>
                             <div>
@@ -163,7 +163,7 @@
                             <div class="mt-6 flex justify-end space-x-3">
                                 <button
                                     type="button"
-                                    class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                    class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2"
                                     @click="showImportModal = false"
                                 >
                                     Cancel
@@ -171,7 +171,7 @@
                                 <button
                                     type="submit"
                                     :disabled="importing"
-                                    class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    class="inline-flex justify-center rounded-md border border-transparent bg-maiic-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <template v-if="!importing">Import</template>
                                     <template v-else>
@@ -251,7 +251,7 @@
                             <div class="mt-6 flex justify-end">
                                 <button
                                     type="button"
-                                    class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                    class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2"
                                     @click="showErrorModal = false"
                                 >
                                     Close

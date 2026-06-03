@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('end_period', 199);
             $table->integer('end_year');
             $table->integer('end_month');
-            $table->string('portfolio_group', 255);
+            //$table->string('portfolio_group', 255);
             $table->string('start_stage', 100)->default('0');
             $table->string('end_stage', 100)->nullable();
             $table->string('stage_transition', 15)->nullable();

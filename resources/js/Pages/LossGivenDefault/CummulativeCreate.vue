@@ -15,26 +15,48 @@
                             <div>
                                 <jet-label for="start_period" value="Start Period" />
                                 <input type="month" v-model="form.start_period" required
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                             </div>
 
                             <!-- End Reporting Period -->
                             <div>
                                 <jet-label for="end_period" value="End Period" />
                                 <input type="month" v-model="form.reporting_period" required
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
                             </div>
 
-                            <!-- Portfolio Group -->
-                            <div>
-                                <jet-label for="portfolio_group" value="Portfolio Group" />
-                                <select v-model="form.portfolio_group" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
-                                    <option value="">Select Portfolio</option>
-                                    <option v-for="portfolio in portfolio_group" :key="portfolio.id" :value="portfolio.id">
-                                        {{ portfolio.name }}
-                                    </option>
-                                </select>
-                            </div>
+                           <div>
+                            <jet-label for="lgd_calculation_level" value="LGD Level" />
+                            <select v-model="form.lgd_calculation_level" required
+                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <option value="">Select Level</option>
+                                <option value="portfolio">Portfolio</option>
+                                <option value="sector">Sector</option>
+                            </select>
+                        </div>
+
+                        <!-- Portfolio or Sector conditional -->
+                        <div v-if="form.lgd_calculation_level === 'portfolio'">
+                            <jet-label for="lgd_calculation_id" value="Portfolio Group" />
+                            <select v-model="form.lgd_calculation_id"
+                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <option value="">Select Portfolio</option>
+                                <option v-for="portfolio in portfolio_group" :key="portfolio.id" :value="portfolio.id">
+                                    {{ portfolio.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <div v-if="form.lgd_calculation_level === 'sector'">
+                            <jet-label for="lgd_calculation_code" value="Sector Code" />
+                            <select v-model="form.lgd_calculation_code"
+                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                             <option value="">Select Portfolio</option>
+                              <option v-for="item in sectors" :key="item.code" :value="item.code">
+                                    {{ item.code }} - {{ item.name }}
+                                </option>
+                            </select>
+                        </div>
 
                             <!-- Calculation Source -->
                             <div>
@@ -51,7 +73,7 @@
                             <jet-button @click="toggleModal" class=" items-center px-4 py-2 bg-black-600 hover:bg-gray-400 text-black-700 rounded-md">
                                 Calculate
                             </jet-button>
-                            <Link href="/loss-given-default/cummulative" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-400 text-black-700 rounded-md">
+                            <Link href="/loss-given-default/cummulative" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md">
                                 Back
                             </Link>
                         </div>
@@ -63,14 +85,17 @@
         <!-- Include Modal Component -->
         <CummulativeManual
             :show="showModal"
-            :start-period="form.start_period"
-            :reporting-period="form.reporting_period"
-            :portfolio-group="form.portfolio_group"
-            :mode="form.calculation_source"
+            :start-period="selectedLGD?.start_period"
+            :reporting-period="selectedLGD?.reporting_period"
+            :lgd-calculation-level="selectedLGD?.lgd_calculation_level"
+            :lgd-calculation-id="selectedLGD?.lgd_calculation_id"
+            :lgd-calculation-code="selectedLGD?.lgd_calculation_code"
+            :mode="form.mode || 'amount'"
             :default-values="defaultManualValues"
             :is-update="isUpdateMode"
             @close="showModal = false"
         />
+
     </app-layout>
 </template>
 <script>
@@ -89,7 +114,11 @@ export default{
         CummulativeManual,
     },
     props:{
-        portfolio_group:{
+         portfolio_group: {
+            type: Array,
+            required: true,
+        },
+        sectors: {
             type: Array,
             required: true,
         },
@@ -97,28 +126,33 @@ export default{
 
 setup(){
 const form = useForm({
-    portfolio_group: '',
+    lgd_calculation_level: '',
+    lgd_calculation_id:'',
+    lgd_calculation_code:'',
     start_period: '',
     reporting_period: '',
     calculation_source: '',
+    mode: 'amount',
 });
 
 const showModal = ref(false);
 const defaultManualValues = ref({});
 const isUpdateMode = ref(false);
+const selectedLGD = ref(null);
 
-const toggleModal = (existingValues = null) => {
+const toggleModal = () => {
     if (form.calculation_source === 'manual') {
-        if (existingValues) {
-            defaultManualValues.value = existingValues;
-            isUpdateMode.value = true;
-        } else {
-            defaultManualValues.value = {};
-            isUpdateMode.value = false;
-        }
+        // Pre-fill modal with current form values
+        defaultManualValues.value = { ...form };
+        selectedLGD.value = { 
+            ...form,
+            mode: form.mode || 'amount'  
+        };
+        isUpdateMode.value = true;
         showModal.value = true;
     }
 };
+
 
 const submitForm = () => {
     if (form.calculation_source === 'system') {
@@ -144,6 +178,7 @@ return {
     showModal,
     defaultManualValues,
     isUpdateMode,
+    selectedLGD,
 };
 }
 }

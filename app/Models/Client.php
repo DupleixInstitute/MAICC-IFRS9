@@ -278,4 +278,18 @@ class Client extends Model
             ->logOnlyDirty();
     }
 
+   public function loanBooks()
+    {
+        return $this->hasMany(LoanBook::class, 'customer_id', 'customer_id');
+    }
+
+    public function collateralRegisters()
+    {
+        return $this->hasMany(CollateralRegister::class, 'customer_id', 'customer_id');
+    }
+
+    public function collateralAllocations()
+    {
+        return $this->hasMany(CollateralAllocation::class, 'customer_id', 'id');
+    }
 }

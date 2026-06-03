@@ -4,7 +4,7 @@
       <div class="flex justify-between items-center">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">Manuals Management</h2>
         <Link :href="route('manuals.create')"
-          class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
+          class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
           Add New Manual
           <i class="fas fa-plus ml-2"></i>  
         </Link>

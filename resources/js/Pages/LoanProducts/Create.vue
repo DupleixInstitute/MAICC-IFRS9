@@ -35,7 +35,7 @@
 
                     <div class="mt-4">
                         <jet-label for="end_transition_profile_id" value="Select different End Transition Column"/>
-                        <select v-model="form.end_transition_profile_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        <select v-model="form.end_transition_profile_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500 sm:text-sm">
                             <option value="">None or Score</option>
                             <option v-for="profile in transitionProfiles" :key="profile.id" :value="profile.id">
                                 {{ profile.name }}

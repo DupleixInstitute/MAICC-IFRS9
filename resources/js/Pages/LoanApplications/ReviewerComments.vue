@@ -8,11 +8,11 @@
 
         <!-- Add Comment Button -->
         <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 mb-4 flex justify-between">
-            <button class="btn-primary px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            <button class="btn-primary px-4 py-2 bg-maiic-600 text-white rounded-md hover:bg-maiic-700"
                     @click="showAddCommentModal = true">
              Add New Comment +
             </button>
-            <inertia-link class="btn-primary px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            <inertia-link class="btn-primary px-4 py-2 bg-maiic-600 text-white rounded-md hover:bg-maiic-700"
             :href="route('loan_applications.show', loanApplicationId)">
             Return to Loan Profile 🔙
             </inertia-link>
@@ -426,6 +426,6 @@ export default {
 
 <style scoped>
 .btn-primary {
-    @apply inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring focus:ring-blue-300 disabled:opacity-25 transition;
+    @apply inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring focus:ring-blue-300 disabled:opacity-25 transition;
 }
 </style>

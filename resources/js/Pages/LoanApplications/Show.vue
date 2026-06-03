@@ -263,7 +263,7 @@
                                               class="px-2 rounded-full bg-red-100 text-red-800">
                                         rejected
                                     </span>
-                                        <button class="ml-2 bg-blue-600 text-white p-1 rounded"
+                                        <button class="ml-2 bg-maiic-600 text-white p-1 rounded"
                                                 @click="changeStatusAction(approval.id, approval.description)"
                                                 v-if="approval.approver_id===$attrs.auth.user.id && approval.is_current && !approval.completed">
                                             <font-awesome-icon icon="edit"/>

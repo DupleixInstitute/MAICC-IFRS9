@@ -2,8 +2,11 @@
     <app-layout>
       <template #header>
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          ADD - Transition Profile
-        </h2>
+          <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('transition-profiles.index')">
+              Transition Profile List
+            </inertia-link>
+            <span class="text-indigo-400 font-medium">/</span>  Create
+            </h2>
       </template>
   
       <div class="py-12">

@@ -15,7 +15,9 @@ class TransitionMatrix extends Model
         'start_reporting_period',
         'end_reporting_period',
         'pd_start_stage_total_type',
-        'portfolio_group_id',
+        'pd_calculation_level',
+        'pd_calculation_id',
+        'pd_calculation_code',
         'calculation_source',
         'description',
         'external_file_path',
@@ -78,6 +80,13 @@ class TransitionMatrix extends Model
 
     public function portfolio()
     {
-        return $this->belongsTo(LoanPortfolio::class, 'portfolio_group_id');
+        return $this->belongsTo(LoanPortfolio::class, 'pd_calculation_id', 'id');
     }
+
+public function sector()
+{
+    return $this->belongsTo(IndustryType::class,'pd_calculation_code', 'code' );
+}
+
+
 }

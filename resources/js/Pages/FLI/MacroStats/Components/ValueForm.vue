@@ -40,12 +40,12 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Scenario</label>
-          <select v-model="form.scenario_id" class="w-full border rounded p-2">
-            <option :value="null">Select Scenario</option>
-            <option v-for="s in availableScenarios" :key="s.id" :value="s.id">
-              {{ s.name }}
-            </option>
-          </select>
+            <select v-model="form.scenario_id" class="w-full border rounded p-2">
+              <option :value="null">Select Scenario</option>
+              <option v-for="s in availableScenarios" :key="s.id" :value="s.id">
+                {{ s.name }}
+              </option>
+            </select>
         </div>
 
         <div>
@@ -85,7 +85,7 @@
         </button>
         <button 
           type="submit" 
-          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
         >
           {{ props.value ? 'Update' : 'Save' }}
         </button>
@@ -118,26 +118,33 @@ const form = ref({
 });
 
 // Watch for changes to props.value and populate form
-watch(() => props.value, (newValue) => {
-  if (newValue) {
-    Object.assign(form.value, {
-      period: newValue.period?.substring(0, 7) || '',
-      value: newValue.value ?? '',
-      scenario_profile_id: newValue.scenario?.profile_id ?? null,
-      scenario_id: newValue.scenario_id ?? null,
-      is_forecast: Boolean(newValue.is_forecast),
-      source: newValue.source ?? '',
-      notes: newValue.notes ?? ''
-    });
-  } else {
-    resetForm();
-  }
-}, { immediate: true });
+watch(
+  () => props.value,
+  (newValue) => {
+    if (newValue) {
+      form.value = {
+        period: newValue.period?.substring(0, 7) || '',
+        value: newValue.value ?? '',
+        scenario_profile_id: newValue.scenario_profile_id ?? null,
+        scenario_id: newValue.scenario_id ?? null,
+        is_forecast: Boolean(newValue.is_forecast),
+        source: newValue.source ?? '',
+        notes: newValue.notes ?? ''
+      };
+    } else {
+      resetForm();
+    }
+  },
+  { immediate: true }
+);
+
+
 
 const availableScenarios = computed(() => {
   const profile = props.profiles.find(p => p.id === form.value.scenario_profile_id);
   return profile?.scenarios ?? [];
 });
+
 
 function submit() {
   const url = props.value 

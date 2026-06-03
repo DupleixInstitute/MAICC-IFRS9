@@ -70,7 +70,7 @@
       <button
         v-if="mode === 'edit'"
         @click="submit"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
       >
         Save Updates
       </button>
@@ -106,8 +106,9 @@ onMounted(async () => {
   try {
     const url =
       props.type === 'cumulative'
-        ? `/transition-matrix-cumulative/${props.transitionMatrix.id}/data`
+        ? `/transition-matrix-cummulative/${props.transitionMatrix.id}/data`
         : `/transition-matrix/${props.transitionMatrix.id}/data`
+
 
     const res = await axios.get(url)
 
@@ -141,10 +142,10 @@ function submit() {
     }
   }
 
-  const updateUrl =
-    props.type === 'cumulative'
-      ? `/transition-matrix-cumulative/${props.transitionMatrix.id}/update-data`
-      : `/transition-matrix/${props.transitionMatrix.id}/update-data`
+const updateUrl =
+  props.type === 'cumulative'
+    ? `/transition-matrix-cummulative/${props.transitionMatrix.id}/update-data`
+    : `/transition-matrix/${props.transitionMatrix.id}/update-data`
 
   axios
     .post(updateUrl, { matrix: flattened })
@@ -226,7 +227,7 @@ function submit() {
       <button
         v-if="mode === 'edit'"
         @click="submit"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
       >
         Save Updates
       </button>

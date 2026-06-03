@@ -13,16 +13,20 @@ return new class extends Migration
             Schema::create('transition_matrices', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('transition_profile_id')->constrained('loan_products');
+                $table->unsignedBigInteger('pd_calculation_id')->nullable();
+                $table->string('pd_calculation_code')->nullable();
+                $table->string('pd_calculation_level');
                 $table->date('start_reporting_period');
                 $table->date('end_reporting_period');
                 $table->text('description')->nullable();
                 $table->string('external_file_path')->nullable();
                 $table->string('status')->default('draft'); // draft, active, archived
+                $table->json('supporting_file')->nullable();
                 $table->timestamps();
                 $table->softDeletes();
 
                 // Add index for faster queries
-                $table->index(['start_reporting_period', 'end_reporting_period'],'start_end_reporting_period_index');
+                $table->index(['start_reporting_period', 'end_reporting_period', ],'start_end_reporting_period_index');
                 $table->index('status');
             });
         }
@@ -32,7 +36,6 @@ return new class extends Migration
             Schema::create('transition_matrix_entries', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('transition_matrix_id')->constrained()->onDelete('cascade');
-                $table->string('portfolio_group');
                 $table->string('start_state');
                 $table->string('end_state');
                 $table->decimal('start_balance', 20, 2)->default(0);
@@ -46,7 +49,7 @@ return new class extends Migration
 
                 // Add indexes for faster queries and ordering
                 $table->index(['start_state', 'end_state']);
-                $table->index('portfolio_group');
+                //$table->index('pd_calculation_level');
                 $table->index('is_default');
             });
         }

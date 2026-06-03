@@ -8,15 +8,18 @@ use App\Models\LoanPortfolio;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class LossGivenDefault extends Model
 {
-    use HasFactory, softDeletes;
+    use HasFactory;
     protected $table = 'loss_given_default';
     protected $fillable = [
         'reporting_period',
         'start_period',
-        'portfolio_group',
+        'lgd_calculation_level',
+        'lgd_calculation_id',    
+        'lgd_calculation_code',
         'start_total_stage3',
         'end_total_stage3',
         'loss_given_default_percentage',
@@ -34,8 +37,17 @@ class LossGivenDefault extends Model
         'last_reporting_period',
         'is_active_or_closed',
         'calculation_source',
+        'supporting_file',
         'created_by',
-        'updated_by'
+        'updated_by',
+        // Discounting (2026_05_17 migration)
+        'is_discounting',
+        'discount_rate_source',
+        'interest_rate',
+        'discounted_payment_partly',
+        'discounted_payment_full',
+        'discount_loss',
+        'total_payment',
     ];
 
     protected $casts = [
@@ -44,6 +56,8 @@ class LossGivenDefault extends Model
         'last_reporting_period' => 'date',
         'is_active_or_closed' => 'string',
         'calculation_source' => 'string',
+        'lgd_calculation_level' => 'string',
+        'supporting_file' => 'array',
     ];
     /**
      * Get the portfolio group associated with the loss given default.
@@ -52,6 +66,46 @@ class LossGivenDefault extends Model
      */
     public function portfolioGroup()
     {
-        return $this->belongsTo(LoanPortfolio::class, 'portfolio_group');
-}
+        return $this->belongsTo(LoanPortfolio::class, 'lgd_calculation_id', 'id');
+    }
+
+    public function sector()
+    {
+        return $this->belongsTo(IndustryType::class, 'lgd_calculation_code', 'code');
+    }
+
+    /**
+     * Discounted payment rows produced for this LGD.
+     *
+     * @return HasMany
+     */
+    public function discountedPayments()
+    {
+        return $this->hasMany(DiscountedPayment::class, 'lgd_id');
+    }
+
+    public function supportingDocuments()
+    {
+        return $this->morphMany(
+            SupportingDocument::class,
+            'documentable'
+        );
+    }
+
+    
+    /**
+     * Get the main supporting document
+     */
+    public function supportingDocument()
+    {
+        return $this->supportingDocuments()->latest()->first();
+    }
+
+    protected $appends = ['has_supporting_document'];
+
+    public function getHasSupportingDocumentAttribute()
+    {
+        return $this->supportingDocuments()->exists();
+    }
+
 }
