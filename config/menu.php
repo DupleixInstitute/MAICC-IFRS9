@@ -51,6 +51,7 @@ return [
             $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
             $leaf('Loan Book Export', 'reports.loan-book-export'),
             $leaf('ECL Export', 'reports.ecl-export'),
+            $leaf('EIR Schedule Intake', 'eir-intake.index'),
         ], 2),
 
         $group('Collateral Management', 'building', [

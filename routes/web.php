@@ -882,6 +882,14 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
     Route::get('/customers', [\App\Http\Controllers\SicrTriggerController::class, 'getCustomers'])->name('customers');
 });
 
+// EIR module — schedule & fee intake (docs/EIR_Build.md Phase 2)
+Route::group(['prefix' => 'eir-intake', 'as' => 'eir-intake.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirIntakeController::class, 'index'])->name('index');
+    Route::post('/analyze', [\App\Http\Controllers\EirIntakeController::class, 'analyze'])->name('analyze');
+    Route::post('/save-template', [\App\Http\Controllers\EirIntakeController::class, 'saveTemplate'])->name('save-template');
+    Route::post('/import', [\App\Http\Controllers\EirIntakeController::class, 'import'])->name('import');
+});
+
 //Manual Routes
 Route::get('/manuals/list',[ManualsController::class,'index'])->name('manuals.index');
 Route::get('/manuals/create',[ManualsController::class,'create'])->name('manuals.create');

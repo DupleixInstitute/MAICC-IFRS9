@@ -23,6 +23,7 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
     protected array $mapping;
     protected string $importType;
     protected string $exceptionFilePath;
+    protected ?\App\Services\Eir\StagingClassifier $stagingClassifier = null;
 
     public function __construct(Import $import, array $mapping = [], string $importType = 'custom')
     {
@@ -89,31 +90,13 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
 
     public function classifyIFRS9Stage($row)
     {
-        $clean = function($value) {
-            if (!$value || trim($value) === '-' || trim($value) === '' || trim($value) === ' -   ') {
-                return false;
-            }
-            $value = str_replace(["\xC2\xA0", "\xA0", "\xE2\x80\x8B", "\xE2\x80\x8C", "\t", "\n", "\r", ',', ' ', '"'], '', $value);
-            $value = trim(preg_replace('/[\x00-\x1F\x7F\xA0\xAD]/u', '', $value));
-            return is_numeric($value) && floatval($value) > 0;
-        };
+        // DPD waterfall now lives in staging_thresholds configuration
+        // (docs/EIR_Build.md Phase 2.4). The seeded DEFAULT rule reproduces
+        // the ladder previously hardcoded here; with no configuration the
+        // classifier falls back to that same ladder.
+        $this->stagingClassifier ??= new \App\Services\Eir\StagingClassifier();
 
-        // Debug: Log what we're getting
-        // Log::debug('IFRS9 Classification row data:', [
-        //     '1_30_days' => $row['1_30_days'] ?? $row['1-30_days'] ?? null,
-        //     '31_90_days' => $row['31_90_days'] ?? $row['31-90_days'] ?? null,
-        //     '91_180_days' => $row['91_180_days'] ?? $row['91-180_days'] ?? null,
-        //     '181_270_days' => $row['181_270_days'] ?? $row['181-270_days'] ?? null,
-        // ]);
-
-        // Check with both underscore and dash versions
-        if ($clean($row['271_360_days'] ?? $row['271-360_days'] ?? null)) return '3';
-        if ($clean($row['181_270_days'] ?? $row['181-270_days'] ?? null)) return '3';
-        if ($clean($row['91_180_days'] ?? $row['91-180_days'] ?? null))  return '2';
-        if ($clean($row['31_90_days'] ?? $row['31-90_days'] ?? null))  return '2';
-        if ($clean($row['1_30_days'] ?? $row['1-30_days'] ?? null))   return '1';
-
-        return '1';
+        return $this->stagingClassifier->classify($row);
     }
 
     protected function normalizeKey($key): string

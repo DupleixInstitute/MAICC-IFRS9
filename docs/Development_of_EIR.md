@@ -64,7 +64,7 @@ The rules currently hardcoded in `LoanBooksImport::classifyIFRS9Stage()` become 
 
 ---
 
-## Phase 2 — Intake layer 🔶 IN PROGRESS
+## Phase 2 — Intake layer ✅ COMPLETE (2026-07-27)
 
 Four components, build order: **generator → mapping engine → schedule/fee imports → staging config** (generator first because it is pure logic, unit-testable against the ten sample contracts with zero client data).
 
@@ -109,15 +109,35 @@ Four components, build order: **generator → mapping engine → schedule/fee im
 
 **Rules enforced (tested):** unmapped **required** fields block the read with a named list; unmapped extra columns are ignored but returned in the report (never silent); blank lines and BOM headers produce no ghost rows; signed fee amounts survive (NyamNyam netting-line fixture).
 
-**Remaining for 2.2:** `ImportMappingController` + routes + the Vue mapping page (upload → side-by-side headers/preview vs target fields → save template).
+### 2.2b Mapping + intake UI (2026-07-27) ✅ COMPLETE
 
-### 2.3 Schedule + fee imports 🔲 NOT STARTED
+**Files:**
+- `app/Http/Controllers/EirIntakeController.php` — thin controller: `index` (page + coverage + templates), `analyze` (JSON: headers/preview/template matches), `saveTemplate`, `import` (audit-logged via `AuditLoggerService`)
+- `resources/js/Pages/Eir/Intake.vue` — three-step page: upload → map columns (side-by-side with sample values, required-field chips, transform pickers, save-template toggle) → result (loaded/held/rejected cards, named per-contract reasons, fee totals-by-type for the GL eyeball, coverage strip)
+- Routes: `eir-intake.{index,analyze,save-template,import}` (verified in `route:list`); menu leaf "EIR Schedule Intake" under Customer & Loan Data
+- Frontend compiled clean (`vite build` → `Intake-*.js/css`). Route names resolve at runtime via the `@routes` Blade directive (`window.Ziggy`) — the stale generated `resources/js/ziggy.js` is unused legacy.
 
-Planned: schedule import (per-contract validation: exists on tape or held-for-retry; dates strictly increasing; Σ principal ≈ drawn within tolerance; version-1 never overwritten — re-import prompts restructure-v2 vs audit-logged correction) and fee import (signed amounts; known fee types; per-file total vs GL expectation). First loads: Dr Thom's assessment workbook, the ten offer letters. Import-result screen with the coverage strip.
+### 2.3 Schedule + fee import services (2026-07-27) ✅ COMPLETE
 
-### 2.4 Staging config 🔲 NOT STARTED
+**Files:**
+- `app/Services/Eir/ScheduleImportService.php` — per-contract (never per-file) validation: contract on tape or **held** for retry; no missing/duplicate due dates; **Σ principal reconciles to drawn within 1%** (catches truncated exports); version-1 schedules never overwritten (restructure/correction flows are separate); writes rows + `contract_eir` stub (`schedule_source = IMPORTED`); returns the coverage strip
+- `app/Services/Eir/FeeImportService.php` — signed amounts (netting lines counted + reported), unknown fee types → `other` + named report, totals by type for the GL tie, chunked inserts
+- `tests/Feature/Eir/EirIntakeServicesTest.php` — 9 tests / 30 assertions on in-memory sqlite (EclGoldenNumberTest isolation pattern), incl. "one bad contract does not sink the file" and the NyamNyam signed-fee fixture
 
-Planned: seeder (DEFAULT row = current behaviour; LONG_TERM 90-DPD row inactive until open item #5 signs); config UI with rebuttal_basis as a required field when any threshold exceeds 30 DPD; `LoanBooksImport::classifyIFRS9Stage()` reads `StagingThreshold::forFacility()` — zero behaviour change until a signed rule exists.
+### 2.4 Staging config (2026-07-27) ✅ COMPLETE
+
+**Files:**
+- `app/Services/Eir/StagingClassifier.php` — bucket → DPD lower bound → configured thresholds; **triple fallback proven**: seeded DEFAULT rule, empty table, and no table at all each reproduce the legacy ladder exactly
+- `database/seeders/StagingThresholdSeeder.php` — DEFAULT (31/181 = current behaviour, active) + LONG_TERM (91/181, min tenor 36m, full RBM rebuttal text, **future-dated 2099 = inactive until Dr Thom signs** open item #5); seeded on dev
+- `StagingThreshold::forFacility()` now ignores future-dated rules
+- `LoanBooksImport::classifyIFRS9Stage()` delegates to the classifier — same public signature, zero behaviour change (proven by test)
+- `tests/Feature/Eir/StagingClassifierTest.php` — 5 tests / 34 assertions incl. legacy-ladder equivalence, future-dated inactivity, and the activated 90-day rebuttal keeping a long-tenor 31–90 DPD facility in Stage 1
+
+### Phase 2 incident log — phpunit.xml database hazard (2026-07-27)
+
+Running the **full** test suite revealed that phpunit.xml's sqlite override was **commented out**, so scaffold tests using `RefreshDatabase` (e.g. the leftover `VitalsTest`) ran `migrate:fresh` against the `.env` MySQL database and wiped it. Impact was minimal (the dev DB held only the 2 seeded threshold rows; full schema re-created by the migration run; thresholds re-seeded) — but the hazard was real. **Fix:** the `DB_CONNECTION=sqlite` / `DB_DATABASE=:memory:` overrides in phpunit.xml are now active with a warning comment. All EIR tests build their own isolated schema and are unaffected. Note for the team: the ~116 failing scaffold tests (Vitals etc.) pre-date this work and reference routes/factories that don't exist in this app; candidates for deletion.
+
+**Phase 2 totals: 30 tests / 130 assertions across generator, reader, import services, classifier — all passing.**
 
 ---
 
