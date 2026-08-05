@@ -106,6 +106,9 @@ class ScheduleImportService
                         'interest_due'     => (float) ($r['interest_due'] ?? 0),
                         'fee_due'          => (float) ($r['fee_due'] ?? 0),
                         'schedule_source'  => 'IMPORTED',
+                        'source_system'    => ($r['source_system'] ?? null) ?: null,
+                        'source_reference' => ($r['source_reference'] ?? null) ?: null,
+                        'external_transaction_id' => ($r['external_transaction_id'] ?? null) ?: null,
                         'created_at'       => $now,
                         'updated_at'       => $now,
                     ], $contractRows)

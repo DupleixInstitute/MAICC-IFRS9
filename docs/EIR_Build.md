@@ -88,6 +88,8 @@ Also: data request to MAIIC (Tamanda, cc Dr Thom) — **the fee data largely alr
 4. **Staging config UI** + migration of the DPD waterfall to `staging_thresholds`.
 
 ### Phase 3 — The solver (`CalculateEirJob`)
+- **Implemented foundation (2026-08-03):** `CalculateEirService` (pure Newton/bisection solver), `EirReadinessService` (named blocking reasons), and `EirContractInputService` (reviewed contract data → audit-ready solver input). Job orchestration, persistence and locking remain next.
+- **Fee classification gate (built 2026-08-03):** imports remain pending; approved rules suggest treatment; a maker classifies and a different reviewer approves. The solver consumes only `integral = true` and `classification_status = REVIEWED`, and refuses unresolved material lines.
 - Newton-Raphson, bisection fallback, in payment-period units. Anchor: `t=0 outflow = drawn_amount − integral fees (fees charged on approved)` — the offer letters' application-of-funds line is the spec (ACADES: 100m approved, 95.99m received, 4.01m fees).
 - Refuses `instrument_type = EQUITY_EXCLUDED`. Flags FinES (`below_market_flag`) for the day-1 fair-value discussion. Floating contracts: solve all-in EIR, store `fee_spread = EIR − (reference + markup)` — the spread is what's locked.
 - Fallback hierarchy per contract: SOLVED_EIR → CONTRACTUAL_PROXY (defensible per the materiality assessment, disclosed) — coverage reported by exposure.

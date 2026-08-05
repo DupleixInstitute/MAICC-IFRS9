@@ -2,6 +2,7 @@
 
 namespace App\Services\Imports;
 
+use App\Imports\ExtractBImport;
 use App\Models\ImportMapping;
 use Carbon\Carbon;
 use InvalidArgumentException;
@@ -33,12 +34,22 @@ class MappedFileReader
     public const REQUIRED_FIELDS = [
         'schedule' => ['contract_id', 'due_date', 'principal_due', 'interest_due'],
         'fees'     => ['contract_id', 'fee_type', 'amount'],
+        'extract_b' => [
+            'customer_id', 'contract_id', 'sub_account_no', 'transaction_date',
+            'transaction_type', 'principal_component', 'interest_component',
+            'fee_component', 'total_amount', 'scheduled_actual_flag', 'gl_posting_ref',
+        ],
     ];
 
     /** Optional target fields per import type (for the mapping UI). */
     public const OPTIONAL_FIELDS = [
         'schedule' => ['fee_due'],
-        'fees'     => ['basis', 'integral', 'gl_account_ref'],
+        'fees'     => [
+            'description', 'transaction_date', 'cashflow_direction', 'currency',
+            'source_system', 'source_reference', 'external_transaction_id',
+            'basis', 'gl_account_ref',
+        ],
+        'extract_b' => ['run_id', 'balance_after_transaction', 'row_note'],
     ];
 
     /**
@@ -52,7 +63,7 @@ class MappedFileReader
 
         [$headers, $rows] = $this->readRaw($path, 5);
 
-        $template = $this->normaliseTemplate(ImportMapping::templateFor($importType));
+        $template = $this->templateFor($importType);
         $mapping  = $this->resolveMapping($headers, $template);
 
         return [
@@ -84,7 +95,7 @@ class MappedFileReader
 
         $mapping = $this->resolveMapping(
             $headers,
-            $this->normaliseTemplate($mapping ?? ImportMapping::templateFor($importType))
+            $mapping === null ? $this->templateFor($importType) : $this->normaliseTemplate($mapping)
         );
 
         $missing = $this->missingRequired($importType, $mapping);
@@ -335,6 +346,16 @@ class MappedFileReader
         }
 
         return $normalised;
+    }
+
+    private function templateFor(string $importType): array
+    {
+        $aliases = $importType === 'extract_b' ? ExtractBImport::aliases() : [];
+
+        return array_replace(
+            $this->normaliseTemplate($aliases),
+            $this->normaliseTemplate(ImportMapping::templateFor($importType))
+        );
     }
 
     /** Keep only template entries whose source header exists in the file. */

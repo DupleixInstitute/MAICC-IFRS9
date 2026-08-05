@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Eir;
 
+use App\Imports\ExtractBImport;
 use App\Services\Imports\MappedFileReader;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -37,6 +38,17 @@ class MappedFileReaderTest extends TestCase
         $this->tempFiles[] = $path;
 
         return $path;
+    }
+
+    public function test_extract_b_aliases_map_alternate_headers_to_canonical_fields(): void
+    {
+        $aliases = ExtractBImport::aliases();
+
+        $this->assertSame('contract_id', $aliases['LOAN_ACCOUNT_NUMBER']);
+        $this->assertSame('contract_id', $aliases['ACCOUNT_NUMBER']);
+        $this->assertSame('customer_id', $aliases['CLIENT_ID']);
+        $this->assertSame('transaction_date', $aliases['VALUE_DATE']);
+        $this->assertSame('scheduled_actual_flag', $aliases['ACTUAL_SCHEDULED_FLAG']);
     }
 
     /** Ebanker-style headers map onto our fields with transforms applied. */

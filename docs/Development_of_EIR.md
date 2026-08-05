@@ -141,7 +141,38 @@ Running the **full** test suite revealed that phpunit.xml's sqlite override was 
 
 ---
 
-## Phase 3 — The solver 🔲 NOT STARTED
+## Phase 2.5 — EIR accounting rules and fee/cost classification (2026-08-03) ✅ COMPLETE
+
+Fee intake no longer assumes that every imported line is integral to EIR. `contract_fees.integral` is nullable and imports enter `PENDING`; approved accounting rules can suggest treatment but cannot approve it. Two existing-design Inertia pages provide the controlled workflow:
+
+- **EIR Accounting Rules** — matching by fee type, description, GL and cash direction; proposed treatment, rationale, priority, approval and status.
+- **EIR Fee & Cost Classification** — filtering, rule suggestions, bulk classification with a required reason, and independent maker/checker review.
+
+`contract_fees` now retains descriptions, transaction dates, direction (`RECEIVED`/`PAID`), currency, source identifiers and classification/review timestamps. `eir_fee_classification_events` is the append-only decision history. Only explicitly integral and `REVIEWED` records are exposed by `ContractFee::integral()` to the future solver.
+
+Focused intake/reader verification: 17 tests, 55 assertions passing; production frontend build passes.
+
+## Phase 2.6 — MAIIC Extract B routing (2026-08-04) ✅ CODE COMPLETE · MIGRATION PENDING
+
+The existing EIR intake now has a dedicated **Extract B (scheduled + actual)** type. `app/Imports/ExtractBImport.php` owns the default header aliases, following the established import-class convention; mappings saved from the intake screen override those defaults. It reuses loans already loaded into `loan_books`: `LOAN_ACCOUNT_NUMBER` matches `contract_id`, and `CUSTOMER_ID` is an independent ownership check. Unknown accounts are held; customer conflicts are rejected.
+
+EIR uploads follow the application's established import route: the controller validates the mapping, stores the upload, creates an `imports` record in `pending`, and dispatches `ProcessEirImportJob`. The worker moves the record through `processing` to `completed`/`failed`, records processed/success/exception counts, deletes its temporary upload, and writes held/rejected contracts to the standard downloadable `failed_imports` CSV location. Users follow progress in the existing Import History page.
+
+Rows are separated before persistence: `Scheduled` rows go through the existing full-schedule validation into `contract_cashflow_schedule`; `Actual` rows are retained in `eir_actual_transactions`; and non-zero actual `FEE_COMPONENT` values create `PENDING` `contract_fees` records for maker/checker classification. Source run/posting references are retained and protected against duplicate import. A partial 2025 schedule that does not reconcile to drawn principal is rejected rather than misrepresented as an original lifetime schedule.
+
+Verification: focused mapping/intake suite passes (20 tests / 68 assertions) and the production frontend build passes. Migration `2026_08_04_000000_add_extract_b_audit_fields.php` could not be applied locally on 2026-08-04 because MySQL was not running; apply it before using the new intake option.
+
+## Phase 3 — The solver 🟡 IN PROGRESS
+
+### Phase 3.1 — Rules, pure solver and readiness gate (2026-08-03) ✅ COMPLETE
+
+- `EirAccountingRuleSeeder` installs six **draft, unapproved** starting rules (arrangement, direct origination legal cost, monitoring, anniversary, penalty/default and general legal expenditure). Accounting approval remains a user action.
+- `CalculateEirService` is a database-independent periodic IRR solver: Newton–Raphson with bisection fallback, explicit periodic/nominal/effective results, residual/iteration audit output and the complete input snapshot. Invalid frequency, cash-flow shape and non-convergence are rejected.
+- `EirReadinessService` returns `READY` or `BLOCKED` with named reasons. It checks instrument scope, lock state, origination date, drawn amount, frequency, original schedule, schedule dates, principal reconciliation, unresolved fee classifications, reviewed integral cash direction and positive initial net investment.
+- `EirContractInputService` is the read-only boundary between stored contract data and the solver. It refuses blocked contracts, loads original schedule version 1 in due-date order, assigns payment periods, includes only reviewed integral fee/cost lines, calculates `drawn − received + paid`, and returns a complete immutable-style input snapshot. `EirContractNotReadyException` carries the named readiness issues to the future job/UI.
+- ACADES golden result passes (quarterly EIR approximately 8.6217%, nominal approximately 34.49%, effective approximately 39.21%). Solver, readiness and intake suite: 16 tests / 49 assertions passing.
+
+Phase 3 is not complete: database orchestration (`CalculateEirJob`), batch processing, persistence/locking UI and remaining client fixtures are still pending.
 
 Planned: `CalculateEirJob` — Newton-Raphson in payment-period units, anchor = drawn − integral fees; refuses EQUITY_EXCLUDED; flags FinES below-market; fixture suite must pass (ACADES golden numbers: quarterly 8.6217% / nominal 34.49% / effective 39.21% on net proceeds 95.99m; Malasha ≈ 10.29%; NyamNyam ≈ 34.92%; MMC refused; Nascomex classification test).
 

@@ -13,6 +13,7 @@ class Import extends Model
         'status',
         'records',
         'failed_records',
+        'rows_processed',
         'failed_file_path',
         'name',
         'started_at',    // <-- add this

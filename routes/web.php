@@ -890,6 +890,20 @@ Route::group(['prefix' => 'eir-intake', 'as' => 'eir-intake.'], function () {
     Route::post('/import', [\App\Http\Controllers\EirIntakeController::class, 'import'])->name('import');
 });
 
+Route::group(['prefix' => 'eir-accounting-rules', 'as' => 'eir-accounting-rules.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirAccountingRuleController::class, 'index'])->name('index');
+    Route::post('/', [\App\Http\Controllers\EirAccountingRuleController::class, 'store'])->name('store');
+    Route::put('/{rule}', [\App\Http\Controllers\EirAccountingRuleController::class, 'update'])->name('update');
+    Route::post('/{rule}/approve', [\App\Http\Controllers\EirAccountingRuleController::class, 'approve'])->name('approve');
+    Route::post('/{rule}/toggle', [\App\Http\Controllers\EirAccountingRuleController::class, 'toggle'])->name('toggle');
+});
+
+Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classification.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirFeeClassificationController::class, 'index'])->name('index');
+    Route::post('/classify', [\App\Http\Controllers\EirFeeClassificationController::class, 'classify'])->name('classify');
+    Route::post('/review', [\App\Http\Controllers\EirFeeClassificationController::class, 'review'])->name('review');
+});
+
 //Manual Routes
 Route::get('/manuals/list',[ManualsController::class,'index'])->name('manuals.index');
 Route::get('/manuals/create',[ManualsController::class,'create'])->name('manuals.create');

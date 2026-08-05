@@ -52,6 +52,7 @@ return [
             $leaf('Loan Book Export', 'reports.loan-book-export'),
             $leaf('ECL Export', 'reports.ecl-export'),
             $leaf('EIR Schedule Intake', 'eir-intake.index'),
+            $leaf('EIR Fee Classification', 'eir-fee-classification.index'),
         ], 2),
 
         $group('Collateral Management', 'building', [
@@ -60,6 +61,7 @@ return [
         ], 3),
 
         $group('IFRS 9 Model Setup', 'chart-line', [
+            $leaf('EIR Accounting Rules', 'eir-accounting-rules.index'),
             $group('Staging & SICR Rules', 'circle', [
                 $leaf('Quantitative Thresholds', 'stageing-rules.index'),
                 $leaf('SICR Groups Setup', 'sicr-groups.index'),

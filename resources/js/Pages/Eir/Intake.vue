@@ -7,9 +7,9 @@
                         <svg class="w-6 h-6 mr-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
                         </svg>
-                        EIR Schedule Intake
+                        EIR Schedule & Fee Intake
                     </h2>
-                    <p class="mt-1 text-sm text-gray-600">Import contractual repayment schedules and origination fees — the EIR solver's inputs</p>
+                    <p class="mt-1 text-sm text-gray-600">Import contractual schedules and fee/cost lines; accounting treatment is reviewed separately</p>
                 </div>
                 <div class="flex items-center space-x-2">
                     <div class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">
@@ -32,7 +32,8 @@
                         <jet-label class="text-sm font-medium text-gray-900">Import type</jet-label>
                         <select v-model="importType" class="form-input mt-2" :disabled="processing" @change="resetAnalysis">
                             <option value="schedule">Repayment schedule (per contract, once)</option>
-                            <option value="fees">Origination fees</option>
+                            <option value="fees">Fees and transaction costs</option>
+                            <option value="extract_b">Schedule Import (Extract B)</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
@@ -129,7 +130,7 @@
             <div v-if="result" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">3 · Result</h3>
 
-                <div v-if="importType === 'schedule'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div v-if="['schedule', 'extract_b'].includes(importType)" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-green-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-green-700">{{ result.loaded_contracts }}</div>
                         <div class="text-xs text-green-800 mt-1">Contracts loaded</div>
@@ -148,10 +149,17 @@
                     </div>
                 </div>
 
-                <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div v-if="importType === 'extract_b'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-blue-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-blue-700">{{ result.scheduled_rows_routed }}</div><div class="text-xs text-blue-800 mt-1">Scheduled rows routed</div></div>
+                    <div class="bg-blue-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-blue-700">{{ result.actual_rows_loaded }}</div><div class="text-xs text-blue-800 mt-1">Actual rows retained</div></div>
+                    <div class="bg-purple-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-purple-700">{{ result.fee_rows_routed }}</div><div class="text-xs text-purple-800 mt-1">Fee rows routed</div></div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.duplicate_source_rows }}</div><div class="text-xs text-gray-800 mt-1">Duplicate source rows</div></div>
+                </div>
+
+                <div v-else-if="importType === 'fees'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-green-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-green-700">{{ result.loaded_rows }}</div>
-                        <div class="text-xs text-green-800 mt-1">Fee lines loaded</div>
+                        <div class="text-xs text-green-800 mt-1">Lines loaded as pending</div>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-gray-700">{{ result.skipped_rows }}</div>
@@ -208,13 +216,19 @@
                 </div>
             </div>
 
+            <div v-if="queuedImport" class="bg-blue-50 border border-blue-200 rounded-lg p-5 text-sm text-blue-900">
+                <div class="font-semibold">Import queued successfully</div>
+                <p class="mt-1">{{ queuedImport.name }} is now tracked through the standard import process.</p>
+                <a :href="importHistoryUrl" class="inline-block mt-3 text-blue-700 underline font-medium">Open Import History</a>
+            </div>
+
             <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
                 {{ error }}
             </div>
         </div>
 
         <teleport to="head">
-            <title>EIR Schedule Intake</title>
+            <title>EIR Schedule & Fee Intake</title>
         </teleport>
     </app-layout>
 </template>
@@ -242,6 +256,8 @@ export default {
             processing: false,
             stage: null,
             result: null,
+            queuedImport: null,
+            importHistoryUrl: null,
             error: null,
         }
     },
@@ -278,6 +294,8 @@ export default {
             this.mapping = {}
             this.transforms = {}
             this.result = null
+            this.queuedImport = null
+            this.importHistoryUrl = null
             this.error = null
         },
         previewFor(header) {
@@ -289,8 +307,8 @@ export default {
                 .join(' · ')
         },
         defaultTransformFor(field) {
-            if (field === 'due_date') return 'date'
-            if (['principal_due', 'interest_due', 'fee_due', 'amount'].includes(field)) return 'number'
+            if (['due_date', 'transaction_date'].includes(field)) return 'date'
+            if (['principal_due', 'interest_due', 'fee_due', 'amount', 'principal_component', 'interest_component', 'fee_component', 'total_amount', 'balance_after_transaction'].includes(field)) return 'number'
             return undefined
         },
         async analyze() {
@@ -352,7 +370,13 @@ export default {
                 ))
                 data.append('transforms', JSON.stringify(this.transforms))
                 const { data: response } = await axios.post(this.route('eir-intake.import'), data)
-                this.result = response.result
+                if (response.queued) {
+                    this.queuedImport = response.import
+                    this.importHistoryUrl = response.history_url
+                    this.result = null
+                } else {
+                    this.result = response.result
+                }
             } catch (e) {
                 this.error = e.response?.data?.error || e.response?.data?.message || 'Import failed.'
             } finally {

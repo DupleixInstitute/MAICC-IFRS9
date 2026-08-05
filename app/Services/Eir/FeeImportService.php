@@ -26,8 +26,9 @@ class FeeImportService
      *   totals_by_type: array<string,float>
      * }
      */
-    public function import(array $rows): array
+    public function import(array $rows, ?FeeRuleMatcher $matcher = null): array
     {
+        $matcher ??= app(FeeRuleMatcher::class);
         $inserts       = [];
         $skipped       = 0;
         $unknownTypes  = [];
@@ -55,13 +56,41 @@ class FeeImportService
             }
 
             $basis = strtoupper(trim((string) ($row['basis'] ?? '')));
+            $direction = strtoupper(trim((string) ($row['cashflow_direction'] ?? '')));
+            $sourceSystem = trim((string) ($row['source_system'] ?? '')) ?: null;
+            $externalId = trim((string) ($row['external_transaction_id'] ?? '')) ?: null;
+
+            if ($sourceSystem && $externalId && DB::table('contract_fees')
+                ->where('source_system', $sourceSystem)
+                ->where('external_transaction_id', $externalId)->exists()) {
+                $skipped++;
+                continue;
+            }
+
+            $candidate = [
+                'fee_type' => $type,
+                'description' => trim((string) ($row['description'] ?? '')) ?: null,
+                'cashflow_direction' => in_array($direction, ['RECEIVED', 'PAID'], true) ? $direction : null,
+                'gl_account_ref' => ($row['gl_account_ref'] ?? null) ?: null,
+            ];
+            $rule = $matcher->match($candidate);
 
             $inserts[] = [
                 'contract_id'    => $contractId,
                 'fee_type'       => $type,
+                'description'    => $candidate['description'],
                 'amount'         => $amount,
+                'transaction_date' => ($row['transaction_date'] ?? null) ?: null,
+                'cashflow_direction' => $candidate['cashflow_direction'],
+                'currency'       => strtoupper(trim((string) ($row['currency'] ?? ''))) ?: null,
+                'source_system'  => $sourceSystem,
+                'source_reference' => trim((string) ($row['source_reference'] ?? '')) ?: null,
+                'external_transaction_id' => $externalId,
                 'basis'          => in_array($basis, ['ON_APPROVED', 'ON_DRAWN'], true) ? $basis : 'ON_APPROVED',
-                'integral'       => true,
+                'integral'       => null,
+                'classification_status' => 'PENDING',
+                'suggested_rule_id' => $rule?->id,
+                'suggested_integral' => $rule?->proposed_integral,
                 'gl_account_ref' => ($row['gl_account_ref'] ?? null) ?: null,
                 'created_at'     => $now,
                 'updated_at'     => $now,

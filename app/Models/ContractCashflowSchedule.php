@@ -18,6 +18,9 @@ class ContractCashflowSchedule extends Model
         'interest_due',
         'fee_due',
         'schedule_source',
+        'source_system',
+        'source_reference',
+        'external_transaction_id',
     ];
 
     protected $casts = [
