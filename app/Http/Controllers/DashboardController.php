@@ -212,10 +212,24 @@ public function index(Request $request)
     $weightedLGD = $sumEad > 0 ? ($lgdPercentage * $stage3Amount) / $sumEad : 0;
 
     // --- Coverage trend: ONE grouped query, optional from/to range --------
+    // Default range: January of the selected period's year through the
+    // latest available period, so the chart tracks the reporting year as
+    // data grows. 'all' shows every period from the first. Only periods
+    // that really exist are plotted; nothing is zero-filled.
     $trendFrom = $request->input('trend_from');
     $trendTo = $request->input('trend_to');
+
+    if ($trendFrom === 'all') {
+        $lowerBound = null;
+    } elseif ($periods->contains($trendFrom)) {
+        $lowerBound = $trendFrom;
+    } else {
+        $trendFrom = null;
+        $lowerBound = substr($selectedPeriod, 0, 4) . '-01';
+    }
+
     $trendPeriods = $periods
-        ->when($periods->contains($trendFrom), fn ($c) => $c->filter(fn ($p) => $p >= $trendFrom))
+        ->when($lowerBound !== null, fn ($c) => $c->filter(fn ($p) => $p >= $lowerBound))
         ->when($periods->contains($trendTo), fn ($c) => $c->filter(fn ($p) => $p <= $trendTo))
         ->values();
 
@@ -264,7 +278,7 @@ public function index(Request $request)
         'selectedPeriod' => $selectedPeriod,
         'selectedPortfolioId' => $portfolioId,
         'comparePeriod' => $comparePeriod,
-        'trendFrom' => $periods->contains($trendFrom) ? $trendFrom : null,
+        'trendFrom' => ($trendFrom === 'all' || $periods->contains($trendFrom)) ? $trendFrom : null,
         'trendTo' => $periods->contains($trendTo) ? $trendTo : null,
         'eclTrends' => $eclTrends,
     ]);

@@ -17,7 +17,7 @@ const current = computed(() =>
 
 // Section accents drawn from the MAIIC logo family (greens, golds, red,
 // charcoal) so every tab is visibly coloured even when inactive.
-const ACCENTS = ['#16a34a', '#d97706', '#dc2626', '#15803d', '#b45309', '#991b1b', '#f59e0b', '#374151']
+const ACCENTS = ['#16a34a', '#d97706', '#dc2626', '#15803d', '#b45309', '#991b1b', '#f59e0b', '#92400e']
 const accent = (name) => {
     const i = props.categories.findIndex(c => c.name === name)
     return ACCENTS[(i >= 0 ? i : 0) % ACCENTS.length]
@@ -43,11 +43,14 @@ const currentAccent = computed(() => accent(activeTab.value))
                     </div>
                     <div class="flex items-center gap-2">
                         <label class="text-xs font-semibold uppercase tracking-wider opacity-90">Reporting Period</label>
+                        <span class="relative inline-block">
+                        <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                         <select v-model="period"
-                                class="rounded-lg border-0 text-gray-800 text-sm py-1.5 px-3 shadow focus:ring-2 focus:ring-white">
+                                class="rounded-lg border-0 text-gray-800 text-sm py-1.5 pl-9 pr-3 shadow focus:ring-2 focus:ring-white">
                             <option v-for="p in periods" :key="p" :value="p">{{ p }}</option>
                             <option v-if="!periods.length" value="">No ECL-calculated periods</option>
                         </select>
+                        </span>
                     </div>
                 </div>
 

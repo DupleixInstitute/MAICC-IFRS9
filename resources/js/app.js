@@ -16,8 +16,21 @@ import Icon from '@/Shared/Icon.vue';
 import Dropdown from '@/Shared/Dropdown.vue';
 
 import { library } from '@fortawesome/fontawesome-svg-core'
-import { fas } from '@fortawesome/free-solid-svg-icons'
-import { far } from '@fortawesome/free-regular-svg-icons'
+// Only the icons the app actually references. Importing the full `fas`+`far`
+// sets embedded ~655KB of SVG paths (43% of the bundle).
+import {
+    faArrowAltCircleLeft, faArrowAltCircleRight, faBarcode, faBolt, faBook,
+    faBookOpen, faBookmark, faBuilding, faCalculator, faCalendar, faChartBar,
+    faChartLine, faCheck, faCheckCircle, faChevronDown, faChevronRight,
+    faCircle, faCog, faCogs, faDatabase, faDollarSign, faDownload, faEdit,
+    faEnvelope, faExchangeAlt, faExclamationCircle, faExclamationTriangle,
+    faEye, faFileDownload, faFileExport, faFilePdf, faFolder,
+    faGraduationCap, faHistory, faHome, faHospitalUser, faInfoCircle,
+    faLock, faLockOpen, faMailBulk, faMinus, faMoneyBill, faPaperclip,
+    faPen, faPercent, faPlus, faPrint, faSearch, faShare, faSms, faSpinner,
+    faStar, faStethoscope, faTable, faTasks, faTicketAlt, faTimesCircle,
+    faTrash, faUser, faUserLock, faUsers, faWrench,
+} from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import Multiselect from '@vueform/multiselect'
 import '@vueform/multiselect/themes/default.css';
@@ -32,8 +45,19 @@ window.Papa = Papa;
 
 import numeral from 'numeral';
 
-library.add(fas)
-library.add(far)
+library.add(
+    faArrowAltCircleLeft, faArrowAltCircleRight, faBarcode, faBolt, faBook,
+    faBookOpen, faBookmark, faBuilding, faCalculator, faCalendar, faChartBar,
+    faChartLine, faCheck, faCheckCircle, faChevronDown, faChevronRight,
+    faCircle, faCog, faCogs, faDatabase, faDollarSign, faDownload, faEdit,
+    faEnvelope, faExchangeAlt, faExclamationCircle, faExclamationTriangle,
+    faEye, faFileDownload, faFileExport, faFilePdf, faFolder,
+    faGraduationCap, faHistory, faHome, faHospitalUser, faInfoCircle,
+    faLock, faLockOpen, faMailBulk, faMinus, faMoneyBill, faPaperclip,
+    faPen, faPercent, faPlus, faPrint, faSearch, faShare, faSms, faSpinner,
+    faStar, faStethoscope, faTable, faTasks, faTicketAlt, faTimesCircle,
+    faTrash, faUser, faUserLock, faUsers, faWrench,
+)
 
 const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'YoPractice';
 

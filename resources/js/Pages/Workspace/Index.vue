@@ -55,10 +55,13 @@ function toggle(t) {
                         <label class="mb-0.5 block text-[10px] font-bold uppercase tracking-widest text-white/80">
                             Reporting Period
                         </label>
+                        <span class="relative inline-block">
+                        <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                         <select :value="period" @change="changePeriod"
-                                class="cursor-pointer rounded-lg border-0 bg-white py-1.5 px-3 pr-8 text-sm font-bold text-maiic-800 shadow focus:ring-2 focus:ring-white">
+                                class="cursor-pointer rounded-lg border-0 bg-white py-1.5 pl-9 pr-8 text-sm font-bold text-maiic-800 shadow focus:ring-2 focus:ring-white">
                             <option v-for="p in periods" :key="p" :value="p">{{ p }}</option>
                         </select>
+                        </span>
                     </div>
                 </div>
             </div>

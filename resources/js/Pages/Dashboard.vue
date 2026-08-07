@@ -15,30 +15,39 @@
                         <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
                             Reporting Period
                         </label>
-                        <select v-model="filterForm.period" @change="applyFilters"
+                        <span class="relative inline-block">
+                            <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                            <select v-model="filterForm.period" @change="applyFilters"
                                 class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
                             <option v-for="period in periods" :key="period" :value="period">{{ period }}</option>
                         </select>
+                        </span>
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
                             Portfolio
                         </label>
-                        <select v-model="filterForm.portfolio_id" @change="applyFilters"
+                        <span class="relative inline-block">
+                            <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 8.5 4.5L12 11 3.5 6.5 12 2Z"/><path d="m3.5 11.5 8.5 4.5 8.5-4.5"/><path d="m3.5 16.5 8.5 4.5 8.5-4.5"/></svg>
+                            <select v-model="filterForm.portfolio_id" @change="applyFilters"
                                 class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
                             <option :value="null">All portfolios</option>
                             <option v-for="p in portfolios" :key="p.id" :value="p.id">{{ p.name }}</option>
                         </select>
+                        </span>
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
                             Compare To
                         </label>
-                        <select v-model="filterForm.compare" @change="applyFilters"
+                        <span class="relative inline-block">
+                            <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                            <select v-model="filterForm.compare" @change="applyFilters"
                                 class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
                             <option :value="null">Previous period</option>
                             <option v-for="period in comparablePeriods" :key="period" :value="period">{{ period }}</option>
                         </select>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -142,17 +151,25 @@
                                 </p>
                             </div>
                             <div class="flex items-center gap-2">
-                                <!-- Trend range (periods from the database) -->
-                                <select v-model="filterForm.trend_from" @change="applyFilters"
-                                        class="rounded-md border border-maiic-300 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
-                                    <option :value="null">From: first</option>
-                                    <option v-for="p in periods" :key="'f'+p" :value="p">From {{ p }}</option>
-                                </select>
-                                <select v-model="filterForm.trend_to" @change="applyFilters"
-                                        class="rounded-md border border-maiic-300 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
-                                    <option :value="null">To: latest</option>
-                                    <option v-for="p in periods" :key="'t'+p" :value="p">To {{ p }}</option>
-                                </select>
+                                <!-- Trend range (periods from the database). Default
+                                     anchors to January of the reporting year. -->
+                                <span class="relative">
+                                    <svg class="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                                    <select v-model="filterForm.trend_from" @change="applyFilters"
+                                            class="rounded-md border border-maiic-300 bg-maiic-50 py-1 pl-7 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
+                                        <option :value="null">From Jan {{ selectedYear }}</option>
+                                        <option value="all">From the start</option>
+                                        <option v-for="p in periods" :key="'f'+p" :value="p">From {{ p }}</option>
+                                    </select>
+                                </span>
+                                <span class="relative">
+                                    <svg class="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                                    <select v-model="filterForm.trend_to" @change="applyFilters"
+                                            class="rounded-md border border-maiic-300 bg-maiic-50 py-1 pl-7 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
+                                        <option :value="null">To latest</option>
+                                        <option v-for="p in periods" :key="'t'+p" :value="p">To {{ p }}</option>
+                                    </select>
+                                </span>
                                 <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
                                     <button @click="trendView='chart'" :class="trendView==='chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
                                     <button @click="trendView='table'" :class="trendView==='table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
@@ -277,11 +294,12 @@ const selectedPortfolioName = computed(() => {
     return p ? p.name : null;
 });
 
+const selectedYear = computed(() => (props.selectedPeriod || '').substring(0, 4));
+
 const trendRangeLabel = computed(() => {
     const t = props.eclTrends || [];
-    if (!t.length) return 'No periods in range';
-    if (props.trendFrom || props.trendTo) return `${t[0].period} to ${t[t.length - 1].period}`;
-    return 'All periods';
+    if (!t.length) return 'No data in the selected range';
+    return `${t[0].period} to ${t[t.length - 1].period}`;
 });
 
 function applyFilters() {
