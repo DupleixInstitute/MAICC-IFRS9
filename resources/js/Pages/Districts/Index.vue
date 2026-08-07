@@ -41,11 +41,11 @@
                         <td class="border-t w-px pr-2">
                             <div class=" flex items-center space-x-2">
                                 <inertia-link v-if="can('locations.index')" :href="route('locations.districts.show', district.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     View
                                 </inertia-link>
                                 <inertia-link v-if="can('locations.update')" :href="route('locations.districts.edit', district.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('locations.destroy')" @click="deleteAction(district.id)"

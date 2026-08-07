@@ -30,7 +30,7 @@ export default defineConfig({
         port: 5173,
         strictPort: true, // Ensures it uses the specified port
         watch: {
-            usePolling: true, // Helps with file changes in Docker volumes
+            ignored: ['**/storage/framework/views/**', '**/vendor/**', '**/node_modules/**'], // Helps with file changes in Docker volumes
         },
         headers: {
             'Access-Control-Allow-Origin': '*',

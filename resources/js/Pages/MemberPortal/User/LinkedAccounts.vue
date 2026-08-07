@@ -38,7 +38,7 @@
                         </td>
                         <td class="border-t w-px pr-2">
                             <div class=" flex items-center">
-                                <span v-if="this.selectMemberID===account.member_id" class="text-xs font-semibold inline-block py-1 px-2  rounded text-green-600 bg-green-200 ">
+                                <span v-if="this.selectMemberID===account.member_id" class="text-xs font-semibold inline-block py-1 px-2  rounded text-maiic-600 bg-maiic-200 ">
                                     Selected
                                 </span>
                                 <span v-else>

@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">Clients
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class="mx-auto">
@@ -123,7 +123,7 @@
                                 </td>
                                 <td class="border-t" v-for="sheet in sheets">
                                     <div class=" px-6 py-4 text-white w-full"
-                                         :class="sheet.total_assets!==sheet.total_liabilities?'bg-red-800':'bg-green-800'">
+                                         :class="sheet.total_assets!==sheet.total_liabilities?'bg-red-800':'bg-maiic-800'">
                                         {{
                                             $filters.currency(sheet.total_assets - sheet.total_liabilities)
                                         }}
@@ -141,7 +141,7 @@
                                 </td>
                                 <td class="border-t" v-for="sheet in sheets">
                                     <div class=" px-6 py-4 text-white w-full"
-                                         :class="sheet.total_working_capital>0?'bg-green-800':'bg-red-800'">
+                                         :class="sheet.total_working_capital>0?'bg-maiic-800':'bg-red-800'">
                                         {{
                                             $filters.currency(sheet.total_working_capital)
                                         }}

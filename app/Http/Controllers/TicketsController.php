@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use App\Models\TicketUpdate;
 use App\Models\User;
+use App\Notifications\SystemEventNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -76,6 +77,8 @@ class TicketsController extends Controller
 
         activity()->performedOn($ticket)->log('Create Ticket ' . $ticket->reference_display);
 
+        $this->notifyTicketParties($ticket, 'Ticket ' . $ticket->reference_display . ' created: ' . $ticket->title);
+
         return redirect()->route('tickets.show', $ticket->id)
             ->with('success', 'Ticket ' . $ticket->reference_display . ' created successfully.');
     }
@@ -128,6 +131,8 @@ class TicketsController extends Controller
 
         activity()->performedOn($ticket)->log('Update Ticket ' . $ticket->reference_display);
 
+        $this->notifyTicketParties($ticket, 'Ticket ' . $ticket->reference_display . ' updated (' . $ticket->status_label . '): ' . $ticket->title);
+
         return redirect()->route('tickets.show', $ticket->id)
             ->with('success', 'Ticket ' . $ticket->reference_display . ' updated.');
     }
@@ -168,6 +173,8 @@ class TicketsController extends Controller
 
         activity()->performedOn($ticket)->log('Comment on Ticket ' . $ticket->reference_display);
 
+        $this->notifyTicketParties($ticket, 'New update on ticket ' . $ticket->reference_display . ': ' . str($request->input('body'))->limit(80));
+
         return redirect()->route('tickets.show', $ticket->id)
             ->with('success', 'Update added to ' . $ticket->reference_display . '.');
     }
@@ -180,6 +187,22 @@ class TicketsController extends Controller
         activity()->log('Delete Ticket ' . $ref);
 
         return redirect()->route('tickets.index')->with('success', 'Ticket ' . $ref . ' deleted.');
+    }
+
+    /**
+     * Bell notifications for the ticket's assignee and creator (excluding
+     * whoever performed the action).
+     */
+    private function notifyTicketParties(Ticket $ticket, string $message): void
+    {
+        User::whereIn('id', array_filter([$ticket->assigned_to, $ticket->created_by]))
+            ->where('id', '!=', auth()->id())
+            ->get()
+            ->each(fn ($user) => $user->notify(new SystemEventNotification(
+                'ticket',
+                $message,
+                route('tickets.show', $ticket->id)
+            )));
     }
 
     private function validateTicket(Request $request): array

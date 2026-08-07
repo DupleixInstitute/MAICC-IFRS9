@@ -179,7 +179,7 @@ export default {
     width: 100%;
 }
 .btn {
-    background-color: #3490dc;
+    background-color: #16a34a;
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 0.25rem;
@@ -190,7 +190,7 @@ export default {
     justify-content: center;
 }
 .btn-primary {
-    background-color: #1d72b8;
+    background-color: #15803d;
 }
 .btn-primary:disabled {
     background-color: #6c757d;

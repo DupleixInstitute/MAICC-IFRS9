@@ -7,7 +7,7 @@
                 </h2>
                 <div class="flex items-center space-x-2">
                     <button @click="showReportModal = true"
-                          class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:ring focus:ring-blue-300 transition">
+                          class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:ring focus:ring-maiic-300 transition">
                         <i class="fas fa-file-archive mr-2"></i>
                         Get Report
                     </button>
@@ -36,13 +36,13 @@
                                     <label class="block text-sm font-medium text-gray-700">Start Date</label>
                                     <input type="date" 
                                            v-model="startDate"
-                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50" />
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">End Date</label>
                                     <input type="date" 
                                            v-model="endDate"
-                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50" />
                                 </div>
                             </div>
                         </div>
@@ -80,8 +80,8 @@
                                                                                 <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-2 py-1 text-xs font-semibold rounded-full"
                                                   :class="{
-                                                      'bg-blue-100 text-blue-800': matrix.pd_calculation_level === 'portfolio',
-                                                      'bg-green-100 text-green-800': matrix.pd_calculation_level === 'sector'
+                                                      'bg-maiic-100 text-maiic-800': matrix.pd_calculation_level === 'portfolio',
+                                                      'bg-maiic-100 text-maiic-800': matrix.pd_calculation_level === 'sector'
                                                   }">
                                                 {{ matrix.pd_calculation_level ? matrix.pd_calculation_level.toUpperCase() : '-' }}
                                             </span>
@@ -128,17 +128,17 @@
                                             class="px-2 py-1 rounded-full text-xs font-semibold"
                                             :class="{
                                             'bg-red-100 text-red-700': matrix.status === 'closed',
-                                            'bg-orange-100 text-orange-700': matrix.status === 'draft'
+                                            'bg-amber-100 text-amber-700': matrix.status === 'draft'
                                             }"
                                         >
                                             {{ matrix.status === 'closed' ? 'Closed' : 'Draft' }}
                                         </span>
                                         </td>
                                          <!-- <td class="px-6 py-4 text-right text-sm font-medium">
-                                            <Link :href="route('transition-matrices.show', matrix.id)" class="text-indigo-600 hover:text-indigo-900 mr-4">View</Link>
+                                            <Link :href="route('transition-matrices.show', matrix.id)" class="text-maiic-600 hover:text-maiic-900 mr-4">View</Link>
                                         </td> -->
                                         <td class="px-6 py-4 text-right text-sm font-medium">
-                                            <div class="flex items-center justify-end space-x-4 text-blue-600">
+                                            <div class="flex items-center justify-end space-x-4 text-maiic-600">
                                                 <button
                                                     @click="openModal('view', matrix)"
                                                     class="text-gray-600 hover:text-gray-800" title="View"
@@ -279,7 +279,7 @@
 
                 <!-- File Upload Box -->
                 <label
-                class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 transition"
+                class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-maiic-400 transition"
                 >
                 <div class="flex flex-col items-center pt-4">
                     <i class="fas fa-cloud-upload-alt text-3xl text-gray-500"></i>
@@ -297,10 +297,10 @@
                 <!-- File Info -->
                 <div
                 v-if="uploadFile"
-                class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800"
+                class="mt-4 p-3 bg-maiic-50 border border-maiic-200 rounded-lg text-sm text-maiic-800"
                 >
                 <strong>Selected File:</strong> {{ uploadFile.name }}  
-                <div class="text-xs mt-1 text-blue-600">
+                <div class="text-xs mt-1 text-maiic-600">
                     Size: {{ Math.round(uploadFile.size / 1024) }} KB
                 </div>
                 </div>

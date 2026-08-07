@@ -60,8 +60,8 @@
                         <td class="border-t">
                             <span class="px-6 py-4 flex items-center">
                                 <span class="px-2 rounded-full" :class="{
-                                    'bg-blue-100 text-blue-800': product.aggregation_criteria === 'balance',
-                                    'bg-green-100 text-green-800': product.aggregation_criteria === 'count'
+                                    'bg-maiic-100 text-maiic-800': product.aggregation_criteria === 'balance',
+                                    'bg-maiic-100 text-maiic-800': product.aggregation_criteria === 'count'
                                 }">
                                     {{ product.aggregation_criteria }}
                                 </span>
@@ -75,7 +75,7 @@
                         <td class="border-t">
                             <span class="px-6 py-4 flex items-center">
                                 <span v-if="product.is_default"
-                                      class="px-2 rounded-full bg-green-100 text-green-800">
+                                      class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                     Yes
                                 </span>
                                 <span v-else
@@ -86,20 +86,20 @@
                         </td>
                         <td class="border-t">
                             <span class="px-6 py-4 flex gap-2">
-                                <span v-if="product.is_per_portfolio" class="px-2 rounded-full bg-blue-100 text-blue-800 text-xs">Portfolio</span>
-                                <span v-if="product.is_paid" class="px-2 rounded-full bg-green-100 text-green-800 text-xs">Paid</span>
-                                <span v-if="product.is_lgd" class="px-2 rounded-full bg-purple-100 text-purple-800 text-xs">LGD</span>
+                                <span v-if="product.is_per_portfolio" class="px-2 rounded-full bg-maiic-100 text-maiic-800 text-xs">Portfolio</span>
+                                <span v-if="product.is_paid" class="px-2 rounded-full bg-maiic-100 text-maiic-800 text-xs">Paid</span>
+                                <span v-if="product.is_lgd" class="px-2 rounded-full bg-maiic-100 text-maiic-800 text-xs">LGD</span>
                             </span>
                         </td>
                         <td class="border-t w-px pr-2">
                             <div class="flex items-center gap-4">
                                 <inertia-link :href="route('loan_products.show', product.id)"
-                                              tabindex="-1" class="text-green-600 hover:text-green-900" title="View">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900" title="View">
                                     <font-awesome-icon icon="search"/>
                                 </inertia-link>
                                 <inertia-link v-if="can('loans.products.update')"
                                               :href="route('loan_products.edit', product.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900" title="Edit">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900" title="Edit">
                                     <font-awesome-icon icon="edit"/>
                                 </inertia-link>
                                 <a href="#" v-if="can('loans.products.destroy')" @click="deleteAction(product.id)"

@@ -15,7 +15,7 @@
     </div>
     <!-- Button -->
     <div>
-        <Link href="/scenario-profiles" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md space-x-4">
+        <Link href="/scenario-profiles" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md space-x-4">
            <i class="fas fa-arrow-left"></i> Back
         </Link>
     </div>
@@ -39,7 +39,7 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   class="px-2 py-1 rounded-full text-xs font-semibold"
-                  :class="s.is_base_case ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-800'"
+                  :class="s.is_base_case ? 'bg-maiic-200 text-maiic-800' : 'bg-gray-100 text-gray-800'"
                 >
                   {{ s.is_base_case ? 'Base Case' : 'Alternative' }}
                 </span>
@@ -50,8 +50,8 @@
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right space-x-2">
-                <button @click="editScenario(s)" class="text-blue-600 hover:text-blue-800"><i class="fas fa-edit"></i></button>
-                <button @click="editScenario(s)" class="text-blue-600 hover:text-blue-800"><i class="fas fa-eye"></i></button>
+                <button @click="editScenario(s)" class="text-maiic-600 hover:text-maiic-800"><i class="fas fa-edit"></i></button>
+                <button @click="editScenario(s)" class="text-maiic-600 hover:text-maiic-800"><i class="fas fa-eye"></i></button>
                 <button @click="deleteScenario(s.id)" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
               </td>
             </tr>

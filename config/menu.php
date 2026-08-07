@@ -136,6 +136,7 @@ return [
 
         $group('Administration', 'cog', [
             $leaf('User Management', 'users.index'),
+            $leaf('Roles & Permissions', 'users.roles.index'),
             $leaf('Financial Periods', 'accounting.financial_periods.index'),
             $leaf('Audit Trail', 'audit-trail.index'),
             $leaf('Support Tickets', 'tickets.index'),

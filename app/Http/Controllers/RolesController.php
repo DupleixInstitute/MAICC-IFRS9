@@ -32,9 +32,14 @@ class RolesController extends Controller
 
     public function index()
     {
+        $search = request()->input('search');
 
         return Inertia::render('Roles/Index', [
-            'roles' => Role::paginate(),
+            'filters' => request()->all('search'),
+            'roles' => Role::when($search, fn ($q) => $q->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('display_name', 'like', '%' . $search . '%');
+            }))->paginate()->withQueryString(),
         ]);
     }
 

@@ -11,9 +11,9 @@ const PAGE_SIZE = 10
 
 const toneClass = {
     maiic: 'from-maiic-500 to-maiic-600',
-    rose: 'from-rose-500 to-rose-600',
+    rose: 'from-red-500 to-red-600',
     amber: 'from-amber-500 to-amber-600',
-    emerald: 'from-emerald-500 to-emerald-600',
+    emerald: 'from-maiic-500 to-maiic-600',
 }
 
 const controlValues = reactive(
@@ -219,7 +219,7 @@ function runControls() {
                     <div v-if="sec.rows.length > PAGE_SIZE"
                          class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-t border-gray-100 bg-gray-50/60">
                         <p class="text-xs text-gray-500">
-                            Showing {{ (pageOf(si) - 1) * PAGE_SIZE + 1 }}–{{ Math.min(pageOf(si) * PAGE_SIZE, sec.rows.length) }}
+                            Showing {{ (pageOf(si) - 1) * PAGE_SIZE + 1 }}-{{ Math.min(pageOf(si) * PAGE_SIZE, sec.rows.length) }}
                             of {{ sec.rows.length }}
                         </p>
                         <div class="flex items-center gap-1">

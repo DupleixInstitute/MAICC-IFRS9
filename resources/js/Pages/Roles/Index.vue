@@ -44,17 +44,17 @@
                             <span v-else class="text-red-500">N/A</span>
                         </td>
                         <td class="border-t">
-                            <span class="px-6 py-4 flex items-center text-green-500" v-if="role.send_email_to_role_members=='1'">Yes</span>
+                            <span class="px-6 py-4 flex items-center text-maiic-500" v-if="role.send_email_to_role_members=='1'">Yes</span>
                             <span class="px-6 py-4 flex items-center text-red-500" v-if="role.send_email_to_role_members=='0'">No</span>
                         </td>
                         <td class="border-t w-px pr-2">
                             <div class=" flex items-center space-x-2">
                                 <inertia-link :href="route('users.roles.show', role.id)"
-                                              tabindex="-1" class="text-blue-600 hover:text-blue-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     View
                                 </inertia-link>
-                                <inertia-link v-if="can('users.update')" :href="route('users.roles.edit', role.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                <inertia-link v-if="can('users.roles.update')" :href="route('users.roles.edit', role.id)"
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('users.roles.destroy') && role.is_system=='0'" @click="deleteAction(role.id)"
@@ -62,7 +62,7 @@
                             </div>
                         </td>
                     </tr>
-                    <tr v-if="roles.length === 0">
+                    <tr v-if="roles.data.length === 0">
                         <td class="border-t px-6 py-4" colspan="3">No roles found.</td>
                     </tr>
                     </tbody>

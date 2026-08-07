@@ -2,8 +2,8 @@
     <app-layout title="Create Portfolio">
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <Link class="text-indigo-400 hover:text-indigo-600" :href="route('portfolios.index')">Portfolios</Link>
-                <span class="text-indigo-400 font-medium"> / </span>
+                <Link class="text-maiic-500 hover:text-maiic-600" :href="route('portfolios.index')">Portfolios</Link>
+                <span class="text-maiic-500 font-medium"> / </span>
                 Create
             </h2>
         </template>

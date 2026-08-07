@@ -14,14 +14,14 @@
       </dropdown>
       <input
         v-model="query"
-        class="relative w-full px-6 py-3 rounded-r focus:ring-2 focus:ring-indigo-400"
+        class="relative w-full px-6 py-3 rounded-r focus:ring-2 focus:ring-maiic-500"
         autocomplete="off"
         type="text"
         name="search"
         placeholder="Search..."
       />
     </div>
-    <button v-if="query" class="ml-3 text-sm text-gray-500 hover:text-gray-700 focus:text-indigo-500" type="button" @click="reset">
+    <button v-if="query" class="ml-3 text-sm text-gray-500 hover:text-gray-700 focus:text-maiic-500" type="button" @click="reset">
       Reset
     </button>
   </div>

@@ -67,8 +67,23 @@ class HandleInertiaRequests extends Middleware
                     'error' => $request->session()->get('error'),
                 ];
             },
-            'user' => Auth::user(),
-            'menu' => (Auth::check() && Auth::user()->hasRole('member')) ? config('menu.member') : config('menu.admin'),
+            // Slim user payload: the full model serialized 174 permission
+            // objects TWICE (user.can + user.roles) = ~40KB on every response.
+            'user' => function () {
+                $u = Auth::user();
+                if (! $u) {
+                    return null;
+                }
+                return [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'profile_photo_url' => $u->profile_photo_url,
+                    'current_role' => $u->current_role,
+                    'can' => $u->getAllPermissions()->pluck('name'),
+                ];
+            },
+            'menu' => fn () => (Auth::check() && Auth::user()->hasRole('member')) ? config('menu.member') : config('menu.admin'),
             'logoUrl' => $logo ? asset('storage/' . $logo) : asset('images/maiic-logo-white.png'),
             'smallLogoUrl' => $smallLogo ? asset('storage/' . $smallLogo) : asset('images/maiic-logo-white.png'),
             'companyName' => $settings['company_name'] ?? 'MAIIC',
@@ -77,7 +92,7 @@ class HandleInertiaRequests extends Middleware
             'companyTel' => $settings['company_tel'] ?? '',
             'companyEmail' => $settings['company_email'] ?? 'info@company.com',
             'currency' => $currency,
-            'notifications_unread' => Auth::check() ? Auth::user()->unreadNotifications()->count() : 0,
+            'notifications_unread' => fn () => Auth::check() ? Auth::user()->unreadNotifications()->count() : 0,
             'route_name' => Route::currentRouteName(),
         ]);
     }

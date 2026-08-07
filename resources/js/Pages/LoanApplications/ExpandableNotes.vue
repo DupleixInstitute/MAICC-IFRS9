@@ -22,7 +22,7 @@
           <button
             v-if="needsTruncation"
             @click="isExpanded = !isExpanded"
-            class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors duration-150 text-sm font-medium"
+            class="inline-flex items-center gap-1 text-maiic-600 hover:text-maiic-800 transition-colors duration-150 text-sm font-medium"
             :aria-label="isExpanded ? 'Show less' : 'Show more'"
           >
             {{ isExpanded ? 'Show less' : 'Show more' }}

@@ -40,7 +40,7 @@
                             <td class="border-t w-px pr-2">
                                 <div class=" flex items-center space-x-2">
                                     <inertia-link :href="route('groups.edit', group.id)"
-                                                tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                                tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                         Edit
                                     </inertia-link>
                                     <a  @click="deleteAction(group.id)"

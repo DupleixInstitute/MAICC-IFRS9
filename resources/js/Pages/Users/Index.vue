@@ -11,7 +11,7 @@
                     <div class="mb-2">
                         <jet-label for="gender" value="Gender"/>
                         <select v-model="form.gender"
-                                class="mt-1 w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                class="mt-1 w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                             <option :value="null"/>
                             <option value="male">Male</option>
                             <option value="female">Female</option>
@@ -20,7 +20,7 @@
                     <div class="mb-2">
                         <jet-label for="role" value="Role"/>
                         <select v-model="form.role"
-                                class="mt-1 w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                class="mt-1 w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                             <option :value="null"/>
                             <option v-for="role in roles" :value="role.id">{{ role.display_name }}</option>
                         </select>
@@ -48,7 +48,7 @@
                     <tbody>
                     <tr v-for="user in users.data" :key="user.id" class="hover:bg-gray-100 focus-within:bg-gray-100">
                         <td class="border-t">
-                            <inertia-link class="px-6 py-4 flex items-center focus:text-indigo-500"
+                            <inertia-link class="px-6 py-4 flex items-center focus:text-maiic-500"
                                           :href="route('users.show', user.id)">
                                 <img v-if="user.profile_photo_url" class="block w-5 h-5 rounded-full mr-2 -my-2"
                                      :src="user.profile_photo_url">
@@ -79,7 +79,7 @@
                             <inertia-link class="px-6 py-4 flex items-center" :href="route('users.show', user.id)"
                                           tabindex="-1">
                                 <span v-for="role in user.roles"
-                                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800">
                                      {{ role.display_name }}
                                 </span>
                             </inertia-link>
@@ -87,11 +87,11 @@
                         <td class="border-t w-px pr-2">
                             <div class=" flex items-center space-x-2">
                                 <inertia-link :href="route('users.show', user.id)"
-                                              tabindex="-1" class="text-blue-600 hover:text-blue-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     View
                                 </inertia-link>
                                 <inertia-link v-if="can('users.update')" :href="route('users.edit', user.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('users.destroy')" @click="deleteAction(user.id)"

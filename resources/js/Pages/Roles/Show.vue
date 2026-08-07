@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('users.roles.index')">Roles
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('users.roles.index')">Roles
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Details
+                <span class="text-maiic-500 font-medium">/</span> Details
             </h2>
         </template>
 

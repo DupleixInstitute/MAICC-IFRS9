@@ -4,7 +4,7 @@
       <div class="flex justify-between items-center">
         <div>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('collateral.allocations.index')">
+                    <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('collateral.allocations.index')">
           Collateral
         </inertia-link>
             <span>/</span>Register
@@ -13,7 +13,7 @@
         </div>
         <div class="flex space-x-2">     
             <inertia-link
-              class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition"
+              class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition"
               :href="route('collateral.register.import')"
             >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

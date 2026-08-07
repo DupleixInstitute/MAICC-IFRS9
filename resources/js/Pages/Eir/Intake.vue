@@ -4,7 +4,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-6 h-6 mr-2 text-maiic-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
                         </svg>
                         EIR Schedule & Fee Intake
@@ -12,7 +12,7 @@
                     <p class="mt-1 text-sm text-gray-600">Import contractual schedules and fee/cost lines; accounting treatment is reviewed separately</p>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <div class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">
+                    <div class="px-3 py-1 bg-maiic-100 text-maiic-800 text-xs font-medium rounded-full">
                         Coverage: {{ coverage.covered }}/{{ coverage.total }} contracts
                     </div>
                 </div>
@@ -25,7 +25,7 @@
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">1 · Upload a file</h3>
                 <p class="text-sm text-gray-500 mb-4">
-                    Any CSV or Excel shape works — you map its columns once and the template is reused for every future file of the same shape.
+                    Any CSV or Excel shape works - you map its columns once and the template is reused for every future file of the same shape.
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
@@ -42,7 +42,7 @@
                             type="file"
                             @change="onFile"
                             accept=".csv,.txt,.xlsx,.xls,.ods"
-                            class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 file:cursor-pointer border border-gray-300 rounded-md"
+                            class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-maiic-50 file:text-maiic-700 hover:file:bg-maiic-100 file:cursor-pointer border border-gray-300 rounded-md"
                             :disabled="processing"
                         />
                     </div>
@@ -67,7 +67,7 @@
                     <span
                         v-for="f in analysis.required_fields" :key="f"
                         class="inline-block px-2 py-0.5 mx-0.5 text-xs rounded-full"
-                        :class="mappedTargets.includes(f) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                        :class="mappedTargets.includes(f) ? 'bg-maiic-100 text-maiic-800' : 'bg-red-100 text-red-800'"
                     >{{ f }}</span>
                 </p>
 
@@ -82,14 +82,14 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="header in analysis.headers" :key="header" class="hover:bg-indigo-50 transition-colors duration-150">
+                            <tr v-for="header in analysis.headers" :key="header" class="hover:bg-maiic-50 transition-colors duration-150">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ header }}</td>
                                 <td class="px-4 py-2 text-xs text-gray-500">
                                     {{ previewFor(header) }}
                                 </td>
                                 <td class="px-4 py-2">
                                     <select v-model="mapping[header]" class="form-input text-sm">
-                                        <option :value="undefined">— ignore —</option>
+                                        <option :value="undefined">- ignore -</option>
                                         <option v-for="f in allTargetFields" :key="f" :value="f">{{ f }}</option>
                                     </select>
                                 </td>
@@ -110,13 +110,13 @@
 
                 <div class="mt-4 flex items-center justify-between">
                     <label class="flex items-center text-sm text-gray-700">
-                        <input type="checkbox" v-model="saveTemplate" class="rounded border-gray-300 text-indigo-600 mr-2" />
+                        <input type="checkbox" v-model="saveTemplate" class="rounded border-gray-300 text-maiic-600 mr-2" />
                         Save this mapping as the template for future {{ importType }} files
                     </label>
                     <button
                         @click="runImport"
                         :disabled="processing || missingRequired.length > 0"
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-teal-600 hover:from-maiic-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-maiic-600 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                     >
                         {{ processing && stage === 'import' ? 'Importing…' : 'Run import' }}
                     </button>
@@ -131,17 +131,17 @@
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">3 · Result</h3>
 
                 <div v-if="['schedule', 'extract_b'].includes(importType)" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div class="bg-green-50 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-green-700">{{ result.loaded_contracts }}</div>
-                        <div class="text-xs text-green-800 mt-1">Contracts loaded</div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-maiic-700">{{ result.loaded_contracts }}</div>
+                        <div class="text-xs text-maiic-800 mt-1">Contracts loaded</div>
                     </div>
-                    <div class="bg-green-50 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-green-700">{{ result.loaded_rows }}</div>
-                        <div class="text-xs text-green-800 mt-1">Schedule rows</div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-maiic-700">{{ result.loaded_rows }}</div>
+                        <div class="text-xs text-maiic-800 mt-1">Schedule rows</div>
                     </div>
-                    <div class="bg-yellow-50 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-yellow-700">{{ Object.keys(result.held || {}).length }}</div>
-                        <div class="text-xs text-yellow-800 mt-1">Held (not on tape)</div>
+                    <div class="bg-amber-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-amber-700">{{ Object.keys(result.held || {}).length }}</div>
+                        <div class="text-xs text-amber-800 mt-1">Held (not on tape)</div>
                     </div>
                     <div class="bg-red-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-red-700">{{ Object.keys(result.skipped || {}).length }}</div>
@@ -150,36 +150,36 @@
                 </div>
 
                 <div v-if="importType === 'extract_b'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div class="bg-blue-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-blue-700">{{ result.scheduled_rows_routed }}</div><div class="text-xs text-blue-800 mt-1">Scheduled rows routed</div></div>
-                    <div class="bg-blue-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-blue-700">{{ result.actual_rows_loaded }}</div><div class="text-xs text-blue-800 mt-1">Actual rows retained</div></div>
-                    <div class="bg-purple-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-purple-700">{{ result.fee_rows_routed }}</div><div class="text-xs text-purple-800 mt-1">Fee rows routed</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.scheduled_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Scheduled rows routed</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.actual_rows_loaded }}</div><div class="text-xs text-maiic-800 mt-1">Actual rows retained</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.fee_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Fee rows routed</div></div>
                     <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.duplicate_source_rows }}</div><div class="text-xs text-gray-800 mt-1">Duplicate source rows</div></div>
                 </div>
 
                 <div v-else-if="importType === 'fees'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div class="bg-green-50 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-green-700">{{ result.loaded_rows }}</div>
-                        <div class="text-xs text-green-800 mt-1">Lines loaded as pending</div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-maiic-700">{{ result.loaded_rows }}</div>
+                        <div class="text-xs text-maiic-800 mt-1">Lines loaded as pending</div>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-gray-700">{{ result.skipped_rows }}</div>
                         <div class="text-xs text-gray-800 mt-1">Skipped (blank/zero)</div>
                     </div>
-                    <div class="bg-yellow-50 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-yellow-700">{{ result.negative_lines }}</div>
-                        <div class="text-xs text-yellow-800 mt-1">Negative (netting) lines</div>
+                    <div class="bg-amber-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-amber-700">{{ result.negative_lines }}</div>
+                        <div class="text-xs text-amber-800 mt-1">Negative (netting) lines</div>
                     </div>
-                    <div class="bg-yellow-50 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-yellow-700">{{ Object.keys(result.unknown_types || {}).length }}</div>
-                        <div class="text-xs text-yellow-800 mt-1">Unknown fee types → other</div>
+                    <div class="bg-amber-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-amber-700">{{ Object.keys(result.unknown_types || {}).length }}</div>
+                        <div class="text-xs text-amber-800 mt-1">Unknown fee types → other</div>
                     </div>
                 </div>
 
                 <!-- Fee totals vs GL -->
                 <div v-if="importType === 'fees' && result.totals_by_type" class="mb-4">
-                    <h4 class="text-sm font-medium text-gray-900 mb-2">Totals by fee type — eyeball these against the GL fee accounts:</h4>
+                    <h4 class="text-sm font-medium text-gray-900 mb-2">Totals by fee type - eyeball these against the GL fee accounts:</h4>
                     <div class="flex flex-wrap gap-2">
-                        <span v-for="(total, type) in result.totals_by_type" :key="type" class="px-3 py-1 bg-indigo-50 text-indigo-800 text-xs rounded-full">
+                        <span v-for="(total, type) in result.totals_by_type" :key="type" class="px-3 py-1 bg-maiic-50 text-maiic-800 text-xs rounded-full">
                             {{ type }}: {{ Number(total).toLocaleString() }}
                         </span>
                     </div>
@@ -199,7 +199,7 @@
                             <tr v-for="entry in reasonEntries" :key="entry.contract + entry.status">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ entry.contract }}</td>
                                 <td class="px-4 py-2">
-                                    <span class="px-2 py-0.5 text-xs rounded-full" :class="entry.status === 'held' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'">
+                                    <span class="px-2 py-0.5 text-xs rounded-full" :class="entry.status === 'held' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'">
                                         {{ entry.status }}
                                     </span>
                                 </td>
@@ -216,10 +216,10 @@
                 </div>
             </div>
 
-            <div v-if="queuedImport" class="bg-blue-50 border border-blue-200 rounded-lg p-5 text-sm text-blue-900">
+            <div v-if="queuedImport" class="bg-maiic-50 border border-maiic-200 rounded-lg p-5 text-sm text-maiic-900">
                 <div class="font-semibold">Import queued successfully</div>
                 <p class="mt-1">{{ queuedImport.name }} is now tracked through the standard import process.</p>
-                <a :href="importHistoryUrl" class="inline-block mt-3 text-blue-700 underline font-medium">Open Import History</a>
+                <a :href="importHistoryUrl" class="inline-block mt-3 text-maiic-700 underline font-medium">Open Import History</a>
             </div>
 
             <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">

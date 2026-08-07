@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">Clients
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class="mx-auto">
@@ -35,7 +35,7 @@
                                 <div>
                                     <jet-label for="audit_status" value="Reporting Month (1-12)"/>
                                     <select
-                                        class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                        class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                         name="reporting_month" v-model="form.reporting_month" id="reporting_month">
                                         <option v-for="n in 12" :value="n">{{ n }}</option>
                                     </select>
@@ -44,7 +44,7 @@
                                 <div>
                                     <jet-label for="months_in_year" value="No of Months In Year (1-15)"/>
                                     <select
-                                        class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                        class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                         name="months_in_year" v-model="form.months_in_year" id="months_in_year">
                                         <option v-for="n in 15" :value="n">{{ n }}</option>
                                     </select>
@@ -53,7 +53,7 @@
                                 <div>
                                     <jet-label for="audit_status" value="Audit Status"/>
                                     <select
-                                        class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                        class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                         name="audit_status" v-model="form.audit_status" id="audit_status">
                                         <option value="Audited">Audited</option>
                                         <option value="Registered Accountant">Registered Accountant</option>

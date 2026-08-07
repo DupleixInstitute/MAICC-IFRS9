@@ -9,7 +9,7 @@
 
 &:focus,
 &.focus {
-     @apply .border-indigo-500;
+     @apply .border-maiic-500;
      box-shadow: 0 0 0 1px theme('colors.indigo.500');
  }
 

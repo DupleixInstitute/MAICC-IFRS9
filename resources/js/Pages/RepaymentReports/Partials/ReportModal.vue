@@ -34,7 +34,7 @@
             </div>
 
             <!-- Advanced Options Toggle -->
-            <button @click="showAdvanced = !showAdvanced" class="text-sm text-blue-600 hover:text-blue-800 mb-4">
+            <button @click="showAdvanced = !showAdvanced" class="text-sm text-maiic-600 hover:text-maiic-800 mb-4">
                 {{ showAdvanced ? 'Hide' : 'Show' }} Advanced Options
             </button>
 
@@ -201,7 +201,7 @@ export default {
 
                 // Show completion message
                 const completionDiv = document.createElement('div');
-                completionDiv.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50';
+                completionDiv.className = 'fixed top-4 right-4 bg-maiic-100 border border-maiic-400 text-maiic-700 px-4 py-3 rounded z-50';
                 completionDiv.innerHTML = `
                     <strong>Export Started!</strong><br>
                     ${progressMessage}<br>

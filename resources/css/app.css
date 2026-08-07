@@ -3,36 +3,153 @@
 @import 'buttons.css';
 @import 'tailwindcss/utilities';
 
+/* ============================================================
+   MAIIC shared button + form classes.
+   These legacy class names are used across hundreds of pages, so
+   recolouring them here re-themes the whole app: one green (maiic),
+   one gold, one red, neutrals. No blue/indigo variants.
+   ============================================================ */
 .btn {
-    @apply px-4 py-2  text-white font-semibold rounded;
+    @apply px-4 py-2 text-white font-semibold rounded;
 }
-.btn-blue,.btn-info {
-    @apply bg-blue-600 hover:bg-blue-700;
+.btn-blue, .btn-info, .btn-indigo {
+    @apply text-white bg-maiic-600 hover:bg-maiic-700;
 }
-.btn-green,.btn-success {
-    @apply text-white bg-green-500 hover:bg-green-700;
+.btn-green, .btn-success {
+    @apply text-white bg-maiic-600 hover:bg-maiic-700;
 }
-.btn-indigo {
-    @apply text-white bg-indigo-500 hover:bg-indigo-700;
+.btn-red, .btn-danger {
+    @apply text-white bg-red-600 hover:bg-red-700;
 }
-.btn-red,.btn-danger {
-    @apply text-white bg-red-500 hover:bg-red-700;
+.btn-gold {
+    @apply text-gray-900 bg-maiicgold-400 hover:bg-maiicgold-500;
 }
-.form-control{
-    @apply border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm;
+.form-control {
+    @apply border-gray-300 focus:border-maiic-500 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm;
 }
-.label-red{
-    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase
+.label-red {
+    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-700 bg-red-100;
 }
-.label-blue-gray{
-    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase
+.label-blue-gray {
+    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-gray-600 bg-gray-100;
 }
-.label-orange{
-    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase
-}
-.label-warning{
-    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase
+.label-orange, .label-warning {
+    @apply text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-amber-800 bg-amber-100;
 }
 .tox-notifications-container {
-    display: none!important;
+    display: none !important;
+}
+
+/* ============================================================
+   MAIIC design system (Ticket #004). Reference: docs/UI_REPORT_SPEC.md.
+   Use these on every table / filter bar / badge / action button.
+   ============================================================ */
+@layer components {
+    /* Card panel that wraps tables and content blocks */
+    .maiic-panel {
+        @apply bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden;
+    }
+
+    /* Data table: brand header band, zebra, hover, right-aligned numerics */
+    .maiic-table-wrap {
+        @apply overflow-x-auto max-w-full;
+    }
+    .maiic-table {
+        @apply w-full border-collapse text-sm;
+    }
+    .maiic-table thead th {
+        @apply bg-maiic-700 text-white text-left font-bold text-[11px] uppercase tracking-wider px-4 py-3 whitespace-nowrap;
+    }
+    .maiic-table thead th.num {
+        @apply text-right;
+    }
+    .maiic-table tbody td {
+        @apply px-4 py-2.5 border-t border-gray-100 text-gray-800 align-middle;
+    }
+    .maiic-table tbody tr:nth-child(even) {
+        @apply bg-gray-50;
+    }
+    .maiic-table tbody tr:hover {
+        @apply bg-maiic-50/60;
+    }
+    .maiic-table tfoot th, .maiic-table tr.total td {
+        @apply bg-gray-100 text-maiic-900 font-extrabold border-t-2 border-maiicgold-500;
+    }
+    .num {
+        @apply text-right tabular-nums whitespace-nowrap;
+    }
+
+    /* Empty state row */
+    .maiic-empty {
+        @apply text-center py-8 text-gray-400 font-semibold;
+    }
+
+    /* Filter bar card above tables */
+    .maiic-filterbar {
+        @apply bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3.5 mb-4;
+    }
+    .maiic-flabel {
+        @apply block text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-1;
+    }
+    .maiic-input {
+        @apply w-full rounded-lg border-gray-300 text-sm focus:border-maiic-500 focus:ring focus:ring-maiic-200 focus:ring-opacity-50;
+    }
+    .maiic-select {
+        @apply w-full rounded-lg border-gray-300 text-sm cursor-pointer focus:border-maiic-500 focus:ring focus:ring-maiic-200 focus:ring-opacity-50;
+    }
+
+    /* Icon action buttons in table rows: view=green eye, edit=gold pencil,
+       delete=red bin, neutral=grey */
+    .maiic-action {
+        @apply inline-flex h-8 w-8 items-center justify-center rounded-lg transition;
+    }
+    .maiic-action-view {
+        @apply bg-maiic-50 text-maiic-600 hover:bg-maiic-100 hover:text-maiic-800;
+    }
+    .maiic-action-edit {
+        @apply bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-800;
+    }
+    .maiic-action-delete {
+        @apply bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-800;
+    }
+    .maiic-action-neutral {
+        @apply bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700;
+    }
+
+    /* Status pills: green / gold / red / grey only */
+    .maiic-badge {
+        @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap;
+    }
+    .maiic-badge-green {
+        @apply bg-maiic-100 text-maiic-800;
+    }
+    .maiic-badge-solid-green {
+        @apply bg-maiic-600 text-white;
+    }
+    .maiic-badge-gold {
+        @apply bg-amber-100 text-amber-800;
+    }
+    .maiic-badge-red {
+        @apply bg-red-100 text-red-700;
+    }
+    .maiic-badge-grey {
+        @apply bg-gray-100 text-gray-600;
+    }
+
+    /* BI stat tile: white card, coloured left accent via --accent */
+    .maiic-kpi {
+        @apply bg-white border border-gray-200 rounded-xl px-4 py-3.5 shadow-sm;
+        border-left: 4px solid var(--accent, #15803d);
+    }
+    .maiic-kpi-label {
+        @apply text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-1;
+    }
+    .maiic-kpi-value {
+        @apply text-2xl font-extrabold leading-tight text-gray-900 tabular-nums;
+    }
+
+    /* Form section heading with gold underline */
+    .maiic-section-title {
+        @apply text-xs font-extrabold uppercase tracking-wider text-maiic-800 pb-2 mb-3 mt-6 border-b-2 border-maiicgold-400/60;
+    }
 }

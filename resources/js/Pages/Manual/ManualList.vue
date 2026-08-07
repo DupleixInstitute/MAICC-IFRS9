@@ -35,14 +35,14 @@
 
                  <button
                   @click="viewManual(manual)"
-                  class="text-green-600 hover:text-green-800"
+                  class="text-maiic-600 hover:text-maiic-800"
                   title="View Manual"
                 >
                   <font-awesome-icon :icon="['fas', 'eye']" class="w-8 h-8" />
                 </button>
                 <Link
                   :href="route('manuals.edit', manual.id)"
-                  class="text-blue-600 hover:text-blue-800"
+                  class="text-maiic-600 hover:text-maiic-800"
                   title="Edit Manual"
                 >
                   <font-awesome-icon :icon="['fas', 'pen']" class="w-8 h-8" />

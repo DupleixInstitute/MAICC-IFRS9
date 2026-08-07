@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('dashboard')">Dashboard
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('dashboard')">Dashboard
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Create Filter
+                <span class="text-maiic-500 font-medium">/</span> Create Filter
             </h2>
         </template>
 
@@ -148,7 +148,7 @@
                         </div>
                         <div class="flex items-center justify-end mt-6">
 
-                            <inertia-link class="text-indigo-400 hover:text-indigo-600"
+                            <inertia-link class="text-maiic-500 hover:text-maiic-600"
                                 :href="route('dashboard')">Cancel
                             </inertia-link>
                             <jet-button class="ml-4" :class="{ 'opacity-25': form.processing }"

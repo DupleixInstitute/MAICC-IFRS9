@@ -60,7 +60,7 @@
                                     </td>
                                     <td class="border-t">
                                         <span class="px-6 py-4 flex items-center">
-                                            <span :class="portfolio.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                                            <span :class="portfolio.active ? 'bg-maiic-100 text-maiic-800' : 'bg-red-100 text-red-800'"
                                                   class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                                             >
                                                 {{ portfolio.active ? 'Active' : 'Inactive' }}
@@ -81,7 +81,7 @@
                                         <div class="px-4 flex items-center gap-2">
                                             <Link
                                                 :href="route('portfolios.edit', portfolio.id)"
-                                                class="text-indigo-600 hover:text-indigo-900"
+                                                class="text-maiic-600 hover:text-maiic-900"
                                             >
                                                 Edit
                                             </Link>

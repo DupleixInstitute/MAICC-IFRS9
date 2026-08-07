@@ -2,10 +2,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">
                     Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class="mx-auto">
@@ -48,7 +48,7 @@
                                     <inertia-link v-if="client.user"
                                                   :href="route('users.show', client.user.id)"
                                                   tabindex="-1"
-                                                  class="px-6 py-4 flex items-center text-indigo-600 hover:text-indigo-900">
+                                                  class="px-6 py-4 flex items-center text-maiic-600 hover:text-maiic-900">
                                         {{ client.user.name }}
                                     </inertia-link>
                                 </td>
@@ -56,7 +56,7 @@
                                     <inertia-link
                                                   :href="route('users.show', client.user.id)"
                                                   tabindex="-1"
-                                                  class="px-6 py-4 flex items-center text-indigo-600 hover:text-indigo-900">
+                                                  class="px-6 py-4 flex items-center text-maiic-600 hover:text-maiic-900">
                                         {{ client.user.email }}
                                     </inertia-link>
                                 </td>
@@ -64,7 +64,7 @@
                                     <inertia-link v-if="can('users.update')"
                                                   :href="route('users.edit', client.user.id)"
                                                   tabindex="-1"
-                                                  class="px-6 py-4 flex items-center text-indigo-600 hover:text-indigo-900">
+                                                  class="px-6 py-4 flex items-center text-maiic-600 hover:text-maiic-900">
                                         Edit
                                     </inertia-link>
                                 </td>

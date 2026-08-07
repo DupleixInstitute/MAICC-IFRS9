@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('credit-loss-data.index')">Credit Loss Data
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('credit-loss-data.index')">Credit Loss Data
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Import
+                <span class="text-maiic-500 font-medium">/</span> Import
             </h2>
         </template>
         <div class="mx-auto">
@@ -86,12 +86,12 @@
                             <h4 class="text-sm font-medium text-gray-900 mb-4">Map CSV Headers to Credit Loss Metrics</h4>
                             
                             <!-- Validation Summary -->
-                            <div class="mb-4 p-4 bg-blue-50 rounded-lg">
+                            <div class="mb-4 p-4 bg-maiic-50 rounded-lg">
                                 <div class="flex items-center">
-                                    <svg class="w-5 h-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg class="w-5 h-5 text-maiic-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                                     </svg>
-                                    <span class="text-sm text-blue-700">
+                                    <span class="text-sm text-maiic-700">
                                         Metrics mapped: {{ mappedMetricsCount }} / {{ definitions.length }} available
                                     </span>
                                 </div>
@@ -104,8 +104,8 @@
                             </div>
 
                             <!-- Instructions -->
-                            <div class="mb-4 p-3 bg-yellow-50 rounded-lg">
-                                <p class="text-sm text-yellow-700">
+                            <div class="mb-4 p-3 bg-amber-50 rounded-lg">
+                                <p class="text-sm text-amber-700">
                                     <strong>How it works:</strong> Map your CSV columns to credit loss metrics. Each row will create individual metric records.
                                     Multiple columns can map to the same metric.
                                 </p>
@@ -155,14 +155,14 @@
                                             <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                                                 <span 
                                                     v-if="getMappedDefinition(header)" 
-                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-maiic-100 text-maiic-800"
                                                 >
                                                     <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                                     </svg>
                                                     {{ getMappedDefinitionName(header) }}
                                                 </span>
-                                                <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                                     <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                         <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                                                     </svg>
@@ -185,7 +185,7 @@
                                                     v-for="(header, index) in previewData.headers" 
                                                     :key="index"
                                                     class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                                                    :class="{ 'bg-green-50': getMappedDefinition(header) }"
+                                                    :class="{ 'bg-maiic-50': getMappedDefinition(header) }"
                                                 >
                                                     <div class="text-xs">{{ header }}</div>
                                                     <div class="text-xs text-gray-500 font-normal">
@@ -261,7 +261,7 @@
                 <div class="space-y-6">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
-                            <svg class="animate-spin h-5 w-5 text-indigo-600"
+                            <svg class="animate-spin h-5 w-5 text-maiic-600"
                                 xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
                                         stroke-width="4"></circle>

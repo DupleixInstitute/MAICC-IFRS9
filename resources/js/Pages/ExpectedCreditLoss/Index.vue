@@ -161,7 +161,7 @@
                             <div class="flex space-x-2 mb-2">
                                  <button
                                     type="button"
-                                    class="text-xs text-blue-600 hover:underline"
+                                    class="text-xs text-maiic-600 hover:underline"
                                     @click="selectedColumns = allColumns.slice()"
                                 >
                                     Select All

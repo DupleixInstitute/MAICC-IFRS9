@@ -33,7 +33,7 @@
                              <span class="px-6 py-4 flex items-center">
                                 {{ currency.name }}({{ currency.code }})
                                  <label title="Default CoPayer" v-if="currency.is_default"
-                                        class="text-xs font-semibold inline-block py-1 px-1 uppercase rounded text-blue-600 bg-blue-200 uppercase last:mr-0 ml-2">
+                                        class="text-xs font-semibold inline-block py-1 px-1 uppercase rounded text-maiic-600 bg-maiic-200 uppercase last:mr-0 ml-2">
                                             <font-awesome-icon icon="star"/>
                                  </label>
                             </span>
@@ -62,7 +62,7 @@
                         <td class="border-t w-px pr-2">
                             <div class=" flex items-center space-x-2">
                                 <inertia-link v-if="can('currencies.update')" :href="route('currencies.edit', currency.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('currencies.destroy')" @click="deleteAction(currency.id)" class="text-red-600 hover:text-red-900">Delete</a>

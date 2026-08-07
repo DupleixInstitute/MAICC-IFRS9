@@ -35,8 +35,8 @@
                                 <nav class="space-y-1 px-2">
                                     <div v-for="item in $page.props.menu" :key="item.name">
                                         <Link v-if="!item.dropdown && item.route" :href="route(item.route)"
-                                              :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
-                                            <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300"
+                                              :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-maiic-800 text-white' : 'text-maiic-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
+                                            <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-maiic-300"
                                                                aria-hidden="true" v-if="item.icon" :icon="item.icon"/>
                                             {{ item.name }}
                                         </Link>
@@ -64,8 +64,8 @@
                     <nav class="flex-1 space-y-1 px-2 pb-4">
                         <div v-for="item in $page.props.menu" :key="item.name">
                             <Link v-if="!item.dropdown && item.route" :href="route(item.route)"
-                                  :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
-                                <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-indigo-300" aria-hidden="true"
+                                  :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-maiic-800 text-white' : 'text-maiic-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
+                                <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-maiic-300" aria-hidden="true"
                                                    v-if="item.icon" :icon="item.icon"/>
                                 {{ item.name }}
                             </Link>

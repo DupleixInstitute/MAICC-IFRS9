@@ -2,11 +2,11 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600"
+                <inertia-link class="text-maiic-500 hover:text-maiic-600"
                               :href="route('communication.campaigns.index')">
                     Campaigns
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Campaign #{{ communicationCampaign.id }}
+                <span class="text-maiic-500 font-medium">/</span> Campaign #{{ communicationCampaign.id }}
             </h2>
         </template>
 
@@ -134,19 +134,19 @@
                             <div class="flex justify-between">
                                 <span class="font-medium">Status</span>
                                 <span v-if="communicationCampaign.status==='pending'"
-                                      class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                      class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         pending
                                     </span>
                                 <span v-if="communicationCampaign.status==='active'"
-                                      class="px-2 rounded-full bg-blue-100 text-blue-800">
+                                      class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         active
                                     </span>
                                 <span v-if="communicationCampaign.status==='closed'"
-                                      class="px-2 rounded-full bg-green-100 text-green-800">
+                                      class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         closed
                                     </span>
                                 <span v-if="communicationCampaign.status==='done'"
-                                      class="px-2 rounded-full bg-green-100 text-green-800">
+                                      class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         done
                                     </span>
                                 <span v-if="communicationCampaign.status==='inactive'"

@@ -2,10 +2,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">
                     Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Import
+                <span class="text-maiic-500 font-medium">/</span> Import
             </h2>
         </template>
 
@@ -34,7 +34,7 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div 
                                         class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                        :class="importType === 'legacy' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                        :class="importType === 'legacy' ? 'border-maiic-500 bg-maiic-50' : 'border-gray-300 hover:border-gray-400'"
                                         @click="importType = 'legacy'"
                                     >
                                         <div class="flex items-center space-x-3">
@@ -43,7 +43,7 @@
                                                     type="radio" 
                                                     v-model="importType" 
                                                     value="legacy" 
-                                                    class="h-4 w-4 text-indigo-600 focus:ring-maiic-500 border-gray-300"
+                                                    class="h-4 w-4 text-maiic-600 focus:ring-maiic-500 border-gray-300"
                                                 />
                                             </div>
                                             <div class="flex-1">
@@ -57,7 +57,7 @@
                                     
                                     <div 
                                         class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                        :class="importType === 'custom' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                        :class="importType === 'custom' ? 'border-maiic-500 bg-maiic-50' : 'border-gray-300 hover:border-gray-400'"
                                         @click="importType = 'custom'"
                                     >
                                         <div class="flex items-center space-x-3">
@@ -66,7 +66,7 @@
                                                     type="radio" 
                                                     v-model="importType" 
                                                     value="custom" 
-                                                    class="h-4 w-4 text-indigo-600 focus:ring-maiic-500 border-gray-300"
+                                                    class="h-4 w-4 text-maiic-600 focus:ring-maiic-500 border-gray-300"
                                                 />
                                             </div>
                                             <div class="flex-1">
@@ -115,9 +115,9 @@
                             <div v-if="importType === 'legacy' && headers.length > 0" class="mt-6 border-t border-gray-200 pt-6">
                                 <h4 class="text-sm font-medium text-gray-900 mb-4">Legacy Import Setup</h4>
                                 
-                                <div class="bg-yellow-50 p-4 rounded-lg mb-4">
-                                    <h5 class="text-sm font-medium text-yellow-800 mb-2">Legacy Format Requirements:</h5>
-                                    <ul class="text-xs text-yellow-700 list-disc list-inside space-y-1">
+                                <div class="bg-amber-50 p-4 rounded-lg mb-4">
+                                    <h5 class="text-sm font-medium text-amber-800 mb-2">Legacy Format Requirements:</h5>
+                                    <ul class="text-xs text-amber-700 list-disc list-inside space-y-1">
                                         <li>Your CSV must have exactly 2 columns</li>
                                         <li>Column 1: <strong>customer_id</strong></li>
                                         <li>Column 2: <strong>public_name</strong> (format: PHONE-NAME)</li>
@@ -125,8 +125,8 @@
                                 </div>
 
                                 <!-- Auto-set mapping for legacy format -->
-                                <div class="bg-green-50 p-4 rounded-lg">
-                                    <p class="text-sm text-green-700">
+                                <div class="bg-maiic-50 p-4 rounded-lg">
+                                    <p class="text-sm text-maiic-700">
                                         <strong>Auto-mapping applied:</strong> customer_id → customer_id, public_name → public_name
                                     </p>
                                 </div>
@@ -179,22 +179,22 @@
                                             </option>
                                         </select>
                                         <div class="w-20 text-xs text-gray-500 text-right">
-                                            <span v-if="mapping[header]" class="text-green-600">✓ Mapped</span>
+                                            <span v-if="mapping[header]" class="text-maiic-600">✓ Mapped</span>
                                             <span v-else class="text-gray-400">Not mapped</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Field Descriptions -->
-                                <div class="mt-6 p-4 bg-blue-50 rounded-lg">
-                                    <h5 class="text-sm font-medium text-blue-800 mb-3">Field Descriptions:</h5>
+                                <div class="mt-6 p-4 bg-maiic-50 rounded-lg">
+                                    <h5 class="text-sm font-medium text-maiic-800 mb-3">Field Descriptions:</h5>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                                         <div v-for="(desc, fieldName) in fieldDescriptions" :key="fieldName" 
                                              class="flex items-start space-x-2">
-                                            <span class="font-medium text-blue-900 min-w-32">{{ fieldName }}</span>
+                                            <span class="font-medium text-maiic-900 min-w-32">{{ fieldName }}</span>
                                             <div>
-                                                <p class="text-blue-700">{{ desc.description }}</p>
-                                                <p class="text-blue-600 text-xs mt-1">Example: {{ desc.example }}</p>
+                                                <p class="text-maiic-700">{{ desc.description }}</p>
+                                                <p class="text-maiic-600 text-xs mt-1">Example: {{ desc.example }}</p>
                                                 <span v-if="desc.required" class="inline-block mt-1 px-2 py-1 text-xs bg-red-100 text-red-800 rounded">Required</span>
                                             </div>
                                         </div>
@@ -240,7 +240,7 @@
                                     type="submit"
                                     :class="{ 'opacity-25': form.processing }"
                                     :disabled="form.processing"
-                                    class="ml-3 bg-maiic-600 hover:bg-maiic-500 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-green-200 active:bg-green-800"
+                                    class="ml-3 bg-maiic-600 hover:bg-maiic-500 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-maiic-200 active:bg-maiic-800"
                                 >
                                     <template #icon>
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

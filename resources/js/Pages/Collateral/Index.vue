@@ -247,14 +247,14 @@ function resetFilters() {
 }
 
   const getCoverageClass = (coverage) => {
-    if (coverage >= 0.8) return 'text-green-600' 
-    if (coverage >= 0.5) return 'text-yellow-600' 
+    if (coverage >= 0.8) return 'text-maiic-600' 
+    if (coverage >= 0.5) return 'text-amber-600' 
     return 'text-red-600'                         
   }
 
   // Coverage change visual
   const getCoverageChangeClass = (change) => {
-    if (change > 0) return 'text-green-600 font-semibold'
+    if (change > 0) return 'text-maiic-600 font-semibold'
     if (change < 0) return 'text-red-600 font-semibold'
     return 'text-gray-500'
   }

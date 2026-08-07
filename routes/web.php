@@ -557,8 +557,10 @@ Route::prefix('communication')->group(function () {
     });
 });
 
-//settings
-Route::group(['prefix' => 'setting'], function () {
+// Settings. The whole group (including every update POST) requires the
+// settings permission: previously any logged-in user could rewrite e.g.
+// mail credentials.
+Route::group(['prefix' => 'setting', 'middleware' => ['auth', 'permission:settings']], function () {
     Route::get('/', [SettingsController::class, 'index'])->name('settings.index');
     Route::get('/organisation', [SettingsController::class, 'organisation'])->name('settings.organisation');
     Route::get('/general', [SettingsController::class, 'general'])->name('settings.general');
@@ -570,8 +572,6 @@ Route::group(['prefix' => 'setting'], function () {
     Route::get('/sms', [SettingsController::class, 'sms'])->name('settings.sms');
     Route::post('/sms/update', [SettingsController::class, 'smsUpdate'])->name('settings.sms.update');
     Route::get('/other', [SettingsController::class, 'other'])->name('settings.other');
-    Route::post('/other/update', [SettingsController::class, 'otherUpdate'])->name('settings.other.update');
-    Route::get('/billing', [SettingsController::class, 'billing'])->name('settings.billing');
     Route::post('/update', [SettingsController::class, 'update'])->name('settings.update');
     Route::get('/loan-bands', [SettingsController::class, 'loanBands'])->name('settings.loan_bands');
     Route::post('/store-loan-bands', [SettingsController::class, 'storeLoanBands'])->name('settings.other.store-bands');
@@ -681,7 +681,7 @@ Route::group(['prefix' => 'import', 'as' => 'imports.'], function () {
 Route::get('/imports/download-failed/{import}', [ImportsController::class, 'downloadFailedFile'])->name('imports.failed-download');
 
 
-// Maintenance triggers — MUST stay behind auth + settings permission: they
+// Maintenance triggers - MUST stay behind auth + settings permission: they
 // run artisan commands and were previously reachable unauthenticated.
 Route::middleware(['auth', 'permission:settings'])->group(function () {
     Route::get('migrate', function () {
@@ -911,7 +911,7 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
     Route::get('/customers', [\App\Http\Controllers\SicrTriggerController::class, 'getCustomers'])->name('customers');
 });
 
-// EIR module — schedule & fee intake (docs/EIR_Build.md Phase 2)
+// EIR module - schedule & fee intake (docs/EIR_Build.md Phase 2)
 Route::group(['prefix' => 'eir-intake', 'as' => 'eir-intake.'], function () {
     Route::get('/', [\App\Http\Controllers\EirIntakeController::class, 'index'])->name('index');
     Route::post('/analyze', [\App\Http\Controllers\EirIntakeController::class, 'analyze'])->name('analyze');
@@ -933,14 +933,17 @@ Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classificat
     Route::post('/review', [\App\Http\Controllers\EirFeeClassificationController::class, 'review'])->name('review');
 });
 
-//Manual Routes
-Route::get('/manuals/list',[ManualsController::class,'index'])->name('manuals.index');
-Route::get('/manuals/create',[ManualsController::class,'create'])->name('manuals.create');
-Route::post('/manuals', [ManualsController::class, 'store'])->name('manuals.store');
-Route::get('/manuals/{manual}/edit', [ManualsController::class, 'edit'])->name('manuals.edit');
-Route::get('/manuals/{manual}', [ManualsController::class, 'show'])->name('manuals.show');
-Route::put('/manuals/{manual}/update',[ManualsController::class, 'update'])->name('manuals.update');
-Route::delete('/manuals/{manual}',[ManualsController::class,'destroy'])->name('manuals.delete');
+// Manual authoring routes. MUST stay behind auth + settings permission:
+// they were previously reachable (create/edit/DELETE) with no login at all.
+Route::middleware(['auth', 'permission:settings'])->group(function () {
+    Route::get('/manuals/list',[ManualsController::class,'index'])->name('manuals.index');
+    Route::get('/manuals/create',[ManualsController::class,'create'])->name('manuals.create');
+    Route::post('/manuals', [ManualsController::class, 'store'])->name('manuals.store');
+    Route::get('/manuals/{manual}/edit', [ManualsController::class, 'edit'])->name('manuals.edit');
+    Route::get('/manuals/{manual}', [ManualsController::class, 'show'])->name('manuals.show');
+    Route::put('/manuals/{manual}/update',[ManualsController::class, 'update'])->name('manuals.update');
+    Route::delete('/manuals/{manual}',[ManualsController::class,'destroy'])->name('manuals.delete');
+});
 
 
 // Foward Looking Information [ Macro Statistic ]
@@ -1150,7 +1153,7 @@ Route::middleware(['auth', 'permission:reports.ifrs9'])
         Route::get('/ai-narrative', [$c, 'aiNarrative'])->name('ai-narrative');
     });
 
-// Stress Testing — a dedicated standalone module under Reports (NOT a tab in
+// Stress Testing - a dedicated standalone module under Reports (NOT a tab in
 // the IFRS 9 hub). Own controller, page and saved-scenario persistence.
 Route::middleware(['auth', 'permission:reports.ifrs9'])
     ->prefix('stress-testing')

@@ -77,7 +77,7 @@
             <input
               v-model="newCategory.default_value"
               type="checkbox"
-              class="mt-2 h-4 w-4 text-blue-600 focus:ring-maiic-500 border-gray-300 rounded"
+              class="mt-2 h-4 w-4 text-maiic-600 focus:ring-maiic-500 border-gray-300 rounded"
             />
           </div>
         </div>
@@ -201,11 +201,11 @@
                     <td class="border px-4 py-3 text-gray-600">{{ formatDate(category.created_at) }}</td>
                     <td class="border px-4 py-3 text-gray-600">
                         <template v-if="category.isEditing">
-                          <button @click="saveRow(category)" class="text-green-600 hover:text-green-700">Save</button>
+                          <button @click="saveRow(category)" class="text-maiic-600 hover:text-maiic-700">Save</button>
                           <button @click="cancelEdit(category)" class="text-red-600 hover:text-red-700">Cancel</button>
                         </template>
                         <template v-else>
-                          <button @click="editRow(category)" class="text-blue-600 hover:text-blue-700">Edit</button>
+                          <button @click="editRow(category)" class="text-maiic-600 hover:text-maiic-700">Edit</button>
                           <button @click="handleDelete(category.id)" class="text-red-600 hover:text-red-700">Delete</button>
                         </template>
                       </td>
@@ -255,7 +255,7 @@
             <input
               v-model="newCategory.default_value"
               type="checkbox"
-              class="mt-2 h-4 w-4 text-blue-600 focus:ring-maiic-500 border-gray-300 rounded"
+              class="mt-2 h-4 w-4 text-maiic-600 focus:ring-maiic-500 border-gray-300 rounded"
             />
           </div>
         </div>
@@ -378,11 +378,11 @@
                       <td class="border px-4 py-3 text-gray-600">{{ formatDate(category.created_at) }}</td>
                       <td class="border px-4 py-3 text-gray-600">
                     <template v-if="category.isEditing">
-                      <button @click="saveRow(category)" class="text-green-600 hover:text-green-700">Save</button>
+                      <button @click="saveRow(category)" class="text-maiic-600 hover:text-maiic-700">Save</button>
                       <button @click="cancelEdit(category)" class="text-red-600 hover:text-red-700">Cancel</button>
                     </template>
                     <template v-else>
-                      <button @click="editRow(category)" class="text-blue-600 hover:text-blue-700">Edit</button>
+                      <button @click="editRow(category)" class="text-maiic-600 hover:text-maiic-700">Edit</button>
                       <button @click="handleDelete(category.id)" class="text-red-600 hover:text-red-700">Delete</button>
                     </template>
                   </td>

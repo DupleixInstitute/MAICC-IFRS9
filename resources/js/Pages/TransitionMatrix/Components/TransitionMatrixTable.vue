@@ -55,7 +55,7 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <select v-model="entry.portfolio_group" 
                                     @change="updateEntry(index)"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                 <option v-for="group in portfolioGroups" 
                                         :key="group.id" 
                                         :value="group.id">
@@ -68,7 +68,7 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <select v-model="entry.start_state"
                                     @change="updateEntry(index)"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                 <option v-for="(description, state) in states" 
                                         :key="state" 
                                         :value="state">
@@ -81,7 +81,7 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <select v-model="entry.end_state"
                                     @change="updateEntry(index)"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                 <option v-for="(description, state) in states" 
                                         :key="state" 
                                         :value="state">
@@ -95,7 +95,7 @@
                             <input type="number" 
                                    v-model.number="entry.start_balance"
                                    @change="updateEntry(index)"
-                                   class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm"
+                                   class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm"
                                    :disabled="aggregationCriteria === 'count'" />
                         </td>
 
@@ -104,7 +104,7 @@
                             <input type="number" 
                                    v-model.number="entry.start_count"
                                    @change="updateEntry(index)"
-                                   class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm"
+                                   class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm"
                                    :disabled="aggregationCriteria === 'balance'" />
                         </td>
 
@@ -113,7 +113,7 @@
                             <input type="number" 
                                    v-model.number="entry.end_balance"
                                    @change="updateEntry(index)"
-                                   class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm"
+                                   class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm"
                                    :disabled="aggregationCriteria === 'count'" />
                         </td>
 
@@ -122,7 +122,7 @@
                             <input type="number" 
                                    v-model.number="entry.end_count"
                                    @change="updateEntry(index)"
-                                   class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm"
+                                   class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm"
                                    :disabled="aggregationCriteria === 'balance'" />
                         </td>
 
@@ -133,7 +133,7 @@
 
                         <!-- Default Flag -->
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div :class="{'text-red-600': isDefaultState(entry.end_state), 'text-green-600': !isDefaultState(entry.end_state)}">
+                            <div :class="{'text-red-600': isDefaultState(entry.end_state), 'text-maiic-600': !isDefaultState(entry.end_state)}">
                                 {{ isDefaultState(entry.end_state) ? 'Yes' : 'No' }}
                             </div>
                         </td>

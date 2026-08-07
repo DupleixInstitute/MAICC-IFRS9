@@ -58,7 +58,7 @@
                             <input
                                 type="checkbox"
                                 v-model="form.include_headers"
-                                class="rounded border-gray-300 text-indigo-600 focus:ring-maiic-500"
+                                class="rounded border-gray-300 text-maiic-600 focus:ring-maiic-500"
                             />
                             <span class="ml-2 text-sm text-gray-700">Include Headers</span>
                         </label>
@@ -66,7 +66,7 @@
                             <input
                                 type="checkbox"
                                 v-model="form.compress_file"
-                                class="rounded border-gray-300 text-indigo-600 focus:ring-maiic-500"
+                                class="rounded border-gray-300 text-maiic-600 focus:ring-maiic-500"
                             />
                             <span class="ml-2 text-sm text-gray-700">Compress as ZIP</span>
                         </label>

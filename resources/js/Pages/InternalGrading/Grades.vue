@@ -4,7 +4,7 @@
     <template #header>
       <div class="flex justify-between items-center">
         <h2 class="font-semibold text-xl text-gray-800">
-          {{ profile.name }} — Internal Grades
+          {{ profile.name }} - Internal Grades
         </h2>
 
         <button
@@ -20,8 +20,8 @@
     <div class="py-10 max-w-7xl mx-auto sm:px-6 lg:px-8">
 
       <!-- INFO -->
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <div class="text-sm text-blue-800">
+      <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 mb-6">
+        <div class="text-sm text-maiic-800">
          <h3><strong>Profile Name:</strong> {{ profile.name }} </h3>
          <h4>
           <strong>Max Tenor:</strong> {{ maxTenor }} years |
@@ -48,7 +48,7 @@
           <div class="px-4 py-3 bg-gray-50 flex justify-between items-center">
             <div>
               <h3 class="font-semibold text-m">
-                {{ grade.grade_code }} — {{ grade.grade_name }}
+                {{ grade.grade_code }} - {{ grade.grade_name }}
               </h3>
               <p class="text-xs text-gray-500">
                 Click to view PD curve
@@ -59,7 +59,7 @@
               <button
                 v-if="!profile.is_active"
                 @click.stop="openEdit(grade)"
-                class="text-sm text-indigo-600 hover:underline"
+                class="text-sm text-maiic-600 hover:underline"
                 label="Edit Grade"
               >
                <i class="fas fa-edit "></i>
@@ -149,6 +149,6 @@ function reload() {
 }
 
 function findPd(grade, year) {
-  return grade.tenor_pds.find(p => p.tenor_years === year)?.pd_probability ?? '—'
+  return grade.tenor_pds.find(p => p.tenor_years === year)?.pd_probability ?? '-'
 }
 </script>

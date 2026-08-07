@@ -1,21 +1,21 @@
 <template>
     <div class="w-full">
         <div
-            class="mx-auto overflow-hidden mt-10 shadow-lg mb-2 bg-purple-900 shadow-lg border rounded-lg ">
+            class="mx-auto overflow-hidden mt-10 shadow-lg mb-2 bg-maiic-900 shadow-lg border rounded-lg ">
             <div class="">
-                <div class="p-5 text-white text-center text-3xl bg-purple-900"><span
-                    class="text-orange-500">Calcu</span>lator
+                <div class="p-5 text-white text-center text-3xl bg-maiic-900"><span
+                    class="text-amber-500">Calcu</span>lator
                 </div>
-                <div class="pt-16 p-5 pb-0 text-white text-right text-3xl bg-purple-800">{{ current }}</div>
-                <div class="p-5 text-white text-right text-3xl bg-purple-800">= <span
-                    class="text-orange-500">{{ total }}</span></div>
+                <div class="pt-16 p-5 pb-0 text-white text-right text-3xl bg-maiic-800">{{ current }}</div>
+                <div class="p-5 text-white text-right text-3xl bg-maiic-800">= <span
+                    class="text-amber-500">{{ total }}</span></div>
 
 
-                <div class="flex items-stretch bg-purple-900 h-24">
+                <div class="flex items-stretch bg-maiic-900 h-24">
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="clear"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             AC
                         </button>
                     </div>
@@ -23,7 +23,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputOperator('(')"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             (
                         </button>
                     </div>
@@ -31,7 +31,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputOperator(')')"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             )
                         </button>
                     </div>
@@ -39,17 +39,17 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputOperator('/')"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             ÷
                         </button>
                     </div>
                 </div>
 
-                <div class="flex items-stretch bg-purple-900 h-24">
+                <div class="flex items-stretch bg-maiic-900 h-24">
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(7)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             7
                         </button>
                     </div>
@@ -57,7 +57,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(8)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             8
                         </button>
                     </div>
@@ -65,7 +65,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(9)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             9
                         </button>
                     </div>
@@ -73,17 +73,17 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputOperator('*')"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             ×
                         </button>
                     </div>
                 </div>
 
-                <div class="flex items-stretch bg-purple-900 h-24">
+                <div class="flex items-stretch bg-maiic-900 h-24">
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(4)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             4
                         </button>
                     </div>
@@ -91,7 +91,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(5)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             5
                         </button>
                     </div>
@@ -99,7 +99,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(6)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             6
                         </button>
                     </div>
@@ -107,17 +107,17 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputOperator('-')"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             -
                         </button>
                     </div>
                 </div>
 
-                <div class="flex items-stretch bg-purple-900 h-24">
+                <div class="flex items-stretch bg-maiic-900 h-24">
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(1)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             1
                         </button>
                     </div>
@@ -125,7 +125,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(2)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             2
                         </button>
                     </div>
@@ -133,7 +133,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(3)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             3
                         </button>
                     </div>
@@ -141,18 +141,18 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputOperator('+')"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             +
                         </button>
                     </div>
                 </div>
 
 
-                <div class="flex items-stretch bg-purple-900 h-24 mb-4">
+                <div class="flex items-stretch bg-maiic-900 h-24 mb-4">
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputOperator('%')"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             %
                         </button>
                     </div>
@@ -160,7 +160,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="inputNumber(0)"
-                                class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             0
                         </button>
                     </div>
@@ -168,7 +168,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button
-                            class="rounded-full h-20 w-20 flex items-center bg-purple-800 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                            class="rounded-full h-20 w-20 flex items-center bg-maiic-800 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             .
                         </button>
                     </div>
@@ -176,7 +176,7 @@
                     <div
                         class="flex-1 px-2 py-2 justify-center flex items-center text-white text-2xl font-semibold">
                         <button @click="calculate"
-                                class="rounded-full h-20 w-20 flex items-center bg-orange-500 justify-center shadow-lg border-2 border-purple-700 hover:border-2 hover:border-gray-500 focus:outline-none">
+                                class="rounded-full h-20 w-20 flex items-center bg-amber-500 justify-center shadow-lg border-2 border-maiic-700 hover:border-2 hover:border-gray-500 focus:outline-none">
                             =
                         </button>
                     </div>

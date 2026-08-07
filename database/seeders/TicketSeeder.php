@@ -246,6 +246,26 @@ TXT;
                     . "2. Workspace: personal work-queue view (my items, awaiting my action) alongside the period-close checklist, with counted tabs and KPI strip.\n"
                     . '3. Reference: Eswatini My Workspace and notification wiring; ZNBS workspaces.',
             ],
+            [
+                'reference' => '007',
+                'title' => 'User manual overhaul with live system screenshots',
+                'priority' => 'high',
+                'description' => "Replace the hardcoded user manual with the database-driven help centre model (reference: Eswatini credit scoring help centre):\n\n"
+                    . "1. Help tables: chapters, articles (versioned, role-scoped), numbered steps, uploaded images with captions and figure numbers, per-page route mapping for the contextual help button.\n"
+                    . "2. Authoring UI with real image upload (no base64 into a 64KB column) behind a manage permission.\n"
+                    . "3. Automated screenshot capture command that signs into the running system and refreshes the manual images after UI changes, plus a manual:pdf command rendering the same content to a branded PDF.\n"
+                    . "4. Immediate fixes shipped separately: manuals CRUD is now authenticated; the broken show route and validation gaps are tracked here.",
+            ],
+            [
+                'reference' => '008',
+                'title' => 'Settings consolidation and role-aware workspace',
+                'priority' => 'high',
+                'description' => "Consolidate administration configuration under one aligned Settings area and make the workspace role-aware end to end:\n\n"
+                    . "1. Settings hub: group Organisation, General, System, Email, SMS, Manual, Licence and reference data under clear headers; retire or hide legacy loan-template sections (score bands, SMS) behind flags; move Payment Calculation to LGD Model Setup; add IFRS 9 policy settings (default reporting period, rounding, discounting convention).\n"
+                    . "2. Fixes shipped separately and tracked here: settings updates permission-gated, General settings crash fixed, Licence permissions corrected, Financial Periods permissions seeded.\n"
+                    . "3. Workspace roles: editable checklist definitions with responsible role per step, maker-checker statuses (prepared/reviewed), completed-by as a user reference, notifications to the responsible role when a step becomes actionable.\n"
+                    . "4. Seed proper IFRS 9 roles (Preparer, Reviewer, Approver, Read-only) with sensible permission sets.",
+            ],
         ];
 
         foreach ($backlog as $item) {

@@ -32,7 +32,7 @@
             <Link
               v-if="can.create"
               :href="route('clients.import.create')"
-              class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+              class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -42,7 +42,7 @@
               <Link
               v-if="can.create"
               :href="route('clients.create')"
-              class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+              class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -92,7 +92,7 @@
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <inertia-link
                     :href="route('clients.edit', client.id)"
-                    class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 transition-colors duration-150 ease-in-out"
+                    class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-maiic-700 bg-maiic-100 hover:bg-maiic-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 transition-colors duration-150 ease-in-out"
                   >
                     <svg class="h-4 w-4 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -136,7 +136,7 @@
         <div class="space-y-6">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
-              <svg v-if="processing" class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg v-if="processing" class="animate-spin h-5 w-5 text-maiic-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
@@ -180,8 +180,8 @@
               <div class="text-2xl font-bold text-gray-900">{{ importStats.total }}</div>
               <div class="text-sm text-gray-500">Total Records</div>
             </div>
-            <div class="bg-green-50 p-4 rounded">
-              <div class="text-2xl font-bold text-green-600">{{ importStats.processed }}</div>
+            <div class="bg-maiic-50 p-4 rounded">
+              <div class="text-2xl font-bold text-maiic-600">{{ importStats.processed }}</div>
               <div class="text-sm text-gray-500">Successful</div>
             </div>
             <div class="bg-red-50 p-4 rounded">
@@ -346,6 +346,6 @@ export default {
 
 <style>
 .btn-indigo {
-  @apply px-6 py-3 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition;
+  @apply px-6 py-3 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition;
 }
 </style>

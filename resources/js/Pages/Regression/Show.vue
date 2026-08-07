@@ -33,7 +33,7 @@
           <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
               <dt class="text-sm font-medium text-gray-500 truncate">Training Periods</dt>
-              <dd class="mt-1 text-2xl font-semibold text-green-600">
+              <dd class="mt-1 text-2xl font-semibold text-maiic-600">
                 {{ model.train_periods }}
               </dd>
             </div>
@@ -41,7 +41,7 @@
           <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
               <dt class="text-sm font-medium text-gray-500 truncate">Status</dt>
-              <dd class="mt-1 text-2xl font-semibold" :class="model.is_active ? 'text-green-600' : 'text-gray-600'">
+              <dd class="mt-1 text-2xl font-semibold" :class="model.is_active ? 'text-maiic-600' : 'text-gray-600'">
                 {{ model.is_active ? 'Active' : 'Inactive' }}
               </dd>
             </div>
@@ -60,7 +60,7 @@
                 <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <dt class="text-sm font-bold text-gray-900">Portfolio</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ model.portfolio ? model.portfolio.name : '—' }}</dd>
+                    <dd class="mt-1 text-sm text-gray-900">{{ model.portfolio ? model.portfolio.name : '-' }}</dd>
                   </div>
                   <div>
                     <dt class="text-sm font-bold text-gray-900">Model Type</dt>
@@ -69,15 +69,15 @@
                   <div>
                     <dt class="text-sm font-bold text-gray-900">Dependent Variable</dt>
                     <dd class="mt-1 text-sm text-gray-900">
-                      <span class="px-2 py-1 bg-green-200 rounded text-xs">
-                      {{ model.dependent_variable ? model.dependent_variable.name : '—' }}
+                      <span class="px-2 py-1 bg-maiic-200 rounded text-xs">
+                      {{ model.dependent_variable ? model.dependent_variable.name : '-' }}
                       </span>
                     </dd>
                   </div>
                   <div>
                     <dt class="text-sm font-bold text-gray-900">Training Period</dt>
                     <dd class="mt-1 text-sm text-gray-900">
-                      {{ model.train_start ? formatDate(model.train_start) : '—' }} to {{ model.train_end ? formatDate(model.train_end) : '—' }}
+                      {{ model.train_start ? formatDate(model.train_start) : '-' }} to {{ model.train_end ? formatDate(model.train_end) : '-' }}
                     </dd>
                   </div>
                   <div class="md:col-span-2">
@@ -87,7 +87,7 @@
                           <span
                             v-for="(variable, index) in independentVariables"
                             :key="index"
-                            class="px-2 py-1 bg-blue-200 rounded text-xs"
+                            class="px-2 py-1 bg-maiic-200 rounded text-xs"
                           >
                             {{ variable?.statistic_name || variable?.name || '??' }}
                           </span>
@@ -164,21 +164,21 @@
                 <div class="space-y-4">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-700">Active Status</span>
-                    <span :class="model.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'" 
+                    <span :class="model.is_active ? 'bg-maiic-100 text-maiic-800' : 'bg-gray-100 text-gray-800'" 
                           class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                       {{ model.is_active ? 'Active' : 'Inactive' }}
                     </span>
                   </div>
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-700">Approval Status</span>
-                    <span :class="model.is_approved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'" 
+                    <span :class="model.is_approved ? 'bg-maiic-100 text-maiic-800' : 'bg-amber-100 text-amber-800'" 
                           class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                       {{ model.is_approved ? 'Approved' : 'Pending' }}
                     </span>
                   </div>
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-700">Validation</span>
-                    <span :class="modelMeetsCriteria ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" 
+                    <span :class="modelMeetsCriteria ? 'bg-maiic-100 text-maiic-800' : 'bg-red-100 text-red-800'" 
                           class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                       {{ modelMeetsCriteria ? 'Passed' : 'Failed' }}
                     </span>
@@ -188,7 +188,7 @@
                 <div class="mt-6 space-y-3">
                   <button
                     @click="toggleActive"
-                    :class="model.is_active ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-maiic-600 hover:bg-maiic-700'"
+                    :class="model.is_active ? 'bg-amber-600 hover:bg-amber-700' : 'bg-maiic-600 hover:bg-maiic-700'"
                     class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500"
                   >
                     {{ model.is_active ? 'Deactivate Model' : 'Activate Model' }}
@@ -262,8 +262,8 @@ export default {
       })
     },
     getPValueColor(pValue) {
-      if (pValue < 0.01) return 'text-green-600 font-medium'
-      if (pValue < 0.05) return 'text-yellow-600'
+      if (pValue < 0.01) return 'text-maiic-600 font-medium'
+      if (pValue < 0.05) return 'text-amber-600'
       return 'text-red-600'
     },
     toggleActive() {

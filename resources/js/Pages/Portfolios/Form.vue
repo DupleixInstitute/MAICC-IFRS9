@@ -64,10 +64,10 @@ export default {
     @apply block text-gray-700 font-bold;
 }
 .form-input, .form-textarea {
-    @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50;
+    @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50;
 }
 .form-checkbox {
-    @apply rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50;
+    @apply rounded border-gray-300 text-maiic-600 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50;
 }
 .form-error {
     @apply text-red-500 mt-1 text-sm;

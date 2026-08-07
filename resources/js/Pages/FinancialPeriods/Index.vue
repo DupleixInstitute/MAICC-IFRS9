@@ -63,7 +63,7 @@
                                    @click="closeAction(financialPeriod.id)" class="text-red-600 hover:text-red-900">Close</a>
                                 <inertia-link v-if="can('accounting.financial_periods.update')"
                                               :href="route('accounting.financial_periods.edit', financialPeriod.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('accounting.financial_periods.destroy')"

@@ -24,8 +24,8 @@
                             <div>
                                 <jet-label for="ecl_calculation_level" value="ECL Calculation Level" />
                                 <select v-model="form.ecl_calculation_level"
-                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-300
-                                            focus:ring focus:ring-indigo-200 focus:ring-opacity-50
+                                        class="mt-1 block w-full border-gray-300 focus:border-maiic-300
+                                            focus:ring focus:ring-maiic-200 focus:ring-opacity-50
                                             rounded-md shadow-sm">
                                     <option value="portfolio">Portfolio Level</option>
                                     <option value="sector">Sector Level</option>
@@ -36,8 +36,8 @@
                             <div v-if="form.ecl_calculation_level === 'portfolio'">
                                 <jet-label for="portfolio_group" value="Portfolio Group" />
                                 <select v-model="form.ecl_calculation_id"
-                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-300
-                                            focus:ring focus:ring-indigo-200 focus:ring-opacity-50
+                                        class="mt-1 block w-full border-gray-300 focus:border-maiic-300
+                                            focus:ring focus:ring-maiic-200 focus:ring-opacity-50
                                             rounded-md shadow-sm">
                                     <option value="">Select Portfolio</option>
                                     <option v-for="portfolio in portfolios" :key="portfolio.ecl_calculation_id" :value="portfolio.id">
@@ -50,8 +50,8 @@
                             <div v-if="form.ecl_calculation_level === 'sector'">
                                 <jet-label value="Sector" />
                                 <select v-model="form.ecl_calculation_code"
-                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-300
-                                            focus:ring focus:ring-indigo-200 focus:ring-opacity-50
+                                        class="mt-1 block w-full border-gray-300 focus:border-maiic-300
+                                            focus:ring focus:ring-maiic-200 focus:ring-opacity-50
                                             rounded-md shadow-sm">
                                     <option value="">Select Sector</option>
                                     <option v-for="sector in sectors" :key="sector.ecl_calculation_code" :value="sector.code">
@@ -62,14 +62,14 @@
 
                             <div>
                                 <jet-label for="pd_type" value="PD Type" />
-                                <select v-model="form.pd_type" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <select v-model="form.pd_type" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                     <option value="pd_prefli">PD Before FLI</option>
                                     <option value="pd_post_fli">PD After FLI</option>
                                 </select>
                             </div>
                             <div>
                                 <jet-label for="lgd_type" value="LGD Type" />
-                                <select v-model="form.lgd_type" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <select v-model="form.lgd_type" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                     <option value="customer_lgd">Customer LGD</option>
                                     <option value="collection_lgd">Collection LGD</option>
                                     <option value="both">Both (customer × collection)</option>
@@ -81,7 +81,7 @@
                             <jet-button class=" items-center px-4 py-2 bg-black-600 hover:bg-gray-400 text-black-700 rounded-md">
                                 Calculate ECL
                             </jet-button>
-                            <Link href="/expected-credit-loss/list" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md">
+                            <Link href="/expected-credit-loss/list" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md">
                                 Back
                             </Link>
                         </div>

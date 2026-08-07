@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">Clients
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class="mx-auto">
@@ -33,7 +33,7 @@
                             </div>
                             <div class="mt-4 grid grid-cols-1 md:grid-cols-2">
                                 <div class="col-span-1 flex flex-col bg-white border-2 relative">
-                                    <div class="bg-blue-950 text-white p-4 font-bold">
+                                    <div class="bg-maiic-950 text-white p-4 font-bold">
                                         <h4>Assets</h4>
                                     </div>
                                     <div class="p-4">
@@ -137,7 +137,7 @@
 
                                     </div>
                                     <div
-                                        class="bg-blue-950 text-white p-4 grid grid-cols-2 font-bold absolute bottom-0 w-full">
+                                        class="bg-maiic-950 text-white p-4 grid grid-cols-2 font-bold absolute bottom-0 w-full">
                                         <h4>Total Assets</h4>
                                         <h4 class="text-right">{{
                                                numberFormat(form.total_assets)
@@ -145,7 +145,7 @@
                                     </div>
                                 </div>
                                 <div class="col-span-1 flex flex-col bg-white border-2 relative">
-                                    <div class="bg-blue-950 text-white p-4 font-bold">
+                                    <div class="bg-maiic-950 text-white p-4 font-bold">
                                         <h4>Liabilities</h4>
                                     </div>
                                     <div class="p-4">
@@ -231,7 +231,7 @@
 
                                     </div>
 
-                                    <div class="bg-blue-950 text-white p-4 font-bold">
+                                    <div class="bg-maiic-950 text-white p-4 font-bold">
                                         <h4>Owner's Equity</h4>
                                     </div>
                                     <div class="p-4">
@@ -266,7 +266,7 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div class="bg-blue-950 text-white p-4 grid grid-cols-2 font-bold  bottom-0 w-ful">
+                                    <div class="bg-maiic-950 text-white p-4 grid grid-cols-2 font-bold  bottom-0 w-ful">
                                         <h4>Total Equity/Liabilities</h4>
                                         <h4 class="text-right">{{
                                                numberFormat(form.total_equity_liabilities)

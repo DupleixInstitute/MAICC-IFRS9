@@ -56,8 +56,8 @@
             <td class="px-4 py-2">{{ forecast.macro_statistic?.statistic_name }}</td>
             <td class="px-4 py-2">{{ forecast.weighted_value }}</td>
             <td class="px-4 py-2">
-              <!-- <button @click="editForecast(forecast)" class="text-blue-600 hover:underline">Edit</button> -->
-              <button @click="rerunForecast(forecast)" class="text-blue-600 hover:text-blue-800">
+              <!-- <button @click="editForecast(forecast)" class="text-maiic-600 hover:underline">Edit</button> -->
+              <button @click="rerunForecast(forecast)" class="text-maiic-600 hover:text-maiic-800">
                 <i class="fas fa-calculator"></i>
               </button>
               <button @click="deleteForecast(forecast.id)" class="text-red-600 hover:text-red-800">

@@ -11,7 +11,7 @@
                     <div class="mb-2">
                         <jet-label for="stage" value="Account Type"/>
                         <select
-                            class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                             name="account_type" v-model="form.account_type" id="account_type">
                             <optgroup label="Asset">
                                 <option value="fixed_asset">Fixed Asset</option>
@@ -250,7 +250,7 @@
                             <div class=" flex items-center space-x-2">
                                 <inertia-link v-if="can('chart_of_accounts.update')"
                                               :href="route('chart_of_accounts.edit', chartOfAccount.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('chart_of_accounts.destroy')"

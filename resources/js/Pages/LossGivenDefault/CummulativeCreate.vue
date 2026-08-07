@@ -28,7 +28,7 @@
                            <div>
                             <jet-label for="lgd_calculation_level" value="LGD Level" />
                             <select v-model="form.lgd_calculation_level" required
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                 <option value="">Select Level</option>
                                 <option value="portfolio">Portfolio</option>
                                 <option value="sector">Sector</option>
@@ -39,7 +39,7 @@
                         <div v-if="form.lgd_calculation_level === 'portfolio'">
                             <jet-label for="lgd_calculation_id" value="Portfolio Group" />
                             <select v-model="form.lgd_calculation_id"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                 <option value="">Select Portfolio</option>
                                 <option v-for="portfolio in portfolio_group" :key="portfolio.id" :value="portfolio.id">
                                     {{ portfolio.name }}
@@ -50,7 +50,7 @@
                         <div v-if="form.lgd_calculation_level === 'sector'">
                             <jet-label for="lgd_calculation_code" value="Sector Code" />
                             <select v-model="form.lgd_calculation_code"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                              <option value="">Select Portfolio</option>
                               <option v-for="item in sectors" :key="item.code" :value="item.code">
                                     {{ item.code }} - {{ item.name }}
@@ -61,7 +61,7 @@
                             <!-- Calculation Source -->
                             <div>
                                 <jet-label for="calculation_source" value="Calculation Source" />
-                                <select v-model="form.calculation_source" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <select v-model="form.calculation_source" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                     <option value="">Select Source</option>
                                     <option value="manual">Manual</option>
                                     <option value="system">System</option>
@@ -73,7 +73,7 @@
                             <jet-button @click="toggleModal" class=" items-center px-4 py-2 bg-black-600 hover:bg-gray-400 text-black-700 rounded-md">
                                 Calculate
                             </jet-button>
-                            <Link href="/loss-given-default/cummulative" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md">
+                            <Link href="/loss-given-default/cummulative" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md">
                                 Back
                             </Link>
                         </div>

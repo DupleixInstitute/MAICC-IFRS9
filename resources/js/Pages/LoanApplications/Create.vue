@@ -3,10 +3,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('loan_applications.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('loan_applications.index')">
                     Loan Applications
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Create
+                <span class="text-maiic-500 font-medium">/</span> Create
             </h2>
         </template>
         <div class=" mx-auto">
@@ -86,7 +86,7 @@
                                     <div v-if="field.attribute.field_type==='dropdown'">
                                         <jet-label :for="'field_'+parentIndex+'_'+index" :value="field.name"/>
                                         <select
-                                            class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                             v-model="field.value" :id="'field_'+parentIndex+'_'+index"
                                             :required="field.attribute.required">
                                             <option v-for="option in field.attribute.options" :value="option.name">
@@ -112,7 +112,7 @@
                                         <div v-for="option in field.attribute.options" class="flex items-center mb-4">
                                             <input v-model="field.value" :id="'field_'+parentIndex+'_'+index+'_'+option.id"
                                                    type="radio" :value="option.name"
-                                                   class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-maiic-500 dark:focus:ring-maiic-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                                                   class="w-4 h-4 text-maiic-600 bg-gray-100 border-gray-300 focus:ring-maiic-500 dark:focus:ring-maiic-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
                                             <label :for="'field_'+parentIndex+'_'+index+'_'+option.id"
                                                    class="ml-2 text-sm font-medium text-gray-900 ">{{
                                                     option.name
@@ -127,7 +127,7 @@
                                                    class="ml-2 text-sm font-medium">
                                                 <input v-model="field.value" :id="'field_'+parentIndex+'_'+index+'_'+option.id"
                                                        type="checkbox" :name="'field_'+parentIndex+'_'+index+'[]'" :value="option.name"
-                                                       class="w-4 h-4 text-blue-600  border-gray-300 focus:ring-maiic-500 dark:focus:ring-maiic-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                                                       class="w-4 h-4 text-maiic-600  border-gray-300 focus:ring-maiic-500 dark:focus:ring-maiic-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
                                                 {{
                                                     option.name
                                                 }}</label>

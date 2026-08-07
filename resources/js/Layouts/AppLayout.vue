@@ -159,6 +159,36 @@
                 <span>Done</span>
             </template>
         </div>
+
+        <!-- Fail-loud error modal: rights, session, server and connection
+             problems are explained politely instead of a raw error page. -->
+        <div v-if="errorModal" class="fixed inset-0 z-[70] flex items-center justify-center p-4"
+             role="alertdialog" aria-modal="true">
+            <div class="absolute inset-0 bg-slate-900/50" @click="errorModal = null"></div>
+            <div class="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-start gap-4 p-6">
+                    <div class="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-red-100">
+                        <svg class="h-6 w-6 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 9v4M12 17h.01"/>
+                            <path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0Z"/>
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-lg font-extrabold text-gray-900">{{ errorModal.title }}</h3>
+                        <p class="mt-1.5 text-sm leading-relaxed text-gray-600">{{ errorModal.message }}</p>
+                        <p v-if="errorModal.status" class="mt-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                            Error code {{ errorModal.status }}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 bg-gray-50 px-6 py-4">
+                    <button @click="errorModal = null"
+                            class="rounded-lg bg-maiic-600 px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-maiic-700">
+                        OK, got it
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -223,6 +253,9 @@ export default {
             busyClearAfter: null,
             offRouterStart: null,
             offRouterFinish: null,
+            errorModal: null,
+            offRouterInvalid: null,
+            offRouterException: null,
         }
     },
     mounted() {
@@ -234,6 +267,8 @@ export default {
         if (this.busyClearAfter) clearTimeout(this.busyClearAfter);
         if (this.offRouterStart) this.offRouterStart();
         if (this.offRouterFinish) this.offRouterFinish();
+        if (this.offRouterInvalid) this.offRouterInvalid();
+        if (this.offRouterException) this.offRouterException();
     },
     methods: {
 
@@ -257,9 +292,38 @@ export default {
                     this.busyPhase = 'idle';
                 }
             });
+
+            // Fail-loud: every failed action is explained in a modal instead of
+            // a raw error page or silence.
+            this.offRouterInvalid = router.on('invalid', (event) => {
+                event.preventDefault();
+                const status = event.detail.response?.status;
+                let title = 'Action could not be completed';
+                let message = 'The server could not complete this action. Nothing was changed.';
+                if (status === 403) { title = 'No access rights'; message = 'You do not have the rights to view this page or perform this action. Contact your administrator if you believe you should have access.'; }
+                else if (status === 419) { title = 'Session expired'; message = 'Your session has expired. Refresh the page and sign in again, then retry.'; }
+                else if (status === 404) { title = 'Not found'; message = 'The item you tried to open no longer exists. Refresh and try again.'; }
+                else if (status === 413) { message = 'The file or request is too large to process.'; }
+                else if (status === 429) { message = 'Too many requests in a short time. Wait a moment and try again.'; }
+                else if (status === 503) { message = 'The system is temporarily unavailable. Please try again shortly.'; }
+                else if (status >= 500) { message = 'The server hit an error while processing this action. It has been logged.'; }
+                this.errorModal = { title, message, status: status ?? null };
+                this.busyPhase = 'idle';
+            });
+            this.offRouterException = router.on('exception', (event) => {
+                event.preventDefault();
+                this.errorModal = {
+                    title: 'Connection problem',
+                    message: 'Could not reach the server. Check your connection and try again. Nothing was saved.',
+                    status: null,
+                };
+                this.busyPhase = 'idle';
+            });
         },
         initializeChannels() {
             if (!this.$page.props.user) return;
+            // Broadcasting is not configured; Echo is not bundled.
+            if (typeof Echo === 'undefined') return;
             
             if (this.$page.props.user.current_role === 'nurse') {
                 this.nurseConsultationChannel = Echo.private(`consultation-nurse.${this.$page.props.user.id}`)

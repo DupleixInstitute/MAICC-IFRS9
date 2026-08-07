@@ -70,7 +70,7 @@
                     class="px-2 py-1 rounded-full text-xs font-semibold"
                     :class="{
                       'bg-red-100 text-red-700': lgd.is_active_or_closed === 'closed',
-                      'bg-green-100 text-green-700': lgd.is_active_or_closed === 'active'
+                      'bg-maiic-100 text-maiic-700': lgd.is_active_or_closed === 'active'
                     }"
                   >
                     {{ lgd.is_active_or_closed === 'closed' ? 'Closed' : 'Active' }}
@@ -99,7 +99,7 @@
             <button
             v-if="lgd.calculation_source === 'manual'"
             @click="editLGD(lgd.id)"
-            class="text-blue-600 hover:text-blue-800 transition-colors"
+            class="text-maiic-600 hover:text-maiic-800 transition-colors"
             aria-label="Edit LGD"
           >
             <i class="fas fa-pencil"></i>
@@ -109,7 +109,7 @@
           <inertia-link
             v-if="lgd.is_discounting"
             :href="route('loss-given-default.discounted-payments', lgd.id)"
-             class="text-purple-600 hover:text-purple-800 transition-colors"
+             class="text-maiic-600 hover:text-maiic-800 transition-colors"
             aria-label="View Discounted Payments"
             title="View Discounted Payments"
           >
@@ -136,11 +136,11 @@
             v-else
             @click="lockLGD(lgd.id)"
             :disabled="loading === lgd.id"
-            class="text-green-600 hover:text-green-800"
+            class="text-maiic-600 hover:text-maiic-800"
             title="Lock LGD"
           >
             <i v-if="loading !== lgd.id" class="fas fa-lock-open"></i>
-            <svg v-else class="animate-spin h-5 w-5 text-green-600" viewBox="0 0 24 24">
+            <svg v-else class="animate-spin h-5 w-5 text-maiic-600" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
             </svg>
@@ -155,7 +155,7 @@
             <button v-if="lgd.is_active_or_closed === 'closed'"
             @click="openUpdateModal(lgd)"
             :disabled="loading === lgd.id"
-                class="text-blue-600 hover:text-blue-800"
+                class="text-maiic-600 hover:text-maiic-800"
                 title="Update Loan Book"
             >
                 <i v-if="loading !==lgd.id" class="fas fa-book"></i>
@@ -388,7 +388,7 @@ export default {
       const lgdColorClass = (lgd) => {
           if (lgd == null) return 'px-6 py-4 whitespace-nowrap font-bold text-center text-gray-600'; // null or missing LGD
           // Example threshold: LGD >= 0.5 (50%) is high
-          return lgd >= 0.5 ? 'px-6 py-4 whitespace-nowrap font-bold text-center text-orange-600' : 'px-6 py-4 whitespace-nowrap font-bold text-center text-green-600';
+          return lgd >= 0.5 ? 'px-6 py-4 whitespace-nowrap font-bold text-center text-amber-600' : 'px-6 py-4 whitespace-nowrap font-bold text-center text-maiic-600';
       };
 
 

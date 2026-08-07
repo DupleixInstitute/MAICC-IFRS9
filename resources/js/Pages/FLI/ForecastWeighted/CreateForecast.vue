@@ -32,7 +32,7 @@
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Scenario</label>
-            <select v-model="form.scenario_profile_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+            <select v-model="form.scenario_profile_id" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                 <option value="">Select Profile</option>
                     <option v-for="profile in profiles" :key="profile.id" :value="profile.id">
                     {{ profile.profile_code }} - {{ profile.name }} 

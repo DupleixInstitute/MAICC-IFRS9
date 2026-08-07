@@ -10,7 +10,7 @@
                 <flat-pickr
                     v-model="form.reporting_period"
                     :config="dateConfig"
-                    class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm"
+                    class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm"
                 />
                 <jet-input-error :message="form.errors.reporting_period" class="mt-2" />
             </div>

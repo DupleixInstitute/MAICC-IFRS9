@@ -29,7 +29,7 @@
                             <!-- Portfolio Group -->
                             <div>
                                 <jet-label for="portfolio_group" value="Portfolio Group" />
-                                <select v-model="form.portfolio_group" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <select v-model="form.portfolio_group" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                     <option value="">Select Portfolio</option>
                                     <option v-for="portfolio in portfolio_group" :key="portfolio.id" :value="portfolio.id">
                                         {{ portfolio.name }}
@@ -40,7 +40,7 @@
                             <!-- Calculation Source -->
                             <div>
                                 <jet-label for="calculation_source" value="Calculation Source" />
-                                <select v-model="form.calculation_source" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <select v-model="form.calculation_source" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                     <option value="">Select Source</option>
                                     <option value="manual">Manual</option>
                                     <option value="system">System</option>
@@ -50,7 +50,7 @@
                             <!-- Discounting Option -->
                             <div>
                                 <label class="flex items-center">
-                                    <input type="checkbox" v-model="form.is_discounting" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                    <input type="checkbox" v-model="form.is_discounting" class="rounded border-gray-300 text-maiic-600 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50">
                                     <span class="ml-2 text-sm text-gray-700">Enable Discounting</span>
                                 </label>
                             </div>
@@ -63,7 +63,7 @@
                                 <!-- Discount Rate Source -->
                                 <div>
                                     <jet-label for="discount_rate_source" value="Interest Rate Source" />
-                                    <select v-model="form.discount_rate_source" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                    <select v-model="form.discount_rate_source" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                         <option value="">Select Source</option>
                                         <option value="manual">Manual Rate</option>
                                         <option value="loan_book">From Loan Book</option>
@@ -85,16 +85,16 @@
 
                                 <!-- Loan Book Info (shown when loan_book source is selected) -->
                                 <div v-if="form.discount_rate_source === 'loan_book'" class="col-span-2">
-                                    <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                                    <div class="bg-maiic-50 border border-maiic-200 rounded-md p-4">
                                         <div class="flex">
                                             <div class="flex-shrink-0">
-                                                <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <svg class="h-5 w-5 text-maiic-400" viewBox="0 0 20 20" fill="currentColor">
                                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                                                 </svg>
                                             </div>
                                             <div class="ml-3">
-                                                <h3 class="text-sm font-medium text-blue-800">Interest Rate from Loan Book</h3>
-                                                <div class="mt-2 text-sm text-blue-700">
+                                                <h3 class="text-sm font-medium text-maiic-800">Interest Rate from Loan Book</h3>
+                                                <div class="mt-2 text-sm text-maiic-700">
                                                     <p>Individual interest rates will be used from each contract's loan book data. Each contract may have different rates based on their original loan terms.</p>
                                                 </div>
                                             </div>
@@ -108,7 +108,7 @@
                             <jet-button @click="toggleModal" class=" items-center px-4 py-2 bg-black-600 hover:bg-gray-400 text-black-700 rounded-md">
                                 Calculate
                             </jet-button>
-                            <Link href="/loss-given-default/list" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md">
+                            <Link href="/loss-given-default/list" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md">
                                 Back
                             </Link>
                         </div>

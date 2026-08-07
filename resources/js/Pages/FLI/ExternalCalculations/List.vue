@@ -28,17 +28,17 @@
 
                         <!-- Summary Cards -->
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-                                <div class="text-sm font-medium text-blue-600">Total Calculations</div>
-                                <div class="text-2xl font-bold text-blue-900">{{ parameters.length }}</div>
+                            <div class="bg-gradient-to-br from-maiic-50 to-maiic-100 rounded-lg p-4 border border-maiic-200">
+                                <div class="text-sm font-medium text-maiic-600">Total Calculations</div>
+                                <div class="text-2xl font-bold text-maiic-900">{{ parameters.length }}</div>
                             </div>
-                            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-                                <div class="text-sm font-medium text-green-600">Reporting Periods</div>
-                                <div class="text-2xl font-bold text-green-900">{{ uniqueReportingPeriods }}</div>
+                            <div class="bg-gradient-to-br from-maiic-50 to-maiic-100 rounded-lg p-4 border border-maiic-200">
+                                <div class="text-sm font-medium text-maiic-600">Reporting Periods</div>
+                                <div class="text-2xl font-bold text-maiic-900">{{ uniqueReportingPeriods }}</div>
                             </div>
-                            <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-                                <div class="text-sm font-medium text-purple-600">Total Adjustments</div>
-                                <div class="text-2xl font-bold text-purple-900">{{ totalAdjustments }}</div>
+                            <div class="bg-gradient-to-br from-maiic-50 to-maiic-100 rounded-lg p-4 border border-maiic-200">
+                                <div class="text-sm font-medium text-maiic-600">Total Adjustments</div>
+                                <div class="text-2xl font-bold text-maiic-900">{{ totalAdjustments }}</div>
                             </div>
                         </div>
 
@@ -165,7 +165,7 @@
                                             <td class="px-4 py-4 whitespace-nowrap text-sm">
                                                 <button
                                                     @click="toggleDetails(param.id)"
-                                                    class="text-indigo-600 hover:text-indigo-900 font-medium"
+                                                    class="text-maiic-600 hover:text-maiic-900 font-medium"
                                                 >
                                                     {{ expandedRows.includes(param.id) ? 'Hide' : 'Details' }}
                                                 </button>
@@ -341,7 +341,7 @@ const getFliAdjClass = (value) => {
     if (value === null || value === undefined) return '';
     const numValue = parseFloat(value);
     if (numValue > 0) return 'text-red-600';
-    if (numValue < 0) return 'text-green-600';
+    if (numValue < 0) return 'text-maiic-600';
     return 'text-gray-600';
 };
 </script>

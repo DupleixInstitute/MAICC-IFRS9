@@ -20,7 +20,7 @@
             border-radius: 10px;
         }
         .header {
-            background-color: #4CAF50;
+            background-color: #16a34a;
             color: white;
             padding: 10px 20px;
             text-align: center;

@@ -11,7 +11,7 @@
                     <div class="mb-2">
                         <jet-label for="trigger_type" value="Trigger Type"/>
                         <select v-model="form.trigger_type" id="trigger_type"
-                                class="mt-1 w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                class="mt-1 w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                             <option :value="null"/>
                             <option value="direct">Direct</option>
                             <option value="schedule">Scheduled</option>
@@ -21,7 +21,7 @@
                     <div class="mb-2">
                         <jet-label for="campaign_type" value="Campaign Type"/>
                         <select v-model="form.campaign_type" id="campaign_type"
-                                class="mt-1 w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                class="mt-1 w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                             <option :value="null"/>
                             <option value="sms">SMS</option>
                             <option value="email">Email</option>
@@ -30,7 +30,7 @@
                     <div class="mb-2">
                         <jet-label for="status" value="Status"/>
                         <select v-model="form.status" id="status"
-                                class="mt-1 w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                class="mt-1 w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                             <option :value="null"/>
                             <option value="pending">Pending</option>
                             <option value="active">Active</option>
@@ -93,19 +93,19 @@
                         <td class="border-t">
                              <span class="px-6 py-4 flex items-center">
                                 <span v-if="communicationCampaign.status==='pending'"
-                                      class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                      class="px-2 rounded-full bg-amber-100 text-amber-800">
                                     pending
                                 </span>
                                 <span v-if="communicationCampaign.status==='active'"
-                                      class="px-2 rounded-full bg-blue-100 text-blue-800">
+                                      class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                     active
                                 </span>
                                 <span v-if="communicationCampaign.status==='closed'"
-                                      class="px-2 rounded-full bg-green-100 text-green-800">
+                                      class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                     closed
                                 </span>
                                  <span v-if="communicationCampaign.status==='done'"
-                                       class="px-2 rounded-full bg-green-100 text-green-800">
+                                       class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                     done
                                 </span>
                                 <span v-if="communicationCampaign.status==='inactive'"
@@ -118,13 +118,13 @@
                             <div class=" flex items-center space-x-2">
                                 <inertia-link v-if="can('communication.campaigns.index')"
                                               :href="route('communication.campaigns.show', communicationCampaign.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     View
                                 </inertia-link>
                                 <inertia-link
                                     v-if="can('communication.campaigns.update') && communicationCampaign.trigger_type!=='direct'"
                                     :href="route('communication.campaigns.edit', communicationCampaign.id)"
-                                    tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                    tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('communication.campaigns.destroy')"

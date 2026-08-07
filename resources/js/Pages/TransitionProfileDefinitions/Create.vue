@@ -2,10 +2,10 @@
     <app-layout>
       <template #header>
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('transition-profiles.index')">
+          <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('transition-profiles.index')">
               Transition Profile List
             </inertia-link>
-            <span class="text-indigo-400 font-medium">/</span>  Create
+            <span class="text-maiic-500 font-medium">/</span>  Create
             </h2>
       </template>
   
@@ -22,7 +22,7 @@
                          type="text"
                          maxlength="15"
                          placeholder="Enter Profile Code"
-                         class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm" />
+                         class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm" />
                   <jet-input-error :message="form.errors.profile_code" class="mt-2" />
                 </div>
   
@@ -33,7 +33,7 @@
                          type="text"
                          maxlength="60"
                          placeholder="Enter Short Name"
-                         class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm" />
+                         class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm" />
                   <jet-input-error :message="form.errors.short_name" class="mt-2" />
                 </div>
   
@@ -42,7 +42,7 @@
                   <jet-label for="description" value="Description" />
                   <textarea v-model="form.description"
                             placeholder="Enter Description"
-                            class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm"></textarea>
+                            class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm"></textarea>
                   <jet-input-error :message="form.errors.description" class="mt-2" />
                 </div>
   
@@ -51,7 +51,7 @@
                   <jet-label for="start_table" value="Mapped Start Table" />
                   <select v-model="form.start_table"
                           @change="fetchStartTableColumns"
-                          class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                          class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                     <option v-for="table in tables" :key="table" :value="table">
                       {{ table }}
                     </option>
@@ -63,7 +63,7 @@
                 <div>
                   <jet-label for="end_table" value="Mapped End Table" />
                   <select v-model="form.end_table" @change="fetchEndTableColumns"
-                          class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                          class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                     <option v-for="table in tables" :key="table" :value="table">
                       {{ table }}
                     </option>
@@ -74,7 +74,7 @@
                 <!-- Start Client ID Column Section -->
                 <div>
                   <jet-label for="start_col" value="Start Client Column" />
-                  <select v-model="form.start_client_id_col" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                  <select v-model="form.start_client_id_col" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                     <option v-for="column in startTableColumns" :key="column" :value="column">
                       {{ column }}
                     </option>
@@ -85,7 +85,7 @@
                 <!-- End Client ID Column Section -->
                 <div>
                   <jet-label for="end_col" value="End Client ID Column" />
-                  <select v-model="form.end_client_id_col" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                  <select v-model="form.end_client_id_col" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                     <option v-for="column in endTableColumns" :key="column" :value="column">
                       {{ column }}
                     </option>
@@ -96,7 +96,7 @@
                 <!-- Start Client ID Column Section -->
                 <div>
                   <jet-label for="start_col" value="Start Grading Column" />
-                  <select v-model="form.start_grading_col" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                  <select v-model="form.start_grading_col" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                     <option v-for="column in startTableColumns" :key="column" :value="column">
                       {{ column }}
                     </option>
@@ -107,7 +107,7 @@
                 <!-- End Client ID Column Section -->
                 <div>
                   <jet-label for="end_col" value="End Grading Column" />
-                  <select v-model="form.end_grading_col" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                  <select v-model="form.end_grading_col" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                     <option v-for="column in endTableColumns" :key="column" :value="column">
                       {{ column }}
                     </option>
@@ -119,7 +119,7 @@
                 <div>
                   <jet-label for="start_value_type" value="Value Type" />
                   <select v-model="form.start_value_type"
-                          class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                          class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                     <option value="text">Text</option>
                     <option value="number">Range</option>
                   </select>
@@ -130,7 +130,7 @@
                 <div>
                   <jet-label for="end_value_type" value="End Value Type" />
                   <select v-model="form.end_value_type"
-                          class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                          class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                     <option value="text">Text</option>
                     <option value="number">Range</option>
                   </select>

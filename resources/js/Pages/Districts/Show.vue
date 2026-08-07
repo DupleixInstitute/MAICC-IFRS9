@@ -2,10 +2,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('locations.districts.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('locations.districts.index')">
                     Districts
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> District #{{ district.id }}
+                <span class="text-maiic-500 font-medium">/</span> District #{{ district.id }}
             </h2>
         </template>
 
@@ -91,12 +91,12 @@
                                         <div class=" flex items-center space-x-2">
                                             <inertia-link v-if="can('locations.index')"
                                                           :href="route('locations.wards.show', ward.id)"
-                                                          tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                                          tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                                 View
                                             </inertia-link>
                                             <inertia-link v-if="can('locations.update')"
                                                           :href="route('locations.wards.edit', ward.id)"
-                                                          tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                                          tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                                 Edit
                                             </inertia-link>
                                             <a href="#" v-if="can('locations.destroy')"

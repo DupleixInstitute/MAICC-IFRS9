@@ -44,7 +44,7 @@
                 <td class="px-4 py-3 space-x-2 whitespace-nowrap">
                   <button
                     @click="editType(type)"
-                    class="text-blue-600 hover:text-blue-800 transition-colors"
+                    class="text-maiic-600 hover:text-maiic-800 transition-colors"
                     aria-label="Edit Type"
                   >
                     <i class="fas fa-edit"></i>

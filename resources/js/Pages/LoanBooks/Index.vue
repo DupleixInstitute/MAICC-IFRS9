@@ -11,7 +11,7 @@
                         Import Loan Book
                     </button>
                     <button @click="openExportModal"
-                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 transition">
+                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -26,7 +26,7 @@
                     </button>
                     <Link
                         :href="route('loan_applications.loan-book.import.create')"
-                        class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+                        class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -106,7 +106,7 @@
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract ID</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
                                         <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th> -->
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                                        <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overdue Days</th>
                                         <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -118,7 +118,7 @@
                                         <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.client?.name || loan.external_identity_id }}</td>
 
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(loan.principal_balance) }}</td>
+                                        <td class="px-3 py-4 num text-sm text-gray-700">{{ formatCurrency(loan.principal_balance) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(loan.due_date) }}</td>
                                         <td class="px-3 py-4 whitespace-nowrap text-sm" :class="getOverdueClass(loan.overdue_days)">
                                             {{ loan.overdue_days }}
@@ -163,7 +163,7 @@
 
                     <div class="mt-3">
                         <a href="#" @click.prevent="downloadTemplate"
-                           class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
+                           class="inline-flex items-center text-sm text-maiic-600 hover:text-maiic-800">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
@@ -202,7 +202,7 @@
                                           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                                 <div class="flex text-sm text-gray-600">
-                                    <label class="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                    <label class="relative cursor-pointer rounded-md font-medium text-maiic-600 hover:text-maiic-500">
                                         <input type="file" @change="handleFileUpload" accept=".csv" class="sr-only" required>
                                         <span>Upload a file</span>
                                     </label>
@@ -221,7 +221,7 @@
                             <div class="flex mb-2 items-center justify-between">
                                 <div>
                                     <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full"
-                                          :class="{'text-green-600': importProgress === 100}">
+                                          :class="{'text-maiic-600': importProgress === 100}">
                                         Progress
                                     </span>
                                 </div>
@@ -305,8 +305,8 @@
                 </p>
             </div>
 
-            <div class="mb-4 bg-blue-50 rounded-lg p-3">
-                <p class="text-sm text-blue-800">
+            <div class="mb-4 bg-maiic-50 rounded-lg p-3">
+                <p class="text-sm text-maiic-800">
                     <strong>Note:</strong> This export will generate a summary report showing Balance aggregated by IFRS9 stages (1, 2, 3) for each reporting period.
                 </p>
             </div>
@@ -364,8 +364,8 @@
                 </div>
             </div>
 
-            <div class="mb-4 bg-blue-50 rounded-lg p-3">
-                <p class="text-sm text-blue-800">
+            <div class="mb-4 bg-maiic-50 rounded-lg p-3">
+                <p class="text-sm text-maiic-800">
                     <strong>Note:</strong> This export will generate a disbursement report showing total amount disbursed, contract count, and detailed breakdown of all loans originated within the selected date range.
                 </p>
             </div>
@@ -639,16 +639,16 @@ const formatDate = (date) => {
 };
 
 const getOverdueClass = (days) => {
-    if (days === 0) return 'text-green-600';
-    if (days <= 30) return 'text-yellow-600';
+    if (days === 0) return 'text-maiic-600';
+    if (days <= 30) return 'text-amber-600';
     return 'text-red-600';
 };
 
 const getStatusClass = (status) => {
     const classes = {
-        'Current': 'bg-green-100 text-green-800',
-        'Watch': 'bg-yellow-100 text-yellow-800',
-        'Substandard': 'bg-orange-100 text-orange-800',
+        'Current': 'bg-maiic-100 text-maiic-800',
+        'Watch': 'bg-amber-100 text-amber-800',
+        'Substandard': 'bg-amber-100 text-amber-800',
         'Doubtful': 'bg-red-100 text-red-800',
         'Loss': 'bg-red-200 text-red-900'
     };

@@ -73,7 +73,7 @@
                 <div>
                     <jet-label for="status" value="Status"/>
                     <select
-                        class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                        class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                         name="status" v-model="status" id="status"
                         required>
                         <option value="received">Received</option>

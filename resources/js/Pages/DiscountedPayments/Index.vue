@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('loss-given-default.index')">Monthly Loss Given Default
+            <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('loss-given-default.index')">Monthly Loss Given Default
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span>
+                <span class="text-maiic-500 font-medium">/</span>
                 Discounted Payments - {{ lgd.portfolio_group?.name }}
             </h2>
         </template>
@@ -38,21 +38,21 @@
                         <div class="mt-6 pt-6 border-t border-gray-200">
                             <h4 class="text-md font-medium text-gray-900 mb-3">Discounting Results</h4>
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div class="bg-blue-50 p-4 rounded-lg">
-                                    <p class="text-sm text-blue-600">Total Payments</p>
-                                    <p class="text-xl font-bold text-blue-900">{{ formatCurrency(lgd.total_payment) }}</p>
+                                <div class="bg-maiic-50 p-4 rounded-lg">
+                                    <p class="text-sm text-maiic-600">Total Payments</p>
+                                    <p class="text-xl font-bold text-maiic-900">{{ formatCurrency(lgd.total_payment) }}</p>
                                 </div>
-                                <div class="bg-green-50 p-4 rounded-lg">
-                                    <p class="text-sm text-green-600">Total Discounted</p>
-                                    <p class="text-xl font-bold text-green-900">{{ formatCurrency((lgd.discounted_payment_partly + lgd.discounted_payment_full) || (lgd.total_payment - lgd.discount_loss)) }}</p>
+                                <div class="bg-maiic-50 p-4 rounded-lg">
+                                    <p class="text-sm text-maiic-600">Total Discounted</p>
+                                    <p class="text-xl font-bold text-maiic-900">{{ formatCurrency((lgd.discounted_payment_partly + lgd.discounted_payment_full) || (lgd.total_payment - lgd.discount_loss)) }}</p>
                                 </div>
                                 <div class="bg-red-50 p-4 rounded-lg">
                                     <p class="text-sm text-red-600">Discount Loss</p>
                                     <p class="text-xl font-bold text-red-900">{{ formatCurrency(lgd.discount_loss) }}</p>
                                 </div>
-                                <div class="bg-purple-50 p-4 rounded-lg">
-                                    <p class="text-sm text-purple-600">Loss Rate</p>
-                                    <p class="text-xl font-bold text-purple-900">{{ formatPercentage(lgd.discount_loss / lgd.total_payment) }}</p>
+                                <div class="bg-maiic-50 p-4 rounded-lg">
+                                    <p class="text-sm text-maiic-600">Loss Rate</p>
+                                    <p class="text-xl font-bold text-maiic-900">{{ formatPercentage(lgd.discount_loss / lgd.total_payment) }}</p>
                                 </div>
                             </div>
                         </div>
@@ -131,7 +131,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {{ payment.discounting_days }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-maiic-600 font-medium">
                                             {{ formatCurrency(payment.discounted_amount) }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
@@ -139,7 +139,7 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                                                  :class="payment.discount_rate_source === 'manual' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'">
+                                                  :class="payment.discount_rate_source === 'manual' ? 'bg-maiic-100 text-maiic-800' : 'bg-maiic-100 text-maiic-800'">
                                                 {{ payment.discount_rate_source }}
                                             </span>
                                         </td>

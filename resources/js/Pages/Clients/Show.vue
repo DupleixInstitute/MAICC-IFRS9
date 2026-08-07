@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">Clients
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class="mx-auto">
@@ -32,22 +32,22 @@
                             <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Status</td>
                             <td class="w-1/2 border border-gray-300 p-4 text-gray-500">
                                  <span
-                                     class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-yellow-600 bg-yellow-200 uppercase"
+                                     class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-amber-600 bg-amber-200 uppercase"
                                      v-if="client.status=='pending'">
                                         Pending
                                  </span>
                                 <span
-                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-yellow-600 bg-yellow-200 uppercase"
+                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-amber-600 bg-amber-200 uppercase"
                                     v-if="client.status=='inactive'">
                                         Inactive
                                 </span>
                                 <span
-                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-blue-600 bg-blue-200 uppercase"
+                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-maiic-600 bg-maiic-200 uppercase"
                                     v-if="client.status=='archived'">
                                         Archived
                                 </span>
                                 <span
-                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-green-600 bg-green-200 uppercase"
+                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-maiic-600 bg-maiic-200 uppercase"
                                     v-if="client.status=='active'">
                                         Active
                                     </span>

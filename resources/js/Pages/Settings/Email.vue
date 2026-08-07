@@ -2,7 +2,7 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('settings.index')">Settings /
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('settings.index')">Settings /
                 </inertia-link>
                 System
             </h2>
@@ -15,7 +15,7 @@
                             <jet-label for="mail_mailer"
                                        value="Mailer"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="mail_mailer" v-model="form.mail_mailer" id="mail_mailer" required>
                                 <option value="smtp">smtp</option>
                                 <option value="sendmail">Sendmail</option>

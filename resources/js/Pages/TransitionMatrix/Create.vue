@@ -16,7 +16,7 @@
                             <div>
                                 <jet-label for="transition_profile_id" value="Transition Profile" />
                                 <select v-model="form.transition_profile_id" 
-                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                        class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                     <option value="">Select Profile</option>
                                     <option v-for="profile in profiles" :key="profile.id" :value="profile.id">
                                         {{ profile.profile_code }} - {{ profile.short_name }}
@@ -44,7 +44,7 @@
                             <!-- PD Start Stage Type -->
                             <div>
                                 <jet-label for="pd_start_stage_total_type" value="PD Start Stage Total Type" />
-                                <select v-model="form.pd_start_stage_total_type" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <select v-model="form.pd_start_stage_total_type" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                     <option value="1">Include Settled Accounts</option>
                                     <option value="0">Exclude Settled Accounts</option>
                                 </select>
@@ -64,7 +64,7 @@
                             <!-- <div class="md:col-span-2">
                                 <jet-label for="description" value="Description" />
                                 <textarea v-model="form.description"
-                                          class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm"
+                                          class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm"
                                           rows="3"></textarea>
                                 <jet-input-error :message="form.errors.description" class="mt-2" />
                             </div> -->
@@ -115,7 +115,7 @@
                             <!-- Calculation Source -->
                             <div>
                                 <jet-label for="calculation_source" value="Calculation Source" />
-                                <select v-model="form.calculation_source" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                                <select v-model="form.calculation_source" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                     <option value="manual">Manual</option>
                                     <option value="system">System</option>
                                 </select>
@@ -129,7 +129,7 @@
                                 Proceed to Matrix Entry
                             </jet-button>
 
-                            <Link href="/transition-matrix" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-green-400 text-black-700 rounded-md">
+                            <Link href="/transition-matrix" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md">
                                 Back
                             </Link>
                         </div>

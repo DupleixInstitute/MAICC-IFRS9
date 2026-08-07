@@ -7,23 +7,23 @@
     <table class="table-auto border-collapse w-full text-sm">
       <thead>
         <tr>
-          <th class="bg-blue-200 p-2">FROM/TO</th>
+          <th class="bg-maiic-200 p-2">FROM/TO</th>
           <th
             v-for="end in endStages"
             :key="end.id"
-            class="bg-blue-200 p-2 text-center leading-tight whitespace-nowrap"
+            class="bg-maiic-200 p-2 text-center leading-tight whitespace-nowrap"
           >
             {{ end.category_name }}
             <div>({{ parseFloat(end.min_value).toFixed(2) }} to {{ parseFloat(end.max_value).toFixed(2) }})</div>
             {{ end.text_value }}
           </th>
-          <th class="bg-blue-300 p-2">Total Start</th>
+          <th class="bg-maiic-300 p-2">Total Start</th>
           <th class="bg-red-500 text-white p-2">PD%</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="start in startStages" :key="start.id">
-          <td class="bg-blue-200 p-2 font-semibold text-center leading-tight whitespace-nowrap">
+          <td class="bg-maiic-200 p-2 font-semibold text-center leading-tight whitespace-nowrap">
             <div>From {{ start.category_name }}</div>
             <div>{{ parseFloat(start.min_value).toFixed(2) }} - {{ parseFloat(start.max_value).toFixed(2) }}</div>
             <div>{{ start.text_value }}</div>
@@ -42,7 +42,7 @@
               />
             </div>
           </td>
-          <td class="bg-blue-100 text-right p-2">
+          <td class="bg-maiic-100 text-right p-2">
             {{ startTotals[start.category_name]?.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? '0.00' }}
           </td>
          <td class="bg-red-100 text-right p-2">
@@ -52,11 +52,11 @@
       </tbody>
       <tfoot>
         <tr>
-          <th class="bg-blue-300 p-2 text-left">TOTAL</th>
-          <th v-for="end in endStages" :key="end.id" class="bg-blue-300 text-right p-2">
+          <th class="bg-maiic-300 p-2 text-left">TOTAL</th>
+          <th v-for="end in endStages" :key="end.id" class="bg-maiic-300 text-right p-2">
             {{ endStageTotals[end.category_name]?.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? '0.00' }}
           </th>
-          <th class="bg-blue-400 text-right p-2 font-semibold">
+          <th class="bg-maiic-400 text-right p-2 font-semibold">
             {{ totalGrandStart().toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
           </th>
           <th></th>
@@ -170,19 +170,19 @@ const updateUrl =
     <table class="table-auto border-collapse w-full text-sm">
       <thead>
         <tr>
-          <th class="bg-blue-200 p-2">FROM/TO</th>
-          <th v-for="end in endStages" :key="end.id" class="bg-blue-200 p-2 text-center leading-tight whitespace-nowrap">
+          <th class="bg-maiic-200 p-2">FROM/TO</th>
+          <th v-for="end in endStages" :key="end.id" class="bg-maiic-200 p-2 text-center leading-tight whitespace-nowrap">
             {{ end.category_name }}
             <div>({{ parseFloat(end.min_value).toFixed(2) }} to {{ parseFloat(end.max_value).toFixed(2) }})</div>
             {{ end.text_value }}
           </th>
-          <th class="bg-blue-300 p-2">Total Start</th>
+          <th class="bg-maiic-300 p-2">Total Start</th>
           <th class="bg-red-500 text-white p-2">PD%</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="start in startStages" :key="start.id">
-          <td class="bg-blue-200 p-2 font-semibold text-center leading-tight whitespace-nowrap">
+          <td class="bg-maiic-200 p-2 font-semibold text-center leading-tight whitespace-nowrap">
             <div>From {{ start.category_name }}</div>
             <div>{{ parseFloat(start.min_value).toFixed(2) }} - {{ parseFloat(start.max_value).toFixed(2) }}</div>
             <div>{{ start.text_value }}</div>
@@ -199,7 +199,7 @@ const updateUrl =
               />
             </div>
           </td>
-          <td class="bg-blue-100 text-right p-2">
+          <td class="bg-maiic-100 text-right p-2">
             {{ startTotals[start.category_name]?.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? '0.00' }}
           </td>
           <td class="bg-red-100 text-right p-2">
@@ -209,11 +209,11 @@ const updateUrl =
       </tbody>
       <tfoot>
         <tr>
-          <th class="bg-blue-300 p-2 text-left">TOTAL</th>
-          <th v-for="end in endStages" :key="end.id" class="bg-blue-300 text-right p-2">
+          <th class="bg-maiic-300 p-2 text-left">TOTAL</th>
+          <th v-for="end in endStages" :key="end.id" class="bg-maiic-300 text-right p-2">
             {{ endStageTotals[end.category_name]?.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? '0.00' }}
           </th>
-          <th class="bg-blue-400 text-right p-2 font-semibold">
+          <th class="bg-maiic-400 text-right p-2 font-semibold">
             {{ totalGrandStart().toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
           </th>
           <th></th>

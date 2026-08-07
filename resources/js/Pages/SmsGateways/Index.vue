@@ -42,7 +42,7 @@
                         <td class="border-t w-px pr-2">
                             <div class=" flex items-center space-x-2">
                                 <inertia-link v-if="can('communication.sms_gateways.update')" :href="route('communication.sms_gateways.edit', smsGateway.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('communication.sms_gateways.destroy') && !smsGateway.is_system" @click="deleteAction(smsGateway.id)" class="text-red-600 hover:text-red-900">Delete</a>

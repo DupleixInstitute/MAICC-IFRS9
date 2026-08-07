@@ -4,7 +4,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-6 h-6 mr-2 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                         </svg>
                         SICR Trigger Alerts
@@ -12,7 +12,7 @@
                     <p class="mt-1 text-sm text-gray-600">Report significant increases in credit risk events</p>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <div class="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                    <div class="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
                         {{ triggers?.data?.length || 0 }} Triggers
                     </div>
                     <div class="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
@@ -32,7 +32,7 @@
                 <div class="flex space-x-3">
                     <button
                         @click="openModal"
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-700 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
                     >
                         <svg class="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
@@ -99,13 +99,13 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr v-for="(trigger, index) in triggers.data" :key="trigger.id" 
                                 :class="index % 2 === 0 ? 'bg-white' : 'bg-gray-50'"
-                                class="hover:bg-orange-50 transition-colors duration-150"
+                                class="hover:bg-amber-50 transition-colors duration-150"
                             >
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-8 w-8">
-                                            <div class="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                                                <svg class="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <div class="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center">
+                                                <svg class="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
                                                 </svg>
                                             </div>
@@ -119,8 +119,8 @@
                                 <td class="px-6 py-4">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-8 w-8">
-                                            <div class="h-8 w-8 rounded bg-indigo-100 flex items-center justify-center">
-                                                <span class="text-xs font-medium text-indigo-600">{{ trigger.group?.name?.substring(0, 2).toUpperCase() }}</span>
+                                            <div class="h-8 w-8 rounded bg-maiic-100 flex items-center justify-center">
+                                                <span class="text-xs font-medium text-maiic-600">{{ trigger.group?.name?.substring(0, 2).toUpperCase() }}</span>
                                             </div>
                                         </div>
                                         <div class="ml-4">
@@ -136,7 +136,7 @@
                                     <div class="text-sm font-medium text-gray-900">{{ trigger.account_number }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span v-if="trigger.affect_all" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <span v-if="trigger.affect_all" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-maiic-100 text-maiic-800">
                                         Yes
                                     </span>
                                     <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -182,7 +182,7 @@
                                         <button
                                             v-if="!trigger.removal_date"
                                             @click="openUpdateModal(trigger)"
-                                            class="inline-flex items-center px-4 py-2 border-2 border-blue-200 rounded-lg text-sm font-semibold text-blue-800 bg-blue-100 hover:bg-blue-200 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-3 focus:ring-blue-300 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105"
+                                            class="inline-flex items-center px-4 py-2 border-2 border-maiic-200 rounded-lg text-sm font-semibold text-maiic-800 bg-maiic-100 hover:bg-maiic-200 hover:border-maiic-300 hover:shadow-md focus:outline-none focus:ring-3 focus:ring-maiic-300 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105"
                                             title="Update Loan Book for this trigger"
                                         >
                                             <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -227,7 +227,7 @@
                                         <p class="text-sm text-gray-500 mb-4">No SICR alerts have been triggered yet.</p>
                                         <button
                                             @click="openModal"
-                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-orange-700 bg-orange-100 hover:bg-orange-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-amber-700 bg-amber-100 hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
                                         >
                                             <svg class="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
@@ -250,14 +250,14 @@
         <!-- Trigger Alert Modal -->
         <jet-modal :show="showModal" @close="closeModal" max-width="2xl">
             <div class="bg-white rounded-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-orange-600 to-red-600 px-6 py-4">
+                <div class="bg-gradient-to-r from-amber-600 to-red-600 px-6 py-4">
                     <h3 class="text-lg font-semibold text-white flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                         </svg>
                         Trigger SICR Alert
                     </h3>
-                    <p class="mt-1 text-orange-100 text-sm">Report a significant increase in credit risk event</p>
+                    <p class="mt-1 text-amber-100 text-sm">Report a significant increase in credit risk event</p>
                 </div>
                 
                 <form @submit.prevent="submit" class="p-6">
@@ -363,7 +363,7 @@
                                         <div v-for="customer in customerResults" 
                                              :key="customer.id" 
                                              @click="selectCustomer(customer)"
-                                             class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-orange-50">
+                                             class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-amber-50">
                                             <span class="font-medium block truncate">{{ customer.external_identity_id }}</span>
                                             <span class="text-gray-500 text-sm">{{ customer.loan_count }} loan(s)</span>
                                         </div>
@@ -391,7 +391,7 @@
                                         <input 
                                             v-model="form.affect_all" 
                                             type="checkbox"
-                                            class="rounded border-gray-300 text-orange-600 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+                                            class="rounded border-gray-300 text-amber-600 shadow-sm focus:border-amber-300 focus:ring focus:ring-amber-200 focus:ring-opacity-50"
                                             :disabled="processing || !form.customer_id"
                                         >
                                         <span class="ml-2 text-sm font-medium text-gray-900">Affect all accounts under customer</span>
@@ -476,7 +476,7 @@
                                     <input 
                                         v-model="form.update_loan_book_now" 
                                         type="checkbox"
-                                        class="rounded border-gray-300 text-orange-600 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+                                        class="rounded border-gray-300 text-amber-600 shadow-sm focus:border-amber-300 focus:ring focus:ring-amber-200 focus:ring-opacity-50"
                                         :disabled="processing"
                                     >
                                     <span class="ml-2 text-sm font-medium text-gray-900">Update Loan Book Now</span>
@@ -495,7 +495,7 @@
                                 <div class="mt-3">
                                     <input 
                                         @change="onFile" 
-                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 file:cursor-pointer border border-gray-300 rounded-md" 
+                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 file:cursor-pointer border border-gray-300 rounded-md" 
                                         type="file"
                                         :disabled="processing"
                                     />
@@ -509,14 +509,14 @@
                             type="button"
                             @click="closeModal"
                             :disabled="processing"
-                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             :disabled="processing || !isValid"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-700 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             <svg v-if="processing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -542,7 +542,7 @@
                         </svg>
                         Update Loan Book
                     </h3>
-                    <p class="mt-1 text-blue-100 text-sm">Apply trigger changes to the loan book</p>
+                    <p class="mt-1 text-maiic-100 text-sm">Apply trigger changes to the loan book</p>
                 </div>
                 
                 <form @submit.prevent="submitUpdateLoanBook" class="p-6">
@@ -565,16 +565,16 @@
                         </div>
                         
                         <!-- Trigger Information -->
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4">
                             <div class="flex">
                                 <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg class="h-5 w-5 text-maiic-400" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                                     </svg>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-blue-800">Trigger Details</h3>
-                                    <div class="mt-2 text-sm text-blue-700">
+                                    <h3 class="text-sm font-medium text-maiic-800">Trigger Details</h3>
+                                    <div class="mt-2 text-sm text-maiic-700">
                                         <p><strong>Account:</strong> {{ selectedTrigger?.account_number }}</p>
                                         <p><strong>SICR Group:</strong> {{ selectedTrigger?.group?.name }}</p>
                                         <p><strong>SICR Item:</strong> {{ selectedTrigger?.item?.name }}</p>
@@ -889,11 +889,11 @@ export default {
 
 <style scoped>
 .form-input {
-    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200;
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200;
 }
 
 .form-input:focus {
-    @apply border-orange-300 bg-orange-50;
+    @apply border-amber-300 bg-amber-50;
 }
 
 .bg-gradient-to-r {

@@ -57,7 +57,7 @@
                         <td class="border-t">
                             <span class="px-6 py-4 flex items-center">
                                 <span v-if="set.is_active"
-                                      class="px-2 rounded-full bg-green-100 text-green-800">
+                                      class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                     Active
                                 </span>
                                 <span v-else
@@ -74,7 +74,7 @@
                         <td class="border-t w-px pr-2">
                             <div class="flex items-center gap-4">
                                 <inertia-link :href="route('fli.scenarios.edit', set.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900" title="Edit">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900" title="Edit">
                                     <font-awesome-icon icon="edit"/>
                                 </inertia-link>
                                 <a href="#" @click="deleteAction(set.id)"

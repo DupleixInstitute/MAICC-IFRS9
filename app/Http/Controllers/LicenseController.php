@@ -18,10 +18,10 @@ class LicenseController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware(['permission:vitals.index'])->only(['index', 'show']);
-        $this->middleware(['permission:vitals.create'])->only(['create', 'store']);
-        $this->middleware(['permission:vitals.update'])->only(['edit', 'update']);
-        $this->middleware(['permission:vitals.destroy'])->only(['destroy']);
+        $this->middleware(['permission:settings'])->only(['index', 'show']);
+        $this->middleware(['permission:settings'])->only(['create', 'store']);
+        $this->middleware(['permission:settings'])->only(['edit', 'update']);
+        $this->middleware(['permission:settings'])->only(['destroy']);
     }
 
     public function index()

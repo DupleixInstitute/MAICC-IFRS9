@@ -29,7 +29,7 @@
               <dt class="text-sm font-medium text-gray-500 truncate">
                 Active Models
               </dt>
-              <dd class="mt-1 text-lg font-semibold text-green-600">
+              <dd class="mt-1 text-lg font-semibold text-maiic-600">
                 {{ activeModelsCount }}
               </dd>
             </div>
@@ -39,7 +39,7 @@
               <dt class="text-sm font-medium text-gray-500 truncate">
                 Avg R²
               </dt>
-              <dd class="mt-1 text-2xl font-semibold text-blue-600">
+              <dd class="mt-1 text-2xl font-semibold text-maiic-600">
                 {{ averageRSquared }}
               </dd>
             </div>
@@ -49,7 +49,7 @@
               <dt class="text-sm font-medium text-gray-500 truncate">
                 Approved Models
               </dt>
-              <dd class="mt-1 text-2xl font-semibold text-indigo-600">
+              <dd class="mt-1 text-2xl font-semibold text-maiic-600">
                 {{ approvedModelsCount }}
               </dd>
             </div>
@@ -61,7 +61,7 @@
           <div class="flex space-x-3">
             <inertia-link
               :href="route('regression.create')"
-              class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+              class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-maiic-800 focus:outline-none focus:border-maiic-800 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
             >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -131,10 +131,10 @@
                       <span :class="getStatusBadgeClass(model)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                         {{ model.is_active ? 'Active' : 'Inactive' }}
                       </span>
-                      <span v-if="model.is_approved" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span v-if="model.is_approved" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-maiic-100 text-maiic-800">
                         Approved
                       </span>
-                      <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                         Pending Approval
                       </span>
                     </div>
@@ -143,13 +143,13 @@
                     <div class="flex space-x-2">
                       <inertia-link
                         :href="route('regression.view', model.id)"
-                        class="text-indigo-600 hover:text-indigo-900"
+                        class="text-maiic-600 hover:text-maiic-900"
                       >
                         View
                       </inertia-link>
                       <button
                         @click="toggleActive(model)"
-                        :class="model.is_active ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900'"
+                        :class="model.is_active ? 'text-amber-600 hover:text-amber-900' : 'text-maiic-600 hover:text-maiic-900'"
                         class="transition-colors duration-150"
                       >
                         {{ model.is_active ? 'Deactivate' : 'Activate' }}
@@ -173,8 +173,8 @@
                 <inertia-link
                   v-else
                   :href="link.url"
-                  class="mr-1 mb-1 px-3 py-2 text-sm leading-4 border rounded hover:bg-white focus:border-maiic-500 focus:text-indigo-500 transition-colors duration-150"
-                  :class="{ 'bg-white font-semibold text-indigo-700': link.active }"
+                  class="mr-1 mb-1 px-3 py-2 text-sm leading-4 border rounded hover:bg-white focus:border-maiic-500 focus:text-maiic-500 transition-colors duration-150"
+                  :class="{ 'bg-white font-semibold text-maiic-700': link.active }"
                   v-html="link.label"
                 />
               </template>
@@ -192,7 +192,7 @@
           <div class="mt-6">
             <inertia-link
               :href="route('regression.create')"
-              class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 transition"
+              class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-maiic-200 active:bg-maiic-800 transition"
             >
               Train New Model
             </inertia-link>
@@ -234,13 +234,13 @@ export default {
       })
     },
     getRSquaredColor(rSquared) {
-      if (rSquared >= 0.8) return 'text-green-600'
-      if (rSquared >= 0.6) return 'text-yellow-600'
+      if (rSquared >= 0.8) return 'text-maiic-600'
+      if (rSquared >= 0.6) return 'text-amber-600'
       return 'text-red-600'
     },
     getStatusBadgeClass(model) {
       return model.is_active 
-        ? 'bg-green-100 text-green-800' 
+        ? 'bg-maiic-100 text-maiic-800' 
         : 'bg-gray-100 text-gray-800'
     },
     toggleActive(model) {

@@ -19,12 +19,12 @@
                 </template>
             </jet-dropdown>
             <input
-                class="relative w-full px-6 py-3 rounded-r focus:shadow-outline border-gray-300 focus:border-indigo-300"
+                class="relative w-full px-6 py-3 rounded-r focus:shadow-outline border-gray-300 focus:border-maiic-300"
                 autocomplete="off" type="text"
                 name="search" placeholder="Search…" :value="modelValue" autofocus
                 @input="$emit('update:modelValue', $event.target.value)">
         </div>
-        <button class="ml-3 text-sm text-gray-500 hover:text-gray-700 focus:text-indigo-500" type="button"
+        <button class="ml-3 text-sm text-gray-500 hover:text-gray-700 focus:text-maiic-600" type="button"
                 @click="$emit('reset')">Reset
         </button>
     </div>

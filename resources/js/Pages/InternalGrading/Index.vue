@@ -50,7 +50,7 @@
                                 <!-- View Matrix -->
                                 <button
                                 @click.stop="openMatrix(profile)"
-                                class="text-blue-500 hover:text-indigo-600 transition"
+                                class="text-maiic-500 hover:text-maiic-600 transition"
                                 title="View PD Matrix"
                                 >
                                 <i class="fas fa-eye"></i>
@@ -62,7 +62,7 @@
                                     class="transition"
                                     :title="profile.is_active ? 'Deactivate profile' : 'Activate profile'"
                                 >
-                                    <span v-if="profile.is_active" class="text-green-600">
+                                    <span v-if="profile.is_active" class="text-maiic-600">
                                         <i class="fas fa-unlock"></i>
                                     </span>
                                     <span v-else class="text-red-600">
@@ -111,7 +111,7 @@
                                         </button>
                                 </template>
                                 <template v-else>
-                                    <span class="text-indigo-600 cursor-pointer" @click="goToGrades(profile.id)">
+                                    <span class="text-maiic-600 cursor-pointer" @click="goToGrades(profile.id)">
                                         Manage Grades →
                                     </span>
                                 </template>
@@ -152,13 +152,13 @@
             <input
                 v-model="form.name"
                 placeholder="Profile Name"
-                class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-maiic-200"
             />
 
             <textarea
                 v-model="form.description"
                 placeholder="Description"
-                class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-maiic-200"
             />
 
             <!-- Max Tenor Years -->
@@ -170,7 +170,7 @@
                     min="1"
                     max="30"
                     placeholder="e.g., 5"
-                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-maiic-200"
                 />
                 <p class="text-xs text-gray-500 mt-1">
                     Maximum number of years for PD curves. All grades in this profile will follow this limit.
@@ -421,6 +421,6 @@ const updateLoanBookWithPD = () => {
     )
 }
 
-const activeClass = 'bg-green-100 text-green-700'
-const draftClass = 'bg-yellow-100 text-yellow-700'
+const activeClass = 'bg-maiic-100 text-maiic-700'
+const draftClass = 'bg-amber-100 text-amber-700'
 </script>

@@ -71,10 +71,10 @@
                     </div>
 
                     <!-- Info Box -->
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 mb-4">
                         <div class="flex">
-                            <i class="fas fa-info-circle text-blue-500 mt-1 mr-2"></i>
-                            <div class="text-sm text-blue-700">
+                            <i class="fas fa-info-circle text-maiic-500 mt-1 mr-2"></i>
+                            <div class="text-sm text-maiic-700">
                                 <p class="font-medium">Processing Information:</p>
                                 <ul class="list-disc ml-4 mt-1">
                                     <li>Large datasets will be processed in the background</li>

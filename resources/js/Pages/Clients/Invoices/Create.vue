@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">Clients
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class=" mx-auto">
@@ -56,7 +56,7 @@
                                 <div>
                                     <jet-label for="sponsor" value="Sponsor"/>
                                     <select
-                                        class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                        class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                         name="sponsor" v-model="form.sponsor" id="sponsor">
                                         <option value="cash">Cash</option>
                                         <option value="co_payer">CoPayer</option>

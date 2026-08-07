@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">Clients
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class="mx-auto">
@@ -60,7 +60,7 @@
                                               class="ml-2 text-red-600" title="Not balanced"><font-awesome-icon
                                             icon="times-circle"></font-awesome-icon></span>
                                         <span v-if="sheet.total_assets===sheet.total_equity_liabilities"
-                                              class="ml-2 text-green-600" title="Balanced"><font-awesome-icon
+                                              class="ml-2 text-maiic-600" title="Balanced"><font-awesome-icon
                                             icon="check-circle"></font-awesome-icon></span>
                                     </span>
                                 </td>
@@ -84,7 +84,7 @@
                                     <div class=" flex items-center space-x-2">
                                         <inertia-link v-if="can('clients.balance_sheet.update')"
                                                       :href="route('clients.balance_sheets.edit', sheet.id)"
-                                                      tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                                      tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                             Edit
                                         </inertia-link>
                                         <a href="#" v-if="can('clients.balance_sheet.destroy')"

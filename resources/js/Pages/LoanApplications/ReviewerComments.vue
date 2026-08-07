@@ -57,7 +57,7 @@
                                                 <path fill-rule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clip-rule="evenodd" />
                                             </svg>
                                             <a :href="getDownloadUrl(attachment.file_path)"
-                                               class="text-sm text-blue-600 hover:text-blue-800">
+                                               class="text-sm text-maiic-600 hover:text-maiic-800">
                                                 {{ attachment.file_name }}
                                             </a>
                                         </div>
@@ -66,7 +66,7 @@
                                     <!-- Action Buttons -->
                                     <div class="mt-2 flex space-x-2">
                                         <button @click="showReplyModal(comment)"
-                                                class="text-sm text-blue-600 hover:text-blue-800">
+                                                class="text-sm text-maiic-600 hover:text-maiic-800">
                                             Reply
                                         </button>
                                     </div>
@@ -110,7 +110,7 @@
                         <jet-label for="comment_section" value="Comment Section" />
                         <select v-model="form.comment_section"
                                 id="comment_section"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200">
                             <option value="">Select a section</option>
                             <option v-for="group in attributeGroups"
                                     :key="group.id"
@@ -127,7 +127,7 @@
                         <textarea v-model="form.comment"
                                   id="comment"
                                   rows="4"
-                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"></textarea>
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200"></textarea>
                         <jet-input-error :message="form.errors.comment" class="mt-1" />
                     </div>
 
@@ -143,8 +143,8 @@
                                               file:mr-4 file:py-2 file:px-4
                                               file:rounded-md file:border-0
                                               file:text-sm file:font-semibold
-                                              file:bg-blue-50 file:text-blue-700
-                                              hover:file:bg-blue-100" />
+                                              file:bg-maiic-50 file:text-maiic-700
+                                              hover:file:bg-maiic-100" />
                             </div>
                             <button type="button"
                                     @click="removeDocument(index)"
@@ -156,7 +156,7 @@
                         </div>
                         <button type="button"
                                 @click="addDocument"
-                                class="text-sm text-blue-600 hover:text-blue-800">
+                                class="text-sm text-maiic-600 hover:text-maiic-800">
                             + Add Attachment
                         </button>
                     </div>
@@ -191,7 +191,7 @@
                         <textarea v-model="replyForm.content"
                                   id="reply"
                                   rows="4"
-                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"></textarea>
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200"></textarea>
                         <jet-input-error :message="replyForm.errors.content" class="mt-1" />
                     </div>
 
@@ -207,8 +207,8 @@
                                               file:mr-4 file:py-2 file:px-4
                                               file:rounded-md file:border-0
                                               file:text-sm file:font-semibold
-                                              file:bg-blue-50 file:text-blue-700
-                                              hover:file:bg-blue-100" />
+                                              file:bg-maiic-50 file:text-maiic-700
+                                              hover:file:bg-maiic-100" />
                             </div>
                             <button type="button"
                                     @click="removeReplyAttachment(index)"
@@ -220,7 +220,7 @@
                         </div>
                         <button type="button"
                                 @click="addReplyAttachment"
-                                class="text-sm text-blue-600 hover:text-blue-800">
+                                class="text-sm text-maiic-600 hover:text-maiic-800">
                             + Add Attachment
                         </button>
                     </div>
@@ -426,6 +426,6 @@ export default {
 
 <style scoped>
 .btn-primary {
-    @apply inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring focus:ring-blue-300 disabled:opacity-25 transition;
+    @apply inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition;
 }
 </style>

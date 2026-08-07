@@ -74,13 +74,13 @@
                   <div class="space-y-2">
                     <div>
                       <label class="inline-flex items-center">
-                        <input type="checkbox" v-model="config.is_reporting_period" class="rounded border-gray-300 text-indigo-600 shadow-sm">
+                        <input type="checkbox" v-model="config.is_reporting_period" class="rounded border-gray-300 text-maiic-600 shadow-sm">
                         <span class="ml-2 text-sm text-gray-600">Is Reporting Period</span>
                       </label>
                     </div>
                     <div>
                       <label class="inline-flex items-center">
-                        <input type="checkbox" v-model="config.is_portfolio_group_id" class="rounded border-gray-300 text-indigo-600 shadow-sm">
+                        <input type="checkbox" v-model="config.is_portfolio_group_id" class="rounded border-gray-300 text-maiic-600 shadow-sm">
                         <span class="ml-2 text-sm text-gray-600">Is Portfolio Group</span>
                       </label>
                     </div>

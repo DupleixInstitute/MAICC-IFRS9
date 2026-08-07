@@ -3,10 +3,10 @@
     <template #header>
       <div>
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('collateral.allocations.index')">
+        <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('collateral.allocations.index')">
           Collateral
         </inertia-link>
-        <span class="text-indigo-400 font-medium">/</span>Auto Allocate Collateral
+        <span class="text-maiic-500 font-medium">/</span>Auto Allocate Collateral
         </h2>
         <p class="mt-1 text-sm text-gray-600">
           Select Allocation Basis, Reporting Period, and Collateral Reporting Period
@@ -26,7 +26,7 @@
                 <select
                   v-model="form.allocation_basis"
                   id="allocation_basis"
-                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
+                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-maiic-300 rounded-lg shadow-sm py-2.5"
                 >
                   <option value="proportional">Proportional</option>
                   <option value="descending">Descending Exposure</option>
@@ -47,7 +47,7 @@
                   v-model="form.reporting_year"
                   min="2000"
                   :max="new Date().getFullYear()"
-                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
+                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-maiic-300 rounded-lg shadow-sm py-2.5"
                 />
                 <p v-if="form.errors.reporting_year" class="text-red-500 text-sm mt-1">
                   {{ form.errors.reporting_year }}
@@ -60,7 +60,7 @@
                 <select
                   v-model="form.reporting_month"
                   id="reporting_month"
-                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
+                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-maiic-300 rounded-lg shadow-sm py-2.5"
                 >
                   <option disabled value="">Select Month</option>
                   <option v-for="(month, index) in months" :key="index" :value="index + 1">
@@ -78,7 +78,7 @@
                 <select
                   v-model="form.registration_date"
                   id="registration_date"
-                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-indigo-300 rounded-lg shadow-sm py-2.5"
+                  class="mt-2 block w-full border-gray-300 focus:border-maiic-500 focus:ring-maiic-300 rounded-lg shadow-sm py-2.5"
                 >
                   <option disabled value="">Select Reporting Date</option>
                   <option v-for="(date, index) in registerDates" :key="index" :value="date">

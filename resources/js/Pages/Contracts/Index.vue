@@ -127,7 +127,7 @@
                                 <a
                                     @click.prevent="downloadSample"
                                     href="#"
-                                    class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                                    class="inline-flex items-center text-sm text-maiic-600 hover:text-maiic-500"
                                 >
                                     <svg class="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -155,7 +155,7 @@
                                         ref="fileInput"
                                         accept=".csv"
                                         required
-                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-maiic-50 file:text-maiic-700 hover:file:bg-maiic-100"
                                         @change="handleFileChange"
                                     />
                                 </div>
@@ -213,7 +213,7 @@
                                     </div>
                                     <div class="text-center">
                                         <div class="font-medium text-gray-500">Successful</div>
-                                        <div class="mt-1 text-2xl font-semibold text-green-600">{{ importErrors.successful }}</div>
+                                        <div class="mt-1 text-2xl font-semibold text-maiic-600">{{ importErrors.successful }}</div>
                                     </div>
                                     <div class="text-center">
                                         <div class="font-medium text-gray-500">Failed</div>
@@ -409,8 +409,8 @@ export default {
         getStatusClass(contract) {
             const baseClasses = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full '
             if (contract.write_off_date) return baseClasses + 'bg-red-100 text-red-800'
-            if (contract.closed_date) return baseClasses + 'bg-green-100 text-green-800'
-            return baseClasses + 'bg-blue-100 text-blue-800'
+            if (contract.closed_date) return baseClasses + 'bg-maiic-100 text-maiic-800'
+            return baseClasses + 'bg-maiic-100 text-maiic-800'
         },
     },
 }

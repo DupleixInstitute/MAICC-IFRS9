@@ -40,14 +40,14 @@
               <td class="py-2 px-4 text-center space-x-3">
                 <button
                   @click="openForm(stat)"
-                  class="px-2 py-1 text-green-400 hover:text-green-600 transition-colors"
+                  class="px-2 py-1 text-maiic-400 hover:text-maiic-600 transition-colors"
                   title="Edit Variable"
                 >
                   <i class="fas fa-pencil"></i>
                 </button>
                 <button
                   @click="viewValues(stat.id)"
-                  class="px-2 py-1 text-indigo-400 hover:text-indigo-600 transition-colors"
+                  class="px-2 py-1 text-maiic-500 hover:text-maiic-600 transition-colors"
                   title="Go to Values"
                 >
                   <i class="fas fa-tasks"></i>

@@ -167,10 +167,19 @@ class ExpectedCreditLossController extends Controller
                 $query->where('ifrs9stage_post_qualitative', $request->input('stage'));
             }
 
-            // Get current summary data
-            $currentExposure = $query->clone()->sum('carrying_amount');
-            $currentLoss = $query->clone()->sum('ecl_value');
-            $currentLoans = $query->clone()->count();
+            // Current summary + stage split in ONE aggregate pass (was 6
+            // separate full scans).
+            $agg = $query->clone()->selectRaw(
+                'COUNT(*) as total_loans,
+                 COALESCE(SUM(carrying_amount),0) as exposure,
+                 COALESCE(SUM(ecl_value),0) as loss,
+                 SUM(CASE WHEN ifrs9stage_post_qualitative = 1 THEN 1 ELSE 0 END) as s1,
+                 SUM(CASE WHEN ifrs9stage_post_qualitative = 2 THEN 1 ELSE 0 END) as s2,
+                 SUM(CASE WHEN ifrs9stage_post_qualitative = 3 THEN 1 ELSE 0 END) as s3'
+            )->first();
+            $currentExposure = (float) $agg->exposure;
+            $currentLoss = (float) $agg->loss;
+            $currentLoans = (int) $agg->total_loans;
             
             // Get previous ECL calculation data for comparison
             $previousData = null;
@@ -231,9 +240,9 @@ class ExpectedCreditLossController extends Controller
                 'loss_change_percent' => $lossChangePercent,
                 'periods' => $periods,
                 'stage_counts' => [
-                    'stage_1' => $query->clone()->where('ifrs9stage_post_qualitative', 1)->count(),
-                    'stage_2' => $query->clone()->where('ifrs9stage_post_qualitative', 2)->count(),
-                    'stage_3' => $query->clone()->where('ifrs9stage_post_qualitative', 3)->count(),
+                    'stage_1' => (int) $agg->s1,
+                    'stage_2' => (int) $agg->s2,
+                    'stage_3' => (int) $agg->s3,
                 ]
             ];
 

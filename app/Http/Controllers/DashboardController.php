@@ -48,13 +48,13 @@ class DashboardController extends Controller
     }
 /**
  * IFRS 9 ECL dashboard. Everything is scoped by the global filter bar:
- * reporting period, loan portfolio and a compare-to period — all values
+ * reporting period, loan portfolio and a compare-to period - all values
  * come from the database (reporting_periods / loan_portfolios), nothing
  * is hardcoded.
  */
 public function index(Request $request)
 {
-    // Available periods (Y-m, newest first) — only those with ECL calculated.
+    // Available periods (Y-m, newest first) - only those with ECL calculated.
     $periods = ReportingPeriods::where('ecl_calculated', true)
         ->orderBy('period', 'desc')
         ->pluck('period')
@@ -178,6 +178,7 @@ public function index(Request $request)
             'ecl_percentage' => $cGross > 0 ? round(($cEcl / $cGross) * 100, 2) : 0,
             'stage_3_amount' => $cS3,
             'stage_3_percentage' => $cGross > 0 ? round(($cS3 / $cGross) * 100, 2) : 0,
+            'paid_amount' => $cGross - $cEcl,
             'weighted_pd' => $cSumEad > 0 ? ($cPd1 * $cS1 + $cPd2 * $cS2 + $cPd3 * $cS3) / $cSumEad : 0,
             'weighted_lgd' => $cSumEad > 0 ? ($cLgd * $cS3) / $cSumEad : 0,
         ];

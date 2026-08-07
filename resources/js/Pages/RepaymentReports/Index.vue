@@ -138,14 +138,14 @@
                                 <div class="flex justify-center space-x-2">
                                     <!-- View Details -->
                                     <Link :href="route('lgd-calculations.show', calc.id)"
-                                          class="text-blue-600 hover:text-blue-800" title="View Details">
+                                          class="text-maiic-600 hover:text-maiic-800" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </Link>
 
                                     <!-- Recalculate -->
                                     <button v-if="calc.status === 'completed'"
                                             @click="recalculate(calc.id)"
-                                            class="text-green-600 hover:text-green-800"
+                                            class="text-maiic-600 hover:text-maiic-800"
                                             title="Recalculate">
                                         <i class="fas fa-redo-alt"></i>
                                     </button>
@@ -153,7 +153,7 @@
                                     <!-- Cancel (if pending/processing) -->
                                     <button v-if="['pending', 'processing'].includes(calc.status)"
                                             @click="cancelCalculation(calc.id)"
-                                            class="text-yellow-600 hover:text-yellow-800"
+                                            class="text-amber-600 hover:text-amber-800"
                                             title="Cancel">
                                         <i class="fas fa-times-circle"></i>
                                     </button>
@@ -161,7 +161,7 @@
                                     <!-- Export -->
                                     <a v-if="calc.status === 'completed'"
                                        :href="route('lgd-calculations.export', calc.id)"
-                                       class="text-purple-600 hover:text-purple-800"
+                                       class="text-maiic-600 hover:text-maiic-800"
                                        title="Export">
                                         <i class="fas fa-download"></i>
                                     </a>
@@ -176,8 +176,8 @@
 
                                     <!-- Compare -->
                                     <!-- <button @click="selectForComparison(calc)"
-                                            :class="{'text-purple-600': !isSelectedForComparison(calc.id), 'text-green-600': isSelectedForComparison(calc.id)}"
-                                            class="hover:text-purple-800"
+                                            :class="{'text-maiic-600': !isSelectedForComparison(calc.id), 'text-maiic-600': isSelectedForComparison(calc.id)}"
+                                            class="hover:text-maiic-800"
                                             :title="isSelectedForComparison(calc.id) ? 'Selected' : 'Select for comparison'">
                                         <i class="fas fa-balance-scale"></i>
                                     </button> -->
@@ -195,11 +195,11 @@
         </div>
 
         <!-- Comparison Bar (when 2 items selected) -->
-        <div v-if="comparisonItems.length === 2" class="fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 border-2 border-purple-500">
+        <div v-if="comparisonItems.length === 2" class="fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 border-2 border-maiic-500">
             <p class="text-sm mb-2">Comparing: #{{ comparisonItems[0].id }} and #{{ comparisonItems[1].id }}</p>
             <div class="flex space-x-2">
                 <Link :href="route('lgd-calculations.compare', {id1: comparisonItems[0].id, id2: comparisonItems[1].id})"
-                      class="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">
+                      class="px-3 py-1 bg-maiic-600 text-white rounded text-sm hover:bg-maiic-700">
                     Compare Now
                 </Link>
                 <button @click="clearComparison" class="px-3 py-1 bg-gray-300 rounded text-sm hover:bg-gray-400">
@@ -301,8 +301,8 @@ export default {
 
         const statusClass = (status, hasBeenRecalculated = false, isRecalculation = false) => {
             const classes = {
-                completed: hasBeenRecalculated ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700',
-                processing: 'bg-yellow-100 text-yellow-700',
+                completed: hasBeenRecalculated ? 'bg-amber-100 text-amber-700' : 'bg-maiic-100 text-maiic-700',
+                processing: 'bg-amber-100 text-amber-700',
                 pending: 'bg-gray-100 text-gray-700',
                 failed: 'bg-red-100 text-red-700'
             };
@@ -323,9 +323,9 @@ export default {
 
         const sourceClass = (source) => {
             const classes = {
-                manual: 'bg-blue-100 text-blue-700',
-                scheduled: 'bg-purple-100 text-purple-700',
-                api: 'bg-orange-100 text-orange-700'
+                manual: 'bg-maiic-100 text-maiic-700',
+                scheduled: 'bg-maiic-100 text-maiic-700',
+                api: 'bg-amber-100 text-amber-700'
             };
             return classes[source] || 'bg-gray-100 text-gray-700';
         };

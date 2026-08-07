@@ -43,7 +43,7 @@
                                         <span>
                                             {{ moment(decodedPurchaseCode.end_date).format("YYYY-MM-DD") }}
                                         </span>
-                                        <span v-if="decodedPurchaseCode.active" class="ml-1 px-2 rounded-full bg-green-100 text-green-800">
+                                        <span v-if="decodedPurchaseCode.active" class="ml-1 px-2 rounded-full bg-maiic-100 text-maiic-800">
                                             Active
                                         </span>
                                         <span v-if="!decodedPurchaseCode.active" class="ml-1 px-2 rounded-full bg-red-100 text-red-800">

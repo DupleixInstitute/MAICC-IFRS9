@@ -11,11 +11,11 @@
       <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         
         <!-- Debug Info (Optional - you can remove this later) -->
-        <div class="mb-6 bg-yellow-50 p-4 rounded-lg" v-if="showDebug">
-          <h3 class="text-lg font-medium text-yellow-800">Debug Info</h3>
-          <p class="text-sm text-yellow-700">Page Props: {{ JSON.stringify($page.props) }}</p>
-          <p class="text-sm text-yellow-700">Has forecastResults: {{ !!$page.props.forecastResults }}</p>
-          <p class="text-sm text-yellow-700">Processing: {{ processing }}</p>
+        <div class="mb-6 bg-amber-50 p-4 rounded-lg" v-if="showDebug">
+          <h3 class="text-lg font-medium text-amber-800">Debug Info</h3>
+          <p class="text-sm text-amber-700">Page Props: {{ JSON.stringify($page.props) }}</p>
+          <p class="text-sm text-amber-700">Has forecastResults: {{ !!$page.props.forecastResults }}</p>
+          <p class="text-sm text-amber-700">Processing: {{ processing }}</p>
         </div>
 
         <!-- Display Errors -->
@@ -140,8 +140,8 @@
                   <p class="mt-1 text-sm text-gray-500">Current value for comparison (e.g., current NPL %)</p>
                 </div>
                 <div class="md:col-span-2">
-                  <div class="bg-blue-50 p-4 rounded-md">
-                    <p class="text-sm font-medium text-blue-800">
+                  <div class="bg-maiic-50 p-4 rounded-md">
+                    <p class="text-sm font-medium text-maiic-800">
                       <strong>Regression Equation:</strong> 
                       {{ equationPreview }}
                     </p>
@@ -248,7 +248,7 @@
                   type="checkbox"
                   v-model="form.save_session"
                   id="save_session"
-                  class="h-4 w-4 text-indigo-600 focus:ring-maiic-500 border-gray-300 rounded"
+                  class="h-4 w-4 text-maiic-600 focus:ring-maiic-500 border-gray-300 rounded"
                 />
                 <label for="save_session" class="text-sm text-gray-700">
                   Save this forecast session
@@ -293,7 +293,7 @@
             >
               <h3 class="text-lg font-medium text-gray-900">
                 Forecast Results
-                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-maiic-100 text-maiic-800">
                   Generated
                 </span>
               </h3>
@@ -317,8 +317,8 @@
           <div v-show="resultsExpanded" class="p-6">
             <!-- Regression Equation -->
             <div class="mb-6">
-              <div class="bg-green-50 p-4 rounded-md">
-                <p class="text-sm font-medium text-green-800">
+              <div class="bg-maiic-50 p-4 rounded-md">
+                <p class="text-sm font-medium text-maiic-800">
                   <strong>Regression Equation Used:</strong> 
                   {{ $page.props.forecastResults.regression_equation }}
                 </p>
@@ -357,7 +357,7 @@
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {{ forecast.forecast_value.toFixed(2) }}%
                       </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm" :class="forecast.change_from_baseline >= 0 ? 'text-red-600' : 'text-green-600'">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm" :class="forecast.change_from_baseline >= 0 ? 'text-red-600' : 'text-maiic-600'">
                         {{ forecast.change_from_baseline.toFixed(2) }}%
                       </td>
                     </tr>

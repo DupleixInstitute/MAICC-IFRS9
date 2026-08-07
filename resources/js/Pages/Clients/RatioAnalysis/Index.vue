@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">Clients
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class="mx-auto">
@@ -27,7 +27,7 @@
                     <div class="mt-4 relative overflow-x-auto">
                         <table class="w-full whitespace-no-wrap table-auto">
                             <thead>
-                            <tr class="bg-blue-950 text-white">
+                            <tr class="bg-maiic-950 text-white">
                                 <th class="p-2"><h5>RATIO ANALYSIS</h5></th>
                                 <th class="p-2">Symbol</th>
                                 <th class="p-2">Z Score<br>Weights</th>
@@ -40,7 +40,7 @@
                             </thead>
                             <tbody>
 
-                            <tr class="bg-blue-200">
+                            <tr class="bg-maiic-200">
                                 <td class="p-2" colspan="10"><strong>Bankruptcy Prediction Ratios</strong></td>
                             </tr>
                             <tr class="border-b">
@@ -151,8 +151,8 @@
                             <tr class="border-b">
                                 <td class="p-2 font-bold">Z Score Thresholds - Healthy</td>
                                 <td class="p-2"></td>
-                                <td class="p-2 bg-green-800">3</td>
-                                <td class="p-2 bg-green-800">2.6</td>
+                                <td class="p-2 bg-maiic-800">3</td>
+                                <td class="p-2 bg-maiic-800">2.6</td>
                                 <td class="p-2" colspan="6"></td>
                             </tr>
                             <tr class="border-b">
@@ -162,7 +162,7 @@
                                 <td class="p-2 bg-red-600">1.1</td>
                                 <td class="p-2" colspan="6"></td>
                             </tr>
-                            <tr class="border-b bg-blue-200">
+                            <tr class="border-b bg-maiic-200">
                                 <td class="p-2 font-bold" colspan="10">Liquidity Ratios</td>
                             </tr>
                             <tr class="border-b">
@@ -246,7 +246,7 @@
                                 </td>
 
                             </tr>
-                            <tr class="border-b bg-blue-200">
+                            <tr class="border-b bg-maiic-200">
                                 <td class="p-2 font-bold" colspan="10">Profitability Ratios</td>
                             </tr>
                             <tr class="border-b">
@@ -443,7 +443,7 @@
                                 </td>
                             </tr>
 
-                            <tr class="bg-blue-200">
+                            <tr class="bg-maiic-200">
                                 <td class="p-2" colspan="10">Capital Structure Ratios</td>
                             </tr>
                             <tr class="border-b">
@@ -578,7 +578,7 @@
                                     <jet-input type="text" class="w-full" v-model="form.solvency_comment"/>
                                 </td>
                             </tr>
-                            <tr class="bg-blue-200">
+                            <tr class="bg-maiic-200">
                                 <td class="p-2" colspan="10">Debt Service Ratios</td>
                             </tr>
                             <tr class="border-b">
@@ -635,7 +635,7 @@
                                     <jet-input type="text" class="w-full" v-model="form.gross_interest_debts_comment"/>
                                 </td>
                             </tr>
-                            <tr class="bg-blue-200">
+                            <tr class="bg-maiic-200">
                                 <td class="p-2" colspan="10">Activity Ratios</td>
                             </tr>
                             <tr class="border-b">

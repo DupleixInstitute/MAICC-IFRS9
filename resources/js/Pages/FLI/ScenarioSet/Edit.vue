@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('fli.scenarios.index')">Economic Scenario Sets
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('fli.scenarios.index')">Economic Scenario Sets
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Edit
+                <span class="text-maiic-500 font-medium">/</span> Edit
             </h2>
         </template>
         <div class="mx-auto">
@@ -20,7 +20,7 @@
                         </div>
                         <div>
                             <jet-label for="description" value="Description"/>
-                            <textarea id="description" class="block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm"
+                            <textarea id="description" class="block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm"
                                       v-model="form.description"></textarea>
                             <jet-input-error :message="form.errors.description" class="mt-2"/>
                         </div>
@@ -37,7 +37,7 @@
                     <div class="mt-6 border-t pt-4">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-medium text-gray-900">Scenarios</h3>
-                            <button type="button" @click="addScenario" class="text-sm text-indigo-600 hover:text-indigo-900 font-semibold">
+                            <button type="button" @click="addScenario" class="text-sm text-maiic-600 hover:text-maiic-900 font-semibold">
                                 + Add Scenario
                             </button>
                         </div>
@@ -69,7 +69,7 @@
                         </div>
                         
                         <div class="mt-2 flex justify-end items-center">
-                            <div class="mr-4 font-medium" :class="{'text-green-600': totalProbability === 100, 'text-red-600': totalProbability !== 100}">
+                            <div class="mr-4 font-medium" :class="{'text-maiic-600': totalProbability === 100, 'text-red-600': totalProbability !== 100}">
                                 Total Probability: {{ totalProbability }}%
                             </div>
                         </div>

@@ -4,7 +4,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-6 h-6 mr-2 text-maiic-600" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z"></path>
                             <path fill-rule="evenodd" d="M3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
                         </svg>
@@ -13,10 +13,10 @@
                     <p class="mt-1 text-sm text-gray-600">Manage individual risk factors within SICR groups</p>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <div class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">
+                    <div class="px-3 py-1 bg-maiic-100 text-maiic-800 text-xs font-medium rounded-full">
                         {{ items?.data?.length || 0 }} Items
                     </div>
-                    <div v-if="activeFilter" class="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                    <div v-if="activeFilter" class="px-3 py-1 bg-maiic-100 text-maiic-800 text-xs font-medium rounded-full">
                         Filtered: {{ activeFilter }}
                     </div>
                 </div>
@@ -71,7 +71,7 @@
                         </button>
                         <button
                             @click="openModal"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-green-400 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 transition-all duration-200"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-maiic-400 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 transition-all duration-200"
                         >
                             <svg class="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
@@ -122,13 +122,13 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr v-for="(item, index) in items.data" :key="item.id" 
                                 :class="index % 2 === 0 ? 'bg-white' : 'bg-gray-50'"
-                                class="hover:bg-indigo-50 transition-colors duration-150"
+                                class="hover:bg-maiic-50 transition-colors duration-150"
                             >
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-8 w-8">
-                                            <div class="h-8 w-8 rounded bg-indigo-100 flex items-center justify-center">
-                                                <span class="text-xs font-medium text-indigo-600">{{ item.group?.name?.substring(0, 2).toUpperCase() }}</span>
+                                            <div class="h-8 w-8 rounded bg-maiic-100 flex items-center justify-center">
+                                                <span class="text-xs font-medium text-maiic-600">{{ item.group?.name?.substring(0, 2).toUpperCase() }}</span>
                                             </div>
                                         </div>
                                         <div class="ml-4">
@@ -142,10 +142,10 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <button
                                         @click="toggle(item.id)"
-                                        :class="item.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                                        :class="item.active ? 'bg-maiic-100 text-maiic-800' : 'bg-red-100 text-red-800'"
                                         class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors duration-200 hover:opacity-75"
                                     >
-                                        <svg :class="item.active ? 'text-green-400' : 'text-red-400'" class="-ml-0.5 mr-1.5 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                                        <svg :class="item.active ? 'text-maiic-400' : 'text-red-400'" class="-ml-0.5 mr-1.5 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
                                             <circle cx="4" cy="4" r="3"/>
                                         </svg>
                                         {{ item.active ? 'Active' : 'Inactive' }}
@@ -155,7 +155,7 @@
                                     <div class="flex justify-end space-x-2">
                                         <button
                                             @click="edit(item)"
-                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-200"
+                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-maiic-700 bg-maiic-100 hover:bg-maiic-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 transition-all duration-200"
                                         >
                                             <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                 <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
@@ -184,7 +184,7 @@
                                         <p class="text-sm text-gray-500 mb-4">{{ filters.group_id ? 'No items in this group yet.' : 'Get started by creating your first item above.' }}</p>
                                         <button
                                             @click="openModal"
-                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-maiic-700 bg-maiic-100 hover:bg-maiic-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500"
                                         >
                                             <svg class="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
@@ -207,7 +207,7 @@
         <!-- Add/Edit Item Modal -->
         <jet-modal :show="showModal" @close="closeModal" max-width="2xl">
             <div class="bg-white rounded-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+                <div class="bg-gradient-to-r from-maiic-600 to-maiic-600 px-6 py-4">
                     <h3 class="text-lg font-semibold text-white flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path v-if="!editingId" fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
@@ -215,7 +215,7 @@
                         </svg>
                         {{ editingId ? 'Edit SICR Item' : 'Add New SICR Item' }}
                     </h3>
-                    <p class="mt-1 text-purple-100 text-sm">{{ editingId ? 'Update the item information' : 'Create a new risk factor item within a group' }}</p>
+                    <p class="mt-1 text-maiic-100 text-sm">{{ editingId ? 'Update the item information' : 'Create a new risk factor item within a group' }}</p>
                 </div>
                 
                 <form @submit.prevent="save" class="p-6">
@@ -268,16 +268,16 @@
                             </div>
                         </div>
                         
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4">
                             <div class="flex">
                                 <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg class="h-5 w-5 text-maiic-400" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                                     </svg>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-blue-800">Item Status</h3>
-                                    <div class="mt-2 text-sm text-blue-700">
+                                    <h3 class="text-sm font-medium text-maiic-800">Item Status</h3>
+                                    <div class="mt-2 text-sm text-maiic-700">
                                         <p>New items are created as <strong>Active</strong> by default. You can toggle the status later using the status button in the table.</p>
                                     </div>
                                 </div>
@@ -290,14 +290,14 @@
                             type="button"
                             @click="closeModal"
                             :disabled="processing"
-                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             :disabled="processing || !form.name || !form.group_id"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-maiic-600 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             <svg v-if="processing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -316,28 +316,28 @@
         <!-- Bulk Import Modal -->
         <jet-modal :show="showImportModal" @close="closeImportModal" max-width="lg">
             <div class="bg-white rounded-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-teal-600 to-cyan-600 px-6 py-4">
+                <div class="bg-gradient-to-r from-maiic-600 to-maiic-600 px-6 py-4">
                     <h3 class="text-lg font-semibold text-white flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
                         </svg>
                         Bulk Import SICR Items
                     </h3>
-                    <p class="mt-1 text-teal-100 text-sm">Import multiple items from a CSV file</p>
+                    <p class="mt-1 text-maiic-100 text-sm">Import multiple items from a CSV file</p>
                 </div>
                 
                 <div class="p-6">
                     <div class="mb-4">
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 mb-4">
                             <div class="flex">
                                 <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg class="h-5 w-5 text-maiic-400" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                                     </svg>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-blue-800">CSV Format Requirements</h3>
-                                    <div class="mt-2 text-sm text-blue-700">
+                                    <h3 class="text-sm font-medium text-maiic-800">CSV Format Requirements</h3>
+                                    <div class="mt-2 text-sm text-maiic-700">
                                         <p>Your CSV file should contain the following columns:</p>
                                         <ul class="list-disc list-inside mt-2">
                                             <li><strong>group</strong> - Group name (must exist)</li>
@@ -359,7 +359,7 @@
                                     type="file" 
                                     @change="onFile" 
                                     accept=".csv,text/csv" 
-                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 file:cursor-pointer border border-gray-300 rounded-md"
+                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-maiic-50 file:text-maiic-700 hover:file:bg-maiic-100 file:cursor-pointer border border-gray-300 rounded-md"
                                     :disabled="processing"
                                 />
                             </div>
@@ -371,7 +371,7 @@
                             type="button"
                             @click="closeImportModal"
                             :disabled="processing"
-                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             Cancel
                         </button>
@@ -379,7 +379,7 @@
                             type="button"
                             @click="uploadCsv"
                             :disabled="processing || !csvFile"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-maiic-600 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             <svg v-if="processing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -527,15 +527,15 @@ export default {
 
 <style scoped>
 .form-input {
-    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200;
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:border-maiic-500 transition-all duration-200;
 }
 
 .form-input:focus {
-    @apply border-purple-300 bg-purple-50;
+    @apply border-maiic-300 bg-maiic-50;
 }
 
 .filter-select {
-    @apply block w-full pl-3 pr-10 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 sm:text-sm;
+    @apply block w-full pl-3 pr-10 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:border-maiic-500 transition-all duration-200 sm:text-sm;
 }
 
 .bg-gradient-to-r {

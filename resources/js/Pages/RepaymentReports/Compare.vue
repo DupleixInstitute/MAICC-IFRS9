@@ -169,8 +169,8 @@ export default {
 
         const statusClass = (status) => {
             const classes = {
-                completed: 'bg-green-100 text-green-700',
-                processing: 'bg-yellow-100 text-yellow-700',
+                completed: 'bg-maiic-100 text-maiic-700',
+                processing: 'bg-amber-100 text-amber-700',
                 pending: 'bg-gray-100 text-gray-700',
                 failed: 'bg-red-100 text-red-700'
             };
@@ -179,7 +179,7 @@ export default {
 
         const diffClass = (value) => {
             const n = Number(value || 0);
-            if (n > 0) return 'text-green-600 font-medium';
+            if (n > 0) return 'text-maiic-600 font-medium';
             if (n < 0) return 'text-red-600 font-medium';
             return 'text-gray-500';
         };

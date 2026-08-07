@@ -22,9 +22,9 @@
     .kpi .l { font-size: 8px; text-transform: uppercase; letter-spacing: .5px; opacity: .85; }
     .kpi .v { font-size: 15px; font-weight: bold; margin-top: 3px; }
     .t-maiic   { background: #16a34a; }
-    .t-rose    { background: #e11d48; }
+    .t-rose    { background: #dc2626; }
     .t-amber   { background: #d97706; }
-    .t-emerald { background: #059669; }
+    .t-emerald { background: #16a34a; }
 
     .sec { margin-bottom: 18px; }
     .sec h3 { font-size: 12px; color: #14532d; margin: 0 0 6px 0;

@@ -2,10 +2,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('loan_applications.loan-book')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('loan_applications.loan-book')">
                     Loan Books
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Import
+                <span class="text-maiic-500 font-medium">/</span> Import
             </h2>
         </template>
 
@@ -71,12 +71,12 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'legacy' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    :class="importType === 'legacy' ? 'border-maiic-500 bg-maiic-50' : 'border-gray-300 hover:border-gray-400'"
                                     @click="importType = 'legacy'"
                                 >
                                     <div class="flex items-center space-x-3">
                                         <div class="flex-shrink-0">
-                                            <input type="radio" v-model="importType" value="legacy" class="h-4 w-4 text-indigo-600 border-gray-300"/>
+                                            <input type="radio" v-model="importType" value="legacy" class="h-4 w-4 text-maiic-600 border-gray-300"/>
                                         </div>
                                         <div class="flex-1">
                                             <h5 class="text-sm font-medium text-gray-900">Legacy Format</h5>
@@ -88,12 +88,12 @@
                                 </div>
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'group' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    :class="importType === 'group' ? 'border-maiic-500 bg-maiic-50' : 'border-gray-300 hover:border-gray-400'"
                                     @click="importType = 'group'"
                                 >
                                     <div class="flex items-center space-x-3">
                                         <div class="flex-shrink-0">
-                                            <input type="radio" v-model="importType" value="group" class="h-4 w-4 text-indigo-600 border-gray-300"/>
+                                            <input type="radio" v-model="importType" value="group" class="h-4 w-4 text-maiic-600 border-gray-300"/>
                                         </div>
                                         <div class="flex-1">
                                             <h5 class="text-sm font-medium text-gray-900">E-Banker Format</h5>
@@ -106,12 +106,12 @@
 
                                 <div 
                                     class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'custom' ? 'border-maiic-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+                                    :class="importType === 'custom' ? 'border-maiic-500 bg-maiic-50' : 'border-gray-300 hover:border-gray-400'"
                                     @click="importType = 'custom'"
                                 >
                                     <div class="flex items-center space-x-3">
                                         <div class="flex-shrink-0">
-                                            <input type="radio" v-model="importType" value="custom" class="h-4 w-4 text-indigo-600 border-gray-300"/>
+                                            <input type="radio" v-model="importType" value="custom" class="h-4 w-4 text-maiic-600 border-gray-300"/>
                                         </div>
                                         <div class="flex-1">
                                             <h5 class="text-sm font-medium text-gray-900">Custom Mapping</h5>
@@ -125,16 +125,16 @@
                         </div>
 
                         <!-- E-Banker Format Info -->
-                        <div v-if="importType === 'group'" class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div v-if="importType === 'group'" class="mt-4 bg-maiic-50 border border-maiic-200 rounded-lg p-4">
                             <div class="flex">
                                 <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <svg class="h-5 w-5 text-maiic-400" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                                     </svg>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-blue-800">E-Banker Format Requirements</h3>
-                                    <div class="mt-2 text-sm text-blue-700">
+                                    <h3 class="text-sm font-medium text-maiic-800">E-Banker Format Requirements</h3>
+                                    <div class="mt-2 text-sm text-maiic-700">
                                         <ul class="list-disc list-inside space-y-1">
                                             <li>File should contain at least 15-20 columns with loan data</li>
                                             <li>Data rows should start with serial numbers (1, 2, 3, etc.)</li>
@@ -169,16 +169,16 @@
                         <!-- Legacy Auto Mapping -->
                         <!-- <div v-if="importType === 'legacy' && headers.length > 0" class="mt-6 border-t border-gray-200 pt-6">
                             <h4 class="text-sm font-medium text-gray-900 mb-4">Legacy Import Setup</h4>
-                            <div class="bg-yellow-50 p-4 rounded-lg mb-4">
-                                <h5 class="text-sm font-medium text-yellow-800 mb-2">Legacy Format Requirements:</h5>
-                                <ul class="text-xs text-yellow-700 list-disc list-inside space-y-1">
+                            <div class="bg-amber-50 p-4 rounded-lg mb-4">
+                                <h5 class="text-sm font-medium text-amber-800 mb-2">Legacy Format Requirements:</h5>
+                                <ul class="text-xs text-amber-700 list-disc list-inside space-y-1">
                                     <li>Your CSV must have exactly 2 columns</li>
                                     <li>Column 1: <strong>contract_id</strong></li>
                                     <li>Column 2: <strong>balance</strong></li>
                                 </ul>
                             </div>
-                            <div class="bg-green-50 p-4 rounded-lg">
-                                <p class="text-sm text-green-700"><strong>Auto-mapping applied:</strong> customer_id → customer_id, contract_id → contract_id</p>
+                            <div class="bg-maiic-50 p-4 rounded-lg">
+                                <p class="text-sm text-maiic-700"><strong>Auto-mapping applied:</strong> customer_id → customer_id, contract_id → contract_id</p>
                             </div>
                         </div> -->
 
@@ -215,7 +215,7 @@
                                         <option v-for="field in availableFields" :key="field" :value="field">{{ field }}</option>
                                     </select>
                                     <div class="w-20 text-xs text-gray-500 text-right">
-                                        <span v-if="mapping[header]" class="text-green-600">✓ Mapped</span>
+                                        <span v-if="mapping[header]" class="text-maiic-600">✓ Mapped</span>
                                         <span v-else class="text-gray-400">Not mapped</span>
                                     </div>
                                 </div>

@@ -4,7 +4,7 @@
       <!-- Header -->
       <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold">
-        <Link href="/macro-statistics" class="inline-flex items-center px-4 py-2 text-blue-700 rounded-md">
+        <Link href="/macro-statistics" class="inline-flex items-center px-4 py-2 text-maiic-700 rounded-md">
            <i class="fas fa-arrow-left"></i>
         </Link>{{ statistic.statistic_name }} Values
           <span class="ml-2 text-sm text-gray-500">{{ statistic.unit }}</span>
@@ -59,14 +59,14 @@
                 <td class="px-6 py-4 whitespace-nowrap">{{ value.scenario?.name || 'Base' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span :class="value.is_forecast 
-                    ? 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800'
-                    : 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800'">
+                    ? 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800'
+                    : 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800'">
                     {{ value.is_forecast ? 'Forecast' : 'Historical' }}
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ value.source || '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                  <button @click="editValue(value)" class="text-blue-600 hover:text-blue-900 mr-3">
+                  <button @click="editValue(value)" class="text-maiic-600 hover:text-maiic-900 mr-3">
                     <i class="fas fa-edit"></i> 
                   </button>
                   <button @click="deleteValue(value)" class="text-red-600 hover:text-red-900">

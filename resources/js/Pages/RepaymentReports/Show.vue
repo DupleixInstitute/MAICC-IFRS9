@@ -58,22 +58,22 @@
 
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">Contracts Processed</div>
-                <div class="text-2xl font-bold text-blue-600 mt-2">{{ calculation.total_contracts_processed.toLocaleString() }}</div>
+                <div class="text-2xl font-bold text-maiic-600 mt-2">{{ calculation.total_contracts_processed.toLocaleString() }}</div>
             </div>
 
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">Records Generated</div>
-                <div class="text-2xl font-bold text-green-600 mt-2">{{ calculation.total_records_generated.toLocaleString() }}</div>
+                <div class="text-2xl font-bold text-maiic-600 mt-2">{{ calculation.total_records_generated.toLocaleString() }}</div>
             </div>
 
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">Total Payments</div>
-                <div class="text-2xl font-bold text-purple-600 mt-2">{{ formatCurrency(calculation.total_payments_detected) }}</div>
+                <div class="text-2xl font-bold text-maiic-600 mt-2">{{ formatCurrency(calculation.total_payments_detected) }}</div>
             </div>
 
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-500">Cured Contracts</div>
-                <div class="text-2xl font-bold text-orange-600 mt-2">{{ calculation.total_cured_contracts }}</div>
+                <div class="text-2xl font-bold text-amber-600 mt-2">{{ calculation.total_cured_contracts }}</div>
             </div>
         </div>
 
@@ -116,17 +116,17 @@
         <div class="mt-6 border-b border-gray-200">
             <nav class="flex space-x-4">
                 <button @click="activeTab = 'payments'"
-                        :class="{'border-b-2 border-maiic-500 text-blue-600': activeTab === 'payments'}"
+                        :class="{'border-b-2 border-maiic-500 text-maiic-600': activeTab === 'payments'}"
                         class="px-3 py-2 text-sm font-medium">
                     Recent Payments
                 </button>
                 <button @click="activeTab = 'contracts'"
-                        :class="{'border-b-2 border-maiic-500 text-blue-600': activeTab === 'contracts'}"
+                        :class="{'border-b-2 border-maiic-500 text-maiic-600': activeTab === 'contracts'}"
                         class="px-3 py-2 text-sm font-medium">
                     Contracts
                 </button>
                 <button @click="activeTab = 'metadata'"
-                        :class="{'border-b-2 border-maiic-500 text-blue-600': activeTab === 'metadata'}"
+                        :class="{'border-b-2 border-maiic-500 text-maiic-600': activeTab === 'metadata'}"
                         class="px-3 py-2 text-sm font-medium">
                     Metadata
                 </button>
@@ -174,7 +174,7 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-center">
-                                    <span v-if="record.is_cured" class="text-green-600">
+                                    <span v-if="record.is_cured" class="text-maiic-600">
                                         <i class="fas fa-check-circle"></i>
                                     </span>
                                     <span v-else class="text-gray-400">
@@ -192,19 +192,19 @@
             <div v-if="activeTab === 'contracts'" class="bg-white shadow-md rounded-lg p-4">
                 <!-- Summary Stats -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-blue-50 rounded-lg p-4">
-                        <div class="text-sm text-blue-600 font-medium">Total Contracts</div>
-                        <div class="text-2xl font-bold text-blue-800">{{ stats.unique_contracts.toLocaleString() }}</div>
+                    <div class="bg-maiic-50 rounded-lg p-4">
+                        <div class="text-sm text-maiic-600 font-medium">Total Contracts</div>
+                        <div class="text-2xl font-bold text-maiic-800">{{ stats.unique_contracts.toLocaleString() }}</div>
                     </div>
 
-                    <div class="bg-green-50 rounded-lg p-4">
-                        <div class="text-sm text-green-600 font-medium">Cured Contracts</div>
-                        <div class="text-2xl font-bold text-green-800">{{ stats.cured_contracts.toLocaleString() }}</div>
+                    <div class="bg-maiic-50 rounded-lg p-4">
+                        <div class="text-sm text-maiic-600 font-medium">Cured Contracts</div>
+                        <div class="text-2xl font-bold text-maiic-800">{{ stats.cured_contracts.toLocaleString() }}</div>
                     </div>
 
-                    <div class="bg-yellow-50 rounded-lg p-4">
-                        <div class="text-sm text-yellow-600 font-medium">Defaulted Contracts</div>
-                        <div class="text-2xl font-bold text-yellow-800">{{ (stats.unique_contracts - stats.cured_contracts).toLocaleString() }}</div>
+                    <div class="bg-amber-50 rounded-lg p-4">
+                        <div class="text-sm text-amber-600 font-medium">Defaulted Contracts</div>
+                        <div class="text-2xl font-bold text-amber-800">{{ (stats.unique_contracts - stats.cured_contracts).toLocaleString() }}</div>
                     </div>
 
                     <div class="bg-red-50 rounded-lg p-4">
@@ -271,16 +271,16 @@
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-right">{{ formatCurrency(contract.starting_balance) }}</td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-right">{{ formatCurrency(contract.current_balance) }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-green-600">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-maiic-600">
                                     {{ formatCurrency(contract.total_payments) }}
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-right">
-                                    <span :class="contract.balance_reduction > 0 ? 'text-green-600' : 'text-gray-500'">
+                                    <span :class="contract.balance_reduction > 0 ? 'text-maiic-600' : 'text-gray-500'">
                                         {{ formatCurrency(contract.balance_reduction) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-center">
-                                    <span v-if="contract.is_cured" class="text-green-600 font-medium">
+                                    <span v-if="contract.is_cured" class="text-maiic-600 font-medium">
                                         <i class="fas fa-check-circle mr-1"></i>Cured
                                     </span>
                                     <span v-else class="text-red-600 font-medium">
@@ -315,7 +315,7 @@
                         <dd class="text-sm font-medium">
                             <Link v-if="calculation.parent_calculation_id"
                                   :href="route('lgd-calculations.show', calculation.parent_calculation_id)"
-                                  class="text-blue-600 hover:underline">
+                                  class="text-maiic-600 hover:underline">
                                 #{{ calculation.parent_calculation_id }}
                             </Link>
                             <span v-else>-</span>
@@ -463,8 +463,8 @@ export default {
 
         const statusClass = (status) => {
             const classes = {
-                completed: 'bg-green-100 text-green-700',
-                processing: 'bg-yellow-100 text-yellow-700',
+                completed: 'bg-maiic-100 text-maiic-700',
+                processing: 'bg-amber-100 text-amber-700',
                 pending: 'bg-gray-100 text-gray-700',
                 failed: 'bg-red-100 text-red-700'
             };
@@ -472,13 +472,13 @@ export default {
         };
 
         const paymentClass = (amount) => {
-            return amount > 0 ? 'text-green-600' : 'text-gray-500';
+            return amount > 0 ? 'text-maiic-600' : 'text-gray-500';
         };
 
         const paymentTypeClass = (type) => {
             const classes = {
-                full: 'bg-green-100 text-green-700',
-                partial: 'bg-yellow-100 text-yellow-700',
+                full: 'bg-maiic-100 text-maiic-700',
+                partial: 'bg-amber-100 text-amber-700',
                 none: 'bg-gray-100 text-gray-700'
             };
             return classes[type] || 'bg-gray-100 text-gray-700';
@@ -486,8 +486,8 @@ export default {
 
         const stageClass = (stage) => {
             const classes = {
-                '1': 'bg-green-100 text-green-700',
-                '2': 'bg-yellow-100 text-yellow-700',
+                '1': 'bg-maiic-100 text-maiic-700',
+                '2': 'bg-amber-100 text-amber-700',
                 '3': 'bg-red-100 text-red-700'
             };
             return classes[stage] || 'bg-gray-100 text-gray-700';

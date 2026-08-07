@@ -34,8 +34,9 @@ const currentAccent = computed(() => accent(activeTab.value))
         <div class="py-6">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-                <!-- compact header strip -->
-                <div class="bg-gradient-to-r from-maiic-600 to-maiic-800 rounded-xl shadow p-4 text-white mb-5 flex flex-wrap items-center justify-between gap-3">
+                <!-- compact header strip (same deep-green ramp as the sidebar) -->
+                <div class="rounded-xl shadow p-4 text-white mb-5 flex flex-wrap items-center justify-between gap-3"
+                     style="background: linear-gradient(120deg, #0b2b1a 0%, #14532d 55%, #15803d 100%); border: 1px solid rgba(212,160,23,0.25);">
                     <div class="min-w-0">
                         <h1 class="text-lg font-bold leading-tight">IFRS 9 Reports</h1>
                         <p class="opacity-80 text-xs">{{ company }} · pick a section, then a report. Every report exports to PDF.</p>

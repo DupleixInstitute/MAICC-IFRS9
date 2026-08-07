@@ -17,7 +17,7 @@
                                 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
                                     <tbody>
                                         <tr>
-                                            <td style="background-color:#00aaff;height:4px;">&nbsp;</td>
+                                            <td style="background-color:#16a34a;height:4px;">&nbsp;</td>
                                         </tr>
                                         <tr>
                                             <td align="center" valign="middle" style="padding: 40px 20px 20px;">
@@ -39,7 +39,7 @@
                                                 <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                                                     <tbody>
                                                         <tr>
-                                                            <td align="center" style="border-radius:50px; background-color: #f5b506; padding: 12px 35px;">
+                                                            <td align="center" style="border-radius:50px; background-color: #f59e0b; padding: 12px 35px;">
                                                                 <a href="#" style="color:#ffffff;font-family:'Open Sans',Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;line-height:20px;text-transform:uppercase;text-decoration:none;display:block;">Take Action</a>
                                                             </td>
                                                         </tr>

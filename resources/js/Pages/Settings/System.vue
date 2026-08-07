@@ -2,7 +2,7 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('settings.index')">Settings /
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('settings.index')">Settings /
                 </inertia-link>
                 System
             </h2>
@@ -14,7 +14,7 @@
                         <div>
                             <jet-label for="site_online" value="Site Online"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="site_online" v-model="form.site_online" id="site_online">
                                 <option value="yes">Yes</option>
                                 <option value="no">No</option>
@@ -24,7 +24,7 @@
                         <div>
                             <jet-label for="allow_self_registration" value="Allow Member Self Registration"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="site_online" v-model="form.allow_self_registration"
                                 id="allow_self_registration">
                                 <option value="yes">Yes</option>
@@ -63,7 +63,7 @@
                         <div>
                             <jet-label for="purchase_code_type" value="License Key Type"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="purchase_code_type" v-model="form.purchase_code_type" id="purchase_code_type">
                                 <option value="internal">Webstudio</option>
                             </select>

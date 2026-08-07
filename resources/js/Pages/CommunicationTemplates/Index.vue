@@ -52,7 +52,7 @@
                             <div class=" flex items-center space-x-2">
                                 <inertia-link v-if="can('communication.templates.update')"
                                               :href="route('communication.templates.edit', template.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('communication.templates.destroy') && !template.is_system"

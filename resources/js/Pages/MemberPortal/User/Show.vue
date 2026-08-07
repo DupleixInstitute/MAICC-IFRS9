@@ -2,10 +2,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('portal.invoices.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('portal.invoices.index')">
                     Invoices
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Invoice #{{ invoice.id }}
+                <span class="text-maiic-500 font-medium">/</span> Invoice #{{ invoice.id }}
             </h2>
         </template>
 
@@ -112,7 +112,7 @@
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="font-medium">Paid</span>
-                                    <span class="text-green-400">{{ invoice.amount - invoice.balance }}</span>
+                                    <span class="text-maiic-400">{{ invoice.amount - invoice.balance }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="font-medium">Balance</span>
@@ -256,11 +256,11 @@
                                     <td class="border-t w-px pr-2">
                                         <div class=" flex items-center space-x-2">
                                             <a href="#" @click.prevent="printPayment(invoice_payment.id)"
-                                               tabindex="-1" class="text-blue-600 hover:text-blue-900">
+                                               tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                                 Print
                                             </a>
                                             <inertia-link :href="route('billing.payments.pdf', invoice_payment.id)"
-                                                          tabindex="-1" class="text-blue-600 hover:text-blue-900">
+                                                          tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                                 PDF
                                             </inertia-link>
                                         </div>

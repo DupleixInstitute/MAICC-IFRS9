@@ -36,15 +36,15 @@
             <td class="py-2 px-4 border-b text-center align-middle">{{ profile.name }}</td>
             <td class="py-2 px-4 border-b text-center align-middle">{{ profile.created_by }}</td>
             <td class="py-2 px-4 border-b text-center align-middle">
-              <span v-if="profile.is_complete" class="text-green-600 font-bold">✔</span>
+              <span v-if="profile.is_complete" class="text-maiic-600 font-bold">✔</span>
               <span v-else class="text-red-600 font-bold">✘</span>
             </td>
             <td class="py-2 px-4 border-b text-center align-middle space-x-3">
               <button @click="viewProfile(profile)"
-               class="text-green-600 hover:text-green-800">
+               class="text-maiic-600 hover:text-maiic-800">
                 <i class="fas fa-eye"></i> 
               </button>
-              <button class="text-blue-600 hover:text-blue-800">
+              <button class="text-maiic-600 hover:text-maiic-800">
                 <i class="fas fa-edit"></i>
               </button>
               <button class="text-red-600 hover:text-red-800">

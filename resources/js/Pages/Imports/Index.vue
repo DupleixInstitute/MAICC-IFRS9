@@ -41,7 +41,7 @@
                   <td class="px-6 py-4">
                     <span :class="{
                       'px-2 py-1 text-xs rounded-full': true,
-                      'bg-green-100 text-green-800': template.active_status === 1,
+                      'bg-maiic-100 text-maiic-800': template.active_status === 1,
                       'bg-red-100 text-red-800': template.active_status === 0,
                       'bg-gray-100 text-gray-800': template.active_status === 2
                     }">
@@ -51,19 +51,19 @@
                   <td class="px-6 py-4">
                     <div class="flex space-x-2">
                       <!-- <Link :href="route('imports.process', template.id)" 
-                            class="text-indigo-600 hover:text-indigo-900">
+                            class="text-maiic-600 hover:text-maiic-900">
                         Import
                       </Link> -->
                       <button @click="downloadSample(template.id)" 
-                              class="text-green-600 hover:text-green-900">
+                              class="text-maiic-600 hover:text-maiic-900">
                         Sample
                       </button>
                       <!-- <Link :href="route('imports.edit', template.id)" 
-                            class="text-blue-600 hover:text-blue-900">
+                            class="text-maiic-600 hover:text-maiic-900">
                         Edit
                       </Link> -->
                       <button @click="toggleStatus(template)" 
-                              class="text-yellow-600 hover:text-yellow-900">
+                              class="text-amber-600 hover:text-amber-900">
                         {{ template.active_status === 1 ? 'Deactivate' : 'Activate' }}
                       </button>
                     </div>

@@ -114,8 +114,8 @@
             <td class="px-6 py-4 whitespace-nowrap">
                 <span class="px-2 py-1 text-xs font-semibold rounded-full"
                         :class="{
-                            'bg-blue-100 text-blue-800': lgdC.lgd_calculation_level === 'portfolio',
-                            'bg-yellow-100 text-yellow-800': lgdC.lgd_calculation_level === 'sector'
+                            'bg-maiic-100 text-maiic-800': lgdC.lgd_calculation_level === 'portfolio',
+                            'bg-amber-100 text-amber-800': lgdC.lgd_calculation_level === 'sector'
                         }">
                     {{ lgdC.lgd_calculation_level ? lgdC.lgd_calculation_level.toUpperCase() : '-' }}
                 </span>
@@ -151,7 +151,7 @@
                     class="px-2 py-1 rounded-full text-xs font-semibold"
                     :class="{
                       'bg-red-100 text-red-700': lgdC.is_active_or_closed === 'closed',
-                      'bg-green-100 text-green-700': lgdC.is_active_or_closed === 'active'
+                      'bg-maiic-100 text-maiic-700': lgdC.is_active_or_closed === 'active'
                     }"
                   >
                     {{ lgdC.is_active_or_closed === 'closed' ? 'Closed' : 'Active' }}
@@ -165,7 +165,7 @@
             <!-- <button
             v-if="lgd.calculation_source === 'manual'"
             @click="editLGD(lgd.id)"
-            class="text-blue-600 hover:text-blue-800 transition-colors"
+            class="text-maiic-600 hover:text-maiic-800 transition-colors"
             aria-label="Edit LGD"
           >
             <i class="fas fa-pencil"></i>
@@ -179,7 +179,7 @@
               <button 
                 v-if="lgdC.calculation_source === 'manual'"
                 @click="openUploadModal(lgdC.id)" 
-                class="text-gray-700 hover:text-yellow-900 transition-colors"
+                class="text-gray-700 hover:text-amber-900 transition-colors"
                 aria-label="Attach File"
                 title="Attach File"
               >
@@ -191,8 +191,8 @@
                 @click="lgdC.has_supporting_document ? downloadFile(lgdC.id) : downloadFile(lgdC.id)"
                 :class="[
                   lgdC.has_supporting_document 
-                    ? 'text-green-600 hover:text-green-800' 
-                    : 'text-yellow-600 hover:text-yellow-800'
+                    ? 'text-maiic-600 hover:text-maiic-800' 
+                    : 'text-amber-600 hover:text-amber-800'
                 ]"
                 :title="lgdC.has_supporting_document ? 'Download Support Doc' : 'Attach Support Doc First'"
               >
@@ -220,11 +220,11 @@
             v-else
             @click="lockLGD(lgdC.id)"
             :disabled="loading === lgdC.id"
-            class="text-green-600 hover:text-green-800"
+            class="text-maiic-600 hover:text-maiic-800"
             title="Lock LGD"
           >
             <i v-if="loading !== lgdC.id" class="fas fa-lock-open"></i>
-            <svg v-else class="animate-spin h-5 w-5 text-green-600" viewBox="0 0 24 24">
+            <svg v-else class="animate-spin h-5 w-5 text-maiic-600" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
             </svg>
@@ -233,7 +233,7 @@
             <button v-if="lgdC.is_active_or_closed === 'closed'"
             @click="openUpdateModal(lgdC)" 
             :disabled="loading === lgdC.id"  
-                class="text-blue-600 hover:text-blue-800" 
+                class="text-maiic-600 hover:text-maiic-800" 
                 title="Update Loan Book"
             >
                 <i v-if="loading !==lgdC.id" class="fas fa-book"></i>
@@ -309,7 +309,7 @@
                     id="include_customer_lgd" 
                     type="checkbox" 
                     v-model="includeCustomerLGD"
-                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-maiic-500"
+                    class="h-4 w-4 text-maiic-600 border-gray-300 rounded focus:ring-maiic-500"
                 >
                 <label for="include_customer_lgd" class="ml-2 text-sm text-gray-700">
                     Include Customer LGD in Update
@@ -351,7 +351,7 @@
 
     <!-- File Upload Box -->
     <label
-      class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 transition"
+      class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-maiic-400 transition"
     >
       <div class="flex flex-col items-center pt-4">
         <i class="fas fa-cloud-upload-alt text-3xl text-gray-500"></i>
@@ -369,10 +369,10 @@
     <!-- File Info -->
     <div
       v-if="uploadFile"
-      class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800"
+      class="mt-4 p-3 bg-maiic-50 border border-maiic-200 rounded-lg text-sm text-maiic-800"
     >
       <strong>Selected File:</strong> {{ uploadFile.name }}  
-      <div class="text-xs mt-1 text-blue-600">
+      <div class="text-xs mt-1 text-maiic-600">
         Size: {{ Math.round(uploadFile.size / 1024) }} KB
       </div>
     </div>

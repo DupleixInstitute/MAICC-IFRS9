@@ -2,7 +2,7 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('settings.index')">Settings /
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('settings.index')">Settings /
                 </inertia-link>
                 General
             </h2>
@@ -136,15 +136,15 @@ export default {
     data() {
         return {
             form: this.$inertia.form({
-                company_name: this.settings.company_name.setting_value,
-                company_email: this.settings.company_email.setting_value,
-                company_mobile: this.settings.company_mobile.setting_value,
-                company_tel: this.settings.company_tel.setting_value,
-                invoice_reference_prefix: this.settings.invoice_reference_prefix.setting_value,
-                invoice_reference_format: this.settings.invoice_reference_format.setting_value,
-                sales_email: this.settings.sales_email.setting_value,
-                invoice_due_after_days: this.settings.invoice_due_after_days.setting_value,
-                invoice_terms_and_conditions: this.settings.invoice_terms_and_conditions.setting_value,
+                company_name: this.settings.company_name?.setting_value ?? '',
+                company_email: this.settings.company_email?.setting_value ?? '',
+                company_mobile: this.settings.company_mobile?.setting_value ?? '',
+                company_tel: this.settings.company_tel?.setting_value ?? '',
+                invoice_reference_prefix: this.settings.invoice_reference_prefix?.setting_value ?? '',
+                invoice_reference_format: this.settings.invoice_reference_format?.setting_value ?? '',
+                sales_email: this.settings.sales_email?.setting_value ?? '',
+                invoice_due_after_days: this.settings.invoice_due_after_days?.setting_value ?? '',
+                invoice_terms_and_conditions: this.settings.invoice_terms_and_conditions?.setting_value ?? '',
                 company_logo: null,
                 company_small_logo: null,
                 company_letterhead: null,

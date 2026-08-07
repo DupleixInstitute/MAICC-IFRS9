@@ -36,7 +36,7 @@
                         <td class="border-t">
                             <inertia-link
                                 :href="route('scoring_attributes.show', attribute.id)"
-                                tabindex="-1" class="px-6 py-4 text-indigo-600 hover:text-indigo-900">
+                                tabindex="-1" class="px-6 py-4 text-maiic-600 hover:text-maiic-900">
                                 {{ attribute.name }}
                             </inertia-link>
                         </td>
@@ -62,7 +62,7 @@
                         </td>
                         <td class="border-t">
                              <span class="px-6 py-4 flex items-center">
-                                <span :class="{'text-green-600': attribute.is_default, 'text-red-600': !attribute.is_default}">
+                                <span :class="{'text-maiic-600': attribute.is_default, 'text-red-600': !attribute.is_default}">
                                     {{ attribute.is_default ? 'Yes' : 'No' }}
                                 </span>
                             </span>
@@ -71,12 +71,12 @@
                             <div class=" flex items-center space-x-2">
                                 <inertia-link
                                               :href="route('scoring_attributes.show', attribute.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     View
                                 </inertia-link>
                                 <inertia-link v-if="can('loans.scoring_attributes.update')"
                                               :href="route('scoring_attributes.edit', attribute.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                     Edit
                                 </inertia-link>
                                 <a href="#" v-if="can('loans.scoring_attributes.destroy')" @click="deleteAction(attribute.id)"

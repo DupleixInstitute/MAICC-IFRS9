@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('clients.index')">Clients
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ client.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
             </h2>
         </template>
         <div class="mx-auto">
@@ -110,7 +110,7 @@
                                     yes
                                     </span>
                                     <span
-                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800"
+                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800"
                                         v-else>
                                     no
                                     </span>
@@ -122,7 +122,7 @@
                                     yes
                                     </span>
                                     <span
-                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800"
+                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800"
                                         v-else>
                                     no
                                     </span>
@@ -131,7 +131,7 @@
                                     <div class=" flex items-center space-x-2">
                                         <inertia-link v-if="can('clients.shareholders.update')"
                                                       :href="route('clients.shareholders.edit', shareholder.id)"
-                                                      tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                                      tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                             Edit
                                         </inertia-link>
                                         <a href="#" v-if="can('clients.shareholders.destroy')"

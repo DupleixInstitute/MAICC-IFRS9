@@ -2,10 +2,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('scoring_attributes.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('scoring_attributes.index')">
                     Transition Profile Column Groups
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ attribute.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ attribute.name }}
             </h2>
         </template>
         <div class=" mx-auto">
@@ -57,8 +57,8 @@
                         <div class="p-5 border-t border-gray-200 dark:border-dark-5">
                             <div class="flex justify-between">
                                 <span class="font-medium">Active</span>
-                                <span v-if="attribute.active" class="text-green-400">Yes</span>
-                                <span v-if="!attribute.active" class="text-green-400">No</span>
+                                <span v-if="attribute.active" class="text-maiic-400">Yes</span>
+                                <span v-if="!attribute.active" class="text-maiic-400">No</span>
                             </div>
 
                         </div>
@@ -151,7 +151,7 @@
                                         <div class=" flex items-center space-x-2">
                                             <button v-if="can('loans.scoring_attributes.update')"
                                                     @click="editItem( item.id)"
-                                                    tabindex="-1" class="text-indigo-600 hover:text-indigo-900">
+                                                    tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
                                                 Edit
                                             </button>
                                             <a href="#" v-if="can('loans.scoring_attributes.destroy')"
@@ -189,7 +189,7 @@
                     <div>
                         <jet-label for="field_type" value="Field Type"/>
                         <select
-                            class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                             name="field_type" v-model="item.field_type" id="field_type" required>
                             <option value="number">Number</option>
                             <option value="formula">Formula</option>

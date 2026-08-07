@@ -151,21 +151,21 @@
 
                 <div class="p-6">
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-blue-900">Movement Type</h4>
-                            <p class="text-lg font-bold text-blue-600">{{ report.movement_label }}</p>
+                        <div class="bg-maiic-50 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-maiic-900">Movement Type</h4>
+                            <p class="text-lg font-bold text-maiic-600">{{ report.movement_label }}</p>
                         </div>
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-green-900">Start Transitions</h4>
-                            <p class="text-2xl font-bold text-green-600">{{ report.start_transition_count }}</p>
+                        <div class="bg-maiic-50 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-maiic-900">Start Transitions</h4>
+                            <p class="text-2xl font-bold text-maiic-600">{{ report.start_transition_count }}</p>
                         </div>
-                        <div class="bg-purple-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-purple-900">New Transitions</h4>
-                            <p class="text-2xl font-bold text-purple-600">{{ report.new_transition_count }}</p>
+                        <div class="bg-maiic-50 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-maiic-900">New Transitions</h4>
+                            <p class="text-2xl font-bold text-maiic-600">{{ report.new_transition_count }}</p>
                         </div>
-                        <div class="bg-orange-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-orange-900">Total Rows</h4>
-                            <p class="text-2xl font-bold text-orange-600">{{ report.row_count }}</p>
+                        <div class="bg-amber-50 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-amber-900">Total Rows</h4>
+                            <p class="text-2xl font-bold text-amber-600">{{ report.row_count }}</p>
                         </div>
                     </div>
 
@@ -226,29 +226,29 @@
 
                 <div class="p-6">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-blue-900">Movement Type</h4>
-                            <p class="text-lg font-bold text-blue-600">{{ report.movement_label }}</p>
+                        <div class="bg-maiic-50 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-maiic-900">Movement Type</h4>
+                            <p class="text-lg font-bold text-maiic-600">{{ report.movement_label }}</p>
                         </div>
-                        <div class="bg-purple-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-purple-900">Detail Section</h4>
-                            <p class="text-lg font-bold text-purple-600">{{ report.detail_label }}</p>
+                        <div class="bg-maiic-50 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-maiic-900">Detail Section</h4>
+                            <p class="text-lg font-bold text-maiic-600">{{ report.detail_label }}</p>
                         </div>
-                        <div class="bg-orange-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-orange-900">Preview Rows</h4>
-                            <p class="text-2xl font-bold text-orange-600">
+                        <div class="bg-amber-50 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-amber-900">Preview Rows</h4>
+                            <p class="text-2xl font-bold text-amber-600">
                                 {{ report.detail_preview_count }} / {{ report.detail_total_rows }}
                             </p>
                         </div>
                     </div>
 
-                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                    <div class="bg-maiic-50 border-l-4 border-maiic-400 p-4 mb-6">
                         <div class="flex">
                             <div class="flex-shrink-0">
-                                <font-awesome-icon icon="info-circle" class="h-5 w-5 text-blue-400"></font-awesome-icon>
+                                <font-awesome-icon icon="info-circle" class="h-5 w-5 text-maiic-400"></font-awesome-icon>
                             </div>
                             <div class="ml-3">
-                                <p class="text-sm text-blue-700">
+                                <p class="text-sm text-maiic-700">
                                     Showing a preview of the detailed report on the page. Use export to download the full CSV.
                                 </p>
                             </div>
@@ -299,13 +299,13 @@
                 </div>
             </div>
 
-            <div v-if="success" class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+            <div v-if="success" class="bg-maiic-50 border-l-4 border-maiic-400 p-4 mb-6">
                 <div class="flex">
                     <div class="flex-shrink-0">
-                        <font-awesome-icon icon="check-circle" class="h-5 w-5 text-green-400"></font-awesome-icon>
+                        <font-awesome-icon icon="check-circle" class="h-5 w-5 text-maiic-400"></font-awesome-icon>
                     </div>
                     <div class="ml-3">
-                        <p class="text-sm text-green-700">{{ success }}</p>
+                        <p class="text-sm text-maiic-700">{{ success }}</p>
                     </div>
                 </div>
             </div>

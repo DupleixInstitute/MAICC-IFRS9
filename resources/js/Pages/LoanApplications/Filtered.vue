@@ -74,7 +74,7 @@
                                 </span>
                             </td>
                             <td class="border-t">
-                                <inertia-link class="px-6 py-4 flex items-center focus:text-indigo-500"
+                                <inertia-link class="px-6 py-4 flex items-center focus:text-maiic-500"
                                     :href="route('clients.show', application.client_id)" v-if="application.client">
                                     <img v-if="application.client.profile_photo_url"
                                         class="block w-5 h-5 rounded-full mr-2 -my-2"
@@ -106,27 +106,27 @@
                                         }} -</span>
 
                                     <span v-if="application.current_linked_stage.status == 'pending'"
-                                        class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                        class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         pending
                                     </span>
                                     <span v-if="application.current_linked_stage.status == 'returned'"
-                                        class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                        class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         returned
                                     </span>
                                     <span v-if="application.current_linked_stage.status == 'in_progress'"
-                                        class="px-2 rounded-full bg-blue-100 text-blue-800">
+                                        class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         in progress
                                     </span>
                                     <span v-if="application.current_linked_stage.status == 'approved'"
-                                        class="px-2 rounded-full bg-green-100 text-green-800">
+                                        class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         approved
                                     </span>
                                     <span v-if="application.current_linked_stage.status == 'done'"
-                                        class="px-2 rounded-full bg-green-100 text-green-800">
+                                        class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         done
                                     </span>
                                     <span v-if="application.current_linked_stage.status == 'sent_back'"
-                                        class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                        class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         sent back
                                     </span>
                                     <span v-if="application.current_linked_stage.status == 'rejected'"
@@ -178,12 +178,12 @@
                             <!-- <td class="border-t w-px pr-2">
                             <div class=" flex items-center gap-4">
                                 <inertia-link :href="route('loan_applications.show', application.id)"
-                                              tabindex="-1" class="text-green-600 hover:text-green-900" title="View">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900" title="View">
                                     <font-awesome-icon icon="search"/>
                                 </inertia-link>
                                 <inertia-link v-if="can('loans.applications.update')"
                                               :href="route('loan_applications.edit', application.id)"
-                                              tabindex="-1" class="text-indigo-600 hover:text-indigo-900" title="Edit">
+                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900" title="Edit">
                                     <font-awesome-icon icon="edit"/>
                                 </inertia-link>
                                 <a href="#" v-if="can('loans.applications.destroy')"

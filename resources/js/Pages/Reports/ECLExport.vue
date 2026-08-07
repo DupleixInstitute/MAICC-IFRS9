@@ -13,7 +13,7 @@
                         <div>
                             <jet-label value="Portfolio" />
                             <select v-model="form.portfolio_id" @change="onPortfolioChange"
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200">
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200">
                                 <option value="">Select Portfolio</option>
                                 <option v-for="p in portfolios" :key="p.value" :value="p.value">{{ p.label }}</option>
                             </select>
@@ -21,7 +21,7 @@
                         <div>
                             <jet-label value="Reporting Period" />
                             <select v-model="form.reporting_period"
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200">
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200">
                                 <option value="">Select Period</option>
                                 <option v-for="period in periods" :key="period.value" :value="period.value">{{ period.label }}</option>
                             </select>
@@ -29,7 +29,7 @@
                         <div>
                             <jet-label value="Mode" />
                             <select v-model="form.mode"
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200">
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200">
                                 <option value="summary">Summary</option>
                                 <option value="totalLoanBook">Total Loan Book</option>
                             </select>

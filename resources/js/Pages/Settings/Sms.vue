@@ -2,7 +2,7 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('settings.index')">Settings /
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('settings.index')">Settings /
                 </inertia-link>
                 SMS
             </h2>
@@ -15,7 +15,7 @@
                                 <jet-label for="sms_enabled"
                                            value="SMS Enabled"/>
                                 <select
-                                    class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                    class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                     name="sms_enabled" v-model="form.sms_enabled" id="sms_enabled">
                                     <option value="yes">Yes</option>
                                     <option value="no">No</option>
@@ -26,7 +26,7 @@
                                 <jet-label for="active_sms_gateway"
                                            value="Default SMS Gateway"/>
                                 <select
-                                    class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                    class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                     name="active_sms_gateway" v-model="form.active_sms_gateway" id="active_sms_gateway">
                                     <option v-for="item in smsGateways" :value="item.id">{{ item.name }}</option>
                                 </select>

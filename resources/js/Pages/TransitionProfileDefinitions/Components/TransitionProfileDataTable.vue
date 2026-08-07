@@ -34,10 +34,10 @@
             <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.end_value_type }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ formatDate(profile.created_at) }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-600 flex space-x-2">
-              <button @click="editProfile(profile.id)" class="text-blue-600 hover:text-blue-800">
+              <button @click="editProfile(profile.id)" class="text-maiic-600 hover:text-maiic-800">
                 <i class="fas fa-pencil"></i>
               </button>
-              <button @click="configProfile(profile.id)" class="text-green-600 hover:text-green-800">
+              <button @click="configProfile(profile.id)" class="text-maiic-600 hover:text-maiic-800">
                 <i class="fas fa-cog"></i>
               </button>
               <button @click="deleteProfile(profile.id)" class="text-red-600 hover:text-red-800">

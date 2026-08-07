@@ -38,8 +38,8 @@
                                         <dd>
                                             <span :class="{
                                                 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
-                                                'bg-green-100 text-green-800': matrix.status === 'active',
-                                                'bg-yellow-100 text-yellow-800': matrix.status === 'draft',
+                                                'bg-maiic-100 text-maiic-800': matrix.status === 'active',
+                                                'bg-amber-100 text-amber-800': matrix.status === 'draft',
                                                 'bg-gray-100 text-gray-800': matrix.status === 'archived' || !matrix.status
                                             }">
                                                 {{ matrix.status ? (matrix.status.charAt(0).toUpperCase() + matrix.status.slice(1)) : 'Draft' }}
@@ -52,7 +52,7 @@
                                 <h3 class="text-lg font-medium text-gray-900">Actions</h3>
                                 <div class="mt-2 space-y-2">
                                     <button @click="showUpdateLoanBookModal = true"
-                                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition">
+                                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition">
                                         Update Loan Book
                                     </button>
                                     <button v-if="matrix.external_file_path"
@@ -63,13 +63,13 @@
                                     <button
                                         disabled
                                         title="Coming soon"
-                                        class="ml-2 inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 disabled:cursor-not-allowed transition">
+                                        class="ml-2 inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 disabled:cursor-not-allowed transition">
                                         Download Entries (Excel)
                                     </button>
                                     <button
                                         disabled
                                         title="Coming soon"
-                                        class="ml-2 inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring focus:ring-blue-300 disabled:opacity-25 disabled:cursor-not-allowed transition">
+                                        class="ml-2 inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-500 active:bg-maiic-900 focus:outline-none focus:border-maiic-900 focus:ring focus:ring-maiic-300 disabled:opacity-25 disabled:cursor-not-allowed transition">
                                         Import Entries
                                     </button>
                                 </div>

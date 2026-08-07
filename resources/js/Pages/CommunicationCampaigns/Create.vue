@@ -2,11 +2,11 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600"
+                <inertia-link class="text-maiic-500 hover:text-maiic-600"
                               :href="route('communication.campaigns.index')">
                     Campaigns
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Create
+                <span class="text-maiic-500 font-medium">/</span> Create
             </h2>
         </template>
 
@@ -23,7 +23,7 @@
                         <div>
                             <jet-label for="campaign_type" value="Campaign Type"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="campaign_type" v-model="form.campaign_type" id="campaign_type">
                                 <option value="sms">SMS</option>
                                 <option value="email">Email</option>
@@ -43,7 +43,7 @@
                         <div>
                             <jet-label for="trigger_type" value="Trigger Type"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="trigger_type" v-model="form.trigger_type" id="trigger_type">
                                 <option value="direct">Direct</option>
                                 <option value="schedule">Schedule</option>
@@ -112,7 +112,7 @@
                                 <div>
                                     <jet-label for="recur_type" value="Frequency Type"/>
                                     <select
-                                        class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                        class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                         name="recur_type"
                                         v-model="form.recur_type" id="recur_type">
                                         <option value="days">Days</option>
@@ -144,7 +144,7 @@
                         <div>
                             <jet-label for="communication_campaign_business_rule_id" value="Business Rule"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="account_type" v-model="form.communication_campaign_business_rule_id"
                                 id="communication_campaign_business_rule_id">
                                 <option v-for="item in communicationCampaignBusinessRules" :value="item.id">
@@ -277,7 +277,7 @@
                         <div>
                             <jet-label for="template_id" value="Choose Template"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="template_id" v-model="template_id" id="template_id">
                                 <option></option>
                                 <option v-for="item in selectedTemplates" :value="item.id">
@@ -310,7 +310,7 @@
                         <div v-if="form.trigger_type==='schedule' || form.trigger_type==='triggered'">
                             <jet-label for="status" value="Status"/>
                             <select
-                                class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                 name="status"
                                 v-model="form.status" id="status">
                                 <option value="pending">Pending</option>

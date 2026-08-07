@@ -17,7 +17,7 @@
                         <!-- Scenario Set Selection -->
                         <div>
                             <jet-label for="scenario_set" value="Scenario Set"/>
-                            <select id="scenario_set" v-model="form.scenario_set_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                            <select id="scenario_set" v-model="form.scenario_set_id" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                 <option value="" disabled>Select Scenario Set</option>
                                 <option v-for="set in scenarioSets" :key="set.id" :value="set.id">
                                     {{ set.name }}
@@ -48,7 +48,7 @@
                         <!-- Economic Statistic -->
                         <div>
                             <jet-label for="economic_stat" value="Economic Data Statistic"/>
-                            <select id="economic_stat" v-model="form.economic_data_statistic" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                            <select id="economic_stat" v-model="form.economic_data_statistic" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                 <option value="">Select Statistic</option>
                                 <option v-for="stat in economicStatistics" :key="stat.value" :value="stat.value">
                                     {{ stat.label }}
@@ -59,7 +59,7 @@
                         <!-- PD Proxy Statistic -->
                         <div>
                             <jet-label for="pd_proxy" value="PD Proxy Statistic"/>
-                            <select id="pd_proxy" v-model="form.pd_proxy_statistic" class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm">
+                            <select id="pd_proxy" v-model="form.pd_proxy_statistic" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                 <option value="">Select Proxy</option>
                                 <option v-for="stat in pdProxyStatistics" :key="stat.value" :value="stat.value">
                                     {{ stat.label }}
@@ -87,8 +87,8 @@
                     </div>
 
                     <!-- Regression Model Section -->
-                    <div class="mt-6 border-2 border-indigo-200 rounded-lg p-4 bg-indigo-50">
-                        <h4 class="text-md font-medium text-indigo-900 mb-4">Regression Model Parameters</h4>
+                    <div class="mt-6 border-2 border-maiic-200 rounded-lg p-4 bg-maiic-50">
+                        <h4 class="text-md font-medium text-maiic-900 mb-4">Regression Model Parameters</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Regression Slope -->
                             <div>
@@ -120,12 +120,12 @@
                                     file:mr-4 file:py-2 file:px-4
                                     file:rounded file:border-0
                                     file:text-sm file:font-semibold
-                                    file:bg-indigo-50 file:text-indigo-700
-                                    hover:file:bg-indigo-100
+                                    file:bg-maiic-50 file:text-maiic-700
+                                    hover:file:bg-maiic-100
                                     cursor-pointer"
                             />
                             <p class="mt-1 text-xs text-gray-600">Upload regression analysis, macro forecasts, or supporting documentation (Max 10MB)</p>
-                            <div v-if="form.attachment" class="mt-2 flex items-center text-sm text-green-600">
+                            <div v-if="form.attachment" class="mt-2 flex items-center text-sm text-maiic-600">
                                 <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
@@ -185,7 +185,7 @@
                                         {{ formatNumber(row.predicted_value) }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <span :class="{'text-green-600': row.fli_adj < 0, 'text-red-600': row.fli_adj > 0}">
+                                        <span :class="{'text-maiic-600': row.fli_adj < 0, 'text-red-600': row.fli_adj > 0}">
                                             {{ formatPercent(row.fli_adj) }}
                                         </span>
                                     </td>
@@ -210,8 +210,8 @@
                         This process will update the <code>pd_post_fli_adj</code> and <code>fli_adj</code> columns for all loans in the selected reporting period.
                     </div>
 
-                    <div v-if="updateStats" class="bg-green-50 border border-green-200 rounded p-4 mb-4">
-                        <h4 class="font-medium text-green-800 mb-3">Update Complete!</h4>
+                    <div v-if="updateStats" class="bg-maiic-50 border border-maiic-200 rounded p-4 mb-4">
+                        <h4 class="font-medium text-maiic-800 mb-3">Update Complete!</h4>
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p class="text-gray-600">Total Loans Processed:</p>
@@ -219,15 +219,15 @@
                             </div>
                             <div>
                                 <p class="text-gray-600">Loans Updated:</p>
-                                <p class="text-lg font-semibold text-green-600">{{ updateStats.updated_loans }}</p>
+                                <p class="text-lg font-semibold text-maiic-600">{{ updateStats.updated_loans }}</p>
                             </div>
                             <div>
                                 <p class="text-gray-600">Stage 1 Updated:</p>
-                                <p class="text-lg font-semibold text-blue-600">{{ updateStats.stage_1 }}</p>
+                                <p class="text-lg font-semibold text-maiic-600">{{ updateStats.stage_1 }}</p>
                             </div>
                             <div>
                                 <p class="text-gray-600">Stage 2 Updated:</p>
-                                <p class="text-lg font-semibold text-yellow-600">{{ updateStats.stage_2 }}</p>
+                                <p class="text-lg font-semibold text-amber-600">{{ updateStats.stage_2 }}</p>
                             </div>
                             <div>
                                 <p class="text-gray-600">Stage 3 Skipped:</p>
@@ -235,7 +235,7 @@
                             </div>
                             <div>
                                 <p class="text-gray-600">No Matching FLI:</p>
-                                <p class="text-lg font-semibold text-orange-600">{{ updateStats.errors }}</p>
+                                <p class="text-lg font-semibold text-amber-600">{{ updateStats.errors }}</p>
                             </div>
                             <div>
                                 <p class="text-gray-600">Floored at 0%:</p>

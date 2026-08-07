@@ -2,10 +2,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('credit-loss-data.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('credit-loss-data.index')">
                     Credit Loss Data
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ formatPeriod(period) }}
+                <span class="text-maiic-500 font-medium">/</span> {{ formatPeriod(period) }}
             </h2>
         </template>
 
@@ -38,7 +38,7 @@
                             <dt class="text-sm font-medium text-gray-500 truncate">
                                 Portfolios
                             </dt>
-                            <dd class="mt-1 text-2xl font-semibold text-blue-600">
+                            <dd class="mt-1 text-2xl font-semibold text-maiic-600">
                                 {{ Object.keys(groupedData).length }}
                             </dd>
                         </div>
@@ -48,7 +48,7 @@
                             <dt class="text-sm font-medium text-gray-500 truncate">
                                 Total ECL
                             </dt>
-                            <dd class="mt-1 text-2xl font-semibold text-green-600">
+                            <dd class="mt-1 text-2xl font-semibold text-maiic-600">
                                 {{ formatCurrency(totalEcl) }}
                             </dd>
                         </div>
@@ -70,7 +70,7 @@
                     <div class="flex space-x-3">
                         <inertia-link
                             :href="route('credit-loss-data.create')"
-                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-maiic-800 focus:outline-none focus:border-maiic-800 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
                         >
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -195,7 +195,7 @@
                                             <div class="flex space-x-2">
                                                 <button
                                                     @click="editRecord(record)"
-                                                    class="text-indigo-600 hover:text-indigo-900"
+                                                    class="text-maiic-600 hover:text-maiic-900"
                                                 >
                                                     Edit
                                                 </button>
@@ -217,7 +217,7 @@
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                     <span class="text-gray-500">ECL:</span>
-                                    <span class="ml-2 font-medium text-green-600">
+                                    <span class="ml-2 font-medium text-maiic-600">
                                         {{ formatCurrency(getPortfolioMetricValue(portfolioId, 'ECL')) }}
                                     </span>
                                 </div>
@@ -229,13 +229,13 @@
                                 </div>
                                 <div>
                                     <span class="text-gray-500">PD:</span>
-                                    <span class="ml-2 font-medium text-blue-600">
+                                    <span class="ml-2 font-medium text-maiic-600">
                                         {{ formatPercentage(getPortfolioMetricValue(portfolioId, 'PD')) }}
                                     </span>
                                 </div>
                                 <div>
                                     <span class="text-gray-500">LGD:</span>
-                                    <span class="ml-2 font-medium text-purple-600">
+                                    <span class="ml-2 font-medium text-maiic-600">
                                         {{ formatPercentage(getPortfolioMetricValue(portfolioId, 'LGD')) }}
                                     </span>
                                 </div>
@@ -254,7 +254,7 @@
                     <div class="mt-6">
                         <inertia-link
                             :href="route('credit-loss-data.create')"
-                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 transition"
+                            class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-maiic-200 active:bg-maiic-800 transition"
                         >
                             Add New Record
                         </inertia-link>
@@ -326,7 +326,7 @@
                                     <button
                                         type="submit"
                                         :disabled="updating"
-                                        class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-indigo-200 active:bg-indigo-800 disabled:opacity-25 transition"
+                                        class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:border-maiic-700 focus:ring focus:ring-maiic-200 active:bg-maiic-800 disabled:opacity-25 transition"
                                     >
                                         {{ updating ? 'Updating...' : 'Update' }}
                                     </button>
@@ -510,13 +510,13 @@ export default {
         
         getMetricBadgeClass(metricCode) {
             const classes = {
-                'ECL': 'bg-blue-100 text-blue-800',
-                'PD': 'bg-green-100 text-green-800',
-                'LGD': 'bg-yellow-100 text-yellow-800',
-                'EAD': 'bg-purple-100 text-purple-800',
+                'ECL': 'bg-maiic-100 text-maiic-800',
+                'PD': 'bg-maiic-100 text-maiic-800',
+                'LGD': 'bg-amber-100 text-amber-800',
+                'EAD': 'bg-maiic-100 text-maiic-800',
                 'NPL': 'bg-red-100 text-red-800',
                 'STAGE': 'bg-gray-100 text-gray-800',
-                'CREDIT_RATING': 'bg-indigo-100 text-indigo-800'
+                'CREDIT_RATING': 'bg-maiic-100 text-maiic-800'
             };
             return classes[metricCode] || 'bg-gray-100 text-gray-800';
         },
@@ -526,8 +526,8 @@ export default {
             
             if (['PD', 'LGD', 'NPL'].includes(metricCode)) {
                 if (value > 0.1) return 'text-red-600';
-                if (value > 0.05) return 'text-yellow-600';
-                return 'text-green-600';
+                if (value > 0.05) return 'text-amber-600';
+                return 'text-maiic-600';
             }
             return 'text-gray-900';
         },

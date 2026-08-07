@@ -2,12 +2,12 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('loan_applications.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('loan_applications.index')">
                     Loan Applications
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span>
+                <span class="text-maiic-500 font-medium">/</span>
                 #{{ application.id }}
-                <span class="px-6 py-4 inline-block text-sm font-semibold text-green-800 bg-green-200 rounded-full">
+                <span class="px-6 py-4 inline-block text-sm font-semibold text-maiic-800 bg-maiic-200 rounded-full">
                     {{ application.loan_application_band }}
                 </span>
             </h2>
@@ -63,7 +63,7 @@
                                 <span class="font-medium">Client</span>
                                 <span>
                                     <inertia-link
-                                        class="px-6 py-4 flex items-center text-indigo-600 focus:text-indigo-500"
+                                        class="px-6 py-4 flex items-center text-maiic-600 focus:text-maiic-500"
                                         :href="route('clients.show', application.client_id)"
                                         v-if="application.client">
                                 {{ application.client.name }}
@@ -74,7 +74,7 @@
                                 <span class="font-medium">Product</span>
                                 <span>
                                     <inertia-link
-                                        class="px-6 py-4 flex items-center text-indigo-600  focus:text-indigo-500"
+                                        class="px-6 py-4 flex items-center text-maiic-600  focus:text-maiic-500"
                                         :href="route('loan_products.show', application.loan_product_id)"
                                         v-if="application.product">
                                 {{ application.product.name }}
@@ -107,27 +107,27 @@
                                           }} -</span>
 
                                     <span v-if="application.current_linked_stage.status=='pending'"
-                                          class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                          class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         pending
                                     </span>
                                     <span v-if="application.current_linked_stage.status=='returned'"
-                                          class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                          class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         returned
                                     </span>
                                     <span v-if="application.current_linked_stage.status=='in_progress'"
-                                          class="px-2 rounded-full bg-blue-100 text-blue-800">
+                                          class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         in progress
                                     </span>
                                     <span v-if="application.current_linked_stage.status=='approved'"
-                                          class="px-2 rounded-full bg-green-100 text-green-800">
+                                          class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         approved
                                     </span>
                                     <span v-if="application.current_linked_stage.status=='done'"
-                                          class="px-2 rounded-full bg-green-100 text-green-800">
+                                          class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         done
                                     </span>
                                     <span v-if="application.current_linked_stage.status=='sent_back'"
-                                          class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                          class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         sent back
                                     </span>
                                     <span v-if="application.current_linked_stage.status=='rejected'"
@@ -141,7 +141,7 @@
                                 <span>
 
                                     <inertia-link
-                                        class="px-6 py-4 flex items-center text-indigo-600 focus:text-indigo-500"
+                                        class="px-6 py-4 flex items-center text-maiic-600 focus:text-maiic-500"
                                         :href="route('users.show', application.created_by.id)"
                                         v-if="application.client">
                                         {{ application.created_by.name }}
@@ -162,7 +162,7 @@
                     <inertia-link :href="route('loan_applications.show_comments', application.id)" class="block">
                         <div class="bg-white p-5 mt-5 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
                             <div class="flex items-center">
-                                <i class="fas fa-comments text-blue-500 text-2xl mr-4"></i>
+                                <i class="fas fa-comments text-maiic-500 text-2xl mr-4"></i>
                                 <div class="text-gray-800 font-semibold text-lg">
                                     Reviewer Comments
                                     <span class="badge">{{ reviewerCommentsCount }}</span>
@@ -206,7 +206,7 @@
                                     </td>
                                     <td class="border-t px-6 py-4">
                                         <div v-if="application.current_linked_stage?.status=='returned' || application.current_linked_stage?.status=='sent_back' && application.was_resend &&  approval.approver">
-                                            <span class="ml-2 text-green-600"  title="Application resend"><font-awesome-icon icon="check-circle"/></span>
+                                            <span class="ml-2 text-maiic-600"  title="Application resend"><font-awesome-icon icon="check-circle"/></span>
                                         </div>
                                         <div v-else-if="application.current_linked_stage?.status=='returned'  || application.current_linked_stage?.status=='sent_back' &&  !application.was_resend &&  approval.approver">
                                                 <span class="ml-2 text-red-600" title="Application not resend">
@@ -216,7 +216,7 @@
 
                                         <div v-if="approval.approver">
                                             <inertia-link :href="route('users.show', approval.approver.id)"
-                                                          tabindex="-1" class="text-green-600 hover:text-green-900" title="View">
+                                                          tabindex="-1" class="text-maiic-600 hover:text-maiic-900" title="View">
                                                 {{approval.approver.name}}
                                             </inertia-link>
 
@@ -232,31 +232,31 @@
                                     </td>
                                     <td class="border-t px-6 py-4 flex">
                                          <span v-if="approval.status==='pending'"
-                                               class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                               class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         pending
                                     </span>
                                         <span v-if="approval.status==='returned'"
-                                              class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                              class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         returned
                                     </span>
                                         <span v-if="approval.status==='in_progress'"
-                                              class="px-2 rounded-full bg-blue-100 text-blue-800">
+                                              class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         in progress
                                     </span>
                                         <span v-if="approval.status==='approved'"
-                                              class="px-2 rounded-full bg-green-100 text-green-800">
+                                              class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         approved
                                     </span>
                                      <span v-if="approval.status==='recommend'"
-                                              class="px-2 rounded-full bg-green-100 text-green-800">
+                                              class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         Recommended
                                     </span>
                                         <span v-if="approval.status==='done'"
-                                              class="px-2 rounded-full bg-green-100 text-green-800">
+                                              class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                         done
                                     </span>
                                         <span v-if="approval.status==='sent_back'"
-                                              class="px-2 rounded-full bg-yellow-100 text-yellow-800">
+                                              class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         sent back
                                     </span>
                                         <span v-if="approval.status==='rejected'"
@@ -303,7 +303,7 @@
                                             Reassign
                                            </button>
                                         </div>
-                                        <span   class="px-2 rounded-full bg-green-100 text-green-800" v-else-if="approval.was_sent_back== true">Reassigned</span>
+                                        <span   class="px-2 rounded-full bg-maiic-100 text-maiic-800" v-else-if="approval.was_sent_back== true">Reassigned</span>
                                         <span   class="px-2 rounded-full bg-red-100 text-red-800" v-else>No Actions</span>
 
 
@@ -361,7 +361,7 @@
                                         {{ $filters.formatNumber(attribute.percentage_score) }}%
                                     </td>
                                     <td class="border-t px-6 py-4">
-                                        <span class="ml-2 text-green-600" v-if="attribute.accepted"><font-awesome-icon
+                                        <span class="ml-2 text-maiic-600" v-if="attribute.accepted"><font-awesome-icon
                                             icon="check-circle"/></span>
                                         <span class="ml-2 text-red-600" v-else><font-awesome-icon icon="times-circle"/></span>
                                     </td>
@@ -420,7 +420,7 @@
                     <div>
                         <jet-label for="status" value="Select Action"/>
                         <select
-                            class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                             name="status" v-model="changeStatusForm.status" id="status"
                             required>
                             <option value="pending">Pending</option>
@@ -444,7 +444,7 @@
                             type="file"
                             name="attachment"
                             id="attachment"
-                            class="mt-1 block w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50"
                             @change="handleFileUpload"/>
                         <jet-input-error :message="changeStatusForm.errors.attachment" class="mt-2"/>
 
@@ -480,7 +480,7 @@
                     <div>
                         <jet-label for="approver_id" value="Approver"/>
                         <select
-                            class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                             name="approver_id" v-model="assignApproverForm.approver_id" id="approver_id"
                             required>
                             <option v-for="item in approvers" :value="item.id">{{ item.name }} (#{{ item.id }})</option>
@@ -767,31 +767,31 @@ export default {
 }
 
 .hoverable:hover {
-    color: #1E90FF; /* Blue color */
+    color: #16a34a; /* Blue color */
     text-decoration: underline;
-    text-decoration-color: #1E90FF; /* Blue underline */
+    text-decoration-color: #16a34a; /* Blue underline */
 }
 .hoverable {
-    color: #1E90FF; /* Subtle blue color */
+    color: #16a34a; /* Subtle blue color */
     text-decoration: underline;
     text-decoration-color: rgba(30, 144, 255, 0.4); /* Light blue underline */
     transition: color 0.3s ease, text-decoration-color 0.3s ease;
 }
 
 .hoverable:hover {
-    color: #1E90FF; /* Stronger blue */
-    text-decoration-color: #1E90FF; /* Darker blue underline */
+    color: #16a34a; /* Stronger blue */
+    text-decoration-color: #16a34a; /* Darker blue underline */
 }
 .hoverable {
-    color: #1E90FF; /* Subtle blue color */
+    color: #16a34a; /* Subtle blue color */
     text-decoration: underline;
     text-decoration-color: rgba(30, 144, 255, 0.4); /* Light blue underline */
     transition: color 0.3s ease, text-decoration-color 0.3s ease;
 }
 
 .hoverable:hover {
-    color: #1E90FF; /* Stronger blue */
-    text-decoration-color: #1E90FF; /* Darker blue underline */
+    color: #16a34a; /* Stronger blue */
+    text-decoration-color: #16a34a; /* Darker blue underline */
 }
 
 .previous-description {
@@ -799,7 +799,7 @@ export default {
     color: #6B7280; /* Gray color for previous description */
 }
 .badge {
-    background-color: #ff0000;
+    background-color: #dc2626;
     color: #fff;
     border-radius: 12px;
     padding: 2px 8px;

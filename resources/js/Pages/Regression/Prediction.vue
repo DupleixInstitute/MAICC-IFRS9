@@ -2,7 +2,7 @@
   <AppLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Generate Predictions — {{ props.model.name }}
+        Generate Predictions - {{ props.model.name }}
       </h2>
     </template>
 
@@ -10,7 +10,7 @@
       <div class="bg-white shadow rounded-xl p-6">
 
         <!-- Success/Error Messages -->
-        <div v-if="$page.props.flash.success" class="mb-4 p-3 bg-green-100 text-green-700 rounded">
+        <div v-if="$page.props.flash.success" class="mb-4 p-3 bg-maiic-100 text-maiic-700 rounded">
           {{ $page.props.flash.success }}
         </div>
         <div v-if="$page.props.flash.error" class="mb-4 p-3 bg-red-100 text-red-700 rounded">
@@ -27,7 +27,7 @@
           >
             <option disabled value="">Select Scenario</option>
             <option v-for="s in props.scenarios" :key="s.id" :value="s.id">
-              {{ s.profile_code }} — {{ s.name }}
+              {{ s.profile_code }} - {{ s.name }}
             </option>
           </select>
         </div>
@@ -42,7 +42,7 @@
                 :value="period" 
                 v-model="form.periods"
                 @change="fetchMacroData"
-                class="rounded border-gray-300 text-blue-600 focus:ring-maiic-500"
+                class="rounded border-gray-300 text-maiic-600 focus:ring-maiic-500"
               >
               <span class="ml-2">{{ period }}</span>
             </label>
@@ -62,7 +62,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div v-for="v in props.macroVariables" :key="v.id" class="border rounded-lg p-4 bg-gray-50">
               <label class="block text-sm font-medium text-gray-700 mb-2">
-                {{ v.statistic_code }} — {{ v.statistic_name }}
+                {{ v.statistic_code }} - {{ v.statistic_name }}
               </label>
               <div class="space-y-2">
                 <div v-for="period in form.periods" :key="period" class="flex justify-between items-center">

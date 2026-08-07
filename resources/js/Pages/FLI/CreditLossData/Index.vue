@@ -9,7 +9,7 @@
         <div class="flex space-x-3">
             <inertia-link
                 :href="route('credit-loss-data.create')"
-                class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition"
+                class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-maiic-800 focus:outline-none focus:border-maiic-800 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
             >
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -19,7 +19,7 @@
 
             <inertia-link
                 :href="route('credit-loss-data.importView')"
-                class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring focus:ring-green-300 disabled:opacity-25 transition"
+                class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-maiic-800 focus:outline-none focus:border-maiic-800 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
             >
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
@@ -51,14 +51,14 @@
             <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
                     <dt class="text-sm font-medium text-gray-500 truncate">Periods</dt>
-                    <dd class="mt-1 text-2xl font-semibold text-green-600">{{ uniquePeriods.length }}</dd>
+                    <dd class="mt-1 text-2xl font-semibold text-maiic-600">{{ uniquePeriods.length }}</dd>
                 </div>
             </div>
 
             <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
                     <dt class="text-sm font-medium text-gray-500 truncate">Metrics</dt>
-                    <dd class="mt-1 text-2xl font-semibold text-blue-600">{{ definitions.length }}</dd>
+                    <dd class="mt-1 text-2xl font-semibold text-maiic-600">{{ definitions.length }}</dd>
                 </div>
             </div>
         </div>
@@ -145,7 +145,7 @@
                             <td class="px-6 py-4 text-sm text-gray-500">{{ record.source || 'Manual' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
-                                    <button @click="editRecord(record)" class="text-green-600 hover:text-green-900"><i class="fas fa-pen"></i></button>
+                                    <button @click="editRecord(record)" class="text-maiic-600 hover:text-maiic-900"><i class="fas fa-pen"></i></button>
                                     <button @click="deleteRecord(record)" class="text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button>
                                 </div>
                             </td>
@@ -161,8 +161,8 @@
                             v-html="link.label" />
                         <inertia-link
                             v-else :href="link.url"
-                            class="px-3 py-2 text-sm border rounded mr-1 mb-1 hover:bg-indigo-50"
-                            :class="{ 'bg-indigo-100 font-bold': link.active }"
+                            class="px-3 py-2 text-sm border rounded mr-1 mb-1 hover:bg-maiic-50"
+                            :class="{ 'bg-maiic-100 font-bold': link.active }"
                             v-html="link.label" />
                     </template>
                 </div>
@@ -244,13 +244,13 @@ export default {
 
     getMetricBadgeClass(metricCode) {
             const classes = {
-                'ECL': 'bg-blue-100 text-blue-800',
-                'PD': 'bg-green-100 text-green-800',
-                'LGD': 'bg-yellow-100 text-yellow-800',
-                'EAD': 'bg-purple-100 text-purple-800',
+                'ECL': 'bg-maiic-100 text-maiic-800',
+                'PD': 'bg-maiic-100 text-maiic-800',
+                'LGD': 'bg-amber-100 text-amber-800',
+                'EAD': 'bg-maiic-100 text-maiic-800',
                 'NPL': 'bg-red-100 text-red-800',
                 'STAGE': 'bg-gray-100 text-gray-800',
-                'CREDIT_RATING': 'bg-indigo-100 text-indigo-800'
+                'CREDIT_RATING': 'bg-maiic-100 text-maiic-800'
             };
             return classes[metricCode] || 'bg-gray-100 text-gray-800';
         },
@@ -260,8 +260,8 @@ export default {
             
             if (['PD', 'LGD', 'NPL'].includes(metricCode)) {
                 if (value > 0.1) return 'text-red-600';
-                if (value > 0.05) return 'text-yellow-600';
-                return 'text-green-600';
+                if (value > 0.05) return 'text-amber-600';
+                return 'text-maiic-600';
             }
             return 'text-gray-900';
         },

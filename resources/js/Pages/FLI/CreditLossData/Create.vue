@@ -2,10 +2,10 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('credit-loss-data.index')">
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('credit-loss-data.index')">
                     Credit Loss Data
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> Add New Record
+                <span class="text-maiic-500 font-medium">/</span> Add New Record
             </h2>
         </template>
 

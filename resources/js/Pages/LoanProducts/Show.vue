@@ -2,9 +2,9 @@
     <app-layout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-indigo-400 hover:text-indigo-600" :href="route('loan_products.index')">Transition Profile
+                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('loan_products.index')">Transition Profile
                 </inertia-link>
-                <span class="text-indigo-400 font-medium">/</span> {{ product.name }}
+                <span class="text-maiic-500 font-medium">/</span> {{ product.name }}
             </h2>
         </template>
         <div class=" mx-auto">
@@ -56,8 +56,8 @@
                         <div class="p-5 border-t border-gray-200 dark:border-dark-5">
                             <div class="flex justify-between">
                                 <span class="font-medium">Active</span>
-                                <span v-if="product.active" class="text-green-400">Yes</span>
-                                <span v-if="!product.active" class="text-green-400">No</span>
+                                <span v-if="product.active" class="text-maiic-400">Yes</span>
+                                <span v-if="!product.active" class="text-maiic-400">No</span>
                             </div>
                         </div>
                     </div>
@@ -101,7 +101,7 @@
                             <div class="bg-gray-50 p-4 mb-4 relative" v-for="(item,index) in attribute.attributes">
                                 <div class="grid grid-cols-1 md:grid-cols-3">
                                     <div>{{ item.name }} <span v-if="item.id" title="Click to copy"
-                                                               class="p-1 text-xs bg-blue-400 text-white cursor-pointer"
+                                                               class="p-1 text-xs bg-maiic-400 text-white cursor-pointer"
                                                                @click="copy('{{field_'+item.id+'}}')"> field_{{
                                             item.id
                                         }}</span>
@@ -161,7 +161,7 @@
                                     <div class="mb-4">
                                         <jet-label for="option_type" value="Option Type"/>
                                         <select
-                                            class="mt-1 border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                                            class="mt-1 border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                                             name="option_type" v-model="item.option_type" id="option_type"
                                             @change="updateItemOptionType(item)">
                                             <option value="range">Range</option>
@@ -316,7 +316,7 @@
                     <div>
                         <jet-label for="group" value="Transition Column"/>
                         <select
-                            class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                             name="group" v-model="group_id" id="group" required>
                             <option v-for="item in availableGroups" :value="item.id">
                                 {{ item.name }} <span v-if="item.is_corporate"><small>(corporate)</small></span>
@@ -345,7 +345,7 @@
                     <div>
                         <jet-label for="attribute_id" value="Attribute"/>
                         <select
-                            class="border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
+                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
                             name="attribute_id" v-model="attribute_id" id="attribute_id" required>
                             <option v-for="item in availableAttributes" :value="item.id">{{ item.name }}</option>
                         </select>
@@ -607,8 +607,8 @@ export default {
                 text: "You won't be able to revert this!",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#dc2626',
                 confirmButtonText: 'Yes'
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -628,8 +628,8 @@ export default {
                 text: "You won't be able to revert this!",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#dc2626',
                 confirmButtonText: 'Yes'
             }).then((result) => {
                 if (result.isConfirmed) {

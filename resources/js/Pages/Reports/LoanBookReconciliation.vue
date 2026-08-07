@@ -125,7 +125,7 @@ const money = (v) => Number(v || 0).toLocaleString(undefined, {
                                 <td class="px-4 py-2 border">Actual Closing Balance</td>
                                 <td class="px-4 py-2 border text-right">{{ money(report.reconciliation.actual_closing_balance) }}</td>
                             </tr>
-                            <tr class="font-semibold" :class="report.reconciliation.variance == 0 ? 'text-green-700' : 'text-red-700'">
+                            <tr class="font-semibold" :class="report.reconciliation.variance == 0 ? 'text-maiic-700' : 'text-red-700'">
                                 <td class="px-4 py-2 border">Variance</td>
                                 <td class="px-4 py-2 border text-right">{{ money(report.reconciliation.variance) }}</td>
                             </tr>

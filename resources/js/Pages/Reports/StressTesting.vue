@@ -95,8 +95,8 @@ const deltaTone = computed(() =>
 
 const toneCls = {
     maiic: 'from-maiic-500 to-maiic-600',
-    rose: 'from-rose-500 to-rose-600',
-    emerald: 'from-emerald-500 to-emerald-600',
+    rose: 'from-red-500 to-red-600',
+    emerald: 'from-maiic-500 to-maiic-600',
     amber: 'from-amber-500 to-amber-600',
 }
 </script>
@@ -183,7 +183,7 @@ const toneCls = {
                                 class="inline-flex items-center px-5 py-2 bg-maiic-600 hover:bg-maiic-700 text-white text-sm font-medium rounded-lg shadow disabled:opacity-50">
                             {{ running ? 'Running…' : 'Run Stress Test' }}
                         </button>
-                        <span v-if="error" class="text-rose-600 text-sm">{{ error }}</span>
+                        <span v-if="error" class="text-red-600 text-sm">{{ error }}</span>
                     </div>
                 </div>
 
@@ -231,7 +231,7 @@ const toneCls = {
                                     <td class="px-5 py-3 text-right tabular-nums">{{ money(r.base_ecl) }}</td>
                                     <td class="px-5 py-3 text-right tabular-nums">{{ money(r.stress_ecl) }}</td>
                                     <td class="px-5 py-3 text-right tabular-nums"
-                                        :class="r.stress_ecl - r.base_ecl > 0 ? 'text-rose-600' : 'text-emerald-600'">
+                                        :class="r.stress_ecl - r.base_ecl > 0 ? 'text-red-600' : 'text-maiic-600'">
                                         {{ money(r.stress_ecl - r.base_ecl) }}
                                     </td>
                                 </tr>
@@ -262,8 +262,8 @@ const toneCls = {
                                     <td class="px-5 py-3 text-right tabular-nums">{{ money(r.base_ecl) }}</td>
                                     <td class="px-5 py-3 text-right tabular-nums">{{ money(r.stress_ecl) }}</td>
                                     <td class="px-5 py-3 text-right tabular-nums"
-                                        :class="r.stress_ecl - r.base_ecl > 0 ? 'text-rose-600' : 'text-emerald-600'">
-                                        {{ r.base_ecl > 0 ? ((r.stress_ecl - r.base_ecl) / r.base_ecl * 100).toFixed(1) + '%' : '—' }}
+                                        :class="r.stress_ecl - r.base_ecl > 0 ? 'text-red-600' : 'text-maiic-600'">
+                                        {{ r.base_ecl > 0 ? ((r.stress_ecl - r.base_ecl) / r.base_ecl * 100).toFixed(1) + '%' : '-' }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -317,7 +317,7 @@ const toneCls = {
                                 <td class="px-5 py-3">{{ s.saved_by }}</td>
                                 <td class="px-5 py-3 text-right whitespace-nowrap">
                                     <button @click="loadScenario(s)" class="text-maiic-600 hover:underline mr-3">Load</button>
-                                    <button @click="deleteScenario(s)" class="text-rose-600 hover:underline">Delete</button>
+                                    <button @click="deleteScenario(s)" class="text-red-600 hover:underline">Delete</button>
                                 </td>
                             </tr>
                         </tbody>
