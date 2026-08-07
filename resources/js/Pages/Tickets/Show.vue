@@ -6,7 +6,7 @@
                 <span class="text-gray-300">/</span>
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                     <span class="font-mono text-maiic-700">{{ ticket.reference_display }}</span>
-                    <span class="text-gray-800"> — {{ ticket.title }}</span>
+                    <span class="text-gray-800">: {{ ticket.title }}</span>
                 </h2>
             </div>
         </template>
@@ -57,7 +57,7 @@
                             <label class="flex items-center gap-2 text-sm text-gray-600">
                                 <span>Change status to</span>
                                 <select v-model="updateForm.new_status" class="rounded border-gray-300 text-sm focus:border-maiic-500 focus:ring-maiic-500">
-                                    <option :value="null">— keep {{ statusLabel(ticket.status) }} —</option>
+                                    <option :value="null">keep {{ statusLabel(ticket.status) }}</option>
                                     <option v-for="(label, key) in statuses" :key="key" :value="key">{{ label }}</option>
                                 </select>
                             </label>
@@ -72,8 +72,11 @@
                 <div class="rounded-lg bg-white p-6 shadow">
                     <div class="mb-4 flex items-center justify-between">
                         <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-400">Details</h3>
-                        <button v-if="can('tickets.update')" @click="editing = !editing" class="text-sm font-medium text-maiic-700 hover:text-maiic-800">
-                            {{ editing ? 'Cancel' : 'Edit' }}
+                        <button v-if="can('tickets.update')" @click="editing = !editing" :title="editing ? 'Cancel editing' : 'Edit details'"
+                                :class="['flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition',
+                                         editing ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-amber-50 text-amber-700 hover:bg-amber-100']">
+                            <svg v-if="!editing" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                            <span>{{ editing ? 'Cancel' : 'Edit' }}</span>
                         </button>
                     </div>
 
@@ -82,10 +85,10 @@
                         <div class="flex justify-between gap-4"><dt class="text-gray-500">Status</dt><dd><span :class="['rounded-full px-2.5 py-0.5 text-xs font-medium', statusClass(ticket.status)]">{{ ticket.status_label }}</span></dd></div>
                         <div class="flex justify-between gap-4"><dt class="text-gray-500">Category</dt><dd class="font-medium text-gray-800">{{ ticket.category_label }}</dd></div>
                         <div class="flex justify-between gap-4"><dt class="text-gray-500">Priority</dt><dd><span :class="['rounded-full px-2.5 py-0.5 text-xs font-medium', priorityClass(ticket.priority)]">{{ ticket.priority_label }}</span></dd></div>
-                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Assignee</dt><dd class="font-medium text-gray-800">{{ ticket.assignee ? ticket.assignee.name : '—' }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Requested by</dt><dd class="font-medium text-gray-800">{{ ticket.requested_by || '—' }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Source</dt><dd class="font-medium text-gray-800">{{ ticket.source || '—' }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Due</dt><dd class="font-medium text-gray-800">{{ ticket.due_date ? formatDate(ticket.due_date) : '—' }}</dd></div>
+                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Assignee</dt><dd class="font-medium text-gray-800">{{ ticket.assignee ? ticket.assignee.name : '-' }}</dd></div>
+                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Requested by</dt><dd class="font-medium text-gray-800">{{ ticket.requested_by || '-' }}</dd></div>
+                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Source</dt><dd class="font-medium text-gray-800">{{ ticket.source || '-' }}</dd></div>
+                        <div class="flex justify-between gap-4"><dt class="text-gray-500">Due</dt><dd class="font-medium text-gray-800">{{ ticket.due_date ? formatDate(ticket.due_date) : '-' }}</dd></div>
                         <div class="flex justify-between gap-4"><dt class="text-gray-500">Created</dt><dd class="text-gray-600">{{ formatDate(ticket.created_at) }}</dd></div>
                         <div v-if="ticket.resolved_at" class="flex justify-between gap-4"><dt class="text-gray-500">Resolved</dt><dd class="text-gray-600">{{ formatDate(ticket.resolved_at) }}</dd></div>
                     </dl>
@@ -123,7 +126,7 @@
                         <div>
                             <label class="mb-1 block text-xs font-medium text-gray-600">Assignee</label>
                             <select v-model="editForm.assigned_to" class="block w-full rounded border-gray-300 text-sm focus:border-maiic-500 focus:ring-maiic-500">
-                                <option :value="null">— Unassigned —</option>
+                                <option :value="null">Unassigned</option>
                                 <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
                             </select>
                         </div>
@@ -149,8 +152,10 @@
                     </form>
                 </div>
 
-                <button v-if="can('tickets.destroy')" @click="confirmingDeletion = true" class="w-full rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
-                    Delete ticket
+                <button v-if="can('tickets.destroy')" @click="confirmingDeletion = true" title="Delete ticket"
+                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+                    <span>Delete ticket</span>
                 </button>
             </div>
         </div>
@@ -164,7 +169,7 @@
             </template>
         </jet-confirmation-modal>
 
-        <teleport to="head"><title>{{ ticket.reference_display }} — {{ ticket.title }}</title></teleport>
+        <teleport to="head"><title>{{ ticket.reference_display }}: {{ ticket.title }}</title></teleport>
     </app-layout>
 </template>
 
@@ -185,7 +190,10 @@ export default {
     },
     data() {
         return {
-            editing: false,
+            // ?edit=1 (from the list's pencil action) opens the edit form directly.
+            editing: typeof window !== 'undefined'
+                && new URLSearchParams(window.location.search).get('edit') === '1'
+                && this.can('tickets.update'),
             confirmingDeletion: false,
             editForm: this.$inertia.form({
                 title: this.ticket.title,
@@ -222,7 +230,7 @@ export default {
             this.confirmingDeletion = false
         },
         formatDate(value) {
-            if (!value) return '—'
+            if (!value) return '-'
             return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
         },
         formatDateTime(value) {
@@ -231,18 +239,18 @@ export default {
         },
         statusClass(status) {
             return {
-                open: 'bg-blue-100 text-blue-700',
-                in_progress: 'bg-amber-100 text-amber-700',
-                on_hold: 'bg-slate-100 text-slate-600',
-                resolved: 'bg-maiic-100 text-maiic-700',
+                open: 'bg-amber-100 text-amber-800',
+                in_progress: 'bg-maiic-100 text-maiic-800',
+                on_hold: 'bg-gray-200 text-gray-600',
+                resolved: 'bg-maiic-600 text-white',
                 closed: 'bg-gray-100 text-gray-500',
             }[status] || 'bg-gray-100 text-gray-600'
         },
         priorityClass(priority) {
             return {
                 low: 'bg-gray-100 text-gray-600',
-                medium: 'bg-blue-100 text-blue-700',
-                high: 'bg-amber-100 text-amber-700',
+                medium: 'bg-maiic-100 text-maiic-800',
+                high: 'bg-amber-100 text-amber-800',
                 critical: 'bg-red-100 text-red-700',
             }[priority] || 'bg-gray-100 text-gray-600'
         },

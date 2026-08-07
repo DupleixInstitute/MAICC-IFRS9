@@ -139,17 +139,48 @@ public function index(Request $request)
     $stage3PD = round((float) ($eclByStage[3]->avg_pd ?? 0) * 100, 2);
     $lgdPercentage = round((float) ($eclByStage[3]->avg_lgd ?? 0) * 100, 2);
 
-    // --- Compare-to period ------------------------------------------------
+    // --- Compare-to period: same formulas as the selected period ----------
     $lastTotalECLAllowance = collect([1 => 0, 2 => 0, 3 => 0]);
     $lastGrossAmount = collect([1 => 0, 2 => 0, 3 => 0]);
+    $compareSummary = null;
 
     if ($comparePeriod) {
-        $compareRows = $eclScope($comparePeriod)
-            ->selectRaw('ifrs9_stage, SUM(total_ecl) as total, SUM(total_ead) as total_ead')
+        $compareEclRows = $eclScope($comparePeriod)
+            ->selectRaw('ifrs9_stage, SUM(total_ecl) as total, SUM(total_ead) as total_ead, AVG(pd_value_used) as avg_pd, AVG(lgd_value_used) as avg_lgd')
             ->groupBy('ifrs9_stage')
-            ->get();
-        $lastTotalECLAllowance = $compareRows->pluck('total', 'ifrs9_stage');
-        $lastGrossAmount = $compareRows->pluck('total_ead', 'ifrs9_stage');
+            ->get()
+            ->keyBy('ifrs9_stage');
+        $lastTotalECLAllowance = $compareEclRows->map(fn ($r) => $r->total);
+        $lastGrossAmount = $compareEclRows->map(fn ($r) => $r->total_ead);
+
+        $compareEad = tap(
+            LoanBook::where('reporting_period', $comparePeriod),
+            fn ($q) => $portfolioId ? $q->where('loan_portfolio_id', $portfolioId) : null
+        )
+            ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount')
+            ->groupBy('ifrs9stage_post_qualitative')
+            ->pluck('amount', 'stage');
+
+        $cS1 = (float) ($compareEad[1] ?? 0);
+        $cS2 = (float) ($compareEad[2] ?? 0);
+        $cS3 = (float) ($compareEad[3] ?? 0);
+        $cGross = (float) $compareEad->sum();
+        $cSumEad = $cS1 + $cS2 + $cS3;
+        $cEcl = (float) $lastTotalECLAllowance->sum();
+        $cPd1 = round((float) ($compareEclRows[1]->avg_pd ?? 0) * 100, 2);
+        $cPd2 = round((float) ($compareEclRows[2]->avg_pd ?? 0) * 100, 2);
+        $cPd3 = round((float) ($compareEclRows[3]->avg_pd ?? 0) * 100, 2);
+        $cLgd = round((float) ($compareEclRows[3]->avg_lgd ?? 0) * 100, 2);
+
+        $compareSummary = [
+            'carrying_amount' => $cGross,
+            'total_ecl' => $cEcl,
+            'ecl_percentage' => $cGross > 0 ? round(($cEcl / $cGross) * 100, 2) : 0,
+            'stage_3_amount' => $cS3,
+            'stage_3_percentage' => $cGross > 0 ? round(($cS3 / $cGross) * 100, 2) : 0,
+            'weighted_pd' => $cSumEad > 0 ? ($cPd1 * $cS1 + $cPd2 * $cS2 + $cPd3 * $cS3) / $cSumEad : 0,
+            'weighted_lgd' => $cSumEad > 0 ? ($cLgd * $cS3) / $cSumEad : 0,
+        ];
     }
 
     $totalECLAllowance = $stage1ECL + $stage2ECL + $stage3ECL;
@@ -179,9 +210,16 @@ public function index(Request $request)
     $weightedPD = $sumEad > 0 ? ($stage1PD * $stage1Amount + $stage2PD * $stage2Amount + $stage3PD * $stage3Amount) / $sumEad : 0;
     $weightedLGD = $sumEad > 0 ? ($lgdPercentage * $stage3Amount) / $sumEad : 0;
 
-    // --- Coverage trend: ONE grouped query over all periods ---------------
+    // --- Coverage trend: ONE grouped query, optional from/to range --------
+    $trendFrom = $request->input('trend_from');
+    $trendTo = $request->input('trend_to');
+    $trendPeriods = $periods
+        ->when($periods->contains($trendFrom), fn ($c) => $c->filter(fn ($p) => $p >= $trendFrom))
+        ->when($periods->contains($trendTo), fn ($c) => $c->filter(fn ($p) => $p <= $trendTo))
+        ->values();
+
     $trendRows = tap(
-        ExpectedCreditLoss::whereIn('reporting_period', $periods),
+        ExpectedCreditLoss::whereIn('reporting_period', $trendPeriods),
         fn ($q) => $portfolioId
             ? $q->where('ecl_calculation_level', 'portfolio')->where('ecl_calculation_id', $portfolioId)
             : null
@@ -219,11 +257,14 @@ public function index(Request $request)
 
     return Inertia::render('Dashboard', [
         'summary' => $summary,
+        'compareSummary' => $compareSummary,
         'periods' => $periods,
         'portfolios' => $portfolios,
         'selectedPeriod' => $selectedPeriod,
         'selectedPortfolioId' => $portfolioId,
         'comparePeriod' => $comparePeriod,
+        'trendFrom' => $periods->contains($trendFrom) ? $trendFrom : null,
+        'trendTo' => $periods->contains($trendTo) ? $trendTo : null,
         'eclTrends' => $eclTrends,
     ]);
 }

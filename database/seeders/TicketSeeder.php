@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
 /**
- * Seeds Ticket #001 — the three platform-review enhancements (CAPTCHA, SSL,
+ * Seeds Ticket #001 - the three platform-review enhancements (CAPTCHA, SSL,
  * landing-page redesign) recorded together, as agreed in the correspondence.
  *
  * Timeline: requested 06 Aug 2026, completed 07 Aug 2026.
@@ -41,20 +41,20 @@ TXT;
 
         $resolution = <<<TXT
 All three items delivered and handed over on 07 Aug 2026:
-• CAPTCHA — self-hosted, offline image CAPTCHA added to the login and verified through Fortify.
-• Landing / login page — redesigned to the approved MAIIC brand direction (Sample 4) with the shared logos.
-• SSL — application-level HTTPS hardening delivered (force-https, secure cookies, HSTS, security headers, redirect). Final step is installing the TLS certificate and enabling the Apache SSL vhost on the server — documented in docs/SSL_SETUP.md.
+• CAPTCHA: self-hosted, offline image CAPTCHA added to the login and verified through Fortify.
+• Landing / login page: redesigned to the approved MAIIC brand direction (Sample 4) with the shared logos.
+• SSL: application-level HTTPS hardening delivered (force-https, secure cookies, HSTS, security headers, redirect). Final step is installing the TLS certificate and enabling the Apache SSL vhost on the server - documented in docs/SSL_SETUP.md.
 TXT;
 
         $ticket = Ticket::firstOrCreate(
             ['reference' => '001'],
             [
-                'title' => 'Platform enhancements — CAPTCHA, SSL & landing page',
+                'title' => 'Platform enhancements: CAPTCHA, SSL and landing page',
                 'description' => $description,
                 'category' => 'enhancement',
                 'priority' => 'high',
                 'status' => 'resolved',
-                'requested_by' => 'Barry — MAIIC',
+                'requested_by' => 'Barry (MAIIC)',
                 'source' => 'email',
                 'assigned_to' => $owner?->id,
                 'created_by' => $owner?->id,
@@ -63,7 +63,7 @@ TXT;
         );
 
         if (! $ticket->wasRecentlyCreated) {
-            $this->command?->info('Ticket #001 already exists — left unchanged.');
+            $this->command?->info('Ticket #001 already exists - left unchanged.');
             $this->seedTicket002($owner);
             return;
         }
@@ -86,7 +86,7 @@ TXT;
             [$completedAt->copy()->subHours(5),    false, null, null,
                 'Landing / login page redesigned to the approved MAIIC brand direction (Sample 4) and a self-hosted, offline CAPTCHA added to the sign-in form. Items 1 and 3 delivered in-app.'],
             [$completedAt->copy()->subHours(2),    false, null, null,
-                'SSL — application-level HTTPS hardening delivered. Remaining: install the TLS certificate and enable the Apache SSL vhost on the server, then switch the flags on (docs/SSL_SETUP.md).'],
+                'SSL: application-level HTTPS hardening delivered. Remaining: install the TLS certificate and enable the Apache SSL vhost on the server, then switch the flags on (docs/SSL_SETUP.md).'],
             [$completedAt,                          true,  'in_progress', 'resolved',
                 'Marked resolved. Requested 06 Aug 2026, completed 07 Aug 2026.'],
             [$completedAt->copy()->addHours(19),    false, null, null,
@@ -116,7 +116,7 @@ TXT;
     }
 
     /**
-     * Ticket #002 — navigation restructure, contract-aligned reports, audit
+     * Ticket #002 - navigation restructure, contract-aligned reports, audit
      * trail page and dashboard global filters (raised 07 Aug 2026).
      */
     private function seedTicket002(?User $owner): void
@@ -156,7 +156,8 @@ TXT;
         );
 
         if (! $ticket->wasRecentlyCreated) {
-            $this->command?->info('Ticket #002 already exists — left unchanged.');
+            $this->command?->info('Ticket #002 already exists - left unchanged.');
+            $this->seedBacklogTickets($owner);
             return;
         }
 
@@ -193,5 +194,99 @@ TXT;
         }
 
         $this->command?->info('Ticket #002 seeded with its activity trail.');
+
+        $this->seedBacklogTickets($owner);
+    }
+
+    /**
+     * Open backlog raised in the 07 Aug 2026 platform review: #003 to #006.
+     * Each is created once with a single logged entry; work is tracked in
+     * the UI from there.
+     */
+    private function seedBacklogTickets(?User $owner): void
+    {
+        $raisedAt = Carbon::parse('2026-08-07 14:00:00');
+
+        $backlog = [
+            [
+                'reference' => '003',
+                'title' => 'Consolidate duplicate stress and scenario engines',
+                'priority' => 'medium',
+                'description' => "Engine-level duplicates flagged by the navigation audit, needing consolidation without changing approved calculation results:\n\n"
+                    . "1. Two stress engines: the standalone Stress Testing page (loan-level PD multipliers / LGD add-ons, scenario save) and the report-hub Sensitivity tile (aggregate shocks plus a macro/regression mode). Agree the canonical engine, port the missing mode across, retire the duplicate.\n"
+                    . "2. Two scenario systems: Scenario Profiles (FLI) and Economic Scenarios (Management Overlays) are parallel implementations of scenario weighting. Agree the canonical store, migrate data, rewire dependents.\n\n"
+                    . 'Requires side-by-side reconciliation of results before any switch-over.',
+            ],
+            [
+                'reference' => '004',
+                'title' => 'App-wide UI standardisation: tables, forms, modals, tabs',
+                'priority' => 'high',
+                'description' => "Standardise every page's tables, forms, modals and tabs to one MAIIC design system (reference: Eswatini Credit Scoring's esw/esf component CSS, recoloured to MAIIC green/gold):\n\n"
+                    . "1. Extract a shared design-system CSS layer (tables with brand header band, zebra rows, hover, numeric alignment, gold-ruled totals rows; icon action buttons; filter bars; badges).\n"
+                    . "2. Forms: section headings, consistent inputs/selects/validation, gold primary submit.\n"
+                    . "3. Modals and tabs to the shared style.\n"
+                    . '4. One colour system: MAIIC green, gold, red, grey only. Reference spec: docs/UI_REPORT_SPEC.md.',
+            ],
+            [
+                'reference' => '005',
+                'title' => 'PDF and Excel report formatting overhaul',
+                'priority' => 'high',
+                'description' => "All PDF and Excel outputs formatted to board-pack standard (reference: ZNBS Stress-Testing-App AuditWorkbook/MpdfRenderer and Eswatini CreditWorkbookBuilder, recoloured to MAIIC):\n\n"
+                    . "1. Excel: branded cover sheet with logo, hyperlinked contents, KPI summary with live formulas, data as native Excel tables with freeze panes, accounting number formats, RAG conditional formatting, section tab colours.\n"
+                    . "2. PDF: running header/footer with logo, page numbers, confidentiality label, dotted-leader table of contents, tinted table headers, zebra rows, gold total rules.\n"
+                    . "3. Every report database-driven and reporting-period scoped; no placeholder, proxy or fallback data anywhere.\n"
+                    . '4. Reference spec: docs/UI_REPORT_SPEC.md.',
+            ],
+            [
+                'reference' => '006',
+                'title' => 'Notifications and workspace enrichment',
+                'priority' => 'medium',
+                'description' => "Extend the notification bell and the Workspace using the reference apps' patterns:\n\n"
+                    . "1. Dispatch database notifications from workflow events (ticket assignment/updates, import completion, ECL run completion, EIR approvals) so the bell has live content.\n"
+                    . "2. Workspace: personal work-queue view (my items, awaiting my action) alongside the period-close checklist, with counted tabs and KPI strip.\n"
+                    . '3. Reference: Eswatini My Workspace and notification wiring; ZNBS workspaces.',
+            ],
+        ];
+
+        foreach ($backlog as $item) {
+            $ticket = Ticket::firstOrCreate(
+                ['reference' => $item['reference']],
+                [
+                    'title' => $item['title'],
+                    'description' => $item['description'],
+                    'category' => 'enhancement',
+                    'priority' => $item['priority'],
+                    'status' => 'open',
+                    'requested_by' => 'MAIIC platform review',
+                    'source' => 'meeting',
+                    'assigned_to' => $owner?->id,
+                    'created_by' => $owner?->id,
+                ]
+            );
+
+            if (! $ticket->wasRecentlyCreated) {
+                continue;
+            }
+
+            $ticket->timestamps = false;
+            $ticket->created_at = $raisedAt;
+            $ticket->updated_at = $raisedAt;
+            $ticket->save();
+            $ticket->timestamps = true;
+
+            $u = new TicketUpdate([
+                'ticket_id' => $ticket->id,
+                'user_id' => null,
+                'body' => 'Ticket logged from the 07 Aug 2026 platform review. Scoped and awaiting scheduling.',
+                'new_status' => 'open',
+                'is_system' => true,
+            ]);
+            $u->timestamps = false;
+            $u->created_at = $raisedAt;
+            $u->updated_at = $raisedAt;
+            $u->save();
+        }
+
+        $this->command?->info('Backlog tickets #003 to #006 ensured.');
     }
 }

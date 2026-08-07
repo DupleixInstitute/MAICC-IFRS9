@@ -142,7 +142,7 @@ class TicketsTest extends TestCase
             'category' => 'change_request',
             'priority' => 'critical',
             'status' => 'open',
-            'requested_by' => 'Barry — MAIIC',
+            'requested_by' => 'Barry (MAIIC)',
             'assigned_to' => $admin->id,
         ]);
 
@@ -176,7 +176,7 @@ class TicketsTest extends TestCase
         $ticket = Ticket::where('reference', '001')->firstOrFail();
 
         $this->assertSame('resolved', $ticket->status);
-        $this->assertSame('Barry — MAIIC', $ticket->requested_by);
+        $this->assertSame('Barry (MAIIC)', $ticket->requested_by);
         // Requested 06 Aug 2026, completed 07 Aug 2026.
         $this->assertSame('2026-08-06', $ticket->created_at->toDateString());
         $this->assertSame('2026-08-07', $ticket->resolved_at->toDateString());

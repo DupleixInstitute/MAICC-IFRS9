@@ -14,6 +14,15 @@ const activeTab = ref(props.categories.length ? props.categories[0].name : '')
 
 const current = computed(() =>
     props.categories.find(c => c.name === activeTab.value) || { reports: [] })
+
+// Section accents drawn from the MAIIC logo family (greens, golds, red,
+// charcoal) so every tab is visibly coloured even when inactive.
+const ACCENTS = ['#16a34a', '#d97706', '#dc2626', '#15803d', '#b45309', '#991b1b', '#f59e0b', '#374151']
+const accent = (name) => {
+    const i = props.categories.findIndex(c => c.name === name)
+    return ACCENTS[(i >= 0 ? i : 0) % ACCENTS.length]
+}
+const currentAccent = computed(() => accent(activeTab.value))
 </script>
 
 <template>
@@ -22,20 +31,19 @@ const current = computed(() =>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">IFRS 9 Reporting Suite</h2>
         </template>
 
-        <div class="py-8">
+        <div class="py-6">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-                <div class="bg-gradient-to-r from-maiic-600 to-maiic-800 rounded-2xl shadow-lg p-7 text-white mb-6">
-                    <p class="text-xs uppercase tracking-widest opacity-80">{{ company }}</p>
-                    <h1 class="text-2xl font-bold mt-1">IFRS 9 Reports</h1>
-                    <p class="opacity-90 mt-1 text-sm max-w-2xl">
-                        Pick a section, then a report — only the report you choose is loaded.
-                        Every report exports to PDF.
-                    </p>
-                    <div class="mt-4 flex items-center gap-3">
-                        <label class="text-sm font-medium opacity-90">Reporting Period</label>
+                <!-- compact header strip -->
+                <div class="bg-gradient-to-r from-maiic-600 to-maiic-800 rounded-xl shadow p-4 text-white mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h1 class="text-lg font-bold leading-tight">IFRS 9 Reports</h1>
+                        <p class="opacity-80 text-xs">{{ company }} · pick a section, then a report. Every report exports to PDF.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-semibold uppercase tracking-wider opacity-90">Reporting Period</label>
                         <select v-model="period"
-                                class="rounded-lg border-0 text-gray-800 text-sm py-2 px-3 shadow focus:ring-2 focus:ring-white">
+                                class="rounded-lg border-0 text-gray-800 text-sm py-1.5 px-3 shadow focus:ring-2 focus:ring-white">
                             <option v-for="p in periods" :key="p" :value="p">{{ p }}</option>
                             <option v-if="!periods.length" value="">No ECL-calculated periods</option>
                         </select>
@@ -47,14 +55,23 @@ const current = computed(() =>
                     No reporting period has a calculated ECL yet. Run the ECL calculation first.
                 </div>
 
-                <div class="flex flex-wrap gap-2 border-b border-gray-200 mb-6">
+                <!-- coloured section tabs -->
+                <div class="flex flex-wrap gap-2 mb-6">
                     <button v-for="cat in categories" :key="cat.name"
                             @click="activeTab = cat.name"
-                            :class="['px-4 py-2 text-sm font-medium rounded-t-lg transition-colors',
-                                     activeTab === cat.name
-                                        ? 'bg-maiic-600 text-white'
-                                        : 'text-gray-500 hover:text-maiic-700 hover:bg-maiic-50']">
+                            class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition-all border"
+                            :style="activeTab === cat.name
+                                ? { backgroundColor: accent(cat.name), borderColor: accent(cat.name), color: '#fff' }
+                                : { backgroundColor: accent(cat.name) + '14', borderColor: accent(cat.name) + '55', color: accent(cat.name) }">
+                        <span class="h-2 w-2 rounded-full"
+                              :style="{ backgroundColor: activeTab === cat.name ? '#fff' : accent(cat.name) }"></span>
                         {{ cat.name }}
+                        <span class="rounded-full px-1.5 text-[11px] font-bold"
+                              :style="activeTab === cat.name
+                                  ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
+                                  : { backgroundColor: accent(cat.name) + '22', color: accent(cat.name) }">
+                            {{ (cat.reports || []).length }}
+                        </span>
                     </button>
                 </div>
 
@@ -62,11 +79,11 @@ const current = computed(() =>
                     <Link v-for="r in current.reports" :key="r.key"
                           :href="route('ifrs9-reports.' + r.key, period ? { period } : {})"
                           class="group block rounded-xl bg-white shadow-sm hover:shadow-lg transition-all border border-gray-100 overflow-hidden">
-                        <div class="h-1.5 bg-maiic-600"></div>
+                        <div class="h-1.5" :style="{ backgroundColor: currentAccent }"></div>
                         <div class="p-5">
                             <h3 class="font-semibold text-gray-900 group-hover:text-maiic-700">{{ r.title }}</h3>
                             <p class="text-sm text-gray-500 mt-1.5 leading-relaxed">{{ r.subtitle }}</p>
-                            <span class="inline-flex items-center text-maiic-700 text-sm font-medium mt-3">
+                            <span class="inline-flex items-center text-sm font-medium mt-3" :style="{ color: currentAccent }">
                                 Open
                                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>

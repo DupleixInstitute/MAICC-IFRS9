@@ -10,7 +10,7 @@
 
             <!-- logo -->
             <div class="relative z-10">
-                <img src="/images/maiic-logo.png" alt="MAIIC — Malawi Agricultural & Industrial Investment Corporation plc" class="h-20 w-auto"/>
+                <img src="/images/maiic-logo.png" alt="MAIIC, Malawi Agricultural & Industrial Investment Corporation plc" class="h-20 w-auto"/>
             </div>
 
             <!-- headline -->
@@ -192,7 +192,7 @@ export default {
             }),
             showPassword: false,
             captchaSrc: '/captcha?_=' + Date.now(),
-            pageTitle: "Sign in — MAIIC",
+            pageTitle: "Sign in | MAIIC",
             pageDescription: "Sign in to the MAIIC IFRS 9 platform.",
         }
     },
@@ -211,7 +211,7 @@ export default {
                 .post(this.route('login'), {
                     onFinish: () => {
                         this.form.reset('password')
-                        // the session code is consumed on each attempt — always
+                        // the session code is consumed on each attempt - always
                         // present a fresh challenge after a submit.
                         this.reloadCaptcha()
                     },

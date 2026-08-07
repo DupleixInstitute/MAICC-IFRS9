@@ -67,11 +67,7 @@
                         </form>
                     </div>
                     <div class="ml-4 flex items-center md:ml-6">
-                        <button type="button"
-                                class="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2">
-                            <span class="sr-only">View notifications</span>
-                            <BellIcon class="h-6 w-6" aria-hidden="true"/>
-                        </button>
+                        <NotificationBell/>
 
                         <!-- Profile dropdown -->
                         <Menu as="div" class="relative ml-3">
@@ -139,6 +135,30 @@
                 </div>
             </main>
         </div>
+
+        <!-- Navigation feedback pill: "Loading" while a visit is in flight
+             (after a short delay so instant pages don't flash), then a green
+             "Done" flash on completion. -->
+        <div v-if="busyPhase !== 'idle'"
+             class="pointer-events-none fixed top-20 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2.5 rounded-full border-2 px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.14em] shadow-2xl"
+             :class="busyPhase === 'busy'
+                 ? 'border-amber-300 bg-maiicgold-400 text-gray-900 shadow-amber-500/40'
+                 : 'border-maiic-300 bg-maiic-500 text-white shadow-maiic-500/40'"
+             role="status" aria-live="polite">
+            <template v-if="busyPhase === 'busy'">
+                <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.3" stroke-width="3"/>
+                    <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <span>Loading</span>
+            </template>
+            <template v-else>
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Done</span>
+            </template>
+        </div>
     </div>
 </template>
 
@@ -161,12 +181,15 @@ import {
 } from '@heroicons/vue/24/outline'
 import {MagnifyingGlassIcon} from '@heroicons/vue/20/solid'
 import SidebarNav from "@/Jetstream/SidebarNav.vue"
+import NotificationBell from "@/Jetstream/NotificationBell.vue"
 import FlashMessages from '@/Jetstream/FlashMessages.vue'
 import ApplicationMark from '@/Jetstream/ApplicationMark.vue'
+import { router } from '@inertiajs/vue3'
 
 export default {
     components: {
         SidebarNav,
+        NotificationBell,
         FlashMessages,
         ApplicationMark,
         MagnifyingGlassIcon,
@@ -195,15 +218,45 @@ export default {
             nurseConsultationChannel: null,
             doctorConsultationChannel: null,
             receptionistConsultationChannel: null,
+            busyPhase: 'idle',
+            busyShowAfter: null,
+            busyClearAfter: null,
+            offRouterStart: null,
+            offRouterFinish: null,
         }
     },
     mounted() {
         this.initializeChannels();
+        this.initNavigationFeedback();
+    },
+    beforeUnmount() {
+        if (this.busyShowAfter) clearTimeout(this.busyShowAfter);
+        if (this.busyClearAfter) clearTimeout(this.busyClearAfter);
+        if (this.offRouterStart) this.offRouterStart();
+        if (this.offRouterFinish) this.offRouterFinish();
     },
     methods: {
 
         logout() {
             this.$inertia.post(route('logout'));
+        },
+        // "Loading" pill after 120ms (so instant pages don't flash), then a
+        // short green "Done" flash when the visit completes.
+        initNavigationFeedback() {
+            this.offRouterStart = router.on('start', () => {
+                if (this.busyShowAfter) clearTimeout(this.busyShowAfter);
+                if (this.busyClearAfter) clearTimeout(this.busyClearAfter);
+                this.busyShowAfter = setTimeout(() => { this.busyPhase = 'busy'; }, 120);
+            });
+            this.offRouterFinish = router.on('finish', (event) => {
+                if (this.busyShowAfter) { clearTimeout(this.busyShowAfter); this.busyShowAfter = null; }
+                if (event.detail.visit.completed) {
+                    this.busyPhase = 'done';
+                    this.busyClearAfter = setTimeout(() => { this.busyPhase = 'idle'; }, 650);
+                } else {
+                    this.busyPhase = 'idle';
+                }
+            });
         },
         initializeChannels() {
             if (!this.$page.props.user) return;

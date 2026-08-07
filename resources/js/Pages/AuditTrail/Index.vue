@@ -65,7 +65,7 @@
                     </td>
                     <td class="px-4 py-3">
                         <span :class="['inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                                       e.source === 'module' ? 'bg-indigo-100 text-indigo-700' : 'bg-maiic-100 text-maiic-700']">
+                                       e.source === 'module' ? 'bg-amber-100 text-amber-800' : 'bg-maiic-100 text-maiic-800']">
                             {{ e.source === 'module' ? 'Module audit' : 'Activity' }}
                         </span>
                     </td>

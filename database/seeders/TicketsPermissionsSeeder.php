@@ -10,7 +10,7 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Idempotent: creates the ticketing permissions and grants them to internal
  * staff roles (everything except client/member/patient portals). Safe to run
- * repeatedly — nothing is truncated. Run with:
+ * repeatedly - nothing is truncated. Run with:
  *
  *   php artisan db:seed --class=TicketsPermissionsSeeder
  */

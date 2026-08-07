@@ -9,7 +9,7 @@
 
                 <!-- Global filter bar: everything on this page is scoped by these.
                      All options come from the database (reporting_periods /
-                     loan_portfolios) — nothing hardcoded. -->
+                     loan_portfolios) - nothing hardcoded. -->
                 <div class="flex flex-wrap items-end gap-3 bg-maiic-600 rounded-xl px-4 py-2.5 shadow-md">
                     <div>
                         <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
@@ -117,14 +117,29 @@
                         </table>
                     </div>
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex items-center justify-between mb-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                             <div>
                                 <h3 class="font-semibold text-gray-900">ECL Coverage Trend</h3>
-                                <p class="text-xs text-gray-400">All periods<span v-if="selectedPortfolioName"> · {{ selectedPortfolioName }}</span></p>
+                                <p class="text-xs text-gray-400">
+                                    {{ trendRangeLabel }}<span v-if="selectedPortfolioName"> · {{ selectedPortfolioName }}</span>
+                                </p>
                             </div>
-                            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
-                                <button @click="trendView='chart'" :class="trendView==='chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
-                                <button @click="trendView='table'" :class="trendView==='table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                            <div class="flex items-center gap-2">
+                                <!-- Trend range (periods from the database) -->
+                                <select v-model="filterForm.trend_from" @change="applyFilters"
+                                        class="rounded-md border-gray-200 py-1 pl-2 pr-7 text-xs text-gray-700 focus:border-maiic-500 focus:ring-maiic-500">
+                                    <option :value="null">From: first</option>
+                                    <option v-for="p in periods" :key="'f'+p" :value="p">From {{ p }}</option>
+                                </select>
+                                <select v-model="filterForm.trend_to" @change="applyFilters"
+                                        class="rounded-md border-gray-200 py-1 pl-2 pr-7 text-xs text-gray-700 focus:border-maiic-500 focus:ring-maiic-500">
+                                    <option :value="null">To: latest</option>
+                                    <option v-for="p in periods" :key="'t'+p" :value="p">To {{ p }}</option>
+                                </select>
+                                <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                                    <button @click="trendView='chart'" :class="trendView==='chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
+                                    <button @click="trendView='table'" :class="trendView==='table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                                </div>
                             </div>
                         </div>
                         <div v-show="trendView==='chart'" class="h-72">
@@ -182,17 +197,20 @@ Chart.register(...registerables);
 
 const props = defineProps({
     summary: Object,
+    compareSummary: Object,
     periods: Array,
     portfolios: Array,
     selectedPeriod: String,
     selectedPortfolioId: Number,
     comparePeriod: String,
+    trendFrom: String,
+    trendTo: String,
     eclTrends: Array,
     error: String,
 });
 
 const page = usePage();
-// Organisation reporting currency (Settings > currency) — shared prop.
+// Organisation reporting currency (Settings > currency) - shared prop.
 const currencyCode = computed(() => page.props.currency?.code || '');
 
 const summary = computed(() => props.summary);
@@ -204,6 +222,8 @@ const filterForm = ref({
     period: props.selectedPeriod,
     portfolio_id: props.selectedPortfolioId ?? null,
     compare: props.comparePeriod ?? null,
+    trend_from: props.trendFrom ?? null,
+    trend_to: props.trendTo ?? null,
 });
 
 const comparablePeriods = computed(() =>
@@ -214,11 +234,20 @@ const selectedPortfolioName = computed(() => {
     return p ? p.name : null;
 });
 
+const trendRangeLabel = computed(() => {
+    const t = props.eclTrends || [];
+    if (!t.length) return 'No periods in range';
+    if (props.trendFrom || props.trendTo) return `${t[0].period} to ${t[t.length - 1].period}`;
+    return 'All periods';
+});
+
 function applyFilters() {
     const query = {};
     if (filterForm.value.period) query.period = filterForm.value.period;
     if (filterForm.value.portfolio_id) query.portfolio_id = filterForm.value.portfolio_id;
     if (filterForm.value.compare) query.compare = filterForm.value.compare;
+    if (filterForm.value.trend_from) query.trend_from = filterForm.value.trend_from;
+    if (filterForm.value.trend_to) query.trend_to = filterForm.value.trend_to;
     router.get(route('dashboard'), query, { preserveState: false, preserveScroll: true });
 }
 
@@ -256,24 +285,32 @@ function money(v) {
     return c + n.toLocaleString();
 }
 
-// Signed delta vs the compare-to period, e.g. "+0.42pts vs 2025-10".
-function coverageDelta() {
+// Signed change vs the compare-to period. Money values compare as a
+// percentage change; ratio values compare in percentage points.
+function delta(key, kind) {
     const s = summary.value || {};
-    if (!props.comparePeriod) return null;
-    const d = Number(s.ecl_percentage || 0) - Number(s.last_ecl_percentage || 0);
-    const sign = d > 0 ? '+' : '';
-    return `${sign}${d.toFixed(2)}pts vs ${props.comparePeriod}`;
+    const c = props.compareSummary;
+    if (!c || !props.comparePeriod) return null;
+    const now = Number(s[key] || 0);
+    const then = Number(c[key] || 0);
+    if (kind === 'money') {
+        if (then === 0) return null;
+        const d = ((now - then) / Math.abs(then)) * 100;
+        return `${d > 0 ? '+' : ''}${d.toFixed(1)}% vs ${props.comparePeriod}`;
+    }
+    const d = now - then;
+    return `${d > 0 ? '+' : ''}${d.toFixed(2)}pts vs ${props.comparePeriod}`;
 }
 
 const kpis = computed(() => {
     const s = summary.value || {};
     return [
-        { label: 'Total Exposure (EAD)', value: money(s.carrying_amount), cls: 'from-maiic-500 to-maiic-600' },
-        { label: 'Total ECL', value: money(s.total_ecl), sub: formatPct(s.ecl_percentage) + ' coverage', cls: 'from-rose-500 to-rose-600' },
-        { label: 'ECL Coverage', value: formatPct(s.ecl_percentage), sub: coverageDelta(), cls: 'from-amber-500 to-amber-600' },
-        { label: 'Stage 3 Exposure', value: money(s.stage_3_amount), sub: formatPct(s.stage_3_percentage) + ' of book', cls: 'from-rose-500 to-rose-600' },
-        { label: 'Weighted PD', value: formatPct(s.weighted_pd), cls: 'from-maiic-500 to-maiic-600' },
-        { label: 'Weighted LGD', value: formatPct(s.weighted_lgd), cls: 'from-maiic-600 to-maiic-700' },
+        { label: 'Total Exposure (EAD)', value: money(s.carrying_amount), sub: delta('carrying_amount', 'money'), cls: 'from-maiic-500 to-maiic-600' },
+        { label: 'Total ECL', value: money(s.total_ecl), sub: delta('total_ecl', 'money') || (formatPct(s.ecl_percentage) + ' coverage'), cls: 'from-red-500 to-red-600' },
+        { label: 'ECL Coverage', value: formatPct(s.ecl_percentage), sub: delta('ecl_percentage', 'pts'), cls: 'from-amber-500 to-amber-600' },
+        { label: 'Stage 3 Exposure', value: money(s.stage_3_amount), sub: delta('stage_3_amount', 'money') || (formatPct(s.stage_3_percentage) + ' of book'), cls: 'from-red-500 to-red-600' },
+        { label: 'Weighted PD', value: formatPct(s.weighted_pd), sub: delta('weighted_pd', 'pts'), cls: 'from-maiic-500 to-maiic-600' },
+        { label: 'Weighted LGD', value: formatPct(s.weighted_lgd), sub: delta('weighted_lgd', 'pts'), cls: 'from-maiic-600 to-maiic-700' },
     ];
 });
 
@@ -285,7 +322,7 @@ const stages = computed(() => {
     const meta = [
         { tag: 'Performing', badge: 'bg-maiic-100 text-maiic-800' },
         { tag: 'Underperforming', badge: 'bg-amber-100 text-amber-800' },
-        { tag: 'Non-performing', badge: 'bg-rose-100 text-rose-800' },
+        { tag: 'Non-performing', badge: 'bg-red-100 text-red-800' },
     ];
     return [0, 1, 2].map(i => ({ ead: ead[i], ecl: ecl[i], pd: pd[i], ...meta[i] }));
 });

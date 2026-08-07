@@ -2,22 +2,22 @@
 
 /*
 |--------------------------------------------------------------------------
-| MAIIC IFRS 9 — contract-aligned navigation
+| MAIIC IFRS 9 - contract-aligned navigation
 |--------------------------------------------------------------------------
-| Groups mirror the Schedule 1 solution components of the MAIIC–Dupleix
+| Groups mirror the Schedule 1 solution components of the MAIIC-Dupleix
 | implementation agreement (data onboarding, collateral, EIR, IFRS 9 model
 | setup, ECL engine, reports, audit trail, dashboard, administration).
 |
 | Duplication rules applied (nav audit, Aug 2026):
 |  - The four report/export screens that lived under "Customer & Loan Data"
 |    (Disbursements, Loan Book Reconciliation, Loan Book Export, ECL Export)
-|    are reports — they live under Reports, next to the hub.
+|    are reports - they live under Reports, next to the hub.
 |  - ECL Reconciliation (the richest reconciliation page) is surfaced; it was
 |    previously reachable only through the hidden legacy /report hub.
 |  - The EIR trio (Accounting Rules -> Schedule Intake -> Fee Classification)
 |    is one pipeline and sits together in one group.
 |  - Early Warning System & AI Executive Commentary are tiles INSIDE the
-|    IFRS 9 Reports hub — they are not duplicated as menu items.
+|    IFRS 9 Reports hub - they are not duplicated as menu items.
 |  - Regression Analysis is forward-looking model fitting; it lives under
 |    the Forward-Looking Model group, not a separate Analytics group.
 |  - The IFRS 9 Reports hub contains the full 30-report catalogue (incl. the
@@ -53,6 +53,18 @@ return [
         ],
 
         $leaf('Workspace', 'workspace.index', 'tasks'),
+
+        // Contract Schedule 1 "Reports". The hub carries the full 30-report
+        // catalogue; only distinct operational pages sit beside it. The two
+        // CSV export screens are NOT listed: Loan Book and ECL Calculation
+        // pages already carry their own export buttons.
+        $group('Reports', 'chart-bar', [
+            $leaf('IFRS 9 Reports', 'ifrs9-reports.index'),
+            $leaf('ECL Reconciliation', 'reports.ecl-reconciliation'),
+            $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
+            $leaf('Disbursements (Vintage)', 'reports.disbursement-report'),
+            $leaf('Stress Testing', 'stress-testing.index'),
+        ], 1),
 
         $group('Portfolio Setup', 'database', [
             $leaf('Loan Portfolios', 'portfolios.index'),
@@ -116,26 +128,17 @@ return [
             $leaf('ECL Calculation', 'expected-credit-loss.index'),
         ], 6),
 
-        // Contract Schedule 1 "Reports": the hub carries the 30-report
-        // catalogue (ECL/staging, movement, sector, collateral, EIR revenue,
-        // RBM prudential, disclosure, governance + analytics tiles). The
-        // operational reconciliations/exports sit beside it.
-        $group('Reports', 'chart-bar', [
-            $leaf('IFRS 9 Reports', 'ifrs9-reports.index'),
-            $leaf('ECL Reconciliation', 'reports.ecl-reconciliation'),
-            $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
-            $leaf('Disbursements (Vintage)', 'reports.disbursement-report'),
-            $leaf('Loan Book Export', 'reports.loan-book-export'),
-            $leaf('ECL Export', 'reports.ecl-export'),
-            $leaf('Stress Testing', 'stress-testing.index', 'bolt'),
-            $leaf('User Manual', 'manual.view', 'book-open'),
+        // Contract deliverables 5-7: user manual now, administrator/technical
+        // manuals and the installation guide join here as they are finalised.
+        $group('System Documentation', 'book-open', [
+            $leaf('User Manual', 'manual.view'),
         ], 7),
 
         $group('Administration', 'cog', [
             $leaf('User Management', 'users.index'),
             $leaf('Financial Periods', 'accounting.financial_periods.index'),
             $leaf('Audit Trail', 'audit-trail.index'),
-            $leaf('Support Tickets', 'tickets.index', 'ticket'),
+            $leaf('Support Tickets', 'tickets.index'),
             $leaf('Settings', 'settings.index'),
         ], 8),
 

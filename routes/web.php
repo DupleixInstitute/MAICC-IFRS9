@@ -133,6 +133,13 @@ Route::middleware(['auth'])->group(function () {
 // Unified audit trail (contract component): activity_log + audit_logs.
 Route::get('/audit-trail', [\App\Http\Controllers\AuditTrailController::class, 'index'])->name('audit-trail.index');
 
+// Header notification bell (database notifications).
+Route::middleware(['auth'])->group(function () {
+    Route::get('/notifications/recent', [\App\Http\Controllers\NotificationController::class, 'recent'])->name('notifications.recent');
+    Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.read_all');
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
+});
+
 // Support / change-request ticketing (enhancement, issue & change tracking).
 Route::group(['prefix' => 'tickets'], function () {
     Route::get('/', [TicketsController::class, 'index'])->name('tickets.index');

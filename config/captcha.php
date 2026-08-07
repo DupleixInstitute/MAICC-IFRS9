@@ -9,7 +9,7 @@ return [
     |
     | A lightweight, dependency-free image CAPTCHA rendered on this server with
     | PHP GD. No third-party service, no API keys and no user data leave the
-    | box — a good fit for an internal platform. Verification is wired into
+    | box - a good fit for an internal platform. Verification is wired into
     | Fortify (see App\Providers\FortifyServiceProvider).
     |
     | Disable it for automated tests or local convenience with CAPTCHA_ENABLED=false.

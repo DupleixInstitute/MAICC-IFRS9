@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
 /**
  * Ensures the Malawian Kwacha exists and is the organisation's reporting
  * currency. The dashboard (and anything else using the shared `currency`
- * prop) reads the currency from settings — previously "MWK" was hardcoded
+ * prop) reads the currency from settings - previously "MWK" was hardcoded
  * in the UI while the setting pointed at USD and no MWK row existed.
  *
  * Idempotent:  php artisan db:seed --class=MaiicCurrencySeeder

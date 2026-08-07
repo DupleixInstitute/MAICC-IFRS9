@@ -44,7 +44,7 @@ class CaptchaController extends Controller
         $bg = imagecolorallocate($img, 243, 244, 246);
         imagefilledrectangle($img, 0, 0, $width, $height, $bg);
 
-        // Speckle noise — kept pale so the glyphs stay clearly dominant.
+        // Speckle noise - kept pale so the glyphs stay clearly dominant.
         for ($i = 0; $i < 600; $i++) {
             $c = imagecolorallocate($img, random_int(200, 235), random_int(215, 240), random_int(200, 235));
             imagesetpixel($img, random_int(0, $width), random_int(0, $height), $c);

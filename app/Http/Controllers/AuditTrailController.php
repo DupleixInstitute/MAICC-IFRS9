@@ -8,13 +8,13 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
- * Unified audit trail (contract Schedule 1 component: "Audit trail — logging
+ * Unified audit trail (contract Schedule 1 component: "Audit trail - logging
  * of key actions and changes").
  *
  * The platform writes to two stores:
- *  - activity_log  (spatie/laravel-activitylog) — model-level CRUD activity
+ *  - activity_log  (spatie/laravel-activitylog) - model-level CRUD activity
  *    from ~18 models (clients, loans, users, tickets, ...).
- *  - audit_logs    (App\Services\AuditLoggerService) — module-level actions
+ *  - audit_logs    (App\Services\AuditLoggerService) - module-level actions
  *    with old/new values (EIR rules & classification, internal grading,
  *    transition matrices, LGD).
  *

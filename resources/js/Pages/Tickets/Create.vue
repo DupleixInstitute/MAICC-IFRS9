@@ -51,7 +51,7 @@
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div>
                         <label class="mb-1 block text-sm font-semibold text-gray-700">Requested by</label>
-                        <input v-model="form.requested_by" type="text" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500" placeholder="e.g. Barry — MAIIC"/>
+                        <input v-model="form.requested_by" type="text" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500" placeholder="e.g. Barry (MAIIC)"/>
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-semibold text-gray-700">Source</label>
@@ -60,7 +60,7 @@
                     <div>
                         <label class="mb-1 block text-sm font-semibold text-gray-700">Assign to (responsible person)</label>
                         <select v-model="form.assigned_to" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
-                            <option :value="null">— Unassigned —</option>
+                            <option :value="null">Unassigned</option>
                             <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
                         </select>
                     </div>

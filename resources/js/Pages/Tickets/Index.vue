@@ -77,10 +77,23 @@
                                 <span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ ticket.status_label }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-600">{{ ticket.assignee ? ticket.assignee.name : '—' }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">{{ ticket.assignee ? ticket.assignee.name : '-' }}</td>
                         <td class="px-6 py-4 text-sm text-gray-500">{{ formatDate(ticket.updated_at) }}</td>
-                        <td class="px-6 py-4 text-right">
-                            <inertia-link :href="route('tickets.show', ticket.id)" class="text-sm font-medium text-maiic-700 hover:text-maiic-800">View</inertia-link>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <inertia-link :href="route('tickets.show', ticket.id)" title="View ticket"
+                                              class="flex h-8 w-8 items-center justify-center rounded-lg bg-maiic-50 text-maiic-600 transition hover:bg-maiic-100 hover:text-maiic-800">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </inertia-link>
+                                <inertia-link v-if="can('tickets.update')" :href="route('tickets.show', ticket.id) + '?edit=1'" title="Edit ticket"
+                                              class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 transition hover:bg-amber-100 hover:text-amber-800">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                </inertia-link>
+                                <button v-if="can('tickets.destroy')" @click="deleteAction(ticket.id)" title="Delete ticket"
+                                        class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-800">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     <tr v-if="tickets.data.length === 0">
@@ -91,6 +104,15 @@
             </div>
             <pagination :links="tickets.links"/>
         </div>
+
+        <jet-confirmation-modal :show="confirmingDeletion" @close="confirmingDeletion = false">
+            <template #title>Delete Ticket</template>
+            <template #content>Are you sure you want to permanently delete this ticket and its activity trail?</template>
+            <template #footer>
+                <jet-secondary-button @click.native="confirmingDeletion = false">Nevermind</jet-secondary-button>
+                <jet-danger-button class="ml-2" @click.native="destroy">Delete Ticket</jet-danger-button>
+            </template>
+        </jet-confirmation-modal>
 
         <teleport to="head">
             <title>{{ pageTitle }}</title>
@@ -103,11 +125,14 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Pagination from '@/Jetstream/Pagination.vue'
 import FilterSearch from '@/Jetstream/FilterSearch.vue'
+import JetConfirmationModal from '@/Jetstream/ConfirmationModal.vue'
+import JetDangerButton from '@/Jetstream/DangerButton.vue'
+import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
 import mapValues from 'lodash/mapValues'
 import pickBy from 'lodash/pickBy'
 
 export default {
-    components: { AppLayout, Pagination, FilterSearch },
+    components: { AppLayout, Pagination, FilterSearch, JetConfirmationModal, JetDangerButton, JetSecondaryButton },
     props: {
         tickets: Object,
         filters: Object,
@@ -123,6 +148,8 @@ export default {
                 status: this.filters.status,
                 category: this.filters.category,
             },
+            confirmingDeletion: false,
+            selectedRecord: null,
             pageTitle: 'Support Tickets',
             pageDescription: 'Track enhancement, issue and change requests.',
         }
@@ -155,31 +182,31 @@ export default {
             this.form = mapValues(this.form, () => null)
         },
         formatDate(value) {
-            if (!value) return '—'
+            if (!value) return '-'
             return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
         },
         statusClass(status) {
             return {
-                open: 'bg-blue-100 text-blue-700',
-                in_progress: 'bg-amber-100 text-amber-700',
-                on_hold: 'bg-slate-100 text-slate-600',
-                resolved: 'bg-maiic-100 text-maiic-700',
+                open: 'bg-amber-100 text-amber-800',
+                in_progress: 'bg-maiic-100 text-maiic-800',
+                on_hold: 'bg-gray-200 text-gray-600',
+                resolved: 'bg-maiic-600 text-white',
                 closed: 'bg-gray-100 text-gray-500',
             }[status] || 'bg-gray-100 text-gray-600'
         },
         priorityClass(priority) {
             return {
                 low: 'bg-gray-100 text-gray-600',
-                medium: 'bg-blue-100 text-blue-700',
-                high: 'bg-amber-100 text-amber-700',
+                medium: 'bg-maiic-100 text-maiic-800',
+                high: 'bg-amber-100 text-amber-800',
                 critical: 'bg-red-100 text-red-700',
             }[priority] || 'bg-gray-100 text-gray-600'
         },
         categoryClass(category) {
             return {
-                enhancement: 'bg-maiic-100 text-maiic-700',
+                enhancement: 'bg-maiic-100 text-maiic-800',
                 issue: 'bg-red-100 text-red-700',
-                change_request: 'bg-indigo-100 text-indigo-700',
+                change_request: 'bg-amber-100 text-amber-800',
                 other: 'bg-gray-100 text-gray-600',
             }[category] || 'bg-gray-100 text-gray-600'
         },
