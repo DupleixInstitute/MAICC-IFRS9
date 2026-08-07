@@ -8,6 +8,11 @@ class ChangeReportingPeriodColumnsToTextInTransitionMatricesTable extends Migrat
 {
     public function up()
     {
+        // MySQL-only type change; sqlite (test DB) has no strict column types.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Drop the index first
         Schema::table('transition_matrices', function ($table) {
             $table->dropIndex('start_end_reporting_period_index');
@@ -20,6 +25,10 @@ class ChangeReportingPeriodColumnsToTextInTransitionMatricesTable extends Migrat
 
     public function down()
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Revert to DATE
         DB::statement('ALTER TABLE transition_matrices MODIFY start_reporting_period DATE NOT NULL');
         DB::statement('ALTER TABLE transition_matrices MODIFY end_reporting_period DATE NOT NULL');

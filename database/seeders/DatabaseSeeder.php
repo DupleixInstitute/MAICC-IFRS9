@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             CountriesTableSeeder::class,
             PermissionsTableSeeder::class,
             RolesTableSeeder::class,
+            TicketsPermissionsSeeder::class,
             UsersTableSeeder::class,
             CurrenciesTableSeeder::class,
             TimezonesTableSeeder::class,

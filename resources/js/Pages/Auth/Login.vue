@@ -15,17 +15,17 @@
 
             <!-- headline -->
             <div class="relative z-10 max-w-xl">
-                <h1 class="text-4xl font-extrabold leading-tight tracking-tight text-gray-800 xl:text-5xl">
+                <h1 class="text-4xl font-extrabold leading-[1.15] tracking-tight text-gray-800 xl:text-5xl">
                     Investing in Potential.<br/>
-                    <span class="text-maiic-700">Building Futures.</span>
+                    <span class="text-maiic-600">Building Futures.</span>
                 </h1>
                 <!-- brand accent bar -->
                 <div class="mt-6 flex h-1.5 w-40 overflow-hidden rounded-full">
                     <span class="flex-1 bg-maiic-600"></span>
-                    <span class="flex-1" style="background:#d4af37"></span>
+                    <span class="flex-1 bg-maiicgold-500"></span>
                     <span class="flex-1 bg-red-600"></span>
                 </div>
-                <p class="mt-6 max-w-md text-lg leading-relaxed text-gray-500">
+                <p class="mt-7 max-w-md text-lg leading-relaxed text-gray-600">
                     Empowering businesses across all sectors for a sustainable and prosperous Malawi.
                 </p>
             </div>
@@ -37,7 +37,7 @@
                     <path d="M0 150 C 180 80, 340 230, 520 180 C 660 140, 740 230, 800 200 L 800 260 L 0 260 Z" fill="#14532d" fill-opacity="0.55"/>
                 </svg>
             </div>
-            <div class="relative z-10 flex items-end gap-7 pl-1 text-maiicgold-400">
+            <div class="relative z-10 flex max-w-md items-center gap-8 border-t border-white/25 pt-5 text-white/80">
                 <!-- leaf / agriculture -->
                 <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
                 <!-- factory / industry -->

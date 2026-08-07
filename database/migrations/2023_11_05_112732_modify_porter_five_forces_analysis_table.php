@@ -11,6 +11,12 @@ return new class extends Migration {
      */
     public function up(): void
     {
+        // MySQL-only type widening. Skip on other drivers (sqlite test DB uses
+        // TEXT affinity anyway, so the varchar width is irrelevant there).
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE porter_five_forces_analysis MODIFY COLUMN time_and_cost_of_entry varchar(190)");
         DB::statement("ALTER TABLE porter_five_forces_analysis MODIFY COLUMN specialist_knowledge varchar(190)");
         DB::statement("ALTER TABLE porter_five_forces_analysis MODIFY COLUMN economies_of_scale varchar(190)");

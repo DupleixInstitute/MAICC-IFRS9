@@ -64,6 +64,12 @@ return new class extends Migration
 
     public function up(): void
     {
+        // MySQL-only (session sql_mode + MODIFY). sqlite's numeric affinity
+        // already stores full precision, so there is nothing to widen there.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         $this->withRelaxedSqlMode(function () {
             if (Schema::hasTable('loan_books')) {
                 $this->modify('loan_books', $this->loanBookColumns, 'DECIMAL(16,8) NULL');
@@ -81,6 +87,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         $this->withRelaxedSqlMode(function () {
             if (Schema::hasTable('loan_books')) {
                 $this->modify('loan_books', $this->loanBookColumns, 'DECIMAL(8,2) NULL');

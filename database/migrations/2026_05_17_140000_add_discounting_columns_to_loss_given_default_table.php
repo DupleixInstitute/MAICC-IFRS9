@@ -52,6 +52,12 @@ return new class extends Migration
             }
         });
 
+        // indexExists() reads MySQL's information_schema and ADD INDEX is
+        // MySQL syntax — skip on other drivers (indexes are perf-only).
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         $indexes = [
             'loss_given_default_is_discounting_index'      => '(`is_discounting`)',
             'loss_given_default_discount_rate_source_index' => '(`discount_rate_source`)',
@@ -72,15 +78,17 @@ return new class extends Migration
      */
     public function down(): void
     {
-        foreach ([
-            'loss_given_default_is_discounting_index',
-            'loss_given_default_discount_rate_source_index',
-            'idx_lgd_portfolio_period',
-            'idx_lgd_discounting_period',
-            'idx_lgd_portfolio_discounting',
-        ] as $name) {
-            if ($this->indexExists($name)) {
-                DB::statement("ALTER TABLE `{$this->table}` DROP INDEX `{$name}`");
+        if (DB::getDriverName() === 'mysql') {
+            foreach ([
+                'loss_given_default_is_discounting_index',
+                'loss_given_default_discount_rate_source_index',
+                'idx_lgd_portfolio_period',
+                'idx_lgd_discounting_period',
+                'idx_lgd_portfolio_discounting',
+            ] as $name) {
+                if ($this->indexExists($name)) {
+                    DB::statement("ALTER TABLE `{$this->table}` DROP INDEX `{$name}`");
+                }
             }
         }
 

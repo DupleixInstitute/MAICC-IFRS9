@@ -7,6 +7,12 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        // sqlite (test DB) cannot drop foreign keys and does not enforce them
+        // by default — the FK re-point below is a MySQL-only concern.
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         Schema::table('transition_matrices', function (Blueprint $table) {
             // Drop the old FK
             $table->dropForeign(['transition_profile_id']);

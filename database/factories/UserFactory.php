@@ -29,6 +29,10 @@ class UserFactory extends Factory
             'gender' => $this->faker->randomElement($gender = ['male', 'female']),
             'mobile' => $this->faker->phoneNumber(),
             'email_verified_at' => now(),
+            // Mirror the DB default explicitly: CheckIfUserIsActive reads this
+            // attribute, and actingAs() uses the in-memory instance where a
+            // missing attribute would read as null (= inactive, 403).
+            'active' => 1,
             'password' => '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
             'remember_token' => Str::random(10),
         ];
@@ -53,7 +57,11 @@ class UserFactory extends Factory
         return $this->afterMaking(function (User $user) {
             //
         })->afterCreating(function (User $user) {
-            $user->assignRole(Role::findById(random_int(1, 8)));
+            // Assign a random EXISTING role. The previous random_int(1, 8)
+            // guessed at ids and blew up whenever fewer than 8 roles existed.
+            $role = Role::inRandomOrder()->first()
+                ?? Role::create(['name' => 'admin', 'guard_name' => 'web']);
+            $user->assignRole($role);
         });
     }
 }
