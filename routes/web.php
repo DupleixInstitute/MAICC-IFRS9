@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Artisan;
 use Webit\Util\EvalMath\EvalMath;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BanksController;
+use App\Http\Controllers\TicketsController;
 use App\Http\Controllers\FilesController;
 use App\Http\Controllers\FormsController;
 use App\Http\Controllers\RolesController;
@@ -110,6 +111,9 @@ use App\Http\Controllers\LGDPaymentReportController;
 */
 
 
+// Self-hosted login CAPTCHA image (guest-accessible, no auth).
+Route::get('/captcha', [\App\Http\Controllers\CaptchaController::class, 'image'])->name('captcha');
+
 Route::get('/', [DashboardController::class, 'index'])->name('home');
 Route::post('/export/excel', [DashboardController::class, 'export'])->name('export.excel');
 Route::group(['prefix' => 'dashboard'], function () {
@@ -124,6 +128,17 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/workspace', [\App\Http\Controllers\WorkspaceController::class, 'index'])->name('workspace.index');
     Route::post('/workspace/toggle', [\App\Http\Controllers\WorkspaceController::class, 'toggle'])->name('workspace.toggle');
     Route::post('/workspace/message', [\App\Http\Controllers\WorkspaceController::class, 'postMessage'])->name('workspace.message');
+});
+
+// Support / change-request ticketing (enhancement, issue & change tracking).
+Route::group(['prefix' => 'tickets'], function () {
+    Route::get('/', [TicketsController::class, 'index'])->name('tickets.index');
+    Route::get('/create', [TicketsController::class, 'create'])->name('tickets.create');
+    Route::post('/store', [TicketsController::class, 'store'])->name('tickets.store');
+    Route::get('/{ticket}/show', [TicketsController::class, 'show'])->name('tickets.show');
+    Route::put('/{ticket}/update', [TicketsController::class, 'update'])->name('tickets.update');
+    Route::post('/{ticket}/updates', [TicketsController::class, 'addUpdate'])->name('tickets.updates.store');
+    Route::delete('/{ticket}/destroy', [TicketsController::class, 'destroy'])->name('tickets.destroy');
 });
 //users
 Route::group(['prefix' => 'user'], function () {

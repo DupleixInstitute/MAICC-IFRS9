@@ -1,91 +1,168 @@
 <template>
-    <div class="flex min-h-screen overflow-hidden">
-        <div class="relative hidden w-0 flex-1 lg:block">
-            <img class="absolute inset-0 h-full w-full object-cover"
-                 src="../../Assets/land-bg.png"
-                 alt="">
+    <div class="flex min-h-screen overflow-hidden bg-gray-50">
+        <!-- ============================ LEFT / BRAND PANEL ============================ -->
+        <div class="relative hidden w-0 flex-1 lg:flex lg:flex-col justify-between overflow-hidden bg-gray-50 px-12 py-12 xl:px-16">
+            <!-- faint hexagon watermark, top-right -->
+            <svg class="pointer-events-none absolute -right-16 -top-16 h-80 w-80 text-maiicgold-400/20" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+                <polygon points="50,3 93,27 93,73 50,97 7,73 7,27" stroke="currentColor" stroke-width="1.2" fill="none"/>
+                <polygon points="50,18 80,35 80,65 50,82 20,65 20,35" stroke="currentColor" stroke-width="1.2" fill="none"/>
+            </svg>
+
+            <!-- logo -->
+            <div class="relative z-10">
+                <img src="/images/maiic-logo.png" alt="MAIIC — Malawi Agricultural & Industrial Investment Corporation plc" class="h-20 w-auto"/>
+            </div>
+
+            <!-- headline -->
+            <div class="relative z-10 max-w-xl">
+                <h1 class="text-4xl font-extrabold leading-tight tracking-tight text-gray-800 xl:text-5xl">
+                    Investing in Potential.<br/>
+                    <span class="text-maiic-700">Building Futures.</span>
+                </h1>
+                <!-- brand accent bar -->
+                <div class="mt-6 flex h-1.5 w-40 overflow-hidden rounded-full">
+                    <span class="flex-1 bg-maiic-600"></span>
+                    <span class="flex-1" style="background:#d4af37"></span>
+                    <span class="flex-1 bg-red-600"></span>
+                </div>
+                <p class="mt-6 max-w-md text-lg leading-relaxed text-gray-500">
+                    Empowering businesses across all sectors for a sustainable and prosperous Malawi.
+                </p>
+            </div>
+
+            <!-- green wave + sector line-icons anchored bottom-left -->
+            <div class="pointer-events-none absolute inset-x-0 bottom-0 z-0">
+                <svg class="block h-64 w-full" viewBox="0 0 800 260" fill="none" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M0 120 C 180 40, 340 200, 520 150 C 660 110, 740 200, 800 170 L 800 260 L 0 260 Z" fill="#166534"/>
+                    <path d="M0 150 C 180 80, 340 230, 520 180 C 660 140, 740 230, 800 200 L 800 260 L 0 260 Z" fill="#14532d" fill-opacity="0.55"/>
+                </svg>
+            </div>
+            <div class="relative z-10 flex items-end gap-7 pl-1 text-maiicgold-400">
+                <!-- leaf / agriculture -->
+                <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+                <!-- factory / industry -->
+                <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1M12 18h1M7 18h1"/></svg>
+                <!-- buildings / enterprise -->
+                <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M9 6h.01M15 6h.01M9 10h.01M15 10h.01M9 14h.01M15 14h.01"/></svg>
+                <!-- wind turbine / renewables -->
+                <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-8M12 14l6-3M12 14 6 11M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>
+                <!-- growth chart / impact -->
+                <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>
+            </div>
         </div>
-        <div class="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24 bg-maiic-600">
-            <div class="mx-auto w-full max-w-sm lg:w-96">
-                <div>
-                    <div class="w-full sm:max-w-md mt-6 px-6 py-4 overflow-hidden">
-                        <jet-authentication-card-logo/>
-                    </div>
-                    <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Welcome back</h2>
-                    <p class="mt-2 text-sm text-white-50">
-                        Sign in to access your account
-                    </p>
+
+        <!-- ============================ RIGHT / SIGN-IN CARD ============================ -->
+        <div class="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-14">
+            <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-100 sm:p-10">
+                <!-- mobile logo -->
+                <div class="mb-6 flex justify-center lg:hidden">
+                    <img src="/images/maiic-logo.png" alt="MAIIC" class="h-14 w-auto"/>
                 </div>
 
-                <div class="mt-8">
-                    <div class="mt-6">
-                        <jet-validation-errors class="mb-4"/>
-                        <div v-if="status" class="mb-4 font-medium text-sm text-green-600">
-                            {{ status }}
+                <!-- hexagon user badge -->
+                <div class="flex justify-center">
+                    <div class="relative flex h-16 w-16 items-center justify-center">
+                        <svg class="absolute inset-0 h-full w-full text-maiic-100" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+                            <polygon points="50,3 93,27 93,73 50,97 7,73 7,27"/>
+                        </svg>
+                        <svg class="relative h-7 w-7 text-maiic-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                </div>
+
+                <h2 class="mt-5 text-center text-3xl font-extrabold text-gray-900">Welcome back</h2>
+                <p class="mt-2 text-center text-sm text-gray-500">Sign in to access your account</p>
+
+                <jet-validation-errors class="mt-6"/>
+                <div v-if="status" class="mt-6 rounded-md bg-maiic-50 px-4 py-3 text-sm font-medium text-maiic-700">
+                    {{ status }}
+                </div>
+
+                <form @submit.prevent="submit" class="mt-6 space-y-5">
+                    <!-- email -->
+                    <div class="space-y-1.5">
+                        <label for="email" class="block text-sm font-semibold text-gray-700">Email address</label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-maiic-600">
+                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                            </span>
+                            <input id="email" v-model="form.email" type="email" required autofocus autocomplete="username"
+                                   placeholder="Enter your email"
+                                   class="block w-full rounded-lg border-gray-300 py-3 pl-10 pr-3 text-gray-900 placeholder-gray-400 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"/>
                         </div>
-                        <form @submit.prevent="submit" class="space-y-6">
-                            <div class="space-y-2">
-                                <jet-label for="email" value="Email address" class="text-sm font-medium text-gray-50"/>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <svg class="h-5 w-5 text-gray-900" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                                        </svg>
-                                    </div>
-                                    <jet-input id="email" type="email" class="mt-1 block w-full pl-10 pr-3" v-model="form.email"
-                                           required autofocus/>
-                                </div>
-                            </div>
-                            <div class="space-y-2">
-                                <jet-label for="password" value="Password" class="text-sm font-medium text-gray-50"/>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <svg class="h-5 w-5 text-gray-900" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-                                        </svg>
-                                    </div>
-                                    <jet-input id="password" :type="showPassword ? 'text' : 'password'" class="mt-1 block w-full pl-10 pr-10"
-                                           v-model="form.password" required
-                                           autocomplete="current-password"/>
-                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                        <button type="button" @click="showPassword = !showPassword" class="text-gray-400 hover:text-gray-500 focus:outline-none">
-                                            <svg v-if="showPassword" class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                                            </svg>
-                                            <svg v-else class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
-                                                <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                    </div>
 
-                            <div class="flex items-center justify-between">
-                                <label class="flex items-center">
-                                    <jet-checkbox name="remember" v-model:checked="form.remember"/>
-                                    <span class="ml-2 text-sm text-gray-50">Remember me</span>
-                                </label>
-                                <inertia-link v-if="canResetPassword" :href="route('password.request')"
-                                              class="text-sm font-medium text-gray-80 hover:text-gray-100 transition-colors duration-200">
-                                    Forgot password?
-                                </inertia-link>
-                            </div>
+                    <!-- password -->
+                    <div class="space-y-1.5">
+                        <label for="password" class="block text-sm font-semibold text-gray-700">Password</label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-maiic-600">
+                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            </span>
+                            <input id="password" v-model="form.password" :type="showPassword ? 'text' : 'password'" required
+                                   autocomplete="current-password" placeholder="Enter your password"
+                                   class="block w-full rounded-lg border-gray-300 py-3 pl-10 pr-10 text-gray-900 placeholder-gray-400 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"/>
+                            <button type="button" @click="showPassword = !showPassword"
+                                    class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                                    :aria-label="showPassword ? 'Hide password' : 'Show password'">
+                                <svg v-if="showPassword" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/></svg>
+                            </button>
+                        </div>
+                    </div>
 
-                            <div>
-                                <button type="submit" :class="{ 'opacity-25': form.processing }" :disabled="form.processing"
-                                        class="flex w-full justify-center rounded-md border border-transparent bg-yellow-400 py-3 px-4 text-sm font-semibold text-gray-900 shadow-sm hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:ring-offset-2 transition-colors duration-200">
-                                    Sign in
+                    <!-- remember / forgot -->
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center">
+                            <input type="checkbox" v-model="form.remember"
+                                   class="h-4 w-4 rounded border-gray-300 text-maiic-600 focus:ring-maiic-500"/>
+                            <span class="ml-2 text-sm text-gray-600">Remember me</span>
+                        </label>
+                        <inertia-link v-if="canResetPassword" :href="route('password.request')"
+                                      class="text-sm font-medium text-maiic-700 hover:text-maiic-800">
+                            Forgot password?
+                        </inertia-link>
+                    </div>
+
+                    <!-- CAPTCHA (self-hosted, offline) -->
+                    <div class="space-y-1.5">
+                        <label for="captcha" class="block text-sm font-semibold text-gray-700">Security check</label>
+                        <div class="flex items-stretch gap-3">
+                            <div class="flex items-center overflow-hidden rounded-lg border border-gray-300 bg-gray-50">
+                                <img :src="captchaSrc" alt="CAPTCHA verification code" class="h-12 w-[140px] object-cover" @error="reloadCaptcha"/>
+                                <button type="button" @click="reloadCaptcha"
+                                        class="flex h-12 w-10 items-center justify-center border-l border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-maiic-700 focus:outline-none"
+                                        aria-label="Refresh verification code" title="Get a new code">
+                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
                                 </button>
                             </div>
-                        </form>
+                            <input id="captcha" v-model="form.captcha" type="text" required autocomplete="off"
+                                   inputmode="text" autocapitalize="characters" placeholder="Enter code"
+                                   class="block w-full rounded-lg border-gray-300 py-3 px-3 uppercase tracking-widest text-gray-900 placeholder-gray-400 placeholder:normal-case placeholder:tracking-normal shadow-sm focus:border-maiic-500 focus:ring-maiic-500"/>
+                        </div>
+                        <p class="text-xs text-gray-400">Type the characters shown above. Not case-sensitive.</p>
                     </div>
+
+                    <!-- submit -->
+                    <button type="submit" :class="{ 'opacity-50 cursor-not-allowed': form.processing }" :disabled="form.processing"
+                            class="flex w-full items-center justify-center gap-2 rounded-lg bg-maiic-700 py-3 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-maiic-800 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2">
+                        <span>{{ form.processing ? 'Signing in…' : 'Sign in' }}</span>
+                        <svg v-if="!form.processing" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    </button>
+                </form>
+
+                <!-- trust footer -->
+                <div class="mt-8 flex items-center gap-3 text-gray-400">
+                    <span class="h-px flex-1 bg-gray-200"></span>
+                    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-maiic-50 text-maiic-600">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                    </span>
+                    <span class="h-px flex-1 bg-gray-200"></span>
                 </div>
+                <p class="mt-3 text-center text-sm text-gray-500">Secure. Reliable. Committed to Growth.</p>
             </div>
         </div>
     </div>
+
     <teleport to="head">
         <title>{{ pageTitle }}</title>
         <meta property="og:description" :content="pageDescription">
@@ -93,20 +170,10 @@
 </template>
 
 <script>
-import JetAuthenticationCardLogo from '@/Jetstream/AuthenticationCardLogo.vue'
-import JetButton from '@/Jetstream/Button.vue'
-import JetInput from '@/Jetstream/Input.vue'
-import JetCheckbox from '@/Jetstream/Checkbox.vue'
-import JetLabel from '@/Jetstream/Label.vue'
 import JetValidationErrors from '@/Jetstream/ValidationErrors.vue'
 
 export default {
     components: {
-        JetAuthenticationCardLogo,
-        JetButton,
-        JetInput,
-        JetCheckbox,
-        JetLabel,
         JetValidationErrors
     },
 
@@ -120,15 +187,21 @@ export default {
             form: this.$inertia.form({
                 email: '',
                 password: '',
+                captcha: '',
                 remember: false
             }),
             showPassword: false,
-            pageTitle: "Login",
-            pageDescription: "Login",
+            captchaSrc: '/captcha?_=' + Date.now(),
+            pageTitle: "Sign in — MAIIC",
+            pageDescription: "Sign in to the MAIIC IFRS 9 platform.",
         }
     },
 
     methods: {
+        reloadCaptcha() {
+            this.form.captcha = ''
+            this.captchaSrc = '/captcha?_=' + Date.now()
+        },
         submit() {
             this.form
                 .transform(data => ({
@@ -136,8 +209,12 @@ export default {
                     remember: this.form.remember ? 'on' : ''
                 }))
                 .post(this.route('login'), {
-                    //log some data in console
-                    onFinish: () => this.form.reset('password'),
+                    onFinish: () => {
+                        this.form.reset('password')
+                        // the session code is consumed on each attempt — always
+                        // present a fresh challenge after a submit.
+                        this.reloadCaptcha()
+                    },
                 })
         }
     }

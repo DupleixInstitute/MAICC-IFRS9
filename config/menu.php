@@ -114,6 +114,7 @@ return [
 
         $group('Administration', 'cog', [
             $leaf('User Management', 'users.index'),
+            $leaf('Support Tickets', 'tickets.index', 'ticket'),
             $leaf('Settings', 'settings.index'),
         ], 8),
 

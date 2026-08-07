@@ -5,6 +5,14 @@
 
     RewriteEngine On
 
+    # ------------------------------------------------------------------
+    # Force HTTPS (uncomment once a TLS certificate is installed on the
+    # server — see docs/SSL_SETUP.md). Left commented so local http
+    # development on XAMPP is not broken.
+    # ------------------------------------------------------------------
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

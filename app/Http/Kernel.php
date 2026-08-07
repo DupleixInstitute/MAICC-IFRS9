@@ -42,6 +42,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\CheckRole::class,
             \App\Http\Middleware\CheckIfUserIsActive::class,
+            \App\Http\Middleware\SecurityHeaders::class,
         ],
 
         'api' => [

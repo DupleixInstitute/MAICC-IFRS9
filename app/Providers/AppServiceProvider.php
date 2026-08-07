@@ -15,6 +15,7 @@ use Illuminate\Pagination\UrlWindow;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Models\LoanApplicationLinkedApprovalStage;
@@ -47,6 +48,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         Schema::defaultStringLength(199);
+
+        // Force HTTPS for all generated URLs once a certificate is installed.
+        // Controlled by FORCE_HTTPS in .env so local http development is safe.
+        if (config('security.force_https')) {
+            URL::forceScheme('https');
+            $this->app['request']->server->set('HTTPS', 'on');
+        }
+
         //$this->configureEmailSettings();
         Client::observe(ClientObserver::class);
         LoanApplicationLinkedApprovalStage::observe(LoanApplicationLinkedApprovalStageObserver::class);
