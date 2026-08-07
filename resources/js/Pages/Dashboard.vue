@@ -18,7 +18,7 @@
                         <span class="relative inline-block">
                             <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                             <select v-model="filterForm.period" @change="applyFilters"
-                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
+                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 pl-9 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
                             <option v-for="period in periods" :key="period" :value="period">{{ period }}</option>
                         </select>
                         </span>
@@ -30,7 +30,7 @@
                         <span class="relative inline-block">
                             <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 8.5 4.5L12 11 3.5 6.5 12 2Z"/><path d="m3.5 11.5 8.5 4.5 8.5-4.5"/><path d="m3.5 16.5 8.5 4.5 8.5-4.5"/></svg>
                             <select v-model="filterForm.portfolio_id" @change="applyFilters"
-                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
+                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 pl-9 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
                             <option :value="null">All portfolios</option>
                             <option v-for="p in portfolios" :key="p.id" :value="p.id">{{ p.name }}</option>
                         </select>
@@ -43,7 +43,7 @@
                         <span class="relative inline-block">
                             <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                             <select v-model="filterForm.compare" @change="applyFilters"
-                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
+                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 pl-9 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
                             <option :value="null">Previous period</option>
                             <option v-for="period in comparablePeriods" :key="period" :value="period">{{ period }}</option>
                         </select>
