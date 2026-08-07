@@ -90,23 +90,35 @@
                     </div>
                 </div>
 
-                <!-- Stage breakdown -->
+                <!-- Stage breakdown: colour-coded cards (green / amber / red) -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div v-for="(s, i) in stages" :key="i"
-                         class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-gray-900">Stage {{ i + 1 }}</h3>
-                            <span :class="['text-xs px-2 py-1 rounded-full', s.badge]">{{ s.tag }}</span>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-3">Exposure (EAD)</p>
-                        <p class="text-lg font-bold text-gray-900">{{ currencyCode }} {{ formatAmount(s.ead) }}</p>
-                        <div class="flex justify-between mt-3 text-sm">
-                            <span class="text-gray-500">ECL</span>
-                            <span class="font-semibold text-gray-800">{{ currencyCode }} {{ formatAmount(s.ecl) }}</span>
-                        </div>
-                        <div class="flex justify-between mt-1 text-sm">
-                            <span class="text-gray-500">PD</span>
-                            <span class="font-semibold text-gray-800">{{ formatPct(s.pd) }}</span>
+                         :class="['rounded-2xl shadow-sm border overflow-hidden', s.border]">
+                        <div :class="['h-1.5', s.bar]"></div>
+                        <div :class="['p-5', s.wash]">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <span :class="['flex h-8 w-8 items-center justify-center rounded-full text-sm font-extrabold text-white', s.bar]">{{ i + 1 }}</span>
+                                    <h3 class="font-bold text-gray-900">Stage {{ i + 1 }}</h3>
+                                </div>
+                                <span :class="['text-xs px-2.5 py-1 rounded-full font-bold', s.badge]">{{ s.tag }}</span>
+                            </div>
+                            <p class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mt-4">Exposure (EAD)</p>
+                            <p :class="['text-xl font-extrabold tabular-nums', s.text]">{{ currencyCode }} {{ formatAmount(s.ead) }}</p>
+                            <div class="mt-3 space-y-1 rounded-lg bg-white/70 px-3 py-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">ECL</span>
+                                    <span class="num font-semibold text-gray-800">{{ currencyCode }} {{ formatAmount(s.ecl) }}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">PD</span>
+                                    <span class="num font-semibold text-gray-800">{{ formatPct(s.pd) }}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">Share of book</span>
+                                    <span :class="['num font-bold', s.text]">{{ stageShare(i) }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -317,7 +329,7 @@ const trendChart = ref(null);
 let pieInstance = null;
 let trendInstance = null;
 
-const C = { maiic: '#16a34a', gold: '#f59e0b', rose: '#dc2626' };
+const C = { maiic: '#16a34a', gold: '#f59e0b', red: '#dc2626' };
 
 const pieView = ref('chart');
 const trendView = ref('chart');
@@ -403,9 +415,9 @@ const stages = computed(() => {
     const ecl = s.ecl_totals || [0, 0, 0];
     const pd = s.pd_percentages || [0, 0, 0];
     const meta = [
-        { tag: 'Performing', badge: 'bg-maiic-100 text-maiic-800' },
-        { tag: 'Underperforming', badge: 'bg-amber-100 text-amber-800' },
-        { tag: 'Non-performing', badge: 'bg-red-100 text-red-800' },
+        { tag: 'Performing', badge: 'bg-maiic-100 text-maiic-800', bar: 'bg-maiic-600', border: 'border-maiic-200', wash: 'bg-gradient-to-br from-maiic-50 to-white', text: 'text-maiic-800' },
+        { tag: 'Underperforming', badge: 'bg-amber-100 text-amber-800', bar: 'bg-amber-500', border: 'border-amber-200', wash: 'bg-gradient-to-br from-amber-50 to-white', text: 'text-amber-800' },
+        { tag: 'Non-performing', badge: 'bg-red-100 text-red-800', bar: 'bg-red-600', border: 'border-red-200', wash: 'bg-gradient-to-br from-red-50 to-white', text: 'text-red-700' },
     ];
     return [0, 1, 2].map(i => ({ ead: ead[i], ecl: ecl[i], pd: pd[i], ...meta[i] }));
 });
