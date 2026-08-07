@@ -124,21 +124,21 @@
                     </div>
 
                     <!-- CAPTCHA (self-hosted, offline) -->
-                    <div class="space-y-1.5">
+                    <div class="space-y-2">
                         <label for="captcha" class="block text-sm font-semibold text-gray-700">Security check</label>
-                        <div class="flex items-stretch gap-3">
-                            <div class="flex items-center overflow-hidden rounded-lg border border-gray-300 bg-gray-50">
-                                <img :src="captchaSrc" alt="CAPTCHA verification code" class="h-12 w-[140px] object-cover" @error="reloadCaptcha"/>
-                                <button type="button" @click="reloadCaptcha"
-                                        class="flex h-12 w-10 items-center justify-center border-l border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-maiic-700 focus:outline-none"
-                                        aria-label="Refresh verification code" title="Get a new code">
-                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
-                                </button>
+                        <div class="flex items-stretch gap-2">
+                            <div class="flex flex-1 items-center justify-center overflow-hidden rounded-lg border border-gray-300 bg-gray-50">
+                                <img :src="captchaSrc" alt="CAPTCHA verification code" class="h-16 w-auto max-w-full object-contain" @error="reloadCaptcha"/>
                             </div>
-                            <input id="captcha" v-model="form.captcha" type="text" required autocomplete="off"
-                                   inputmode="text" autocapitalize="characters" placeholder="Enter code"
-                                   class="block w-full rounded-lg border-gray-300 py-3 px-3 uppercase tracking-widest text-gray-900 placeholder-gray-400 placeholder:normal-case placeholder:tracking-normal shadow-sm focus:border-maiic-500 focus:ring-maiic-500"/>
+                            <button type="button" @click="reloadCaptcha"
+                                    class="flex w-12 flex-none items-center justify-center rounded-lg border border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-maiic-700 focus:outline-none focus:ring-2 focus:ring-maiic-500"
+                                    aria-label="Refresh verification code" title="Get a new code">
+                                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+                            </button>
                         </div>
+                        <input id="captcha" v-model="form.captcha" type="text" required autocomplete="off"
+                               inputmode="text" autocapitalize="characters" placeholder="Enter the code shown above"
+                               class="block w-full rounded-lg border-gray-300 py-3 px-3 text-base uppercase tracking-[0.3em] text-gray-900 placeholder-gray-400 placeholder:normal-case placeholder:tracking-normal shadow-sm focus:border-maiic-500 focus:ring-maiic-500"/>
                         <p class="text-xs text-gray-400">Type the characters shown above. Not case-sensitive.</p>
                     </div>
 
@@ -151,7 +151,7 @@
                 </form>
 
                 <!-- trust footer -->
-                <div class="mt-8 flex items-center gap-3 text-gray-400">
+                <div class="mt-6 flex items-center gap-3 text-gray-400">
                     <span class="h-px flex-1 bg-gray-200"></span>
                     <span class="flex h-8 w-8 items-center justify-center rounded-full bg-maiic-50 text-maiic-600">
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>

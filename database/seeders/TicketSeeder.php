@@ -88,6 +88,10 @@ TXT;
                 'SSL — application-level HTTPS hardening delivered. Remaining: install the TLS certificate and enable the Apache SSL vhost on the server, then switch the flags on (docs/SSL_SETUP.md).'],
             [$completedAt,                          true,  'in_progress', 'resolved',
                 'Marked resolved. Requested 06 Aug 2026, completed 07 Aug 2026.'],
+            [$completedAt->copy()->addHours(19),    false, null, null,
+                'Post-delivery review feedback applied: security-check (CAPTCHA) box '
+                . 'enlarged with a bolder, higher-contrast code image for visibility, '
+                . 'and the browser-tab icon replaced with the MAIIC emblem.'],
         ];
 
         foreach ($updates as [$at, $isSystem, $old, $new, $body]) {

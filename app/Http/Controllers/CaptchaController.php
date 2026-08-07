@@ -35,8 +35,8 @@ class CaptchaController extends Controller
             return $this->blankPng();
         }
 
-        $width = 160;
-        $height = 52;
+        $width = 220;
+        $height = 64;
         $img = imagecreatetruecolor($width, $height);
         imagealphablending($img, true);
 
@@ -44,15 +44,15 @@ class CaptchaController extends Controller
         $bg = imagecolorallocate($img, 243, 244, 246);
         imagefilledrectangle($img, 0, 0, $width, $height, $bg);
 
-        // Speckle noise.
-        for ($i = 0; $i < 500; $i++) {
-            $c = imagecolorallocate($img, random_int(175, 220), random_int(200, 232), random_int(175, 220));
+        // Speckle noise — kept pale so the glyphs stay clearly dominant.
+        for ($i = 0; $i < 600; $i++) {
+            $c = imagecolorallocate($img, random_int(200, 235), random_int(215, 240), random_int(200, 235));
             imagesetpixel($img, random_int(0, $width), random_int(0, $height), $c);
         }
 
-        // A few wandering lines.
+        // A few wandering lines, also pale.
         for ($i = 0; $i < 5; $i++) {
-            $lc = imagecolorallocate($img, random_int(120, 175), random_int(160, 200), random_int(120, 175));
+            $lc = imagecolorallocate($img, random_int(160, 205), random_int(185, 215), random_int(160, 205));
             imageline(
                 $img,
                 random_int(0, $width), random_int(0, $height),
@@ -62,30 +62,32 @@ class CaptchaController extends Controller
         }
 
         // Brand-toned glyph colours: greens, slate, dark gold.
-        $palette = [[21, 128, 61], [20, 83, 45], [30, 41, 59], [161, 114, 12]];
+        $palette = [[21, 128, 61], [20, 83, 45], [30, 41, 59], [146, 100, 15]];
         $font = 5;
         $fw = imagefontwidth($font);
         $fh = imagefontheight($font);
-        $step = (int) (($width - 24) / $length);
+        $step = (int) (($width - 30) / $length);
 
         for ($i = 0; $i < $length; $i++) {
             $rgb = $palette[array_rand($palette)];
 
-            // Draw each glyph on a transparent temp canvas, then scale it up so
-            // characters are large and slightly irregular.
-            $tmp = imagecreatetruecolor($fw, $fh);
+            // Draw each glyph on a transparent temp canvas (twice, offset 1px,
+            // for a bold stroke), then scale it up so characters are large and
+            // slightly irregular.
+            $tmp = imagecreatetruecolor($fw + 1, $fh);
             imagesavealpha($tmp, true);
             $trans = imagecolorallocatealpha($tmp, 0, 0, 0, 127);
             imagefill($tmp, 0, 0, $trans);
             $glyph = imagecolorallocate($tmp, $rgb[0], $rgb[1], $rgb[2]);
             imagestring($tmp, $font, 0, 0, $code[$i], $glyph);
+            imagestring($tmp, $font, 1, 0, $code[$i], $glyph);
 
-            $destW = random_int(20, 26);
-            $destH = random_int(30, 40);
-            $x = 12 + $i * $step + random_int(-2, 3);
-            $y = random_int(4, max(5, $height - $destH - 4));
+            $destW = random_int(30, 36);
+            $destH = random_int(44, 56);
+            $x = 15 + $i * $step + random_int(-2, 3);
+            $y = random_int(3, max(4, $height - $destH - 3));
 
-            imagecopyresampled($img, $tmp, $x, $y, 0, 0, $destW, $destH, $fw, $fh);
+            imagecopyresampled($img, $tmp, $x, $y, 0, 0, $destW, $destH, $fw + 1, $fh);
             imagedestroy($tmp);
         }
 
