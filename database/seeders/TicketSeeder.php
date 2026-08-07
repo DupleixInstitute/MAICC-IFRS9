@@ -64,6 +64,7 @@ TXT;
 
         if (! $ticket->wasRecentlyCreated) {
             $this->command?->info('Ticket #001 already exists — left unchanged.');
+            $this->seedTicket002($owner);
             return;
         }
 
@@ -110,5 +111,87 @@ TXT;
         }
 
         $this->command?->info('Ticket #001 seeded (requested 06 Aug, resolved 07 Aug) with its activity trail.');
+
+        $this->seedTicket002($owner);
+    }
+
+    /**
+     * Ticket #002 — navigation restructure, contract-aligned reports, audit
+     * trail page and dashboard global filters (raised 07 Aug 2026).
+     */
+    private function seedTicket002(?User $owner): void
+    {
+        $requestedAt = Carbon::parse('2026-08-07 12:00:00');
+
+        $description = <<<TXT
+Platform review of the navigation pane and dashboard, raised during implementation:
+
+1. Remove duplicated navigation entries and regroup the menu by function, aligned to the contract Schedule 1 solution components.
+2. Review the reports set against the contracted report families; surface missing pages and remove duplicates.
+3. Add an Audit Trail screen (contract component with no UI previously).
+4. Dashboard: global filters (reporting period, portfolio, compare-to period) driving all KPIs and charts, all values database-driven.
+5. Restyle the navigation pane to the MAIIC brand direction.
+TXT;
+
+        $ticket = Ticket::firstOrCreate(
+            ['reference' => '002'],
+            [
+                'title' => 'Navigation restructure, audit trail & dashboard filters',
+                'description' => $description,
+                'category' => 'enhancement',
+                'priority' => 'high',
+                'status' => 'resolved',
+                'requested_by' => 'MAIIC platform review',
+                'source' => 'meeting',
+                'assigned_to' => $owner?->id,
+                'created_by' => $owner?->id,
+                'resolution' => 'Menu regrouped to contract modules with duplicates removed (EWS/AI commentary live '
+                    . 'as report-hub tiles; EIR pipeline unified; reports/exports moved under Reports; ECL '
+                    . 'Reconciliation and Collateral Register surfaced; Financial Periods and Audit Trail added '
+                    . 'under Administration). New unified Audit Trail page over both audit stores. Dashboard '
+                    . 'gained period / portfolio / compare-to filters (all database-driven), a working period '
+                    . 'selector, organisation-currency labels and an auto-scaled coverage trend. Sidebar '
+                    . 'restyled to the MAIIC brand. Unauthenticated maintenance routes locked down.',
+            ]
+        );
+
+        if (! $ticket->wasRecentlyCreated) {
+            $this->command?->info('Ticket #002 already exists — left unchanged.');
+            return;
+        }
+
+        $completedAt = $requestedAt->copy()->addHours(6);
+
+        $ticket->timestamps = false;
+        $ticket->created_at = $requestedAt;
+        $ticket->updated_at = $completedAt;
+        $ticket->resolved_at = $completedAt;
+        $ticket->save();
+        $ticket->timestamps = true;
+
+        $trail = [
+            [$requestedAt, true, null, 'open', 'Ticket logged from the navigation & dashboard platform review.'],
+            [$requestedAt->copy()->addMinutes(30), true, 'open', 'in_progress', 'Status changed from Open to In Progress.'],
+            [$completedAt->copy()->subHours(2), false, null, null,
+                'Full page-by-page navigation audit completed (all 40 menu items + 30-report hub catalogue mapped against contract Schedule 1).'],
+            [$completedAt, true, 'in_progress', 'resolved', 'Marked resolved. Delivered same day (07 Aug 2026).'],
+        ];
+
+        foreach ($trail as [$at, $isSystem, $old, $new, $body]) {
+            $u = new TicketUpdate([
+                'ticket_id' => $ticket->id,
+                'user_id' => $isSystem ? null : $owner?->id,
+                'body' => $body,
+                'old_status' => $old,
+                'new_status' => $new,
+                'is_system' => $isSystem,
+            ]);
+            $u->timestamps = false;
+            $u->created_at = $at;
+            $u->updated_at = $at;
+            $u->save();
+        }
+
+        $this->command?->info('Ticket #002 seeded with its activity trail.');
     }
 }

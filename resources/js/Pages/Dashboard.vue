@@ -6,27 +6,53 @@
                     IFRS 9 ECL Dashboard
                     <HelpManual />
                 </h2>
-                <form @change="handlePeriodChange"
-                      class="flex items-center gap-3 bg-maiic-600 rounded-xl px-4 py-2.5 shadow-md">
-                    <svg class="w-5 h-5 text-white/90 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
+
+                <!-- Global filter bar: everything on this page is scoped by these.
+                     All options come from the database (reporting_periods /
+                     loan_portfolios) — nothing hardcoded. -->
+                <div class="flex flex-wrap items-end gap-3 bg-maiic-600 rounded-xl px-4 py-2.5 shadow-md">
                     <div>
                         <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
                             Reporting Period
                         </label>
-                        <select v-model="currentPeriod"
-                                class="rounded-lg border-0 bg-white text-maiic-800 text-base font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
+                        <select v-model="filterForm.period" @change="applyFilters"
+                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
                             <option v-for="period in periods" :key="period" :value="period">{{ period }}</option>
                         </select>
                     </div>
-                </form>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
+                            Portfolio
+                        </label>
+                        <select v-model="filterForm.portfolio_id" @change="applyFilters"
+                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
+                            <option :value="null">All portfolios</option>
+                            <option v-for="p in portfolios" :key="p.id" :value="p.id">{{ p.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
+                            Compare To
+                        </label>
+                        <select v-model="filterForm.compare" @change="applyFilters"
+                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 px-3 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
+                            <option :value="null">Previous period</option>
+                            <option v-for="period in comparablePeriods" :key="period" :value="period">{{ period }}</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </template>
 
         <div class="py-8">
             <div class="w-full px-4 sm:px-6 lg:px-10">
+
+                <!-- filter context line -->
+                <p class="mb-4 text-sm text-gray-500">
+                    Showing <b class="text-gray-700">{{ selectedPeriod }}</b>
+                    <template v-if="selectedPortfolioName"> · portfolio <b class="text-gray-700">{{ selectedPortfolioName }}</b></template>
+                    <template v-if="comparePeriod"> · compared to <b class="text-gray-700">{{ comparePeriod }}</b></template>
+                </p>
 
                 <!-- Headline KPI cards -->
                 <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
@@ -47,10 +73,10 @@
                             <span :class="['text-xs px-2 py-1 rounded-full', s.badge]">{{ s.tag }}</span>
                         </div>
                         <p class="text-xs text-gray-500 mt-3">Exposure (EAD)</p>
-                        <p class="text-lg font-bold text-gray-900">MWK {{ formatAmount(s.ead) }}</p>
+                        <p class="text-lg font-bold text-gray-900">{{ currencyCode }} {{ formatAmount(s.ead) }}</p>
                         <div class="flex justify-between mt-3 text-sm">
                             <span class="text-gray-500">ECL</span>
-                            <span class="font-semibold text-gray-800">MWK {{ formatAmount(s.ecl) }}</span>
+                            <span class="font-semibold text-gray-800">{{ currencyCode }} {{ formatAmount(s.ecl) }}</span>
                         </div>
                         <div class="flex justify-between mt-1 text-sm">
                             <span class="text-gray-500">PD</span>
@@ -63,7 +89,10 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-semibold text-gray-900">Portfolio Composition by Stage</h3>
+                            <div>
+                                <h3 class="font-semibold text-gray-900">Portfolio Composition by Stage</h3>
+                                <p class="text-xs text-gray-400">{{ selectedPeriod }}<span v-if="selectedPortfolioName"> · {{ selectedPortfolioName }}</span></p>
+                            </div>
                             <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
                                 <button @click="pieView='chart'" :class="pieView==='chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
                                 <button @click="pieView='table'" :class="pieView==='table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
@@ -89,7 +118,10 @@
                     </div>
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-semibold text-gray-900">ECL Coverage Trend</h3>
+                            <div>
+                                <h3 class="font-semibold text-gray-900">ECL Coverage Trend</h3>
+                                <p class="text-xs text-gray-400">All periods<span v-if="selectedPortfolioName"> · {{ selectedPortfolioName }}</span></p>
+                            </div>
                             <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
                                 <button @click="trendView='chart'" :class="trendView==='chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
                                 <button @click="trendView='table'" :class="trendView==='table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
@@ -122,7 +154,7 @@
                         <thead class="bg-maiic-900 text-white">
                             <tr>
                                 <th class="px-6 py-3 text-left font-medium uppercase text-xs tracking-wider">Metric</th>
-                                <th class="px-6 py-3 text-right font-medium uppercase text-xs tracking-wider">Value (MWK)</th>
+                                <th class="px-6 py-3 text-right font-medium uppercase text-xs tracking-wider">Value ({{ currencyCode }})</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
@@ -143,7 +175,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, onMounted, watch, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { Chart, registerables } from 'chart.js';
 import HelpManual from '../Components/HelpManual.vue';
 Chart.register(...registerables);
@@ -151,14 +183,44 @@ Chart.register(...registerables);
 const props = defineProps({
     summary: Object,
     periods: Array,
+    portfolios: Array,
     selectedPeriod: String,
+    selectedPortfolioId: Number,
+    comparePeriod: String,
     eclTrends: Array,
     error: String,
 });
 
+const page = usePage();
+// Organisation reporting currency (Settings > currency) — shared prop.
+const currencyCode = computed(() => page.props.currency?.code || '');
+
 const summary = computed(() => props.summary);
 const periods = ref(props.periods);
-const currentPeriod = ref(props.selectedPeriod);
+const portfolios = ref(props.portfolios || []);
+
+// Filter state initialised from server-resolved values.
+const filterForm = ref({
+    period: props.selectedPeriod,
+    portfolio_id: props.selectedPortfolioId ?? null,
+    compare: props.comparePeriod ?? null,
+});
+
+const comparablePeriods = computed(() =>
+    (props.periods || []).filter(p => p !== filterForm.value.period));
+
+const selectedPortfolioName = computed(() => {
+    const p = (props.portfolios || []).find(p => p.id === props.selectedPortfolioId);
+    return p ? p.name : null;
+});
+
+function applyFilters() {
+    const query = {};
+    if (filterForm.value.period) query.period = filterForm.value.period;
+    if (filterForm.value.portfolio_id) query.portfolio_id = filterForm.value.portfolio_id;
+    if (filterForm.value.compare) query.compare = filterForm.value.compare;
+    router.get(route('dashboard'), query, { preserveState: false, preserveScroll: true });
+}
 
 const pieChart = ref(null);
 const trendChart = ref(null);
@@ -186,11 +248,21 @@ function formatPct(v) {
 function money(v) {
     const n = Number(v || 0);
     const a = Math.abs(n);
-    if (a >= 1e12) return 'MWK ' + (n / 1e12).toFixed(2) + 'T';
-    if (a >= 1e9)  return 'MWK ' + (n / 1e9).toFixed(2) + 'B';
-    if (a >= 1e6)  return 'MWK ' + (n / 1e6).toFixed(2) + 'M';
-    if (a >= 1e3)  return 'MWK ' + (n / 1e3).toFixed(1) + 'K';
-    return 'MWK ' + n.toLocaleString();
+    const c = currencyCode.value ? currencyCode.value + ' ' : '';
+    if (a >= 1e12) return c + (n / 1e12).toFixed(2) + 'T';
+    if (a >= 1e9)  return c + (n / 1e9).toFixed(2) + 'B';
+    if (a >= 1e6)  return c + (n / 1e6).toFixed(2) + 'M';
+    if (a >= 1e3)  return c + (n / 1e3).toFixed(1) + 'K';
+    return c + n.toLocaleString();
+}
+
+// Signed delta vs the compare-to period, e.g. "+0.42pts vs 2025-10".
+function coverageDelta() {
+    const s = summary.value || {};
+    if (!props.comparePeriod) return null;
+    const d = Number(s.ecl_percentage || 0) - Number(s.last_ecl_percentage || 0);
+    const sign = d > 0 ? '+' : '';
+    return `${sign}${d.toFixed(2)}pts vs ${props.comparePeriod}`;
 }
 
 const kpis = computed(() => {
@@ -198,7 +270,7 @@ const kpis = computed(() => {
     return [
         { label: 'Total Exposure (EAD)', value: money(s.carrying_amount), cls: 'from-maiic-500 to-maiic-600' },
         { label: 'Total ECL', value: money(s.total_ecl), sub: formatPct(s.ecl_percentage) + ' coverage', cls: 'from-rose-500 to-rose-600' },
-        { label: 'ECL Coverage', value: formatPct(s.ecl_percentage), cls: 'from-amber-500 to-amber-600' },
+        { label: 'ECL Coverage', value: formatPct(s.ecl_percentage), sub: coverageDelta(), cls: 'from-amber-500 to-amber-600' },
         { label: 'Stage 3 Exposure', value: money(s.stage_3_amount), sub: formatPct(s.stage_3_percentage) + ' of book', cls: 'from-rose-500 to-rose-600' },
         { label: 'Weighted PD', value: formatPct(s.weighted_pd), cls: 'from-maiic-500 to-maiic-600' },
         { label: 'Weighted LGD', value: formatPct(s.weighted_lgd), cls: 'from-maiic-600 to-maiic-700' },
@@ -250,13 +322,17 @@ function renderCharts() {
     }
 
     if (trendChart.value) {
+        // Auto-scale the y-axis to the data (a fixed 0-100 axis flattened a
+        // 3-6% coverage line into invisibility).
+        const values = (props.eclTrends || []).map(i => Number(i.ecl_percentage || 0));
+        const peak = values.length ? Math.max(...values) : 0;
         trendInstance = new Chart(trendChart.value.getContext('2d'), {
             type: 'line',
             data: {
                 labels: (props.eclTrends || []).map(i => i.period),
                 datasets: [{
                     label: 'ECL %',
-                    data: (props.eclTrends || []).map(i => i.ecl_percentage),
+                    data: values,
                     borderColor: C.maiic,
                     backgroundColor: 'rgba(22, 163, 74, 0.15)',
                     fill: true,
@@ -267,17 +343,17 @@ function renderCharts() {
             options: {
                 maintainAspectRatio: false,
                 scales: {
-                    y: { beginAtZero: true, max: 100, title: { display: true, text: 'ECL %' } },
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: peak > 0 ? Math.ceil(peak * 1.25) : 10,
+                        title: { display: true, text: 'ECL %' },
+                    },
                     x: { title: { display: true, text: 'Reporting Period' } },
                 },
                 plugins: { legend: { display: true } },
             },
         });
     }
-}
-
-function handlePeriodChange() {
-    router.get(route('dashboard.index'), { period: currentPeriod.value }, { preserveState: false });
 }
 
 onMounted(renderCharts);

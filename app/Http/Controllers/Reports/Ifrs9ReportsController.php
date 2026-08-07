@@ -25,8 +25,10 @@ class Ifrs9ReportsController extends Controller
 {
     private const EAD_SQL = 'COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1)';
 
-    // key => [title, subtitle, category]. The 19 requested regulatory
-    // reports + interactive Sensitivity; EWS & AI under Analytics.
+    // key => [title, subtitle, category]. Full catalogue: 30 reports covering
+    // the contract Schedule 1 families (ECL/staging, movement, sector,
+    // collateral, EIR revenue, RBM prudential, disclosure, governance) plus
+    // interactive Sensitivity; EWS & AI under Analytics.
     private array $catalogue = [
         // Core ECL
         'executive'            => ['Executive Summary',             'One-page ECL position: KPIs, stage split, portfolios, exposures & data quality', 'Core ECL'],
@@ -60,7 +62,9 @@ class Ifrs9ReportsController extends Controller
         'coop-linkage'         => ['Cooperative & Anchor Linkage',   'Correlated (contagion) exposure by cooperative / anchor buyer', 'RBM Prudential'],
         // Disclosure & Audit
         'fs-disclosure'        => ['Financial Statement Disclosure', 'IFRS 9 note tables for the annual report', 'Disclosure & Audit'],
-        'data-quality'         => ['Audit Trail & Data Quality',    'Data integrity, overrides and exception checks', 'Disclosure & Audit'],
+        // The user-action audit trail lives at Administration > Audit Trail;
+        // this report is the data-integrity view.
+        'data-quality'         => ['Data Quality & Exceptions',     'Data integrity, overrides and exception checks', 'Disclosure & Audit'],
         // Stress testing (interactive)
         'sensitivity'          => ['Sensitivity Analysis',          'Enter your own PD / LGD shocks and see the ECL impact', 'Stress Testing'],
         // Analytics (separate from the 19 reports)

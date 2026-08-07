@@ -15,7 +15,8 @@
                                      enter-from="-translate-x-full" enter-to="translate-x-0"
                                      leave="transition ease-in-out duration-300 transform" leave-from="translate-x-0"
                                      leave-to="-translate-x-full">
-                        <DialogPanel class="relative flex w-full max-w-xs flex-1 flex-col bg-maiic-700 pt-5 pb-4">
+                        <DialogPanel class="relative flex w-full max-w-xs flex-1 flex-col"
+                                     style="background: linear-gradient(172deg, #0b2b1a 0%, #082013 48%, #051509 100%); border-right: 1px solid rgba(212,160,23,0.14);">
                             <TransitionChild as="template" enter="ease-in-out duration-300" enter-from="opacity-0"
                                              enter-to="opacity-100" leave="ease-in-out duration-300"
                                              leave-from="opacity-100" leave-to="opacity-0">
@@ -28,33 +29,7 @@
                                     </button>
                                 </div>
                             </TransitionChild>
-                            <div class="flex flex-shrink-0 items-center px-4">
-                                <ApplicationMark class="block h-8 w-auto"/>
-                            </div>
-                            <div class="mt-5 h-0 flex-1 overflow-y-auto">
-                                <nav class="space-y-1 px-2">
-                                    <div v-for="item in $page.props.menu" :key="item.name">
-                                        <DropdownMenu v-if="item.dropdown" :item="item"/>
-                                        <a v-else-if="item.download && item.route" :href="route(item.route)" rel="noopener"
-                                           :class="['text-maiic-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
-                                            <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-maiic-300"
-                                                               aria-hidden="true" v-if="item.icon" :icon="item.icon"/>
-                                            {{ item.name }}
-                                        </a>
-                                        <Link v-else-if="item.route" :href="route(item.route)"
-                                              :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-maiic-800 text-white' : 'text-maiic-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
-                                            <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-maiic-300"
-                                                               aria-hidden="true" v-if="item.icon" :icon="item.icon"/>
-                                            {{ item.name }}
-                                        </Link>
-                                        <div v-else class="text-maiic-100 group flex items-center px-2 py-2 text-sm font-medium rounded-md opacity-60 cursor-not-allowed">
-                                            <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-maiic-300"
-                                                               aria-hidden="true" v-if="item.icon" :icon="item.icon"/>
-                                            {{ item.name }}
-                                        </div>
-                                    </div>
-                                </nav>
-                            </div>
+                            <SidebarNav/>
                         </DialogPanel>
                     </TransitionChild>
                     <div class="w-14 flex-shrink-0" aria-hidden="true">
@@ -65,39 +40,11 @@
         </TransitionRoot>
 
         <!-- Static sidebar for desktop -->
-        <div class="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
-            <!-- Sidebar component, swap this element with another sidebar if you like -->
-            <div class="flex flex-grow flex-col overflow-y-auto bg-maiic-700 pt-5">
-                <div class="flex flex-shrink-0 items-center px-4">
-                    <ApplicationMark class="block  w-auto"/>
-                </div>
-                <div class="mt-5 flex flex-1 flex-col">
-                    <nav class="flex-1 space-y-1 px-2 pb-4">
-                        <div v-for="item in $page.props.menu" :key="item.name">
-                            <DropdownMenu v-if="item.dropdown" :item="item"/>
-                            <a v-else-if="item.download && item.route" :href="route(item.route)" rel="noopener"
-                               :class="['text-maiic-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
-                                <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-maiic-300" aria-hidden="true"
-                                                   v-if="item.icon" :icon="item.icon"/>
-                                {{ item.name }}
-                            </a>
-                            <Link v-else-if="item.route" :href="route(item.route)"
-                                  :class="[(route().current(item.route)||(item.route_check && route().current(item.route_check))) ? 'bg-maiic-800 text-white' : 'text-maiic-100 hover:bg-maiic-600', 'group flex items-center px-2 py-2 text-sm font-medium rounded-md']">
-                                <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-maiic-300" aria-hidden="true"
-                                                   v-if="item.icon" :icon="item.icon"/>
-                                {{ item.name }}
-                            </Link>
-                            <div v-else class="text-maiic-100 group flex items-center px-2 py-2 text-sm font-medium rounded-md opacity-60 cursor-not-allowed">
-                                <font-awesome-icon class="mr-3 h-6 w-6 flex-shrink-0 text-maiic-300" aria-hidden="true"
-                                                   v-if="item.icon" :icon="item.icon"/>
-                                {{ item.name }}
-                            </div>
-                        </div>
-                    </nav>
-                </div>
-            </div>
+        <div class="hidden md:fixed md:inset-y-0 md:z-20 md:flex md:w-72 md:flex-col"
+             style="background: linear-gradient(172deg, #0b2b1a 0%, #082013 48%, #051509 100%); border-right: 1px solid rgba(212,160,23,0.14);">
+            <SidebarNav/>
         </div>
-        <div class="flex flex-1 flex-col md:pl-64">
+        <div class="flex flex-1 flex-col md:pl-72">
             <div class="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white shadow">
                 <button type="button"
                         class="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-maiic-500 md:hidden"
@@ -213,13 +160,13 @@ import {
     XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import {MagnifyingGlassIcon} from '@heroicons/vue/20/solid'
-import DropdownMenu from "@/Jetstream/DropdownMenu.vue"
+import SidebarNav from "@/Jetstream/SidebarNav.vue"
 import FlashMessages from '@/Jetstream/FlashMessages.vue'
 import ApplicationMark from '@/Jetstream/ApplicationMark.vue'
 
 export default {
     components: {
-        DropdownMenu,
+        SidebarNav,
         FlashMessages,
         ApplicationMark,
         MagnifyingGlassIcon,

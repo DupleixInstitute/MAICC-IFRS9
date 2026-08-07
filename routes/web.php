@@ -130,6 +130,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/workspace/message', [\App\Http\Controllers\WorkspaceController::class, 'postMessage'])->name('workspace.message');
 });
 
+// Unified audit trail (contract component): activity_log + audit_logs.
+Route::get('/audit-trail', [\App\Http\Controllers\AuditTrailController::class, 'index'])->name('audit-trail.index');
+
 // Support / change-request ticketing (enhancement, issue & change tracking).
 Route::group(['prefix' => 'tickets'], function () {
     Route::get('/', [TicketsController::class, 'index'])->name('tickets.index');
@@ -671,17 +674,21 @@ Route::group(['prefix' => 'import', 'as' => 'imports.'], function () {
 Route::get('/imports/download-failed/{import}', [ImportsController::class, 'downloadFailedFile'])->name('imports.failed-download');
 
 
-Route::get('migrate', function () {
-    Artisan::call('migrate', ['--force' => true]);
-    return redirect()->route('dashboard')->with('success', 'Migrated successfully.');
-});
+// Maintenance triggers — MUST stay behind auth + settings permission: they
+// run artisan commands and were previously reachable unauthenticated.
+Route::middleware(['auth', 'permission:settings'])->group(function () {
+    Route::get('migrate', function () {
+        Artisan::call('migrate', ['--force' => true]);
+        return redirect()->route('dashboard')->with('success', 'Migrated successfully.');
+    });
 
-Route::get('cache', function () {
-    Artisan::call('cache:clear', ['--force' => true]);
-    Artisan::call('route:clear', ['--force' => true]);
-    Artisan::call('config:clear', ['--force' => true]);
-    Artisan::call('optimize', ['--force' => true]);
-    return redirect()->route('dashboard')->with('success', 'cache cleared successfully.');
+    Route::get('cache', function () {
+        Artisan::call('cache:clear');
+        Artisan::call('route:clear');
+        Artisan::call('config:clear');
+        Artisan::call('optimize');
+        return redirect()->route('dashboard')->with('success', 'cache cleared successfully.');
+    });
 });
 
 // Transition Matrix Cummulative

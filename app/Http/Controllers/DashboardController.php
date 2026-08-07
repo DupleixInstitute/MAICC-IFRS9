@@ -46,117 +46,110 @@ class DashboardController extends Controller
         $this->middleware('auth');
         $this->filterOptions = [];
     }
+/**
+ * IFRS 9 ECL dashboard. Everything is scoped by the global filter bar:
+ * reporting period, loan portfolio and a compare-to period — all values
+ * come from the database (reporting_periods / loan_portfolios), nothing
+ * is hardcoded.
+ */
 public function index(Request $request)
 {
-    Log::info('=== DASHBOARD DEBUG START ===');
-
-    // Fetch all reporting periods and convert to YYYY-MM format for querying
+    // Available periods (Y-m, newest first) — only those with ECL calculated.
     $periods = ReportingPeriods::where('ecl_calculated', true)
         ->orderBy('period', 'desc')
-        ->get();
+        ->pluck('period')
+        ->map(fn ($p) => Carbon::parse($p)->format('Y-m'))
+        ->unique()
+        ->values();
 
-    Log::info('Available periods from reporting_periods: ' . $periods->pluck('period')->implode(', '));
+    $portfolios = LoanPortfolio::orderBy('name')->get(['id', 'name']);
 
     if ($periods->isEmpty()) {
-        Log::warning('No periods with ECL calculated found');
         return Inertia::render('Dashboard', [
-            'summary' => [
-                'carrying_amount' => 0,
-                'total_ecl' => 0,
-                'last_ecl' => [1 => 0, 2 => 0, 3 => 0],
-                'ecl_percentage' => 0,
-                'last_ecl_percentage' => 0,
-                'stage_3_amount' => 0,
-                'paid_amount' => 0,
-                'stage_3_percentage' => 0,
-                'paid_percentage' => 0,
-                'pd_percentages' => [0, 0, 0],
-                'total_eads' => [0, 0, 0],
-                'ecl_totals' => [0, 0, 0],
-                'lgd_percentage' => 0,
-                'weighted_pd' => 0,
-                'weighted_lgd' => 0,
-                'reporting_period' => null,
-            ],
+            'summary' => $this->emptySummary(),
             'periods' => [],
+            'portfolios' => $portfolios,
             'selectedPeriod' => null,
+            'selectedPortfolioId' => null,
+            'comparePeriod' => null,
             'eclTrends' => [],
-            'error' => 'No data available. Please upload or calculate ECL first.'
+            'error' => 'No data available. Please upload or calculate ECL first.',
         ]);
     }
 
-    // Convert periods to YYYY-MM format for display
-    $periodsForDropdown = $periods->map(function ($period) {
-        return Carbon::parse($period->period)->format('Y-m');
-    })->unique()->values();
+    // --- Global filters (whitelisted against DB values, never trusted raw) ---
+    $selectedPeriod = $request->input('period');
+    if (! $periods->contains($selectedPeriod)) {
+        $selectedPeriod = $periods->first();
+    }
 
-    // SELECTED PERIOD - Convert to YYYY-MM format for querying
-    $selectedPeriodFromRequest = $request->input('period', $periods->first()->period);
-    $selectedPeriodForQuery = Carbon::parse($selectedPeriodFromRequest)->format('Y-m');
-    $selectedPeriodForDisplay = Carbon::parse($selectedPeriodFromRequest)->format('Y-m-d');
+    $portfolioId = $request->integer('portfolio_id') ?: null;
+    if ($portfolioId && ! $portfolios->contains('id', $portfolioId)) {
+        $portfolioId = null;
+    }
 
-    Log::info('Selected period (for query): ' . $selectedPeriodForQuery);
-    Log::info('Selected period (for display): ' . $selectedPeriodForDisplay);
+    // Compare-to period: user-picked, else the closest earlier period.
+    $comparePeriod = $request->input('compare');
+    if (! $periods->contains($comparePeriod) || $comparePeriod === $selectedPeriod) {
+        $comparePeriod = $periods->first(fn ($p) => $p < $selectedPeriod);
+    }
 
-    // Previous Period - Find in YYYY-MM format
-    $currentDate = Carbon::parse($selectedPeriodFromRequest);
-    $previousPeriodDate = $periods->first(function ($period) use ($currentDate) {
-        return Carbon::parse($period->period) < $currentDate;
-    });
-    
-    $previousPeriodForQuery = $previousPeriodDate ? Carbon::parse($previousPeriodDate->period)->format('Y-m') : null;
-    Log::info('Previous period: ' . ($previousPeriodForQuery ?? 'None'));
-
-    // LOANBOOK - Query using YYYY-MM format
-    $loanBooks = LoanBook::where('reporting_period', $selectedPeriodForQuery);
-
-    $grossCarryingAmount = (float) $loanBooks->sum('carrying_amount');
-
-    $stage1Amount = (float) $loanBooks->clone()->where('ifrs9stage_post_qualitative', 1)->sum('carrying_amount');
-    $stage2Amount = (float) $loanBooks->clone()->where('ifrs9stage_post_qualitative', 2)->sum('carrying_amount');
-    $stage3Amount = (float) $loanBooks->clone()->where('ifrs9stage_post_qualitative', 3)->sum('carrying_amount');
-
-    Log::info("LoanBook query: " . $loanBooks->toSql());
-    Log::info("LoanBook bindings: " . json_encode($loanBooks->getBindings()));
-    Log::info("LoanBook amounts => Stage1: $stage1Amount | Stage2: $stage2Amount | Stage3: $stage3Amount");
-    Log::info("LoanBook count: " . $loanBooks->count());
-
-    // ECL - Query using YYYY-MM format
-    $ecl = ExpectedCreditLoss::where('reporting_period', $selectedPeriodForQuery);
-
-    $stage1ECL = (float) $ecl->clone()->where('ifrs9_stage', 1)->sum('total_ecl');
-    $stage2ECL = (float) $ecl->clone()->where('ifrs9_stage', 2)->sum('total_ecl');
-    $stage3ECL = (float) $ecl->clone()->where('ifrs9_stage', 3)->sum('total_ecl');
-
-    Log::info("ECL query: " . $ecl->toSql());
-    Log::info("ECL bindings: " . json_encode($ecl->getBindings()));
-    Log::info("ECL amounts => Stage1: $stage1ECL | Stage2: $stage2ECL | Stage3: $stage3ECL");
-    Log::info("ECL count: " . $ecl->count());
-
-    // PD AVERAGES
-    $stage1PD = round($ecl->clone()->where('ifrs9_stage', 1)->avg('pd_value_used') * 100 ?? 0, 2);
-    $stage2PD = round($ecl->clone()->where('ifrs9_stage', 2)->avg('pd_value_used') * 100 ?? 0, 2);
-    $stage3PD = round($ecl->clone()->where('ifrs9_stage', 3)->avg('pd_value_used') * 100 ?? 0, 2);
-
-    $lgdPercentage = round(
-        $ecl->clone()->where('ifrs9_stage', 3)->avg('lgd_value_used') * 100 ?? 0,
-        2
+    // --- Scoped query builders -------------------------------------------
+    $loanBookScope = fn () => tap(
+        LoanBook::where('reporting_period', $selectedPeriod),
+        fn ($q) => $portfolioId ? $q->where('loan_portfolio_id', $portfolioId) : null
     );
 
-    // Previous Period Data
+    // ECL rows are stored per (period, stage, calculation level, calc id).
+    // A portfolio filter must pin level+id; unfiltered keeps the historic
+    // behaviour (sum of whatever was calculated for the period).
+    $eclScope = function (string $period) use ($portfolioId) {
+        $q = ExpectedCreditLoss::where('reporting_period', $period);
+        if ($portfolioId) {
+            $q->where('ecl_calculation_level', 'portfolio')
+                ->where('ecl_calculation_id', $portfolioId);
+        }
+        return $q;
+    };
+
+    // --- Loan book: EAD by stage in ONE grouped query --------------------
+    $eadByStage = $loanBookScope()
+        ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount')
+        ->groupBy('ifrs9stage_post_qualitative')
+        ->pluck('amount', 'stage');
+
+    $stage1Amount = (float) ($eadByStage[1] ?? 0);
+    $stage2Amount = (float) ($eadByStage[2] ?? 0);
+    $stage3Amount = (float) ($eadByStage[3] ?? 0);
+    $grossCarryingAmount = (float) $eadByStage->sum();
+
+    // --- ECL: totals, PD and LGD by stage in ONE grouped query ------------
+    $eclByStage = $eclScope($selectedPeriod)
+        ->selectRaw('ifrs9_stage, SUM(total_ecl) as total_ecl, AVG(pd_value_used) as avg_pd, AVG(lgd_value_used) as avg_lgd')
+        ->groupBy('ifrs9_stage')
+        ->get()
+        ->keyBy('ifrs9_stage');
+
+    $stage1ECL = (float) ($eclByStage[1]->total_ecl ?? 0);
+    $stage2ECL = (float) ($eclByStage[2]->total_ecl ?? 0);
+    $stage3ECL = (float) ($eclByStage[3]->total_ecl ?? 0);
+
+    $stage1PD = round((float) ($eclByStage[1]->avg_pd ?? 0) * 100, 2);
+    $stage2PD = round((float) ($eclByStage[2]->avg_pd ?? 0) * 100, 2);
+    $stage3PD = round((float) ($eclByStage[3]->avg_pd ?? 0) * 100, 2);
+    $lgdPercentage = round((float) ($eclByStage[3]->avg_lgd ?? 0) * 100, 2);
+
+    // --- Compare-to period ------------------------------------------------
     $lastTotalECLAllowance = collect([1 => 0, 2 => 0, 3 => 0]);
     $lastGrossAmount = collect([1 => 0, 2 => 0, 3 => 0]);
 
-    if ($previousPeriodForQuery) {
-        $lastTotalECLAllowance = ExpectedCreditLoss::where('reporting_period', $previousPeriodForQuery)
-            ->selectRaw('ifrs9_stage, SUM(total_ecl) as total')
+    if ($comparePeriod) {
+        $compareRows = $eclScope($comparePeriod)
+            ->selectRaw('ifrs9_stage, SUM(total_ecl) as total, SUM(total_ead) as total_ead')
             ->groupBy('ifrs9_stage')
-            ->pluck('total', 'ifrs9_stage');
-
-        $lastGrossAmount = ExpectedCreditLoss::where('reporting_period', $previousPeriodForQuery)
-            ->selectRaw('ifrs9_stage, SUM(total_ead) as total_ead')
-            ->groupBy('ifrs9_stage')
-            ->pluck('total_ead', 'ifrs9_stage');
+            ->get();
+        $lastTotalECLAllowance = $compareRows->pluck('total', 'ifrs9_stage');
+        $lastGrossAmount = $compareRows->pluck('total_ead', 'ifrs9_stage');
     }
 
     $totalECLAllowance = $stage1ECL + $stage2ECL + $stage3ECL;
@@ -186,18 +179,24 @@ public function index(Request $request)
     $weightedPD = $sumEad > 0 ? ($stage1PD * $stage1Amount + $stage2PD * $stage2Amount + $stage3PD * $stage3Amount) / $sumEad : 0;
     $weightedLGD = $sumEad > 0 ? ($lgdPercentage * $stage3Amount) / $sumEad : 0;
 
-    // Trends - Convert to YYYY-MM format for querying
-    $eclTrends = $periods->map(function ($period) {
-        $periodForQuery = Carbon::parse($period->period)->format('Y-m');
-        $grossAmount = ExpectedCreditLoss::where('reporting_period', $periodForQuery)->sum('total_ead');
-        $totalECL = ExpectedCreditLoss::where('reporting_period', $periodForQuery)->sum('total_ecl');
-        $eclPercentage = $grossAmount > 0 ? round(($totalECL / $grossAmount) * 100, 2) : 0;
+    // --- Coverage trend: ONE grouped query over all periods ---------------
+    $trendRows = tap(
+        ExpectedCreditLoss::whereIn('reporting_period', $periods),
+        fn ($q) => $portfolioId
+            ? $q->where('ecl_calculation_level', 'portfolio')->where('ecl_calculation_id', $portfolioId)
+            : null
+    )
+        ->selectRaw('reporting_period, SUM(total_ead) as total_ead, SUM(total_ecl) as total_ecl')
+        ->groupBy('reporting_period')
+        ->orderBy('reporting_period')
+        ->get();
 
-        return [
-            'period' => $period->period, // Keep original for display
-            'ecl_percentage' => $eclPercentage,
-        ];
-    })->sortBy('period')->values();
+    $eclTrends = $trendRows->map(fn ($row) => [
+        'period' => $row->reporting_period,
+        'ecl_percentage' => $row->total_ead > 0
+            ? round(($row->total_ecl / $row->total_ead) * 100, 2)
+            : 0,
+    ])->values();
 
     $summary = [
         'carrying_amount' => $grossCarryingAmount,
@@ -215,27 +214,40 @@ public function index(Request $request)
         'lgd_percentage' => $lgdPercentage,
         'weighted_pd' => $weightedPD,
         'weighted_lgd' => $weightedLGD,
-        'reporting_period' => $selectedPeriodForDisplay, // Use YYYY-MM-DD for display
+        'reporting_period' => $selectedPeriod,
     ];
-
-    Log::info('FINAL SUMMARY DATA:', $summary);
-    Log::info('=== DASHBOARD DEBUG END ===');
 
     return Inertia::render('Dashboard', [
         'summary' => $summary,
-        'periods' => $periodsForDropdown, // Use YYYY-MM for dropdown
-        'selectedPeriod' => $selectedPeriodForDisplay, // Use YYYY-MM-DD for selected
+        'periods' => $periods,
+        'portfolios' => $portfolios,
+        'selectedPeriod' => $selectedPeriod,
+        'selectedPortfolioId' => $portfolioId,
+        'comparePeriod' => $comparePeriod,
         'eclTrends' => $eclTrends,
-        'debug' => [
-            'loanbook_count' => $loanBooks->count(),
-            'ecl_count' => $ecl->count(),
-            'gross_amount' => $grossCarryingAmount,
-            'period_formats' => [
-                'query_period' => $selectedPeriodForQuery,
-                'display_period' => $selectedPeriodForDisplay,
-            ]
-        ]
     ]);
+}
+
+private function emptySummary(): array
+{
+    return [
+        'carrying_amount' => 0,
+        'total_ecl' => 0,
+        'last_ecl' => [1 => 0, 2 => 0, 3 => 0],
+        'ecl_percentage' => 0,
+        'last_ecl_percentage' => 0,
+        'stage_3_amount' => 0,
+        'paid_amount' => 0,
+        'stage_3_percentage' => 0,
+        'paid_percentage' => 0,
+        'pd_percentages' => [0, 0, 0],
+        'total_eads' => [0, 0, 0],
+        'ecl_totals' => [0, 0, 0],
+        'lgd_percentage' => 0,
+        'weighted_pd' => 0,
+        'weighted_lgd' => 0,
+        'reporting_period' => null,
+    ];
 }
 
     public function test()

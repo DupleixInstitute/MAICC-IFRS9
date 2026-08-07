@@ -2,15 +2,32 @@
 
 /*
 |--------------------------------------------------------------------------
-| MAIIC IFRS 9 — workflow-based navigation
+| MAIIC IFRS 9 — contract-aligned navigation
 |--------------------------------------------------------------------------
-| Organised by how the bank uses the system (setup -> data -> model ->
-| ECL -> reports -> analytics -> admin), not by database tables. The
-| sidebar renderer (Jetstream/DropdownMenu.vue) is recursive with
+| Groups mirror the Schedule 1 solution components of the MAIIC–Dupleix
+| implementation agreement (data onboarding, collateral, EIR, IFRS 9 model
+| setup, ECL engine, reports, audit trail, dashboard, administration).
+|
+| Duplication rules applied (nav audit, Aug 2026):
+|  - The four report/export screens that lived under "Customer & Loan Data"
+|    (Disbursements, Loan Book Reconciliation, Loan Book Export, ECL Export)
+|    are reports — they live under Reports, next to the hub.
+|  - ECL Reconciliation (the richest reconciliation page) is surfaced; it was
+|    previously reachable only through the hidden legacy /report hub.
+|  - The EIR trio (Accounting Rules -> Schedule Intake -> Fee Classification)
+|    is one pipeline and sits together in one group.
+|  - Early Warning System & AI Executive Commentary are tiles INSIDE the
+|    IFRS 9 Reports hub — they are not duplicated as menu items.
+|  - Regression Analysis is forward-looking model fitting; it lives under
+|    the Forward-Looking Model group, not a separate Analytics group.
+|  - The IFRS 9 Reports hub contains the full 30-report catalogue (incl. the
+|    Sensitivity/stress tile); the standalone Stress Testing page is the
+|    loan-level engine and is kept as a separate Reports entry.
+|
+| The sidebar renderer (Jetstream/DropdownMenu.vue) is recursive with
 | accordion behaviour, so groups may nest. Every leaf points to a real
 | registered route. The legacy /report (reports.index) is intentionally
-| NOT linked. The 19 IFRS 9 reports + interactive Sensitivity live inside
-| the tabbed hub, so they are not repeated in the menu.
+| NOT linked.
 */
 
 // $download=true => the route returns a file (e.g. PDF). The sidebar must
@@ -47,21 +64,23 @@ return [
             $leaf('Clients', 'clients.index'),
             $leaf('Loan Book', 'loan_applications.loan-book'),
             $leaf('Imports', 'imports.index'),
-            $leaf('Disbursements', 'reports.disbursement-report'),
-            $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
-            $leaf('Loan Book Export', 'reports.loan-book-export'),
-            $leaf('ECL Export', 'reports.ecl-export'),
-            $leaf('EIR Schedule Intake', 'eir-intake.index'),
-            $leaf('EIR Fee Classification', 'eir-fee-classification.index'),
         ], 2),
 
         $group('Collateral Management', 'building', [
+            $leaf('Collateral Register', 'collateral.register.index'),
             $leaf('Collateral Types', 'collateral.types.index'),
             $leaf('Collateral Allocation', 'collateral.allocations.index'),
         ], 3),
 
+        // One pipeline: rules suggest -> intake imports -> classification applies
+        // maker/checker. Kept together (contract: EIR module).
+        $group('EIR & Revenue Recognition', 'percent', [
+            $leaf('Accounting Rules', 'eir-accounting-rules.index'),
+            $leaf('Schedule Intake', 'eir-intake.index'),
+            $leaf('Fee Classification', 'eir-fee-classification.index'),
+        ], 4),
+
         $group('IFRS 9 Model Setup', 'chart-line', [
-            $leaf('EIR Accounting Rules', 'eir-accounting-rules.index'),
             $group('Staging & SICR Rules', 'circle', [
                 $leaf('Quantitative Thresholds', 'stageing-rules.index'),
                 $leaf('SICR Groups Setup', 'sicr-groups.index'),
@@ -84,36 +103,38 @@ return [
                 $leaf('Weighted Forecast', 'macro-forecast-weighted.index'),
                 $leaf('Credit Loss Data', 'credit-loss-data.index'),
                 $leaf('Adjusted Forecast', 'forecasting.manual'),
+                $leaf('Regression Analysis', 'regression.index'),
             ], 3),
             $group('Management Overlays', 'circle', [
                 $leaf('Economic Scenarios', 'fli.scenarios.index'),
                 $leaf('External Calculations', 'fli.external.index'),
                 $leaf('Calculation History', 'fli.external.list'),
             ], 4),
-        ], 4),
+        ], 5),
 
         $group('ECL Processing', 'check', [
             $leaf('ECL Calculation', 'expected-credit-loss.index'),
-        ], 5),
-
-        // Reports = the IFRS 9 hub (19 reports + interactive Sensitivity, all
-        // inside the tabbed hub) + the downloadable manual. Operational exports
-        // and the duplicate ECL/Disbursement reconciliations were moved out /
-        // removed so this group is not a dumping ground.
-        $group('Reports', 'chart-bar', [
-            $leaf('IFRS 9 Reports', 'ifrs9-reports.index'),
-            $leaf('Stress Testing', 'stress-testing.index', 'bolt'),
-            $leaf('User Manual', 'manual.view', 'book-open'),
         ], 6),
 
-        $group('Analytics', 'chart-line', [
-            $leaf('Early Warning System', 'ifrs9-reports.ews'),
-            $leaf('AI Executive Commentary', 'ifrs9-reports.ai-narrative'),
-            $leaf('Regression Analysis', 'regression.index'),
+        // Contract Schedule 1 "Reports": the hub carries the 30-report
+        // catalogue (ECL/staging, movement, sector, collateral, EIR revenue,
+        // RBM prudential, disclosure, governance + analytics tiles). The
+        // operational reconciliations/exports sit beside it.
+        $group('Reports', 'chart-bar', [
+            $leaf('IFRS 9 Reports', 'ifrs9-reports.index'),
+            $leaf('ECL Reconciliation', 'reports.ecl-reconciliation'),
+            $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
+            $leaf('Disbursements (Vintage)', 'reports.disbursement-report'),
+            $leaf('Loan Book Export', 'reports.loan-book-export'),
+            $leaf('ECL Export', 'reports.ecl-export'),
+            $leaf('Stress Testing', 'stress-testing.index', 'bolt'),
+            $leaf('User Manual', 'manual.view', 'book-open'),
         ], 7),
 
         $group('Administration', 'cog', [
             $leaf('User Management', 'users.index'),
+            $leaf('Financial Periods', 'accounting.financial_periods.index'),
+            $leaf('Audit Trail', 'audit-trail.index'),
             $leaf('Support Tickets', 'tickets.index', 'ticket'),
             $leaf('Settings', 'settings.index'),
         ], 8),
