@@ -105,30 +105,34 @@
                                     <tr>
                                         <th>Contract ID</th>
                                         <th>Customer</th>
-                                        <!-- <th>Portfolio</th> -->
-                                        <th class="num">Balance</th>
-                                        <th>Due Date</th>
-                                        <th>Overdue Days</th>
+                                        <th>Stage</th>
+                                        <th class="num">EAD (MWK)</th>
+                                        <th class="num">PD</th>
+                                        <th class="num">LGD</th>
+                                        <th class="num">ECL (MWK)</th>
+                                        <th class="num">Overdue Days</th>
                                         <th>Status</th>
-                                        <th>Updated</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="loan in loanBooks.data" :key="loan.id">
                                         <td class="whitespace-nowrap font-medium">{{ loan.contract_id }}</td>
-                                        <td class="whitespace-nowrap text-gray-500">{{ loan.client?.name || loan.external_identity_id }}</td>
-
-                                        <td class="num">{{ formatCurrency(loan.principal_balance) }}</td>
-                                        <td class="whitespace-nowrap text-gray-500">{{ formatDate(loan.due_date) }}</td>
-                                        <td class="whitespace-nowrap" :class="getOverdueClass(loan.overdue_days)">
-                                            {{ loan.overdue_days }}
+                                        <td class="whitespace-nowrap text-gray-500">{{ loan.client?.name || loan.customer_name || loan.external_identity_id }}</td>
+                                        <td class="whitespace-nowrap">
+                                            <span :class="['maiic-badge', stageOf(loan) === 3 ? 'maiic-badge-red' : stageOf(loan) === 2 ? 'maiic-badge-gold' : 'maiic-badge-green']">
+                                                Stage {{ stageOf(loan) }}
+                                            </span>
                                         </td>
+                                        <td class="num">{{ formatMoney(loan.ead ?? loan.carrying_amount) }}</td>
+                                        <td class="num">{{ formatRate(loan.pd_post_fli ?? loan.pd_value) }}</td>
+                                        <td class="num">{{ formatRate(loan.lgd_value) }}</td>
+                                        <td class="num">{{ formatMoney(loan.ecl_value) }}</td>
+                                        <td class="num" :class="getOverdueClass(loan.overdue_days)">{{ loan.overdue_days }}</td>
                                         <td class="whitespace-nowrap">
                                             <span :class="getStatusClass(loan.overdue_status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                                                 {{ loan.overdue_status }}
                                             </span>
                                         </td>
-                                        <td class="whitespace-nowrap text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -630,8 +634,27 @@ const fetchSummary = async () => {
 };
 
 const formatCurrency = (value) => {
-    if (!value) return 'E0.00';
-    return 'E' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    return formatMoney(value);
+};
+
+// Accounting format: thousands separators, 2dp, negatives in parentheses.
+const formatMoney = (value) => {
+    const n = Number(value ?? 0);
+    if (!isFinite(n)) return '0.00';
+    const abs = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n < 0 ? '(' + abs + ')' : abs;
+};
+
+// PD / LGD are stored as fractions (0..1); show as percentages.
+const formatRate = (value) => {
+    const n = Number(value ?? 0);
+    if (!isFinite(n)) return '0.00%';
+    return (n * 100).toFixed(2) + '%';
+};
+
+// Final IFRS 9 stage: post-qualitative wins, then calculated, then imported.
+const stageOf = (loan) => {
+    return Number(loan.ifrs9stage_post_qualitative ?? loan.calculated_ifrs9_stage ?? loan.ifrs9_stage ?? 1);
 };
 
 const formatDate = (date) => {

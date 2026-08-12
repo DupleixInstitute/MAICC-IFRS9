@@ -233,18 +233,15 @@
                                         {{ r.change ?? '-' }}
                                     </td>
                                     <td v-if="comparePeriod" class="px-6 py-3 text-center">
-                                        <span v-if="r.status === 'good'" title="Favourable movement"
-                                              class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-maiic-100 text-maiic-700">
-                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+                                        <span v-if="r.status && r.status !== 'neutral'"
+                                              :title="r.status === 'good' ? 'Favourable movement' : r.status === 'watch' ? 'Moderate movement, keep an eye on it' : 'Adverse movement'"
+                                              :class="['inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold',
+                                                       r.status === 'good' ? 'bg-maiic-100 text-maiic-800'
+                                                           : r.status === 'watch' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700']">
+                                            <span v-if="r.up !== null">{{ r.up ? '▲' : '▼' }}</span>
+                                            {{ r.status === 'good' ? 'Favourable' : r.status === 'watch' ? 'Watch' : 'Adverse' }}
                                         </span>
-                                        <span v-else-if="r.status === 'bad'" title="Adverse movement"
-                                              class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-600">
-                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01"/></svg>
-                                        </span>
-                                        <span v-else-if="r.status === 'watch'" title="Watch: moderate movement"
-                                              class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/></svg>
-                                        </span>
+                                        <span v-else-if="r.status === 'neutral'" class="maiic-badge maiic-badge-grey">Stable</span>
                                         <span v-else class="text-gray-300">-</span>
                                     </td>
                                 </tr>
@@ -452,6 +449,7 @@ const summaryRows = computed(() => {
             value: kind === 'money' ? formatAmount(now) : formatPct(now),
             compare: c ? (kind === 'money' ? formatAmount(then) : formatPct(then)) : null,
             change, status,
+            up: c && then !== null ? now > then : null,
         };
     };
 
