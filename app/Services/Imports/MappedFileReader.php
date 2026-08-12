@@ -149,6 +149,10 @@ class MappedFileReader
             $counts = [];
             $blank = 0;
             $truncated = false;
+            $filled = 0;
+            $numeric = 0;
+            $dateLike = 0;
+            $scaled = 0;
 
             foreach ($rows as $row) {
                 $value = $row[$header] ?? null;
@@ -157,6 +161,23 @@ class MappedFileReader
                 if ($text === '' || $text === '-') {
                     $blank++;
                     continue;
+                }
+
+                $filled++;
+                if ($this->looksLikeDate($text)) {
+                    $dateLike++;
+                } elseif ($this->looksNumeric($text)) {
+                    $numeric++;
+                    // An account number and an amount are both "numeric", and
+                    // magnitude cannot separate them — 104450000053 is a
+                    // loan account, not a large sum. A decimal point or a
+                    // thousands separator can. The bias is deliberate: a
+                    // missed 'number' costs nothing, because the import
+                    // services clean their own values, while an identifier
+                    // cast to a number loses its leading zeros for good.
+                    if (str_contains($text, '.') || str_contains($text, ',')) {
+                        $scaled++;
+                    }
                 }
                 if (isset($counts[$text])) {
                     $counts[$text]++;
@@ -183,10 +204,72 @@ class MappedFileReader
                 'distinct'  => count($counts),
                 'blank'     => $blank,
                 'truncated' => $truncated,
+                'type'      => $type = $this->inferType($filled, $numeric, $dateLike, $scaled),
+                'suggested_transform' => match ($type) {
+                    'date'   => 'date',
+                    'number' => 'number',
+                    default  => null,
+                },
             ];
         }
 
         return $profile;
+    }
+
+    /**
+     * The column's type, from its values rather than its name.
+     *
+     * A tenth of the column is allowed to disagree: these files mix formats
+     * within one column — Extract B writes Actual rows as dd-mm-yyyy and
+     * Scheduled rows as Excel serials — and a single stray "N/A" should not
+     * demote a date column to text.
+     *
+     * Percent is never suggested. Whether 32.10 means 32.1% or 3,210% cannot
+     * be read from the values, and guessing wrong moves a solved rate by two
+     * orders of magnitude, so that one stays a human decision.
+     */
+    private function inferType(int $filled, int $numeric, int $dateLike, int $scaled): string
+    {
+        if ($filled === 0) {
+            return 'empty';
+        }
+        if ($dateLike / $filled >= 0.9) {
+            return 'date';
+        }
+        // Numeric, but only worth cleaning if the values are figures rather
+        // than identifiers — a customer id of 93 and a loan account of
+        // 104450000053 both stay text so neither can lose a leading zero.
+        // Where a bare-integer amount is misread as text, the field-name
+        // default still supplies the transform.
+        if ($numeric / $filled >= 0.9 && $scaled > 0) {
+            return 'number';
+        }
+
+        return 'text';
+    }
+
+    private function looksNumeric(string $text): bool
+    {
+        $cleaned = str_replace([',', ' ', "\xC2\xA0"], '', $text);
+        if (preg_match('/^\((.*)\)$/', $cleaned, $m)) {
+            $cleaned = '-' . $m[1];
+        }
+
+        return is_numeric($cleaned);
+    }
+
+    /** Excel serials plus the written formats these extracts actually use. */
+    private function looksLikeDate(string $text): bool
+    {
+        if (is_numeric($text)) {
+            $n = (float) $text;
+
+            return $n > 20000 && $n < 80000 && floor($n) == $n;
+        }
+
+        return (bool) preg_match('/^\d{4}-\d{1,2}-\d{1,2}([ T].*)?$/', $text)
+            || (bool) preg_match('#^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$#', $text)
+            || (bool) preg_match('/^\d{1,2}-[A-Za-z]{3,9}-\d{2,4}$/', $text);
     }
 
     /**

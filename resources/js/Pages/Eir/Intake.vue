@@ -94,7 +94,10 @@
                                      reading "FInES · FInES · FInES" hid that a second
                                      portfolio existed. -->
                                 <td class="px-4 py-2 text-xs align-top" style="max-width: 26rem">
-                                    <div v-if="profileFor(header)" class="flex flex-wrap gap-1">
+                                    <div v-if="profileFor(header)" class="flex flex-wrap gap-1 items-center">
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide" :class="typeClass(header)">
+                                            {{ profileFor(header).type }}
+                                        </span>
                                         <span
                                             v-for="entry in profileFor(header).values"
                                             :key="entry.value"
@@ -114,7 +117,7 @@
                                     <span v-else class="text-gray-400">{{ previewFor(header) }}</span>
                                 </td>
                                 <td class="px-4 py-2">
-                                    <select v-model="mapping[header]" class="form-input text-sm">
+                                    <select v-model="mapping[header]" class="form-input text-sm" @change="applySuggestedTransform(header)">
                                         <option :value="undefined">- ignore -</option>
                                         <option v-for="f in allTargetFields" :key="f" :value="f">{{ f }}</option>
                                     </select>
@@ -360,6 +363,25 @@ export default {
         profileFor(header) {
             return this.analysis?.profile?.[header] || null
         },
+        typeClass(header) {
+            return {
+                number: 'bg-blue-50 text-blue-700',
+                date: 'bg-purple-50 text-purple-700',
+                text: 'bg-gray-100 text-gray-500',
+                empty: 'bg-amber-50 text-amber-700',
+            }[this.profileFor(header)?.type] || 'bg-gray-100 text-gray-500'
+        },
+        /**
+         * Apply the transform inferred from the column's values. Only ever
+         * fills a blank choice - once an operator picks a transform it is
+         * theirs, and re-analysing the same file must not overwrite it.
+         */
+        applySuggestedTransform(header) {
+            const target = this.mapping[header]
+            if (!target || this.transforms[target]) return
+            const t = this.profileFor(header)?.suggested_transform || this.defaultTransformFor(target)
+            if (t) this.transforms[target] = t
+        },
         /** Distinct values beyond the dozen shown, so a key column reads as one. */
         moreValues(header) {
             const p = this.profileFor(header)
@@ -390,10 +412,14 @@ export default {
                 data.append('import_type', this.importType)
                 const { data: analysis } = await axios.post(this.route('eir-intake.analyze'), data)
                 this.analysis = analysis
-                // Pre-fill from the saved template, then default transforms.
+                // Pre-fill from the saved template, then transforms. The type
+                // read from the column's own values leads - it is the only
+                // thing that knows a date column arrived as Excel serials -
+                // and the field-name defaults fill in where the values were
+                // inconclusive, such as an amount column of small integers.
                 this.mapping = { ...analysis.mapping }
-                for (const field of Object.values(this.mapping)) {
-                    const t = this.defaultTransformFor(field)
+                for (const [header, field] of Object.entries(this.mapping)) {
+                    const t = analysis.profile?.[header]?.suggested_transform || this.defaultTransformFor(field)
                     if (t) this.transforms[field] = t
                 }
             } catch (e) {

@@ -335,6 +335,46 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(2, $analysis['profile']['portfolio']['distinct']);
     }
 
+    /**
+     * The transform defaulted to text for every column, so an operator had to
+     * set each one by hand or silently import dates as strings. The type is
+     * read from the values, which is the only thing that knows a date column
+     * arrived as an Excel serial.
+     */
+    public function test_analyze_infers_column_type_and_suggests_a_transform(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'eir_types_') . '.csv';
+        file_put_contents($path, implode("\n", [
+            'LOAN_ACCOUNT_NUMBER,CUSTOMER_ID,AS_OF_DATE,LOAN_START_DATE,SANCTIONED_AMOUNT,REPAYMENT_FREQUENCY',
+            '104450000053,93,45658,23-01-2023,"100,000,000.00",Monthly',
+            '104450000056,97,45658,13-01-2023,"250,000.50",Quarterly',
+            '104450000067,110,45658,18-05-2023,"1,750,000.00",Monthly',
+        ]) . "\n");
+
+        try {
+            $profile = app(\App\Services\Imports\MappedFileReader::class)
+                ->analyze($path, 'contract_master')['profile'];
+        } finally {
+            @unlink($path);
+        }
+
+        // Excel serials are dates even though they are numbers.
+        $this->assertSame('date', $profile['as_of_date']['type']);
+        $this->assertSame('date', $profile['as_of_date']['suggested_transform']);
+        $this->assertSame('date', $profile['loan_start_date']['type']);
+
+        $this->assertSame('number', $profile['sanctioned_amount']['type']);
+        $this->assertSame('number', $profile['sanctioned_amount']['suggested_transform']);
+
+        // Identifiers stay text so they can never lose a leading zero, even
+        // though they are perfectly numeric.
+        $this->assertSame('text', $profile['customer_id']['type']);
+        $this->assertNull($profile['customer_id']['suggested_transform']);
+        $this->assertSame('text', $profile['loan_account_number']['type']);
+
+        $this->assertSame('text', $profile['repayment_frequency']['type']);
+    }
+
     /* ------------------------------------------------------------------ */
     /* Contract master (Extract A)                                        */
     /* ------------------------------------------------------------------ */
