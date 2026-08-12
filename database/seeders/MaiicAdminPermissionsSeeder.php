@@ -29,8 +29,17 @@ class MaiicAdminPermissionsSeeder extends Seeder
         $names = [];
         foreach ($permissions as $name => $module) {
             $permission = Permission::findOrCreate($name, 'web');
+            $dirty = false;
             if (empty($permission->module)) {
                 $permission->module = $module;
+                $dirty = true;
+            }
+            if (empty($permission->display_name)) {
+                $action = str_contains($name, '.') ? ucfirst(substr($name, strrpos($name, '.') + 1)) : '(module)';
+                $permission->display_name = trim($module . ' ' . $action);
+                $dirty = true;
+            }
+            if ($dirty) {
                 $permission->save();
             }
             $names[] = $name;

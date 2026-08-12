@@ -31,8 +31,17 @@ class TicketsPermissionsSeeder extends Seeder
             $permission = Permission::findOrCreate($name, 'web');
             // `module` groups the permission in the roles UI; set directly so we
             // don't depend on it being mass-assignable.
+            $dirty = false;
             if (empty($permission->module)) {
                 $permission->module = $module;
+                $dirty = true;
+            }
+            if (empty($permission->display_name)) {
+                $action = str_contains($name, '.') ? ucfirst(substr($name, strrpos($name, '.') + 1)) : '(module)';
+                $permission->display_name = trim($module . ' ' . $action);
+                $dirty = true;
+            }
+            if ($dirty) {
                 $permission->save();
             }
             $created[] = $name;

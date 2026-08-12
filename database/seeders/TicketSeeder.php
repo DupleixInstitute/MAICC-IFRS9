@@ -236,6 +236,12 @@ TXT;
                     . "2. PDF: running header/footer with logo, page numbers, confidentiality label, dotted-leader table of contents, tinted table headers, zebra rows, gold total rules.\n"
                     . "3. Every report database-driven and reporting-period scoped; no placeholder, proxy or fallback data anywhere.\n"
                     . '4. Reference spec: docs/UI_REPORT_SPEC.md.',
+                'status' => 'resolved',
+                'resolution' => 'Delivered on the eir_revenue_recognition branch (commit 1a18176), 07 Aug 2026:' . "\n"
+                    . '. Excel: every one of the 30 IFRS 9 hub reports downloads as a branded .xlsx via a single generic exporter (brand header, green column bands, gold section rules, zebra rows, frozen panes, accounting number formats with negatives in parentheses, real typed numbers that remain summable).' . "\n"
+                    . '. PDF: MAIIC logo in the running header, tricolor green/gold/red brand bar, generated-by user, confidentiality note and page numbers in the footer.' . "\n"
+                    . '. Excel button beside Download PDF on every report page; covered by feature tests (render, PDF, Excel, permission denial).' . "\n"
+                    . 'Out of scope: legacy CSV extracts (loan book / ECL export) keep their existing plain format.',
             ],
             [
                 'reference' => '006',
@@ -266,6 +272,15 @@ TXT;
                     . "3. Workspace roles: editable checklist definitions with responsible role per step, maker-checker statuses (prepared/reviewed), completed-by as a user reference, notifications to the responsible role when a step becomes actionable.\n"
                     . "4. Seed proper IFRS 9 roles (Preparer, Reviewer, Approver, Read-only) with sensible permission sets.",
             ],
+            [
+                'reference' => '009',
+                'title' => 'Remove legacy credit-scoring modules from the codebase',
+                'priority' => 'medium',
+                'description' => "The credit-scoring-era roles and permissions were removed from the Roles matrix (56 permissions and the client role). Finish the job by removing the now-orphaned code so the routes cannot be reached at all:\n\n"
+                    . "1. Routes, controllers and pages: loan applications and approval stages, scoring attributes, client financial analysis (shareholders, balance sheets, income statements, ratio analysis, Porter's five forces), communication campaigns/templates/gateways, locations (provinces, districts, villages, wards, inkhundla, regions), member portal, medical-era leftovers (vitals, prescriptions, consultations, POS prints) and the dead Calculator page.\n"
+                    . "2. Motivation: their controllers still reference the deleted permissions, so a manually typed URL now raises a permission-does-not-exist error instead of a clean 403.\n"
+                    . "3. Retire the legacy tests for those modules at the same time so the full suite can go green.",
+            ],
         ];
 
         foreach ($backlog as $item) {
@@ -276,11 +291,13 @@ TXT;
                     'description' => $item['description'],
                     'category' => 'enhancement',
                     'priority' => $item['priority'],
-                    'status' => 'open',
+                    'status' => $item['status'] ?? 'open',
                     'requested_by' => 'MAIIC platform review',
                     'source' => 'meeting',
                     'assigned_to' => $owner?->id,
                     'created_by' => $owner?->id,
+                    'resolution' => $item['resolution'] ?? null,
+                    'resolved_at' => ($item['status'] ?? null) === 'resolved' ? $raisedAt->copy()->addDay() : null,
                 ]
             );
 
