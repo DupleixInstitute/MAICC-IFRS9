@@ -385,6 +385,15 @@ class LoanBookController extends Controller
     {
        $query = LoanBook::query();
 
+            // Mirror the index default: no year/month filter means the
+            // latest reporting period, so the tiles match the table.
+            if (! $request->filled('year') && ! $request->filled('month')) {
+                $latestPeriod = LoanBook::max('reporting_period');
+                if ($latestPeriod) {
+                    $query->where('reporting_period', $latestPeriod);
+                }
+            }
+
             // APPLY SAME FILTERS AS INDEX
             if ($request->filled('search')) {
                 $search = $request->input('search');
@@ -430,7 +439,9 @@ class LoanBookController extends Controller
                 'total_loans' => $result->total_accounts,
                 'total_balance' => $result->total_principal,
                 'total_provision' => $result->total_ecl,
-                'overdue_loans' => $result->overdue_loans,
+                'ecl_coverage' => $result->total_principal > 0
+                    ? ($result->total_ecl / $result->total_principal) * 100
+                    : 0,
                 'stage_1_exposure' => $result->stage_1_exposure,
                 'stage_2_exposure' => $result->stage_2_exposure,
                 'stage_3_exposure' => $result->stage_3_exposure,

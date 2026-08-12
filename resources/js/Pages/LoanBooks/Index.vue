@@ -40,22 +40,27 @@
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" v-if="summary">
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                        <div class="text-sm text-gray-600">Total Loans</div>
-                        <div class="text-2xl font-semibold">{{ summary.total_loans }}</div>
+                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6" v-if="summary">
+                    <div class="maiic-kpi" style="--accent: #15803d">
+                        <p class="maiic-kpi-label">Total Loans</p>
+                        <p class="maiic-kpi-value">{{ Number(summary.total_loans || 0).toLocaleString() }}</p>
                     </div>
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                        <div class="text-sm text-gray-600">Total Balance</div>
-                        <div class="text-2xl font-semibold">{{ formatCurrency(summary.total_balance) }}</div>
+                    <div class="maiic-kpi" style="--accent: #15803d">
+                        <p class="maiic-kpi-label">Total EAD (MWK)</p>
+                        <p class="maiic-kpi-value">{{ formatMoney(summary.total_balance) }}</p>
                     </div>
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                        <div class="text-sm text-gray-600">Overdue Loans</div>
-                        <div class="text-2xl font-semibold">{{ summary.overdue_loans }}</div>
+                    <div class="maiic-kpi" style="--accent: #dc2626">
+                        <p class="maiic-kpi-label">Stage 3 Exposure (MWK)</p>
+                        <p class="maiic-kpi-value">{{ formatMoney(summary.stage_3_exposure) }}</p>
+                        <p class="mt-1 text-xs text-gray-400">{{ Number(summary.stage_3_count || 0).toLocaleString() }} loans</p>
                     </div>
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                        <div class="text-sm text-gray-600">Total Provision</div>
-                        <div class="text-2xl font-semibold">{{ formatCurrency(summary.total_provision) }}</div>
+                    <div class="maiic-kpi" style="--accent: #d97706">
+                        <p class="maiic-kpi-label">ECL Coverage</p>
+                        <p class="maiic-kpi-value">{{ Number(summary.ecl_coverage || 0).toFixed(2) }}%</p>
+                    </div>
+                    <div class="maiic-kpi" style="--accent: #dc2626">
+                        <p class="maiic-kpi-label">Total ECL (MWK)</p>
+                        <p class="maiic-kpi-value">{{ formatMoney(summary.total_provision) }}</p>
                     </div>
                 </div>
 
@@ -78,12 +83,13 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Status</label>
-                                <select v-model="filters.overdue" @change="fetchData"
+                                <label class="block text-sm font-medium text-gray-700">IFRS 9 Stage</label>
+                                <select v-model="filters.stage" @change="fetchData"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
-                                    <option value="">All Loans</option>
-                                    <option value="1">Overdue</option>
-                                    <option value="0">Not Overdue</option>
+                                    <option value="">All stages</option>
+                                    <option value="1">Stage 1</option>
+                                    <option value="2">Stage 2</option>
+                                    <option value="3">Stage 3</option>
                                 </select>
                             </div>
                             <div>
@@ -110,8 +116,8 @@
                                         <th class="num">PD</th>
                                         <th class="num">LGD</th>
                                         <th class="num">ECL (MWK)</th>
+                                        <th class="num">Coverage</th>
                                         <th class="num">Overdue Days</th>
-                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -127,12 +133,8 @@
                                         <td class="num">{{ formatRate(loan.pd_post_fli ?? loan.pd_value) }}</td>
                                         <td class="num">{{ formatRate(loan.lgd_value) }}</td>
                                         <td class="num">{{ formatMoney(loan.ecl_value) }}</td>
+                                        <td class="num">{{ coverageOf(loan) }}</td>
                                         <td class="num" :class="getOverdueClass(loan.overdue_days)">{{ loan.overdue_days }}</td>
-                                        <td class="whitespace-nowrap">
-                                            <span :class="getStatusClass(loan.overdue_status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
-                                                {{ loan.overdue_status }}
-                                            </span>
-                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -407,7 +409,7 @@ const summary = ref(null);
 const filters = ref({
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
-    overdue: '',
+    stage: '',
     search: '',
     ...props.filters
 });
@@ -607,7 +609,7 @@ const fetchData = async () => {
             search: filters.value.search,
             year: filters.value.year,
             month: filters.value.month,
-            overdue: filters.value.overdue
+            stage: filters.value.stage
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -655,6 +657,14 @@ const formatRate = (value) => {
 // Final IFRS 9 stage: post-qualitative wins, then calculated, then imported.
 const stageOf = (loan) => {
     return Number(loan.ifrs9stage_post_qualitative ?? loan.calculated_ifrs9_stage ?? loan.ifrs9_stage ?? 1);
+};
+
+// Per-loan ECL coverage: ECL over carrying amount.
+const coverageOf = (loan) => {
+    const ead = Number(loan.carrying_amount ?? 0);
+    const ecl = Number(loan.ecl_value ?? 0);
+    if (!ead) return '0.00%';
+    return ((ecl / ead) * 100).toFixed(2) + '%';
 };
 
 const formatDate = (date) => {
