@@ -132,7 +132,7 @@
   <!-- --- Allocations Table --- -->
   <div class="bg-white shadow-sm rounded-lg mt-6 p-6">
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
+      <table class="maiic-table">
         <thead class="bg-gray-100">
           <tr>
             <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Customer ID</th>

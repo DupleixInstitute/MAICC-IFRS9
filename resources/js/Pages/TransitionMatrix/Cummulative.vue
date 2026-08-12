@@ -49,35 +49,35 @@
 
                         <!-- Matrices Table -->
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
+                            <table class="maiic-table">
+                                <thead>
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Profile Id</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PD Level</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmentation </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calculation Source</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Period</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Period</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Periods</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records Transitioned</th>
+                                        <th>Transition Profile Id</th>
+                                        <th>PD Level</th>
+                                        <th>Segmentation </th>
+                                        <th>Calculation Source</th>
+                                        <th>Start Period</th>
+                                        <th>End Period</th>
+                                        <th>Transition Periods</th>
+                                        <th>Records Transitioned</th>
                                         <!-- <th class="px-6 py-3">Records Updated</th> -->
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periods Cummulated</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Balance</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calc Runs</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Calc Date</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        <th>Periods Cummulated</th>
+                                        <th>Transition Balance</th>
+                                        <th>Calc Runs</th>
+                                        <th>Last Calc Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
+                                <tbody>
                                     <tr v-if="cumMatrix.data.length === 0">
                                         <td colspan="15" class="px-6 py-4 text-center text-gray-500">No transition matrices found.</td>
                                     </tr>
                                     <tr v-for="matrix in cumMatrix.data" :key="matrix.id">
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.id }}</td>
-                                       <td class="px-6 py-4 whitespace-nowrap">{{ matrix.transition_profile_id}}</td>
-                                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="whitespace-nowrap">{{ matrix.id }}</td>
+                                       <td class="whitespace-nowrap">{{ matrix.transition_profile_id}}</td>
+                                                                                <td class="whitespace-nowrap">
                                             <span class="px-2 py-1 text-xs font-semibold rounded-full"
                                                   :class="{
                                                       'bg-maiic-100 text-maiic-800': matrix.pd_calculation_level === 'portfolio',
@@ -88,7 +88,7 @@
                                         </td>       
 
                                         <!-- Portfolio/Sector Name -->
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="whitespace-nowrap">
                                             <div v-if="matrix.pd_calculation_level === 'portfolio'">
                                                 <span v-if="matrix.portfolio">
                                                     {{ matrix.portfolio.name }}
@@ -107,11 +107,11 @@
                                             </div>
                                             <span v-else class="text-gray-400">-</span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(matrix.start_period) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(matrix.end_period) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.periods_count }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.records_counted }}</td>
+                                        <td class="whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] }}</td>
+                                        <td class="whitespace-nowrap">{{ formatDate(matrix.start_period) }}</td>
+                                        <td class="whitespace-nowrap">{{ formatDate(matrix.end_period) }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.periods_count }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.records_counted }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-center">
                                         <button 
                                             @click="showPeriods(matrix.periods_list)" 
@@ -120,9 +120,9 @@
                                             <font-awesome-icon :icon="['fas', 'eye']" class="w-8 h-8" />
                                         </button>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.transition_balance_cummulated }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.run_no }}</td> 
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(matrix.last_reporting_period) }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.transition_balance_cummulated }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.run_no }}</td> 
+                                        <td class="whitespace-nowrap">{{ formatDate(matrix.last_reporting_period) }}</td>
                                           <td class="px-6 py-4 whitespace-nowrap text-gray-600">
                                         <span
                                             class="px-2 py-1 rounded-full text-xs font-semibold"

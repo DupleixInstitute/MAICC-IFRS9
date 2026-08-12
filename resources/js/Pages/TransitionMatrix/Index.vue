@@ -49,38 +49,38 @@
 
                         <!-- Matrices Table -->
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
+                            <table class="maiic-table">
+                                <thead>
                                     <tr>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Profile Id</th>
-                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PD Level</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmentation </th>
-                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Calculation Source</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payments Included?</th>
-                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Start Period</th>
-                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">End Period</th>
-                                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Years</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records Transitioned</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records Updated</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporting Periods</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No of Calc Runs</th>
-                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Transition Balance</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated Balance</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Calc Date</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        <th>ID</th>
+                                        <th>Transition Profile Id</th>
+                                        <th class="text-center">PD Level</th>
+                                        <th>Segmentation </th>
+                                        <th class="text-center">Calculation Source</th>
+                                        <th>Payments Included?</th>
+                                        <th class="text-center">Start Period</th>
+                                        <th class="text-center">End Period</th>
+                                        <th class="text-center">Transition Years</th>
+                                        <th>Records Transitioned</th>
+                                        <th>Records Updated</th>
+                                        <th>Reporting Periods</th>
+                                        <th>No of Calc Runs</th>
+                                        <th class="num">Transition Balance</th>
+                                        <th>Updated Balance</th>
+                                        <th>Status</th>
+                                        <th>Last Calc Date</th>
+                                        <th>Comments</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
+                                <tbody>
                                     <tr v-if="matrices.data.length === 0">
                                         <td colspan="15" class="px-6 py-4 text-center text-gray-500">No transition matrices found.</td>
                                     </tr>
                                     <tr v-for="matrix in matrices.data" :key="matrix.id">
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.id }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.transition_profile_id }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="whitespace-nowrap">{{ matrix.id }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.transition_profile_id }}</td>
+                                        <td class="whitespace-nowrap">
                                             <span class="px-2 py-1 text-center text-xs font-semibold rounded-full"
                                                   :class="{
                                                       'bg-maiic-100 text-maiic-800': matrix.pd_calculation_level === 'portfolio',
@@ -91,7 +91,7 @@
                                         </td>       
 
                                         <!-- Portfolio/Sector Name -->
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="whitespace-nowrap">
                                             <div v-if="matrix.pd_calculation_level === 'portfolio'">
                                                 <span v-if="matrix.portfolio">
                                                     {{ matrix.portfolio.name }}
@@ -111,16 +111,16 @@
                                             <span v-else class="text-gray-400">-</span>
                                         </td>
                                         <td class="px-6 py-4 text-center whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.pd_start_stage_total_type }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.start_reporting_period }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.end_reporting_period }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.transition_years }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.records_count_transitioned }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.records_count_updated }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.reporting_periods_count }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.run_no }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.pd_start_stage_total_type }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.start_reporting_period }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.end_reporting_period }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.transition_years }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.records_count_transitioned }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.records_count_updated }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.reporting_periods_count }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.run_no }}</td>
                                         <td class="px-6 py-4 text-right whitespace-nowrap">{{ formatCurrency(matrix.transition_balance )}}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.updated_balance }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.updated_balance }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-gray-600">
                                         <span
                                             class="px-2 py-1 rounded-full text-xs font-semibold"
@@ -132,8 +132,8 @@
                                             {{ matrix.status === 'closed' ? 'Closed' : 'Draft' }}
                                         </span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(matrix.last_calculation_date) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ matrix.comments }}</td>
+                                        <td class="whitespace-nowrap">{{ formatDate(matrix.last_calculation_date) }}</td>
+                                        <td class="whitespace-nowrap">{{ matrix.comments }}</td>
                                         <!-- <td class="px-6 py-4 text-right text-sm font-medium">
                                             <Link :href="route('transition-matrices.show', matrix.id)" class="text-maiic-600 hover:text-maiic-900 mr-4">View</Link>
                                         </td> -->

@@ -100,20 +100,20 @@
                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                            <div class="p-6 bg-white border-b border-gray-200">
                                <div class="overflow-x-auto">
-                                   <table class="min-w-full divide-y divide-gray-200">
-                                       <thead class="bg-gray-50">
+                                   <table class="maiic-table">
+                                       <thead>
                                            <tr>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract ID</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IFRS Stage</th>
-                                               <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th> -->
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Probability Of Default</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loss Given Default</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Credit Loss</th>
-                                               <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                                               <th>Contract ID</th>
+                                               <th>IFRS Stage</th>
+                                               <!-- <th>Portfolio</th> -->
+                                               <th>Balance</th>
+                                               <th>Probability Of Default</th>
+                                               <th>Loss Given Default</th>
+                                               <th>Expected Credit Loss</th>
+                                               <th>Updated</th>
                                            </tr>
                                        </thead>
-                                       <tbody class="bg-white divide-y divide-gray-200">
+                                       <tbody>
                                            <tr v-for="loan in loanBooks.data" :key="loan.id">
                                                <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.calculated_ifrs9_stage }}</td>

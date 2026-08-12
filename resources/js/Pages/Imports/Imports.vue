@@ -12,29 +12,29 @@
             </filter-search>
         </div>
         <div class=" mx-auto">
-            <div class="bg-white rounded shadow overflow-x-auto">
-                <table class="w-full whitespace-no-wrap">
-                    <thead class="bg-gray-50">
-                    <tr class="text-left font-bold">
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Status</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Date</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Inserted</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Exception Records</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Start</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Completed</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Duration</th>
+            <div class="maiic-panel maiic-table-wrap">
+                <table class="maiic-table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Inserted</th>
+                        <th>Exception Records</th>
+                        <th>Start</th>
+                        <th>Completed</th>
+                        <th>Duration</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr v-for="result in results.data" :key="result.id"
                         class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ result.name }}
                             </span>
                         </td>
-                        <td class="border-t">
+                        <td class="!p-0">
                             <span v-if="result.status=='pending'"
                                   class="px-2 rounded-full bg-amber-100 text-amber-800">
                                         pending
@@ -53,13 +53,13 @@
                                         failed
                                     </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center" v-if="result.status">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center" v-if="result.status">
                                 {{ $filters.time(result.created_at) }}
                             </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ result.records }}
                             </span>
                         </td>
@@ -73,18 +73,18 @@
                                 <font-awesome-icon icon="download" class="ml-2" />
                             </button>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center" v-if="result.status">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center" v-if="result.status">
                                 {{ result.started_at ? $filters.time(result.started_at) : '' }}
                             </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center" v-if="result.status">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center" v-if="result.status">
                                 {{ result.completed_at ? $filters.time(result.completed_at) : '' }}
                             </span>
                         </td>
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center" v-if="result.started_at && result.completed_at">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center" v-if="result.started_at && result.completed_at">
                                 {{ calculateDuration(result.started_at, result.completed_at) }}
                             </span>
                         </td>

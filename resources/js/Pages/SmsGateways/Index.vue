@@ -16,25 +16,25 @@
             </inertia-link>
         </div>
         <div class=" mx-auto">
-            <div class="bg-white rounded shadow overflow-x-auto">
-                <table class="w-full whitespace-no-wrap">
-                    <thead class="bg-gray-50">
-                    <tr class="text-left font-bold">
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Active</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Action</th>
+            <div class="maiic-panel maiic-table-wrap">
+                <table class="maiic-table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Active</th>
+                        <th>Action</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr v-for="smsGateway in smsGateways.data" :key="smsGateway.id"
                         class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ smsGateway.name }}
                             </span>
                         </td>
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center">
                                 <span v-if="smsGateway.active">Yes</span>
                                 <span v-if="!smsGateway.active">No</span>
                             </span>

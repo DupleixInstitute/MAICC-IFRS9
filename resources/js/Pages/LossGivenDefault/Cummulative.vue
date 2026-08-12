@@ -84,7 +84,7 @@
 
   <div class="overflow-y-auto mt-6">
     <div class="bg-white shadow-md rounded-lg">
-      <table class="min-w-full divide-y divide-gray-200">
+      <table class="maiic-table">
         <thead class="bg-gray-200">
         <tr>
             <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Reporting Period</th>
@@ -102,7 +102,7 @@
             <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
         </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody>
           <tr v-if="loading">
             <td colspan="15" class="px-6 py-4 text-center text-gray-500">Loading data...</td>
           </tr>
@@ -111,7 +111,7 @@
           </tr>
            <tr v-for="lgdC in lgdCummulatives.data" :key="lgdC.id">
             <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{formatDate(lgdC.start_period)}} - {{formatDate(lgdC.reporting_period)}}</td>
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="whitespace-nowrap">
                 <span class="px-2 py-1 text-xs font-semibold rounded-full"
                         :class="{
                             'bg-maiic-100 text-maiic-800': lgdC.lgd_calculation_level === 'portfolio',
@@ -122,7 +122,7 @@
             </td>       
 
             <!-- Portfolio/Sector Name -->
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="whitespace-nowrap">
                 <div v-if="lgdC.lgd_calculation_level === 'portfolio'">
                     <span v-if="lgdC.portfolio_group">
                         {{ lgdC.portfolio_group.name }}

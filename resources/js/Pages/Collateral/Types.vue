@@ -19,7 +19,7 @@
     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
       <div class="p-6 bg-white border-b border-gray-200">
         <div class="overflow-auto">
-          <table class="min-w-full divide-y divide-gray-200">
+          <table class="maiic-table">
             <thead class="bg-gray-100">
               <tr>
                 <th class="px-3 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider">ID</th>

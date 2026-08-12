@@ -32,7 +32,7 @@
 
   <div class="overflow-x-auto mt-6">
     <div class="bg-white shadow-md rounded-lg">
-      <table class="min-w-full divide-y divide-gray-200">
+      <table class="maiic-table">
         <thead class="bg-gray-200">
           <tr>
             <th class="px-6 py-3 text-left text-xs font-small text-gray-500 uppercase tracking-wider">Reporting Period</th>
@@ -51,7 +51,7 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody>
           <tr v-if="loading">
             <td colspan="15" class="px-6 py-4 text-center text-gray-500">Loading data...</td>
           </tr>

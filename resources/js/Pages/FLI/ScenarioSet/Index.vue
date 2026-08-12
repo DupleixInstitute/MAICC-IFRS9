@@ -17,16 +17,16 @@
             </inertia-link>
         </div>
         <div class="mx-auto">
-            <div class="bg-white rounded shadow overflow-x-auto">
+            <div class="maiic-panel maiic-table-wrap">
                 <table class="w-full whitespace-no-wrap table-auto">
-                    <thead class="bg-gray-50">
-                    <tr class="text-left font-bold">
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">ID</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Description</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Status</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Created By</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Action</th>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Created By</th>
+                        <th>Action</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -37,25 +37,25 @@
                     </tr>
                     <tr v-for="set in scenarioSets.data" :key="set.id"
                         class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="border-t">
-                            <inertia-link class="px-6 py-4 flex items-center" :href="route('fli.scenarios.edit', set.id)"
+                        <td class="!p-0">
+                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('fli.scenarios.edit', set.id)"
                                           tabindex="-1">
                                 {{ set.id }}
                             </inertia-link>
                         </td>
-                        <td class="border-t">
-                            <inertia-link class="px-6 py-4 flex items-center" :href="route('fli.scenarios.edit', set.id)"
+                        <td class="!p-0">
+                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('fli.scenarios.edit', set.id)"
                                           tabindex="-1">
                                 {{ set.name }}
                             </inertia-link>
                         </td>
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center">
                                 {{ set.description }}
                             </span>
                         </td>
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center">
                                 <span v-if="set.is_active"
                                       class="px-2 rounded-full bg-maiic-100 text-maiic-800">
                                     Active
@@ -66,8 +66,8 @@
                                 </span>
                             </span>
                         </td>
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center">
                                 {{ set.creator?.name || '-' }}
                             </span>
                         </td>

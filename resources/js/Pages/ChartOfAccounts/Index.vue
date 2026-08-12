@@ -50,198 +50,198 @@
             </inertia-link>
         </div>
         <div class=" mx-auto">
-            <div class="bg-white rounded shadow overflow-x-auto">
-                <table class="w-full whitespace-no-wrap">
-                    <thead class="bg-gray-50">
-                    <tr class="text-left font-bold">
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">GL Code</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Type</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Balance</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Active</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Action</th>
+            <div class="maiic-panel maiic-table-wrap">
+                <table class="maiic-table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>GL Code</th>
+                        <th>Type</th>
+                        <th>Balance</th>
+                        <th>Active</th>
+                        <th>Action</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr v-for="chartOfAccount in chartOfAccounts.data" :key="chartOfAccount.id"
                         class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center">
                                 {{ chartOfAccount.name }}
                             </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ chartOfAccount.gl_code }}
                             </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center"
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center"
                                    v-if="chartOfAccount.account_type==='fixed_asset'">
                                 Fixed Asset
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='current_asset'">
                                 Current Asset
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='other_current_asset'">
                                 Other Current Asset
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='other_asset'">
                                 Other Asset
                             </span>
-                            <span class="px-6 py-4 flex items-center" v-if="chartOfAccount.account_type==='cash'">
+                            <span class="px-4 py-2.5 flex items-center" v-if="chartOfAccount.account_type==='cash'">
                                 Cash
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='bank'">
                                 Bank
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='stock'">
                                 Stock
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='other_current_liability'">
                                 Other Current Liability
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='credit_card'">
                                 Credit Card
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='long_term_liability'">
                                 Long Term Liability
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='other_liability'">
                                 Other Liability
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='income_tax'">
                                 Income Tax
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='income'">
                                 Income
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='other_income'">
                                Other Income
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='expense'">
                                 Expense
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='cost_of_goods_sold'">
                                 Cost of Goods Sold
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='other_expense'">
                                 Other Expense
                             </span>
-                            <span class="px-6 py-4 flex items-center" v-if="chartOfAccount.account_type==='equity'">
+                            <span class="px-4 py-2.5 flex items-center" v-if="chartOfAccount.account_type==='equity'">
                                 Equity
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='accounts_receivable'">
                                 Accounts Receivable
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='accounts_payable'">
                                 Accounts Payable
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='property_plant_equipment'">
                                Asset- Property, plant and equipment
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='investment_property'">
                                 Asset- Investment property
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='right_of_use_asset'">
                                 Asset-Right of use assets
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='intangible_asset'">
                                 Asset-Intangible assets
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='other_long_term_liability'">
                                 Other Long Term Liability
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='finance_lease_liability'">
                                 Finance lease liability
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='deferred_income_tax'">
                                 Deferred Income Tax
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='cost_of_goods_sold_depreciation'">
                                 Expense-Cost of Goods Sold-Depreciation
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='depreciation_property_plant_equipment'">
                                 Expense- Depreciation- property, plant and equipment
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='depreciation_right_of_use_assets'">
                                Expense - Depreciation - right of use assets
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='depreciation_investment_property'">
                                Expense - Depreciation - investment property
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='amortisation_intangible_assets'">
                                 Expense - Amortisation - intangible assets
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='short_term_leases'">
                                 Expense - Short-term leases
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='income_tax_expense'">
                                Income Tax Expense
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='net_finance_costs_banks'">
                                 Expense - Net Finance Costs-banks
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='net_finance_costs_finance_leases'">
                                 Expense - Net Finance Costs-finance leases
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='retained_earning'">
                                 Equity - Retained earnings or Accumulated profits
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='capital_contribution'">
                                  Equity - Capital/owner's contribution
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='reserve'">
                                  Equity - Reserves
                             </span>
-                            <span class="px-6 py-4 flex items-center"
+                            <span class="px-4 py-2.5 flex items-center"
                                   v-if="chartOfAccount.account_type==='current_liability'">
                                  Current Liability
                             </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ $filters.formatNumber(chartOfAccount.balance) }}
                             </span>
                         </td>
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center">
                                 <span v-if="chartOfAccount.active">Yes</span>
                                 <span v-if="!chartOfAccount.active">No</span>
                             </span>

@@ -118,8 +118,8 @@
             </div>
 
             <div v-if="portfolioData[portfolio.id]?.data?.length" class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="maiic-table">
+                    <thead>
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metric</th>
@@ -129,16 +129,16 @@
                         </tr>
                     </thead>
 
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         <tr v-for="record in portfolioData[portfolio.id].data" :key="record.id">
                             <td class="px-6 py-4 text-sm text-gray-900">{{ formatPeriod(record.period) }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="whitespace-nowrap text-gray-900">
                                 <span :class="getMetricBadgeClass(record.definition?.code)"
                                     class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                                     {{ record.definition?.name || 'N/A' }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
+                            <td class="num whitespace-nowrap font-medium"
                                 :class="getValueColor(record.definition?.code, record.value)">
                                 {{ formatValue(record.definition?.code, record.value) }}
                             </td>

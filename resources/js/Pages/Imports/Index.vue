@@ -21,7 +21,7 @@
           </div>
 
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="maiic-table">
               <thead>
                 <tr>
                   <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Template Name</th>
@@ -32,9 +32,9 @@
                   <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
+              <tbody>
                 <tr v-for="template in templates" :key="template.id">
-                  <td class="px-6 py-4 whitespace-nowrap">{{ template.template_name }}</td>
+                  <td class="whitespace-nowrap">{{ template.template_name }}</td>
                   <td class="px-6 py-4">{{ template.template_description }}</td>
                   <td class="px-6 py-4">{{ template.source_table_name }}</td>
                   <td class="px-6 py-4">{{ template.import_count }}</td>

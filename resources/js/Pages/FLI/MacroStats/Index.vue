@@ -19,7 +19,7 @@
     <!-- Table -->
     <div class="overflow-x-auto mt-6">
       <div class="bg-white shadow-md rounded-lg">
-        <table class="min-w-full divide-y divide-gray-200">
+        <table class="maiic-table">
           <thead class="bg-gray-200">
             <tr>
               <th class="py-2 px-4 text-gray-600 text-center">Name</th>
