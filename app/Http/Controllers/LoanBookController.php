@@ -40,8 +40,18 @@ class LoanBookController extends Controller
         $query = LoanBook::query()
             ->with('client')
             ->with('portfolio')
-            ->orderBy('reporting_period', 'asc');
-            // dd($query);
+            ->orderBy('reporting_period', 'desc')
+            ->orderBy('contract_id');
+
+        // Default to the latest reporting period so the book opens on the
+        // current (calculated) figures instead of page 1 of the oldest
+        // import. Picking a year/month overrides this.
+        if (! $request->filled('year') && ! $request->filled('month')) {
+            $latestPeriod = LoanBook::max('reporting_period');
+            if ($latestPeriod) {
+                $query->where('reporting_period', $latestPeriod);
+            }
+        }
 
         // Apply filters
         if ($request->filled('search')) {

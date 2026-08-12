@@ -16,37 +16,32 @@
             </inertia-link>
         </div>
         <div class=" mx-auto">
-            <div class="bg-white rounded shadow overflow-x-auto">
-                <table class="w-full whitespace-no-wrap">
-                    <thead class="bg-gray-50">
-                    <tr class="text-left font-bold">
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Description</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Action</th>
+            <div class="maiic-panel maiic-table-wrap">
+                <table class="maiic-table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th class="text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr v-for="bank in banks.data" :key="bank.id"
                         class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ bank.name }}
                             </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ bank.description }}
                             </span>
                         </td>
-                        <td class="border-t w-px pr-2">
-                            <div class=" flex items-center space-x-2">
-                                <inertia-link v-if="can('banks.update')" :href="route('banks.edit', bank.id)"
-                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
-                                    Edit
-                                </inertia-link>
-                                <a href="#" v-if="can('banks.destroy')" @click="deleteAction(bank.id)"
-                                   class="text-red-600 hover:text-red-900">Delete</a>
-                            </div>
+                        <td class="w-px">
+                            <row-actions :edit-href="can('banks.update') ? route('banks.edit', bank.id) : null"
+                                         :deletable="can('banks.destroy')"
+                                         @delete="deleteAction(bank.id)"/>
                         </td>
                     </tr>
                     <tr v-if="banks.data.length === 0">
@@ -88,6 +83,7 @@
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import RowActions from '@/Shared/RowActions.vue'
 import Icon from '@/Jetstream/Icon.vue'
 import Pagination from '@/Jetstream/Pagination.vue'
 import FilterSearch from '@/Jetstream/FilterSearch.vue'
@@ -104,6 +100,7 @@ export default {
     metaInfo: {title: 'Provinces'},
     components: {
         AppLayout,
+        RowActions,
         Icon,
         Pagination,
         FilterSearch,

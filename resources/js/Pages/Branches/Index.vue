@@ -16,62 +16,57 @@
             </inertia-link>
         </div>
         <div class=" mx-auto">
-            <div class="bg-white rounded shadow overflow-x-auto">
-                <table class="w-full whitespace-no-wrap">
-                    <thead class="bg-gray-50">
-                    <tr class="text-left font-bold">
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">ID</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Open Date</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Active</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Description</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Action</th>
+            <div class="maiic-panel maiic-table-wrap">
+                <table class="maiic-table">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Open Date</th>
+                        <th>Active</th>
+                        <th>Description</th>
+                        <th class="text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr v-for="branch in branches.data" :key="branch.id"
                         class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center">
                                 {{ branch.id }}
                             </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ branch.name }}
                             </span>
                         </td>
-                        <td class="border-t">
-                           <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                           <span class="px-4 py-2.5 flex items-center">
                                 {{ branch.open_date }}
                             </span>
                         </td>
-                        <td class="border-t">
-                            <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                            <span class="px-4 py-2.5 flex items-center">
                                 <span v-if="branch.is_claimable">No</span>
                                 <span v-if="!branch.is_claimable">Yes</span>
                             </span>
                         </td>
-                        <td class="border-t">
-                             <span class="px-6 py-4 flex items-center">
+                        <td class="!p-0">
+                             <span class="px-4 py-2.5 flex items-center">
                                 {{ branch.description }}
                             </span>
                         </td>
 
 
-                        <td class="border-t w-px pr-2">
-                            <div class=" flex items-center space-x-2">
-                                <inertia-link v-if="can('branches.update')" :href="route('branches.edit', branch.id)"
-                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
-                                    Edit
-                                </inertia-link>
-                                <a href="#" v-if="can('branches.destroy')" @click="deleteAction(branch.id)"
-                                   class="text-red-600 hover:text-red-900">Delete</a>
-                            </div>
+                        <td class="w-px">
+                            <row-actions :edit-href="can('branches.update') ? route('branches.edit', branch.id) : null"
+                                         :deletable="can('branches.destroy')"
+                                         @delete="deleteAction(branch.id)"/>
                         </td>
                     </tr>
                     <tr v-if="branches.data.length === 0">
-                        <td class="border-t px-6 py-4" colspan="6">No branches found.</td>
+                        <td class="maiic-empty" colspan="6">No branches found.</td>
                     </tr>
                     </tbody>
                 </table>
@@ -109,6 +104,7 @@
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import RowActions from '@/Shared/RowActions.vue'
 import Icon from '@/Jetstream/Icon.vue'
 import Pagination from '@/Jetstream/Pagination.vue'
 import SearchFilter from '@/Jetstream/SearchFilter.vue'
@@ -126,6 +122,7 @@ export default {
     metaInfo: {title: 'Branches'},
     components: {
         AppLayout,
+        RowActions,
         Icon,
         Pagination,
         SearchFilter,
