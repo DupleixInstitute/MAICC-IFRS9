@@ -74,19 +74,19 @@
                 </p>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="maiic-table">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File column</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th>File column</th>
+                                <th>
                                     Values in file
                                     <span v-if="analysis?.profiled_rows" class="normal-case font-normal text-gray-400">({{ analysis.profiled_rows }} rows)</span>
                                 </th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Maps to</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transform</th>
+                                <th>Maps to</th>
+                                <th>Transform</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody>
                             <tr v-for="header in analysis.headers" :key="header" class="hover:bg-maiic-50 transition-colors duration-150">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ header }}</td>
                                 <!-- Excel-filter style: every distinct value with its
@@ -240,15 +240,15 @@
 
                 <!-- Named reasons -->
                 <div v-if="reasonEntries.length" class="border border-gray-200 rounded-lg overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="maiic-table">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
+                        <tbody>
                             <tr v-for="entry in reasonEntries" :key="entry.contract + entry.status">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ entry.contract }}</td>
                                 <td class="px-4 py-2">

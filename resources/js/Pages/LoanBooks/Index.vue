@@ -393,7 +393,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-// import { Link } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import Pagination from '@/Components/Pagination.vue';
@@ -605,7 +605,7 @@ const submitDisbursementExport = async () => {
 const fetchData = async () => {
     try {
         await fetchSummary();
-        window.Inertia.get(route('loan_applications.loan-book'), {
+        router.get(route('loan_applications.loan-book'), {
             search: filters.value.search,
             year: filters.value.year,
             month: filters.value.month,
@@ -623,8 +623,10 @@ const fetchData = async () => {
 const fetchSummary = async () => {
     try {
         const response = await fetch(route('loan_applications.loan-book.summary', {
+            search: filters.value.search,
             year: filters.value.year,
-            month: filters.value.month
+            month: filters.value.month,
+            stage: filters.value.stage
         }));
         if (!response.ok) {
             throw new Error('Network response was not ok');

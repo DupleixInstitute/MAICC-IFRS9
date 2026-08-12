@@ -97,10 +97,10 @@
                 </div>
                 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="maiic-table">
+                        <thead>
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th>
                                     <div class="flex items-center space-x-1">
                                         <span>Group</span>
                                         <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
@@ -108,18 +108,18 @@
                                         </svg>
                                     </div>
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th>
                                     Item Name
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th>
                                     Status
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="num">
                                     Actions
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody>
                             <tr v-for="(item, index) in items.data" :key="item.id" 
                                 :class="index % 2 === 0 ? 'bg-white' : 'bg-gray-50'"
                                 class="hover:bg-maiic-50 transition-colors duration-150"
