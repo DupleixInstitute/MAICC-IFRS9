@@ -42,6 +42,7 @@ class ContractMasterImportService
 
     /** Terms this import owns. Solver output and lock state are never touched. */
     private const TERM_FIELDS = [
+        'portfolio', 'product_type',
         'sub_account_no', 'gl_account_code', 'currency',
         'origination_date', 'first_repayment_date', 'maturity_date',
         'closure_date', 'last_restructure_date',
@@ -260,6 +261,8 @@ class ContractMasterImportService
     private function terms(array $row, string $contractId, array &$unknownFrequencies): array
     {
         $terms = [
+            'portfolio' => $this->text($row['portfolio'] ?? null),
+            'product_type' => $this->text($row['product_type'] ?? null),
             'sub_account_no' => $this->text($row['sub_account_no'] ?? null),
             'gl_account_code' => $this->text($row['gl_account_code'] ?? null),
             'currency' => $this->currency($row['currency'] ?? null),

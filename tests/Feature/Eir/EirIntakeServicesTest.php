@@ -72,6 +72,8 @@ class EirIntakeServicesTest extends TestCase
             $t->string('rate_source')->default('CONTRACTUAL_PROXY');
             // Contract master (Extract A) terms — mirrors the production
             // defaults, including the ones that are dangerous when imported.
+            $t->string('portfolio')->nullable();
+            $t->string('product_type')->nullable();
             $t->string('sub_account_no')->nullable();
             $t->string('gl_account_code')->nullable();
             $t->string('currency', 3)->nullable();
@@ -357,6 +359,8 @@ class EirIntakeServicesTest extends TestCase
             'moratorium_months' => 3,
             'arrangement_fee' => 2_500_000,
             'legal_fees' => 1_510_000,
+            'portfolio' => 'FInES',
+            'product_type' => 'FInES Agricultural Loans',
             'source_day_count_basis' => '365',
             'source_compounding' => 'Compound',
             'disbursement_tranches' => '07-Jul-2022:10000000.00',
@@ -378,6 +382,10 @@ class EirIntakeServicesTest extends TestCase
         $this->assertEqualsWithDelta(0.3210, (float) $contract->contractual_rate, 0.00001);
         // Stated conventions are recorded, not applied — the memo decides
         // what the engine uses, and the book is not on one day count.
+        // Stored rather than joined: 74 of the 181 delivered facilities are
+        // absent from the tape, and portfolio is fixed at origination.
+        $this->assertSame('FInES', $contract->portfolio);
+        $this->assertSame('FInES Agricultural Loans', $contract->product_type);
         $this->assertSame('365', $contract->source_day_count_basis);
         $this->assertSame('Compound', $contract->source_compounding);
         $this->assertSame('07-Jul-2022:10000000.00', $contract->disbursement_tranches);

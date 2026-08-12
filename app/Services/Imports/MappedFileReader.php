@@ -43,8 +43,12 @@ class MappedFileReader
     /** Beyond this a column is a key, not a category — stop collecting. */
     private const PROFILE_DISTINCT_LIMIT = 200;
 
-    /** Distinct values returned per column, most frequent first. */
-    private const PROFILE_SHOW_VALUES = 12;
+    /**
+     * Distinct values returned per column, most frequent first. Three is
+     * enough to recognise a column; the distinct and blank counts carry the
+     * rest, so a wide file does not turn the mapping screen into a wall.
+     */
+    private const PROFILE_SHOW_VALUES = 3;
 
     /** Required target fields per import type. */
     public const REQUIRED_FIELDS = [
@@ -74,7 +78,7 @@ class MappedFileReader
             'basis', 'gl_account_ref',
         ],
         'contract_master' => [
-            'run_id', 'customer_id', 'sub_account_no', 'gl_account_code', 'currency',
+            'run_id', 'customer_id', 'portfolio', 'sub_account_no', 'gl_account_code', 'currency',
             'product_type', 'origination_date', 'first_repayment_date', 'maturity_date',
             'closure_date', 'last_restructure_date', 'approved_amount', 'drawn_amount',
             'contractual_rate', 'rate_basis', 'rate_type', 'reference_rate_at_origination',

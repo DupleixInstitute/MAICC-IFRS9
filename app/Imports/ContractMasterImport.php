@@ -36,6 +36,8 @@ class ContractMasterImport
             'CURRENCY' => 'currency',
             'PRODUCT_TYPE' => 'product_type',
             'PRODUCT TYPE' => 'product_type',
+            'PORTFOLIO' => 'portfolio',
+            'FUNDING_SOURCE' => 'portfolio',
 
             'LOAN_START_DATE' => 'origination_date',
             'LOAN START DATE' => 'origination_date',
