@@ -5,7 +5,13 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 const props = defineProps({
     company: { type: String, default: 'MAIIC' },
     generated_at: { type: String, default: '' },
+    // section id -> [{src, caption}] built by ManualController from the
+    // screenshots captured by `php artisan manual:screenshots`.
+    figures: { type: Object, default: () => ({}) },
 })
+
+// Click-to-zoom lightbox for manual figures.
+const zoomed = ref(null)
 
 // MAIIC logo: drop a file at public/images/maiic-logo.png and it shows
 // automatically; otherwise the styled wordmark is used.
@@ -193,6 +199,13 @@ const faqs = [
                                 if the page fails to load; after repeated failures contact your administrator to unlock the account.
                             </div>
                             <figure class="mt-4 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400 text-sm">[ Screenshot: login screen ]</figure>
+
+                            <figure v-for="f in (figures.login || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 3 -->
@@ -219,6 +232,13 @@ const faqs = [
                                 <li><strong>Portfolio summary</strong> table of headline metrics.</li>
                             </ul>
                             <figure class="mt-4 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400 text-sm">[ Screenshot: dashboard ]</figure>
+
+                            <figure v-for="f in (figures.dashboard || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 6 -->
@@ -229,12 +249,26 @@ const faqs = [
                                 <li><strong>Role-aware:</strong> administrators tick steps (recorded with who &amp; when); others see a live read-only view.</li>
                                 <li><strong>Team messages:</strong> an in-system message board per reporting period.</li>
                             </ul>
+
+                            <figure v-for="f in (figures.workspace || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 7 -->
                         <section id="clients" class="scroll-mt-24">
                             <h2 class="text-2xl font-bold text-gray-900 border-l-4 border-maiic-600 pl-3 mb-3">7. Clients</h2>
                             <p class="text-gray-700">Manage borrower records that underpin loan assessment and risk profiling. The list shows Customer ID, Name, Phone and last-updated, with filter &amp; search. Add clients via <strong>bulk CSV import</strong> (Clients → Import; download the sample file for the exact format) or <strong>create one manually</strong> (Customer ID, Name, Phone in 07XXXXXXXX format).</p>
+
+                            <figure v-for="f in (figures.clients || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 8 -->
@@ -247,6 +281,13 @@ const faqs = [
                                     <dd class="sm:col-span-3 text-gray-700 text-sm">{{ v }}</dd>
                                 </div>
                             </dl>
+
+                            <figure v-for="f in (figures.portfolios || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 9 -->
@@ -255,6 +296,13 @@ const faqs = [
                             <p class="text-gray-700">The loan book holds every loan at a reporting period with balance, due date, overdue days and IFRS 9 stage. Filter by Year, Month and Status; search by Contract ID or Customer.</p>
                             <p class="text-gray-700 mt-2"><strong>Importing:</strong> choose the <strong>Portfolio Group</strong> (pulled from Loan Portfolios) and the <strong>Reporting Period</strong>, then upload the CSV. The <strong>Imports Activity Log</strong> records every upload - status (Completed / In Progress / Failed), rows inserted, exception records, and start/finish/duration - for audit, reconciliation and troubleshooting.</p>
                             <div class="mt-3 rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900"><strong>Tip:</strong> failed files do not proceed to staging. Cross-check column names and data types against the import spec, fix, and re-upload.</div>
+
+                            <figure v-for="f in (figures.loanbook || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 10 -->
@@ -266,6 +314,13 @@ const faqs = [
                                 <li><strong>Balance</strong> - PD from exposure amounts (capital-at-risk view).</li>
                             </ul>
                             <p class="text-gray-700 mt-2">The configuration screen lets you re-order stage categories (drag &amp; drop, e.g. Stage 1, 2, 3, Paid) and set a <strong>default stage</strong> fallback. Profiles are fully user-defined and reusable - the engine is flexible by design.</p>
+
+                            <figure v-for="f in (figures.tprofiles || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 11 -->
@@ -275,6 +330,13 @@ const faqs = [
                             <p class="text-gray-700 mt-2"><strong>Cumulative Probability:</strong> aggregates transitions across many periods for a holistic, long-horizon PD.</p>
                             <p class="text-gray-700 mt-2">Each matrix has actions: <strong>View</strong> (full matrix &amp; PD%), <strong>Edit</strong> (Draft only), <strong>Recalculate</strong>, <strong>Lock</strong> (status → Closed, immutable), then the <strong>Book</strong> action to apply the PD results to the loan book for a chosen period.</p>
                             <div class="mt-3 rounded-xl bg-maiic-50 border border-maiic-200 p-3 text-sm text-maiic-900">Locking preserves audit integrity - closed matrices cannot be altered. This resolves prior grade-averaging audit findings.</div>
+
+                            <figure v-for="f in (figures.tmatrix || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 12 -->
@@ -282,6 +344,13 @@ const faqs = [
                             <h2 class="text-2xl font-bold text-gray-900 border-l-4 border-maiic-600 pl-3 mb-3">12. Loss Given Default (LGD)</h2>
                             <p class="text-gray-700"><strong>Monthly</strong> and <strong>Cumulative</strong> LGD, each with <strong>System</strong> (auto from Stage-3 cohort, cures &amp; recoveries) or <strong>Manual</strong> (enter Start/End Stage 3, cured, partially/fully recovered, disbursed) modes.</p>
                             <p class="text-gray-700 mt-2">LGD reflects MAIIC's reality: <strong>proportional multi-collateral allocation</strong> with forced-sale discounting, and an <strong>agri credit-enhancement model</strong> (off-take / warehouse-receipt / group-cooperative guarantee / AIP backing) rather than assuming conventional real estate. Records lock to Closed and apply to the loan book.</p>
+
+                            <figure v-for="f in (figures.lgd || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 13 -->
@@ -289,6 +358,13 @@ const faqs = [
                             <h2 class="text-2xl font-bold text-gray-900 border-l-4 border-maiic-600 pl-3 mb-3">13. Forward-Looking (FLI) Engine</h2>
                             <p class="text-gray-700">The FLI engine incorporates macro-economic information into PD. Define <strong>macro elements</strong> and <strong>scenario profiles</strong> (base / upside / downside) with probability weights, generate the <strong>weighted forecast</strong>, and run a <strong>regression</strong> (trained model or manual slope/intercept) that converts a macro shock into a PD adjustment, producing the <strong>post-FLI PD</strong>.</p>
                             <p class="text-gray-700 mt-2">For Malawi agri, rainfall/drought, FX and input prices are natural drivers. ECL can be run pre- or post-FLI; the Sensitivity report exposes the macro → PD → ECL path interactively.</p>
+
+                            <figure v-for="f in (figures.fli || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 14 -->
@@ -302,6 +378,13 @@ const faqs = [
                                 <li>Review on the Dashboard and in the reports; export from the Expected Credit Loss screen.</li>
                             </ol>
                             <div class="mt-3 rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900"><strong>Integrity:</strong> a run executes in one database transaction with a per-scope lock - two users cannot corrupt the same run, and a partial failure rolls back cleanly.</div>
+
+                            <figure v-for="f in (figures.ecl || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 15 -->
@@ -318,12 +401,26 @@ const faqs = [
                                 <li><strong>Analytics</strong> - AI Executive Commentary, Early Warning System.</li>
                             </ul>
                             <p class="text-gray-700 mt-2"><strong>Stress Testing</strong> is a dedicated module under Reports: per-stage PD multipliers &amp; LGD add-ons, agri presets (drought, FX/input shock), base-vs-stressed ECL by stage &amp; portfolio, and save/reload of named scenarios.</p>
+
+                            <figure v-for="f in (figures.reports || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 16 -->
                         <section id="settings" class="scroll-mt-24">
                             <h2 class="text-2xl font-bold text-gray-900 border-l-4 border-maiic-600 pl-3 mb-3">16. Manuals &amp; Settings</h2>
                             <p class="text-gray-700">Administrators configure the system under <strong>Settings</strong> - organisation, system, email/SMS, and <strong>Manual Settings</strong>. Contextual in-system manuals (the green ? help) can be created and edited per module: give a Title, pick the Route, write rich content, and Save - it links automatically to that screen.</p>
+
+                            <figure v-for="f in (figures.settings || [])" :key="f.src" class="mt-5">
+                                <img :src="f.src" :alt="f.caption"
+                                     class="w-full rounded-xl border border-gray-200 shadow-sm cursor-zoom-in"
+                                     loading="lazy" @click="zoomed = f"/>
+                                <figcaption class="mt-1.5 text-xs text-gray-500 italic">{{ f.caption }}</figcaption>
+                            </figure>
                         </section>
 
                         <!-- 17 -->
@@ -359,6 +456,14 @@ const faqs = [
                     </article>
                 </div>
             </div>
+        </div>
+        <!-- lightbox -->
+        <div v-if="zoomed" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 cursor-zoom-out"
+             @click="zoomed = null">
+            <figure class="max-h-full max-w-6xl">
+                <img :src="zoomed.src" :alt="zoomed.caption" class="max-h-[85vh] w-auto rounded-lg shadow-2xl mx-auto"/>
+                <figcaption class="mt-2 text-center text-sm text-white/90">{{ zoomed.caption }}</figcaption>
+            </figure>
         </div>
     </AppLayout>
 </template>

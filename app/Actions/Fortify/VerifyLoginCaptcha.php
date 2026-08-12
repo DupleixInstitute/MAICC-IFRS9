@@ -21,6 +21,16 @@ class VerifyLoginCaptcha
             return $next($request);
         }
 
+        // Local-environment bypass for the manual-screenshot bot ONLY:
+        // `php artisan manual:screenshots` types the code from
+        // MANUAL_SHOT_CAPTCHA so headless capture can sign in. Never
+        // active outside APP_ENV=local and never with an empty code.
+        $bypass = (string) config('captcha.manual_shot_code', '');
+        if (app()->environment('local') && $bypass !== ''
+            && hash_equals(strtoupper($bypass), strtoupper(trim((string) $request->input('captcha', ''))))) {
+            return $next($request);
+        }
+
         $key = config('captcha.session_key', 'login_captcha');
         $expected = (string) $request->session()->pull($key, '');
         $issuedAt = (int) $request->session()->pull($key . '_time', 0);

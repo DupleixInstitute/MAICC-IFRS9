@@ -17,6 +17,7 @@
         "popper.js": "^1.16.0",
         "postcss": "^8.4.14",
         "postcss-import": "^12.0.1",
+        "puppeteer": "^25.6.0",
         "tailwindcss": "^3.1.6",
         "unplugin-vue-components": "^0.21.1",
         "vite": "^4.0.0",

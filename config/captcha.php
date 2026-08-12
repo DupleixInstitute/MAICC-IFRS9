@@ -28,6 +28,10 @@ return [
     // Session key the generated code is stored under.
     'session_key' => 'login_captcha',
 
+    // Local-only bypass code for the manual:screenshots headless bot.
+    // Ignored unless APP_ENV=local and the value is non-empty.
+    'manual_shot_code' => env('MANUAL_SHOT_CAPTCHA', ''),
+
     // How long (seconds) a generated code stays valid before it is rejected.
     'ttl' => env('CAPTCHA_TTL', 300),
 ];
