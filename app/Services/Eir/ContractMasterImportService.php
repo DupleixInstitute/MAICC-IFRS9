@@ -215,8 +215,9 @@ class ContractMasterImportService
             // cannot downgrade a contract whose frequency an earlier, richer
             // file established.
             'frequency_source' => $paymentsPerYear === null ? null : 'STATED',
-            'tenor_months' => $this->wholeNumber($row['tenor_months'] ?? null),
-            'moratorium_months' => $this->wholeNumber($row['moratorium_months'] ?? null),
+            // Durations arrive unit-suffixed ("2y 0m 0d", "3 M"), not numeric.
+            'tenor_months' => ContractMasterImport::monthsFromDuration($row['tenor_months'] ?? null),
+            'moratorium_months' => ContractMasterImport::monthsFromDuration($row['moratorium_months'] ?? null),
             'opening_amortised_cost' => $this->amount($row['opening_amortised_cost'] ?? null),
             'opening_amortised_cost_date' => $this->date($row['opening_amortised_cost_date'] ?? null),
         ];

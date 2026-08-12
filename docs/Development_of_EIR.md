@@ -190,7 +190,29 @@ Origination fees on the master row (arrangement, legal) route to `contract_fees`
 
 Verification: focused EIR suite passes (68 tests / 275 assertions, up from 54/203) and migration `2026_08_12_000000_add_contract_master_and_gl_interest.php` applied locally.
 
-**Still open on this phase:** spec open item 10 (confirm Extract A carries the full origination-fee/date field set — only ~13 columns sampled, so the alias defaults are the 22 Jul requested names) and open item 9 (fee/commission GL lines in Extract C, `DR_CR_INDICATOR` in Extract B). Until both are re-verified against the delivered files, the alias maps are a starting point for the mapping screen, not a validated contract.
+## Phase 2.8 — Delivered Extract A/C profiled against the reader (2026-08-12) ✅ COMPLETE
+
+Both delivered files were run through the real `MappedFileReader`. Extract A has **36 columns over 362 facilities**; Extract C has 14. Every required field resolves for both types and no file-level read error occurs, but the profiling closed two open items and found four mapping defects.
+
+**Open item 10 — answered: Extract A does not carry origination fees.** There is no arrangement-fee or legal-fee column among the 36. The fee routing built into `ContractMasterImportService` is correct but will never fire from this file; origination fees continue to come from the Dec-2025 assessment workbook through the existing `fees` intake. **Extract A alone can therefore never make a contract solver-ready** — fee classification still gates readiness and Extract A supplies nothing to classify.
+
+**Open item 9 — confirmed: Extract C carries no fee or commission GL lines.** Its 14 columns hold `interest_income_posted` only. The Phase 6 reconciliation can tie EIR interest to GL interest; it has no GL counterpart for fee amortisation. That limitation must be stated in the audit pack rather than presented as an unexplained difference.
+
+**Directly relevant to open item 1 (conventions memo):** `day_count_basis` is **not uniform** — 336 facilities on 365 and 26 on 360. The book is not on one convention, so a single signed-off day count is a decision to override the source rather than to record it. `compounding` is uniformly `Compound`. Neither has a column in `contract_eir` yet; recording what the source states, separately from what the memo directs the engine to use, is a decision for that memo.
+
+**`rate_basis` holds Fixed/Variable — 204 variable against 158 fixed.** The majority of the book is floating, which makes the unbuilt floating-rate reset behaviour (`rate_reset_events`) materially more significant than "schema exists" suggests. The column was initially aliased to the free-text `rate_basis` field, which would have left `rate_type` on its `FIXED` default for all 204.
+
+**25 of 362 rows carry a blank `repayment_frequency`** (Monthly 320, Half-Yearly 10, Quarterly 4, Yearly 3). Seven per cent of the book would have silently inherited the monthly default — the case `frequency_source` was added for, now observed rather than hypothesised.
+
+**`opening_balance` is absent or assumed for 151 of 362 rows**, per the delivered `balance_data_note`: 92 "Assumed zero — closed before as-of date", 48 "N/A — loan opened after 01-Jan-2025", 11 "DATA GAP — needs manual verification". It is deliberately **not** aliased to `opening_amortised_cost`: a balance is not an amortised cost, the two differ by exactly the unamortised fee spread this engine exists to compute, and 42% of the column is unusable regardless.
+
+**Mapping defects found and fixed:** `tenor` arrives as `2y 0m 0d` / `0y 60m 0d` and grace periods as `3 M` / `0 Y`, none of which parse numerically — a plain cast read a 24-month tenor as `2`. `ContractMasterImport::monthsFromDuration()` now parses by unit. `contractual_maturity_date` and `actual_closure_date` did not match the guessed `MATURITY_DATE`/`CLOSURE_DATE` aliases. The file carries principal and interest grace **separately**; only principal grace is aliased, because a full moratorium is a different cash-flow shape and an accounting judgement.
+
+Also noted, not yet acted on: `account_status` uses undocumented codes `H` (42) and `F` (6) alongside Active/Closed/Dormant; `num_instalments` is 0 for 106 rows; `disbursement_tranches` carries multi-drawdown history as a packed string, which is the CCF input Phase 7 anticipates.
+
+Verification: focused EIR suite 73 tests / 307 assertions. Unmapped Extract A columns fell from 21 to 18 — the remainder are fields with no destination in `contract_eir` and are reported to the operator rather than dropped silently.
+
+**Still open:** `DR_CR_INDICATOR` in Extract B has not been re-verified the same way.
 
 ## Phase 3 — The solver 🟡 IN PROGRESS
 

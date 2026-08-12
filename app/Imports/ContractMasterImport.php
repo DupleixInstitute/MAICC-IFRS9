@@ -45,9 +45,11 @@ class ContractMasterImport
             'FIRST REPAYMENT DATE' => 'first_repayment_date',
             'MATURITY_DATE' => 'maturity_date',
             'MATURITY DATE' => 'maturity_date',
+            'CONTRACTUAL_MATURITY_DATE' => 'maturity_date',
             'EXPIRY_DATE' => 'maturity_date',
             'CLOSURE_DATE' => 'closure_date',
             'CLOSURE DATE' => 'closure_date',
+            'ACTUAL_CLOSURE_DATE' => 'closure_date',
             'RESTRUCTURE_DATE' => 'last_restructure_date',
             'RESTRUCTURE DATE' => 'last_restructure_date',
 
@@ -61,11 +63,16 @@ class ContractMasterImport
             'INTEREST_RATE' => 'contractual_rate',
             'INTEREST RATE' => 'contractual_rate',
             'CONTRACTUAL_RATE' => 'contractual_rate',
-            'RATE_BASIS' => 'rate_basis',
-            'RATE BASIS' => 'rate_basis',
-            'INTEREST_BASIS' => 'rate_basis',
+            // The delivered RATE_BASIS column carries Fixed/Variable — it is
+            // the rate type, not a day-count or accrual basis. Mapping it to
+            // the free-text rate_basis column would leave rate_type on its
+            // FIXED default for the 204 variable-rate facilities in the book.
+            'RATE_BASIS' => 'rate_type',
+            'RATE BASIS' => 'rate_type',
             'RATE_TYPE' => 'rate_type',
             'RATE TYPE' => 'rate_type',
+            'INTEREST_BASIS' => 'rate_basis',
+            'ACCRUAL_BASIS' => 'rate_basis',
             'REFERENCE_RATE' => 'reference_rate_at_origination',
             'MARKUP' => 'markup',
             'MARGIN' => 'markup',
@@ -79,6 +86,13 @@ class ContractMasterImport
             'GRACE_PERIOD_MONTHS' => 'moratorium_months',
             'GRACE PERIOD' => 'moratorium_months',
             'MORATORIUM_MONTHS' => 'moratorium_months',
+            // The file carries principal and interest grace separately and
+            // they differ per facility. Only the principal grace is aliased:
+            // it is what shapes the schedule the solver discounts. A full
+            // moratorium (interest deferred too) is a different cash-flow
+            // shape and an accounting judgement, so INTEREST_GRACE_PERIOD is
+            // deliberately left for the operator to map.
+            'PRINCIPAL_GRACE_PERIOD' => 'moratorium_months',
 
             'ARRANGEMENT_FEE' => 'arrangement_fee',
             'ARRANGEMENT FEE' => 'arrangement_fee',
@@ -91,6 +105,47 @@ class ContractMasterImport
             'OPENING_AMORTIZED_COST' => 'opening_amortised_cost',
             'OPENING_BALANCE_DATE' => 'opening_amortised_cost_date',
         ];
+    }
+
+    /**
+     * Durations in the delivered file are not numbers. Tenor arrives as
+     * "2y 0m 0d" or "0y 60m 0d" — the same 24- and 60-month terms written two
+     * different ways — and grace periods as "3 M", "0 M", "0 Y" or a bare "0".
+     *
+     * Reading these with a plain numeric cast yields null (or, worse, 2 for a
+     * 24-month tenor), so they are parsed by unit. Days are ignored: no MAIIC
+     * facility expresses a tenor or grace period in days, and rounding a
+     * stray day count into months would invent precision.
+     *
+     * @return int|null months, or null when there is no usable duration
+     */
+    public static function monthsFromDuration($value): ?int
+    {
+        if ($value === null || is_bool($value)) {
+            return null;
+        }
+        if (is_int($value) || is_float($value)) {
+            return (int) round((float) $value);
+        }
+
+        $text = trim((string) $value);
+        if ($text === '' || $text === '-') {
+            return null;
+        }
+        // A bare number is already months.
+        if (is_numeric($text)) {
+            return (int) round((float) $text);
+        }
+
+        $months = null;
+        if (preg_match('/(\d+(?:\.\d+)?)\s*y/i', $text, $m)) {
+            $months = (int) round(((float) $m[1]) * 12);
+        }
+        if (preg_match('/(\d+(?:\.\d+)?)\s*m/i', $text, $m)) {
+            $months = (int) ($months ?? 0) + (int) round((float) $m[1]);
+        }
+
+        return $months;
     }
 
     /**

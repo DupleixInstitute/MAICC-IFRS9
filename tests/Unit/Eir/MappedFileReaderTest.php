@@ -82,6 +82,56 @@ class MappedFileReaderTest extends TestCase
         $this->assertNull(ContractMasterImport::paymentsPerYear(''));
     }
 
+    /**
+     * Formats taken verbatim from the delivered Extract A. Tenor is written
+     * two ways for the same term ("2y 0m 0d" and "0y 24m 0d"), and a plain
+     * numeric cast would read the first as 2 months rather than 24.
+     */
+    public function test_duration_strings_from_the_delivered_file_parse_to_months(): void
+    {
+        $this->assertSame(24, ContractMasterImport::monthsFromDuration('2y 0m 0d'));
+        $this->assertSame(60, ContractMasterImport::monthsFromDuration('0y 60m 0d'));
+        $this->assertSame(24, ContractMasterImport::monthsFromDuration('0y 24m 0d'));
+        $this->assertSame(48, ContractMasterImport::monthsFromDuration('4y 0m 0d'));
+
+        // Grace periods carry their own unit, including years.
+        $this->assertSame(3, ContractMasterImport::monthsFromDuration('3 M'));
+        $this->assertSame(0, ContractMasterImport::monthsFromDuration('0 M'));
+        $this->assertSame(0, ContractMasterImport::monthsFromDuration('0 Y'));
+        $this->assertSame(12, ContractMasterImport::monthsFromDuration('12 M'));
+        $this->assertSame(0, ContractMasterImport::monthsFromDuration('0'));
+        $this->assertSame(36, ContractMasterImport::monthsFromDuration(36));
+
+        $this->assertNull(ContractMasterImport::monthsFromDuration(''));
+        $this->assertNull(ContractMasterImport::monthsFromDuration('-'));
+        $this->assertNull(ContractMasterImport::monthsFromDuration(null));
+    }
+
+    /**
+     * The delivered RATE_BASIS column holds Fixed/Variable — the rate type.
+     * Mapped anywhere else, 204 of the book's 362 facilities keep rate_type
+     * on its FIXED default while actually being floating.
+     */
+    public function test_rate_basis_column_maps_to_rate_type(): void
+    {
+        $this->assertSame('rate_type', ContractMasterImport::aliases()['RATE_BASIS']);
+        $this->assertSame('maturity_date', ContractMasterImport::aliases()['CONTRACTUAL_MATURITY_DATE']);
+        $this->assertSame('closure_date', ContractMasterImport::aliases()['ACTUAL_CLOSURE_DATE']);
+        $this->assertSame('moratorium_months', ContractMasterImport::aliases()['PRINCIPAL_GRACE_PERIOD']);
+    }
+
+    /** Frequencies exactly as the delivered file spells them. */
+    public function test_delivered_frequency_spellings_all_resolve(): void
+    {
+        $this->assertSame(12, ContractMasterImport::paymentsPerYear('Monthly'));
+        $this->assertSame(2, ContractMasterImport::paymentsPerYear('Half-Yearly'));
+        $this->assertSame(4, ContractMasterImport::paymentsPerYear('Quarterly'));
+        $this->assertSame(1, ContractMasterImport::paymentsPerYear('Yearly'));
+        // 25 of 362 rows carry a blank frequency — these are the ones that
+        // must land as ASSUMED rather than inherit monthly silently.
+        $this->assertNull(ContractMasterImport::paymentsPerYear(''));
+    }
+
     /** Every intake type the controller accepts must have a field spec. */
     public function test_every_import_type_declares_required_and_optional_fields(): void
     {
