@@ -272,6 +272,15 @@ TXT;
                     . "3. Workspace roles: editable checklist definitions with responsible role per step, maker-checker statuses (prepared/reviewed), completed-by as a user reference, notifications to the responsible role when a step becomes actionable.\n"
                     . "4. Seed proper IFRS 9 roles (Preparer, Reviewer, Approver, Read-only) with sensible permission sets.",
             ],
+            [
+                'reference' => '009',
+                'title' => 'Remove legacy credit-scoring modules from the codebase',
+                'priority' => 'medium',
+                'description' => "The credit-scoring-era roles and permissions were removed from the Roles matrix (56 permissions and the client role). Finish the job by removing the now-orphaned code so the routes cannot be reached at all:\n\n"
+                    . "1. Routes, controllers and pages: loan applications and approval stages, scoring attributes, client financial analysis (shareholders, balance sheets, income statements, ratio analysis, Porter's five forces), communication campaigns/templates/gateways, locations (provinces, districts, villages, wards, inkhundla, regions), member portal, medical-era leftovers (vitals, prescriptions, consultations, POS prints) and the dead Calculator page.\n"
+                    . "2. Motivation: their controllers still reference the deleted permissions, so a manually typed URL now raises a permission-does-not-exist error instead of a clean 403.\n"
+                    . "3. Retire the legacy tests for those modules at the same time so the full suite can go green.",
+            ],
         ];
 
         foreach ($backlog as $item) {

@@ -67,7 +67,7 @@
                                         <div class="flex items-center">
                                             <jet-checkbox :name="'permission_'+permission.id" :value="permission.name" :id="'permission_'+permission.id"  v-model:checked="form.permissions" />
                                             <div class="ml-2">
-                                                {{ permission.display_name }}
+                                                {{ permission.display_name || permission.name }}
                                             </div>
                                         </div>
                                     </jet-label>

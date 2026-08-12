@@ -30,7 +30,11 @@ class TicketsTest extends TestCase
     public function test_user_without_permission_is_forbidden()
     {
         $user = User::factory()->create();
-        $user->syncRoles(['client']); // external role — no tickets access
+        // Strip all roles: the legacy 'client' role was removed with the
+        // credit-scoring cleanup, so use a genuinely role-less user.
+        $user->syncRoles([]);
+        $user->syncPermissions([]);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->actingAs($user)->get('/tickets')->assertStatus(403);
     }

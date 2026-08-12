@@ -25,13 +25,6 @@ class RolesTableSeeder extends Seeder
                 'access_days' => '[]',
                 'is_system' => 1,
             ],
-            [
-                'name' => 'client',
-                'display_name' => 'Client',
-                'guard_name' => 'web',
-                'access_days' => '[]',
-                'is_system' => 1,
-            ],
         ]);
         //assign role permissions
         $admin = Role::findByName('admin');
