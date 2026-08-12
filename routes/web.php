@@ -1162,6 +1162,7 @@ Route::middleware(['auth', 'permission:reports.ifrs9'])
         $s = \App\Http\Controllers\Reports\StressTestingController::class;
         Route::get('/', [$s, 'index'])->name('index');
         Route::match(['get', 'post'], '/run', [$s, 'run'])->name('run');
+        Route::match(['get', 'post'], '/run-macro', [$s, 'runMacro'])->name('run-macro');
         Route::post('/save', [$s, 'save'])->name('save');
         Route::delete('/{stressScenario}', [$s, 'destroy'])->name('destroy');
     });

@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
@@ -8,6 +8,7 @@ const props = defineProps({
     periods: { type: Array, default: () => [] },
     portfolios: { type: Array, default: () => [] },
     scenarios: { type: Array, default: () => [] },
+    regressionModels: { type: Array, default: () => [] },
 })
 
 const form = reactive({
@@ -27,6 +28,17 @@ const presets = {
 function applyPreset(name) {
     Object.assign(form, presets[name])
 }
+
+// 'driver' = per-stage PD/LGD inputs; 'macro' = macro shock through a
+// regression to an implied PD multiplier. Same engine either way.
+const mode = ref('driver')
+const macroForm = reactive({
+    regression_model_id: '',
+    reg_slope: 1,
+    reg_intercept: 0,
+    base_macro: 100,
+    macro_shock: 25,
+})
 
 const result = ref(null)
 const running = ref(false)
@@ -48,7 +60,13 @@ async function run() {
     running.value = true
     error.value = ''
     try {
-        const { data } = await axios.post(route('stress-testing.run'), form)
+        const { data } = mode.value === 'macro'
+            ? await axios.post(route('stress-testing.run-macro'), {
+                period: form.period,
+                loan_portfolio_id: form.loan_portfolio_id,
+                ...macroForm,
+            })
+            : await axios.post(route('stress-testing.run'), form)
         result.value = data
     } catch (e) {
         error.value = e?.response?.data?.message || 'Run failed. Check the selected period has data.'
@@ -88,17 +106,6 @@ async function deleteScenario(s) {
     savedList.value = savedList.value.filter(x => x.id !== s.id)
 }
 
-const deltaTone = computed(() =>
-    !result.value ? 'maiic'
-        : result.value.delta > 0 ? 'rose'
-        : result.value.delta < 0 ? 'emerald' : 'maiic')
-
-const toneCls = {
-    maiic: 'from-maiic-500 to-maiic-600',
-    rose: 'from-red-500 to-red-600',
-    emerald: 'from-maiic-500 to-maiic-600',
-    amber: 'from-amber-500 to-amber-600',
-}
 </script>
 
 <template>
@@ -125,11 +132,21 @@ const toneCls = {
                                 recomputed loan-by-loan (EAD &times; PD &times; LGD, capped at 100%).
                             </p>
                         </div>
-                        <div class="flex flex-wrap gap-2">
-                            <button v-for="(_, name) in presets" :key="name" @click="applyPreset(name)"
-                                    class="px-3 py-1.5 text-xs font-medium rounded-lg border border-maiic-300 text-maiic-700 bg-maiic-50 hover:bg-maiic-100">
-                                {{ name }}
-                            </button>
+                        <div class="flex flex-col items-end gap-3">
+                            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                                <button @click="mode = 'driver'"
+                                        :class="mode === 'driver' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'"
+                                        class="px-3 py-1.5 font-medium">PD / LGD drivers</button>
+                                <button @click="mode = 'macro'"
+                                        :class="mode === 'macro' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'"
+                                        class="px-3 py-1.5 font-medium">Macro scenario</button>
+                            </div>
+                            <div v-if="mode === 'driver'" class="flex flex-wrap justify-end gap-2">
+                                <button v-for="(_, name) in presets" :key="name" @click="applyPreset(name)"
+                                        class="px-3 py-1.5 text-xs font-medium rounded-lg border border-maiic-300 text-maiic-700 bg-maiic-50 hover:bg-maiic-100">
+                                    {{ name }}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -151,7 +168,40 @@ const toneCls = {
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto mt-5">
+                    <!-- Macro scenario inputs: regression model (or manual
+                         slope/intercept) turns a macro shock into a PD multiplier -->
+                    <div v-if="mode === 'macro'" class="mt-5 grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div class="col-span-2 md:col-span-1">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Regression model</label>
+                            <select v-model="macroForm.regression_model_id"
+                                    class="w-full rounded-lg border-gray-300 text-sm py-2 px-3 shadow-sm focus:ring-maiic-500 focus:border-maiic-500">
+                                <option value="">Manual slope / intercept</option>
+                                <option v-for="m in regressionModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+                            </select>
+                        </div>
+                        <div v-if="!macroForm.regression_model_id">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Slope</label>
+                            <input type="number" step="0.0001" v-model.number="macroForm.reg_slope"
+                                   class="w-full rounded-lg border-gray-300 text-sm py-2 px-3 focus:ring-maiic-500 focus:border-maiic-500"/>
+                        </div>
+                        <div v-if="!macroForm.regression_model_id">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Intercept</label>
+                            <input type="number" step="0.0001" v-model.number="macroForm.reg_intercept"
+                                   class="w-full rounded-lg border-gray-300 text-sm py-2 px-3 focus:ring-maiic-500 focus:border-maiic-500"/>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Base macro value</label>
+                            <input type="number" step="0.01" v-model.number="macroForm.base_macro"
+                                   class="w-full rounded-lg border-gray-300 text-sm py-2 px-3 focus:ring-maiic-500 focus:border-maiic-500"/>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Macro shock (%)</label>
+                            <input type="number" step="1" v-model.number="macroForm.macro_shock"
+                                   class="w-full rounded-lg border-gray-300 text-sm py-2 px-3 focus:ring-maiic-500 focus:border-maiic-500"/>
+                        </div>
+                    </div>
+
+                    <div v-if="mode === 'driver'" class="overflow-x-auto mt-5">
                         <table class="min-w-full text-sm border border-gray-100 rounded-lg">
                             <thead class="bg-maiic-900 text-white">
                                 <tr>
@@ -189,22 +239,32 @@ const toneCls = {
 
                 <!-- Results -->
                 <template v-if="result">
+                    <!-- Macro derivation trail: how the shock became a PD multiplier -->
+                    <div v-if="result.macro"
+                         class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        <b>{{ result.macro.model }}</b>: macro {{ result.macro.base_macro }} shocked
+                        {{ result.macro.macro_shock_pct > 0 ? '+' : '' }}{{ result.macro.macro_shock_pct }}%
+                        &rarr; {{ Number(result.macro.shocked_macro).toLocaleString(undefined, { maximumFractionDigits: 4 }) }},
+                        implying a PD adjustment of <b>{{ pct(result.macro.implied_pd_adjustment) }}</b>
+                        (multiplier &times;{{ Number(result.macro.pd_multiplier).toFixed(4) }}) applied to every loan.
+                    </div>
+
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div :class="['rounded-2xl p-5 text-white bg-gradient-to-br shadow', toneCls.maiic]">
-                            <p class="text-xs uppercase tracking-wider opacity-85">Base ECL</p>
-                            <p class="text-2xl font-bold mt-2">{{ money(result.total_base_ecl) }}</p>
+                        <div class="maiic-kpi" style="--accent: #15803d">
+                            <p class="maiic-kpi-label">Base ECL</p>
+                            <p class="maiic-kpi-value">{{ money(result.total_base_ecl) }}</p>
                         </div>
-                        <div :class="['rounded-2xl p-5 text-white bg-gradient-to-br shadow', toneCls.amber]">
-                            <p class="text-xs uppercase tracking-wider opacity-85">Stressed ECL</p>
-                            <p class="text-2xl font-bold mt-2">{{ money(result.total_stress_ecl) }}</p>
+                        <div class="maiic-kpi" style="--accent: #d97706">
+                            <p class="maiic-kpi-label">Stressed ECL</p>
+                            <p class="maiic-kpi-value">{{ money(result.total_stress_ecl) }}</p>
                         </div>
-                        <div :class="['rounded-2xl p-5 text-white bg-gradient-to-br shadow', toneCls[deltaTone]]">
-                            <p class="text-xs uppercase tracking-wider opacity-85">&Delta; ECL</p>
-                            <p class="text-2xl font-bold mt-2">{{ money(result.delta) }}</p>
+                        <div class="maiic-kpi" :style="{ '--accent': result.delta > 0 ? '#dc2626' : '#15803d' }">
+                            <p class="maiic-kpi-label">&Delta; ECL</p>
+                            <p class="maiic-kpi-value">{{ money(result.delta) }}</p>
                         </div>
-                        <div :class="['rounded-2xl p-5 text-white bg-gradient-to-br shadow', toneCls[deltaTone]]">
-                            <p class="text-xs uppercase tracking-wider opacity-85">&Delta; %</p>
-                            <p class="text-2xl font-bold mt-2">{{ pct(result.delta_pct) }}</p>
+                        <div class="maiic-kpi" :style="{ '--accent': result.delta > 0 ? '#dc2626' : '#15803d' }">
+                            <p class="maiic-kpi-label">&Delta; %</p>
+                            <p class="maiic-kpi-value">{{ pct(result.delta_pct) }}</p>
                         </div>
                     </div>
 
