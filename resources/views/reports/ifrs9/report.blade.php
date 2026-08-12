@@ -11,7 +11,13 @@
     .hdr .co { font-size: 18px; font-weight: bold; color: #14532d; }
     .hdr .ti { font-size: 13px; color: #16a34a; margin-top: 2px; }
     .hdr .su { font-size: 9px; color: #6b7280; margin-top: 2px; }
-    .hdr .ba { height: 4px; background: #16a34a; margin-top: 8px; }
+    .hdr .logo { width: 150px; }
+    /* MAIIC tricolor brand bar: green / gold / red */
+    .bar { margin-top: 8px; }
+    .bar td { height: 4px; padding: 0; line-height: 0; font-size: 0; }
+    .bar .g { background: #16a34a; }
+    .bar .y { background: #d97706; }
+    .bar .r { background: #dc2626; }
 
     .ftr { position: fixed; bottom: -42px; left: 0; right: 0; height: 30px;
            font-size: 8px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 6px; }
@@ -41,15 +47,29 @@
 </head>
 <body>
     <div class="hdr">
-        <div class="co">{{ $report['company'] }}</div>
-        <div class="ti">{{ $report['title'] }}</div>
-        <div class="su">{{ $report['subtitle'] }}@if(!empty($report['period'])) &mdash; Reporting Period: {{ $report['period'] }}@endif</div>
-        <div class="ba"></div>
+        <table style="width:100%; border-collapse:collapse"><tr>
+            <td>
+                <div class="co">{{ $report['company'] }}</div>
+                <div class="ti">{{ $report['title'] }}</div>
+                <div class="su">{{ $report['subtitle'] }}@if(!empty($report['period'])) &middot; Reporting Period: {{ $report['period'] }}@endif</div>
+            </td>
+            @php $logo = public_path('images/maiic-logo.png'); @endphp
+            @if(is_file($logo))
+                <td style="text-align:right; vertical-align:top">
+                    <img class="logo" src="{{ $logo }}" alt="MAIIC">
+                </td>
+            @endif
+        </tr></table>
+        <table class="bar" style="width:100%; border-collapse:collapse"><tr>
+            <td class="g" style="width:60%"></td>
+            <td class="y" style="width:25%"></td>
+            <td class="r" style="width:15%"></td>
+        </tr></table>
     </div>
 
     <div class="ftr">
         <table style="width:100%"><tr>
-            <td>Generated {{ $report['generated_at'] }} &middot; MAIIC IFRS 9 ECL System</td>
+            <td>Generated {{ $report['generated_at'] }}@if(!empty($report['generated_by'])) by {{ $report['generated_by'] }}@endif &middot; MAIIC IFRS 9 ECL &amp; EIR System &middot; Confidential &middot; internal use only</td>
             <td style="text-align:right" class="pg"></td>
         </tr></table>
     </div>

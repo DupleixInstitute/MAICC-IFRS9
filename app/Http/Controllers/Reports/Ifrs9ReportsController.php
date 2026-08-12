@@ -1472,6 +1472,7 @@ class Ifrs9ReportsController extends Controller
             'subtitle'     => $subtitle,
             'company'      => $this->company(),
             'generated_at' => now()->format('d M Y H:i'),
+            'generated_by' => optional(auth()->user())->name,
             'periods'      => $this->periods(),
             'kpis'         => [],
             'sections'     => [],
@@ -1481,10 +1482,19 @@ class Ifrs9ReportsController extends Controller
             $report['subtitle'] = $subtitle;
         }
 
+        $filename = 'IFRS9-' . $report['key'] . '-' . ($report['period'] ?? 'all');
+
         if (request()->query('download') === 'pdf') {
             return Pdf::loadView('reports.ifrs9.report', ['report' => $report])
                 ->setPaper('a4', 'landscape')
-                ->download('IFRS9-' . $report['key'] . '-' . ($report['period'] ?? 'all') . '.pdf');
+                ->download($filename . '.pdf');
+        }
+
+        if (request()->query('download') === 'xlsx') {
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\Ifrs9ReportExport($report),
+                $filename . '.xlsx'
+            );
         }
 
         return Inertia::render('Reports/Ifrs9/Report', ['report' => $report]);

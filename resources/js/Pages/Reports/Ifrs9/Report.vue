@@ -60,11 +60,15 @@ const visibleControls = computed(() =>
     })
 )
 
-function pdfUrl() {
+function downloadUrl(kind) {
     const params = new URLSearchParams()
     if (props.report.period) params.set('period', props.report.period)
-    params.set('download', 'pdf')
+    params.set('download', kind)
     return route('ifrs9-reports.' + props.report.key) + '?' + params.toString()
+}
+
+function pdfUrl() {
+    return downloadUrl('pdf')
 }
 
 function csvCell(v) {
@@ -141,6 +145,14 @@ function runControls() {
                                 </svg>
                                 Export CSV
                             </button>
+                            <a :href="downloadUrl('xlsx')"
+                               class="inline-flex items-center px-4 py-2 bg-white border border-maiic-600 text-maiic-700 hover:bg-maiic-50 text-sm font-medium rounded-lg shadow-sm self-end">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm6 4l6 6m0-6l-6 6"/>
+                                </svg>
+                                Excel
+                            </a>
                             <a :href="pdfUrl()"
                                class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-700 text-white text-sm font-medium rounded-lg shadow self-end">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
