@@ -48,7 +48,7 @@ class ContractMasterImportService
         'approved_amount', 'drawn_amount',
         'contractual_rate', 'rate_basis', 'rate_type',
         'reference_rate_at_origination', 'markup',
-        'payments_per_year', 'tenor_months', 'moratorium_months',
+        'payments_per_year', 'frequency_source', 'tenor_months', 'moratorium_months',
         'opening_amortised_cost', 'opening_amortised_cost_date',
     ];
 
@@ -209,7 +209,12 @@ class ContractMasterImportService
             'rate_type' => $this->rateType($row['rate_type'] ?? null),
             'reference_rate_at_origination' => $this->rate($row['reference_rate_at_origination'] ?? null),
             'markup' => $this->rate($row['markup'] ?? null),
-            'payments_per_year' => $this->paymentsPerYear($row, $contractId, $unknownFrequencies),
+            'payments_per_year' => $paymentsPerYear = $this->paymentsPerYear($row, $contractId, $unknownFrequencies),
+            // Only claim STATED when the file actually said so. Leaving this
+            // null on an unresolved frequency means a sparse re-delivery
+            // cannot downgrade a contract whose frequency an earlier, richer
+            // file established.
+            'frequency_source' => $paymentsPerYear === null ? null : 'STATED',
             'tenor_months' => $this->wholeNumber($row['tenor_months'] ?? null),
             'moratorium_months' => $this->wholeNumber($row['moratorium_months'] ?? null),
             'opening_amortised_cost' => $this->amount($row['opening_amortised_cost'] ?? null),
@@ -229,7 +234,7 @@ class ContractMasterImportService
         $labels = [
             'origination_date' => 'an origination date',
             'drawn_amount' => 'a disbursed principal',
-            'payments_per_year' => 'a recognised repayment frequency',
+            'payments_per_year' => 'a recognised repayment frequency (held at the assumed monthly default)',
         ];
 
         $missing = [];

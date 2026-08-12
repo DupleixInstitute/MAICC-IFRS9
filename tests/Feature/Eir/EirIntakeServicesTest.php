@@ -88,6 +88,7 @@ class EirIntakeServicesTest extends TestCase
             $t->double('approved_amount')->nullable();
             $t->double('drawn_amount')->nullable();
             $t->unsignedSmallInteger('payments_per_year')->default(12);
+            $t->string('frequency_source')->default('ASSUMED');
             $t->unsignedSmallInteger('tenor_months')->nullable();
             $t->unsignedSmallInteger('moratorium_months')->default(0);
             $t->double('opening_amortised_cost')->nullable();
@@ -313,6 +314,7 @@ class EirIntakeServicesTest extends TestCase
 
         $contract = DB::table('contract_eir')->where('contract_id', '104450000053')->first();
         $this->assertSame(4, (int) $contract->payments_per_year);
+        $this->assertSame('STATED', $contract->frequency_source);
         $this->assertEqualsWithDelta(0.3210, (float) $contract->contractual_rate, 0.00001);
         $this->assertSame('2027-05-22', $contract->maturity_date);
         $this->assertSame('MAIIC_EXTRACT_A', $contract->terms_source_system);
@@ -402,6 +404,34 @@ class EirIntakeServicesTest extends TestCase
         $this->assertArrayHasKey('on demand', $result['unknown_frequencies']);
         $this->assertArrayHasKey('104450000053', $result['incomplete']);
         $this->assertStringContainsString('repayment frequency', $result['incomplete']['104450000053']);
+
+        // The contract keeps the monthly default — it still anchors schedules
+        // and fees — but the default is recorded as an assumption, which is
+        // what the readiness gate blocks on.
+        $contract = DB::table('contract_eir')->where('contract_id', '104450000053')->first();
+        $this->assertSame(12, (int) $contract->payments_per_year);
+        $this->assertSame('ASSUMED', $contract->frequency_source);
+    }
+
+    /**
+     * A later file that does state the frequency promotes the contract; a
+     * sparse one that omits it must not demote a frequency already stated.
+     */
+    public function test_stated_frequency_survives_a_later_sparse_delivery(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+        $service = app(ContractMasterImportService::class);
+
+        $service->import([$this->masterRow(['repayment_frequency' => 'On demand'])]);
+        $this->assertSame('ASSUMED', DB::table('contract_eir')->value('frequency_source'));
+
+        $service->import([$this->masterRow(['repayment_frequency' => 'Quarterly'])]);
+        $this->assertSame('STATED', DB::table('contract_eir')->value('frequency_source'));
+
+        $service->import([$this->masterRow(['repayment_frequency' => ''])]);
+        $contract = DB::table('contract_eir')->first();
+        $this->assertSame('STATED', $contract->frequency_source);
+        $this->assertSame(4, (int) $contract->payments_per_year);
     }
 
     public function test_contract_master_holds_accounts_absent_from_the_tape(): void

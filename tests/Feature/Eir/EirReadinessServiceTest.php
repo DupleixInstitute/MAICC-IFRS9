@@ -19,14 +19,14 @@ class EirReadinessServiceTest extends TestCase
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
-        Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('instrument_type')->default('AMORTISED_LOAN'); $t->string('rate_type')->default('FIXED'); $t->string('origination_date')->nullable(); $t->double('drawn_amount')->nullable(); $t->integer('payments_per_year')->default(12); $t->string('schedule_source')->nullable(); $t->string('locked_at')->nullable(); $t->timestamps(); });
+        Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('instrument_type')->default('AMORTISED_LOAN'); $t->string('rate_type')->default('FIXED'); $t->string('origination_date')->nullable(); $t->double('drawn_amount')->nullable(); $t->integer('payments_per_year')->default(12); $t->string('frequency_source')->default('ASSUMED'); $t->string('schedule_source')->nullable(); $t->string('locked_at')->nullable(); $t->timestamps(); });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->integer('schedule_version')->default(1); $t->string('due_date'); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); });
         Schema::create('contract_fees', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('fee_type')->default('other'); $t->string('description')->nullable(); $t->double('amount'); $t->boolean('integral')->nullable(); $t->string('classification_status')->default('PENDING'); $t->string('cashflow_direction')->nullable(); $t->string('transaction_date')->nullable(); $t->string('source_reference')->nullable(); $t->string('gl_account_ref')->nullable(); });
     }
 
     private function seedReadyContract(): void
     {
-        DB::table('contract_eir')->insert(['contract_id' => 'C-1', 'instrument_type' => 'AMORTISED_LOAN', 'origination_date' => '2025-01-01', 'drawn_amount' => 1000, 'payments_per_year' => 12, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('contract_eir')->insert(['contract_id' => 'C-1', 'instrument_type' => 'AMORTISED_LOAN', 'origination_date' => '2025-01-01', 'drawn_amount' => 1000, 'payments_per_year' => 12, 'frequency_source' => 'STATED', 'created_at' => now(), 'updated_at' => now()]);
         DB::table('contract_cashflow_schedule')->insert([
             ['contract_id' => 'C-1', 'schedule_version' => 1, 'due_date' => '2025-02-01', 'principal_due' => 500, 'interest_due' => 50],
             ['contract_id' => 'C-1', 'schedule_version' => 1, 'due_date' => '2025-03-01', 'principal_due' => 500, 'interest_due' => 25],
@@ -41,6 +41,27 @@ class EirReadinessServiceTest extends TestCase
         $this->assertTrue($result['ready']);
         $this->assertSame('READY', $result['status']);
         $this->assertSame(970.0, $result['metrics']['initial_net_investment']);
+    }
+
+    /**
+     * payments_per_year keeps its monthly default, so a facility whose source
+     * never stated a frequency stores the same 12 as a genuinely monthly one.
+     * Only frequency_source separates them — and a quarterly facility solved
+     * monthly returns a plausible rate that is not the contract's.
+     */
+    public function test_assumed_frequency_blocks_even_though_the_value_is_valid(): void
+    {
+        $this->seedReadyContract();
+        DB::table('contract_eir')->where('contract_id', 'C-1')
+            ->update(['frequency_source' => 'ASSUMED']);
+
+        $result = (new EirReadinessService())->assess('C-1');
+
+        $this->assertFalse($result['ready']);
+        $codes = array_column($result['issues'], 'code');
+        $this->assertContains('FREQUENCY_ASSUMED', $codes);
+        // The value itself is a legal frequency; only its provenance is not.
+        $this->assertNotContains('FREQUENCY_INVALID', $codes);
     }
 
     public function test_pending_fee_blocks_contract_with_named_reason(): void

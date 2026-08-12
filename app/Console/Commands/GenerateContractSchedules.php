@@ -18,12 +18,19 @@ use Throwable;
  * is never touched. Contracts missing the terms needed to generate (rate,
  * dates, amount) are skipped and reported — they stay at PROXY tier rather
  * than receiving a fabricated schedule.
+ *
+ * Payment frequency comes from the contract itself where a source has stated
+ * one (frequency_source = STATED, normally set by the contract master import).
+ * The --frequency option is the fallback for the rest, and how many contracts
+ * fell back to it is reported: those schedules are internally consistent with
+ * an assumption rather than with the contract, so the readiness gate keeps
+ * them out of the solver until the frequency is confirmed.
  */
 class GenerateContractSchedules extends Command
 {
     protected $signature = 'eir:generate-schedules
         {--period= : Reporting period YYYY-MM to source loan terms from (default: latest)}
-        {--frequency=12 : Payments per year assumed for generated schedules}
+        {--frequency=12 : Payments per year for contracts whose frequency no source has stated}
         {--dry-run : Report what would be generated without writing}';
 
     protected $description = 'Generate Tier-2 (GENERATED) cash-flow schedules for contracts without an imported schedule';
@@ -57,7 +64,15 @@ class GenerateContractSchedules extends Command
             ->pluck('contract_id')
             ->flip();
 
+        // A contract master (Extract A) row states the facility's own
+        // frequency. Prefer it over the run-wide option: building a quarterly
+        // facility's schedule at annual/12 on monthly intervals produces a
+        // schedule that is internally consistent and simply not the contract's.
+        $stated = ContractEir::where('frequency_source', 'STATED')
+            ->pluck('payments_per_year', 'contract_id');
+
         $generated = 0;
+        $assumedFrequency = 0;
         $skipped   = [];
 
         foreach ($loans as $loan) {
@@ -66,7 +81,13 @@ class GenerateContractSchedules extends Command
                 continue;
             }
 
-            $terms = $this->termsFromTape($loan, $frequency);
+            $contractFrequency = (int) ($stated[$loan->contract_id] ?? 0);
+            if ($contractFrequency < 1) {
+                $contractFrequency = $frequency;
+                $assumedFrequency++;
+            }
+
+            $terms = $this->termsFromTape($loan, $contractFrequency);
             if (is_string($terms)) {
                 $skipped[$loan->contract_id] = $terms;
                 continue;
@@ -108,6 +129,11 @@ class GenerateContractSchedules extends Command
         }
 
         $this->info("Generated: {$generated}  Skipped: " . count($skipped));
+
+        if ($assumedFrequency > 0) {
+            $this->warn("{$assumedFrequency} contract(s) used the assumed {$frequency}/year frequency because no source states theirs. "
+                . 'Their schedules are flagged GENERATED and the readiness gate blocks them until the frequency is confirmed.');
+        }
 
         foreach ($skipped as $contractId => $reason) {
             $this->line("  skipped {$contractId}: {$reason}");

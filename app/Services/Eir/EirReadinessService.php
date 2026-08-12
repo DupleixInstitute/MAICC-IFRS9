@@ -18,6 +18,11 @@ class EirReadinessService
         if (! $contract->origination_date) $issues[] = ['code' => 'ORIGINATION_DATE_MISSING', 'message' => 'Origination/value date is missing.'];
         if ((float) $contract->drawn_amount <= 0) $issues[] = ['code' => 'DRAWN_AMOUNT_MISSING', 'message' => 'Drawn/disbursed amount must be greater than zero.'];
         if (! in_array((int) $contract->payments_per_year, [1, 2, 4, 6, 12], true)) $issues[] = ['code' => 'FREQUENCY_INVALID', 'message' => 'Payment frequency must be annual, semi-annual, quarterly, bi-monthly or monthly.'];
+        // payments_per_year defaults to monthly, so a facility whose source
+        // never stated a frequency is indistinguishable from a genuinely
+        // monthly one by value alone. A quarterly facility solved monthly
+        // returns a plausible rate that is not the contract's.
+        if ($contract->frequency_source !== 'STATED') $issues[] = ['code' => 'FREQUENCY_ASSUMED', 'message' => 'Payment frequency was assumed, not stated by a source. Confirm it against the contract master or offer letter before solving.'];
 
         $schedule = DB::table('contract_cashflow_schedule')->where('contract_id', $contractId)->where('schedule_version', 1)->orderBy('due_date')->get();
         if ($schedule->isEmpty()) $issues[] = ['code' => 'ORIGINAL_SCHEDULE_MISSING', 'message' => 'Original contractual schedule (version 1) is missing.'];
