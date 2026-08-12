@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Eir;
 
+use App\Services\Eir\ContractMasterImportService;
 use App\Services\Eir\FeeImportService;
-use App\Services\Eir\ExtractBImportService;
+use App\Services\Eir\GlInterestImportService;
+use App\Services\Eir\ContractTransactionImportService;
 use App\Services\Eir\ScheduleImportService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +70,51 @@ class EirIntakeServicesTest extends TestCase
             $t->string('instrument_type')->default('AMORTISED_LOAN');
             $t->string('schedule_source')->nullable();
             $t->string('rate_source')->default('CONTRACTUAL_PROXY');
+            // Contract master (Extract A) terms — mirrors the production
+            // defaults, including the ones that are dangerous when imported.
+            $t->string('sub_account_no')->nullable();
+            $t->string('gl_account_code')->nullable();
+            $t->string('currency', 3)->nullable();
+            $t->string('rate_type')->default('FIXED');
+            $t->double('contractual_rate')->nullable();
+            $t->string('rate_basis')->nullable();
+            $t->double('reference_rate_at_origination')->nullable();
+            $t->double('markup')->nullable();
+            $t->string('origination_date')->nullable();
+            $t->string('first_repayment_date')->nullable();
+            $t->string('maturity_date')->nullable();
+            $t->string('closure_date')->nullable();
+            $t->string('last_restructure_date')->nullable();
+            $t->double('approved_amount')->nullable();
+            $t->double('drawn_amount')->nullable();
+            $t->unsignedSmallInteger('payments_per_year')->default(12);
+            $t->unsignedSmallInteger('tenor_months')->nullable();
+            $t->unsignedSmallInteger('moratorium_months')->default(0);
+            $t->double('opening_amortised_cost')->nullable();
+            $t->string('opening_amortised_cost_date')->nullable();
+            $t->string('terms_source_system')->nullable();
+            $t->string('terms_source_reference')->nullable();
+            $t->string('terms_imported_at')->nullable();
+            $t->string('locked_at')->nullable();
+            $t->timestamps();
+        });
+
+        Schema::create('gl_interest_postings', function (Blueprint $t) {
+            $t->increments('id');
+            $t->string('contract_id');
+            $t->string('gl_account_code')->nullable();
+            $t->string('period_type')->default('MONTHLY');
+            $t->unsignedSmallInteger('period_year');
+            $t->unsignedTinyInteger('period_month');
+            $t->string('reporting_period');
+            $t->double('interest_income_posted')->default(0);
+            $t->unsignedInteger('transaction_count')->default(0);
+            $t->text('posting_references')->nullable();
+            $t->text('row_note')->nullable();
+            $t->string('generated_on')->nullable();
+            $t->string('source_system');
+            $t->string('source_reference')->nullable();
+            $t->string('external_transaction_id');
             $t->timestamps();
         });
 
@@ -144,9 +191,14 @@ class EirIntakeServicesTest extends TestCase
         ]);
     }
 
-    public function test_extract_b_splits_schedule_actuals_and_fees(): void
+    /**
+     * The tape is seeded unpadded and the extract rows padded, because that is
+     * exactly how the two sources arrive: E-Banker pads to 15 characters, the
+     * loan tape does not. The join only works if contract_id is canonicalised.
+     */
+    public function test_contract_transactions_split_schedule_actuals_and_fees(): void
     {
-        $this->seedLoan('000104450000053', 100);
+        $this->seedLoan('104450000053', 100);
         $rows = [
             [
                 'run_id' => '1', 'customer_id' => '93', 'contract_id' => '000104450000053',
@@ -171,7 +223,7 @@ class EirIntakeServicesTest extends TestCase
             ],
         ];
 
-        $result = app(ExtractBImportService::class)->import($rows);
+        $result = app(ContractTransactionImportService::class)->import($rows);
 
         $this->assertSame(2, $result['scheduled_rows_routed']);
         $this->assertSame(1, $result['actual_rows_loaded']);
@@ -180,9 +232,15 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(1, DB::table('eir_actual_transactions')->count());
         $this->assertSame('PENDING', DB::table('contract_fees')->value('classification_status'));
         $this->assertSame('MAIIC_EXTRACT_B', DB::table('contract_fees')->value('source_system'));
+
+        // Everything downstream must be keyed on the canonical identifier, not
+        // the padded form the extract happened to arrive in.
+        $this->assertSame('104450000053', DB::table('contract_cashflow_schedule')->value('contract_id'));
+        $this->assertSame('104450000053', DB::table('eir_actual_transactions')->value('contract_id'));
+        $this->assertSame('104450000053', DB::table('contract_fees')->value('contract_id'));
     }
 
-    public function test_extract_b_holds_unknown_loans_and_rejects_customer_conflicts(): void
+    public function test_contract_transactions_hold_unknown_loans_and_rejects_customer_conflicts(): void
     {
         $this->seedLoan('KNOWN', 100, '93');
         $base = [
@@ -191,7 +249,7 @@ class EirIntakeServicesTest extends TestCase
             'interest_component' => 10, 'fee_component' => 0, 'total_amount' => 110,
             'scheduled_actual_flag' => 'Scheduled',
         ];
-        $result = app(ExtractBImportService::class)->import([
+        $result = app(ContractTransactionImportService::class)->import([
             $base + ['contract_id' => 'MISSING', 'customer_id' => '93', 'gl_posting_ref' => 'X-1'],
             $base + ['contract_id' => 'KNOWN', 'customer_id' => 'WRONG', 'gl_posting_ref' => 'X-2'],
         ]);
@@ -201,10 +259,10 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(0, DB::table('contract_cashflow_schedule')->count());
     }
 
-    public function test_extract_b_partial_schedule_is_not_misrepresented_as_original_schedule(): void
+    public function test_contract_transactions_partial_schedule_is_not_misrepresented_as_original_schedule(): void
     {
         $this->seedLoan('PARTIAL', 100, '93');
-        $result = app(ExtractBImportService::class)->import([[
+        $result = app(ContractTransactionImportService::class)->import([[
             'customer_id' => '93', 'contract_id' => 'PARTIAL', 'sub_account_no' => '1',
             'gl_posting_ref' => 'P-1', 'transaction_date' => '2025-12-31',
             'transaction_type' => 'Scheduled Repayment', 'principal_component' => 20,
@@ -215,6 +273,252 @@ class EirIntakeServicesTest extends TestCase
         $this->assertArrayHasKey('PARTIAL', $result['skipped']);
         $this->assertStringContainsString('does not reconcile', $result['skipped']['PARTIAL']);
         $this->assertSame(0, DB::table('contract_cashflow_schedule')->count());
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Contract master (Extract A)                                        */
+    /* ------------------------------------------------------------------ */
+
+    private function masterRow(array $overrides = []): array
+    {
+        return $overrides + [
+            'run_id' => '7',
+            'customer_id' => '93',
+            'contract_id' => '000104450000053',
+            'sub_account_no' => '1',
+            'gl_account_code' => '30310',
+            'currency' => 'MWK',
+            'origination_date' => '2025-05-22',
+            'first_repayment_date' => '2025-08-22',
+            'maturity_date' => '2027-05-22',
+            'approved_amount' => 100_000_000,
+            'drawn_amount' => 100_000_000,
+            'contractual_rate' => 32.1,
+            'repayment_frequency' => 'Quarterly',
+            'tenor_months' => 24,
+            'moratorium_months' => 3,
+            'arrangement_fee' => 2_500_000,
+            'legal_fees' => 1_510_000,
+        ];
+    }
+
+    public function test_contract_master_creates_terms_and_routes_origination_fees_as_pending(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(ContractMasterImportService::class)->import([$this->masterRow()]);
+
+        $this->assertSame(1, $result['created']);
+        $this->assertSame([], $result['incomplete']);
+
+        $contract = DB::table('contract_eir')->where('contract_id', '104450000053')->first();
+        $this->assertSame(4, (int) $contract->payments_per_year);
+        $this->assertEqualsWithDelta(0.3210, (float) $contract->contractual_rate, 0.00001);
+        $this->assertSame('2027-05-22', $contract->maturity_date);
+        $this->assertSame('MAIIC_EXTRACT_A', $contract->terms_source_system);
+        // Classification is an accounting judgement, never a product code.
+        $this->assertSame('AMORTISED_LOAN', $contract->instrument_type);
+
+        $fees = DB::table('contract_fees')->where('contract_id', '104450000053')->get();
+        $this->assertCount(2, $fees);
+        $this->assertSame(['PENDING', 'PENDING'], $fees->pluck('classification_status')->all());
+        $this->assertNull($fees->first()->integral);
+    }
+
+    /**
+     * The same master file arrives every month. A re-delivery of unchanged
+     * terms must be a no-op, and it must not create a second fee line.
+     */
+    public function test_contract_master_reimport_is_idempotent(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+        $service = app(ContractMasterImportService::class);
+
+        $service->import([$this->masterRow()]);
+        $second = $service->import([$this->masterRow()]);
+
+        $this->assertSame(0, $second['created']);
+        $this->assertSame(0, $second['updated']);
+        $this->assertSame(1, $second['unchanged']);
+        $this->assertSame(2, DB::table('contract_fees')->count());
+    }
+
+    public function test_contract_master_updates_changed_terms_only(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+        $service = app(ContractMasterImportService::class);
+        $service->import([$this->masterRow()]);
+
+        $service->import([$this->masterRow([
+            'maturity_date' => '2028-05-22',
+            'last_restructure_date' => '2026-07-01',
+        ])]);
+
+        $contract = DB::table('contract_eir')->where('contract_id', '104450000053')->first();
+        $this->assertSame('2028-05-22', $contract->maturity_date);
+        $this->assertSame('2026-07-01', $contract->last_restructure_date);
+        // Untouched terms survive the update.
+        $this->assertSame(4, (int) $contract->payments_per_year);
+    }
+
+    /**
+     * The solved rate's audited basis is the terms it was solved from. A file
+     * that disagrees with a locked contract raises an exception; it does not
+     * quietly invalidate the rate and its input snapshot.
+     */
+    public function test_contract_master_never_overwrites_a_locked_contract(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+        app(ContractMasterImportService::class)->import([$this->masterRow()]);
+        DB::table('contract_eir')->where('contract_id', '104450000053')
+            ->update(['locked_at' => '2026-07-31 00:00:00']);
+
+        $result = app(ContractMasterImportService::class)->import([
+            $this->masterRow(['drawn_amount' => 90_000_000]),
+        ]);
+
+        $this->assertSame(0, $result['updated']);
+        $this->assertArrayHasKey('104450000053', $result['skipped']);
+        $this->assertStringContainsString('locked', $result['skipped']['104450000053']);
+        $this->assertStringContainsString('drawn_amount', $result['skipped']['104450000053']);
+        $this->assertEqualsWithDelta(100_000_000.0, (float) DB::table('contract_eir')
+            ->where('contract_id', '104450000053')->value('drawn_amount'), 0.01);
+    }
+
+    /**
+     * payments_per_year defaults to 12 in the schema. A facility whose
+     * frequency the file spells unrecognisably must not inherit that default
+     * silently — it would solve monthly and produce a plausible wrong rate.
+     */
+    public function test_unrecognised_frequency_is_reported_not_defaulted(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(ContractMasterImportService::class)->import([
+            $this->masterRow(['repayment_frequency' => 'On demand']),
+        ]);
+
+        $this->assertSame(1, $result['created']);
+        $this->assertArrayHasKey('on demand', $result['unknown_frequencies']);
+        $this->assertArrayHasKey('104450000053', $result['incomplete']);
+        $this->assertStringContainsString('repayment frequency', $result['incomplete']['104450000053']);
+    }
+
+    public function test_contract_master_holds_accounts_absent_from_the_tape(): void
+    {
+        $result = app(ContractMasterImportService::class)->import([
+            $this->masterRow(['contract_id' => 'GHOST-9']),
+        ]);
+
+        $this->assertSame(0, $result['created']);
+        $this->assertArrayHasKey('GHOST-9', $result['held']);
+        $this->assertSame(0, DB::table('contract_eir')->count());
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* GL interest postings (Extract C)                                   */
+    /* ------------------------------------------------------------------ */
+
+    private function glRow(array $overrides = []): array
+    {
+        return $overrides + [
+            'run_id' => '3',
+            'contract_id' => '000104450000053',
+            'gl_account_code' => '30310',
+            'period_type' => 'MONTHLY',
+            'period_year' => 2025,
+            'period_month' => 10,
+            'interest_income_posted' => 2_675_000,
+            'transaction_count' => 4,
+            'posting_references' => 'JV-1|JV-2',
+        ];
+    }
+
+    public function test_gl_interest_loads_and_totals_by_period(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(GlInterestImportService::class)->import([
+            $this->glRow(),
+            $this->glRow(['period_month' => 11, 'interest_income_posted' => 2_594_082.67]),
+        ]);
+
+        $this->assertSame(2, $result['loaded_rows']);
+        $this->assertSame(0, $result['negative_rows']);
+        $this->assertEqualsWithDelta(5_269_082.67, $result['total_posted'], 0.01);
+        $this->assertEqualsWithDelta(2_675_000.0, $result['periods']['2025-10'], 0.01);
+
+        $posting = DB::table('gl_interest_postings')->first();
+        $this->assertSame('104450000053', $posting->contract_id);
+        $this->assertSame('2025-10-01', $posting->reporting_period);
+        $this->assertSame('MAIIC_EXTRACT_C', $posting->source_system);
+    }
+
+    /** A re-delivered file must not double-count a period. */
+    public function test_gl_interest_reimport_does_not_double_count(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+        $service = app(GlInterestImportService::class);
+
+        $service->import([$this->glRow()]);
+        $second = $service->import([$this->glRow()]);
+
+        $this->assertSame(0, $second['loaded_rows']);
+        $this->assertSame(1, $second['unchanged']);
+        $this->assertSame(1, DB::table('gl_interest_postings')->count());
+    }
+
+    /**
+     * A changed figure for a period already loaded is a GL restatement. It is
+     * applied, but named individually — the period may already have been
+     * reconciled and signed off.
+     */
+    public function test_gl_restatement_is_applied_and_named(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+        $service = app(GlInterestImportService::class);
+        $service->import([$this->glRow()]);
+
+        $result = $service->import([$this->glRow(['interest_income_posted' => 2_700_000])]);
+
+        $this->assertSame(1, $result['restated_rows']);
+        $this->assertNotEmpty($result['restatements']);
+        $this->assertStringContainsString('2,675,000.00', implode(' ', $result['restatements']));
+        $this->assertSame(1, DB::table('gl_interest_postings')->count());
+        $this->assertEqualsWithDelta(2_700_000.0, (float) DB::table('gl_interest_postings')
+            ->value('interest_income_posted'), 0.01);
+    }
+
+    /**
+     * The Extract C sign convention is an open item. Negative rows are stored
+     * as delivered and counted, never flipped — a silently corrected sign
+     * would hide a real misstatement inside the reconciliation.
+     */
+    public function test_gl_interest_reports_negative_rows_without_correcting_them(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(GlInterestImportService::class)->import([
+            $this->glRow(['interest_income_posted' => -2_675_000]),
+        ]);
+
+        $this->assertSame(1, $result['negative_rows']);
+        $this->assertEqualsWithDelta(-2_675_000.0, (float) DB::table('gl_interest_postings')
+            ->value('interest_income_posted'), 0.01);
+    }
+
+    public function test_gl_interest_rejects_rows_without_a_usable_period(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(GlInterestImportService::class)->import([
+            $this->glRow(['period_year' => null, 'period_month' => null]),
+            $this->glRow(['period_month' => 13]),
+        ]);
+
+        $this->assertSame(0, $result['loaded_rows']);
+        $this->assertCount(2, $result['skipped']);
+        $this->assertSame(0, DB::table('gl_interest_postings')->count());
     }
 
     private function scheduleRows(string $contractId, int $n = 4, float $principalEach = 25_000_000): array

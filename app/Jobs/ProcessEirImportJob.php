@@ -4,8 +4,10 @@ namespace App\Jobs;
 
 use App\Models\Import;
 use App\Services\AuditLoggerService;
-use App\Services\Eir\ExtractBImportService;
+use App\Services\Eir\ContractMasterImportService;
+use App\Services\Eir\ContractTransactionImportService;
 use App\Services\Eir\FeeImportService;
+use App\Services\Eir\GlInterestImportService;
 use App\Services\Eir\ScheduleImportService;
 use App\Services\Imports\MappedFileReader;
 use Illuminate\Bus\Queueable;
@@ -33,8 +35,14 @@ class ProcessEirImportJob implements ShouldQueue
         private readonly array $transforms,
     ) {}
 
-    public function handle(MappedFileReader $reader, ScheduleImportService $schedules, FeeImportService $fees, ExtractBImportService $extractB): void
-    {
+    public function handle(
+        MappedFileReader $reader,
+        ScheduleImportService $schedules,
+        FeeImportService $fees,
+        ContractTransactionImportService $transactions,
+        ContractMasterImportService $master,
+        GlInterestImportService $glInterest,
+    ): void {
         $import = Import::findOrFail($this->importId);
         $import->update(['status' => 'processing', 'started_at' => now()]);
         $exceptionPath = "failed_imports/eir_exception_{$import->id}.csv";
@@ -42,19 +50,26 @@ class ProcessEirImportJob implements ShouldQueue
         try {
             $read = $reader->read(Storage::path($this->storedPath), $this->importType, $this->mapping, $this->transforms);
             $result = match ($this->importType) {
+                'contract_master' => $master->import($read['rows']),
                 'schedule' => $schedules->import($read['rows']),
                 'fees' => $fees->import($read['rows']),
-                'extract_b' => $extractB->import($read['rows']),
+                'contract_transactions' => $transactions->import($read['rows']),
+                'gl_interest' => $glInterest->import($read['rows']),
             };
-            $failures = $this->failureRows($result);
-            if ($failures !== []) $this->writeExceptionFile($exceptionPath, $failures);
+            $exceptions = $this->failureRows($result);
+            if ($exceptions !== []) $this->writeExceptionFile($exceptionPath, $exceptions);
+
+            // Only rows that did not load count as failures in the history.
+            // Notices about rows that did load belong in the file, not in a
+            // number the operator reads as "this import went wrong".
+            $failed = count(array_filter($exceptions, fn ($row) => in_array($row['status'], ['held', 'skipped'], true)));
 
             $import->update([
                 'status' => 'completed',
                 'records' => $this->successfulRecords($result),
                 'rows_processed' => $read['report']['total_rows'] ?? 0,
-                'failed_records' => count($failures),
-                'failed_file_path' => $failures === [] ? null : $exceptionPath,
+                'failed_records' => $failed,
+                'failed_file_path' => $exceptions === [] ? null : $exceptionPath,
                 'completed_at' => now(),
             ]);
             AuditLoggerService::log(action: 'EIR Intake Import', entityType: 'Import', entityId: $import->id,
@@ -76,15 +91,30 @@ class ProcessEirImportJob implements ShouldQueue
 
     private function successfulRecords(array $result): int
     {
-        if ($this->importType !== 'extract_b') return (int) ($result['loaded_rows'] ?? 0);
-        return (int) ($result['loaded_rows'] ?? 0) + (int) ($result['actual_rows_loaded'] ?? 0)
-            + (int) ($result['fee_result']['loaded_rows'] ?? 0);
+        return match ($this->importType) {
+            // Extract B fans out to three destinations; counting only the
+            // schedule rows would under-report the import in the history.
+            'contract_transactions' => (int) ($result['loaded_rows'] ?? 0)
+                + (int) ($result['actual_rows_loaded'] ?? 0)
+                + (int) ($result['fee_result']['loaded_rows'] ?? 0),
+            'contract_master' => (int) ($result['loaded_rows'] ?? 0)
+                + (int) ($result['fee_result']['loaded_rows'] ?? 0),
+            'gl_interest' => (int) ($result['loaded_rows'] ?? 0) + (int) ($result['restated_rows'] ?? 0),
+            default => (int) ($result['loaded_rows'] ?? 0),
+        };
     }
 
+    /**
+     * Everything a reviewer must look at goes to the downloadable exception
+     * file — including rows that loaded. A contract created without a
+     * repayment frequency, or a GL figure restated against a period that may
+     * already have been reconciled, is not a failure but it is not silent
+     * either.
+     */
     private function failureRows(array $result): array
     {
         $rows = [];
-        foreach (['held', 'skipped'] as $status) {
+        foreach (['held', 'skipped', 'incomplete', 'restatements'] as $status) {
             foreach (($result[$status] ?? []) as $scope => $reason) $rows[] = compact('scope', 'status', 'reason');
         }
         return $rows;

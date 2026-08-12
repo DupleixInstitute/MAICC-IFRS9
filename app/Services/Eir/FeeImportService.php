@@ -2,6 +2,7 @@
 
 namespace App\Services\Eir;
 
+use App\Support\ContractId;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -37,10 +38,10 @@ class FeeImportService
         $now           = now();
 
         foreach ($rows as $row) {
-            $contractId = trim((string) ($row['contract_id'] ?? ''));
+            $contractId = ContractId::normalise($row['contract_id'] ?? null);
             $amount     = (float) ($row['amount'] ?? 0);
 
-            if ($contractId === '' || $amount === 0.0) {
+            if ($contractId === null || $amount === 0.0) {
                 $skipped++;
                 continue;
             }

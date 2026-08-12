@@ -160,7 +160,33 @@ EIR uploads follow the application's established import route: the controller va
 
 Rows are separated before persistence: `Scheduled` rows go through the existing full-schedule validation into `contract_cashflow_schedule`; `Actual` rows are retained in `eir_actual_transactions`; and non-zero actual `FEE_COMPONENT` values create `PENDING` `contract_fees` records for maker/checker classification. Source run/posting references are retained and protected against duplicate import. A partial 2025 schedule that does not reconcile to drawn principal is rejected rather than misrepresented as an original lifetime schedule.
 
-Verification: focused mapping/intake suite passes (20 tests / 68 assertions) and the production frontend build passes. Migration `2026_08_04_000000_add_extract_b_audit_fields.php` could not be applied locally on 2026-08-04 because MySQL was not running; apply it before using the new intake option.
+Verification: focused mapping/intake suite passes (20 tests / 68 assertions) and the production frontend build passes. Migration `2026_08_04_000000_add_extract_b_audit_fields.php` could not be applied locally on 2026-08-04 because MySQL was not running; **applied 2026-08-12**.
+
+## Phase 2.65 — Canonical contract identifier and mixed-type dates (2026-08-12) ✅ COMPLETE
+
+Profiling the delivered extracts against the loan tape exposed the reason every Extract A/B/C row was being held with "loan account is not present in the imported loan book": E-Banker (VGCBS) pads account numbers to 15 characters with leading zeros, and MAIIC's monthly loan tape carries the same account unpadded. No account on the 3,609-row tape begins with a zero, so the unpadded form is unambiguously canonical. `App\Support\ContractId` owns that normalisation and `MappedFileReader` applies it to `contract_id` regardless of the transform the operator selected — a mis-mapped identifier holds the whole file, so it is not left to the mapping screen.
+
+The same profiling showed the extracts are mixed-type in their date columns: Extract B carries `Actual` rows as `dd-mm-yyyy` strings and `Scheduled` rows as Excel serials, and Extract A mixes serials, `dd-mm-yyyy` and `yyyy-mm-dd` within one column. A declared format is therefore a hint: it is trusted only when it round-trips, and otherwise falls back to flexible parsing, because a silent null drops the row at validation with a misleading reason.
+
+## Phase 2.7 — Contract master (Extract A) and GL interest postings (Extract C) (2026-08-12) ✅ COMPLETE
+
+**Vocabulary.** The intake types are now named for what they contain rather than for the vendor's delivery letter, with the letter retained in the operator's label for provenance: `contract_master` (Extract A), `schedule`, `fees`, `contract_transactions` (Extract B, previously `extract_b`), `gl_interest` (Extract C). `ExtractBImport`/`ExtractBImportService` were renamed to `ContractTransactionImport`/`ContractTransactionImportService`. The old dropdown offered "Repayment schedule" and "Schedule Import (Extract B)" side by side, which are different things; no `import_type` was persisted anywhere and no saved mapping templates existed, so the rename cost nothing. **`source_system` values were deliberately not renamed** — `MAIIC_EXTRACT_B` and its siblings are stored lineage naming the vendor file an auditor will ask for.
+
+**Extract A → `contract_eir`.** A facility master, not a monthly snapshot: one row per contract, upserted on every delivery. Only origination attributes unreachable through a stable `loan_books`/client join were added (contractual rate and basis, tenor, first-repayment/maturity/closure/restructure dates, currency, sub-account, GL account, opening amortised cost) plus `terms_source_system`/`terms_source_reference`/`terms_imported_at` lineage. Three refusals define the service:
+
+- **a locked contract is never rewritten.** Once an EIR is solved and locked, its origination terms are the audited basis of that rate; a re-delivered file that disagrees is skipped with the differing fields named, rather than silently invalidating the rate and its `input_snapshot`;
+- **`instrument_type` is never set from the file.** Amortised loan vs preference share vs excluded equity is an IAS 32/IFRS 9 judgement (the Nascomex memo), not a product code;
+- **an unrecognised repayment frequency is reported, never guessed.** `contract_eir.payments_per_year` defaults to 12; a quarterly facility inheriting that default would solve against the wrong period and produce a plausible wrong rate. The contract is still created — it anchors schedules and fees — but the gap is named in a new `incomplete` result bucket that reaches the downloadable exception file.
+
+Origination fees on the master row (arrangement, legal) route to `contract_fees` as `PENDING` through the existing `FeeImportService`, so maker/checker classification still gates solver readiness. Cash direction is left unset: the extract sign convention is an open item and a guess would flow into the solver's net initial investment. Sparse re-deliveries cannot blank a term an earlier richer file supplied — absent and zero stay distinguishable throughout.
+
+**Extract C → `gl_interest_postings`** (new table, one row per loan per period). Records what the ledger posted, never what should have been posted: signs are stored as delivered and the negative-row count and per-period totals are surfaced at import, because flipping a sign to "look right" would move a real misstatement into the noise. An identical figure for a period already loaded is a duplicate delivery; a different figure is a GL restatement — applied, but named individually in the exception file, since the period may already have been reconciled and reviewed. Two unique keys: the natural key (contract, year, month, GL account) against double counting, and (source system, external id) against re-import under a corrected natural key.
+
+`ProcessEirImportJob` now writes `incomplete` and `restatements` to the exception CSV alongside `held`/`skipped`, but counts only `held`/`skipped` as `failed_records` — a notice about a row that loaded should not read as a failed import.
+
+Verification: focused EIR suite passes (68 tests / 275 assertions, up from 54/203) and migration `2026_08_12_000000_add_contract_master_and_gl_interest.php` applied locally.
+
+**Still open on this phase:** spec open item 10 (confirm Extract A carries the full origination-fee/date field set — only ~13 columns sampled, so the alias defaults are the 22 Jul requested names) and open item 9 (fee/commission GL lines in Extract C, `DR_CR_INDICATOR` in Extract B). Until both are re-verified against the delivered files, the alias maps are a starting point for the mapping screen, not a validated contract.
 
 ## Phase 3 — The solver 🟡 IN PROGRESS
 

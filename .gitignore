@@ -18,3 +18,7 @@ yarn-error.log
 
 # Office lock/temp files
 ~$*
+
+# Client extracts and tapes — real, unanonymised MAIIC/FinES names and
+# balances. Never committed; keep local only (spec open item 15).
+/sample data/

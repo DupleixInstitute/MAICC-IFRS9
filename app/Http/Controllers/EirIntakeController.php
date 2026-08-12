@@ -20,6 +20,22 @@ use Throwable;
  */
 class EirIntakeController extends Controller
 {
+    /**
+     * The intake types, in the order an operator works through a month end.
+     * Declared once: three request validators and the mapping screen's field
+     * spec previously repeated the list, which is how extract_b came to be
+     * accepted by one and unknown to another.
+     */
+    public const IMPORT_TYPES = [
+        'contract_master',
+        'schedule',
+        'fees',
+        'contract_transactions',
+        'gl_interest',
+    ];
+
+    private const TYPE_RULE = 'in:contract_master,schedule,fees,contract_transactions,gl_interest';
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -32,20 +48,10 @@ class EirIntakeController extends Controller
             'coverage'  => $schedules->coverage(),
             'templates' => ImportMapping::orderBy('import_type')->orderBy('source_header')->get()
                 ->groupBy('import_type'),
-            'fieldSpec' => [
-                'schedule' => [
-                    'required' => MappedFileReader::REQUIRED_FIELDS['schedule'],
-                    'optional' => MappedFileReader::OPTIONAL_FIELDS['schedule'],
-                ],
-                'fees' => [
-                    'required' => MappedFileReader::REQUIRED_FIELDS['fees'],
-                    'optional' => MappedFileReader::OPTIONAL_FIELDS['fees'],
-                ],
-                'extract_b' => [
-                    'required' => MappedFileReader::REQUIRED_FIELDS['extract_b'],
-                    'optional' => MappedFileReader::OPTIONAL_FIELDS['extract_b'],
-                ],
-            ],
+            'fieldSpec' => collect(self::IMPORT_TYPES)->mapWithKeys(fn ($type) => [$type => [
+                'required' => MappedFileReader::REQUIRED_FIELDS[$type],
+                'optional' => MappedFileReader::OPTIONAL_FIELDS[$type],
+            ]])->all(),
         ]);
     }
 
@@ -58,7 +64,7 @@ class EirIntakeController extends Controller
     {
         $request->validate([
             'file'        => ['required', 'file', 'mimes:csv,txt,xlsx,xls,ods', 'max:20480'],
-            'import_type' => ['required', 'in:schedule,fees,extract_b'],
+            'import_type' => ['required', self::TYPE_RULE],
         ]);
 
         try {
@@ -77,7 +83,7 @@ class EirIntakeController extends Controller
     public function saveTemplate(Request $request)
     {
         $data = $request->validate([
-            'import_type'             => ['required', 'in:schedule,fees,extract_b'],
+            'import_type'             => ['required', self::TYPE_RULE],
             'mappings'                => ['required', 'array', 'min:1'],
             'mappings.*.source_header' => ['required', 'string', 'max:255'],
             'mappings.*.target_field'  => ['required', 'string', 'max:255'],
@@ -110,7 +116,7 @@ class EirIntakeController extends Controller
     ) {
         $request->validate([
             'file'        => ['required', 'file', 'mimes:csv,txt,xlsx,xls,ods', 'max:20480'],
-            'import_type' => ['required', 'in:schedule,fees,extract_b'],
+            'import_type' => ['required', self::TYPE_RULE],
             'mapping'     => ['required', 'json'],
             'transforms'  => ['nullable', 'json'],
         ]);

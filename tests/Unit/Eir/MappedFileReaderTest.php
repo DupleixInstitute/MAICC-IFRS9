@@ -2,7 +2,9 @@
 
 namespace Tests\Unit\Eir;
 
-use App\Imports\ExtractBImport;
+use App\Imports\ContractMasterImport;
+use App\Imports\ContractTransactionImport;
+use App\Imports\GlInterestImport;
 use App\Services\Imports\MappedFileReader;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -40,15 +42,53 @@ class MappedFileReaderTest extends TestCase
         return $path;
     }
 
-    public function test_extract_b_aliases_map_alternate_headers_to_canonical_fields(): void
+    public function test_contract_transaction_aliases_map_alternate_headers_to_canonical_fields(): void
     {
-        $aliases = ExtractBImport::aliases();
+        $aliases = ContractTransactionImport::aliases();
 
         $this->assertSame('contract_id', $aliases['LOAN_ACCOUNT_NUMBER']);
         $this->assertSame('contract_id', $aliases['ACCOUNT_NUMBER']);
         $this->assertSame('customer_id', $aliases['CLIENT_ID']);
         $this->assertSame('transaction_date', $aliases['VALUE_DATE']);
         $this->assertSame('scheduled_actual_flag', $aliases['ACTUAL_SCHEDULED_FLAG']);
+    }
+
+    public function test_contract_master_and_gl_interest_aliases_reach_canonical_fields(): void
+    {
+        $master = ContractMasterImport::aliases();
+        $this->assertSame('contract_id', $master['LOAN_ACCOUNT_NUMBER']);
+        $this->assertSame('origination_date', $master['LOAN_START_DATE']);
+        $this->assertSame('approved_amount', $master['SANCTIONED_AMOUNT']);
+        $this->assertSame('drawn_amount', $master['PRINCIPAL_DISBURSED']);
+        $this->assertSame('moratorium_months', $master['GRACE_PERIOD_MONTHS']);
+
+        $gl = GlInterestImport::aliases();
+        $this->assertSame('contract_id', $gl['LOAN_ACCOUNT_NUMBER']);
+        $this->assertSame('interest_income_posted', $gl['INTEREST_INCOME_POSTED']);
+        $this->assertSame('period_month', $gl['MONTH']);
+    }
+
+    /**
+     * A frequency the file spells in a way we do not recognise must return
+     * null so the importer can report it. Guessing monthly would change the
+     * solved periodic rate without anyone seeing a reason to check.
+     */
+    public function test_unrecognised_repayment_frequency_is_not_guessed(): void
+    {
+        $this->assertSame(4, ContractMasterImport::paymentsPerYear('Quarterly'));
+        $this->assertSame(12, ContractMasterImport::paymentsPerYear(' MONTHLY '));
+        $this->assertSame(2, ContractMasterImport::paymentsPerYear('Semi-Annual'));
+        $this->assertNull(ContractMasterImport::paymentsPerYear('On demand'));
+        $this->assertNull(ContractMasterImport::paymentsPerYear(''));
+    }
+
+    /** Every intake type the controller accepts must have a field spec. */
+    public function test_every_import_type_declares_required_and_optional_fields(): void
+    {
+        foreach (\App\Http\Controllers\EirIntakeController::IMPORT_TYPES as $type) {
+            $this->assertArrayHasKey($type, MappedFileReader::REQUIRED_FIELDS, "{$type} has no required fields");
+            $this->assertArrayHasKey($type, MappedFileReader::OPTIONAL_FIELDS, "{$type} has no optional fields");
+        }
     }
 
     /** Ebanker-style headers map onto our fields with transforms applied. */
@@ -202,5 +242,81 @@ class MappedFileReaderTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->reader->read($this->csv("A\n1\n"), 'unknown_type', mapping: []);
+    }
+
+    /**
+     * E-Banker pads account numbers; the loan tape does not. Canonicalising on
+     * read is what stops every extract row being held as "not on the loan tape".
+     */
+    public function test_contract_id_is_canonicalised_regardless_of_transform(): void
+    {
+        $path = $this->csv(
+            "LOAN_ACCOUNT_NUMBER,Due,Principal,Interest\n" .
+            "000104430000062,22/08/2025,100,10\n"
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'LOAN_ACCOUNT_NUMBER' => 'contract_id',
+                'Due'                 => 'due_date',
+                'Principal'           => 'principal_due',
+                'Interest'            => 'interest_due',
+            ],
+            // A wrong transform on the identifier must not corrupt it.
+            transforms: ['contract_id' => 'number']
+        );
+
+        $this->assertSame('104430000062', $result['rows'][0]['contract_id']);
+    }
+
+    /**
+     * Extract B carries every "Actual" row as a dd-mm-yyyy string and every
+     * "Scheduled" row as an Excel serial, in the same column. A declared
+     * format must not silently null the rows it does not fit.
+     */
+    public function test_mixed_format_date_column_parses_every_row(): void
+    {
+        $path = $this->csv(
+            "Contract,Due,Principal,Interest\n" .
+            "X-1,31-01-2025,100,10\n" .   // dd-mm-yyyy string (Actual rows)
+            "X-1,45813,100,10\n" .        // Excel serial (Scheduled rows)
+            "X-1,2022-07-06,100,10\n"     // yyyy-mm-dd (Extract A mixes this in)
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'Contract'  => 'contract_id',
+                'Due'       => 'due_date',
+                'Principal' => 'principal_due',
+                'Interest'  => 'interest_due',
+            ],
+            // Declared format fits none of the three; all must still parse.
+            transforms: ['due_date' => 'date:d/m/Y']
+        );
+
+        $this->assertSame('2025-01-31', $result['rows'][0]['due_date']);
+        $this->assertSame('2025-06-05', $result['rows'][1]['due_date']);
+        $this->assertSame('2022-07-06', $result['rows'][2]['due_date']);
+    }
+
+    /** A format that does fit still wins, so genuinely ambiguous dates resolve. */
+    public function test_declared_format_still_governs_ambiguous_dates(): void
+    {
+        $path = $this->csv(
+            "Contract,Due,Principal,Interest\n" .
+            "X-1,03/06/2025,100,10\n"
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'Contract'  => 'contract_id',
+                'Due'       => 'due_date',
+                'Principal' => 'principal_due',
+                'Interest'  => 'interest_due',
+            ],
+            transforms: ['due_date' => 'date:d/m/Y']
+        );
+
+        $this->assertSame('2025-06-03', $result['rows'][0]['due_date']);
     }
 }

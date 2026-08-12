@@ -3,6 +3,7 @@
 namespace App\Services\Eir;
 
 use App\Models\ContractEir;
+use App\Support\ContractId;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -34,8 +35,8 @@ class ScheduleImportService
     {
         $byContract = [];
         foreach ($rows as $row) {
-            $contractId = trim((string) ($row['contract_id'] ?? ''));
-            if ($contractId === '') {
+            $contractId = ContractId::normalise($row['contract_id'] ?? null);
+            if ($contractId === null) {
                 continue;
             }
             $byContract[$contractId][] = $row;

@@ -3,13 +3,13 @@
 namespace App\Imports;
 
 /**
- * Canonical header aliases for Extract B.
+ * Canonical header aliases for the contract transactions file (Extract B).
  *
  * Keys are headings that may appear in a source file; values are the
- * stable internal field names consumed by the Extract B import service.
+ * stable internal field names consumed by ContractTransactionImportService.
  * Saved mappings from the intake screen may override these defaults.
  */
-class ExtractBImport
+class ContractTransactionImport
 {
     public static function aliases(): array
     {

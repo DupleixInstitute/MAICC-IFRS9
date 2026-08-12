@@ -31,9 +31,11 @@
                     <div>
                         <jet-label class="text-sm font-medium text-gray-900">Import type</jet-label>
                         <select v-model="importType" class="form-input mt-2" :disabled="processing" @change="resetAnalysis">
+                            <option value="contract_master">Contract master (Extract A) — facility terms, monthly</option>
                             <option value="schedule">Repayment schedule (per contract, once)</option>
                             <option value="fees">Fees and transaction costs</option>
-                            <option value="extract_b">Schedule Import (Extract B)</option>
+                            <option value="contract_transactions">Contract transactions (Extract B) — scheduled and actual cash flows</option>
+                            <option value="gl_interest">GL interest postings (Extract C) — what the ledger posted</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
@@ -130,7 +132,7 @@
             <div v-if="result" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">3 · Result</h3>
 
-                <div v-if="['schedule', 'extract_b'].includes(importType)" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div v-if="['schedule', 'contract_transactions'].includes(importType)" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-maiic-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-maiic-700">{{ result.loaded_contracts }}</div>
                         <div class="text-xs text-maiic-800 mt-1">Contracts loaded</div>
@@ -149,11 +151,35 @@
                     </div>
                 </div>
 
-                <div v-if="importType === 'extract_b'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div v-if="importType === 'contract_transactions'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.scheduled_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Scheduled rows routed</div></div>
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.actual_rows_loaded }}</div><div class="text-xs text-maiic-800 mt-1">Actual rows retained</div></div>
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.fee_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Fee rows routed</div></div>
                     <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.duplicate_source_rows }}</div><div class="text-xs text-gray-800 mt-1">Duplicate source rows</div></div>
+                </div>
+
+                <div v-else-if="importType === 'contract_master'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.created }}</div><div class="text-xs text-maiic-800 mt-1">Contracts created</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.updated }}</div><div class="text-xs text-maiic-800 mt-1">Terms updated</div></div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.unchanged }}</div><div class="text-xs text-gray-800 mt-1">Unchanged</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.fee_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Origination fees → pending</div></div>
+                </div>
+
+                <div v-else-if="importType === 'gl_interest'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.loaded_rows }}</div><div class="text-xs text-maiic-800 mt-1">Postings loaded</div></div>
+                    <div class="bg-amber-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-amber-700">{{ result.restated_rows }}</div><div class="text-xs text-amber-800 mt-1">GL restatements applied</div></div>
+                    <div class="bg-amber-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-amber-700">{{ result.negative_rows }}</div><div class="text-xs text-amber-800 mt-1">Negative rows (check sign)</div></div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ Number(result.total_posted).toLocaleString() }}</div><div class="text-xs text-gray-800 mt-1">Total interest posted</div></div>
+                </div>
+
+                <!-- Posted interest by period - eyeball against the GL before reconciling -->
+                <div v-if="importType === 'gl_interest' && result.periods" class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-900 mb-2">Interest posted by period - check these against the GL before the reconciliation is run:</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span v-for="(total, period) in result.periods" :key="period" class="px-3 py-1 bg-maiic-50 text-maiic-800 text-xs rounded-full">
+                            {{ period }}: {{ Number(total).toLocaleString() }}
+                        </span>
+                    </div>
                 </div>
 
                 <div v-else-if="importType === 'fees'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -199,7 +225,7 @@
                             <tr v-for="entry in reasonEntries" :key="entry.contract + entry.status">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ entry.contract }}</td>
                                 <td class="px-4 py-2">
-                                    <span class="px-2 py-0.5 text-xs rounded-full" :class="entry.status === 'held' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'">
+                                    <span class="px-2 py-0.5 text-xs rounded-full" :class="entry.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'">
                                         {{ entry.status }}
                                     </span>
                                 </td>
@@ -280,6 +306,15 @@ export default {
             }
             for (const [contract, reason] of Object.entries(this.result.skipped || {})) {
                 entries.push({ contract, status: 'rejected', reason })
+            }
+            // Loaded, but a reviewer still has to look: a contract created
+            // without the terms the solver needs, or a GL figure restated
+            // against a period that may already have been reconciled.
+            for (const [contract, reason] of Object.entries(this.result.incomplete || {})) {
+                entries.push({ contract, status: 'incomplete', reason })
+            }
+            for (const [contract, reason] of Object.entries(this.result.restatements || {})) {
+                entries.push({ contract, status: 'restated', reason })
             }
             return entries
         },

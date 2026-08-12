@@ -2,8 +2,11 @@
 
 namespace App\Services\Imports;
 
-use App\Imports\ExtractBImport;
+use App\Imports\ContractMasterImport;
+use App\Imports\ContractTransactionImport;
+use App\Imports\GlInterestImport;
 use App\Models\ImportMapping;
+use App\Support\ContractId;
 use Carbon\Carbon;
 use InvalidArgumentException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -34,11 +37,19 @@ class MappedFileReader
     public const REQUIRED_FIELDS = [
         'schedule' => ['contract_id', 'due_date', 'principal_due', 'interest_due'],
         'fees'     => ['contract_id', 'fee_type', 'amount'],
-        'extract_b' => [
+        // Extract A. Only the identifier is required: the delivered column set
+        // is still being confirmed (spec open item 10), and refusing a file for
+        // a missing optional term would block the master load over a term the
+        // solver's readiness gate already reports contract by contract.
+        'contract_master' => ['contract_id'],
+        'contract_transactions' => [
             'customer_id', 'contract_id', 'sub_account_no', 'transaction_date',
             'transaction_type', 'principal_component', 'interest_component',
             'fee_component', 'total_amount', 'scheduled_actual_flag', 'gl_posting_ref',
         ],
+        // Extract C. The period is required because a posting without one
+        // cannot be reconciled against any month.
+        'gl_interest' => ['contract_id', 'period_year', 'period_month', 'interest_income_posted'],
     ];
 
     /** Optional target fields per import type (for the mapping UI). */
@@ -49,7 +60,20 @@ class MappedFileReader
             'source_system', 'source_reference', 'external_transaction_id',
             'basis', 'gl_account_ref',
         ],
-        'extract_b' => ['run_id', 'balance_after_transaction', 'row_note'],
+        'contract_master' => [
+            'run_id', 'customer_id', 'sub_account_no', 'gl_account_code', 'currency',
+            'product_type', 'origination_date', 'first_repayment_date', 'maturity_date',
+            'closure_date', 'last_restructure_date', 'approved_amount', 'drawn_amount',
+            'contractual_rate', 'rate_basis', 'rate_type', 'reference_rate_at_origination',
+            'markup', 'repayment_frequency', 'payments_per_year', 'tenor_months',
+            'moratorium_months', 'arrangement_fee', 'legal_fees',
+            'opening_amortised_cost', 'opening_amortised_cost_date',
+        ],
+        'contract_transactions' => ['run_id', 'balance_after_transaction', 'row_note'],
+        'gl_interest' => [
+            'run_id', 'gl_account_code', 'period_type', 'reporting_period',
+            'transaction_count', 'posting_references', 'row_note', 'generated_on',
+        ],
     ];
 
     /**
@@ -110,7 +134,13 @@ class MappedFileReader
             $row = [];
             foreach ($mapping as $sourceHeader => $targetField) {
                 $value = $raw[$sourceHeader] ?? null;
-                $row[$targetField] = $this->applyTransform($value, $transforms[$targetField] ?? null);
+                // contract_id is always canonicalised, whatever transform the
+                // operator picked: a mis-mapped identifier holds every row of
+                // the file, and the padding differs between E-Banker and the
+                // loan tape (see App\Support\ContractId).
+                $row[$targetField] = $targetField === 'contract_id'
+                    ? ContractId::normalise($value)
+                    : $this->applyTransform($value, $transforms[$targetField] ?? null);
             }
             $rows[] = $row;
         }
@@ -182,6 +212,10 @@ class MappedFileReader
             return self::cleanNumber($value);
         }
 
+        if ($transform === 'contract_id') {
+            return ContractId::normalise($value);
+        }
+
         if ($transform === 'percent') {
             // Normalise percent-vs-decimal ambiguity: 32.10 → 0.3210.
             $n = self::cleanNumber($value);
@@ -195,6 +229,15 @@ class MappedFileReader
         throw new InvalidArgumentException("Unknown transform '{$transform}'");
     }
 
+    /**
+     * Date columns in the MAIIC extracts are mixed-type: Extract B carries
+     * every "Actual" row as a dd-mm-yyyy string and every "Scheduled" row as
+     * an Excel serial, and Extract A mixes serials, dd-mm-yyyy and yyyy-mm-dd
+     * inside a single column. A declared format is therefore treated as a
+     * hint, not a contract — when it does not fit the cell we fall back to
+     * flexible parsing rather than discarding the value, because a silent
+     * null here drops the row at validation with a misleading reason.
+     */
     private function toDateString($value, ?string $format): ?string
     {
         if ($value === null || $value === '' || $value === '-') {
@@ -210,12 +253,23 @@ class MappedFileReader
             }
         }
 
-        try {
-            $date = $format
-                ? Carbon::createFromFormat($format, trim((string) $value))
-                : Carbon::parse(trim((string) $value));
+        $raw = trim((string) $value);
 
-            return $date->toDateString();
+        if ($format !== null) {
+            try {
+                // createFromFormat is lenient about separators, so require the
+                // round-trip to match before trusting the declared format.
+                $date = Carbon::createFromFormat($format, $raw);
+                if ($date !== false && $date->format($format) === $raw) {
+                    return $date->toDateString();
+                }
+            } catch (Throwable) {
+                // fall through to flexible parsing
+            }
+        }
+
+        try {
+            return Carbon::parse($raw)->toDateString();
         } catch (Throwable) {
             return null;
         }
@@ -350,7 +404,12 @@ class MappedFileReader
 
     private function templateFor(string $importType): array
     {
-        $aliases = $importType === 'extract_b' ? ExtractBImport::aliases() : [];
+        $aliases = match ($importType) {
+            'contract_master' => ContractMasterImport::aliases(),
+            'contract_transactions' => ContractTransactionImport::aliases(),
+            'gl_interest' => GlInterestImport::aliases(),
+            default => [],
+        };
 
         return array_replace(
             $this->normaliseTemplate($aliases),

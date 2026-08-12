@@ -2,11 +2,20 @@
 
 namespace App\Services\Eir;
 
+use App\Support\ContractId;
 use Illuminate\Support\Facades\DB;
 
-/** Imports Extract B without confusing actual cash movements with contractual promises. */
-class ExtractBImportService
+/**
+ * Imports the contract transactions file (Extract B) without confusing actual
+ * cash movements with contractual promises.
+ */
+class ContractTransactionImportService
 {
+    /**
+     * Persisted lineage, not a display label: rows already in the database
+     * carry this value and it names the vendor file an auditor will ask for.
+     * The class was renamed for the operator; the stored provenance was not.
+     */
     public const SOURCE = 'MAIIC_EXTRACT_B';
 
     public function __construct(
@@ -25,7 +34,7 @@ class ExtractBImportService
         $duplicates = 0;
 
         foreach ($rows as $index => $row) {
-            $account = trim((string) ($row['contract_id'] ?? ''));
+            $account = ContractId::normalise($row['contract_id'] ?? null) ?? '';
             $customer = trim((string) ($row['customer_id'] ?? ''));
             $subAccount = trim((string) ($row['sub_account_no'] ?? ''));
             $reference = trim((string) ($row['gl_posting_ref'] ?? ''));
