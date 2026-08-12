@@ -70,30 +70,16 @@ class ContractMasterImportService
         $incomplete = [];
         $unknownFrequencies = [];
         $feeRows = [];
-        $seen = [];
-        $duplicates = 0;
         $created = 0;
         $updated = 0;
         $unchanged = 0;
         $now = now();
 
-        foreach ($rows as $index => $row) {
-            $label = 'row ' . ($index + 2);
-            $contractId = ContractId::normalise($row['contract_id'] ?? null);
-            if ($contractId === null) {
-                $skipped[$label] = 'no loan account number on the row';
-                continue;
-            }
+        $sourceRows = count($rows);
+        [$rows, $conflicts, $duplicates] = $this->mergeDuplicateRows($rows, $skipped);
+        $skipped += $conflicts;
 
-            // Extract A is one row per facility: a repeated account is a data
-            // fault in the file, not a second version of the contract.
-            if (isset($seen[$contractId])) {
-                $duplicates++;
-                $skipped[$contractId] = 'appears more than once in the file; only the first row was considered';
-                continue;
-            }
-            $seen[$contractId] = true;
-
+        foreach ($rows as $contractId => $row) {
             $loan = DB::table('loan_books')->where('contract_id', $contractId)
                 ->orderByDesc('reporting_period')->first(['contract_id', 'customer_id']);
             if (! $loan) {
@@ -169,7 +155,8 @@ class ContractMasterImportService
         $feeResult = $this->fees->import($feeRows);
 
         return [
-            'source_rows' => count($rows),
+            'source_rows' => $sourceRows,
+            'facilities' => count($rows),
             'created' => $created,
             'updated' => $updated,
             'unchanged' => $unchanged,
@@ -182,6 +169,84 @@ class ContractMasterImportService
             'fee_result' => $feeResult,
             'loaded_rows' => $created + $updated,
         ];
+    }
+
+    /**
+     * Collapse the file to one row per facility.
+     *
+     * The delivered Extract A carries every facility twice — 362 rows for 181
+     * accounts — and the pairs are not always identical: 42 of them disagree
+     * on repayment frequency, 17 between two real values (Monthly vs Yearly,
+     * Monthly vs Half-Yearly, Monthly vs Quarterly) rather than against a
+     * blank.
+     *
+     * Taking the first row would resolve those by file order, which for a
+     * Monthly-vs-Yearly pair is a twelve-fold error in the annualised rate
+     * decided by nothing. So the rows are merged instead: where one side is
+     * blank the stated value wins, and where both state a different value the
+     * facility is rejected with the field and both values named. A human
+     * settles it against the offer letter; the importer does not guess.
+     *
+     * @param  array<string,string>  $skipped  rows with no identifier, by reference
+     * @return array{0: array<string,array<string,mixed>>, 1: array<string,string>, 2: int}
+     *         [merged rows keyed by contract, conflicts, duplicate row count]
+     */
+    private function mergeDuplicateRows(array $rows, array &$skipped): array
+    {
+        $grouped = [];
+        $duplicates = 0;
+
+        foreach ($rows as $index => $row) {
+            $contractId = ContractId::normalise($row['contract_id'] ?? null);
+            if ($contractId === null) {
+                $skipped['row ' . ($index + 2)] = 'no loan account number on the row';
+                continue;
+            }
+            if (isset($grouped[$contractId])) {
+                $duplicates++;
+            }
+            $grouped[$contractId][] = $row;
+        }
+
+        $merged = [];
+        $conflicts = [];
+
+        foreach ($grouped as $contractId => $group) {
+            if (count($group) === 1) {
+                $merged[$contractId] = $group[0];
+                continue;
+            }
+
+            $row = [];
+            $disagreements = [];
+
+            foreach ($group as $candidate) {
+                foreach ($candidate as $field => $value) {
+                    $text = trim((string) ($value ?? ''));
+                    if ($text === '' || $text === '-') {
+                        continue; // a blank never overrides a stated value
+                    }
+                    if (! array_key_exists($field, $row)) {
+                        $row[$field] = $value;
+                        continue;
+                    }
+                    if (strcasecmp(trim((string) $row[$field]), $text) !== 0) {
+                        $disagreements[$field] = "{$field} is both '{$row[$field]}' and '{$text}'";
+                    }
+                }
+            }
+
+            if ($disagreements !== []) {
+                $conflicts[$contractId] = 'the file states conflicting values for this facility — '
+                    . implode('; ', $disagreements)
+                    . '. Confirm against the offer letter rather than accepting either.';
+                continue;
+            }
+
+            $merged[$contractId] = $row;
+        }
+
+        return [$merged, $conflicts, $duplicates];
     }
 
     /**

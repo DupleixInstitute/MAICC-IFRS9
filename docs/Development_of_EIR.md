@@ -212,6 +212,18 @@ Also noted, not yet acted on: `account_status` uses undocumented codes `H` (42) 
 
 Verification: focused EIR suite 73 tests / 307 assertions. Unmapped Extract A columns fell from 21 to 18 — the remainder are fields with no destination in `contract_eir` and are reported to the operator rather than dropped silently.
 
+### Phase 2.8b — Dry run of both extracts through the full import path (2026-08-12)
+
+Both files were then run through `MappedFileReader` → import service → the live `loan_books` join, inside a transaction that was rolled back. Nothing was written. Three findings, all needing MAIIC/VGCBS input.
+
+**Every facility appears twice in Extract A** — 362 rows for 181 accounts. 139 pairs are byte-identical; **42 disagree, all on `repayment_frequency`**, and 17 of those disagree between two real values rather than against a blank: Monthly vs Half-Yearly ×10, Monthly vs Quarterly ×4, Monthly vs Yearly ×3. The importer originally took the first row, which resolves a Monthly-vs-Yearly pair — a twelvefold error in the annualised rate — by file order. It now merges instead: a blank never overrides a stated value, and two different stated values reject the facility with the field and both values named. **Question for Barry: why is every row duplicated, and which frequency is authoritative?**
+
+**74 of 181 facilities are not on the loan tape.** By `account_status`, the off-tape set is 46 Closed, **29 Active**, 1 Dormant. The closed ones are expected — a current tape carries live loans — but they still need EIR history for the comparative period, and the present rule holds them out of `contract_eir` permanently. The 29 active ones are a genuine data gap: facilities the core-banking master calls active that never appear in the monthly tape. **The hold rule may be backwards for the master specifically:** Extract A *is* the facility master, so refusing it for absence from a monthly snapshot inverts the source of truth. The documented design is soft integrity plus a Phase 6 orphan report, which argues for create-and-flag rather than hold. Decision required.
+
+**Extract C covers three loan accounts.** 28 rows over 12 periods of 2025, 3 distinct accounts, MK268,493,417.82 in total posted interest, `period_type` = `MONTH`. It is a sample, not the book — the Phase 6 GL reconciliation cannot run on the portfolio until a full Extract C is delivered. Extract A is itself a subset too: 181 facilities against 3,609 distinct contracts on the tape.
+
+Confirmed in passing: zero origination-fee lines routed (no fee columns exist), and of the 89 facilities that would be created, 65 are floating and 24 fixed.
+
 **Still open:** `DR_CR_INDICATOR` in Extract B has not been re-verified the same way.
 
 ## Phase 3 — The solver 🟡 IN PROGRESS

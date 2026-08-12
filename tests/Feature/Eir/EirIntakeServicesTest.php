@@ -434,6 +434,52 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(4, (int) $contract->payments_per_year);
     }
 
+    /**
+     * The delivered Extract A carries every facility twice. Where one row
+     * simply omits a value the pair is merged — a blank is not a statement.
+     */
+    public function test_duplicate_rows_merge_when_one_side_is_blank(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(ContractMasterImportService::class)->import([
+            $this->masterRow(['repayment_frequency' => '']),
+            $this->masterRow(['repayment_frequency' => 'Quarterly']),
+        ]);
+
+        $this->assertSame(2, $result['source_rows']);
+        $this->assertSame(1, $result['facilities']);
+        $this->assertSame(1, $result['created']);
+        $this->assertSame([], $result['skipped']);
+
+        $contract = DB::table('contract_eir')->where('contract_id', '104450000053')->first();
+        $this->assertSame(4, (int) $contract->payments_per_year);
+        $this->assertSame('STATED', $contract->frequency_source);
+    }
+
+    /**
+     * 17 facilities in the delivered file state two different frequencies
+     * (Monthly vs Yearly among them). Resolving that by file order would be a
+     * twelvefold error in the annualised rate decided by nothing, so the
+     * facility is rejected with both values named.
+     */
+    public function test_duplicate_rows_that_genuinely_disagree_are_rejected(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(ContractMasterImportService::class)->import([
+            $this->masterRow(['repayment_frequency' => 'Monthly']),
+            $this->masterRow(['repayment_frequency' => 'Yearly']),
+        ]);
+
+        $this->assertSame(0, $result['created']);
+        $this->assertArrayHasKey('104450000053', $result['skipped']);
+        $this->assertStringContainsString('conflicting', $result['skipped']['104450000053']);
+        $this->assertStringContainsString('Monthly', $result['skipped']['104450000053']);
+        $this->assertStringContainsString('Yearly', $result['skipped']['104450000053']);
+        $this->assertSame(0, DB::table('contract_eir')->count());
+    }
+
     public function test_contract_master_holds_accounts_absent_from_the_tape(): void
     {
         $result = app(ContractMasterImportService::class)->import([
