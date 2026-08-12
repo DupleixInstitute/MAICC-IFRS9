@@ -16,36 +16,31 @@
                 </inertia-link>
             </div>
             <div class=" mx-auto">
-                <div class="bg-white rounded shadow overflow-x-auto">
-                    <table class="w-full whitespace-no-wrap">
-                        <thead class="bg-gray-50">
-                        <tr class="text-left font-bold">
-                            <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                            <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Description</th>
-                            <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Action</th>
+                <div class="maiic-panel maiic-table-wrap">
+                    <table class="maiic-table">
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th class="text-right">Actions</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr v-for="group in (groups?.data || [])" :key="group.id">
-                            <td class="border-t">
-                                <span class="px-6 py-4 flex items-center">
+                            <td class="!p-0">
+                                <span class="px-4 py-2.5 flex items-center">
                                     {{ group.name }}
                                 </span>
                             </td>
-                            <td class="border-t">
-                                <span class="px-6 py-4 flex items-center">
+                            <td class="!p-0">
+                                <span class="px-4 py-2.5 flex items-center">
                                     {{ group.description }}
                                 </span>
                             </td>
                             <td class="border-t w-px pr-2">
-                                <div class=" flex items-center space-x-2">
-                                    <inertia-link :href="route('groups.edit', group.id)"
-                                                tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
-                                        Edit
-                                    </inertia-link>
-                                    <a  @click="deleteAction(group.id)"
-                                    class="text-red-600 hover:text-red-900">Delete</a>
-                                </div>
+                                <row-actions :edit-href="route('groups.edit', group.id)"
+                                             :deletable="true"
+                                             @delete="deleteAction(group.id)"/>
                             </td>
                         </tr>
                         <tr v-if="groups.data.length === 0">
@@ -87,6 +82,7 @@
 
     <script>
     import AppLayout from '@/Layouts/AppLayout.vue'
+import RowActions from '@/Shared/RowActions.vue'
     import Icon from '@/Jetstream/Icon.vue'
     import Pagination from '@/Jetstream/Pagination.vue'
     import FilterSearch from '@/Jetstream/FilterSearch.vue'
@@ -103,6 +99,7 @@
         metaInfo: {title: 'Provinces'},
         components: {
             AppLayout,
+        RowActions,
             Icon,
             Pagination,
             FilterSearch,

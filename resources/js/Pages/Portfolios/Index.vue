@@ -37,29 +37,32 @@
                             </Link>
                         </div>
 
-                        <div class="bg-white rounded shadow overflow-x-auto">
-                            <table class="w-full whitespace-nowrap">
-                                <tr class="text-left font-bold">
-                                    <th class="px-6 pt-6 pb-4">Name</th>
-                                    <th class="px-6 pt-6 pb-4">Description</th>
-                                    <th class="px-6 pt-6 pb-4">Status</th>
-                                    <th class="px-6 pt-6 pb-4">Created By</th>
-                                    <th class="px-6 pt-6 pb-4">Created At</th>
-                                    <th class="px-6 pt-6 pb-4"></th>
+                        <div class="maiic-panel maiic-table-wrap">
+                            <table class="maiic-table">
+                                <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Created By</th>
+                                    <th>Created At</th>
+                                    <th class="text-right">Actions</th>
                                 </tr>
-                                <tr v-for="portfolio in portfolios.data" :key="portfolio.id" class="hover:bg-gray-100">
-                                    <td class="border-t">
-                                        <span class="px-6 py-4 flex items-center">
+                                </thead>
+                                <tbody>
+                                <tr v-for="portfolio in portfolios.data" :key="portfolio.id">
+                                    <td class="!p-0">
+                                        <span class="px-4 py-2.5 flex items-center">
                                             {{ portfolio.name }}
                                         </span>
                                     </td>
-                                    <td class="border-t">
-                                        <span class="px-6 py-4 flex items-center">
+                                    <td class="!p-0">
+                                        <span class="px-4 py-2.5 flex items-center">
                                             {{ portfolio.description }}
                                         </span>
                                     </td>
-                                    <td class="border-t">
-                                        <span class="px-6 py-4 flex items-center">
+                                    <td class="!p-0">
+                                        <span class="px-4 py-2.5 flex items-center">
                                             <span :class="portfolio.active ? 'bg-maiic-100 text-maiic-800' : 'bg-red-100 text-red-800'"
                                                   class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                                             >
@@ -67,36 +70,26 @@
                                             </span>
                                         </span>
                                     </td>
-                                    <td class="border-t">
-                                        <span class="px-6 py-4 flex items-center">
+                                    <td class="!p-0">
+                                        <span class="px-4 py-2.5 flex items-center">
                                             {{ portfolio.created_by?.name }}
                                         </span>
                                     </td>
-                                    <td class="border-t">
-                                        <span class="px-6 py-4 flex items-center">
+                                    <td class="!p-0">
+                                        <span class="px-4 py-2.5 flex items-center">
                                             {{ portfolio.created_at }}
                                         </span>
                                     </td>
-                                    <td class="border-t w-px">
-                                        <div class="px-4 flex items-center gap-2">
-                                            <Link
-                                                :href="route('portfolios.edit', portfolio.id)"
-                                                class="text-maiic-600 hover:text-maiic-900"
-                                            >
-                                                Edit
-                                            </Link>
-                                            <button
-                                                @click="destroy(portfolio)"
-                                                class="text-red-600 hover:text-red-900"
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
+                                    <td class="w-px">
+                                        <row-actions :edit-href="route('portfolios.edit', portfolio.id)"
+                                                     :deletable="true"
+                                                     @delete="destroy(portfolio)"/>
                                     </td>
                                 </tr>
                                 <tr v-if="portfolios.data.length === 0">
-                                    <td class="border-t px-6 py-4" colspan="6">No portfolios found.</td>
+                                    <td class="maiic-empty" colspan="6">No portfolios found.</td>
                                 </tr>
+                                </tbody>
                             </table>
                         </div>
                         <pagination
@@ -116,6 +109,7 @@
 import { ref, watch } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import RowActions from '@/Shared/RowActions.vue'
 import pickBy from 'lodash/pickBy'
 import throttle from 'lodash/throttle'
 import mapValues from 'lodash/mapValues'
@@ -124,6 +118,7 @@ import HelpManual from '../../Components/HelpManual.vue';
 export default {
     components: {
         AppLayout,
+        RowActions,
         Link,
         HelpManual,
     },

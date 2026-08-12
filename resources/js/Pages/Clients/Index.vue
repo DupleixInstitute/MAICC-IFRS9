@@ -52,57 +52,48 @@
           </div>
         </div>
 
-        <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-          <table class="min-w-full divide-y divide-gray-200 bg-white shadow-sm rounded-lg overflow-hidden">
+        <div class="maiic-panel maiic-table-wrap">
+          <table class="maiic-table">
             <thead>
-              <tr class="bg-gray-50">
-                <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <tr>
+                <th>
                   Customer ID
                 </th>
-                <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th>
                   Name
                 </th>
-                <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th>
                   Phone
                 </th>
-                <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th>
                   Updated
                 </th>
-                <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th class="text-right">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
-              <tr v-for="client in displayedClients"
-                  :key="client.id"
-                  class="hover:bg-gray-50 transition-colors duration-200 ease-in-out">
-                <td class="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              <tr v-for="client in displayedClients" :key="client.id">
+                <td class="whitespace-nowrap">
                   <div class="text-sm font-medium text-gray-900">{{ client.external_id }}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="whitespace-nowrap">
                   <div class="text-sm text-gray-900">{{ client.name }}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="whitespace-nowrap">
                   <div class="text-sm text-gray-600">{{ client.mobile }}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="whitespace-nowrap">
                   <div class="text-sm text-gray-600">{{ client.updated_at }}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <inertia-link
-                    :href="route('clients.edit', client.id)"
-                    class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-maiic-700 bg-maiic-100 hover:bg-maiic-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 transition-colors duration-150 ease-in-out"
-                  >
-                    <svg class="h-4 w-4 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Edit
-                  </inertia-link>
+                <td class="w-px">
+                  <row-actions :view-href="route('clients.show', client.id)"
+                               :edit-href="can('clients.update') ? route('clients.edit', client.id) : null"/>
                 </td>
               </tr>
               <tr v-if="displayedClients.length === 0">
-                <td colspan="4" class="px-6 py-8 text-center">
+                <td colspan="5" class="px-6 py-8 text-center">
                   <div class="text-gray-500 text-sm">
                     <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -208,6 +199,7 @@
 <script>
 import { ref, computed } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import RowActions from '@/Shared/RowActions.vue'
 import HelpManual from '../../Components/HelpManual.vue';
 import SearchFilter from '@/Shared/SearchFilter.vue'
 import Pagination from '@/Shared/Pagination.vue'
@@ -219,6 +211,7 @@ import { Link } from '@inertiajs/vue3'
 export default {
   components: {
     AppLayout,
+        RowActions,
     SearchFilter,
     Pagination,
     ImportModal,

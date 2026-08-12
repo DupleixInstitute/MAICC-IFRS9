@@ -97,43 +97,43 @@
                 </div>
 
                 <!-- Loan Book Table -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 bg-white border-b border-gray-200">
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
+                <div class="maiic-panel">
+                    <div class="p-0">
+                        <div class="maiic-table-wrap">
+                            <table class="maiic-table">
+                                <thead>
                                     <tr>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract ID</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                                        <!-- <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio</th> -->
-                                        <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overdue Days</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                                        <th>Contract ID</th>
+                                        <th>Customer</th>
+                                        <!-- <th>Portfolio</th> -->
+                                        <th class="num">Balance</th>
+                                        <th>Due Date</th>
+                                        <th>Overdue Days</th>
+                                        <th>Status</th>
+                                        <th>Updated</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
+                                <tbody>
                                     <tr v-for="loan in loanBooks.data" :key="loan.id">
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.client?.name || loan.external_identity_id }}</td>
+                                        <td class="whitespace-nowrap font-medium">{{ loan.contract_id }}</td>
+                                        <td class="whitespace-nowrap text-gray-500">{{ loan.client?.name || loan.external_identity_id }}</td>
 
-                                        <td class="px-3 py-4 num text-sm text-gray-700">{{ formatCurrency(loan.principal_balance) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(loan.due_date) }}</td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm" :class="getOverdueClass(loan.overdue_days)">
+                                        <td class="num">{{ formatCurrency(loan.principal_balance) }}</td>
+                                        <td class="whitespace-nowrap text-gray-500">{{ formatDate(loan.due_date) }}</td>
+                                        <td class="whitespace-nowrap" :class="getOverdueClass(loan.overdue_days)">
                                             {{ loan.overdue_days }}
                                         </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm">
+                                        <td class="whitespace-nowrap">
                                             <span :class="getStatusClass(loan.overdue_status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                                                 {{ loan.overdue_status }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
+                                        <td class="whitespace-nowrap text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
-                        <div class="mt-4" v-if="loanBooks.links">
+                        <div class="mt-2 px-4 pb-4" v-if="loanBooks.links">
                             <Pagination :links="loanBooks.links" />
                         </div>
                     </div>

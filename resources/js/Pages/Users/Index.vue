@@ -33,22 +33,22 @@
             </inertia-link>
         </div>
         <div class=" mx-auto">
-            <div class="bg-white rounded shadow overflow-x-auto">
-                <table class="w-full whitespace-no-wrap">
-                    <thead class="bg-gray-50">
-                    <tr class="text-left font-bold">
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Name</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Email</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Mobile</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Gender</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Role</th>
-                        <th class="px-6 pt-4 pb-4 font-medium text-gray-500">Action</th>
+            <div class="maiic-panel maiic-table-wrap">
+                <table class="maiic-table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Mobile</th>
+                        <th>Gender</th>
+                        <th>Role</th>
+                        <th class="text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
-                    <tr v-for="user in users.data" :key="user.id" class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="border-t">
-                            <inertia-link class="px-6 py-4 flex items-center focus:text-maiic-500"
+                    <tr v-for="user in users.data" :key="user.id">
+                        <td class="!p-0">
+                            <inertia-link class="px-4 py-2.5 flex items-center focus:text-maiic-500"
                                           :href="route('users.show', user.id)">
                                 <img v-if="user.profile_photo_url" class="block w-5 h-5 rounded-full mr-2 -my-2"
                                      :src="user.profile_photo_url">
@@ -57,26 +57,26 @@
                                       class="flex-shrink-0 w-3 h-3 fill-gray-400 ml-2"/>
                             </inertia-link>
                         </td>
-                        <td class="border-t">
-                            <inertia-link class="px-6 py-4 flex items-center" :href="route('users.show', user.id)"
+                        <td class="!p-0">
+                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('users.show', user.id)"
                                           tabindex="-1">
                                 {{ user.email }}
                             </inertia-link>
                         </td>
-                        <td class="border-t">
-                            <inertia-link class="px-6 py-4 flex items-center" :href="route('users.show', user.id)"
+                        <td class="!p-0">
+                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('users.show', user.id)"
                                           tabindex="-1">
                                 {{ user.mobile }}
                             </inertia-link>
                         </td>
-                        <td class="border-t">
-                            <inertia-link class="px-6 py-4 flex items-center" :href="route('users.show', user.id)"
+                        <td class="!p-0">
+                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('users.show', user.id)"
                                           tabindex="-1">
                                 {{ user.gender }}
                             </inertia-link>
                         </td>
-                        <td class="border-t">
-                            <inertia-link class="px-6 py-4 flex items-center" :href="route('users.show', user.id)"
+                        <td class="!p-0">
+                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('users.show', user.id)"
                                           tabindex="-1">
                                 <span v-for="role in user.roles"
                                       class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800">
@@ -84,23 +84,15 @@
                                 </span>
                             </inertia-link>
                         </td>
-                        <td class="border-t w-px pr-2">
-                            <div class=" flex items-center space-x-2">
-                                <inertia-link :href="route('users.show', user.id)"
-                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
-                                    View
-                                </inertia-link>
-                                <inertia-link v-if="can('users.update')" :href="route('users.edit', user.id)"
-                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900">
-                                    Edit
-                                </inertia-link>
-                                <a href="#" v-if="can('users.destroy')" @click="deleteAction(user.id)"
-                                   class="text-red-600 hover:text-red-900">Delete</a>
-                            </div>
+                        <td class="w-px">
+                            <row-actions :view-href="route('users.show', user.id)"
+                                         :edit-href="can('users.update') ? route('users.edit', user.id) : null"
+                                         :deletable="can('users.destroy')"
+                                         @delete="deleteAction(user.id)"/>
                         </td>
                     </tr>
-                    <tr v-if="users.length === 0">
-                        <td class="border-t px-6 py-4" colspan="6">No users found.</td>
+                    <tr v-if="users.data.length === 0">
+                        <td class="maiic-empty" colspan="6">No users found.</td>
                     </tr>
                     </tbody>
                 </table>
@@ -110,12 +102,12 @@
         </div>
         <jet-confirmation-modal :show="confirmingUserDeletion" @close="confirmingUserDeletion = false">
             <template #title>
-                Delete Account
+                Delete User
             </template>
 
             <template #content>
-                Are you sure you want to delete your account? Once your account is deleted, all of its resources and
-                data will be permanently deleted.
+                Are you sure you want to delete this user? Their access is removed immediately
+                and this action cannot be undone.
             </template>
 
             <template #footer>
@@ -125,7 +117,7 @@
 
                 <jet-danger-button class="ml-2" @click.native="destroy" :class="{ 'opacity-25': form.processing }"
                                    :disabled="form.processing">
-                    Delete Account
+                    Delete User
                 </jet-danger-button>
             </template>
         </jet-confirmation-modal>
@@ -153,6 +145,7 @@ import JetConfirmationModal from '@/Jetstream/ConfirmationModal.vue'
 import JetDangerButton from '@/Jetstream/DangerButton.vue'
 import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
 import HelpManual from '../../Components/HelpManual.vue';
+import RowActions from '@/Shared/RowActions.vue'
 
 export default {
     components: {
@@ -166,6 +159,8 @@ export default {
         JetConfirmationModal,
         JetDangerButton,
         JetSecondaryButton,
+        RowActions,
+        HelpManual,
     },
     props: {
         users: Object,
