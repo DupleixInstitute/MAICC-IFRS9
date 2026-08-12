@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 # This script is executed from the existing production Git checkout by
-# .github/workflows/deploy.yml. The workflow pulls origin/main first so this
+# .github/workflows/deploy.yml. The workflow pulls origin/master first so this
 # script always matches the commit being deployed.
 
 APP_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -50,7 +50,7 @@ echo "Deploying $(git rev-parse --short HEAD) in $APP_DIR"
     --no-progress
 
 # public/build is intentionally not committed, so production builds the Vite
-# assets after each successful merge to main.
+# assets after each successful merge to master.
 "$NPM_BIN" ci
 "$NPM_BIN" run build
 

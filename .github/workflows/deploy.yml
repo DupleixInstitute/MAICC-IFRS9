@@ -3,7 +3,7 @@ name: Deploy production
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,7 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Pull main and run deployment script
+      - name: Pull master and run deployment script
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -45,5 +45,5 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
             -p "${DEPLOY_PORT:-22}" \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd -- '$DEPLOY_PATH' && git fetch origin main && git checkout main && git pull --ff-only origin main && bash scripts/deploy.sh"
+            "cd -- '$DEPLOY_PATH' && git fetch origin master && git checkout master && git pull --ff-only origin master && bash scripts/deploy.sh"
 
