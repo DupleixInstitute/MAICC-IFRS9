@@ -47,6 +47,7 @@ class ContractMasterImportService
         'closure_date', 'last_restructure_date',
         'approved_amount', 'drawn_amount',
         'contractual_rate', 'rate_basis', 'rate_type',
+        'source_day_count_basis', 'source_compounding', 'disbursement_tranches',
         'reference_rate_at_origination', 'markup',
         'payments_per_year', 'frequency_source', 'tenor_months', 'moratorium_months',
         'opening_amortised_cost', 'opening_amortised_cost_date',
@@ -271,6 +272,10 @@ class ContractMasterImportService
             'drawn_amount' => $this->amount($row['drawn_amount'] ?? null),
             'contractual_rate' => $this->rate($row['contractual_rate'] ?? null),
             'rate_basis' => $this->text($row['rate_basis'] ?? null),
+            // Stated conventions, not applied ones — see the migration note.
+            'source_day_count_basis' => $this->text($row['source_day_count_basis'] ?? null),
+            'source_compounding' => $this->text($row['source_compounding'] ?? null),
+            'disbursement_tranches' => $this->text($row['disbursement_tranches'] ?? null),
             'rate_type' => $this->rateType($row['rate_type'] ?? null),
             'reference_rate_at_origination' => $this->rate($row['reference_rate_at_origination'] ?? null),
             'markup' => $this->rate($row['markup'] ?? null),

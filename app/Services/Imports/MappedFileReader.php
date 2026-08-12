@@ -33,6 +33,19 @@ use Throwable;
  */
 class MappedFileReader
 {
+    /**
+     * Rows scanned to profile a column's distinct values. MAIIC's files run to
+     * hundreds of rows, not millions; the cap exists so a mis-selected file
+     * cannot stall the mapping screen, not because the real ones approach it.
+     */
+    private const PROFILE_ROW_LIMIT = 5000;
+
+    /** Beyond this a column is a key, not a category — stop collecting. */
+    private const PROFILE_DISTINCT_LIMIT = 200;
+
+    /** Distinct values returned per column, most frequent first. */
+    private const PROFILE_SHOW_VALUES = 12;
+
     /** Required target fields per import type. */
     public const REQUIRED_FIELDS = [
         'schedule' => ['contract_id', 'due_date', 'principal_due', 'interest_due'],
@@ -65,6 +78,7 @@ class MappedFileReader
             'product_type', 'origination_date', 'first_repayment_date', 'maturity_date',
             'closure_date', 'last_restructure_date', 'approved_amount', 'drawn_amount',
             'contractual_rate', 'rate_basis', 'rate_type', 'reference_rate_at_origination',
+            'source_day_count_basis', 'source_compounding', 'disbursement_tranches',
             'markup', 'repayment_frequency', 'payments_per_year', 'tenor_months',
             'moratorium_months', 'arrangement_fee', 'legal_fees',
             'opening_amortised_cost', 'opening_amortised_cost_date',
@@ -85,20 +99,90 @@ class MappedFileReader
     {
         $this->assertKnownType($importType);
 
-        [$headers, $rows] = $this->readRaw($path, 5);
+        [$headers, $rows] = $this->readRaw($path, self::PROFILE_ROW_LIMIT);
 
         $template = $this->templateFor($importType);
         $mapping  = $this->resolveMapping($headers, $template);
 
         return [
             'headers'          => $headers,
-            'preview'          => $rows,
+            'preview'          => array_slice($rows, 0, 5),
+            'profile'          => $this->profile($headers, $rows),
+            'profiled_rows'    => count($rows),
             'mapping'          => $mapping,
             'unmapped_headers' => array_values(array_diff($headers, array_keys($mapping))),
             'missing_required' => $this->missingRequired($importType, $mapping),
             'required_fields'  => self::REQUIRED_FIELDS[$importType],
             'optional_fields'  => self::OPTIONAL_FIELDS[$importType],
         ];
+    }
+
+    /**
+     * Per-column distinct values with counts — the mapping screen's equivalent
+     * of switching on Excel's filter dropdown.
+     *
+     * Showing the first three rows told an operator almost nothing: a column
+     * reading "FInES · FInES · FInES" hides that a second portfolio exists,
+     * and "45658 · 45658 · 45658" hides that the column is an Excel serial at
+     * all. The facts that actually decide a mapping are categorical — that
+     * day_count_basis holds both 365 and 360, that repayment_frequency has
+     * blanks, that a column is constant and therefore useless as a key — and
+     * none of them are visible in a three-row sample.
+     *
+     * @param  list<string>  $headers
+     * @param  list<array<string,mixed>>  $rows
+     * @return array<string,array{values:list<array{value:string,count:int}>,distinct:int,blank:int,truncated:bool}>
+     */
+    private function profile(array $headers, array $rows): array
+    {
+        $profile = [];
+
+        foreach ($headers as $header) {
+            if ($header === '') {
+                continue;
+            }
+
+            $counts = [];
+            $blank = 0;
+            $truncated = false;
+
+            foreach ($rows as $row) {
+                $value = $row[$header] ?? null;
+                $text = is_string($value) ? trim($value) : (is_scalar($value) ? (string) $value : '');
+
+                if ($text === '' || $text === '-') {
+                    $blank++;
+                    continue;
+                }
+                if (isset($counts[$text])) {
+                    $counts[$text]++;
+                    continue;
+                }
+                // Stop collecting new values once a column is clearly a key
+                // rather than a category; the count still tells the operator
+                // it is high-cardinality.
+                if (count($counts) >= self::PROFILE_DISTINCT_LIMIT) {
+                    $truncated = true;
+                    continue;
+                }
+                $counts[$text] = 1;
+            }
+
+            arsort($counts);
+
+            $profile[$header] = [
+                'values' => array_map(
+                    fn ($value, $count) => ['value' => (string) $value, 'count' => $count],
+                    array_keys(array_slice($counts, 0, self::PROFILE_SHOW_VALUES, true)),
+                    array_values(array_slice($counts, 0, self::PROFILE_SHOW_VALUES, true))
+                ),
+                'distinct'  => count($counts),
+                'blank'     => $blank,
+                'truncated' => $truncated,
+            ];
+        }
+
+        return $profile;
     }
 
     /**

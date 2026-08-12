@@ -78,6 +78,9 @@ class EirIntakeServicesTest extends TestCase
             $t->string('rate_type')->default('FIXED');
             $t->double('contractual_rate')->nullable();
             $t->string('rate_basis')->nullable();
+            $t->string('source_day_count_basis')->nullable();
+            $t->string('source_compounding')->nullable();
+            $t->text('disbursement_tranches')->nullable();
             $t->double('reference_rate_at_origination')->nullable();
             $t->double('markup')->nullable();
             $t->string('origination_date')->nullable();
@@ -157,6 +160,15 @@ class EirIntakeServicesTest extends TestCase
             $t->unsignedInteger('priority')->default(100);
             $t->boolean('active')->default(true);
             $t->string('approved_at')->nullable();
+            $t->timestamps();
+        });
+
+        Schema::create('import_mappings', function (Blueprint $t) {
+            $t->increments('id');
+            $t->string('import_type');
+            $t->string('source_header');
+            $t->string('target_field');
+            $t->string('transform')->nullable();
             $t->timestamps();
         });
 
@@ -277,6 +289,51 @@ class EirIntakeServicesTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* Mapping screen profiling                                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * The mapping screen used to show the first three rows, which told an
+     * operator nothing: a constant column and a two-valued one looked
+     * identical, and "FInES · FInES · FInES" hid that a second portfolio
+     * existed. Profiling counts every distinct value across the file, so a
+     * split like day_count_basis 365-vs-360 is visible before mapping.
+     */
+    public function test_analyze_profiles_distinct_values_with_counts_and_blanks(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'eir_profile_') . '.csv';
+        file_put_contents($path, implode("\n", [
+            'LOAN_ACCOUNT_NUMBER,DAY_COUNT_BASIS,PORTFOLIO',
+            '104450000053,365,FInES',
+            '104450000056,365,FInES',
+            '104450000067,360,MAIIC',
+            '104450000071,,MAIIC',
+        ]) . "\n");
+
+        try {
+            $analysis = app(\App\Services\Imports\MappedFileReader::class)
+                ->analyze($path, 'contract_master');
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertSame(4, $analysis['profiled_rows']);
+
+        $dayCount = $analysis['profile']['day_count_basis'];
+        $this->assertSame(2, $dayCount['distinct']);
+        $this->assertSame(1, $dayCount['blank']);
+        $this->assertSame(
+            [['value' => '365', 'count' => 2], ['value' => '360', 'count' => 1]],
+            $dayCount['values']
+        );
+
+        // A high-cardinality key column reads as one at a glance.
+        $this->assertSame(4, $analysis['profile']['loan_account_number']['distinct']);
+        $this->assertSame(0, $analysis['profile']['loan_account_number']['blank']);
+        $this->assertSame(2, $analysis['profile']['portfolio']['distinct']);
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Contract master (Extract A)                                        */
     /* ------------------------------------------------------------------ */
 
@@ -300,6 +357,9 @@ class EirIntakeServicesTest extends TestCase
             'moratorium_months' => 3,
             'arrangement_fee' => 2_500_000,
             'legal_fees' => 1_510_000,
+            'source_day_count_basis' => '365',
+            'source_compounding' => 'Compound',
+            'disbursement_tranches' => '07-Jul-2022:10000000.00',
         ];
     }
 
@@ -316,6 +376,11 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(4, (int) $contract->payments_per_year);
         $this->assertSame('STATED', $contract->frequency_source);
         $this->assertEqualsWithDelta(0.3210, (float) $contract->contractual_rate, 0.00001);
+        // Stated conventions are recorded, not applied — the memo decides
+        // what the engine uses, and the book is not on one day count.
+        $this->assertSame('365', $contract->source_day_count_basis);
+        $this->assertSame('Compound', $contract->source_compounding);
+        $this->assertSame('07-Jul-2022:10000000.00', $contract->disbursement_tranches);
         $this->assertSame('2027-05-22', $contract->maturity_date);
         $this->assertSame('MAIIC_EXTRACT_A', $contract->terms_source_system);
         // Classification is an accounting judgement, never a product code.

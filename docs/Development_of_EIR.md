@@ -224,6 +224,18 @@ Both files were then run through `MappedFileReader` → import service → the l
 
 Confirmed in passing: zero origination-fee lines routed (no fee columns exist), and of the 89 facilities that would be created, 65 are floating and 24 fixed.
 
+### Phase 2.8c — Stated conventions captured, mapping screen profiles the file (2026-08-12)
+
+Three Extract A columns now have destinations, taking mapping coverage from 18 to 21 of 36.
+
+`source_day_count_basis` and `source_compounding` carry the `source_` prefix deliberately. IFRS 9 does not prescribe a day count; it requires the rate that exactly discounts estimated future cash flows through expected life to the gross carrying amount (§5.4.1, Appendix A). The day count decides how interest accrues *between* dates, so 365 versus 360 moves each period's interest by about 1.4% — and the delivered file shows the book is not on one convention (365 ×336, 360 ×26). The conventions memo is therefore choosing whether to **override** the source for 26 facilities, not merely to record one. Keeping stated separate from applied is what lets that override be explained instead of silently absorbed, and leaves the unprefixed names free for the approved convention.
+
+`disbursement_tranches` is the one that changes numbers rather than disclosure. The solver anchors its cash-flow vector on a single drawdown at `origination_date`, but 155 distinct tranche strings appear across 314 facilities: a loan drawn in stages has several negative flows at different dates, so its true EIR differs from what a single-drawdown model returns. The raw history is captured now so the affected facilities can be identified; consuming it is a change to the solver input, not to this import, and it is also the Phase 7 CCF input.
+
+**The mapping screen now profiles the whole file** rather than showing its first three rows. Each column reports every distinct value with a row count, plus a blank count — the Excel autofilter view. The old sample was actively misleading: `portfolio` read "FInES · FInES · FInES" and hid that a second portfolio existed, `as_of_date` read "45658 · 45658 · 45658" and hid that it was an Excel serial, and a constant column looked identical to a two-valued one. The facts that decide a mapping are categorical, and none were visible in three rows.
+
+On the delivered Extract A this immediately surfaces, before any import runs: `loan_account_number` distinct = 181 with every value ×2 (the duplication), `repayment_frequency` blank ×25, `day_count_basis` split 336/26, `account_status` carrying undocumented `H` ×42 and `F` ×6. Profiling scans up to 5,000 rows and stops collecting new values at 200 distinct, so a key column reports its cardinality without the response carrying every value.
+
 **Still open:** `DR_CR_INDICATOR` in Extract B has not been re-verified the same way.
 
 ## Phase 3 — The solver 🟡 IN PROGRESS

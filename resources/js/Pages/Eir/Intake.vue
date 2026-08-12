@@ -78,7 +78,10 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File column</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sample values</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Values in file
+                                    <span v-if="analysis?.profiled_rows" class="normal-case font-normal text-gray-400">({{ analysis.profiled_rows }} rows)</span>
+                                </th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Maps to</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transform</th>
                             </tr>
@@ -86,8 +89,29 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr v-for="header in analysis.headers" :key="header" class="hover:bg-maiic-50 transition-colors duration-150">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ header }}</td>
-                                <td class="px-4 py-2 text-xs text-gray-500">
-                                    {{ previewFor(header) }}
+                                <!-- Excel-filter style: every distinct value with its
+                                     row count, not the first three rows. A column
+                                     reading "FInES · FInES · FInES" hid that a second
+                                     portfolio existed. -->
+                                <td class="px-4 py-2 text-xs align-top" style="max-width: 26rem">
+                                    <div v-if="profileFor(header)" class="flex flex-wrap gap-1">
+                                        <span
+                                            v-for="entry in profileFor(header).values"
+                                            :key="entry.value"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 text-gray-700"
+                                            :title="entry.value"
+                                        >
+                                            <span class="truncate" style="max-width: 14rem">{{ entry.value }}</span>
+                                            <span class="text-gray-400">×{{ entry.count }}</span>
+                                        </span>
+                                        <span v-if="profileFor(header).blank" class="px-2 py-0.5 rounded bg-amber-50 text-amber-700">
+                                            (blank) ×{{ profileFor(header).blank }}
+                                        </span>
+                                        <span v-if="moreValues(header)" class="px-2 py-0.5 text-gray-400">
+                                            +{{ moreValues(header) }} more{{ profileFor(header).truncated ? '+' : '' }}
+                                        </span>
+                                    </div>
+                                    <span v-else class="text-gray-400">{{ previewFor(header) }}</span>
                                 </td>
                                 <td class="px-4 py-2">
                                     <select v-model="mapping[header]" class="form-input text-sm">
@@ -332,6 +356,15 @@ export default {
             this.queuedImport = null
             this.importHistoryUrl = null
             this.error = null
+        },
+        profileFor(header) {
+            return this.analysis?.profile?.[header] || null
+        },
+        /** Distinct values beyond the dozen shown, so a key column reads as one. */
+        moreValues(header) {
+            const p = this.profileFor(header)
+            if (!p) return 0
+            return Math.max(0, p.distinct - p.values.length)
         },
         previewFor(header) {
             if (!this.analysis?.preview) return ''
