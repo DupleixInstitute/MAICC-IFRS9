@@ -194,7 +194,8 @@ class MappedFileReader
     /** Header normalisation — same convention as LoanBooksImport. */
     public static function normalizeHeader($key): string
     {
-        $key = trim((string) $key, " \t\n\r\0\x0B\"'");
+        $key = self::toUtf8((string) $key);
+        $key = trim($key, " \t\n\r\0\x0B\"'");
         $key = preg_replace('/\s+/', ' ', $key);
         $key = preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
         $key = preg_replace('/_+/', '_', $key);
@@ -289,11 +290,46 @@ class MappedFileReader
             throw new RuntimeException("File not readable: {$path}");
         }
 
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-
-        return in_array($extension, ['xlsx', 'xls', 'ods'], true)
+        return $this->isSpreadsheet($path)
             ? $this->readSpreadsheet($path, $limit)
             : $this->readCsv($path, $limit);
+    }
+
+    /**
+     * Choose the reader by content, never by file name.
+     *
+     * The intake controller analyses the raw upload via
+     * UploadedFile::getPathname(), which is a temp file called phpXXXX.tmp —
+     * so an extension check sends every uploaded .xlsx down the CSV path,
+     * where the ZIP container is parsed as text. The symptom is not a helpful
+     * error but "Malformed UTF-8 characters" from json_encode, because the
+     * binary becomes header strings. Sniffing also covers the opposite case,
+     * a CSV a user has renamed .xlsx.
+     */
+    private function isSpreadsheet(string $path): bool
+    {
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            return false;
+        }
+        $magic = (string) fread($handle, 8);
+        fclose($handle);
+
+        // xlsx and ods are ZIP containers; legacy xls is an OLE2 compound file.
+        return str_starts_with($magic, "PK\x03\x04")
+            || str_starts_with($magic, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1");
+    }
+
+    /**
+     * Excel writes "CSV" in the machine's ANSI codepage, not UTF-8, so a file
+     * with a client name carrying an accent arrives as invalid UTF-8 and takes
+     * down the whole JSON response rather than one cell.
+     */
+    private static function toUtf8(string $value): string
+    {
+        return mb_check_encoding($value, 'UTF-8')
+            ? $value
+            : mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
     }
 
     private function readCsv(string $path, ?int $limit): array
@@ -366,7 +402,8 @@ class MappedFileReader
             if ($header === '') {
                 continue;
             }
-            $row[$header] = $line[$i] ?? null;
+            $value = $line[$i] ?? null;
+            $row[$header] = is_string($value) ? self::toUtf8($value) : $value;
         }
 
         return $row;

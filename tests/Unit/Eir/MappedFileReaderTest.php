@@ -132,6 +132,63 @@ class MappedFileReaderTest extends TestCase
         $this->assertNull(ContractMasterImport::paymentsPerYear(''));
     }
 
+    /**
+     * The intake controller analyses the raw upload via getPathname(), which
+     * is a temp file called phpXXXX.tmp. Choosing the reader by extension sent
+     * every uploaded spreadsheet down the CSV path, where the ZIP container
+     * parsed as text and json_encode then rejected the binary as "Malformed
+     * UTF-8 characters" — an error that named neither the file nor the cause.
+     */
+    public function test_spreadsheet_is_detected_without_a_file_extension(): void
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray([
+            ['LOAN_ACCOUNT_NUMBER', 'LOAN_START_DATE', 'SANCTIONED_AMOUNT'],
+            ['000104450000053', '2025-05-22', 100000000],
+        ], null, 'A1');
+
+        // No .xlsx suffix — exactly what an upload's temp path looks like.
+        $path = tempnam(sys_get_temp_dir(), 'eir_upload_');
+        $this->tempFiles[] = $path;
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($path);
+
+        $result = $this->reader->read($path, 'contract_master', [
+            'LOAN_ACCOUNT_NUMBER' => 'contract_id',
+            'LOAN_START_DATE'     => 'origination_date',
+            'SANCTIONED_AMOUNT'   => 'approved_amount',
+        ], ['origination_date' => 'date', 'approved_amount' => 'number']);
+
+        // Parsed as a spreadsheet, not as the bytes of a ZIP container.
+        $this->assertCount(1, $result['rows']);
+        $this->assertSame('104450000053', $result['rows'][0]['contract_id']);
+        $this->assertSame('2025-05-22', $result['rows'][0]['origination_date']);
+        $this->assertSame(100000000.0, $result['rows'][0]['approved_amount']);
+        // The payload must survive the JSON response the controller returns.
+        $this->assertNotFalse(json_encode($result));
+    }
+
+    /**
+     * Excel writes CSV in the machine's ANSI codepage. One accented client
+     * name should not take down the whole JSON response.
+     */
+    public function test_non_utf8_csv_is_converted_rather_than_breaking_the_response(): void
+    {
+        $path = $this->csv(
+            "LOAN_ACCOUNT_NUMBER,CUSTOMER_NAME\n"
+            . "104450000053," . mb_convert_encoding('Café Agri Limitée', 'Windows-1252', 'UTF-8') . "\n"
+        );
+
+        $result = $this->reader->read($path, 'contract_master', [
+            'LOAN_ACCOUNT_NUMBER' => 'contract_id',
+            'CUSTOMER_NAME'       => 'customer_name',
+        ]);
+
+        $this->assertNotFalse(json_encode($result));
+        $this->assertTrue(mb_check_encoding($result['rows'][0]['customer_name'], 'UTF-8'));
+        $this->assertSame('Café Agri Limitée', $result['rows'][0]['customer_name']);
+    }
+
     /** Every intake type the controller accepts must have a field spec. */
     public function test_every_import_type_declares_required_and_optional_fields(): void
     {
