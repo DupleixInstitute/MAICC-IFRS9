@@ -1110,9 +1110,30 @@ Route::prefix('forecasting')->group(function () {
 // IFRS 9 Regulatory Reporting Suite (MAIIC) + downloadable User Manual
 // Appended at EOF so it never collides with the team's /report module.
 // ============================================================================
+// DB-driven user manual (Ticket #010). The old manual.view / manual.pdf
+// names stay registered so existing links and bookmarks keep working.
 Route::middleware(['auth', 'permission:manual.view'])->group(function () {
-    Route::get('/manual', [\App\Http\Controllers\ManualController::class, 'page'])->name('manual.view');
-    Route::get('/manual/pdf', [\App\Http\Controllers\ManualController::class, 'show'])->name('manual.pdf');
+    Route::get('/manual', fn () => redirect()->route('help.index'))->name('manual.view');
+    Route::get('/manual/pdf', [\App\Http\Controllers\HelpController::class, 'pdf'])->name('manual.pdf');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/help', [\App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
+    Route::get('/help/pdf', [\App\Http\Controllers\HelpController::class, 'pdf'])->name('help.pdf');
+    Route::get('/help/for-route/{routeName}', [\App\Http\Controllers\HelpController::class, 'forRoute'])->name('help.for-route');
+});
+
+Route::middleware(['auth', 'permission:settings'])->prefix('help/manage')->name('help.manage.')->group(function () {
+    $h = \App\Http\Controllers\HelpManagementController::class;
+    Route::get('/', [$h, 'index'])->name('index');
+    Route::post('/categories', [$h, 'storeCategory'])->name('categories.store');
+    Route::put('/categories/{category}', [$h, 'updateCategory'])->name('categories.update');
+    Route::delete('/categories/{category}', [$h, 'destroyCategory'])->name('categories.destroy');
+    Route::post('/articles', [$h, 'storeArticle'])->name('articles.store');
+    Route::put('/articles/{article}', [$h, 'updateArticle'])->name('articles.update');
+    Route::delete('/articles/{article}', [$h, 'destroyArticle'])->name('articles.destroy');
+    Route::post('/articles/{article}/images', [$h, 'uploadImage'])->name('images.store');
+    Route::delete('/articles/{article}/images/{imageId}', [$h, 'destroyImage'])->name('images.destroy');
 });
 
 Route::middleware(['auth', 'permission:reports.ifrs9'])

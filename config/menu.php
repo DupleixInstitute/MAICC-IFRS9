@@ -131,7 +131,7 @@ return [
         // Contract deliverables 5-7: user manual now, administrator/technical
         // manuals and the installation guide join here as they are finalised.
         $group('System Documentation', 'book-open', [
-            $leaf('User Manual', 'manual.view'),
+            $leaf('User Manual', 'help.index'),
         ], 7),
 
         $group('Administration', 'cog', [

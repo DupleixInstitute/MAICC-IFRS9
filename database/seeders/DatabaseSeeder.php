@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             TicketsPermissionsSeeder::class,
             MaiicAdminPermissionsSeeder::class,
             LegacyPermissionsCleanupSeeder::class,
+            HelpContentSeeder::class,
             UsersTableSeeder::class,
             CurrenciesTableSeeder::class,
             TimezonesTableSeeder::class,
