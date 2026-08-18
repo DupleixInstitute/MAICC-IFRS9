@@ -10,6 +10,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\LossGivenDefault;
+use App\Services\Ecl\EclDiscountRateService;
 use Carbon\Carbon;
 
 class CalculateDiscountingJob implements ShouldQueue
@@ -31,12 +32,14 @@ class CalculateDiscountingJob implements ShouldQueue
         $this->manualInterestRate = $manualInterestRate;
     }
 
-    public function handle(): void
+    public function handle(EclDiscountRateService $rates): void
     {
         try {
             Log::info('Starting discounting calculation', ['lgd_id' => $this->lgdId]);
 
             $lgd = LossGivenDefault::findOrFail($this->lgdId);
+            $discounted = 0;
+            $skipped = [];
 
             // loss_given_default has no `portfolio_group` column; the loan
             // portfolio is referenced via `lgd_calculation_id`, which matches
@@ -51,18 +54,33 @@ class CalculateDiscountingJob implements ShouldQueue
                 ->where('ifrs9_stage', 3)
                 ->where('payment_amount', '>', 0)
                 ->orderBy('id')
-                ->chunk(500, function ($payments) use ($lgd) {
+                ->chunk(500, function ($payments) use ($rates, &$discounted, &$skipped) {
                     $insertData = [];
 
+                    $resolution = $rates->resolve(
+                        $payments->map(fn ($p) => ['contract_id' => $p->contract_id, 'period' => (string) $p->reporting_period])->all(),
+                        $this->discountRateSource,
+                        $this->manualInterestRate,
+                    );
+
                     foreach ($payments as $payment) {
-                        $interestRate = $this->discountRateSource === 'manual'
-                            ? $this->manualInterestRate
-                            : $this->getInterestRateFromLoanBook($payment);
+                        $key = $payment->contract_id . '|' . $rates->periodKey((string) $payment->reporting_period);
+                        $resolved = $resolution['rates'][$key] ?? null;
+
+                        // No rate, no discounting. Discounting a stage-3
+                        // recovery at an assumed rate produces an allowance
+                        // whose basis cannot be explained, so the payment is
+                        // left out and counted instead.
+                        if ($resolved === null) {
+                            $reason = $resolution['unresolved'][$key] ?? 'Unknown reason.';
+                            $skipped[$reason] = ($skipped[$reason] ?? 0) + 1;
+                            continue;
+                        }
 
                         $discountingDays = $this->calculateDiscountingDays($payment->reporting_period, $payment->payment_period);
                         $discountingDays = min($discountingDays, 3650);
 
-                        $discountedAmount = $payment->payment_amount / pow(1 + $interestRate, $discountingDays / 365);
+                        $discountedAmount = $payment->payment_amount / pow(1 + $resolved['rate'], $discountingDays / 365);
                         $discountLoss = $payment->payment_amount - $discountedAmount;
 
                         $insertData[] = [
@@ -70,9 +88,12 @@ class CalculateDiscountingJob implements ShouldQueue
                             'lgd_id' => $this->lgdId,
                             'reporting_period' => $payment->reporting_period,
                             'payment_period' => $payment->payment_period,
-                            'interest_rate' => $interestRate,
+                            'interest_rate' => $resolved['rate'],
                             'discounting_days' => $discountingDays,
-                            'discount_rate_source' => $this->discountRateSource,
+                            // The basis actually applied, not the basis asked
+                            // for: a floating facility discounted at its
+                            // original EIR must not read as the current rate.
+                            'discount_rate_source' => $resolved['applied_source'],
                             'payment_amount' => $payment->payment_amount,
                             'discounted_amount' => $discountedAmount,
                             'discounted_loss' => $discountLoss,
@@ -81,11 +102,19 @@ class CalculateDiscountingJob implements ShouldQueue
                         ];
                     }
 
-                    // Bulk insert into discounted_payments
-                    DB::table('discounted_payments')->insert($insertData);
+                    $discounted += count($insertData);
+                    if ($insertData !== []) {
+                        DB::table('discounted_payments')->insert($insertData);
+                    }
                 });
 
-            Log::info('Discounting calculation completed', ['lgd_id' => $this->lgdId]);
+            Log::info('Discounting calculation completed', [
+                'lgd_id' => $this->lgdId,
+                'requested_source' => $this->discountRateSource,
+                'payments_discounted' => $discounted,
+                'payments_skipped' => array_sum($skipped),
+                'skipped_reasons' => $skipped,
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Discounting calculation failed', [
@@ -95,16 +124,6 @@ class CalculateDiscountingJob implements ShouldQueue
             ]);
             throw $e;
         }
-    }
-
-    private function getInterestRateFromLoanBook($payment): float
-    {
-        $loanBook = DB::table('loan_books')
-            ->where('contract_id', $payment->contract_id)
-            ->where('reporting_period', $payment->reporting_period)
-            ->first();
-
-        return $loanBook->interest_rate ?? 0.10;
     }
 
     private function calculateDiscountingDays($reportingPeriod, $paymentPeriod): int

@@ -74,7 +74,8 @@ class EirFeeClassificationController extends Controller
         $data = $request->validate(['fee_ids' => ['required', 'array', 'min:1'], 'fee_ids.*' => ['integer', 'exists:contract_fees,id']]);
         $fees = ContractFee::whereIn('id', $data['fee_ids'])->where('classification_status', 'CLASSIFIED')->get();
         $own = $fees->where('classified_by', auth()->id());
-        if ($own->isNotEmpty()) return back()->withErrors(['fee_ids' => 'A classifier cannot review their own decision.']);
+        $adminOverride = (bool) auth()->user()?->hasRole('admin');
+        if ($own->isNotEmpty() && ! $adminOverride) return back()->withErrors(['fee_ids' => 'A classifier cannot review their own decision.']);
 
         DB::transaction(function () use ($fees) {
             foreach ($fees as $fee) {
@@ -82,7 +83,12 @@ class EirFeeClassificationController extends Controller
                 EirFeeClassificationEvent::create(['contract_fee_id' => $fee->id, 'action' => 'REVIEWED', 'integral' => $fee->integral, 'reason' => $fee->classification_reason, 'performed_by' => auth()->id()]);
             }
         });
-        AuditLoggerService::log('EIR Fee Classifications Reviewed', ContractFee::class, null, ['meta' => ['fee_ids' => $fees->pluck('id')->all()]]);
+        AuditLoggerService::log('EIR Fee Classifications Reviewed', ContractFee::class, null, [
+            'meta' => [
+                'fee_ids' => $fees->pluck('id')->all(),
+                'maker_checker_override' => $adminOverride,
+            ],
+        ]);
         return back()->with('success', $fees->count() . ' classification(s) approved.');
     }
 }

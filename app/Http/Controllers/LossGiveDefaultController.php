@@ -210,7 +210,7 @@ class LossGiveDefaultController extends Controller
                     'start_period' => 'required|date|before_or_equal:reporting_period',
                     'is_discounting' => 'boolean',
 
-                    'discount_rate_source' => 'nullable|required_if:is_discounting,true|in:manual,loan_book',
+                    'discount_rate_source' => 'nullable|required_if:is_discounting,true|in:manual,loan_book,eir',
 
                     'interest_rate' => 'nullable|required_if:discount_rate_source,manual|numeric|min:0|max:100',
                 ]);
@@ -352,11 +352,28 @@ class LossGiveDefaultController extends Controller
                 //     'sample_records' => $paymentTrackingSample
                 // ]);
 
+                $rateService = app(\App\Services\Ecl\EclDiscountRateService::class);
+                $rateResolution = $rateService->resolve(
+                    array_map(
+                        fn ($p) => ['contract_id' => $p->contract_id, 'period' => (string) $p->reporting_period],
+                        is_array($paymentTrackingData) ? $paymentTrackingData : $paymentTrackingData->all()
+                    ),
+                    $discountRateSource,
+                    $discountRateSource === 'manual' ? (float) $manualInterestRate : null,
+                );
+                $unresolvedDiscountRates = [];
+
                 foreach ($paymentTrackingData as $payment) {
-                    // Get interest rate for this contract
-                    $interestRate = $discountRateSource === 'manual'
-                        ? $manualInterestRate
-                        : $this->getContractInterestRate($payment->contract_id, date('Y-m', strtotime($payment->reporting_period)));
+                    $rateKey = $payment->contract_id . '|' . $rateService->periodKey((string) $payment->reporting_period);
+                    $resolvedRate = $rateResolution['rates'][$rateKey] ?? null;
+
+                    // A payment whose discount basis cannot be established is
+                    // excluded rather than discounted at an assumed rate.
+                    if ($resolvedRate === null) {
+                        $unresolvedDiscountRates[$payment->contract_id] = $rateResolution['unresolved'][$rateKey] ?? 'Unknown reason.';
+                        continue;
+                    }
+                    $interestRate = $resolvedRate['rate'];
 
                     // Calculate discounting days based on reporting period
                     $paymentDate = Carbon::parse($payment->reporting_period)->endOfMonth();
@@ -398,7 +415,7 @@ class LossGiveDefaultController extends Controller
                         'payment_period' => $payment->reporting_period, // Use reporting_period as payment_period
                         'interest_rate' => $interestRate,
                         'discounting_days' => $discountingDays,
-                        'discount_rate_source' => $discountRateSource,
+                        'discount_rate_source' => $resolvedRate['applied_source'],
                         'payment_amount' => $payment->payment_amount,
                         'discounted_amount' => $discountedAmount,
                         'discounted_loss' => $discountLoss,
@@ -521,14 +538,10 @@ class LossGiveDefaultController extends Controller
     /**
      * Get interest rate for a specific contract from loan book
      */
-    private function getContractInterestRate($contractId, $period)
-    {
-        $loanBook = LoanBook::where('contract_id', $contractId)
-            ->where('reporting_period', $period)
-            ->first();
-
-        return $loanBook->interest_rate ?? 0.10; // Default 10% if not found
-    }
+    // The discount rate is resolved by App\Services\Ecl\EclDiscountRateService,
+    // which returns the basis actually applied and refuses to invent one. The
+    // former helper here returned a hardcoded 10% whenever the tape had no
+    // rate, and used the tape's percentage as if it were a decimal.
 
     // Function to store manual LGD calculations
     // This function processes the request, validates inputs, and stores the manual LGD calculation in the database
@@ -1021,7 +1034,7 @@ class LossGiveDefaultController extends Controller
     public function triggerDiscounting(Request $request, $lgdId)
     {
         $request->validate([
-            'discount_rate_source' => 'required_if:is_discounting,true|in:manual,loan_book',
+            'discount_rate_source' => 'required_if:is_discounting,true|in:manual,loan_book,eir',
             'interest_rate' => 'required_if:discount_rate_source,manual|numeric|min:0|max:100',
         ]);
 

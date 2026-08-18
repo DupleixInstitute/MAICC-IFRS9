@@ -3,6 +3,9 @@
         <template #header>
             <div class="flex items-center justify-between">
                 <div>
+                    <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                        <Link :href="route('eir-data.index')" class="hover:text-maiic-700">EIR Data</Link><span>/</span><span class="font-medium text-maiic-700">Data Intake</span>
+                    </div>
                     <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center">
                         <svg class="w-6 h-6 mr-2 text-maiic-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
@@ -24,9 +27,21 @@
             <!-- Step 1: choose type + file -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">1 · Upload a file</h3>
+                <div v-if="autoDetectedType" class="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    {{ autoDetectedType }} was detected from the file headers and selected automatically.
+                </div>
                 <p class="text-sm text-gray-500 mb-4">
                     Any CSV or Excel shape works - you map its columns once and the template is reused for every future file of the same shape.
                 </p>
+                <div v-if="importType === 'contract_transactions'" class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    <div class="font-semibold">Extract B schedule requirement</div>
+                    <p class="mt-1">
+                        Rows marked <strong>Scheduled</strong> populate the Cash Flows tab only when each contract has its complete original contractual schedule and scheduled principal reconciles to the loan amount. Partial or truncated schedules are rejected to protect the EIR calculation.
+                    </p>
+                    <p class="mt-1">
+                        Rows marked <strong>Actual</strong> are retained as transaction evidence and do not appear in the contractual Cash Flows tab. Fee component is optional; a blank fee does not block principal and interest.
+                    </p>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <jet-label class="text-sm font-medium text-gray-900">Import type</jet-label>
@@ -159,7 +174,16 @@
             <div v-if="result" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">3 · Result</h3>
 
-                <div v-if="['schedule', 'contract_transactions'].includes(importType)" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div
+                    v-if="importType === 'contract_transactions' && result.scheduled_rows_routed > 0 && result.loaded_rows === 0"
+                    class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                >
+                    <div class="font-semibold">Scheduled rows were found, but none were accepted.</div>
+                    <p class="mt-1">The Cash Flows tab remains unchanged. Review the contract-level reasons below before calculating EIR.</p>
+                    <a v-if="exceptionDownloadUrl" :href="exceptionDownloadUrl" class="mt-2 inline-block font-semibold underline">Download exception report</a>
+                </div>
+
+                <div v-if="importType === 'schedule'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-maiic-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-maiic-700">{{ result.loaded_contracts }}</div>
                         <div class="text-xs text-maiic-800 mt-1">Contracts loaded</div>
@@ -180,9 +204,16 @@
 
                 <div v-if="importType === 'contract_transactions'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.scheduled_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Scheduled rows routed</div></div>
-                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.actual_rows_loaded }}</div><div class="text-xs text-maiic-800 mt-1">Actual rows retained</div></div>
+                    <div class="bg-green-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-green-700">{{ result.loaded_rows }}</div><div class="text-xs text-green-800 mt-1">Schedule rows accepted</div></div>
+                    <div class="bg-red-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-red-700">{{ scheduleRowsNotLoaded }}</div><div class="text-xs text-red-800 mt-1">Schedule rows not loaded</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.loaded_contracts }}</div><div class="text-xs text-maiic-800 mt-1">Contracts accepted</div></div>
+                </div>
+
+                <div v-if="importType === 'contract_transactions'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.actual_rows_loaded }}</div><div class="text-xs text-maiic-800 mt-1">New actual rows retained</div></div>
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.fee_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Fee rows routed</div></div>
-                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.duplicate_source_rows }}</div><div class="text-xs text-gray-800 mt-1">Duplicate source rows</div></div>
+                    <div class="bg-amber-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-amber-700">{{ Object.keys(result.held || {}).length }}</div><div class="text-xs text-amber-800 mt-1">Contracts held</div></div>
+                    <div class="bg-red-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-red-700">{{ Object.keys(result.skipped || {}).length }}</div><div class="text-xs text-red-800 mt-1">Contracts rejected</div></div>
                 </div>
 
                 <div v-else-if="importType === 'contract_master'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -240,6 +271,10 @@
 
                 <!-- Named reasons -->
                 <div v-if="reasonEntries.length" class="border border-gray-200 rounded-lg overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
+                        <span class="text-sm font-medium text-gray-700">{{ reasonEntries.length }} contract-level exception(s)</span>
+                        <a v-if="exceptionDownloadUrl" :href="exceptionDownloadUrl" class="text-sm font-semibold text-maiic-700 underline">Download CSV</a>
+                    </div>
                     <table class="maiic-table">
                         <thead>
                             <tr>
@@ -270,9 +305,27 @@
             </div>
 
             <div v-if="queuedImport" class="bg-maiic-50 border border-maiic-200 rounded-lg p-5 text-sm text-maiic-900">
-                <div class="font-semibold">Import queued successfully</div>
-                <p class="mt-1">{{ queuedImport.name }} is now tracked through the standard import process.</p>
-                <a :href="importHistoryUrl" class="inline-block mt-3 text-maiic-700 underline font-medium">Open Import History</a>
+                <div class="flex items-start gap-3">
+                    <svg v-if="!isImportTerminal" class="mt-0.5 h-5 w-5 animate-spin text-maiic-700" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-semibold">{{ importStatusHeading }}</div>
+                        <p class="mt-1">{{ queuedImport.name }}</p>
+                        <p v-if="!isImportTerminal" class="mt-1 text-maiic-700">This page checks progress automatically; you do not need to refresh it.</p>
+                        <p v-if="pollError" class="mt-2 text-amber-700">{{ pollError }}</p>
+                        <div v-if="isImportTerminal" class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs">
+                            <span>Rows processed: <strong>{{ queuedImport.rows_processed || 0 }}</strong></span>
+                            <span>Rows inserted: <strong>{{ queuedImport.records || 0 }}</strong></span>
+                            <span>Contract exceptions: <strong>{{ queuedImport.failed_records || 0 }}</strong></span>
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-4">
+                            <a :href="importHistoryUrl" class="text-maiic-700 underline font-medium">Open Import History</a>
+                            <a v-if="exceptionDownloadUrl" :href="exceptionDownloadUrl" class="text-maiic-700 underline font-medium">Download exception report</a>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
@@ -289,6 +342,8 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetLabel from '@/Jetstream/Label.vue'
+import { Link } from '@inertiajs/vue3'
+import { markRaw } from 'vue'
 import axios from 'axios'
 
 export default {
@@ -297,7 +352,7 @@ export default {
         templates: Object,
         fieldSpec: Object,
     },
-    components: { AppLayout, JetLabel },
+    components: { AppLayout, JetLabel, Link },
     data() {
         return {
             importType: 'schedule',
@@ -311,7 +366,13 @@ export default {
             result: null,
             queuedImport: null,
             importHistoryUrl: null,
+            importStatusUrl: null,
+            exceptionDownloadUrl: null,
+            pollTimer: null,
+            pollError: null,
+            terminalResultRetries: 0,
             error: null,
+            autoDetectedType: null,
         }
     },
     computed: {
@@ -345,6 +406,22 @@ export default {
             }
             return entries
         },
+        scheduleRowsNotLoaded() {
+            if (!this.result) return 0
+            return Math.max(0, Number(this.result.scheduled_rows_routed || 0) - Number(this.result.loaded_rows || 0))
+        },
+        isImportTerminal() {
+            return ['completed', 'failed'].includes(this.queuedImport?.status)
+        },
+        importStatusHeading() {
+            if (this.queuedImport?.status === 'completed') return 'Import completed'
+            if (this.queuedImport?.status === 'failed') return 'Import failed'
+            if (this.queuedImport?.status === 'processing') return 'Import processing'
+            return 'Import queued successfully'
+        },
+    },
+    beforeUnmount() {
+        this.stopImportPolling()
     },
     methods: {
         onFile(e) {
@@ -352,13 +429,19 @@ export default {
             this.resetAnalysis()
         },
         resetAnalysis() {
+            this.stopImportPolling()
             this.analysis = null
             this.mapping = {}
             this.transforms = {}
             this.result = null
             this.queuedImport = null
             this.importHistoryUrl = null
+            this.importStatusUrl = null
+            this.exceptionDownloadUrl = null
+            this.pollError = null
+            this.terminalResultRetries = 0
             this.error = null
+            this.autoDetectedType = null
         },
         profileFor(header) {
             return this.analysis?.profile?.[header] || null
@@ -401,17 +484,29 @@ export default {
             if (['principal_due', 'interest_due', 'fee_due', 'amount', 'principal_component', 'interest_component', 'fee_component', 'total_amount', 'balance_after_transaction'].includes(field)) return 'number'
             return undefined
         },
+        async requestAnalysis(importType) {
+            const data = new FormData()
+            data.append('file', this.file)
+            data.append('import_type', importType)
+            const response = await axios.post(this.route('eir-intake.analyze'), data)
+            return response.data
+        },
         async analyze() {
             if (!this.file) return
             this.processing = true
             this.stage = 'analyze'
             this.error = null
+            this.autoDetectedType = null
             try {
-                const data = new FormData()
-                data.append('file', this.file)
-                data.append('import_type', this.importType)
-                const { data: analysis } = await axios.post(this.route('eir-intake.analyze'), data)
-                this.analysis = analysis
+                const selectedType = this.importType
+                const analysis = await this.requestAnalysis(selectedType)
+                if (analysis.import_type && analysis.import_type !== selectedType) {
+                    this.importType = analysis.import_type
+                    this.autoDetectedType = 'Contract transactions (Extract B)'
+                }
+                // Analysis data is display-only. Avoid recursively proxying
+                // every profile/preview cell on the browser's main thread.
+                this.analysis = markRaw(analysis)
                 // Pre-fill from the saved template, then transforms. The type
                 // read from the column's own values leads - it is the only
                 // thing that knows a date column arrived as Excel serials -
@@ -467,7 +562,12 @@ export default {
                 if (response.queued) {
                     this.queuedImport = response.import
                     this.importHistoryUrl = response.history_url
+                    this.importStatusUrl = response.status_url
+                    this.exceptionDownloadUrl = null
+                    this.pollError = null
+                    this.terminalResultRetries = 0
                     this.result = null
+                    this.pollImportStatus()
                 } else {
                     this.result = response.result
                 }
@@ -476,6 +576,43 @@ export default {
             } finally {
                 this.processing = false
                 this.stage = null
+            }
+        },
+        stopImportPolling() {
+            if (this.pollTimer) window.clearTimeout(this.pollTimer)
+            this.pollTimer = null
+        },
+        scheduleImportPoll(delay = 1500) {
+            this.stopImportPolling()
+            this.pollTimer = window.setTimeout(() => this.pollImportStatus(), delay)
+        },
+        async pollImportStatus() {
+            if (!this.importStatusUrl || !this.queuedImport) return
+
+            try {
+                const { data } = await axios.get(this.importStatusUrl)
+                this.queuedImport = data.import
+                this.exceptionDownloadUrl = data.exception_url
+                this.pollError = null
+
+                if (data.import_type) this.importType = data.import_type
+                if (data.result) {
+                    this.result = markRaw(data.result)
+                    this.terminalResultRetries = 0
+                }
+
+                // The job stores its terminal status immediately before its
+                // detailed audit result. Allow that very small race to settle.
+                if (data.terminal && data.import.status === 'completed' && !data.result && this.terminalResultRetries < 4) {
+                    this.terminalResultRetries++
+                    this.scheduleImportPoll(500)
+                    return
+                }
+
+                if (!data.terminal) this.scheduleImportPoll()
+            } catch (e) {
+                this.pollError = 'Could not refresh the status just now. Retrying automatically.'
+                this.scheduleImportPoll(3000)
             }
         },
     },

@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Imports the contract transactions file (Extract B) without confusing actual
- * cash movements with contractual promises.
+ * cash movements with contractual promises. The delivered Extract B has no
+ * usable fee component, so absent/blank fees are deliberately routed as zero;
+ * they do not manufacture a fee row or block the contractual schedule.
  */
 class ContractTransactionImportService
 {

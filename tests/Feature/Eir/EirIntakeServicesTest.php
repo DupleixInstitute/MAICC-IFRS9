@@ -274,6 +274,23 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(0, DB::table('contract_cashflow_schedule')->count());
     }
 
+    public function test_contract_transactions_accept_blank_or_absent_fee_component(): void
+    {
+        $this->seedLoan('NO-FEE-DATA', 100, '93');
+        $result = app(ContractTransactionImportService::class)->import([[
+            'customer_id' => '93', 'contract_id' => 'NO-FEE-DATA', 'sub_account_no' => '1',
+            'gl_posting_ref' => 'NF-1', 'transaction_date' => '2025-01-31',
+            'transaction_type' => 'Scheduled Repayment', 'principal_component' => 100,
+            'interest_component' => 10, 'total_amount' => 110,
+            'scheduled_actual_flag' => 'Scheduled',
+        ]]);
+
+        $this->assertSame(1, $result['loaded_rows']);
+        $this->assertSame(0, $result['fee_rows_routed']);
+        $this->assertSame(0, DB::table('contract_fees')->count());
+        $this->assertSame(0.0, (float) DB::table('contract_cashflow_schedule')->value('fee_due'));
+    }
+
     public function test_contract_transactions_partial_schedule_is_not_misrepresented_as_original_schedule(): void
     {
         $this->seedLoan('PARTIAL', 100, '93');
@@ -293,6 +310,26 @@ class EirIntakeServicesTest extends TestCase
     /* ------------------------------------------------------------------ */
     /* Mapping screen profiling                                            */
     /* ------------------------------------------------------------------ */
+
+    public function test_analyze_detects_extract_b_and_maps_it_in_one_pass(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'eir_extract_b_') . '.csv';
+        file_put_contents($path,
+            "LOAN_ACCOUNT_NUMBER,CUSTOMER_ID,SUB_ACCOUNT_NO,GL_POSTING_REF,TRANSACTION_DATE,TRANSACTION_TYPE,PRINCIPAL_COMPONENT,INTEREST_COMPONENT,TOTAL_AMOUNT,SCHEDULED_ACTUAL_FLAG\n" .
+            "00010445,93,1,S-1,31-10-2025,Scheduled Repayment,100,10,110,Scheduled\n"
+        );
+
+        try {
+            $analysis = app(\App\Services\Imports\MappedFileReader::class)->analyze($path, 'schedule');
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertSame('contract_transactions', $analysis['import_type']);
+        $this->assertSame('contract_id', $analysis['mapping']['loan_account_number']);
+        $this->assertSame('principal_component', $analysis['mapping']['principal_component']);
+        $this->assertNotContains('fee_component', $analysis['missing_required']);
+    }
 
     /**
      * The mapping screen used to show the first three rows, which told an

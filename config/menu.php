@@ -88,8 +88,11 @@ return [
         // maker/checker. Kept together (contract: EIR module).
         $group('EIR & Revenue Recognition', 'percent', [
             $leaf('Accounting Rules', 'eir-accounting-rules.index'),
-            $leaf('Schedule Intake', 'eir-intake.index'),
+            $leaf('EIR Data', 'eir-data.index'),
             $leaf('Fee Classification', 'eir-fee-classification.index'),
+            $leaf('EIR Calculations', 'eir-calculations.index'),
+            $leaf('GL Reconciliation', 'eir-reconciliation.index'),
+            $leaf('Coverage & Blockers', 'eir-coverage.index'),
         ], 4),
 
         $group('IFRS 9 Model Setup', 'chart-line', [

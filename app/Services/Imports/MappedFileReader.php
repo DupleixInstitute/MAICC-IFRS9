@@ -10,6 +10,7 @@ use App\Support\ContractId;
 use Carbon\Carbon;
 use InvalidArgumentException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use RuntimeException;
 use Throwable;
@@ -38,7 +39,7 @@ class MappedFileReader
      * hundreds of rows, not millions; the cap exists so a mis-selected file
      * cannot stall the mapping screen, not because the real ones approach it.
      */
-    private const PROFILE_ROW_LIMIT = 5000;
+    private const PROFILE_ROW_LIMIT = 500;
 
     /** Beyond this a column is a key, not a category — stop collecting. */
     private const PROFILE_DISTINCT_LIMIT = 200;
@@ -62,7 +63,7 @@ class MappedFileReader
         'contract_transactions' => [
             'customer_id', 'contract_id', 'sub_account_no', 'transaction_date',
             'transaction_type', 'principal_component', 'interest_component',
-            'fee_component', 'total_amount', 'scheduled_actual_flag', 'gl_posting_ref',
+            'total_amount', 'scheduled_actual_flag', 'gl_posting_ref',
         ],
         // Extract C. The period is required because a posting without one
         // cannot be reconciled against any month.
@@ -87,7 +88,11 @@ class MappedFileReader
             'moratorium_months', 'arrangement_fee', 'legal_fees',
             'opening_amortised_cost', 'opening_amortised_cost_date',
         ],
-        'contract_transactions' => ['run_id', 'balance_after_transaction', 'row_note'],
+        // Extract B delivered without a populated fee component. It remains
+        // supported when supplied, but an absent/blank column is explicitly
+        // interpreted as no fee cash flow in this extract (not an import
+        // failure). Fee data can still arrive through Extract A or fee intake.
+        'contract_transactions' => ['run_id', 'fee_component', 'balance_after_transaction', 'row_note'],
         'gl_interest' => [
             'run_id', 'gl_account_code', 'period_type', 'reporting_period',
             'transaction_count', 'posting_references', 'row_note', 'generated_on',
@@ -105,19 +110,21 @@ class MappedFileReader
 
         [$headers, $rows] = $this->readRaw($path, self::PROFILE_ROW_LIMIT);
 
-        $template = $this->templateFor($importType);
+        $effectiveType = $this->detectImportType($headers, $importType);
+        $template = $this->templateFor($effectiveType);
         $mapping  = $this->resolveMapping($headers, $template);
 
         return [
             'headers'          => $headers,
+            'import_type'      => $effectiveType,
             'preview'          => array_slice($rows, 0, 5),
             'profile'          => $this->profile($headers, $rows),
             'profiled_rows'    => count($rows),
             'mapping'          => $mapping,
             'unmapped_headers' => array_values(array_diff($headers, array_keys($mapping))),
-            'missing_required' => $this->missingRequired($importType, $mapping),
-            'required_fields'  => self::REQUIRED_FIELDS[$importType],
-            'optional_fields'  => self::OPTIONAL_FIELDS[$importType],
+            'missing_required' => $this->missingRequired($effectiveType, $mapping),
+            'required_fields'  => self::REQUIRED_FIELDS[$effectiveType],
+            'optional_fields'  => self::OPTIONAL_FIELDS[$effectiveType],
         ];
     }
 
@@ -545,6 +552,19 @@ class MappedFileReader
     {
         $reader = IOFactory::createReaderForFile($path);
         $reader->setReadDataOnly(true);
+        // toArray() materialises the whole worksheet even when the loop below
+        // stops early. Apply the row cap at reader level so analysing a large
+        // workbook does not load tens of thousands of cells into PHP/JSON.
+        if ($limit !== null) {
+            $maxRow = $limit + 1; // header + sampled data rows
+            $reader->setReadFilter(new class($maxRow) implements IReadFilter {
+                public function __construct(private readonly int $maxRow) {}
+                public function readCell($columnAddress, $row, $worksheetName = ''): bool
+                {
+                    return $row <= $this->maxRow;
+                }
+            });
+        }
         $sheet = $reader->load($path)->getActiveSheet();
 
         $headers = [];
@@ -623,6 +643,16 @@ class MappedFileReader
             $this->normaliseTemplate($aliases),
             $this->normaliseTemplate(ImportMapping::templateFor($importType))
         );
+    }
+
+    /** Detect only file shapes whose distinguishing headers are unambiguous. */
+    private function detectImportType(array $headers, string $selectedType): string
+    {
+        $set = array_fill_keys($headers, true);
+        if (isset($set['scheduled_actual_flag'], $set['loan_account_number'], $set['principal_component'], $set['interest_component'])) {
+            return 'contract_transactions';
+        }
+        return $selectedType;
     }
 
     /** Keep only template entries whose source header exists in the file. */

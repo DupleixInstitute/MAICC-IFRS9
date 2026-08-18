@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ImportMapping;
 use App\Models\Import;
+use App\Models\AuditLog;
 use App\Jobs\ProcessEirImportJob;
 use App\Services\Eir\ScheduleImportService;
 use App\Services\Imports\MappedFileReader;
@@ -107,6 +108,46 @@ class EirIntakeController extends Controller
     }
 
     /**
+     * Lightweight status read used by the intake page while its queued job
+     * runs. The job's audit record owns the detailed, per-contract outcome;
+     * returning it here prevents the operator having to refresh Import
+     * History and makes a completed-with-exceptions import unambiguous.
+     */
+    public function status(Import $import)
+    {
+        abort_unless(str_starts_with((string) $import->name, 'EIR '), 404);
+
+        $audit = AuditLog::query()
+            ->where('action', 'EIR Intake Import')
+            ->where('entity_type', 'Import')
+            ->where('entity_id', $import->id)
+            ->latest('id')
+            ->first();
+
+        $meta = $audit?->meta ?? [];
+        $result = $meta['result'] ?? null;
+
+        return response()->json([
+            'terminal' => in_array($import->status, ['completed', 'failed'], true),
+            'import_type' => $meta['import_type'] ?? null,
+            'import' => [
+                'id' => $import->id,
+                'name' => $import->name,
+                'status' => $import->status,
+                'records' => (int) ($import->records ?? 0),
+                'rows_processed' => (int) ($import->rows_processed ?? 0),
+                'failed_records' => (int) ($import->failed_records ?? 0),
+                'started_at' => $import->started_at,
+                'completed_at' => $import->completed_at,
+            ],
+            'result' => $result,
+            'exception_url' => $import->failed_file_path
+                ? route('imports.failed-download', $import)
+                : null,
+        ]);
+    }
+
+    /**
      * Validate the mapping, persist the upload and dispatch the same tracked
      * queue lifecycle used by the application's other data imports.
      */
@@ -152,6 +193,7 @@ class EirIntakeController extends Controller
             return response()->json([
                 'queued' => true,
                 'import' => ['id' => $import->id, 'status' => $import->status, 'name' => $import->name],
+                'status_url' => route('eir-intake.status', $import),
                 'history_url' => route('imports.index'),
             ], 202);
         } catch (Throwable $e) {

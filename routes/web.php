@@ -912,8 +912,13 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
 });
 
 // EIR module - schedule & fee intake (docs/EIR_Build.md Phase 2)
+Route::get('/eir-data', [\App\Http\Controllers\EirDataController::class, 'index'])->name('eir-data.index');
+Route::get('/eir-reconciliation', [\App\Http\Controllers\EirReconciliationController::class, 'index'])->name('eir-reconciliation.index');
+Route::get('/eir-coverage', [\App\Http\Controllers\EirCoverageController::class, 'index'])->name('eir-coverage.index');
+
 Route::group(['prefix' => 'eir-intake', 'as' => 'eir-intake.'], function () {
     Route::get('/', [\App\Http\Controllers\EirIntakeController::class, 'index'])->name('index');
+    Route::get('/imports/{import}/status', [\App\Http\Controllers\EirIntakeController::class, 'status'])->name('status');
     Route::post('/analyze', [\App\Http\Controllers\EirIntakeController::class, 'analyze'])->name('analyze');
     Route::post('/save-template', [\App\Http\Controllers\EirIntakeController::class, 'saveTemplate'])->name('save-template');
     Route::post('/import', [\App\Http\Controllers\EirIntakeController::class, 'import'])->name('import');
@@ -931,6 +936,13 @@ Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classificat
     Route::get('/', [\App\Http\Controllers\EirFeeClassificationController::class, 'index'])->name('index');
     Route::post('/classify', [\App\Http\Controllers\EirFeeClassificationController::class, 'classify'])->name('classify');
     Route::post('/review', [\App\Http\Controllers\EirFeeClassificationController::class, 'review'])->name('review');
+});
+
+Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirCalculationController::class, 'index'])->name('index');
+    Route::post('/calculate', [\App\Http\Controllers\EirCalculationController::class, 'calculate'])->name('calculate');
+    Route::post('/approve-all', [\App\Http\Controllers\EirCalculationController::class, 'approveAll'])->name('approve-all');
+    Route::post('/{contractEir}/approve', [\App\Http\Controllers\EirCalculationController::class, 'approve'])->name('approve');
 });
 
 // Manual authoring routes. MUST stay behind auth + settings permission:

@@ -160,7 +160,11 @@ EIR uploads follow the application's established import route: the controller va
 
 Rows are separated before persistence: `Scheduled` rows go through the existing full-schedule validation into `contract_cashflow_schedule`; `Actual` rows are retained in `eir_actual_transactions`; and non-zero actual `FEE_COMPONENT` values create `PENDING` `contract_fees` records for maker/checker classification. Source run/posting references are retained and protected against duplicate import. A partial 2025 schedule that does not reconcile to drawn principal is rejected rather than misrepresented as an original lifetime schedule.
 
-Verification: focused mapping/intake suite passes (20 tests / 68 assertions) and the production frontend build passes. Migration `2026_08_04_000000_add_extract_b_audit_fields.php` could not be applied locally on 2026-08-04 because MySQL was not running; **applied 2026-08-12**.
+**Delivered-file confirmation (2026-08-14):** the supplied Extract B is a mixed transaction extract, not a complete original contractual schedule for the sampled contracts. Its 2,478 rows included 757 rows flagged `Scheduled`, but all 99 contract groups failed the full-schedule gate (83 principal-reconciliation failures, 12 accounts absent from the loan book, three duplicate-date groups, and one customer mismatch). It is therefore valid evidence for actual transactions, but its partial scheduled section must not be used to calculate original EIR. A complete remaining/original contractual schedule must be requested, or generated from independently verified contract terms.
+
+The intake screen polls its queued `imports` record until completion and then displays the worker's audited result in place: scheduled rows routed/accepted/not loaded, accepted/held/rejected contract counts, and the standard downloadable exception CSV. The Extract B help text explicitly distinguishes contractual promises (Cash Flows tab) from actual transaction evidence.
+
+Verification: focused intake/service/status suites pass (33 tests / 157 assertions) and the production frontend build passes. Migration `2026_08_04_000000_add_extract_b_audit_fields.php` could not be applied locally on 2026-08-04 because MySQL was not running; **applied 2026-08-12**.
 
 ## Phase 2.65 — Canonical contract identifier and mixed-type dates (2026-08-12) ✅ COMPLETE
 

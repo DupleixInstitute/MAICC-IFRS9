@@ -264,6 +264,16 @@ class MappedFileReaderTest extends TestCase
         $this->assertArrayNotHasKey('branch_name', $result['rows'][0]);
     }
 
+    public function test_extract_b_fee_component_is_optional_when_not_delivered(): void
+    {
+        $required = MappedFileReader::REQUIRED_FIELDS['contract_transactions'];
+        $optional = MappedFileReader::OPTIONAL_FIELDS['contract_transactions'];
+
+        $this->assertNotContains('fee_component', $required);
+        $this->assertContains('fee_component', $optional);
+    }
+
+
     /** Semicolon-delimited files are detected automatically. */
     public function test_detects_semicolon_delimiter(): void
     {

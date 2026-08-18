@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ContractEir extends Model
 {
+    public const RATE_SOURCE_SOLVED = 'SOLVED_EIR';
+    public const RATE_SOURCE_PROXY = 'CONTRACTUAL_PROXY';
+
     protected $table = 'contract_eir';
 
     protected $fillable = [
@@ -51,7 +54,12 @@ class ContractEir extends Model
         'below_market_flag',
         'solver_iterations',
         'solver_residual',
+        'solver_method',
         'input_snapshot',
+        'calculation_status',
+        'calculation_error',
+        'calculated_at',
+        'calculated_by',
         'locked_at',
         'locked_by',
     ];
@@ -81,6 +89,7 @@ class ContractEir extends Model
         'solver_iterations'             => 'integer',
         'solver_residual'               => 'float',
         'input_snapshot'                => 'array',
+        'calculated_at'                 => 'datetime',
         'locked_at'                     => 'datetime',
     ];
 
@@ -107,6 +116,11 @@ class ContractEir extends Model
     public function lockedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'locked_by');
+    }
+
+    public function calculatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'calculated_by');
     }
 
     /**

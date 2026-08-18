@@ -65,9 +65,16 @@
                                     <jet-label for="discount_rate_source" value="Interest Rate Source" />
                                     <select v-model="form.discount_rate_source" class="mt-1 block w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
                                         <option value="">Select Source</option>
+                                        <option value="eir">Original EIR (IFRS 9)</option>
                                         <option value="manual">Manual Rate</option>
                                         <option value="loan_book">From Loan Book</option>
                                     </select>
+                                    <p v-if="form.discount_rate_source === 'eir'" class="mt-1 text-sm text-gray-500">
+                                        IFRS 9 &sect;5.5.17(b) discounts expected credit losses at the effective interest
+                                        rate set at initial recognition. Only contracts with an approved and locked
+                                        original EIR are discounted; any other payment is excluded rather than
+                                        discounted at an assumed rate.
+                                    </p>
                                 </div>
 
                                 <!-- Manual Interest Rate (shown when manual source is selected) -->
