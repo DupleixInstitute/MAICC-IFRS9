@@ -38,7 +38,10 @@ class ExpectedCreditLossController extends Controller
             |--------------------------------------------------------------------------
             */
             $query = LoanBook::query()
-                ->with('client')
+                // The EIR is eager-loaded rather than joined: contract_eir also
+                // carries a contract_id, and a join would make the existing
+                // search, ordering and stage filters ambiguous.
+                ->with(['client', 'contractEir:contract_id,eir_effective_annual,eir_nominal_annual,rate_type,calculation_status,locked_at'])
                 ->when($latestPeriod, function($q) use ($latestPeriod, $request) {
                     // Only use latest period if no specific year/month filters are applied
                     if (!$request->filled('year') && !$request->filled('month')) {

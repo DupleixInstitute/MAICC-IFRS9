@@ -109,6 +109,8 @@
                                                <th>Balance</th>
                                                <th>Probability Of Default</th>
                                                <th>Loss Given Default</th>
+                                               <th>Original EIR</th>
+                                               <th>EIR Basis</th>
                                                <th>Expected Credit Loss</th>
                                                <th>Updated</th>
                                            </tr>
@@ -120,6 +122,8 @@
                                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(loan.principal_balance) }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm">{{ loan.pd_value }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm" >{{ loan.lgd_value }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ eirRate(loan) }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-sm"><span :class="eirBasisClass(loan)">{{ eirBasis(loan) }}</span></td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> {{ formatCurrency(loan.ecl_value) }}</td>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
                                            </tr>
@@ -439,6 +443,40 @@ import { Inertia } from '@inertiajs/inertia';
         const formatCurrency = (value) => {
             if (!value) return 'E0.00';
             return 'K' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+        };
+
+        // The solved effective rate, shown only where one actually exists.
+        // A blank is meaningful: it says this facility's ECL was measured with
+        // no solved effective rate behind it.
+        const eirRate = (loan) => {
+            const eir = loan.contract_eir;
+            if (!eir || eir.eir_effective_annual === null || eir.eir_effective_annual === undefined) return '—';
+            return (Number(eir.eir_effective_annual) * 100).toFixed(2) + '%';
+        };
+
+        // The rate alone would imply the ECL was discounted at it. It is not:
+        // ecl_value is PD x LGD x carrying amount, undiscounted, pending the
+        // ECL time-conventions decision. This column says where the rate came
+        // from and how far it has been approved, so the two are never confused.
+        const eirBasis = (loan) => {
+            const eir = loan.contract_eir;
+            if (!eir) return 'No EIR';
+            if (eir.eir_effective_annual === null || eir.eir_effective_annual === undefined) return 'Not calculated';
+            if (!eir.locked_at) return 'Calculated — not approved';
+            // IFRS 9 wants a floating facility discounted at its current
+            // effective rate; no reset history is recorded, so the original
+            // stands in and must be labelled as a proxy rather than presented
+            // as the current rate.
+            return eir.rate_type === 'FLOATING' ? 'Floating — original as proxy' : 'Fixed — original';
+        };
+
+        const eirBasisClass = (loan) => {
+            const basis = eirBasis(loan);
+            const base = 'inline-flex rounded-full px-2 py-0.5 text-xs font-medium ';
+            if (basis === 'Fixed — original') return base + 'bg-emerald-100 text-emerald-800';
+            if (basis === 'Floating — original as proxy') return base + 'bg-amber-100 text-amber-800';
+            if (basis === 'Calculated — not approved') return base + 'bg-sky-100 text-sky-800';
+            return base + 'bg-gray-100 text-gray-600';
         };
 
         const formatDate = (date) => {

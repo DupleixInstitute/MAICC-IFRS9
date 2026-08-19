@@ -98,6 +98,20 @@ class LoanBook extends Model
         return $this->belongsTo(Client::class, 'customer_id', 'customer_id');
     }
 
+    /**
+     * The solved EIR for this facility.
+     *
+     * The rate is a permanent property of the deal, locked at origination,
+     * while a loan-book row is one monthly snapshot — so it lives on its own
+     * table and is reached by contract rather than carried on the snapshot.
+     * Most contracts have none, and a blank is meaningful: it says this
+     * facility's ECL was measured without a solved effective rate behind it.
+     */
+    public function contractEir()
+    {
+        return $this->hasOne(ContractEir::class, 'contract_id', 'contract_id');
+    }
+
     public function collateralAllocations()
     {
         return $this->hasMany(CollateralAllocation::class, 'contract_id', 'contract_id');
