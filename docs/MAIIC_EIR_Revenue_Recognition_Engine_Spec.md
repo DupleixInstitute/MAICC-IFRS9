@@ -1,9 +1,13 @@
 # MAIIC EIR & Revenue Recognition Engine — Consolidated Technical Specification
 
-**Version:** 2.0 (consolidated) · **Date:** 2026-08-05
+**Version:** 2.2 (trial-balance corpus) · **Date:** 2026-08-19 (original consolidation 2026-08-05)
 **Status:** Living spec — reconciles the two parallel design tracks into one authoritative document for build + client/auditor collaboration.
 **Repo:** `MAICC-IFRS9` (github.com/DupleixInstitute/MAICC-IFRS9) — Laravel 10 + Vue 3/Inertia + Tailwind
 **Owner (build):** Kundai Muriwo · **Reviewer:** Dr T. Kumwenda (MAIIC CFO) · **Auditor of record:** Deloitte · **Engagement lead:** Edward Mazibuko (Dupleix Institute)
+
+> **2026-08-19 delivery update.** MAIIC delivered the **full monthly trial-balance corpus (19 months, Jan 2025 → Jul 2026), the signed 2025 AFS, and the AFS↔E-Banker mapping workbook** on 2026-08-19, in response to the 2026-08-18 data-request email. This is the first delivery containing an **income statement** — all loan-interest and fee GL accounts are now in hand. See **§3.4** for the corpus, the engine-critical **cumulative-YTD rule**, the December pre-closing TB, the two-chart-of-accounts mapping, and the audit-adjustment bridge. Open item **#18 is closed**; items **#20–#23** are new.
+
+> **2026-08-18 status refresh.** Doors 1, 2 & 3 (§6, §7) and the GL-reconciliation core of §8 are now built and pushed — see §12 for the updated gap table and the reasoning behind each status change. This work landed on branch **`eir_revenue_recognition`** (pushed, not yet merged to `master`) — everything marked ✅ below is committed and code-inspected, but the automated test suite has **not** been independently run against this clone (no `vendor/` installed here), so treat test-file presence as evidence the coverage exists, not as a confirmed green run.
 
 **This document supersedes and consolidates:**
 1. `MAIIC_EIR_Revenue_Recognition_Engine_Spec.md` v1 (OneDrive `3. Project Execution/specs/`, 2026-08-04) — the extract-driven design + disclosure study. *(preserved as `..._v1_2026-08-04.md`)*
@@ -32,11 +36,11 @@ This is a **new module beside** the ECL engine in the same repo — sharing its 
 
 ### 1.1 The "three doors" — why EIR appears three times in IFRS 9
 
-| Door | Job | IFRS 9 ref | State in system today |
+| Door | Job | IFRS 9 ref | State in system today (2026-08-18) |
 |---|---|---|---|
-| **1 — Measurement** | Amortised cost is *constructed*: `closing = opening + EIR×opening − cash` | §5.4.1, B5.4.1 | Absent — `carrying_amount` imported from tape |
-| **2 — Revenue** | `interest = EIR × gross` (Stage 1–2) / `× net` (Stage 3) | §5.4.1 | Absent — no interest-revenue code exists |
-| **3 — Impairment** | ECL = PV of shortfalls discounted at original EIR | §5.5.17(b), B5.5.44 | Present but wrong: undiscounted `PD×LGD×EAD`; LGD job falls back to contractual rate or hardcoded 10% |
+| **1 — Measurement** | Amortised cost is *constructed*: `closing = opening + EIR×opening − cash` | §5.4.1, B5.4.1 | ✅ **Built** — `EirRevenueService`: `closing = opening + interest + unwind − cash`, replacing tape-imported `carrying_amount` |
+| **2 — Revenue** | `interest = EIR × gross` (Stage 1–2) / `× net` (Stage 3) | §5.4.1 | ✅ **Built** — `EirRevenueService` branches exactly on stage: gross basis for 1–2, net-of-`ecl_allowance` for 3 |
+| **3 — Impairment** | ECL = PV of shortfalls discounted at original EIR | §5.5.17(b), B5.5.44 | ✅ **Built** — `EclDiscountRateService` resolves `eir_effective_annual` per contract/period; `CalculateDiscountingJob` discounts at it. The hardcoded `?? 0.10` fallback is removed — a payment with no resolvable locked rate is **skipped and counted**, not defaulted |
 
 ---
 
@@ -69,11 +73,11 @@ Three extracts, VGCBS-sourced (E-Banker core banking, 1,282-table schema), MAIIC
 
 | Extract | Grain | Contents (abridged) | Status |
 |---|---|---|---|
-| **A — Facility master** | one row / facility | `CUSTOMER_ID, CUSTOMER_NAME, LOAN_ACCOUNT_NUMBER, SUB_ACCOUNT_NO, GL_ACCOUNT_CODE/TITLE, PORTFOLIO, PRODUCT_TYPE, CURRENCY, LOAN_START_DATE, SANCTIONED_AMOUNT, PRINCIPAL_DISBURSED, …` + (per 22 Jul request) contractual rate/basis, frequency, tenor, first-repayment/maturity/closure/restructure dates, grace, arrangement fee, legal fees, opening amortised cost at 01 Jan 2025 | Ingestion **not yet built** → `contract_eir` intake |
-| **B — Repayment / cash-flow txns** | one row / cash flow | `RUN_ID, CUSTOMER_ID, LOAN_ACCOUNT_NUMBER, GL_POSTING_REF, TRANSACTION_DATE, TRANSACTION_TYPE, PRINCIPAL/INTEREST/FEE_COMPONENT, TOTAL_AMOUNT, SCHEDULED_ACTUAL_FLAG, BALANCE_AFTER_TRANSACTION` | **Routing built** (Phase 2.6): `Scheduled` → `contract_cashflow_schedule`; `Actual` → `eir_actual_transactions`; non-zero `FEE_COMPONENT` → `PENDING` `contract_fees` |
-| **C — GL interest postings** | one row / loan / period | `RUN_ID, LOAN_ACCOUNT_NUMBER, GL_ACCOUNT_CODE, PERIOD_TYPE/YEAR/MONTH, INTEREST_INCOME_POSTED, TRANSACTION_COUNT, POSTING_REFERENCES, ROW_NOTE (nets TRANTYPE 303/120/308/309/310/311 per loan per month), GENERATED_ON` | Ingestion **not yet built** → GL-reconciliation source (§8) |
+| **A — Facility master** | one row / facility | `CUSTOMER_ID, CUSTOMER_NAME, LOAN_ACCOUNT_NUMBER, SUB_ACCOUNT_NO, GL_ACCOUNT_CODE/TITLE, PORTFOLIO, PRODUCT_TYPE, CURRENCY, LOAN_START_DATE, SANCTIONED_AMOUNT, PRINCIPAL_DISBURSED, …` + (per 22 Jul request) contractual rate/basis, frequency, tenor, first-repayment/maturity/closure/restructure dates, grace, arrangement fee, legal fees, opening amortised cost at 01 Jan 2025 | ✅ Ingestion **built** (`ContractMasterImportService`) → `contract_eir` intake. **Data gap confirmed, not resolved:** the delivered file (36 cols, 362 rows / 181 accounts, MAIIC+FinES both present) carries **no fee fields at all** — no arrangement/legal/origination fee column anywhere, despite the agreed scope requiring them (open item #10) |
+| **B — Repayment / cash-flow txns** | one row / cash flow | `RUN_ID, CUSTOMER_ID, LOAN_ACCOUNT_NUMBER, GL_POSTING_REF, TRANSACTION_DATE, TRANSACTION_TYPE, PRINCIPAL/INTEREST/FEE_COMPONENT, TOTAL_AMOUNT, SCHEDULED_ACTUAL_FLAG, BALANCE_AFTER_TRANSACTION` | **Routing built** (Phase 2.6): `Scheduled` → `contract_cashflow_schedule`; `Actual` → `eir_actual_transactions`; non-zero `FEE_COMPONENT` → `PENDING` `contract_fees`. **Data gap confirmed:** 539 of 2,478 delivered rows (22%) carry a `ROW_NOTE` stating the interest/principal split is *"ESTIMATED from amortization formula… not a stored split"* — not raw system data. `DR_CR_INDICATOR` is still absent from the delivered file (open item #9) |
+| **C — GL interest postings** | one row / loan / period | `RUN_ID, LOAN_ACCOUNT_NUMBER, GL_ACCOUNT_CODE, PERIOD_TYPE/YEAR/MONTH, INTEREST_INCOME_POSTED, TRANSACTION_COUNT, POSTING_REFERENCES, ROW_NOTE (nets TRANTYPE 303/120/308/309/310/311 per loan per month), GENERATED_ON` | ✅ Ingestion **built** (`GlInterestImportService` → `GlInterestPosting`) → feeds `EirGlReconciliationService` (§8). **Data gap confirmed, not resolved:** the delivered file is only **28 rows covering 3 loan accounts** — far short of the ~181-account book — and carries `INTEREST_INCOME_POSTED` only, no fee/commission income column (open item #9) |
 
-**Two field-level gaps flagged during the 22–23 Jul review** (fee/commission GL lines in Extract C; `DR_CR_INDICATOR` in Extract B) were accepted by Barry as workable — **re-verify against the delivered files before the solver runs on Path B** (open item).
+**The two field-level gaps flagged during the 22–23 Jul review** (fee/commission GL lines in Extract C; `DR_CR_INDICATOR` in Extract B) were accepted by Barry as workable but **re-verified against the actually-delivered files on 2026-08-18 and confirmed still open** — see open items #9/#10. Separately, a **Trial Balance data request** (Oct–Dec 2025, GL code/title/debit/credit) was fulfilled by Barry on 2026-08-12 (forwarded internally 2026-08-18): five raw VGCBS report exports (`Rpt_General_Ledger_Detail`) plus three **inconsistently-formatted** `rpt_Trial_Balance` layouts ("TB Format 1/4/14" — three different merged-cell/multi-row-header shapes for the same request), none parseable as delivered. **This was superseded on 2026-08-19** by a complete, consistently-formatted 19-month trial-balance corpus plus the audited AFS bridge — see **§3.4**, which is now the primary GL-side data path. The Oct–Dec `Rpt_General_Ledger_Detail` exports remain useful as the *transaction-grain* spool beneath the TB balances.
 
 ### 3.3 Vocabulary reconciliation — v1 spec ↔ implemented code
 
@@ -83,15 +87,109 @@ Anyone reading the OneDrive v1 spec must use this map; the implemented (right-ha
 |---|---|---|
 | `eir_facilities` | **`contract_eir`** | one row per contract; the solved EIR + origination facts + audit snapshot |
 | `loan_cash_flows` | **`contract_cashflow_schedule`** (promise) + **`eir_actual_transactions`** (actuals) | v1 conflated schedule and actuals into one table; the build splits them |
-| `gl_interest_postings` | *(table not yet created)* | Extract C reconciliation source — **remaining scope** (§8) |
+| `gl_interest_postings` | **`GlInterestPosting`** (✅ built 2026-08-18) | fed by Extract C via `GlInterestImportService`; reconciliation source (§8) |
 | `eir_runs` | folded into `contract_eir` (`solver_iterations`, `solver_residual`, `input_snapshot`, `locked_at/by`) | no separate run table; each solve is stored on the contract with its snapshot |
-| `eir_schedule_lines` | **`eir_amortisation`** | the monthly roll-forward = MAIIC's "Table 2" |
-| `eir_reconciliations` | *(report, not a table yet)* | Phase 6 audit pack — **remaining scope** (§8) |
+| `eir_schedule_lines` | **`eir_amortisation`** | the monthly roll-forward = MAIIC's "Table 2" — ✅ now populated by `RunEirRevenueJob` |
+| `eir_reconciliations` | *(report, not a table yet — `EirGlReconciliationService` computes it live)* | ✅ GL-vs-EIR variance built (§8); **proposed journal entries and the Deloitte export are still not built** — see §12 |
 | `EirSolverService` | **`CalculateEirService`** (+ `EirReadinessService`, `EirContractInputService`) | built |
-| `EirReconciliationService` | *(not built)* | Phase 6 — **remaining scope** |
-| `EirRevenueExportService` | *(not built)* | Phase 5 report + Deloitte Excel export — **remaining scope** |
-| `EirRunController` / `EirFacilityController` / `EirImportController` | **`EirIntakeController`** (+ `EirAccountingRuleController`, `EirFeeClassificationController`) | intake built; run/facility/report controllers remaining |
-| `maiic:run-eir {period}` | *(not built)*; `eir:generate-schedules` exists | unified month-end command — **remaining scope** (§10) |
+| `EirReconciliationService` | ✅ **`EirGlReconciliationService`** (built 2026-08-18) | per-loan/period EIR-vs-GL variance with a base-effect/rate-effect/unexplained bridge decomposition — more rigorous than originally scoped |
+| `EirRevenueExportService` | *(not built)* | Phase 5 report page exists (`Pages/Eir/Calculations.vue` etc.); the **Deloitte-workbook Excel export is still not built** — **remaining scope**, and its true shape needs re-scoping (see §8) |
+| `EirRunController` / `EirFacilityController` / `EirImportController` | **`EirIntakeController`**, **`EirCalculationController`** (run + lock), **`EirCoverageController`**, **`EirDataController`**, **`EirReconciliationController`** (+ `EirAccountingRuleController`, `EirFeeClassificationController`) | ✅ run/lock/reconciliation controllers built 2026-08-18; report-export routes still remaining |
+| `maiic:run-eir {period}` | `RunEirRevenue` (console command) built; not yet scheduled | unified month-end command exists — **cron/schedule wiring is the remaining piece** (§10), blocked on Barry's extract cadence becoming a fixed date rather than ad hoc |
+
+---
+
+### 3.4 Path C — the monthly trial-balance corpus *(delivered 2026-08-19 — supersedes open item #18)*
+
+Following the 2026-08-18 data-request email, MAIIC delivered on **2026-08-19** the full monthly trial-balance run plus the audited year-end bridge. This closes the largest remaining data gap: **the income statement, which no earlier delivery contained at all.**
+
+| Artefact | Contents | Status |
+|---|---|---|
+| **19 monthly trial balances** | `Trial Balance_{DD Month YYYY}.xls`, **Jan 2025 → Jul 2026**, one file per month, all in a single consistent `rpt_Trial_Balance_Malawi` layout (GL Title / Debit / Credit; period stamped in row 1) | ✅ **Parseable as delivered** — supersedes open item #18; the three inconsistent `TB Format 1/4/14` shapes are no longer the delivery format |
+| **Signed 2025 AFS** | `MAIIC  FS. 2025- Signed.pdf` | ✅ Received |
+| **AFS ↔ E-Banker bridge** | `AFS Final TB and Initial TB Mapped to E-Banker TB for MAIIC for December 2025.xlsx` — 4 sheets: `FINAL AFS TB as of 19th Mar 26` (initial / final / journal adjustments), `Initial TB Submitted to Auditor`, `TB December 2025` (QuickBooks↔E-Banker code map), `Final E-Banker TB Dec 2025` | ✅ Received — and carries the December P&L (§3.4.2) |
+
+**All 19 TBs balance exactly** (Σ Dr = Σ Cr, difference 0.00 on every file) and every file is period-stamped.
+
+#### 3.4.1 ⚠️ The P&L figures are **cumulative year-to-date**, not monthly — engine-critical
+
+Verified across all 19 files. Income and expense balances accumulate through each financial year and **reset every January**:
+
+| GL | Jan 2025 | Nov 2025 | Dec 2025 | Jan 2026 | Jul 2026 |
+|---|---:|---:|---:|---:|---:|
+| `4873` Arrangement Fees | 14,500,000 | 274,681,000 | *(closed)* | 90,500,000 | 330,207,379 |
+| `4871` Legal Fees | 8,908,500 | 141,519,610 | *(closed)* | 49,814,000 | 205,508,541 |
+| `4216` Interest — MAIIC Industrial | 51,993,819 | 1,361,118,063 | *(closed)* | 167,288,651 | 1,016,619,979 |
+
+> **Rule the engine must implement:** `monthly movement = TB(month N) − TB(month N−1)`, with **January taken as the January TB itself** (no subtraction across the year boundary). Treating these balances as monthly figures overstates income by roughly an order of magnitude. This applies to every 4xxx/5xxx/6xxx account. Balance-sheet accounts (1xxx/2xxx/3xxx) are point-in-time and must **not** be differenced.
+
+#### 3.4.2 The December 2025 P&L exists — in the AFS workbook, not the monthly file
+
+The standalone `Trial Balance_31 December 2025.xls` is a **post-closing** TB: 121 GL lines, **zero 4xxx/5xxx/6xxx accounts**, P&L already rolled into `3200 Retained Earnings`. It is the only month of the 19 without an income statement — exactly the roll-up the 2026-08-18 email asked MAIIC to avoid.
+
+The **pre-closing** December TB is nonetheless already in hand — sheet **`Final E-Banker TB Dec 2025`** inside the AFS bridge workbook:
+
+| | Standalone monthly file | AFS-workbook sheet |
+|---|---:|---:|
+| GL lines | 121 | **191** |
+| P&L accounts | 0 | **21 × 4xxx, 13 × 5xxx, 36 × 6xxx** |
+| Σ Dr = Σ Cr | 117,370,478,433.36 | **122,650,199,563.49** |
+
+**No re-request is needed for December.** The engine's December source is the AFS-workbook sheet, not the standalone monthly file.
+
+#### 3.4.3 Income-statement GL codes the engine must read
+
+Now known and stable across the corpus:
+
+| Code | Account | Door |
+|---|---|---|
+| `4215` / `4216` | Interest On MAIIC Agricultural / Industrial Loans | 2 |
+| `4218` / `4219` | Interest On FInES Agricultural / Industrial Loans | 2 |
+| `4201` / `42019` | Interest On MAIIC Term Loan *(appears from Nov 2025)* | 2 |
+| `4221` `4222` `4223` `4224` `4260` `4262` | Mega Farm loan interest (fertiliser, seed, working capital, equipment, irrigation, pesticides) | 2 |
+| **`4871`** | **Legal Fees** | **EIR input** |
+| **`4873`** | **Arrangement Fees** | **EIR input** |
+| `4874` / `4875` | Insurance Fees / PCG Guarantee Fees | EIR input (integrality per B5.4.1) |
+| `4205` `4211` `4213` | Investment income (T-bill, USD call, coupon settle) — **out of EIR scope** | — |
+| `6242` | Impairment of Financial Asset | 3 |
+| `6340` | Interest Expense | — |
+
+**This closes the substance of open item #9's fee half** — fee and commission GL lines *do* exist and are now in hand at TB grain. What remains missing is the **customer-level** split of those fees; Extract C still carries `INTEREST_INCOME_POSTED` only.
+
+#### 3.4.4 Two charts of accounts — QuickBooks (AFS) vs E-Banker (core banking)
+
+MAIIC keeps its statutory accounts in **QuickBooks** and its loan book in **E-Banker**. The codes differ and must be mapped, never assumed equal:
+
+| Concept | E-Banker (monthly TBs) | QuickBooks (AFS TB) |
+|---|---|---|
+| Term-loan interest | `42019` / `4201 · Interest On MAIIC Term Loan` | `4206 · Interest on Term Loans-Maiic` — MK2,128,427,032.36 |
+| Fee income | flat `4871`, `4873` | nested `4870 · Services Income:4871 · Legal fees` |
+
+The `TB December 2025` sheet (24 columns, carrying `QB Short Code` and `QuickBooks GL Code and Description` against each E-Banker line) **is the mapping table** and should be ingested as reference data rather than re-derived.
+
+#### 3.4.5 Audit adjustments — build to the final column
+
+The bridge records **32 adjusted accounts, MK13.80bn gross**. The initial TB submitted to audit does **not** equal the AFS. Material items touching this engine:
+
+| Account | Adjustment (MK) |
+|---|---:|
+| `2059` Mega farm Loans ECL | −3,457,375,678 |
+| `1066` ECL Megafarm Loans | +2,274,400,361 |
+| `6242` Impairment of Financial Asset | −2,174,499,665 |
+| `1060` Mega Farm Loans Interest — Fertiliser | +2,012,035,874 |
+| `1320` Interest Suspense → `4206` Interest on Term Loans | −21,865,867 / +21,865,867 |
+
+> **Reconciliation target = the `Final tie to AFS` column**, not `Initial submitted to Auditors`.
+
+#### 3.4.6 Confirmations and residual gaps from this delivery
+
+- ✅ **The Dec-2025 assessment workbook ties to the audited GL.** §3.1's stated *MK171.1m legal + MK311.3m arrangement* matches the AFS TB exactly (`4871` = 171,128,135.00; `4873` = 311,342,792.00). The workbook is GL-tied as claimed.
+- ✅ **The previously-undated `TB Extracts.xls` is identified** — byte-identical to `Trial Balance_31 December 2025.xls` (post-closing December). The "which month is this?" question is closed.
+- ⚠️ **Correction to a figure circulated on 2026-08-18:** the December TB total is **MK117,370,478,433.36**, not MK234,740,956,866.72. The larger figure double-counts the file's own `Grand Total` row. **Any summation of these TB files must exclude that row.**
+- ❌ **`1050103` (Quasi Equity Investment) and `1050203` (FInES Investment Loan) appear in 0 of 19 trial balances.** Nine Extract-A accounts are mapped to GL codes that do not exist in the ledger. Confirmed across nineteen months — a mapping/classification question, not a spool filter (open item #20).
+- 🟡 **`1050401` MAIIC Term Loan appears in only 9 of 19 months** — consistent with a product launched late-2025, but worth one line of confirmation (open item #21).
+- 🟡 **Period-stamp convention:** files named `31 December 2025` carry the stamp `2025-12-01`. Read as a *period label*, not an as-at date — to be confirmed in writing (open item #22).
+- ❌ **Fee coverage at customer grain remains the binding gap.** Extract B carries **MK20,700,000 of fees on one account** against **MK311,342,792** of audited arrangement fees — **6.6% coverage**. The GL now proves the fees exist; the customer-level split still does not (open items #9/#10 remain open on this point).
 
 ---
 
@@ -132,48 +230,54 @@ Migration `2026_07_27_000000_create_eir_tables.php` (+ `2026_08_03` fee-classifi
 6. **Hard guards logged:** non-convergence; EIR < contractual − tolerance; EIR > 100%.
 7. **Stage 3:** interest recognised on the **net** carrying amount, reading the stage from the ECL module's live output — the one place the two modules must talk.
 
-**Remaining (Phase 3):** `CalculateEirJob` orchestration, batch processing, persistence + EIR **locking** UI, and the rest of the fixture suite (§ appendix). Blocked on Phase 0 sign-offs (conventions memo; keyman-insurance ruling; Nascomex IAS 32 memo).
+**Phase 3 orchestration — ✅ built 2026-08-18:** `CalculateEirJob` batches independently (a blocked contract doesn't stop the batch) via `EirCalculationService`; `EirCalculationController` runs the lock flow (`whereNull('locked_at')` queue → lock action stamping `locked_at`). **Not independently confirmed:** whether the full fixture suite (§ appendix) passes — still blocked on Phase 0 sign-offs (conventions memo; keyman-insurance ruling; Nascomex IAS 32 memo), since several fixtures depend on those rulings to have a defined expected answer.
 
 ---
 
-## 6. Impairment rewiring (Door 3) *(remaining — Phase 4)*
+## 6. Impairment rewiring (Door 3) *(✅ built — Phase 4, 2026-08-18)*
 
-Replace the undiscounted ECL with the discounted formula:
+Discounted ECL formula, implemented in `EclDiscountRateService` + rewritten `CalculateDiscountingJob`:
 
 `ecl_value = PD_prorated × LGD × EAD × 1/(1+EIR)^t` — EIR = original (fixed) or current (floating, B5.5.44).
 
-- One SQL join + expression in `ExpectedCreditLossController::calculateECL`; same substitution in `CalculateDiscountingJob` (kill the `?? 0.10` fallback), collateral discounting (`CollateralController` — populate and use the orphaned `EIR` column), and any stress-test/report controller that re-derives ECL inline.
-- **Stage-1 PD pro-rating** `min(12m, remaining term)` in the same pass (closes Deloitte 2022 Finding 1).
-- Keep `ecl_value_undiscounted` in parallel for one period → transition-impact disclosure.
-- Update `EclGoldenNumberTest` for the discounted formula.
+- **Built:** `CalculateDiscountingJob` now resolves the rate via `EclDiscountRateService->resolve()` (keyed on `contract_id` + reporting period) instead of the old `getInterestRateFromLoanBook()` fallback chain. The hardcoded `?? 0.10` default is **gone** — the only remaining reference is a dead, commented-out line. Where no locked rate resolves, the payment is explicitly **excluded and counted** with a named reason rather than discounted at an assumed rate (code comment: *"Discounting a stage-3 recovery at an assumed rate produces an allowance whose basis cannot be explained"*) — this is stricter than the spec asked for, not looser.
+- **Not yet independently confirmed:** whether `ExpectedCreditLossController::calculateECL` itself (the headline ECL figure, not just the discounting job) reads `contract_eir` — worth Kundai confirming directly, since this section's original scope named that controller specifically.
+- **Not yet done:** collateral discounting (`CollateralController` — the orphaned `EIR` column); Stage-1 PD pro-rating; keeping `ecl_value_undiscounted` in parallel for the transition-impact disclosure. Test coverage added: `EclDiscountRateServiceTest.php` (129 lines).
 
 ---
 
-## 7. Revenue engine (Doors 1 & 2 — the contractual deliverable) *(remaining — Phase 5)*
+## 7. Revenue engine (Doors 1 & 2 — the contractual deliverable) *(✅ built — Phase 5, 2026-08-18)*
 
-`RunEirRevenueJob`, per period per contract, writing `eir_amortisation` (= Table 2, generated):
+`RunEirRevenueJob` (queued, per period, batches all locked contracts or a named subset) → `EirRevenueService`, writing `eir_amortisation` (= Table 2, generated). **Verified directly in code:**
 
-- Stages 1–2: `interest = eir_period × opening_gross`. Stage 3: `× (opening_gross − ecl_allowance)`; `unwind_amount` split out; suspended (gross−net) interest disclosed (IFRS 7.20(b)).
-- **Cure:** stage < 3 this period, = 3 prior → revert to gross basis (period-over-period stage comparison).
-- **Modification:** schedule version N+1 discounted at the **original** EIR → `modification_gain_loss` (§5.4.3); EIR unchanged.
-- **Rate reset:** regenerate remaining floating schedule at the new reference; fee-spread amortisation continues undisturbed.
-- `cash_received` from `lgd_payment_tracking_long` (DERIVED) until the Phase 7 actuals import.
-- First period: opening = PV of remaining schedule at EIR (the constructed gross, Door 1).
-- **Report page:** interest income by stage, gross/net split, unwind, suspended interest — this *is* Table 2.
+- Stages 1–2: `interest = monthlyRate × opening`. Stage 3: `× (opening − ecl_allowance)` (`$basis = $stage === 3 ? 'NET' : 'GROSS'`) — confirmed matching IFRS 9 §5.4.1(b) exactly.
+- Roll-forward implemented as `closing = opening + interest + unwind − cash`, opening of period N = closing of period N−1 (Door 1, the amortised-cost construction).
+- The job tracks and audit-logs, per run: contracts `CREATED`/`RECALCULATED`/`UNCHANGED`/`BLOCKED` (with named reasons per blocked contract), rows still using `cash_source = DERIVED`, and `unclassified_cash` — a genuinely audit-conscious summary, not just a pass/fail.
+- Recalculation supersedes later periods whose opening balance depended on a closing figure this run replaced, and records how many rows were superseded.
+- **Not yet independently confirmed against this text:** cure-detection (stage reverting from 3), modification gain/loss on schedule versioning, and rate-reset handling — these are described in the service but weren't traced line-by-line; worth Kundai confirming against this list specifically.
+- **Report page:** `Pages/Eir/Calculations.vue` (+ `Coverage.vue`, `Data.vue`) exist; whether they present interest income by stage / gross-net split / unwind / suspended interest exactly as Table 2 requires wasn't verified from the UI side.
+- Test coverage added: `EirRevenueServiceTest.php` (234 lines), `EirCalculationWorkflowTest.php` (140 lines).
 
 ---
 
-## 8. Reconciliation, audit pack & exports *(remaining — Phase 6)*
+## 8. Reconciliation, audit pack & exports *(🟡 partial — Phase 6, 2026-08-18)*
 
 The report that directly answers the audit question — **does the engine's EIR-basis income reconcile to what the GL actually posted?**
 
-- **GL reconciliation (Extract C / `gl_interest_postings`).** Per facility per period: EIR-basis interest (`eir_amortisation`) vs GL-posted interest (Extract C, the actual ledger). Difference beyond a governed materiality threshold → **misstatement line**, per loan and rolled up per portfolio (MAIIC / FinES). *Requires the Extract C ingestion + reconciliation service noted in §3.3.* Build it the way `EclReconciliationService` / `LoanBookReconciliationService` already work (proven start/end-period movement pattern).
-- **Proposed adjusting journals.** DR/CR entries truing up the GL to the EIR basis, in the Deloitte Summary-tab format. **Proposed only** — Finance posts manually in E-Banker (§14).
-- **Interest-income impairment kept distinct from principal ECL** (Note 21 — Mega Farm MK2.1bn accrued-but-uncollected interest carries its own ECL). A Stage-3 facility's EIR interest on the net carrying amount can itself need impairing; `eir_amortisation`/the reconciliation must carry an `interest_income_impairment` column so this traces at the granularity MAIIC already reports.
-- **Auto-generated CIR-vs-EIR materiality report** each period: per-facility difference, mean/max, partially-drawn outliers flagged — Dr Thom's assessment made permanent.
-- **Reconciliations, gross, by stage and facility** (the 2%-net-gap lesson): constructed `closing_gross` vs tape `carrying_amount`; discounted vs undiscounted ECL; fee amortisation vs GL fee accounts; coverage by `rate_source`/`schedule_source`; solver health.
-- **Methodology note** in Deloitte's three-column format (*Requirement | Practice | Evidence*) + governance/sign-off page.
-- **Excel export** via `maatwebsite/excel` (already a dependency) in Deloitte's **two-sheet** layout: a **Yearly** sheet (contractual vs EIR, per representative period — kept for comparability with the auditor's working paper) and a **Monthly** sheet (the substantive full-book exercise — every facility, every month, EIR vs ledger, misstatement schedule, proposed journals).
+- **GL reconciliation — ✅ built.** `EirGlReconciliationService` (`app/Services/Eir/EirGlReconciliationService.php`) does per-loan, per-period EIR-vs-GL variance, and goes further than originally scoped: it decomposes each variance into a **base effect / rate effect / unexplained residual** (rather than a bare number an auditor would have to take on faith), applies a governed tolerance floor (`WITHIN_TOLERANCE` vs `VARIANCE`), and rolls up a period summary. Screen-viewable today at `/eir-reconciliation` (`EirReconciliationController`). **Data caveat — materially improved 2026-08-19 but not yet closed.** Extract C still covers only 3 of ~181 accounts at *customer* grain (§3.2). However the 19-month TB corpus (§3.4) now supplies complete **GL-grain** income by month, including the fee accounts (`4871`, `4873`) that no earlier delivery contained. That enables a **control-total reconciliation today** — engine EIR income vs GL totals per account per month — even while the per-loan tie-out stays thin. **Two rules apply when wiring this:** P&L balances are **cumulative YTD** and must be differenced (§3.4.1), and December 2025 must be sourced from the AFS workbook's pre-closing sheet, not the post-closing monthly file (§3.4.2).
+- **No download/export exists yet on this report.** `EirReconciliationController@index` renders the Inertia page only — no Excel or PDF action, unlike the other 30 IFRS 9 hub reports which already support both via `Ifrs9ReportExport` (Excel) and `Barryvdh\DomPDF` (`?download=pdf` on `Ifrs9ReportsController`). **This is the concrete near-term ask: wire the same two download branches onto `EirReconciliationController`, reusing the existing exporter rather than building a new one** — see the 2026-08-18 addendum below.
+- **Proposed adjusting journals — ❌ not built.** No DR/CR proposal exists anywhere in the real `contract_eir` schema (a `proposed_journal_dr/cr/amount` field shape exists only on the abandoned, untracked Aug-4 scratch schema — not connected to anything). Blocked on a decision from Dr Thom: which GL account absorbs the EIR-vs-contractual true-up. Once decided, `EirAccountingRule` (already built for fee classification, with `gl_account_ref` + maker/checker fields) is the pattern to extend rather than a new design.
+- **Interest-income impairment kept distinct from principal ECL** (Note 21 — Mega Farm MK2.1bn) — **not independently verified** whether `eir_amortisation`/the reconciliation carries `interest_income_impairment` yet; worth Kundai confirming.
+- **Auto-generated CIR-vs-EIR materiality report** — not verified as a distinct artefact; the reconciliation bridge above may already substantially cover this, pending review.
+- **Methodology note** (Deloitte's *Requirement | Practice | Evidence* format) + governance/sign-off page — ❌ not built.
+- **Excel export in "Deloitte's two-sheet layout" — this description is now known to be wrong and needs re-scoping, not just building.** The actual Deloitte reference file (`26100.04 Interest Income - EIR Vs Contractual rate...xlsx`, opened and inspected 2026-08-18) is a `Summary` tab **plus 23 separate worked tenor-bucket tabs (2yr–26yr) plus four audit-software tie-out tabs** (`Tickmarks`, `RNotes`, `TextXRef`, `NumXRef` — generated by Deloitte's own audit tooling, not reproducible or appropriate for MAIIC/Dupleix to hand back). Replicating the full file isn't the real ask. **Open decision, before any export-format code is written:** confirm with Kundai (and likely Dr Thom/Deloitte) that the actual deliverable is the `Summary`-tab shape — the per-loan EIR-vs-contractual comparison — not the 23-tab worked-example structure, which was Deloitte's own workpaper for a different client engagement.
+
+> **2026-08-18 addendum — path to an auditor-downloadable report today, without waiting on the Deloitte-format scoping decision above.** The reconciliation *data* is already correct and live (`EirGlReconciliationService`); what's missing is purely the download action. Recommended sequence:
+> 1. Add `?download=xlsx` / `?download=pdf` branches to `EirReconciliationController@index`, mirroring `Ifrs9ReportsController`'s existing pattern exactly — feed the same `rows`/`bridge`/`summary` payload already computed for the Inertia page through `Ifrs9ReportExport` and `Pdf::loadView()`. This is genuinely small (the exporter is generic and already used by 30 other reports) and needs no new design.
+> 2. Tighten access before any external party gets a login: the route currently sits behind `permission:settings` — a broad, unrelated permission — rather than the dedicated `view-eir`/`export-eir` permissions §9 already proposes (open item #12). An auditor account should only be able to reach this report, not "settings."
+> 3. Stamp each export with the run/lock timestamp it was generated from (reuse the `AuditLoggerService::log` pattern `RunEirRevenueJob` already uses), so a PDF an auditor has on file doesn't silently disagree with the system after a later recalculation.
+> 4. Once the Summary-tab scope is agreed, add a second, purpose-built export matching that exact layout — same underlying data, different formatting — rather than retrofitting the generic hub-report layout to look like Deloitte's workpaper.
+> This gets MAIIC to "auditors can download a correct, point-in-time EIR reconciliation" in the near term, and defers the harder Deloitte-format-matching question to when it's actually been scoped rather than guessed at.
 
 ---
 
@@ -251,29 +355,31 @@ The engine's output must feed MAIIC's disclosures. Findings by note (read agains
 
 ## 12. Current build status *(the gap analysis — what's done vs missing)*
 
-Source: `docs/Development_of_EIR.md` build log + verified commit history (`b50f708 → 4027641 → 4c4fc42 → 2dfa5b7`).
+Source: verified commit history on branch **`eir_revenue_recognition`** (pushed, not yet merged to `master`): `b50f708 → 4027641 → 4c4fc42 → 2dfa5b7 → [Extract A/C intake, 2026-08-12] → e497db7 (2026-08-18, "Add comprehensive tests for EIR services and intake processes")`. Status below is from direct code inspection on 2026-08-18, not from `docs/Development_of_EIR.md`'s own build log, which is itself now behind (last touched 2026-08-05) — worth a refresh in its own right.
 
 | Phase | Scope | Status |
 |---|---|---|
-| **0 — Decisions & scope** | Conventions memo; ECL time conventions; IAS 32 classifications; staging rebuttal; scope letter; data request | 🟡 **Pending Dr Thom sign-offs** — blocks Phase 3 completion + Phase 4 |
-| **1 — Schema** | 7 core tables + Eloquent models; reversible migration | ✅ **Complete** (verified on dev DB) |
-| **2.1 — Schedule generator** | Annuity engine, moratoria, any frequency; `eir:generate-schedules` | ✅ Complete (7 tests) |
-| **2.2 — Mapped file reader** | Dynamic header→field mapping, transforms; analyze/read | ✅ Complete (9 tests) |
+| **0 — Decisions & scope** | Conventions memo; ECL time conventions; IAS 32 classifications; staging rebuttal; scope letter; data request | 🟡 **Still pending Dr Thom sign-offs** — unchanged since 2026-08-05; now also the blocker for the new journal-entry GL-account decision (§8) |
+| **1 — Schema** | 7 core tables + Eloquent models; reversible migration | ✅ **Complete** |
+| **2.1 — Schedule generator** | Annuity engine, moratoria, any frequency; `eir:generate-schedules` | ✅ Complete |
+| **2.2 — Mapped file reader** | Dynamic header→field mapping, transforms; analyze/read | ✅ Complete |
 | **2.2b — Intake UI** | Upload→map→result Vue flow; audit-logged import | ✅ Complete |
 | **2.3 — Schedule/fee imports** | Per-contract validation; Σprincipal↔drawn ≤1%; signed fees | ✅ Complete |
-| **2.4 — Staging config** | `StagingClassifier` + seeder; legacy-ladder equivalence | ✅ Complete (5 tests) |
-| **2.5 — Fee classification** | Accounting rules + maker/checker; only reviewed-integral reach solver | ✅ Complete (17 tests) |
-| **2.6 — Extract B routing** | Scheduled/Actual split; `ProcessEirImportJob` | ✅ Code complete — ⚠️ **migration `2026_08_04` not applied** (MySQL was down) |
-| **3.1 — Pure solver + readiness gate** | `CalculateEirService`, `EirReadinessService`, `EirContractInputService`; ACADES golden passes | ✅ Complete (16 tests) |
-| **3.x — Solver orchestration** | `CalculateEirJob`, batch, persistence + **locking UI**, remaining fixtures | 🟡 **In progress** |
-| **4 — Impairment rewire (Door 3)** | Discount ECL at EIR; Stage-1 PD pro-rating; kill `?? 0.10` | 🔲 **Not started** |
-| **5 — Revenue engine (Doors 1&2)** | `RunEirRevenueJob` → `eir_amortisation`; report page (Table 2) | 🔲 **Not started** |
-| **6 — Audit pack + reconciliation** | GL recon (Extract C), materiality report, methodology note, **Deloitte Excel export**, Reports-Hub wiring | 🔲 **Not started** |
-| **7 — Accuracy upgrades** | Actuals import → `cash_source=IMPORTED`; CCF model | 🔲 **Not started** |
+| **2.4 — Staging config** | `StagingClassifier` + seeder; legacy-ladder equivalence | ✅ Complete |
+| **2.5 — Fee classification** | Accounting rules + maker/checker; only reviewed-integral reach solver | ✅ Complete |
+| **2.6 — Extract B routing** | Scheduled/Actual split; `ProcessEirImportJob` | ✅ Code complete — migration-applied status not re-checked this pass |
+| **2.7 — Extract A/C intake** *(new since 2026-08-05)* | `ContractMasterImportService`, `GlInterestImportService` → `contract_eir`/`GlInterestPosting` | ✅ **Built 2026-08-12** — closes the "Extract A/C ingestion" gap the v1 spec originally flagged as entirely unbuilt |
+| **2.8 — Trial-balance corpus ingestion** *(new, 2026-08-19)* | Parse the 19 monthly `rpt_Trial_Balance_Malawi` files → GL-grain monthly income; apply the cumulative-YTD differencing rule; source December from the AFS pre-closing sheet; ingest the QuickBooks↔E-Banker map | 🔲 **Not started** — data is in hand and parseable (§3.4); this is now the highest-value unblocked build item, since it turns §8's reconciliation from 3-account-thin into a full control-total tie-out |
+| **3.1 — Pure solver + readiness gate** | `CalculateEirService`, `EirReadinessService`, `EirContractInputService`; ACADES golden passes | ✅ Complete |
+| **3.x — Solver orchestration** | `CalculateEirJob`, batch, persistence + **locking UI** | ✅ **Built 2026-08-18** — `CalculateEirJob` batches per-contract; `EirCalculationController` runs the lock flow. Full fixture-suite pass **not independently confirmed** — several fixtures need Phase 0 rulings to have a defined expected answer |
+| **4 — Impairment rewire (Door 3)** | Discount ECL at EIR; Stage-1 PD pro-rating; kill `?? 0.10` | ✅ **Built 2026-08-18** (see §6) — the `0.10` fallback is verifiably gone; Stage-1 PD pro-rating **not yet done** (confirmed absent by direct grep) |
+| **5 — Revenue engine (Doors 1&2)** | `RunEirRevenueJob` → `eir_amortisation`; report page (Table 2) | ✅ **Built 2026-08-18** (see §7) — core formula verified correct in code; cure/modification/rate-reset handling and the report page's exact field set not line-by-line verified |
+| **6 — Audit pack + reconciliation** | GL recon (Extract C), materiality report, methodology note, **Deloitte Excel export**, Reports-Hub wiring | 🟡 **Partial** (see §8) — GL reconciliation with variance-bridge decomposition is built and screen-viewable; **no download/export action exists on it yet** (the concrete near-term gap); proposed journal entries, methodology note, and the Deloitte-format export are all still ❌ not built, and the export's target format needs re-scoping (it is not "2 sheets") before it's built |
+| **7 — Accuracy upgrades** | Actuals import → `cash_source=IMPORTED`; CCF model | 🔲 **Not started** — unchanged |
 
-**Items in the v1 OneDrive spec still entirely unbuilt** (folded into the phases above): Extract A ingestion → `contract_eir`; Extract C ingestion + `gl_interest_postings` GL reconciliation; the Deloitte 2-sheet Excel export; the Reports-Hub `reports.{revenue-recognition,eir-reconciliation,eir-export}` routes + `EirRun`/`EirFacility` controllers; the unified `maiic:run-eir {period}` command; the Annual-Report disclosure outputs (§11).
+**Items in the v1 OneDrive spec originally flagged as entirely unbuilt — now resolved:** Extract A ingestion → `contract_eir` ✅; Extract C ingestion → `gl_interest_postings`/`GlInterestPosting` ✅. **Still genuinely unbuilt:** the Deloitte-format Excel export (scope needs re-confirming, see §8); the `reports.{revenue-recognition,eir-reconciliation,eir-export}` Reports-Hub download routes specifically (the pages exist, the export actions don't); the unified `maiic:run-eir {period}` command is built (`RunEirRevenue`) but not yet scheduled; the Annual-Report disclosure outputs (§11) not verified this pass.
 
-**Test totals to date:** ~46 EIR tests passing across generator, reader, import services, classifier, solver, readiness.
+**Test files added 2026-08-18:** `EclDiscountRateServiceTest.php`, `EirRevenueServiceTest.php`, `EirGlReconciliationServiceTest.php`, `EirCoverageServiceTest.php`, `EirCalculationWorkflowTest.php`, `EirIntakeStatusTest.php` — substantial in size (100–240 lines each) and exercising real scenarios by inspection, but **the suite has not been run from this clone** (no `vendor/` installed) — treat as "coverage exists," not "confirmed passing," until someone runs it where the dependencies are installed.
 
 > ⚠️ **DB hazard (do not repeat):** `phpunit.xml`'s sqlite override had been commented out, so a `RefreshDatabase` scaffold test once ran `migrate:fresh` against the live `.env` MySQL dev DB and wiped it. The override is now active. **Never run the full suite or any `RefreshDatabase` test against the live dev DB.** The ~116 pre-existing failing scaffold tests (Vitals, etc.) predate this work — candidates for deletion.
 
@@ -291,13 +397,21 @@ Source: `docs/Development_of_EIR.md` build log + verified commit history (`b50f7
 | 6 | Data request (assessment workbook xlsx; schedules/terms; ledger flagged phase 2) | Phase 2 first loads | Tamanda |
 | 7 | Low-credit-risk book (cash/T-bills) scope line in writing | Engagement scope | MAIIC / Dupleix |
 | 8 | ACADES basis discrepancy (+4.3pp uplift vs assessment max 2.79%) investigated — resolve, don't average away | Phase 6 materiality credibility | Kundai / Dr Thom |
-| 9 | Re-verify the two accepted Extract gaps (fee/commission GL lines in C; `DR_CR_INDICATOR` in B) against delivered files | Path-B solver run | Kundai |
-| 10 | Confirm Extract A carries the full origination-fee/date field set (only ~13 cols sampled) | Extract A ingestion | Kundai / Barry |
+| 9 | **PARTIALLY ADVANCED 2026-08-19.** The *fee* half is answered at **GL grain**: `4871` Legal and `4873` Arrangement Fees now arrive monthly in the TB corpus (§3.4.3). **Still open at customer grain** — Extract C remains `INTEREST_INCOME_POSTED` only, 28 rows / 3 accounts, and `DR_CR_INDICATOR` is still absent from Extract B. Quantified gap: Extract B carries MK20.7m of fees on 1 account vs MK311.3m audited — **6.6% coverage** | Per-loan reconciliation coverage | Kundai / Barry |
+| 10 | **RESOLVED 2026-08-18 (confirms a gap, doesn't close it):** all 36 columns of the delivered Extract A sampled — comprehensive on dates/status/amounts, but **carries no fee field at all** (no arrangement/legal/origination fee column), despite the agreed scope requiring it. *2026-08-19: the GL now proves these fees exist (§3.4.3); the per-facility allocation is what is still missing* | Extract A fee ingestion | Barry |
 | 11 | Governed materiality threshold for reconciliation (proposed 100 bps, pending MAIIC/Deloitte) | Phase 6 | Dr Thom / Deloitte |
-| 12 | Which role(s) the `view/run/export-eir` permissions sit under; sidebar placement | Phase 9 UI | Wadzanai / Kundai |
+| 12 | Which role(s) the `view/run/export-eir` permissions sit under; sidebar placement — **now also the access-control question for auditor report downloads (§8)**, currently gated by the unrelated `permission:settings` | Phase 9 UI, auditor export access | Wadzanai / Kundai |
 | 13 | Note 15 comparatives once EIR live — restate vs transition note | Disclosure | Dr Thom / Deloitte |
-| 14 | Apply migration `2026_08_04_000000_add_extract_b_audit_fields` before using Extract B intake | Extract B intake | Kundai |
+| 14 | Apply migration `2026_08_04_000000_add_extract_b_audit_fields` before using Extract B intake — status not re-checked this pass | Extract B intake | Kundai |
 | 15 | Confidentiality: extracts carry real, unanonymised MAIIC/FinES names + balances — same care as all client data; do not reuse in training/course material | — | All |
+| 16 | *(new, 2026-08-18)* Which GL account absorbs the EIR-vs-contractual true-up — required before proposed journal entries (§8) can be built at all | Phase 6 journal proposals | Dr Thom |
+| 17 | *(new, 2026-08-18)* Deloitte export scope: confirm the real deliverable is the `Summary`-tab shape, not the full 23-tab worked-example + audit-tie-out structure of the reference file — see §8 | Phase 6 export build | Kundai / Dr Thom / Deloitte |
+| 18 | ✅ **CLOSED 2026-08-19.** Superseded by the 19-month trial-balance corpus (Jan 2025 → Jul 2026) in one consistent `rpt_Trial_Balance_Malawi` layout, all balancing and period-stamped — plus the signed AFS and the AFS↔E-Banker bridge. See §3.4. No fourth parser and no re-request needed | — | *closed* |
+| 19 | *(new, 2026-08-18)* `EirReconciliationController` has no Excel/PDF download action — the data is correct and live but not exportable; see §8 addendum for the concrete fix (reuse `Ifrs9ReportExport`/`Pdf::loadView` pattern already used by the other 30 hub reports) | Auditor-facing deliverable | Kundai |
+| 20 | *(new, 2026-08-19)* **GL codes `1050103` (Quasi Equity Investment) and `1050203` (FInES Investment Loan) appear in none of the 19 trial balances**, yet 9 Extract-A accounts are mapped to them. Either the loan book's GL mapping is wrong for those 9, or they sit outside the TB entirely. Confirmed across 19 months — not a spool filter | Loan-book↔GL completeness; §8 reconciliation scope | Kundai / Barry / Dr Thom |
+| 21 | *(new, 2026-08-19)* `1050401` MAIIC Term Loan present in only 9 of 19 monthly TBs — consistent with a product launched late-2025, but confirm rather than assume | Reconciliation coverage per product | Kundai / Barry |
+| 22 | *(new, 2026-08-19)* **Period-stamp convention**: TB files named `31 December 2025` carry the internal stamp `2025-12-01`. Confirm in writing that this is a period *label* (month beginning) and not an as-at-1st balance — a month of movement rides on the answer | Every TB-derived figure | Kundai / Barry |
+| 23 | *(new, 2026-08-19)* **Which December TB is authoritative for the engine** — the post-closing monthly file (121 lines, no P&L) or the AFS workbook's pre-closing `Final E-Banker TB Dec 2025` sheet (191 lines, full P&L). Spec §3.4.2 assumes the latter; confirm with Dr Thom so the year-end tie-out is agreed before build | Phase 2.8 ingestion; year-end reconciliation | Dr Thom / Kundai |
 
 ---
 
@@ -328,6 +442,19 @@ Source: `docs/Development_of_EIR.md` build log + verified commit history (`b50f7
 | **EIR (net = 95.99m)** | **8.6217%** | **34.49%** | **39.21%** |
 
 Fee uplift ≈ +4.3pp nominal — **exceeds the assessment's stated max of 2.79%** (open item #8).
+
+**Trial-balance control totals (verified 2026-08-19 — use these as ingestion regression fixtures):**
+
+| Fixture | Value |
+|---|---:|
+| `Trial Balance_31 December 2025.xls` — Σ Dr = Σ Cr (post-closing, 121 GL lines) | **117,370,478,433.36** |
+| `Final E-Banker TB Dec 2025` sheet — Σ Dr = Σ Cr (pre-closing, 191 GL lines) | **122,650,199,563.49** |
+| Dec-2025 `4871` Legal Fees (audited; ties to the assessment workbook) | **171,128,135.00** |
+| Dec-2025 `4873` Arrangement Fees (audited; ties to the assessment workbook) | **311,342,792.00** |
+| Audit adjustments in the AFS bridge — accounts / gross value | **32 / 13,803,498,285.61** |
+| Extract B fee coverage vs audited arrangement fees | 20,700,000 / 311,342,792 = **6.6%** |
+
+> ⚠️ **Do not sum a TB file naively.** Each file carries its own `Grand Total :` row; including it doubles the answer (117.37bn → 234.74bn). The 234,740,956,866.72 figure that circulated on 2026-08-18 is this error, not a different trial balance.
 
 **Fixture suite (all must pass before Phase 4 ships):** ACADES (quarterly; golden numbers) · Anchor Processors (6-month cap+int moratorium; 66 instalments) · BERL/FinES (10% concessional; MLS levy; moratorium; `below_market_flag`) · EcoGen/FinES (4% arrangement; keyman-insurance judgement) · Mphunzitsi SACCO (scale MK47.7m fees; %+fixed legal) · Saile (floating ref+5%) · **MMC (engine must refuse — equity)** · Nascomex pref shares (IAS 32 test) · Malasha (reconcile to Dr Thom's 10.29%) · NyamNyam (34.92%; negative fee line).
 
@@ -360,11 +487,15 @@ Root: `…\OneDrive\2026\Projects\MAIIC\`
 |---|---|
 | Extract A/B/C | `2. Documents from clients\Database extracts\Extract {A,B,C}.xlsx` |
 | Barry's delivery email | `…\Database extracts\RE Follow-Up Meeting … (extracts delivered 2026-08-03 1752).msg` |
+| **19 monthly Trial Balances (Jan 2025 → Jul 2026)** — primary GL-side source (§3.4) | `2. Documents from clients\New Doc Received 19 Aug\Dupleix 2026\Trial Balance_{DD Month YYYY}.xls` |
+| **Signed 2025 AFS** | `2. Documents from clients\New Doc Received 19 Aug\MAIIC  FS. 2025- Signed.pdf` |
+| **AFS ↔ E-Banker bridge** — audit adjustments, QuickBooks↔E-Banker map, **and the pre-closing December TB** (§3.4.2 / §3.4.4 / §3.4.5) | `2. Documents from clients\New Doc Received 19 Aug\AFS Final TB and Initial TB Mapped to E-Banker TB for MAIIC for December 2025.xlsx` |
+| Oct–Dec 2025 Trial Balance *(raw, three inconsistent formats — superseded 2026-08-19, see closed item #18; the `Rpt_General_Ledger_Detail` files remain the transaction-grain spool)* | `2. Documents from clients\Database extracts\Fw Request October November December 2025 Trial Balance Data for Reconciliation.msg` + `Database extracts\TB Extracts\` (GL Code detail files + `TB Format {1,4,14}.xls`) |
 | Script Preparation (reviewed / original) | `2. Documents from clients\Script Preparation_Dupleix_REVIEWED.xlsx` / `…_Dupleix.xlsx` |
-| Deloitte yearly template (NCBA FY2024) | `2. Documents from clients\26100.04 Interest Income - EIR Vs Contractual rate(2025-05-28 11.36.03).xlsx` |
+| Deloitte yearly template (NCBA FY2024) — **the Summary tab is the export target (§8); the 23 tenor-bucket tabs + 4 tie-out tabs are not** | `2. Documents from clients\26100.04 Interest Income - EIR Vs Contractual rate(2025-05-28 11.36.03).xlsx` |
 | Deloitte monthly template *(different client — do not reproduce its figures)* | `2. Documents from clients\Assessment of EIR monthly basis.xlsx` |
-| MAIIC's own Dec-2025 EIR workbook | `1. Engagement Contracting\Emails Received\FW MAIIC EIR Assessment as of 31st December 2025.msg` (attachment) |
+| MAIIC's own Dec-2025 EIR workbook | `2. Documents from clients\FW MAIIC EIR Assessment as of 31st December 2025.msg` (attachment) — *moved 2026-08-18 from `1. Engagement Contracting\Emails Received\` for consistency with the rest of the client-data trail* |
 | Annual Reports 2020–2025 | `2. Documents from clients\Annual Reports\MAIIC Annual Report {2020…2025}.pdf` (2020 corrupted) |
-| This spec | repo `docs\MAIIC_EIR_Revenue_Recognition_Engine_Spec.md` **and** OneDrive `3. Project Execution\specs\` |
-| Build plan / build log | repo `docs\EIR_Build.md` / `docs\Development_of_EIR.md` |
-| Repo | `c:\xampp\htdocs\MAICC-IFRS9` (`github.com/DupleixInstitute/MAICC-IFRS9`) |
+| This spec | repo `docs\MAIIC_EIR_Revenue_Recognition_Engine_Spec.md` (branch `eir_revenue_recognition`) **and** OneDrive `3. Project Execution\specs\` — **re-sync the OneDrive copy after this 2026-08-18 update** |
+| Build plan / build log | repo `docs\EIR_Build.md` / `docs\Development_of_EIR.md` — **`Development_of_EIR.md` is now stale (last touched 2026-08-05); worth Kundai refreshing alongside this spec** |
+| Repo | `c:\xampp\htdocs\MAICC-IFRS9` (`github.com/DupleixInstitute/MAICC-IFRS9`) — this update is on branch `eir_revenue_recognition`, not yet merged to `master` |
