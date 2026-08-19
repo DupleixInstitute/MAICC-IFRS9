@@ -1,6 +1,6 @@
 # MAIIC EIR & Revenue Recognition Engine — Consolidated Technical Specification
 
-**Version:** 2.2 (trial-balance corpus) · **Date:** 2026-08-19 (original consolidation 2026-08-05)
+**Version:** 2.3 (GL transaction spools) · **Date:** 2026-08-19 (original consolidation 2026-08-05)
 **Status:** Living spec — reconciles the two parallel design tracks into one authoritative document for build + client/auditor collaboration.
 **Repo:** `MAICC-IFRS9` (github.com/DupleixInstitute/MAICC-IFRS9) — Laravel 10 + Vue 3/Inertia + Tailwind
 **Owner (build):** Kundai Muriwo · **Reviewer:** Dr T. Kumwenda (MAIIC CFO) · **Auditor of record:** Deloitte · **Engagement lead:** Edward Mazibuko (Dupleix Institute)
@@ -186,10 +186,89 @@ The bridge records **32 adjusted accounts, MK13.80bn gross**. The initial TB sub
 - ✅ **The Dec-2025 assessment workbook ties to the audited GL.** §3.1's stated *MK171.1m legal + MK311.3m arrangement* matches the AFS TB exactly (`4871` = 171,128,135.00; `4873` = 311,342,792.00). The workbook is GL-tied as claimed.
 - ✅ **The previously-undated `TB Extracts.xls` is identified** — byte-identical to `Trial Balance_31 December 2025.xls` (post-closing December). The "which month is this?" question is closed.
 - ⚠️ **Correction to a figure circulated on 2026-08-18:** the December TB total is **MK117,370,478,433.36**, not MK234,740,956,866.72. The larger figure double-counts the file's own `Grand Total` row. **Any summation of these TB files must exclude that row.**
-- ❌ **`1050103` (Quasi Equity Investment) and `1050203` (FInES Investment Loan) appear in 0 of 19 trial balances.** Nine Extract-A accounts are mapped to GL codes that do not exist in the ledger. Confirmed across nineteen months — a mapping/classification question, not a spool filter (open item #20).
-- 🟡 **`1050401` MAIIC Term Loan appears in only 9 of 19 months** — consistent with a product launched late-2025, but worth one line of confirmation (open item #21).
+- ✅ **RESOLVED 2026-08-19.** `1050103` / `1050203` appear in 0 of 19 trial balances because **MAIIC confirmed in writing they are retired GL codes**; the three still-active accounts are **undrawn and were rebooked under the correct codes**. No mapping defect — the loan book simply carries historic codes. Ingestion must treat both as retired and expect no TB counterpart (closed item #20).
+- ✅ **CONFIRMED 2026-08-19.** `1050401` appears in 9 of 19 months because **MAIIC confirmed the MAIIC Term Loan product launched in November 2025**. Absence before Nov-2025 is correct, not a gap (closed item #21).
 - 🟡 **Period-stamp convention:** files named `31 December 2025` carry the stamp `2025-12-01`. Read as a *period label*, not an as-at date — to be confirmed in writing (open item #22).
-- ❌ **Fee coverage at customer grain remains the binding gap.** Extract B carries **MK20,700,000 of fees on one account** against **MK311,342,792** of audited arrangement fees — **6.6% coverage**. The GL now proves the fees exist; the customer-level split still does not (open items #9/#10 remain open on this point).
+- 🟡 **Fee coverage at customer grain — materially advanced 2026-08-19, see §3.5.2.** Extract B carries **MK20,700,000 of fees on one account** against **MK482,470,927** of total audited fees (`4871` + `4873`) — **4.3% coverage**. The GL transaction spools now name customers in free text across 34 transactions per account, and the `NAME` column is proven to exist in the source system (open items #9/#25).
+
+---
+
+### 3.5 Path D — GL transaction spools *(delivered 2026-08-19 PM; settles the interest-grain question permanently)*
+
+MAIIC responded the same day to the §3.4.6 requests with **twelve distinct GL detail spools** (13 files; `GL 4871 as at 31 Dec 2025-MAITAMSITFIL02.xls` is byte-identical to `GL 4871 as at 31 Dec 2025.xls`), covering the six income-statement accounts for **2025 (Jan–Dec)** and **2026 (Jan–Jul)**, plus a re-send of the Dec-2025 EIR assessment workbook (**content-identical** to the July `.msg` copy — 0 differing cells across both sheets; Excel metadata only, no action required).
+
+**All six accounts reconcile exactly to the trial balance** — transaction rows only, credits less debits:
+
+| GL | Account | Credits | Debits | Net | TB Dec 2025 | |
+|---|---|---:|---:|---:|---:|:--|
+| 4215 | Interest On MAIIC Agricultural Loans | 554,447,006.83 | — | 554,447,006.83 | 554,447,006.83 | ✅ |
+| 4216 | Interest On MAIIC Industrial Loans | 1,534,753,522.89 | 21,733,262.70 | 1,513,020,260.19 | 1,513,020,260.19 | ✅ |
+| 4218 | Interest On FInES Agricultural Loans | 162,692,860.92 | — | 162,692,860.92 | 162,692,860.92 | ✅ |
+| 4219 | Interest On FInES Industrial Loans | 285,136,670.80 | — | 285,136,670.80 | 285,136,670.80 | ✅ |
+| 4871 | Legal Fees | 174,148,135.00 | 3,020,000.00 | 171,128,135.00 | 171,128,135.00 | ✅ |
+| 4873 | Arrangement Fees | 318,972,592.00 | 7,629,800.00 | 311,342,792.00 | 311,342,792.00 | ✅ |
+
+Agreement to the kwacha on all six. **These are now regression fixtures** (Appendix A).
+
+#### 3.5.1 ⚠️ Interest income has no customer grain in the GL — structural, not a report limitation
+
+**The decisive finding of this delivery. Read before any Phase 2.8 work is scoped.**
+
+The 2025 interest spools carry only **11–13 rows each for the entire year**. Every row is a single monthly aggregate journal:
+
+> `By Trf Total IntCR Fm 31-JAN-25 To 31-JAN-25 For 1050101` — 47,120,571.28
+
+E-Banker accrues interest inside the **loan module** and posts **one aggregated journal per month per GL code**. The ledger never held per-customer interest. MAIIC's written confirmation (2026-08-19): *"The GL 4215, GL 4216, GL 4218, and GL 4219 entries are all system generated, and it is not possible to add the requested two columns."* The data confirms this is accurate — there is no detail in the ledger to expose.
+
+**Engine consequences:**
+
+1. **Interest income reconciles at GL grain only.** Per-loan interest attribution can *never* come from the general ledger, at any level of cooperation. Do not design for it, and do not re-request it.
+2. **The per-loan calculation must exist in the loan module** — the monthly aggregate is arithmetically produced by summing it. That is precisely what **Extract C** is.
+3. **Extract C is therefore the critical path of the whole engagement.** It currently covers **3 of 181 accounts** (§3.2). Re-requested 2026-08-19 for all accounts, Jan 2025 → Jul 2026 (open item #23).
+4. **Built-in acceptance test:** Extract C, summed by GL code and month, **must equal** the monthly figures in these spools. That is a complete, self-checking reconciliation — and it is the acceptance criterion for the re-run.
+
+Until Extract C arrives at full coverage, the §8 reconciliation is a **GL-grain control-total check**, not a per-loan tie-out. Both are legitimate audit evidence; only the first is currently achievable for interest.
+
+#### 3.5.2 Fees *do* carry customer identity — and the NAME column demonstrably exists
+
+Fees are the opposite case and are tractable now. `4871` and `4873` each carry **34 credit transactions** for 2025 — small enough to map by hand as a one-off. Customer names are present, but as **free text inside `Particulars`**:
+
+> `By Trf Malawi Police Sacco arrangement` · `By Trf Legal fees JVD Agro Limited drawdown` · `By Trf Legal fees-Ecogen  Limited` · `By Trf Partial drawdown Sycamore Credit Ltd`
+
+Exact-substring matching against the Extract A customer list resolves only **19–22% of rows (33–44% by value)** — name-matching alone will not survive audit and must not be the production mechanism.
+
+**However:** `GL 4871 as at 31 July 2026.xls` carries a **structured `NAME` column, populated on all 25 rows** (*House of Men*, *Milele Agroprocessing Limited*, *JVD Agroprocessing*). Neither Dec-2025 file has it, and nor does `GL 4873 as at 31 July 2026.xls`. **The field exists in the source system**, so the 2025 fee spools can be re-run with it — which removes manual mapping entirely (open item #24).
+
+#### 3.5.3 Misposting — arrangement fees sitting in the legal fees account
+
+`4871` (Legal Fees) contains **MK31,501,724.00 explicitly narrated as arrangement fees — 18% of that account's balance**:
+
+| Narrative | Amount |
+|---|---:|
+| `By Trf Arrangement fee` | 15,291,724.00 |
+| `By Trf Malawi Police Sacco arrangement` | 16,210,000.00 |
+
+**No EIR impact** — both fee types are integral to the yield and the combined total is unchanged. It *does* affect `contract_fees.fee_type` classification and the legal-vs-arrangement disclosure split. Raised with MAIIC 2026-08-19; do not silently reclassify pending their answer (open item #25).
+
+#### 3.5.4 Reversal entries — three, all named
+
+| GL | Amount (DR) | Narrative |
+|---|---:|---|
+| 4216 | 21,733,262.70 | `To Trf Total Diff Int. Debited From 01-JAN-25 To 31-DEC-25` |
+| 4871 | 3,020,000.00 | `To Trf Legal fee over deducted from initial drawn down` |
+| 4873 | 7,629,800.00 | `To Trf Prominade Medical Centre` |
+
+Any parser that sums credits alone will overstate these three accounts by exactly these amounts.
+
+#### 3.5.5 Parsing rules for `Rpt_General_Ledger_Detail` spools
+
+Encoded here because two separate parsing attempts on 2026-08-19 produced wrong answers before these rules were established:
+
+- The header row begins `Advice/ Cheque No.`; metadata (GL code, `From Date`/`To Date`) sits in rows 3–6.
+- **Transaction rows carry an advice token matching `^\d+/\d+$`.** Rows failing this are headers, page breaks or subtotals.
+- **The `53/0` row is the report's own closing line**, carrying a debit equal to the period total. **Excluding it is mandatory** — including it nets every account to exactly zero.
+- **Net = Σ credits − Σ debits** over transaction rows only (§3.5.4).
+- **`GL 4871 as at 31 July 2026.xls` has an extra `NAME` column** which shifts every downstream column right by one. **Resolve Debit/Credit by header name, never by fixed column index.**
 
 ---
 
@@ -264,7 +343,7 @@ Discounted ECL formula, implemented in `EclDiscountRateService` + rewritten `Cal
 
 The report that directly answers the audit question — **does the engine's EIR-basis income reconcile to what the GL actually posted?**
 
-- **GL reconciliation — ✅ built.** `EirGlReconciliationService` (`app/Services/Eir/EirGlReconciliationService.php`) does per-loan, per-period EIR-vs-GL variance, and goes further than originally scoped: it decomposes each variance into a **base effect / rate effect / unexplained residual** (rather than a bare number an auditor would have to take on faith), applies a governed tolerance floor (`WITHIN_TOLERANCE` vs `VARIANCE`), and rolls up a period summary. Screen-viewable today at `/eir-reconciliation` (`EirReconciliationController`). **Data caveat — materially improved 2026-08-19 but not yet closed.** Extract C still covers only 3 of ~181 accounts at *customer* grain (§3.2). However the 19-month TB corpus (§3.4) now supplies complete **GL-grain** income by month, including the fee accounts (`4871`, `4873`) that no earlier delivery contained. That enables a **control-total reconciliation today** — engine EIR income vs GL totals per account per month — even while the per-loan tie-out stays thin. **Two rules apply when wiring this:** P&L balances are **cumulative YTD** and must be differenced (§3.4.1), and December 2025 must be sourced from the AFS workbook's pre-closing sheet, not the post-closing monthly file (§3.4.2).
+- **GL reconciliation — ✅ built.** `EirGlReconciliationService` (`app/Services/Eir/EirGlReconciliationService.php`) does per-loan, per-period EIR-vs-GL variance, and goes further than originally scoped: it decomposes each variance into a **base effect / rate effect / unexplained residual** (rather than a bare number an auditor would have to take on faith), applies a governed tolerance floor (`WITHIN_TOLERANCE` vs `VARIANCE`), and rolls up a period summary. Screen-viewable today at `/eir-reconciliation` (`EirReconciliationController`). **Data caveat — reframed 2026-08-19, see §3.5.1.** Extract C still covers only 3 of ~181 accounts at *customer* grain (§3.2), and it is now established that **per-loan interest can never be sourced from the GL at all** — E-Banker posts one aggregate journal per month per GL code, so Extract C is the only possible source and is the engagement's critical path. However the 19-month TB corpus (§3.4) now supplies complete **GL-grain** income by month, including the fee accounts (`4871`, `4873`) that no earlier delivery contained. That enables a **control-total reconciliation today** — engine EIR income vs GL totals per account per month — even while the per-loan tie-out stays thin. **Two rules apply when wiring this:** P&L balances are **cumulative YTD** and must be differenced (§3.4.1), and December 2025 must be sourced from the AFS workbook's pre-closing sheet, not the post-closing monthly file (§3.4.2).
 - **No download/export exists yet on this report.** `EirReconciliationController@index` renders the Inertia page only — no Excel or PDF action, unlike the other 30 IFRS 9 hub reports which already support both via `Ifrs9ReportExport` (Excel) and `Barryvdh\DomPDF` (`?download=pdf` on `Ifrs9ReportsController`). **This is the concrete near-term ask: wire the same two download branches onto `EirReconciliationController`, reusing the existing exporter rather than building a new one** — see the 2026-08-18 addendum below.
 - **Proposed adjusting journals — ❌ not built.** No DR/CR proposal exists anywhere in the real `contract_eir` schema (a `proposed_journal_dr/cr/amount` field shape exists only on the abandoned, untracked Aug-4 scratch schema — not connected to anything). Blocked on a decision from Dr Thom: which GL account absorbs the EIR-vs-contractual true-up. Once decided, `EirAccountingRule` (already built for fee classification, with `gl_account_ref` + maker/checker fields) is the pattern to extend rather than a new design.
 - **Interest-income impairment kept distinct from principal ECL** (Note 21 — Mega Farm MK2.1bn) — **not independently verified** whether `eir_amortisation`/the reconciliation carries `interest_income_impairment` yet; worth Kundai confirming.
@@ -408,10 +487,13 @@ Source: verified commit history on branch **`eir_revenue_recognition`** (pushed,
 | 17 | *(new, 2026-08-18)* Deloitte export scope: confirm the real deliverable is the `Summary`-tab shape, not the full 23-tab worked-example + audit-tie-out structure of the reference file — see §8 | Phase 6 export build | Kundai / Dr Thom / Deloitte |
 | 18 | ✅ **CLOSED 2026-08-19.** Superseded by the 19-month trial-balance corpus (Jan 2025 → Jul 2026) in one consistent `rpt_Trial_Balance_Malawi` layout, all balancing and period-stamped — plus the signed AFS and the AFS↔E-Banker bridge. See §3.4. No fourth parser and no re-request needed | — | *closed* |
 | 19 | *(new, 2026-08-18)* `EirReconciliationController` has no Excel/PDF download action — the data is correct and live but not exportable; see §8 addendum for the concrete fix (reuse `Ifrs9ReportExport`/`Pdf::loadView` pattern already used by the other 30 hub reports) | Auditor-facing deliverable | Kundai |
-| 20 | *(new, 2026-08-19)* **GL codes `1050103` (Quasi Equity Investment) and `1050203` (FInES Investment Loan) appear in none of the 19 trial balances**, yet 9 Extract-A accounts are mapped to them. Either the loan book's GL mapping is wrong for those 9, or they sit outside the TB entirely. Confirmed across 19 months — not a spool filter | Loan-book↔GL completeness; §8 reconciliation scope | Kundai / Barry / Dr Thom |
-| 21 | *(new, 2026-08-19)* `1050401` MAIIC Term Loan present in only 9 of 19 monthly TBs — consistent with a product launched late-2025, but confirm rather than assume | Reconciliation coverage per product | Kundai / Barry |
+| 20 | ✅ **CLOSED 2026-08-19.** MAIIC confirmed `1050103` / `1050203` are **retired GL codes** and the three active accounts are **undrawn, rebooked under correct codes**. No mapping defect; ingestion must expect no TB counterpart | — | *closed* |
+| 21 | ✅ **CLOSED 2026-08-19.** MAIIC confirmed the **MAIIC Term Loan product launched November 2025**; absence from earlier months is correct | — | *closed* |
 | 22 | *(new, 2026-08-19)* **Period-stamp convention**: TB files named `31 December 2025` carry the internal stamp `2025-12-01`. Confirm in writing that this is a period *label* (month beginning) and not an as-at-1st balance — a month of movement rides on the answer | Every TB-derived figure | Kundai / Barry |
 | 23 | *(new, 2026-08-19)* **Which December TB is authoritative for the engine** — the post-closing monthly file (121 lines, no P&L) or the AFS workbook's pre-closing `Final E-Banker TB Dec 2025` sheet (191 lines, full P&L). Spec §3.4.2 assumes the latter; confirm with Dr Thom so the year-end tie-out is agreed before build | Phase 2.8 ingestion; year-end reconciliation | Dr Thom / Kundai |
+| 24 | *(new, 2026-08-19)* 🔴 **CRITICAL PATH — Extract C at full coverage.** Per-loan interest cannot come from the GL (§3.5.1); the loan module is the only possible source. Re-requested for **all 181 accounts, Jan 2025 → Jul 2026**. Acceptance test: summed by GL code and month it must equal the §3.5 spool totals | Per-loan interest reconciliation; the entire Door-2 tie-out | Barry / Kundai |
+| 25 | *(new, 2026-08-19)* **`NAME` column on the 2025 fee spools.** `GL 4871 as at 31 July 2026` carries a populated structured `NAME` column; neither Dec-2025 file does, nor does `GL 4873 as at 31 July 2026`. The field demonstrably exists — re-run 4871/4873 for 2025 with it, else 34+34 rows need manual name-mapping that will not survive audit | Fee attribution at customer grain | Barry |
+| 26 | *(new, 2026-08-19)* **Misposting: MK31,501,724.00 of arrangement fees sit in `4871` Legal Fees** (18% of that account) — `By Trf Arrangement fee` 15,291,724.00 and `By Trf Malawi Police Sacco arrangement` 16,210,000.00. No EIR impact (both integral, total unchanged) but affects `fee_type` and the legal-vs-arrangement disclosure split. **Do not silently reclassify** pending MAIIC's answer | `contract_fees.fee_type`; Note disclosure split | Dr Thom / Finance |
 
 ---
 
@@ -452,7 +534,22 @@ Fee uplift ≈ +4.3pp nominal — **exceeds the assessment's stated max of 2.79%
 | Dec-2025 `4871` Legal Fees (audited; ties to the assessment workbook) | **171,128,135.00** |
 | Dec-2025 `4873` Arrangement Fees (audited; ties to the assessment workbook) | **311,342,792.00** |
 | Audit adjustments in the AFS bridge — accounts / gross value | **32 / 13,803,498,285.61** |
-| Extract B fee coverage vs audited arrangement fees | 20,700,000 / 311,342,792 = **6.6%** |
+| Extract B fee coverage vs **total** audited fees (`4871`+`4873`) | 20,700,000 / 482,470,927 = **4.3%** |
+
+**GL transaction-spool control totals (verified 2026-08-19 — Dec 2025; credits less debits, transaction rows only):**
+
+| GL | Account | Net | Reversal netted |
+|---|---|---:|---:|
+| 4215 | Interest On MAIIC Agricultural Loans | **554,447,006.83** | — |
+| 4216 | Interest On MAIIC Industrial Loans | **1,513,020,260.19** | 21,733,262.70 |
+| 4218 | Interest On FInES Agricultural Loans | **162,692,860.92** | — |
+| 4219 | Interest On FInES Industrial Loans | **285,136,670.80** | — |
+| 4871 | Legal Fees | **171,128,135.00** | 3,020,000.00 |
+| 4873 | Arrangement Fees | **311,342,792.00** | 7,629,800.00 |
+| | **Interest total 2025** | **2,515,296,798.74** | |
+| | **Fee total 2025** | **482,470,927.00** | |
+
+> ⚠️ **Do not sum a GL spool naively either.** Exclude the `53/0` closing row and net the debits — see §3.5.5. Including `53/0` nets every account to exactly zero.
 
 > ⚠️ **Do not sum a TB file naively.** Each file carries its own `Grand Total :` row; including it doubles the answer (117.37bn → 234.74bn). The 234,740,956,866.72 figure that circulated on 2026-08-18 is this error, not a different trial balance.
 
@@ -478,6 +575,8 @@ Fee uplift ≈ +4.3pp nominal — **exceeds the assessment's stated max of 2.79%
 | 6 | ACADES-style basis discrepancy vs assessment DIFFERENCE column | — | Kundai / Dr Thom | Conventions memo signed |
 | 7 | Keyman insurance integral-fee treatment undecided | — | Dr Thom | Phase 0 ruling |
 | 8 | Nascomex pref-share classification memo pending | `instrument_type` | Dr Thom | IAS 32 memo signed |
+| 9 | **Interest income has no customer grain in the GL** — E-Banker posts one aggregate journal per month per GL code (§3.5.1). Interest reconciles at **GL grain only**; per-loan attribution is impossible from the ledger at any level of cooperation | Disclose in the audit pack as a source-system constraint, not a modelling choice | Kundai / Barry | Extract C delivered at full coverage (open item #24) |
+| 10 | Fee attribution to customers currently rests on free-text `Particulars` narrative (19–22% exact auto-match) | `contract_fees` source note | Kundai / Barry | `NAME` column supplied on the 2025 fee spools (open item #25) |
 
 ## Appendix D — Data locations (OneDrive; adjust drive root per machine)
 
@@ -491,11 +590,13 @@ Root: `…\OneDrive\2026\Projects\MAIIC\`
 | **Signed 2025 AFS** | `2. Documents from clients\New Doc Received 19 Aug\MAIIC  FS. 2025- Signed.pdf` |
 | **AFS ↔ E-Banker bridge** — audit adjustments, QuickBooks↔E-Banker map, **and the pre-closing December TB** (§3.4.2 / §3.4.4 / §3.4.5) | `2. Documents from clients\New Doc Received 19 Aug\AFS Final TB and Initial TB Mapped to E-Banker TB for MAIIC for December 2025.xlsx` |
 | Oct–Dec 2025 Trial Balance *(raw, three inconsistent formats — superseded 2026-08-19, see closed item #18; the `Rpt_General_Ledger_Detail` files remain the transaction-grain spool)* | `2. Documents from clients\Database extracts\Fw Request October November December 2025 Trial Balance Data for Reconciliation.msg` + `Database extracts\TB Extracts\` (GL Code detail files + `TB Format {1,4,14}.xls`) |
+| **GL transaction spools — six income-statement accounts, 2025 + 2026** (§3.5). 12 distinct files; `…-MAITAMSITFIL02.xls` is an exact duplicate | `2. Documents from clients\New Doc Received 19 Aug\Dupleix 2026\Dupleix 2\GL {4215,4216,4218,4219,4871,4873} as at {31 Dec 2025, 31 July 2026}.xls` |
+| MAIIC's own Dec-2025 EIR workbook *(re-sent 2026-08-19; **content-identical** to the July `.msg` copy — 0 differing cells, metadata only)* | `2. Documents from clients\New Doc Received 19 Aug\Dupleix 2026\MAIIC EIR Assessment as of 31st December 2025.xlsx` |
 | Script Preparation (reviewed / original) | `2. Documents from clients\Script Preparation_Dupleix_REVIEWED.xlsx` / `…_Dupleix.xlsx` |
 | Deloitte yearly template (NCBA FY2024) — **the Summary tab is the export target (§8); the 23 tenor-bucket tabs + 4 tie-out tabs are not** | `2. Documents from clients\26100.04 Interest Income - EIR Vs Contractual rate(2025-05-28 11.36.03).xlsx` |
 | Deloitte monthly template *(different client — do not reproduce its figures)* | `2. Documents from clients\Assessment of EIR monthly basis.xlsx` |
 | MAIIC's own Dec-2025 EIR workbook | `2. Documents from clients\FW MAIIC EIR Assessment as of 31st December 2025.msg` (attachment) — *moved 2026-08-18 from `1. Engagement Contracting\Emails Received\` for consistency with the rest of the client-data trail* |
 | Annual Reports 2020–2025 | `2. Documents from clients\Annual Reports\MAIIC Annual Report {2020…2025}.pdf` (2020 corrupted) |
-| This spec | repo `docs\MAIIC_EIR_Revenue_Recognition_Engine_Spec.md` (branch `eir_revenue_recognition`) **and** OneDrive `3. Project Execution\specs\` — **re-sync the OneDrive copy after this 2026-08-18 update** |
+| This spec | repo `docs\MAIIC_EIR_Revenue_Recognition_Engine_Spec.md` (branch `eir_revenue_recognition`) **and** OneDrive `3. Project Execution\specs\` — **re-sync the OneDrive copy after this 2026-08-19 v2.3 update** |
 | Build plan / build log | repo `docs\EIR_Build.md` / `docs\Development_of_EIR.md` — **`Development_of_EIR.md` is now stale (last touched 2026-08-05); worth Kundai refreshing alongside this spec** |
 | Repo | `c:\xampp\htdocs\MAICC-IFRS9` (`github.com/DupleixInstitute/MAICC-IFRS9`) — this update is on branch `eir_revenue_recognition`, not yet merged to `master` |
