@@ -30,8 +30,10 @@ use Illuminate\Console\Command;
 class MakeEirTestData extends Command
 {
     protected $signature = 'eir:make-test-data
-        {--out= : Output directory (default: storage/app/eir-test-data)}
-        {--periods=10 : Monthly loan-book files to emit, starting 2025-01}';
+        {--out= : Output directory (default: "sample data/complete data set")}
+        {--start=2024-01 : First loan-book period (YYYY-MM)}
+        {--periods=22 : Monthly loan-book files to emit}
+        {--load : Also insert the generated loan book into the current database connection}';
 
     protected $description = 'Generate a self-consistent synthetic loan book and EIR extracts for end-to-end testing';
 
@@ -40,17 +42,20 @@ class MakeEirTestData extends Command
 
     public function handle(ScheduleGeneratorService $generator): int
     {
-        $out = rtrim((string) ($this->option('out') ?: storage_path('app/eir-test-data')), '/\\');
-        $periodCount = max(1, min(12, (int) $this->option('periods')));
-        if (! is_dir($out) && ! mkdir($out, 0755, true) && ! is_dir($out)) {
-            $this->error("Could not create {$out}");
+        $out = rtrim((string) ($this->option('out') ?: base_path('sample data/complete data set')), '/\\');
+        $periodCount = max(1, min(36, (int) $this->option('periods')));
+        foreach ([$out, $out . '/01_Loan_Books'] as $dir) {
+            if (! is_dir($dir) && ! mkdir($dir, 0755, true) && ! is_dir($dir)) {
+                $this->error("Could not create {$dir}");
 
-            return self::FAILURE;
+                return self::FAILURE;
+            }
         }
 
+        $start = CarbonImmutable::parse(((string) $this->option('start')) . '-01');
         $periods = [];
         for ($i = 0; $i < $periodCount; $i++) {
-            $periods[] = CarbonImmutable::parse('2025-01-01')->addMonths($i)->format('Y-m');
+            $periods[] = $start->addMonths($i)->format('Y-m');
         }
 
         $this->info('Building ' . count($this->specs()) . ' contracts over ' . count($periods) . ' periods...');
@@ -60,12 +65,18 @@ class MakeEirTestData extends Command
             $built[] = $this->build($spec, $generator, $periods);
         }
 
+        $this->writeLoanBooks($out, $built, $periods);
         $this->writeContractMaster($out, $built);
         $this->writeTransactions($out, $built);
         $this->writeGlInterest($out, $built, $periods);
         $this->writeFees($out, $built);
-        $this->writeLoanBooks($out, $built, $periods);
         $this->writeReadme($out, $built, $periods);
+        $this->writeExpectedResults($out, $built, $periods);
+        $this->writeChecksums($out);
+
+        if ($this->option('load')) {
+            $this->loadLoanBooks($built, $periods);
+        }
 
         $this->newLine();
         $this->info("Written to {$out}");
@@ -92,60 +103,68 @@ class MakeEirTestData extends Command
     private function specs(): array
     {
         return [
+            // Originations sit in 2023 so that every facility is already on the
+            // book by the first 2024 reporting period. Transition matrices join
+            // a contract to itself across consecutive periods, so a facility
+            // that appears halfway through contributes no migration history.
+
             // --- Fee-bearing: the whole point of the engine. EIR must exceed
             // the contractual rate by a visible, reconcilable margin. ---
-            ['n' => 1, 'purpose' => 'Fees: arrangement + legal', 'principal' => 500_000_000, 'rate' => 0.285, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 36, 'start' => '2024-07-31',
+            ['n' => 1, 'purpose' => 'Fees: arrangement + legal', 'principal' => 500_000_000, 'rate' => 0.285, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 40, 'start' => '2023-07-31',
                 'fees' => [['ARRANGEMENT_FEE', 12_500_000, 'RECEIVED', 1], ['LEGAL_COST', 2_400_000, 'PAID', 1]], 'expect' => 'EIR > contractual'],
-            ['n' => 2, 'purpose' => 'Fees: heavy arrangement', 'principal' => 250_000_000, 'rate' => 0.32, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 24, 'start' => '2024-10-31',
+            ['n' => 2, 'purpose' => 'Fees: heavy arrangement', 'principal' => 250_000_000, 'rate' => 0.32, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2023-10-31',
                 'fees' => [['ARRANGEMENT_FEE', 11_000_000, 'RECEIVED', 1]], 'expect' => 'EIR > contractual'],
-            ['n' => 3, 'purpose' => 'Fees + netting credit line', 'principal' => 180_000_000, 'rate' => 0.30, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2024-09-30',
+            ['n' => 3, 'purpose' => 'Fees + netting credit line', 'principal' => 180_000_000, 'rate' => 0.30, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 36, 'start' => '2023-09-30',
                 'fees' => [['ARRANGEMENT_FEE', 6_000_000, 'RECEIVED', 1], ['LEGAL_COST_REBATE', -1_990_000, 'RECEIVED', 1]], 'expect' => 'Signed fee survives'],
 
             // --- Frequencies other than monthly: annualisation labels and the
             // quarterly-solved-monthly trap. ---
-            ['n' => 4, 'purpose' => 'Quarterly + fees', 'principal' => 96_000_000, 'rate' => 0.3449, 'ppy' => 4, 'frequency' => 'Quarterly', 'n_payments' => 8, 'start' => '2024-06-30',
-                'fees' => [['ARRANGEMENT_FEE', 4_000_000, 'RECEIVED', 1]], 'expect' => 'nominal != effective'],
-            ['n' => 5, 'purpose' => 'Half-yearly', 'principal' => 150_000_000, 'rate' => 0.26, 'ppy' => 2, 'frequency' => 'Half-Yearly', 'n_payments' => 6, 'start' => '2024-03-31',
+            ['n' => 4, 'purpose' => 'Quarterly + fees, to stage 3', 'principal' => 96_000_000, 'rate' => 0.3449, 'ppy' => 4, 'frequency' => 'Quarterly', 'n_payments' => 12, 'start' => '2023-06-30',
+                'fees' => [['ARRANGEMENT_FEE', 4_000_000, 'RECEIVED', 1]], 'stage_path' => 'stage3', 'provision_rate' => 0.40,
+                'expect' => 'NET accrual where ppy != 12'],
+            ['n' => 5, 'purpose' => 'Half-yearly', 'principal' => 150_000_000, 'rate' => 0.26, 'ppy' => 2, 'frequency' => 'Half-Yearly', 'n_payments' => 8, 'start' => '2023-03-31',
                 'fees' => [['ARRANGEMENT_FEE', 3_750_000, 'RECEIVED', 1]], 'expect' => 'ppy = 2'],
-            ['n' => 6, 'purpose' => 'Annual', 'principal' => 120_000_000, 'rate' => 0.24, 'ppy' => 1, 'frequency' => 'Yearly', 'n_payments' => 4, 'start' => '2024-01-31',
-                'fees' => [['ARRANGEMENT_FEE', 2_400_000, 'RECEIVED', 1]], 'expect' => 'ppy = 1'],
+            ['n' => 6, 'purpose' => 'Annual, migrates to stage 3', 'principal' => 120_000_000, 'rate' => 0.24, 'ppy' => 1, 'frequency' => 'Yearly', 'n_payments' => 5, 'start' => '2023-01-31',
+                'fees' => [['ARRANGEMENT_FEE', 2_400_000, 'RECEIVED', 1]], 'stage_path' => 'migrate', 'provision_rate' => 0.30,
+                'expect' => 'NET accrual where ppy = 1'],
 
             // --- Floating: ECL discounting must label it a proxy. ---
-            ['n' => 7, 'purpose' => 'Floating rate', 'principal' => 200_000_000, 'rate' => 0.10, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 36, 'start' => '2024-08-31',
-                'rate_basis' => 'Variable', 'fees' => [['ARRANGEMENT_FEE', 4_000_000, 'RECEIVED', 1]], 'expect' => 'FLOATING proxy label'],
+            ['n' => 7, 'purpose' => 'Floating rate, to stage 3', 'principal' => 200_000_000, 'rate' => 0.10, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 40, 'start' => '2023-08-31',
+                'rate_basis' => 'Variable', 'fees' => [['ARRANGEMENT_FEE', 4_000_000, 'RECEIVED', 1]], 'stage_path' => 'stage3', 'provision_rate' => 0.50,
+                'behaviour' => 'partial', 'stops_at' => '2025-01', 'expect' => 'FLOATING proxy on a NET basis'],
 
             // --- Stage 3 with a real allowance: NET basis and unwind. ---
-            ['n' => 8, 'purpose' => 'Stage 3 + allowance', 'principal' => 300_000_000, 'rate' => 0.333, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 24, 'start' => '2024-04-30',
+            ['n' => 8, 'purpose' => 'Stage 3 + allowance', 'principal' => 300_000_000, 'rate' => 0.333, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2023-04-30',
                 'fees' => [['ARRANGEMENT_FEE', 9_000_000, 'RECEIVED', 1]], 'stage_path' => 'stage3', 'provision_rate' => 0.45, 'behaviour' => 'stopped', 'stops_at' => '2025-04', 'expect' => 'NET basis + unwind'],
-            ['n' => 9, 'purpose' => 'Stage 3, deep allowance', 'principal' => 80_000_000, 'rate' => 0.31, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 18, 'start' => '2024-05-31',
+            ['n' => 9, 'purpose' => 'Stage 3, deep allowance', 'principal' => 80_000_000, 'rate' => 0.31, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2023-05-31',
                 'fees' => [['ARRANGEMENT_FEE', 2_400_000, 'RECEIVED', 1]], 'stage_path' => 'stage3', 'provision_rate' => 0.70, 'behaviour' => 'stopped', 'stops_at' => '2025-02', 'expect' => 'NET basis + unwind'],
 
-            // --- Movement between stages across the ten periods. ---
-            ['n' => 10, 'purpose' => 'Migration 1 -> 2 -> 3', 'principal' => 220_000_000, 'rate' => 0.295, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2024-06-30',
+            // --- Movement between stages across the reporting window. ---
+            ['n' => 10, 'purpose' => 'Migration 1 -> 2 -> 3', 'principal' => 220_000_000, 'rate' => 0.295, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 36, 'start' => '2023-06-30',
                 'fees' => [['ARRANGEMENT_FEE', 6_600_000, 'RECEIVED', 1]], 'stage_path' => 'migrate', 'provision_rate' => 0.35, 'behaviour' => 'partial', 'stops_at' => '2025-05', 'expect' => 'GROSS -> NET mid-run'],
-            ['n' => 11, 'purpose' => 'Cure 3 -> 2 -> 1', 'principal' => 140_000_000, 'rate' => 0.28, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2024-05-31',
+            ['n' => 11, 'purpose' => 'Cure 3 -> 2 -> 1', 'principal' => 140_000_000, 'rate' => 0.28, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 36, 'start' => '2023-05-31',
                 'fees' => [['ARRANGEMENT_FEE', 4_200_000, 'RECEIVED', 1]], 'stage_path' => 'cure', 'provision_rate' => 0.30, 'expect' => 'NET -> GROSS mid-run'],
 
             // --- Lifecycle edges. ---
-            ['n' => 12, 'purpose' => 'Matures mid-2025', 'principal' => 60_000_000, 'rate' => 0.27, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 12, 'start' => '2024-05-31',
+            ['n' => 12, 'purpose' => 'Matures mid-2025', 'principal' => 60_000_000, 'rate' => 0.27, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 25, 'start' => '2023-05-31',
                 'fees' => [['ARRANGEMENT_FEE', 1_800_000, 'RECEIVED', 1]], 'expect' => 'past-maturity path'],
-            ['n' => 13, 'purpose' => 'Six-month moratorium', 'principal' => 175_000_000, 'rate' => 0.10, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 36, 'start' => '2024-06-30',
+            ['n' => 13, 'purpose' => 'Six-month moratorium', 'principal' => 175_000_000, 'rate' => 0.10, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 40, 'start' => '2023-06-30',
                 'moratorium' => 6, 'fees' => [['ARRANGEMENT_FEE', 3_500_000, 'RECEIVED', 1]], 'expect' => 'capitalised moratorium'],
-            ['n' => 14, 'purpose' => 'Partial payer', 'principal' => 90_000_000, 'rate' => 0.305, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 24, 'start' => '2024-08-31',
+            ['n' => 14, 'purpose' => 'Partial payer', 'principal' => 90_000_000, 'rate' => 0.305, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2023-08-31',
                 'fees' => [['ARRANGEMENT_FEE', 2_700_000, 'RECEIVED', 1]], 'behaviour' => 'partial', 'stops_at' => '2025-03', 'stage_path' => 'stage2', 'expect' => 'cash < schedule'],
-            ['n' => 15, 'purpose' => 'Non-integral fee only', 'principal' => 110_000_000, 'rate' => 0.29, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 24, 'start' => '2024-07-31',
+            ['n' => 15, 'purpose' => 'Non-integral fee only', 'principal' => 110_000_000, 'rate' => 0.29, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2023-07-31',
                 'fees' => [['PENALTY_FEE', 1_500_000, 'RECEIVED', 0]], 'expect' => 'EIR == contractual'],
 
             // --- Deliberately blocked, one named reason each. ---
-            ['n' => 16, 'purpose' => 'BLOCKER: equity', 'principal' => 50_000_000, 'rate' => 0.0, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 12, 'start' => '2024-02-29',
+            ['n' => 16, 'purpose' => 'BLOCKER: equity', 'principal' => 50_000_000, 'rate' => 0.0, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 12, 'start' => '2023-02-28',
                 'fees' => [], 'product' => 'EQUITY INVESTMENT', 'expect' => 'out of scope'],
-            ['n' => 17, 'purpose' => 'BLOCKER: blank frequency', 'principal' => 75_000_000, 'rate' => 0.30, 'ppy' => 12, 'frequency' => '', 'n_payments' => 24, 'start' => '2024-09-30',
+            ['n' => 17, 'purpose' => 'BLOCKER: blank frequency', 'principal' => 75_000_000, 'rate' => 0.30, 'ppy' => 12, 'frequency' => '', 'n_payments' => 30, 'start' => '2023-09-30',
                 'fees' => [['ARRANGEMENT_FEE', 2_250_000, 'RECEIVED', 1]], 'expect' => 'FREQUENCY_ASSUMED'],
-            ['n' => 18, 'purpose' => 'BLOCKER: principal mismatch', 'principal' => 130_000_000, 'rate' => 0.30, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 24, 'start' => '2024-08-31',
+            ['n' => 18, 'purpose' => 'BLOCKER: principal mismatch', 'principal' => 130_000_000, 'rate' => 0.30, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2023-08-31',
                 'fees' => [['ARRANGEMENT_FEE', 3_900_000, 'RECEIVED', 1]], 'truncate_schedule' => true, 'expect' => 'PRINCIPAL_NOT_RECONCILED'],
-            ['n' => 19, 'purpose' => 'BLOCKER: no schedule', 'principal' => 95_000_000, 'rate' => 0.31, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 24, 'start' => '2024-10-31',
+            ['n' => 19, 'purpose' => 'BLOCKER: no schedule', 'principal' => 95_000_000, 'rate' => 0.31, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2023-10-31',
                 'fees' => [['ARRANGEMENT_FEE', 2_850_000, 'RECEIVED', 1]], 'no_schedule' => true, 'expect' => 'ORIGINAL_SCHEDULE_MISSING'],
-            ['n' => 20, 'purpose' => 'BLOCKER: unreviewed fee', 'principal' => 85_000_000, 'rate' => 0.30, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 24, 'start' => '2024-11-30',
+            ['n' => 20, 'purpose' => 'BLOCKER: unreviewed fee', 'principal' => 85_000_000, 'rate' => 0.30, 'ppy' => 12, 'frequency' => 'Monthly', 'n_payments' => 30, 'start' => '2023-11-30',
                 'fees' => [['ADVISORY_FEE', 2_550_000, 'RECEIVED', null]], 'expect' => 'FEE_CLASSIFICATION_PENDING'],
         ];
     }
@@ -233,8 +252,17 @@ class MakeEirTestData extends Command
             $paidByPeriod[substr($a['date'], 0, 7)] = ($paidByPeriod[substr($a['date'], 0, 7)] ?? 0) + $a['principal'];
         }
 
+        // Facilities originate before the first reporting period, so the
+        // opening balance is the principal less everything already repaid by
+        // then. Starting at the full drawn amount would overstate every
+        // balance on the tape and stop amortising loans ever closing.
+        $firstPeriod = $periods[0];
         $out = [];
         $outstanding = (float) $spec['principal'];
+        foreach ($actuals as $a) {
+            if (substr($a['date'], 0, 7) < $firstPeriod) $outstanding -= $a['principal'];
+        }
+        $outstanding = max(0.0, $outstanding);
         $stageIndex = 0;
 
         foreach ($periods as $period) {
@@ -256,14 +284,21 @@ class MakeEirTestData extends Command
         return $out;
     }
 
+    /**
+     * Stage transitions are placed as fractions of the reporting window rather
+     * than at fixed offsets, so migrations stay spread across whatever period
+     * range is requested instead of all landing in the first few months.
+     */
     private function stageFor(string $path, int $i, int $total): int
     {
+        $at = $total > 1 ? $i / ($total - 1) : 0.0;
+
         return match ($path) {
-            'stage3' => $i < 2 ? 1 : ($i < 4 ? 2 : 3),
-            'stage2' => $i < 3 ? 1 : 2,
-            'migrate' => $i < 3 ? 1 : ($i < 6 ? 2 : 3),
+            'stage3' => $at < 0.25 ? 1 : ($at < 0.45 ? 2 : 3),
+            'stage2' => $at < 0.40 ? 1 : 2,
+            'migrate' => $at < 0.30 ? 1 : ($at < 0.60 ? 2 : 3),
             // Cure runs the other way: impaired, then recovering.
-            'cure' => $i < 3 ? 3 : ($i < 6 ? 2 : 1),
+            'cure' => $at < 0.30 ? 3 : ($at < 0.60 ? 2 : 1),
             default => 1,
         };
     }
@@ -299,7 +334,7 @@ class MakeEirTestData extends Command
             ];
         }
 
-        $this->put($out . '/Extract_A_contract_master.csv', $headers, $rows);
+        $this->put($out . '/02_Extract_A_Contract_Master.csv', $headers, $rows);
     }
 
     private function writeTransactions(string $out, array $built): void
@@ -328,7 +363,7 @@ class MakeEirTestData extends Command
             }
         }
 
-        $this->put($out . '/Extract_B_transactions.csv', $headers, $rows);
+        $this->put($out . '/03_Extract_B_Transactions.csv', $headers, $rows);
     }
 
     /**
@@ -357,25 +392,45 @@ class MakeEirTestData extends Command
             }
         }
 
-        $this->put($out . '/Extract_C_gl_interest.csv', $headers, $rows);
+        $this->put($out . '/04_Extract_C_GL_Postings.csv', $headers, $rows);
     }
 
     private function writeFees(string $out, array $built): void
     {
+        // source_system and external_transaction_id are what make a re-import
+        // idempotent: FeeImportService only skips a duplicate when BOTH are
+        // present, so a file without them loads a second copy of every line.
         $headers = ['contract_id', 'fee_type', 'description', 'amount', 'cashflow_direction',
-            'transaction_date', 'gl_account_ref', 'currency', 'source_reference'];
+            'transaction_date', 'gl_account_ref', 'currency', 'source_reference',
+            'source_system', 'external_transaction_id'];
+
+        // FeeImportService::KNOWN_TYPES is the vocabulary the intake accepts;
+        // anything else is folded into `other`. Emitting a canonical type plus
+        // a description carrying the words the rulebook matches on is what
+        // lets the accounting rules actually fire on this data. ADVISORY_FEE
+        // is deliberately left as a bare `other` line so it matches nothing
+        // and holds its contract at FEE_CLASSIFICATION_PENDING.
+        $canonical = [
+            'ARRANGEMENT_FEE' => ['arrangement', 'Arrangement fee on facility'],
+            'LEGAL_COST' => ['legal', 'Legal cost - origination and documentation'],
+            'LEGAL_COST_REBATE' => ['legal', 'Legal cost rebate on advance'],
+            'PENALTY_FEE' => ['default', 'Penalty fee on arrears'],
+            'ADVISORY_FEE' => ['other', 'Advisory fee'],
+        ];
 
         $rows = [];
         foreach ($built as $c) {
             foreach ($c['spec']['fees'] as $i => $fee) {
                 [$type, $amount, $direction, $integral] = $fee;
-                $rows[] = [$c['id'], $type, ucwords(strtolower(str_replace('_', ' ', $type))), $amount,
+                [$feeType, $description] = $canonical[$type] ?? ['other', ucwords(strtolower(str_replace('_', ' ', $type)))];
+                $reference = 'FEE-' . substr($c['id'], -4) . '-' . ($i + 1);
+                $rows[] = [$c['id'], $feeType, $description, $amount,
                     $direction, $c['start']->format('Y-m-d'), '4020100', 'MWK',
-                    'FEE-' . substr($c['id'], -4) . '-' . ($i + 1)];
+                    $reference, 'EIR_TEST_FIXTURE', $reference];
             }
         }
 
-        $this->put($out . '/Fees.csv', $headers, $rows);
+        $this->put($out . '/05_Fees.csv', $headers, $rows);
     }
 
     private function writeLoanBooks(string $out, array $built, array $periods): void
@@ -408,50 +463,299 @@ class MakeEirTestData extends Command
                     $s['n'] % 3 === 0 ? 'FInES' : 'MAIIC', 'Active',
                 ];
             }
-            $this->put($out . '/loan_book_' . $period . '.csv', $headers, $rows);
+            $this->put($out . '/01_Loan_Books/loan_book_' . $period . '.csv', $headers, $rows);
         }
     }
 
     private function writeReadme(string $out, array $built, array $periods): void
     {
+        $blocked = array_filter($built, fn ($c) => str_starts_with($c['spec']['purpose'], 'BLOCKER'));
+
         $lines = [
-            '# EIR end-to-end test fixture',
+            'MAIIC EIR COMPLETE TEST DATA SET — SYNTHETIC DATA ONLY',
+            'Generated: ' . self::GENERATED_ON,
+            'Loan-book periods: ' . $periods[0] . ' to ' . end($periods),
             '',
-            'Generated by `php artisan eir:make-test-data`. Every figure is synthetic and',
-            'internally consistent: schedules come from `ScheduleGeneratorService`, actual',
-            'receipts are derived from those schedules, loan-book balances follow the actual',
-            'receipts, and GL interest is posted on the contractual basis.',
+            'IMPORTANT',
+            '- Every figure in this pack is synthetic. No real MAIIC account, customer or',
+            '  balance appears anywhere in it.',
+            '- Account numbers use a 9000000000xx range that cannot collide with the real',
+            '  104/105 series, so this pack can be loaded into a database alongside real',
+            '  data without contaminating it — though a clean database is recommended.',
+            '- Unlike "EIR Test Pack", this set ships its own loan book. It does not depend',
+            '  on any pre-existing tape, which is what makes it usable on an empty database.',
             '',
-            '## Load order',
+            'WHY THIS PACK EXISTS',
+            '  The delivered production data cannot exercise the two paths that matter most.',
+            '  No fee has ever been classified integral, so the fee spread — the reason the',
+            '  EIR engine exists — has never once been solved: the rate effect across the',
+            '  whole production book is MK4.87. And no loan-book snapshot carries an ECL',
+            '  allowance, so the Stage 3 net-basis and unwind branches have never executed',
+            '  with a number that changes the answer. This pack is built so that they do.',
             '',
-            '1. `loan_book_2025-01.csv` ... `loan_book_' . end($periods) . '.csv` — the monthly tape',
-            '2. `Extract_A_contract_master.csv` — contract master (intake type: contract master)',
-            '3. `Extract_B_transactions.csv` — scheduled + actual (intake type: contract transactions)',
-            '4. `Fees.csv` — fee lines (intake type: fees)',
-            '5. `Extract_C_gl_interest.csv` — GL interest (intake type: GL interest)',
+            'CONSISTENCY',
+            '  Schedules are produced by the real ScheduleGeneratorService. Actual receipts',
+            '  are derived from those schedules. Loan-book balances follow the actual',
+            '  receipts. GL interest is posted on the CONTRACTUAL basis, deliberately',
+            '  different from the EIR the engine solves, so the reconciliation bridge has a',
+            '  known and decomposable answer to find.',
             '',
-            'Then: classify fees -> calculate EIR -> approve/lock -> `eir:run-revenue` per period.',
+            'RECOMMENDED TEST ORDER',
+            '  1. Import 01_Loan_Books/loan_book_' . $periods[0] . '.csv through',
+            '     loan_book_' . end($periods) . '.csv as the monthly loan book (' . count($periods) . ' files).',
+            '  2. Import 02_Extract_A_Contract_Master.csv as "Contract master (Extract A)".',
+            '  3. Import 03_Extract_B_Transactions.csv as "Contract transactions (Extract B)".',
+            '  4. Import 05_Fees.csv as "Fees".',
+            '  5. Import 04_Extract_C_GL_Postings.csv as "GL interest postings (Extract C)".',
+            '  6. Classify fees (EIR Fee & Cost Classification). Mark every fee integral',
+            '     EXCEPT PENALTY_FEE on ' . $built[14]['id'] . ', and leave ADVISORY_FEE on',
+            '     ' . $built[19]['id'] . ' unreviewed — those two are deliberate controls.',
+            '  7. Calculate EIR, then approve and lock (maker must differ from checker).',
+            '  8. Run: php artisan eir:run-revenue ' . $periods[0] . '   ... through ' . end($periods),
+            '  9. Open EIR Coverage & Blockers, then GL Reconciliation.',
             '',
-            '## What each contract proves',
+            'THE TWO ASSERTIONS THAT MATTER',
+            '  A. RATE EFFECT MUST BE NON-ZERO.',
+            '     Contracts with integral fees must each solve to an EIR above their',
+            '     contractual rate, and the GL reconciliation bridge must show a material',
+            '     rate effect. On production data that figure is MK4.87 — effectively nil.',
+            '  B. STAGE 3 MUST ACCRUE ON THE NET BALANCE.',
+            '     Contracts ' . $built[7]['id'] . ', ' . $built[8]['id'] . ', ' . $built[9]['id']
+                . ' and ' . $built[10]['id'] . ' carry real ECL allowances,',
+            '     so interest_basis must switch to NET and unwind_amount must be non-zero.',
+            '     On production data every ecl_allowance is 0.00, so NET and GROSS agree.',
             '',
-            '| Contract | Purpose | Expected outcome |',
-            '|---|---|---|',
+            'DELIBERATE BLOCKERS (' . count($blocked) . ')',
+            '  These must be REFUSED by the readiness gate, each for one named reason.',
+            '  A pack where everything succeeds does not test the gate.',
         ];
+        foreach ($blocked as $c) {
+            $lines[] = '  - ' . $c['id'] . '  ' . $c['spec']['expect'];
+        }
+
+        $lines[] = '';
+        $lines[] = 'KNOWN FINDING — MORATORIUM CONTRACTS ARE CURRENTLY BLOCKED';
+        $lines[] = '  ' . $built[12]['id'] . ' carries a 6-month moratorium. Its scheduled principal exceeds';
+        $lines[] = '  the drawn amount by the capitalised moratorium interest, which is correct, but';
+        $lines[] = '  EirReadinessService compares scheduled principal to the DRAWN amount within 1%.';
+        $lines[] = '  The tolerance breaks when (1 + rate/12)^months > 1.01 — at MAIIC\'s typical 28-33%';
+        $lines[] = '  that is a single month. So this contract will report PRINCIPAL_NOT_RECONCILED';
+        $lines[] = '  until the gate compares against the capitalised principal instead. That is an';
+        $lines[] = '  accounting judgement, so the fixture documents it rather than working around it.';
+        $lines[] = '';
+        $lines[] = 'CONTRACT INVENTORY';
+        $lines[] = '';
         foreach ($built as $c) {
-            $lines[] = '| ' . $c['id'] . ' | ' . $c['spec']['purpose'] . ' | ' . $c['spec']['expect'] . ' |';
+            $lines[] = '  ' . $c['id'] . '  ' . str_pad($c['spec']['purpose'], 30) . $c['spec']['expect'];
         }
         $lines[] = '';
-        $lines[] = '## The two checks that matter most';
+        $lines[] = 'EXPECTED COUNTS AND SOLVED RATES';
+        $lines[] = '  See expected_results.json. File integrity: SHA256SUMS.txt.';
         $lines[] = '';
-        $lines[] = '- **Rate effect must be non-zero.** Contracts 1-14 carry integral fees, so each solved';
-        $lines[] = '  EIR must exceed its contractual rate and the GL reconciliation bridge must show a';
-        $lines[] = '  material rate effect. Production data has never produced one (MK4.87 on the whole book).';
-        $lines[] = '- **Stage 3 must accrue on the net balance.** Contracts 8, 9, 10 and 11 carry real ECL';
-        $lines[] = '  allowances, so `interest_basis` must switch to NET and `unwind_amount` must be non-zero.';
-        $lines[] = '  Production data has never had a non-zero allowance.';
+        $lines[] = 'REGENERATE';
+        $lines[] = '  php artisan eir:make-test-data';
         $lines[] = '';
 
-        file_put_contents($out . '/README.md', implode(PHP_EOL, $lines) . PHP_EOL);
+        file_put_contents($out . '/00_READ_ME_FIRST.txt', implode(PHP_EOL, $lines) . PHP_EOL);
+        $this->line('  ' . str_pad('00_READ_ME_FIRST.txt', 38) . 'written');
+    }
+
+    /**
+     * The solved EIR each contract must reproduce, computed here with the real
+     * solver so the pack can be validated rather than eyeballed.
+     */
+    private function writeExpectedResults(string $out, array $built, array $periods): void
+    {
+        $solver = app(\App\Services\Eir\CalculateEirService::class);
+        $nonIntegral = ['PENALTY_FEE', 'ADVISORY_FEE'];
+
+        $contracts = [];
+        foreach ($built as $c) {
+            $s = $c['spec'];
+            $entry = [
+                'contract_id' => $c['id'],
+                'purpose' => $s['purpose'],
+                'expectation' => $s['expect'],
+                'drawn_amount' => $s['principal'],
+                'contractual_nominal_annual' => round($s['rate'], 6),
+                'payments_per_year' => $s['ppy'],
+                'schedule_rows' => count($c['schedule']),
+                'actual_transactions' => count($c['actuals']),
+            ];
+
+            $received = 0.0;
+            $paid = 0.0;
+            foreach ($s['fees'] as [$type, $amount, $direction, $integral]) {
+                if ($integral !== 1 || in_array($type, $nonIntegral, true)) continue;
+                $direction === 'RECEIVED' ? $received += $amount : $paid += $amount;
+            }
+            $entry['integral_fees_received'] = round($received, 2);
+            $entry['integral_costs_paid'] = round($paid, 2);
+
+            $flows = [];
+            foreach ($c['schedule'] as $i => $row) {
+                $flows[] = ['period' => $i + 1, 'amount' => round($row['principal_due'] + $row['interest_due'], 2)];
+            }
+
+            if ($flows !== [] && ! $s['truncate_schedule']) {
+                try {
+                    $r = $solver->calculate($s['principal'] - $received + $paid, $flows, $s['ppy']);
+                    $contractualEffective = pow(1 + $s['rate'] / $s['ppy'], $s['ppy']) - 1;
+                    $entry['expected_eir_period'] = round($r['eir_period'], 8);
+                    $entry['expected_eir_nominal_annual'] = round($r['eir_nominal_annual'], 8);
+                    $entry['expected_eir_effective_annual'] = round($r['eir_effective_annual'], 8);
+                    $entry['contractual_effective_annual'] = round($contractualEffective, 8);
+                    $entry['expected_uplift_pp'] = round(($r['eir_effective_annual'] - $contractualEffective) * 100, 4);
+                } catch (\Throwable $e) {
+                    $entry['expected_eir_effective_annual'] = null;
+                    $entry['solver_note'] = $e->getMessage();
+                }
+            } else {
+                $entry['expected_eir_effective_annual'] = null;
+                $entry['solver_note'] = $s['no_schedule']
+                    ? 'No schedule: blocked before the solver.'
+                    : ($s['truncate_schedule'] ? 'Truncated schedule: blocked by PRINCIPAL_NOT_RECONCILED before the solver.' : 'Not solvable.');
+            }
+
+            $contracts[] = $entry;
+        }
+
+        $solvable = array_filter($contracts, fn ($c) => ($c['expected_uplift_pp'] ?? 0) > 0.01);
+
+        $payload = [
+            'synthetic_data_only' => true,
+            'generated_at' => self::GENERATED_ON,
+            'loan_book_periods' => $periods,
+            'warning' => 'Every figure is synthetic. Safe to load into a clean test database.',
+            'import_order' => [
+                '01_Loan_Books/loan_book_*.csv as the monthly loan book',
+                '02_Extract_A_Contract_Master.csv as Contract master (Extract A)',
+                '03_Extract_B_Transactions.csv as Contract transactions (Extract B)',
+                '05_Fees.csv as Fees',
+                '04_Extract_C_GL_Postings.csv as GL interest postings (Extract C)',
+            ],
+            'headline_assertions' => [
+                'contracts_with_expected_fee_spread' => count($solvable),
+                'rate_effect_must_be_material' => true,
+                'stage3_contracts_expecting_net_basis' => array_values(array_map(
+                    fn ($c) => $c['id'],
+                    array_filter($built, fn ($c) => ($c['spec']['provision_rate'] ?? 0) > 0)
+                )),
+            ],
+            'expected_blockers' => array_values(array_map(
+                fn ($c) => ['contract_id' => $c['id'], 'reason' => $c['spec']['expect']],
+                array_filter($built, fn ($c) => str_starts_with($c['spec']['purpose'], 'BLOCKER'))
+            )),
+            'contracts' => $contracts,
+        ];
+
+        file_put_contents($out . '/expected_results.json',
+            json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        $this->line('  ' . str_pad('expected_results.json', 38) . count($contracts) . ' contracts');
+    }
+
+    /**
+     * Inserts the generated tape straight into the current connection.
+     *
+     * This bypasses LoanBooksImport deliberately: the point of the fixture is
+     * to exercise the EIR, revenue and ECL engines, and going through the
+     * intake screens for twenty-two monthly files is a separate test. Existing
+     * rows for these synthetic contracts are replaced so the command can be
+     * re-run without stacking duplicates.
+     */
+    private function loadLoanBooks(array $built, array $periods): void
+    {
+        $connection = \Illuminate\Support\Facades\DB::connection()->getDatabaseName();
+        $this->newLine();
+        $this->warn("Loading the generated loan book into database: {$connection}");
+
+        $portfolioId = \Illuminate\Support\Facades\DB::table('loan_portfolios')->where('name', 'EIR Test Portfolio')->value('id');
+        if (! $portfolioId) {
+            $portfolioId = \Illuminate\Support\Facades\DB::table('loan_portfolios')->insertGetId([
+                'name' => 'EIR Test Portfolio',
+                'description' => 'Synthetic portfolio for the complete EIR/ECL test data set.',
+                'active' => 1,
+                'created_by_id' => \Illuminate\Support\Facades\DB::table('users')->min('id') ?? 1,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $ids = array_map(fn ($c) => $c['id'], $built);
+        \Illuminate\Support\Facades\DB::table('loan_books')->whereIn('contract_id', $ids)->delete();
+
+        $inserted = 0;
+        foreach ($periods as $period) {
+            [$year, $month] = array_map('intval', explode('-', $period));
+            $rows = [];
+            foreach ($built as $c) {
+                $s = $c['spec'];
+                $b = $c['balances'][$period] ?? null;
+                if (! $b || $b['carrying_amount'] <= 0) continue;
+
+                $months = (int) round($s['n_payments'] * (12 / $s['ppy'])) + $s['moratorium'];
+                $maturity = $c['start']->addMonthsNoOverflow($months);
+
+                $rows[] = [
+                    'loan_portfolio_id' => $portfolioId,
+                    'contract_id' => $c['id'],
+                    'customer_id' => 'CUS' . substr($c['id'], -4),
+                    'customer_name' => 'Test Counterparty ' . $s['n'],
+                    'product_group' => $s['product'],
+                    'product_code' => 'TL01',
+                    'reporting_year' => $year,
+                    'reporting_month' => $month,
+                    'reporting_period' => $period,
+                    'create_date' => $c['start']->format('Y-m-d'),
+                    'due_date' => $maturity->format('Y-m-d'),
+                    'industry_code' => 'A01',
+                    'interest_rate' => round($s['rate'] * 100, 4),
+                    'principal_balance' => $b['carrying_amount'],
+                    'approved_amount' => $s['principal'],
+                    'disbursed' => $s['principal'],
+                    'repayments' => $b['repayments'],
+                    'carrying_amount' => $b['carrying_amount'],
+                    'commitments' => 0,
+                    'facility_utilisation_rate' => 1,
+                    'overdue_days' => $b['overdue_days'],
+                    'tenor' => $months,
+                    'remaining_tenor' => max(0, \Carbon\CarbonImmutable::parse($period . '-01')->diffInMonths($maturity, false)),
+                    'expected_loss_provision' => $b['provision'],
+                    'ifrs9_stage' => $b['stage'],
+                    'calculated_ifrs9_stage' => $b['stage'],
+                    'ifrs9stage_pre_qualitative' => $b['stage'],
+                    'ifrs9stage_post_qualitative' => $b['stage'],
+                    'funding_source' => $s['n'] % 3 === 0 ? 'FInES' : 'MAIIC',
+                    'contract_status' => 'Active',
+                    'created_at' => now(), 'updated_at' => now(),
+                ];
+            }
+            if ($rows !== []) {
+                \Illuminate\Support\Facades\DB::table('loan_books')->insert($rows);
+                $inserted += count($rows);
+            }
+        }
+
+        $this->line('  loan_portfolio_id ' . $portfolioId . '  ("EIR Test Portfolio")');
+        $this->line('  inserted ' . number_format($inserted) . ' loan-book rows across ' . count($periods) . ' periods');
+    }
+
+    private function writeChecksums(string $out): void
+    {
+        $lines = [];
+        $files = array_merge(
+            glob($out . '/*.{csv,txt,json}', GLOB_BRACE) ?: [],
+            glob($out . '/01_Loan_Books/*.csv') ?: []
+        );
+        sort($files);
+
+        foreach ($files as $file) {
+            if (basename($file) === 'SHA256SUMS.txt') continue;
+            $relative = ltrim(str_replace([$out, '\\'], ['', '/'], $file), '/');
+            $lines[] = hash_file('sha256', $file) . '  ' . $relative;
+        }
+
+        file_put_contents($out . '/SHA256SUMS.txt', implode(PHP_EOL, $lines) . PHP_EOL);
+        $this->line('  ' . str_pad('SHA256SUMS.txt', 38) . count($lines) . ' files');
     }
 
     private function put(string $path, array $headers, array $rows): void
