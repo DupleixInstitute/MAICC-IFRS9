@@ -934,6 +934,7 @@ Route::group(['prefix' => 'eir-accounting-rules', 'as' => 'eir-accounting-rules.
 
 Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classification.'], function () {
     Route::get('/', [\App\Http\Controllers\EirFeeClassificationController::class, 'index'])->name('index');
+    Route::post('/rematch', [\App\Http\Controllers\EirFeeClassificationController::class, 'rematch'])->name('rematch');
     Route::post('/classify', [\App\Http\Controllers\EirFeeClassificationController::class, 'classify'])->name('classify');
     Route::post('/review', [\App\Http\Controllers\EirFeeClassificationController::class, 'review'])->name('review');
 });
