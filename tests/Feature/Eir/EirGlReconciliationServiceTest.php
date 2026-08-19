@@ -78,6 +78,55 @@ class EirGlReconciliationServiceTest extends TestCase
         $this->assertEqualsWithDelta(10_000, $row['variance'], 0.01);
     }
 
+    /**
+     * The case that previously collapsed: a ledger accruing on the declining
+     * balance rather than on original principal. Hardcoding the drawn amount
+     * as the ledger's base threw the whole difference into the residual.
+     */
+    public function test_a_ledger_that_amortises_still_decomposes_with_no_residual(): void
+    {
+        $this->contract('C-1', 1_000_000, 0.24);
+        $monthly = 0.24 / 12;
+        // The ledger accrues on the CURRENT balance, not the original advance.
+        $this->posting('C-1', 2025, 10, 700_000 * $monthly);
+        $this->accrual('C-1', '2025-10', 700_000, 700_000 * $monthly);
+
+        $row = (new EirGlReconciliationService())->forPeriod('2025-10')['rows'][0];
+
+        $this->assertEqualsWithDelta(700_000, $row['gl_implied_base'], 0.01);
+        $this->assertEqualsWithDelta(0, $row['base_effect'], 0.01);
+        $this->assertEqualsWithDelta(0, $row['unexplained'], 0.01);
+        $this->assertEqualsWithDelta(
+            $row['variance'],
+            $row['base_effect'] + $row['rate_effect'] + $row['impairment_effect'],
+            0.01
+        );
+    }
+
+    /**
+     * Stage 3 accrues on the amortised cost net of the loss allowance, so the
+     * shortfall against a gross accrual is a real measurement difference and
+     * must be named rather than left sitting in the residual.
+     */
+    public function test_stage_three_net_accrual_reports_as_impairment_effect(): void
+    {
+        $this->contract('C-3', 1_000_000, 0.24);
+        $monthly = 0.24 / 12;
+        $this->posting('C-3', 2025, 10, 1_000_000 * $monthly);
+        // Accrued on 800,000 net of a 200,000 allowance, against a gross opening.
+        $this->accrual('C-3', '2025-10', 1_000_000, 800_000 * $monthly);
+
+        $row = (new EirGlReconciliationService())->forPeriod('2025-10')['rows'][0];
+
+        $this->assertEqualsWithDelta(-200_000 * $monthly, $row['impairment_effect'], 0.01);
+        $this->assertEqualsWithDelta(0, $row['unexplained'], 0.01);
+        $this->assertEqualsWithDelta(
+            $row['variance'],
+            $row['base_effect'] + $row['rate_effect'] + $row['impairment_effect'],
+            0.01
+        );
+    }
+
     public function test_postings_without_a_counterpart_stay_out_of_the_bridge(): void
     {
         $this->contract('C-1', 1_000_000, 0.24);

@@ -52,9 +52,13 @@
           <div class="border-b border-gray-200 p-4">
             <h3 class="font-semibold text-gray-900">Variance bridge — {{ period }}</h3>
             <p class="mt-1 text-xs text-gray-500">
-              Both sides accrue monthly, so the difference resolves into exactly two terms. The base effect is the
-              ledger accruing on original principal that has since been repaid. The rate effect is the yield uplift
-              from fees integral to the EIR.
+              Both sides accrue monthly, so the difference resolves into three terms that sum to the variance exactly.
+              The <strong>base effect</strong> is the gap between the balance the engine amortises and the balance the
+              ledger accrued on &mdash; derived from the posting itself rather than assumed, so a ledger that amortises
+              and one that posts flat on original principal both decompose cleanly. The <strong>rate effect</strong> is
+              the yield uplift from fees integral to the EIR. The <strong>impairment effect</strong> is Stage&nbsp;3
+              accruing on the amortised cost net of the loss allowance, which is a correct measurement difference
+              rather than an error.
             </p>
           </div>
           <table class="min-w-full">
@@ -69,11 +73,11 @@
             </tbody>
           </table>
           <p v-if="Math.abs(bridge.unexplained) < 1" class="border-t border-gray-200 px-4 py-3 text-xs text-emerald-700">
-            The two effects account for the variance in full — no unexplained residual.
+            The three effects account for the variance in full — no unexplained residual.
           </p>
           <p v-else class="border-t border-gray-200 px-4 py-3 text-xs text-amber-700">
-            {{ money(bridge.unexplained) }} is not explained by either effect. The ledger did not post flat contractual
-            interest on original principal for at least one facility; review the rows below.
+            {{ money(bridge.unexplained) }} is not explained by any of the three effects — for at least one facility the
+            ledger did not post at the contractual rate at all. Review the rows below.
           </p>
         </div>
 
@@ -99,8 +103,9 @@
                 <tr>
                   <th class="th">Contract</th><th class="th">Basis</th>
                   <th class="th text-right">GL posted</th><th class="th text-right">EIR accrued</th>
-                  <th class="th text-right">Variance</th><th class="th text-right">Base effect</th>
-                  <th class="th text-right">Rate effect</th><th class="th">Status</th>
+                  <th class="th text-right">Variance</th><th class="th text-right">GL implied base</th>
+                  <th class="th text-right">Base effect</th><th class="th text-right">Rate effect</th>
+                  <th class="th text-right">Impairment</th><th class="th">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,12 +125,14 @@
                     {{ r.variance === null ? '—' : money(r.variance) }}
                     <div v-if="r.variance_percent !== null" class="text-xs text-gray-500">{{ r.variance_percent }}%</div>
                   </td>
+                  <td class="td text-right tabular-nums text-gray-600">{{ r.gl_implied_base === null ? '—' : money(r.gl_implied_base) }}</td>
                   <td class="td text-right tabular-nums text-gray-600">{{ r.base_effect === null ? '—' : money(r.base_effect) }}</td>
                   <td class="td text-right tabular-nums text-gray-600">{{ r.rate_effect === null ? '—' : money(r.rate_effect) }}</td>
+                  <td class="td text-right tabular-nums text-gray-600">{{ r.impairment_effect === null ? '—' : money(r.impairment_effect) }}</td>
                   <td class="td"><span :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td>
                 </tr>
                 <tr v-if="!rows.length">
-                  <td colspan="8" class="p-10 text-center text-sm text-gray-500">No GL postings for this period and portfolio.</td>
+                  <td colspan="10" class="p-10 text-center text-sm text-gray-500">No GL postings for this period and portfolio.</td>
                 </tr>
               </tbody>
             </table>
@@ -177,8 +184,9 @@ const bridgeLines = computed(() => [
   { label: 'Postings with no calculated counterpart', value: -props.bridge.gl_without_counterpart, indent: true,
     note: `${props.summary.not_calculated} row(s)`, tone: 'text-gray-600' },
   { label: 'GL interest on matched facilities', value: props.bridge.gl_matched, emphasis: true },
-  { label: 'Base effect — amortised balance vs original principal', value: props.bridge.base_effect, indent: true, tone: toneFor(props.bridge.base_effect) },
+  { label: 'Base effect — amortised balance vs the balance GL accrued on', value: props.bridge.base_effect, indent: true, tone: toneFor(props.bridge.base_effect) },
   { label: 'Rate effect — integral fee yield uplift', value: props.bridge.rate_effect, indent: true, tone: toneFor(props.bridge.rate_effect) },
+  { label: 'Impairment effect — Stage 3 accrued on net', value: props.bridge.impairment_effect, indent: true, tone: toneFor(props.bridge.impairment_effect) },
   { label: 'Unexplained', value: props.bridge.unexplained, indent: true, tone: toneFor(props.bridge.unexplained) },
   { label: 'EIR interest calculated', value: props.bridge.eir_total, emphasis: true },
 ])
