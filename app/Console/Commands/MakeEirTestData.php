@@ -440,7 +440,9 @@ class MakeEirTestData extends Command
             'principal_balance', 'approved_amount', 'disbursed', 'repayments', 'carrying_amount',
             'commitments', 'facility_utilisation_rate', 'overdue_days', 'tenor', 'remaining_tenor',
             'expected_loss_provision', 'ifrs9_stage', 'calculated_ifrs9_stage',
-            'ifrs9stage_pre_qualitative', 'ifrs9stage_post_qualitative', 'funding_source', 'contract_status'];
+            'ifrs9stage_pre_qualitative', 'ifrs9stage_post_qualitative',
+            'pd_prefli', 'pd_post_fli', 'customer_lgd', 'collection_lgd',
+            'funding_source', 'contract_status'];
 
         foreach ($periods as $period) {
             $rows = [];
@@ -452,6 +454,7 @@ class MakeEirTestData extends Command
                 $months = (int) round($s['n_payments'] * (12 / $s['ppy'])) + $s['moratorium'];
                 $maturity = $c['start']->addMonthsNoOverflow($months);
                 $remaining = max(0, CarbonImmutable::parse($period . '-01')->diffInMonths($maturity, false));
+                $risk = $this->riskInputs((int) $s['n'], (int) $b['stage']);
 
                 $rows[] = [
                     $c['id'], 'CUS' . substr($c['id'], -4), 'Test Counterparty ' . $s['n'],
@@ -460,6 +463,7 @@ class MakeEirTestData extends Command
                     $b['carrying_amount'], $s['principal'], $s['principal'], $b['repayments'],
                     $b['carrying_amount'], 0, 1, $b['overdue_days'], $months, $remaining,
                     $b['provision'], $b['stage'], $b['stage'], $b['stage'], $b['stage'],
+                    $risk['pd_prefli'], $risk['pd_post_fli'], $risk['customer_lgd'], $risk['collection_lgd'],
                     $s['n'] % 3 === 0 ? 'FInES' : 'MAIIC', 'Active',
                 ];
             }
@@ -694,6 +698,7 @@ class MakeEirTestData extends Command
 
                 $months = (int) round($s['n_payments'] * (12 / $s['ppy'])) + $s['moratorium'];
                 $maturity = $c['start']->addMonthsNoOverflow($months);
+                $risk = $this->riskInputs((int) $s['n'], (int) $b['stage']);
 
                 $rows[] = [
                     'loan_portfolio_id' => $portfolioId,
@@ -724,6 +729,10 @@ class MakeEirTestData extends Command
                     'calculated_ifrs9_stage' => $b['stage'],
                     'ifrs9stage_pre_qualitative' => $b['stage'],
                     'ifrs9stage_post_qualitative' => $b['stage'],
+                    'pd_prefli' => $risk['pd_prefli'],
+                    'pd_post_fli' => $risk['pd_post_fli'],
+                    'customer_lgd' => $risk['customer_lgd'],
+                    'collection_lgd' => $risk['collection_lgd'],
                     'funding_source' => $s['n'] % 3 === 0 ? 'FInES' : 'MAIIC',
                     'contract_status' => 'Active',
                     'created_at' => now(), 'updated_at' => now(),
@@ -737,6 +746,23 @@ class MakeEirTestData extends Command
 
         $this->line('  loan_portfolio_id ' . $portfolioId . '  ("EIR Test Portfolio")');
         $this->line('  inserted ' . number_format($inserted) . ' loan-book rows across ' . count($periods) . ' periods');
+    }
+
+    /** Deterministic decimal probabilities for varied end-to-end ECL testing. */
+    private function riskInputs(int $sequence, int $stage): array
+    {
+        $pdPrefli = match ($stage) {
+            1 => 0.010 + (($sequence % 5) * 0.005),
+            2 => 0.120 + (($sequence % 5) * 0.030),
+            default => 1.000,
+        };
+
+        return [
+            'pd_prefli' => round($pdPrefli, 6),
+            'pd_post_fli' => round(min(1, $pdPrefli * (1.05 + (($sequence % 3) * 0.05))), 6),
+            'customer_lgd' => round(0.25 + (($sequence % 5) * 0.08), 6),
+            'collection_lgd' => round(0.20 + (($sequence % 6) * 0.07), 6),
+        ];
     }
 
     private function writeChecksums(string $out): void

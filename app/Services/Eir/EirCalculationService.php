@@ -20,16 +20,43 @@ class EirCalculationService
     {
         try {
             $input = $this->inputs->assemble($contractId);
-            $result = $this->solver->calculate(
-                $input['initial_net_investment'],
-                $input['cash_flows'],
-                $input['payments_per_year'],
-            );
+            $hasDates = collect($input['cash_flows'])->every(fn ($flow) => ! empty($flow['due_date']));
+            $result = $hasDates
+                ? $this->solver->calculateDated($input['initial_net_investment'], $input['cash_flows'],
+                    $input['payments_per_year'], $input['metadata']['origination_date'],
+                    $input['metadata']['day_count_basis'] ?? 'ACT/365')
+                : $this->solver->calculate($input['initial_net_investment'], $input['cash_flows'], $input['payments_per_year']);
 
             DB::transaction(function () use ($contractId, $userId, $input, $result) {
                 $contract = ContractEir::where('contract_id', $contractId)->lockForUpdate()->firstOrFail();
                 if ($contract->locked_at !== null) {
                     throw new LogicException('A locked original EIR cannot be recalculated.');
+                }
+
+                if ($contract->calculated_at !== null && $contract->eir_effective_annual !== null) {
+                    DB::table('eir_calculation_history')->insert([
+                        'contract_id' => $contract->contract_id,
+                        'eir_period' => $contract->eir_period,
+                        'eir_nominal_annual' => $contract->eir_nominal_annual,
+                        'eir_effective_annual' => $contract->eir_effective_annual,
+                        'rate_source' => $contract->rate_source,
+                        'solver_iterations' => $contract->solver_iterations,
+                        'solver_residual' => $contract->solver_residual,
+                        'solver_method' => $contract->solver_method,
+                        'input_snapshot' => json_encode($contract->input_snapshot),
+                        'calculation_status' => $contract->calculation_status,
+                        'calculation_error' => $contract->calculation_error,
+                        'calculated_at' => $contract->calculated_at,
+                        'calculated_by' => $contract->calculated_by,
+                        'locked_at' => $contract->locked_at,
+                        'locked_by' => $contract->locked_by,
+                        'archive_action' => 'RECALCULATED',
+                        'archive_reason' => 'Recalculated before final approval.',
+                        'archived_by' => $userId,
+                        'archived_at' => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 }
 
                 $snapshot = $input['input_snapshot'];
@@ -117,5 +144,102 @@ class EirCalculationService
         }
 
         return compact('locked', 'skipped');
+    }
+
+    /**
+     * Reopen a locked original EIR for a controlled correction. The locked
+     * measurement remains append-only history and every downstream live
+     * result that depended on it is invalidated before recalculation.
+     */
+    public function reopen(string $contractId, int $userId, string $reason): ContractEir
+    {
+        $reason = trim($reason);
+        if (mb_strlen($reason) < 10) {
+            throw new LogicException('A specific reopening reason of at least 10 characters is required.');
+        }
+
+        return DB::transaction(function () use ($contractId, $userId, $reason) {
+            $contract = ContractEir::where('contract_id', $contractId)->lockForUpdate()->firstOrFail();
+            if ($contract->locked_at === null || $contract->calculation_status !== 'LOCKED') {
+                throw new LogicException('Only a locked original EIR can be reopened.');
+            }
+
+            DB::table('eir_calculation_history')->insert([
+                'contract_id' => $contract->contract_id,
+                'eir_period' => $contract->eir_period,
+                'eir_nominal_annual' => $contract->eir_nominal_annual,
+                'eir_effective_annual' => $contract->eir_effective_annual,
+                'rate_source' => $contract->rate_source,
+                'solver_iterations' => $contract->solver_iterations,
+                'solver_residual' => $contract->solver_residual,
+                'solver_method' => $contract->solver_method,
+                'input_snapshot' => json_encode($contract->input_snapshot),
+                'calculation_status' => $contract->calculation_status,
+                'calculation_error' => $contract->calculation_error,
+                'calculated_at' => $contract->calculated_at,
+                'calculated_by' => $contract->calculated_by,
+                'locked_at' => $contract->locked_at,
+                'locked_by' => $contract->locked_by,
+                'archive_action' => 'REOPENED',
+                'archive_reason' => $reason,
+                'archived_by' => $userId,
+                'archived_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $amortisation = DB::table('eir_amortisation')->where('contract_id', $contractId)->get();
+            foreach ($amortisation as $row) {
+                DB::table('eir_amortisation_history')->insert([
+                    'contract_id' => $row->contract_id,
+                    'reporting_period' => $row->reporting_period,
+                    'opening_gross' => $row->opening_gross,
+                    'interest_accrued' => $row->interest_accrued,
+                    'interest_basis' => $row->interest_basis,
+                    'unwind_amount' => $row->unwind_amount,
+                    'cash_received' => $row->cash_received,
+                    'cash_source' => $row->cash_source,
+                    'modification_gain_loss' => $row->modification_gain_loss,
+                    'closing_gross' => $row->closing_gross,
+                    'ecl_allowance' => $row->ecl_allowance,
+                    'originally_created_at' => $row->created_at,
+                    'superseded_at' => now(),
+                    'superseded_by' => $userId,
+                    'supersession_reason' => 'Original EIR reopened: '.$reason,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+            DB::table('eir_amortisation')->where('contract_id', $contractId)->delete();
+
+            DB::table('loan_books')->where('contract_id', $contractId)->update([
+                'ecl_value_discounted' => null,
+                'ecl_discounting_effect' => null,
+                'ecl_discount_rate' => null,
+                'ecl_discount_rate_source' => null,
+                'ecl_discount_status' => 'STALE_EIR_REOPENED',
+                'ecl_discount_horizon_years' => null,
+                'ecl_calculation_run_id' => null,
+                'ecl_calculated_at' => null,
+            ]);
+
+            $contract->update([
+                'eir_period' => null,
+                'eir_nominal_annual' => null,
+                'eir_effective_annual' => null,
+                'solver_iterations' => null,
+                'solver_residual' => null,
+                'solver_method' => null,
+                'input_snapshot' => null,
+                'calculation_status' => 'REOPENED',
+                'calculation_error' => null,
+                'calculated_at' => null,
+                'calculated_by' => null,
+                'locked_at' => null,
+                'locked_by' => null,
+            ]);
+
+            return $contract->fresh();
+        });
     }
 }

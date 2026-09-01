@@ -126,6 +126,26 @@ class EirAccountingRuleSeeder extends Seeder
             // 20-39  INTEGRAL — the cost of putting the loan on the book.
             // ---------------------------------------------------------------
             [
+                'name' => 'MAIIC GL 4873 arrangement fee received',
+                'fee_type' => 'arrangement',
+                'description_contains' => null,
+                'gl_account_ref' => '4873',
+                'cashflow_direction' => 'RECEIVED',
+                'proposed_integral' => true,
+                'priority' => 20,
+                'rationale' => 'MAIIC GL 4873 is the governed arrangement-fee income account. A fee received for originating or arranging the loan is integral under IFRS 9 B5.4.3(a) and is deferred through the effective yield. This rule is a proposal only: the imported line must identify the contract and retain its posting evidence, and an independent reviewer must approve the classification before it reaches the EIR calculation.',
+            ],
+            [
+                'name' => 'MAIIC GL 4871 legal fee received on loan origination',
+                'fee_type' => 'legal',
+                'description_contains' => null,
+                'gl_account_ref' => '4871',
+                'cashflow_direction' => 'RECEIVED',
+                'proposed_integral' => true,
+                'priority' => 21,
+                'rationale' => 'MAIIC GL 4871 records legal fees charged in connection with loan drawdowns. The proposed integral treatment applies only where the charge is directly attributable to originating the identified facility. It remains subject to line-level classification and independent review so that general legal services, recoveries and post-default enforcement costs cannot enter the original EIR.',
+            ],
+            [
                 'name' => 'Arrangement, facility or front-end fee',
                 'fee_type' => 'arrangement',
                 'description_contains' => null,

@@ -91,6 +91,7 @@ class EirContractInputService
             'schedule_version' => 1,
             'schedule_source' => $contract->schedule_source,
             'drawn_amount' => $drawn,
+            'day_count_basis' => $contract->source_day_count_basis ?: 'ACT/365',
         ];
         $feeAdjustments = [
             'received' => $received,

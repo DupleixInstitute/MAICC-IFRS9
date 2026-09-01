@@ -102,8 +102,14 @@
                   <div v-if="contract.locked_at">Locked {{ date(contract.locked_at) }}</div>
                 </td>
                 <td class="td">
-                  <button v-if="contract.calculation_status === 'CALCULATED'" @click="approve(contract)" class="primary-btn">Approve & lock</button>
-                  <span v-else-if="contract.locked_at" class="text-xs text-gray-500">Final</span>
+                  <div class="flex flex-col items-start gap-2">
+                    <button v-if="contract.calculation_status === 'CALCULATED'" @click="approve(contract)" class="primary-btn">Approve & lock</button>
+                    <button v-if="!contract.locked_at" @click="recalculate(contract)" class="secondary-btn">
+                      {{ contract.calculation_status === 'PENDING' ? 'Calculate' : contract.calculation_status === 'BLOCKED' ? 'Retry calculation' : 'Recalculate' }}
+                    </button>
+                    <button v-if="contract.locked_at && canReopen" @click="openReopenModal(contract)" class="secondary-btn border-amber-300 text-amber-800 hover:bg-amber-50">Reopen locked EIR</button>
+                    <span v-else-if="contract.locked_at" class="text-xs text-gray-500">Locked — administrator reopening required</span>
+                  </div>
                 </td>
               </tr>
               <tr v-if="!contracts.data.length">
@@ -128,6 +134,37 @@
       <p v-if="Object.keys(errors).length" class="text-sm text-red-700">{{ Object.values(errors)[0] }}</p>
     </div>
 
+    <div v-if="reopenModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 px-4" @click.self="closeReopenModal">
+      <div class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="reopen-eir-title">
+        <div class="border-b border-gray-200 px-6 py-5">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 id="reopen-eir-title" class="text-lg font-semibold text-gray-900">Reopen locked original EIR</h3>
+              <p class="mt-1 text-sm text-gray-500">Contract {{ reopenModal.contract?.contract_id }}</p>
+            </div>
+            <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" :disabled="reopenModal.processing" @click="closeReopenModal">&#10005;</button>
+          </div>
+        </div>
+        <div class="space-y-4 px-6 py-5">
+          <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            The locked calculation will be archived. Revenue-recognition rows will be superseded and discounted ECL will be marked stale. The EIR must then be recalculated and independently approved.
+          </div>
+          <div>
+            <label for="reopen-reason" class="text-sm font-semibold text-gray-800">Reason for reopening <span class="text-red-600">*</span></label>
+            <textarea id="reopen-reason" v-model="reopenModal.reason" rows="4" maxlength="500" class="form-input mt-2" placeholder="Describe the source-data error or controlled correction."></textarea>
+            <div class="mt-1 flex justify-between text-xs"><span class="text-gray-500">At least 10 characters; recorded in audit history.</span><span class="text-gray-400">{{ reopenModal.reason.length }}/500</span></div>
+            <p v-if="reopenModal.error" class="mt-2 text-sm text-red-700">{{ reopenModal.error }}</p>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          <button class="secondary-btn" :disabled="reopenModal.processing" @click="closeReopenModal">Cancel</button>
+          <button class="primary-btn bg-amber-700 hover:bg-amber-800" :disabled="reopenModal.processing || reopenModal.reason.trim().length < 10" @click="confirmReopen">
+            {{ reopenModal.processing ? 'Reopening…' : 'Reopen and invalidate results' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <teleport to="head"><title>EIR Calculations</title></teleport>
   </app-layout>
 </template>
@@ -143,14 +180,16 @@ export default {
     filters: Object,
     summary: Object,
     approvalSummary: { type: Object, default: () => ({}) },
+    canReopen: { type: Boolean, default: false },
     errors: { type: Object, default: () => ({}) },
   },
   data() {
     return {
-      statuses: ['PENDING', 'BLOCKED', 'CALCULATED', 'LOCKED'],
+      statuses: ['PENDING', 'REOPENED', 'BLOCKED', 'CALCULATED', 'LOCKED'],
       selected: [],
       bulkApproving: false,
       filtering: false,
+      reopenModal: { open: false, contract: null, reason: '', processing: false, error: null },
       filter: {
         status: this.filters.status || '',
         contract_id: this.filters.contract_id || '',
@@ -203,6 +242,29 @@ export default {
     calculate() {
       this.$inertia.post(this.route('eir-calculations.calculate'), { contract_ids: this.selected }, {
         onSuccess: () => { this.selected = [] },
+      })
+    },
+    recalculate(contract) {
+      this.$inertia.post(this.route('eir-calculations.calculate'), { contract_ids: [contract.contract_id] }, { preserveScroll: true })
+    },
+    openReopenModal(contract) {
+      this.reopenModal = { open: true, contract, reason: '', processing: false, error: null }
+    },
+    closeReopenModal() {
+      if (this.reopenModal.processing) return
+      this.reopenModal = { open: false, contract: null, reason: '', processing: false, error: null }
+    },
+    confirmReopen() {
+      if (!this.reopenModal.contract || this.reopenModal.reason.trim().length < 10) return
+      this.reopenModal.processing = true
+      this.reopenModal.error = null
+      this.$inertia.post(this.route('eir-calculations.reopen', this.reopenModal.contract.id), {
+        reason: this.reopenModal.reason.trim(),
+      }, {
+        preserveScroll: true,
+        onSuccess: () => { this.reopenModal = { open: false, contract: null, reason: '', processing: false, error: null } },
+        onError: errors => { this.reopenModal.error = errors.reason || 'The locked EIR could not be reopened.' },
+        onFinish: () => { this.reopenModal.processing = false },
       })
     },
     approve(c) {

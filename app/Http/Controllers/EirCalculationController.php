@@ -21,7 +21,7 @@ class EirCalculationController extends Controller
     {
         $status = strtoupper(trim((string) $request->input('status', '')));
         $search = trim((string) $request->input('contract_id', ''));
-        if (!in_array($status, ['PENDING', 'BLOCKED', 'CALCULATED', 'LOCKED'], true)) {
+        if (!in_array($status, ['PENDING', 'REOPENED', 'BLOCKED', 'CALCULATED', 'LOCKED'], true)) {
             $status = '';
         }
 
@@ -57,7 +57,7 @@ class EirCalculationController extends Controller
                 ->count();
 
         return Inertia::render('Eir/Calculations', [
-            'contracts' => $query->orderByRaw("CASE calculation_status WHEN 'BLOCKED' THEN 1 WHEN 'CALCULATED' THEN 2 WHEN 'PENDING' THEN 3 ELSE 4 END")
+            'contracts' => $query->orderByRaw("CASE calculation_status WHEN 'BLOCKED' THEN 1 WHEN 'REOPENED' THEN 2 WHEN 'CALCULATED' THEN 3 WHEN 'PENDING' THEN 4 ELSE 5 END")
                 ->orderByDesc('updated_at')->paginate(30)->withQueryString(),
             'filters' => ['status' => $status, 'contract_id' => $search],
             'summary' => ContractEir::selectRaw('calculation_status, COUNT(*) as contract_count')->groupBy('calculation_status')->get()->keyBy('calculation_status'),
@@ -68,6 +68,7 @@ class EirCalculationController extends Controller
                 'missing_maker' => $approvalMissingMaker,
                 'admin_override' => $adminOverride,
             ],
+            'canReopen' => $adminOverride,
         ]);
     }
 
@@ -158,6 +159,41 @@ class EirCalculationController extends Controller
         }
 
         return back()->with('success', $message);
+    }
+
+    public function reopen(Request $request, ContractEir $contractEir, EirCalculationService $calculations)
+    {
+        if (! $this->adminOverride()) {
+            abort(403, 'Only an administrator can reopen a locked original EIR.');
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:500'],
+        ]);
+        $oldValues = [
+            'contract_id' => $contractEir->contract_id,
+            'eir_effective_annual' => $contractEir->eir_effective_annual,
+            'locked_at' => $contractEir->locked_at,
+            'locked_by' => $contractEir->locked_by,
+        ];
+
+        try {
+            $reopened = $calculations->reopen(
+                $contractEir->contract_id,
+                (int) auth()->id(),
+                $data['reason']
+            );
+        } catch (LogicException $e) {
+            return back()->withErrors(['reason' => $e->getMessage()]);
+        }
+
+        AuditLoggerService::log('Locked Original EIR Reopened', ContractEir::class, $reopened->id, [
+            'old_values' => $oldValues,
+            'new_values' => ['calculation_status' => $reopened->calculation_status, 'locked_at' => null],
+            'meta' => ['reason' => $data['reason'], 'downstream_results_invalidated' => true],
+        ]);
+
+        return back()->with('success', "Original EIR for {$reopened->contract_id} reopened. Recalculate and obtain independent approval before reuse.");
     }
 
     private function adminOverride(): bool
