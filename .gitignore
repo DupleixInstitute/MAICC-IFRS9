@@ -22,3 +22,7 @@ yarn-error.log
 # Client extracts and tapes — real, unanonymised MAIIC/FinES names and
 # balances. Never committed; keep local only (spec open item 15).
 /sample data/
+
+# Local scratch space: database dumps, inspection scripts, REPL history.
+# The dumps are full copies of the client test database (spec open item 15).
+/.tmp/
