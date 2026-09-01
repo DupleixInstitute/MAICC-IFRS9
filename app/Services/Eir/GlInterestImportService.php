@@ -31,9 +31,10 @@ class GlInterestImportService
      * @param  list<array<string,mixed>>  $rows  mapped Extract C rows
      * @return array{
      *   source_rows:int, loaded_rows:int, restated_rows:int, unchanged:int,
-     *   duplicate_source_rows:int, held:array<string,string>,
+     *   duplicate_source_rows:int, conflicting_duplicate_source_rows:int, held:array<string,string>,
      *   skipped:array<string,string>, restatements:array<string,string>,
-     *   negative_rows:int, total_posted:float, periods:array<string,float>
+     *   annual_summary_rows:int, negative_rows:int, total_posted:float,
+     *   periods:array<string,float>
      * }
      */
     public function import(array $rows): array
@@ -43,9 +44,11 @@ class GlInterestImportService
         $restatements = [];
         $seen = [];
         $duplicates = 0;
+        $conflictingDuplicates = 0;
         $loaded = 0;
         $restated = 0;
         $unchanged = 0;
+        $annualSummaries = 0;
         $negatives = 0;
         $total = 0.0;
         $periods = [];
@@ -60,6 +63,18 @@ class GlInterestImportService
                 continue;
             }
 
+            // The full-population Extract C includes annual control totals
+            // identified by PERIOD_MONTH = 0. They repeat the monthly detail
+            // below them and must never enter a period-grain reconciliation.
+            // Keep them visible in the import evidence rather than silently
+            // discarding them or reporting them as malformed transactions.
+            $rawMonth = $row['period_month'] ?? null;
+            if ($rawMonth !== null && trim((string) $rawMonth) !== ''
+                && (int) $this->amount($rawMonth) === 0) {
+                $annualSummaries++;
+                continue;
+            }
+
             [$year, $month] = $this->period($row);
             if ($year === null || $month === null) {
                 $skipped[$contractId . ' @ ' . $label] = 'posting period is missing or not a valid year/month';
@@ -68,13 +83,20 @@ class GlInterestImportService
 
             $glAccount = trim((string) ($row['gl_account_code'] ?? '')) ?: null;
             $naturalKey = implode('|', [$contractId, $year, $month, $glAccount ?? '']);
+            $posted = $this->amount($row['interest_income_posted'] ?? null);
+            $postingReferences = trim((string) ($row['posting_references'] ?? '')) ?: null;
 
             if (isset($seen[$naturalKey])) {
                 $duplicates++;
-                $skipped[$naturalKey] = 'the file carries more than one posting for this loan, period and GL account';
+                $sameAmount = abs($seen[$naturalKey]['amount'] - $posted) < 0.005;
+                $sameReferences = $seen[$naturalKey]['references'] === $postingReferences;
+                if (! $sameAmount || ! $sameReferences) {
+                    $conflictingDuplicates++;
+                    $skipped[$naturalKey] = 'conflicting duplicate: the file carries different amounts or references for the same loan, period and GL account';
+                }
                 continue;
             }
-            $seen[$naturalKey] = true;
+            $seen[$naturalKey] = ['amount' => $posted, 'references' => $postingReferences];
 
             $loan = DB::table('loan_books')->where('contract_id', $contractId)
                 ->orderByDesc('reporting_period')->first(['contract_id']);
@@ -83,7 +105,6 @@ class GlInterestImportService
                 continue;
             }
 
-            $posted = $this->amount($row['interest_income_posted'] ?? null);
             if ($posted < 0) {
                 $negatives++;
             }
@@ -98,7 +119,7 @@ class GlInterestImportService
                 'reporting_period' => sprintf('%04d-%02d-01', $year, $month),
                 'interest_income_posted' => $posted,
                 'transaction_count' => max(0, (int) $this->amount($row['transaction_count'] ?? null)),
-                'posting_references' => trim((string) ($row['posting_references'] ?? '')) ?: null,
+                'posting_references' => $postingReferences,
                 'row_note' => trim((string) ($row['row_note'] ?? '')) ?: null,
                 'generated_on' => $this->date($row['generated_on'] ?? null),
                 'source_system' => self::SOURCE,
@@ -144,6 +165,8 @@ class GlInterestImportService
             'restated_rows' => $restated,
             'unchanged' => $unchanged,
             'duplicate_source_rows' => $duplicates,
+            'conflicting_duplicate_source_rows' => $conflictingDuplicates,
+            'annual_summary_rows' => $annualSummaries,
             'held' => $held,
             'skipped' => $skipped,
             'restatements' => $restatements,

@@ -23,6 +23,7 @@ class EirReadinessService
         // monthly one by value alone. A quarterly facility solved monthly
         // returns a plausible rate that is not the contract's.
         if ($contract->frequency_source !== 'STATED') $issues[] = ['code' => 'FREQUENCY_ASSUMED', 'message' => 'Payment frequency was assumed, not stated by a source. Confirm it against the contract master or offer letter before solving.'];
+        if ($contract->schedule_approval_status !== 'APPROVED') $issues[] = ['code' => 'SCHEDULE_NOT_APPROVED', 'message' => 'The original schedule is a draft and must be reviewed and approved before EIR calculation.'];
 
         $schedule = DB::table('contract_cashflow_schedule')->where('contract_id', $contractId)->where('schedule_version', 1)->orderBy('due_date')->get();
         if ($schedule->isEmpty()) $issues[] = ['code' => 'ORIGINAL_SCHEDULE_MISSING', 'message' => 'Original contractual schedule (version 1) is missing.'];
@@ -32,7 +33,16 @@ class EirReadinessService
 
         $principalDue = (float) $schedule->sum('principal_due');
         $drawn = (float) $contract->drawn_amount;
-        if ($drawn > 0 && $schedule->isNotEmpty() && abs($principalDue - $drawn) > max(1.0, $drawn * 0.01)) $issues[] = ['code' => 'PRINCIPAL_NOT_RECONCILED', 'message' => 'Scheduled principal does not reconcile to the drawn amount within 1%.'];
+        // A generated capital-and-interest holiday amortises the balance
+        // after contractual moratorium interest has capitalised. Imported
+        // original schedules remain controlled directly to the drawdown.
+        $expectedPrincipal = $drawn;
+        if ($contract->schedule_source === 'GENERATED' && (int) $contract->moratorium_months > 0) {
+            $annualRate = (float) ($contract->contractual_rate ?? 0);
+            if ($annualRate > 1) $annualRate /= 100;
+            $expectedPrincipal = round($drawn * pow(1 + $annualRate / 12, (int) $contract->moratorium_months), 2);
+        }
+        if ($expectedPrincipal > 0 && $schedule->isNotEmpty() && abs($principalDue - $expectedPrincipal) > max(1.0, $expectedPrincipal * 0.01)) $issues[] = ['code' => 'PRINCIPAL_NOT_RECONCILED', 'message' => 'Scheduled principal does not reconcile to the expected contractual balance within 1%.'];
 
         $fees = DB::table('contract_fees')->where('contract_id', $contractId)->get();
         $unresolved = $fees->whereNotIn('classification_status', ['REVIEWED', 'REJECTED']);
@@ -45,7 +55,7 @@ class EirReadinessService
         $initialNet = $drawn - $received + $paid;
         if ($drawn > 0 && $initialNet <= 0) $issues[] = ['code' => 'INITIAL_NET_INVALID', 'message' => 'Fee-adjusted initial net investment is not positive.'];
 
-        $metrics = ['drawn_amount' => $drawn, 'scheduled_principal' => $principalDue, 'integral_fees_received' => $received, 'integral_costs_paid' => $paid, 'initial_net_investment' => $initialNet, 'schedule_rows' => $schedule->count(), 'unresolved_fee_lines' => $unresolved->count()];
+        $metrics = ['drawn_amount' => $drawn, 'expected_contractual_principal' => $expectedPrincipal, 'scheduled_principal' => $principalDue, 'integral_fees_received' => $received, 'integral_costs_paid' => $paid, 'initial_net_investment' => $initialNet, 'schedule_rows' => $schedule->count(), 'unresolved_fee_lines' => $unresolved->count()];
         return $issues === [] ? ['contract_id' => $contractId, 'status' => 'READY', 'ready' => true, 'issues' => [], 'metrics' => $metrics] : $this->blocked($contractId, $issues, $metrics);
     }
 

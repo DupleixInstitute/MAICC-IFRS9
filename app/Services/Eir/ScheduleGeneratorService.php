@@ -74,7 +74,9 @@ class ScheduleGeneratorService
         $instalment = $this->levelInstalment($balance, $periodRate, $nPayments);
 
         $intervalMonths = intdiv(12, $paymentsPerYear);
-        $firstDue = $startDate->copy()->addMonthsNoOverflow($moratoriumMonths + $intervalMonths);
+        $firstDue = isset($terms['first_due_date']) && $terms['first_due_date']
+            ? Carbon::parse($terms['first_due_date'])
+            : $startDate->copy()->addMonthsNoOverflow($moratoriumMonths + $intervalMonths);
 
         $rows = [];
         for ($t = 1; $t <= $nPayments; $t++) {

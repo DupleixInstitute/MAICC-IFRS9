@@ -7,6 +7,7 @@ use App\Models\ContractEir;
 use App\Models\GlInterestPosting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\Eir\ScheduleWorkflowService;
 use Inertia\Inertia;
 
 class EirDataController extends Controller
@@ -18,27 +19,58 @@ class EirDataController extends Controller
 
     public function index(Request $request)
     {
-        $tab = in_array($request->input('tab'), ['contracts', 'cashflows', 'gl'], true) ? $request->input('tab') : 'contracts';
+        $tab = in_array($request->input('tab'), ['contracts', 'cashflows', 'schedules', 'gl'], true) ? $request->input('tab') : 'contracts';
         $search = trim((string) $request->input('search'));
+        $comparisonStatus = in_array($request->input('comparison_status'), [
+            'WITHIN_TOLERANCE', 'PRINCIPAL_VARIANCE', 'INTEREST_VARIANCE', 'NO_REMAINING_DATA', 'NOT_COMPARED',
+        ], true) ? $request->input('comparison_status') : '';
 
         $data = match ($tab) {
             'cashflows' => $this->cashflows($search),
             'gl' => $this->glPostings($search),
+            'schedules' => $this->scheduleReviews($search, $comparisonStatus),
             default => $this->contracts($search),
         };
 
         return Inertia::render('Eir/Data', [
             'activeTab' => $tab,
             'data' => $data,
-            'filters' => ['search' => $search],
+            'filters' => ['search' => $search, 'comparison_status' => $comparisonStatus],
             'summary' => [
                 'contracts' => ContractEir::count(),
                 'cashflows' => ContractCashflowSchedule::count(),
                 'gl_postings' => GlInterestPosting::count(),
+                'remaining_cashflows' => DB::table('contract_remaining_cashflow_schedule')->count(),
+                'approved_schedules' => ContractEir::where('schedule_approval_status','APPROVED')->count(),
+                'schedule_comparisons' => [
+                    'within_tolerance' => ContractEir::where('schedule_comparison_status','WITHIN_TOLERANCE')->count(),
+                    'principal_variance' => ContractEir::where('schedule_comparison_status','PRINCIPAL_VARIANCE')->count(),
+                    'interest_variance' => ContractEir::where('schedule_comparison_status','INTEREST_VARIANCE')->count(),
+                    'no_remaining_data' => ContractEir::where('schedule_comparison_status','NO_REMAINING_DATA')->count(),
+                    'not_compared' => ContractEir::whereNull('schedule_comparison_status')->count(),
+                ],
                 'locked_eirs' => ContractEir::whereNotNull('locked_at')->count(),
                 'reconciliation' => $this->reconciliationSummary(),
             ],
         ]);
+    }
+
+    private function scheduleReviews(string $search, string $comparisonStatus)
+    {
+        $page=ContractEir::query()->when($search!=='',fn($q)=>$q->where('contract_id','like',"%{$search}%"))
+            ->when($comparisonStatus === 'NOT_COMPARED', fn($q) => $q->whereNull('schedule_comparison_status'))
+            ->when($comparisonStatus !== '' && $comparisonStatus !== 'NOT_COMPARED', fn($q) => $q->where('schedule_comparison_status',$comparisonStatus))
+            ->withCount(['schedules'])->orderBy('contract_id')->paginate(15)->withQueryString();
+        $workflow=app(ScheduleWorkflowService::class);
+        $page->getCollection()->transform(function($contract) use ($workflow) {
+            $readiness=$workflow->readiness($contract); $comparison=$workflow->comparison($contract);
+            $contract->setAttribute('generation_ready',$readiness['ready']);
+            $contract->setAttribute('generation_issues',$readiness['issues']);
+            $contract->setAttribute('comparison',$comparison);
+            $contract->setAttribute('remaining_rows',$comparison['remaining_rows']);
+            return $contract;
+        });
+        return $page;
     }
 
     private function contracts(string $search)

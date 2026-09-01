@@ -21,7 +21,7 @@ class ContractTransactionImportService
     public const SOURCE = 'MAIIC_EXTRACT_B';
 
     public function __construct(
-        private readonly ScheduleImportService $schedules,
+        private readonly RemainingScheduleImportService $remainingSchedules,
         private readonly FeeImportService $fees,
     ) {}
 
@@ -93,14 +93,15 @@ class ContractTransactionImportService
         }
 
         $actualLoaded = $this->insertActuals($actualRows);
-        $scheduleResult = $this->schedules->import($scheduleRows);
+        $scheduleResult = $this->remainingSchedules->import($scheduleRows);
         $feeResult = $this->fees->import($feeRows);
 
         return ['source_rows' => count($rows), 'scheduled_rows_routed' => count($scheduleRows),
             'actual_rows_loaded' => $actualLoaded, 'fee_rows_routed' => count($feeRows),
             'duplicate_source_rows' => $duplicates, 'held' => $held + $scheduleResult['held'],
             'skipped' => $conflicts + $scheduleResult['skipped'], 'loaded_contracts' => $scheduleResult['loaded_contracts'],
-            'loaded_rows' => $scheduleResult['loaded_rows'], 'fee_result' => $feeResult, 'coverage' => $scheduleResult['coverage']];
+            'loaded_rows' => $scheduleResult['loaded_rows'], 'remaining_schedule_result' => $scheduleResult,
+            'fee_result' => $feeResult, 'coverage' => $scheduleResult['coverage']];
     }
 
     private function insertActuals(array $rows): int

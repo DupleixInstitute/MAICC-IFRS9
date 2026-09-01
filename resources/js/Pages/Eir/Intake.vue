@@ -10,9 +10,9 @@
                         <svg class="w-6 h-6 mr-2 text-maiic-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
                         </svg>
-                        EIR Schedule & Fee Intake
+                        EIR Data Intake
                     </h2>
-                    <p class="mt-1 text-sm text-gray-600">Import contractual schedules and fee/cost lines; accounting treatment is reviewed separately</p>
+                    <p class="mt-1 text-sm text-gray-600">Load contract terms, transactions, fees and loan-level interest evidence</p>
                 </div>
                 <div class="flex items-center space-x-2">
                     <div class="px-3 py-1 bg-maiic-100 text-maiic-800 text-xs font-medium rounded-full">
@@ -24,19 +24,17 @@
 
         <div class="max-w-6xl mx-auto space-y-6">
 
-            <!-- Step 1: choose type + file -->
+            <!-- Import card -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">1 · Upload a file</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Import EIR data</h3>
                 <div v-if="autoDetectedType" class="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
                     {{ autoDetectedType }} was detected from the file headers and selected automatically.
                 </div>
-                <p class="text-sm text-gray-500 mb-4">
-                    Any CSV or Excel shape works - you map its columns once and the template is reused for every future file of the same shape.
-                </p>
+                <p class="text-sm text-gray-500 mb-4">Choose the source type and upload the corresponding CSV or Excel file. The system detects and validates the expected columns automatically.</p>
                 <div v-if="importType === 'contract_transactions'" class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                    <div class="font-semibold">Extract B schedule requirement</div>
+                    <div class="font-semibold">Extract B remaining-schedule evidence</div>
                     <p class="mt-1">
-                        Rows marked <strong>Scheduled</strong> populate the Cash Flows tab only when each contract has its complete original contractual schedule and scheduled principal reconciles to the loan amount. Partial or truncated schedules are rejected to protect the EIR calculation.
+                        Rows marked <strong>Scheduled</strong> are staged as the remaining schedule for comparison. They never replace the original version-1 schedule used by EIR.
                     </p>
                     <p class="mt-1">
                         Rows marked <strong>Actual</strong> are retained as transaction evidence and do not appear in the contractual Cash Flows tab. Fee component is optional; a blank fee does not block principal and interest.
@@ -66,120 +64,25 @@
                 </div>
                 <div class="mt-4 flex justify-end">
                     <button
-                        @click="analyze"
+                        @click="analyze(true)"
                         :disabled="processing || !file"
                         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-maiic-600 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                     >
-                        {{ processing && stage === 'analyze' ? 'Analyzing…' : 'Analyze headers' }}
+                        {{ processing ? 'Importing…' : 'Import file' }}
                     </button>
                 </div>
             </div>
 
-            <!-- Step 2: mapping -->
-            <div v-if="analysis" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">2 · Map columns</h3>
-                <p class="text-sm text-gray-500 mb-4">
-                    Connect the file's columns (left) to the system fields (right).
-                    Required fields:
-                    <span
-                        v-for="f in analysis.required_fields" :key="f"
-                        class="inline-block px-2 py-0.5 mx-0.5 text-xs rounded-full"
-                        :class="mappedTargets.includes(f) ? 'bg-maiic-100 text-maiic-800' : 'bg-red-100 text-red-800'"
-                    >{{ f }}</span>
-                </p>
-
-                <div class="overflow-x-auto">
-                    <table class="maiic-table">
-                        <thead>
-                            <tr>
-                                <th>File column</th>
-                                <th>
-                                    Values in file
-                                    <span v-if="analysis?.profiled_rows" class="normal-case font-normal text-gray-400">({{ analysis.profiled_rows }} rows)</span>
-                                </th>
-                                <th>Maps to</th>
-                                <th>Transform</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="header in analysis.headers" :key="header" class="hover:bg-maiic-50 transition-colors duration-150">
-                                <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ header }}</td>
-                                <!-- Excel-filter style: every distinct value with its
-                                     row count, not the first three rows. A column
-                                     reading "FInES · FInES · FInES" hid that a second
-                                     portfolio existed. -->
-                                <td class="px-4 py-2 text-xs align-top" style="max-width: 26rem">
-                                    <div v-if="profileFor(header)" class="flex flex-wrap gap-1 items-center">
-                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide" :class="typeClass(header)">
-                                            {{ profileFor(header).type }}
-                                        </span>
-                                        <span
-                                            v-for="entry in profileFor(header).values"
-                                            :key="entry.value"
-                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 text-gray-700"
-                                            :title="entry.value"
-                                        >
-                                            <span class="truncate" style="max-width: 14rem">{{ entry.value }}</span>
-                                            <span class="text-gray-400">×{{ entry.count }}</span>
-                                        </span>
-                                        <span v-if="profileFor(header).blank" class="px-2 py-0.5 rounded bg-amber-50 text-amber-700">
-                                            (blank) ×{{ profileFor(header).blank }}
-                                        </span>
-                                        <span v-if="moreValues(header)" class="px-2 py-0.5 text-gray-400">
-                                            +{{ moreValues(header) }} more{{ profileFor(header).truncated ? '+' : '' }}
-                                        </span>
-                                    </div>
-                                    <span v-else class="text-gray-400">{{ previewFor(header) }}</span>
-                                </td>
-                                <td class="px-4 py-2">
-                                    <select v-model="mapping[header]" class="form-input text-sm" @change="applySuggestedTransform(header)">
-                                        <option :value="undefined">- ignore -</option>
-                                        <option v-for="f in allTargetFields" :key="f" :value="f">{{ f }}</option>
-                                    </select>
-                                </td>
-                                <td class="px-4 py-2">
-                                    <select v-model="transforms[mapping[header]]" class="form-input text-sm" :disabled="!mapping[header]">
-                                        <option :value="undefined">none / text</option>
-                                        <option value="number">number</option>
-                                        <option value="percent">percent</option>
-                                        <option value="date">date (auto)</option>
-                                        <option value="date:d/m/Y">date (dd/mm/yyyy)</option>
-                                        <option value="date:m/d/Y">date (mm/dd/yyyy)</option>
-                                    </select>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="mt-4 flex items-center justify-between">
-                    <label class="flex items-center text-sm text-gray-700">
-                        <input type="checkbox" v-model="saveTemplate" class="rounded border-gray-300 text-maiic-600 mr-2" />
-                        Save this mapping as the template for future {{ importType }} files
-                    </label>
-                    <button
-                        @click="runImport"
-                        :disabled="processing || missingRequired.length > 0"
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-maiic-600 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                    >
-                        {{ processing && stage === 'import' ? 'Importing…' : 'Run import' }}
-                    </button>
-                </div>
-                <p v-if="missingRequired.length" class="mt-2 text-right text-xs text-red-600">
-                    Unmapped required field(s): {{ missingRequired.join(', ') }}
-                </p>
-            </div>
-
-            <!-- Step 3: result -->
+            <!-- Import result -->
             <div v-if="result" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">3 · Result</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Import result</h3>
 
                 <div
                     v-if="importType === 'contract_transactions' && result.scheduled_rows_routed > 0 && result.loaded_rows === 0"
                     class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
                 >
-                    <div class="font-semibold">Scheduled rows were found, but none were accepted.</div>
-                    <p class="mt-1">The Cash Flows tab remains unchanged. Review the contract-level reasons below before calculating EIR.</p>
+                    <div class="font-semibold">Scheduled rows were found, but none were staged.</div>
+                    <p class="mt-1">Review the contract-level reasons below. The original Cash Flows tab is unchanged.</p>
                     <a v-if="exceptionDownloadUrl" :href="exceptionDownloadUrl" class="mt-2 inline-block font-semibold underline">Download exception report</a>
                 </div>
 
@@ -204,9 +107,9 @@
 
                 <div v-if="importType === 'contract_transactions'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.scheduled_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Scheduled rows routed</div></div>
-                    <div class="bg-green-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-green-700">{{ result.loaded_rows }}</div><div class="text-xs text-green-800 mt-1">Schedule rows accepted</div></div>
-                    <div class="bg-red-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-red-700">{{ scheduleRowsNotLoaded }}</div><div class="text-xs text-red-800 mt-1">Schedule rows not loaded</div></div>
-                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.loaded_contracts }}</div><div class="text-xs text-maiic-800 mt-1">Contracts accepted</div></div>
+                    <div class="bg-green-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-green-700">{{ result.loaded_rows }}</div><div class="text-xs text-green-800 mt-1">Remaining rows staged</div></div>
+                    <div class="bg-red-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-red-700">{{ scheduleRowsNotLoaded }}</div><div class="text-xs text-red-800 mt-1">Rows not staged</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.loaded_contracts }}</div><div class="text-xs text-maiic-800 mt-1">Contracts staged</div></div>
                 </div>
 
                 <div v-if="importType === 'contract_transactions'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -223,8 +126,9 @@
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.fee_rows_routed }}</div><div class="text-xs text-maiic-800 mt-1">Origination fees → pending</div></div>
                 </div>
 
-                <div v-else-if="importType === 'gl_interest'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div v-else-if="importType === 'gl_interest'" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.loaded_rows }}</div><div class="text-xs text-maiic-800 mt-1">Postings loaded</div></div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.annual_summary_rows || 0 }}</div><div class="text-xs text-gray-800 mt-1">Annual totals excluded</div></div>
                     <div class="bg-amber-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-amber-700">{{ result.restated_rows }}</div><div class="text-xs text-amber-800 mt-1">GL restatements applied</div></div>
                     <div class="bg-amber-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-amber-700">{{ result.negative_rows }}</div><div class="text-xs text-amber-800 mt-1">Negative rows (check sign)</div></div>
                     <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ Number(result.total_posted).toLocaleString() }}</div><div class="text-xs text-gray-800 mt-1">Total interest posted</div></div>
@@ -355,12 +259,12 @@ export default {
     components: { AppLayout, JetLabel, Link },
     data() {
         return {
-            importType: 'schedule',
+            importType: 'contract_master',
             file: null,
             analysis: null,
             mapping: {},      // header -> target field
             transforms: {},   // target field -> transform
-            saveTemplate: true,
+            saveTemplate: false,
             processing: false,
             stage: null,
             result: null,
@@ -491,7 +395,7 @@ export default {
             const response = await axios.post(this.route('eir-intake.analyze'), data)
             return response.data
         },
-        async analyze() {
+        async analyze(autoImport = false) {
             if (!this.file) return
             this.processing = true
             this.stage = 'analyze'
@@ -516,6 +420,13 @@ export default {
                 for (const [header, field] of Object.entries(this.mapping)) {
                     const t = analysis.profile?.[header]?.suggested_transform || this.defaultTransformFor(field)
                     if (t) this.transforms[field] = t
+                }
+                if (autoImport) {
+                    if (this.missingRequired.length) {
+                        this.error = `The file is missing required columns: ${this.missingRequired.join(', ')}. Check that the correct source type and file were selected.`
+                        return
+                    }
+                    await this.runImport()
                 }
             } catch (e) {
                 this.error = e.response?.data?.error || e.response?.data?.message || 'Failed to analyze file.'

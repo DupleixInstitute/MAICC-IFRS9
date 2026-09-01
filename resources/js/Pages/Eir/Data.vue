@@ -45,10 +45,25 @@
             <h3 class="font-semibold text-gray-900">{{ currentTab.label }}</h3>
             <p class="text-xs text-gray-500">{{ currentTab.description }}</p>
           </div>
-          <form class="flex w-full gap-2 md:w-auto" @submit.prevent="applySearch">
+          <form class="flex w-full flex-wrap gap-2 md:w-auto" @submit.prevent="applySearch">
+            <select v-if="activeTab === 'schedules'" v-model="comparisonStatus" class="form-input md:w-56" @change="applySearch">
+              <option value="">All comparison results</option>
+              <option value="WITHIN_TOLERANCE">Within tolerance ({{ comparisonCounts.within_tolerance || 0 }})</option>
+              <option value="PRINCIPAL_VARIANCE">Principal variance ({{ comparisonCounts.principal_variance || 0 }})</option>
+              <option value="INTEREST_VARIANCE">Interest variance ({{ comparisonCounts.interest_variance || 0 }})</option>
+              <option value="NO_REMAINING_DATA">No Extract B evidence ({{ comparisonCounts.no_remaining_data || 0 }})</option>
+              <option value="NOT_COMPARED">Not compared / blocked ({{ comparisonCounts.not_compared || 0 }})</option>
+            </select>
             <input v-model="search" class="form-input md:w-72" placeholder="Contract, account or reference">
             <button type="submit" class="secondary-btn">Search</button>
+            <button v-if="activeTab === 'schedules' && (search || comparisonStatus)" type="button" class="secondary-btn" @click="clearFilters">Clear</button>
           </form>
+        </div>
+
+        <div v-if="activeTab === 'schedules'" class="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-amber-50 p-4">
+          <button class="secondary-btn" @click="post('eir-schedules.dry-run')">Dry-run readiness</button>
+          <button class="primary-btn" @click="post('eir-schedules.generate-all')">Generate eligible drafts</button>
+          <p class="text-xs text-amber-800">Extract B remaining rows are comparison evidence. Only an approved version-1 schedule is used by EIR.</p>
         </div>
 
         <div v-if="activeTab === 'gl'" class="border-b border-gray-200 bg-gray-50 p-4">
@@ -89,6 +104,22 @@
             </tbody>
           </table>
 
+          <table v-else-if="activeTab === 'schedules'" class="min-w-full">
+            <thead><tr><th class="th">Contract</th><th class="th">Extract A terms</th><th class="th">Generated</th><th class="th">Extract B remaining</th><th class="th">Comparison</th><th class="th">Approval</th><th class="th">Actions</th></tr></thead>
+            <tbody>
+              <tr v-for="r in data.data" :key="r.id">
+                <td class="td font-semibold">{{ r.contract_id }}</td>
+                <td class="td"><div>{{ frequency(r.payments_per_year) }} · {{ percent(r.contractual_rate) }}</div><div class="text-xs text-gray-500">{{ date(r.origination_date) }} → {{ date(r.maturity_date) }}</div><div v-if="!r.generation_ready" class="mt-1 text-xs text-red-700">{{ (r.generation_issues || []).join('; ') }}</div></td>
+                <td class="td">{{ r.schedules_count }} rows</td>
+                <td class="td">{{ r.remaining_rows }} rows<div class="text-xs text-gray-500">from {{ date(r.comparison?.cutoff_date) }}</div></td>
+                <td class="td"><span :class="comparisonClass(r.comparison?.status)">{{ label(r.comparison?.status) }}</span><div v-if="r.comparison?.principal_variance !== null" class="mt-1 text-xs">Principal Δ {{ signedMoney(r.comparison.principal_variance) }}<br>Interest Δ {{ signedMoney(r.comparison.interest_variance) }}</div></td>
+                <td class="td"><span :class="approvalClass(r.schedule_approval_status)">{{ label(r.schedule_approval_status) }}</span></td>
+                <td class="td"><div class="flex flex-col gap-2"><Link :href="route('eir-schedules.show', { contractEir: r.id })" class="secondary-btn">View schedule</Link><button v-if="r.schedule_approval_status !== 'APPROVED'" class="secondary-btn" :disabled="!r.generation_ready" @click="post('eir-schedules.generate', r.id)">Generate draft</button><button v-if="r.schedule_approval_status === 'DRAFT'" class="primary-btn" @click="approve(r)">Approve v1</button></div></td>
+              </tr>
+              <tr v-if="!data.data.length"><td colspan="7" class="p-10 text-center text-sm text-gray-500">No contracts found.</td></tr>
+            </tbody>
+          </table>
+
           <table v-else class="min-w-full">
             <thead>
               <tr><th class="th">Contract</th><th class="th">Period</th><th class="th">GL account</th><th class="th">GL interest</th><th class="th">EIR interest</th><th class="th">EIR − GL</th><th class="th">Variance %</th><th class="th">Status</th><th class="th">Source</th></tr>
@@ -116,6 +147,55 @@
       </div>
     </div>
 
+    <div v-if="approvalModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 px-4" @click.self="closeApprovalModal">
+      <div class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="schedule-review-title">
+        <div class="border-b border-gray-200 px-6 py-5">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 id="schedule-review-title" class="text-lg font-semibold text-gray-900">Approve contractual schedule</h3>
+              <p class="mt-1 text-sm text-gray-500">Review the comparison evidence before locking version 1.</p>
+            </div>
+            <button type="button" class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Close" @click="closeApprovalModal">&#10005;</button>
+          </div>
+        </div>
+
+        <div class="space-y-5 px-6 py-5">
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Contract</div>
+                <div class="mt-1 font-semibold text-gray-900">{{ approvalModal.row?.contract_id }}</div>
+              </div>
+              <span :class="comparisonClass(approvalModal.row?.comparison?.status)">{{ label(approvalModal.row?.comparison?.status) }}</span>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div><div class="text-xs text-gray-500">Principal variance</div><div class="mt-1 font-semibold text-gray-900">{{ signedMoney(approvalModal.row?.comparison?.principal_variance) }}</div></div>
+              <div><div class="text-xs text-gray-500">Interest variance</div><div class="mt-1 font-semibold text-gray-900">{{ signedMoney(approvalModal.row?.comparison?.interest_variance) }}</div></div>
+            </div>
+          </div>
+
+          <div>
+            <label for="schedule-review-notes" class="text-sm font-semibold text-gray-800">
+              Review note <span v-if="reviewNoteRequired" class="text-red-600">*</span>
+            </label>
+            <textarea id="schedule-review-notes" v-model="approvalModal.notes" rows="4" maxlength="2000" class="form-input mt-2 w-full" :placeholder="reviewNoteRequired ? 'Explain the variance and why this schedule is appropriate.' : 'Optional review evidence or conclusion.'"></textarea>
+            <div class="mt-1 flex justify-between text-xs">
+              <span :class="reviewNoteRequired ? 'text-amber-700' : 'text-gray-500'">{{ reviewNoteRequired ? 'Required because the comparison is outside tolerance.' : 'Optional when the schedule is within tolerance.' }}</span>
+              <span class="text-gray-400">{{ approvalModal.notes.length }}/2000</span>
+            </div>
+            <p v-if="approvalModal.error" class="mt-2 text-sm text-red-700">{{ approvalModal.error }}</p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          <button type="button" class="secondary-btn" :disabled="approvalModal.processing" @click="closeApprovalModal">Cancel</button>
+          <button type="button" class="primary-btn" :disabled="approvalModal.processing || (reviewNoteRequired && !approvalModal.notes.trim())" @click="confirmApproval">
+            {{ approvalModal.processing ? 'Approving…' : 'Approve version 1' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <teleport to="head"><title>EIR Data</title></teleport>
   </app-layout>
 </template>
@@ -128,21 +208,30 @@ export default {
   components: { AppLayout, Link },
   props: { activeTab: String, data: Object, filters: Object, summary: Object },
   data() {
-    return { search: this.filters.search || '' }
+    return {
+      search: this.filters.search || '',
+      comparisonStatus: this.filters.comparison_status || '',
+      approvalModal: { open: false, row: null, notes: '', processing: false, error: null },
+    }
   },
   computed: {
     reconciliation() {
       return this.summary.reconciliation || {}
     },
+    comparisonCounts() { return this.summary.schedule_comparisons || {} },
     tabs() {
       return [
         { key: 'contracts', label: 'Contract Master', count: this.summary.contracts, description: 'Facility terms, source conventions, fee and schedule coverage.' },
         { key: 'cashflows', label: 'Cash Flows', count: this.summary.cashflows, description: 'Contractual principal, interest and fee cash flows by due date.' },
+        { key: 'schedules', label: 'Schedule Review', count: this.summary.contracts, description: 'Generate original schedules from Extract A, compare to Extract B remaining rows, then approve.' },
         { key: 'gl', label: 'GL Reconciliation', count: this.summary.gl_postings, description: 'Compare calculated effective-interest revenue with interest posted to the general ledger.' },
       ]
     },
     currentTab() {
       return this.tabs.find(tab => tab.key === this.activeTab)
+    },
+    reviewNoteRequired() {
+      return this.approvalModal.row?.comparison?.status !== 'WITHIN_TOLERANCE'
     },
     cards() {
       return [
@@ -197,6 +286,36 @@ export default {
     reconciliationClass(status) {
       return status === 'WITHIN_TOLERANCE' ? 'badge-green' : status === 'VARIANCE' ? 'badge-red' : 'badge-yellow'
     },
+    comparisonClass(status) { return status === 'WITHIN_TOLERANCE' ? 'badge-green' : status === 'NO_REMAINING_DATA' ? 'badge-yellow' : 'badge-red' },
+    approvalClass(status) { return status === 'APPROVED' ? 'badge-green' : status === 'DRAFT' ? 'badge-blue' : 'badge-yellow' },
+    label(value) { return String(value || 'NOT GENERATED').replaceAll('_', ' ') },
+    post(name, id = null) { router.post(this.route(name, id ? { contractEir: id } : {}), {}, { preserveScroll: true }) },
+    approve(row) {
+      this.approvalModal = { open: true, row, notes: '', processing: false, error: null }
+    },
+    closeApprovalModal() {
+      if (this.approvalModal.processing) return
+      this.approvalModal = { open: false, row: null, notes: '', processing: false, error: null }
+    },
+    confirmApproval() {
+      if (!this.approvalModal.row || (this.reviewNoteRequired && !this.approvalModal.notes.trim())) return
+      this.approvalModal.processing = true
+      this.approvalModal.error = null
+      router.post(this.route('eir-schedules.approve', { contractEir: this.approvalModal.row.id }), {
+        notes: this.approvalModal.notes.trim() || null,
+      }, {
+        preserveScroll: true,
+        onSuccess: () => this.closeApprovalModalAfterRequest(),
+        onError: errors => {
+          this.approvalModal.processing = false
+          this.approvalModal.error = errors.notes || 'The schedule could not be approved. Review the comparison and try again.'
+        },
+        onFinish: () => { this.approvalModal.processing = false },
+      })
+    },
+    closeApprovalModalAfterRequest() {
+      this.approvalModal = { open: false, row: null, notes: '', processing: false, error: null }
+    },
     reconciliationLabel(status) {
       return status === 'WITHIN_TOLERANCE' ? 'Within tolerance' : status === 'VARIANCE' ? 'Variance' : 'Not calculated'
     },
@@ -205,11 +324,12 @@ export default {
       return Number(value) > 0 ? 'text-amber-700' : 'text-red-700'
     },
     openTab(tab) {
-      router.get(this.route('eir-data.index'), { tab, search: this.search }, { preserveState: false, preserveScroll: true })
+      router.get(this.route('eir-data.index'), { tab, search: this.search, comparison_status: tab === 'schedules' ? this.comparisonStatus : '' }, { preserveState: false, preserveScroll: true })
     },
     applySearch() {
-      router.get(this.route('eir-data.index'), { tab: this.activeTab, search: this.search.trim() }, { preserveState: false, preserveScroll: true, replace: true })
+      router.get(this.route('eir-data.index'), { tab: this.activeTab, search: this.search.trim(), comparison_status: this.activeTab === 'schedules' ? this.comparisonStatus : '' }, { preserveState: false, preserveScroll: true, replace: true })
     },
+    clearFilters() { this.search = ''; this.comparisonStatus = ''; this.applySearch() },
     go(url) {
       if (url) router.get(url, {}, { preserveState: false, preserveScroll: true })
     },

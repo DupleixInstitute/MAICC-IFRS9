@@ -64,6 +64,13 @@ class EirIntakeServicesTest extends TestCase
             $t->timestamps();
         });
 
+        Schema::create('contract_remaining_cashflow_schedule', function (Blueprint $t) {
+            $t->increments('id'); $t->string('contract_id'); $t->string('due_date');
+            $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0);
+            $t->string('source_system'); $t->string('source_reference')->nullable(); $t->string('external_transaction_id');
+            $t->text('row_note')->nullable(); $t->timestamps();
+        });
+
         Schema::create('contract_eir', function (Blueprint $t) {
             $t->increments('id');
             $t->string('contract_id')->unique();
@@ -243,14 +250,15 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(2, $result['scheduled_rows_routed']);
         $this->assertSame(1, $result['actual_rows_loaded']);
         $this->assertSame(1, $result['fee_rows_routed']);
-        $this->assertSame(2, DB::table('contract_cashflow_schedule')->count());
+        $this->assertSame(0, DB::table('contract_cashflow_schedule')->count());
+        $this->assertSame(2, DB::table('contract_remaining_cashflow_schedule')->count());
         $this->assertSame(1, DB::table('eir_actual_transactions')->count());
         $this->assertSame('PENDING', DB::table('contract_fees')->value('classification_status'));
         $this->assertSame('MAIIC_EXTRACT_B', DB::table('contract_fees')->value('source_system'));
 
         // Everything downstream must be keyed on the canonical identifier, not
         // the padded form the extract happened to arrive in.
-        $this->assertSame('104450000053', DB::table('contract_cashflow_schedule')->value('contract_id'));
+        $this->assertSame('104450000053', DB::table('contract_remaining_cashflow_schedule')->value('contract_id'));
         $this->assertSame('104450000053', DB::table('eir_actual_transactions')->value('contract_id'));
         $this->assertSame('104450000053', DB::table('contract_fees')->value('contract_id'));
     }
@@ -288,7 +296,7 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(1, $result['loaded_rows']);
         $this->assertSame(0, $result['fee_rows_routed']);
         $this->assertSame(0, DB::table('contract_fees')->count());
-        $this->assertSame(0.0, (float) DB::table('contract_cashflow_schedule')->value('fee_due'));
+        $this->assertSame(0.0, (float) DB::table('contract_remaining_cashflow_schedule')->value('fee_due'));
     }
 
     public function test_contract_transactions_partial_schedule_is_not_misrepresented_as_original_schedule(): void
@@ -302,8 +310,8 @@ class EirIntakeServicesTest extends TestCase
             'scheduled_actual_flag' => 'Scheduled',
         ]]);
 
-        $this->assertArrayHasKey('PARTIAL', $result['skipped']);
-        $this->assertStringContainsString('does not reconcile', $result['skipped']['PARTIAL']);
+        $this->assertSame(1, $result['loaded_rows']);
+        $this->assertSame(1, DB::table('contract_remaining_cashflow_schedule')->where('contract_id', 'PARTIAL')->count());
         $this->assertSame(0, DB::table('contract_cashflow_schedule')->count());
     }
 
@@ -745,6 +753,44 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(0, $result['loaded_rows']);
         $this->assertCount(2, $result['skipped']);
         $this->assertSame(0, DB::table('gl_interest_postings')->count());
+    }
+
+    public function test_gl_interest_excludes_annual_control_totals_with_month_zero(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(GlInterestImportService::class)->import([
+            $this->glRow([
+                'period_month' => 0,
+                'interest_income_posted' => 31_500_000,
+                'row_note' => 'Annual total of the monthly interest-income postings below.',
+            ]),
+            $this->glRow(['period_month' => 1, 'interest_income_posted' => 2_500_000]),
+        ]);
+
+        $this->assertSame(1, $result['annual_summary_rows']);
+        $this->assertSame(1, $result['loaded_rows']);
+        $this->assertCount(0, $result['skipped']);
+        $this->assertEqualsWithDelta(2_500_000, $result['total_posted'], 0.01);
+        $this->assertSame(1, DB::table('gl_interest_postings')->count());
+    }
+
+    public function test_gl_interest_ignores_exact_source_duplicates_but_rejects_conflicts(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+
+        $result = app(GlInterestImportService::class)->import([
+            $this->glRow(),
+            $this->glRow(),
+            $this->glRow(['interest_income_posted' => 2_700_000]),
+        ]);
+
+        $this->assertSame(2, $result['duplicate_source_rows']);
+        $this->assertSame(1, $result['conflicting_duplicate_source_rows']);
+        $this->assertCount(1, $result['skipped']);
+        $this->assertSame(1, $result['loaded_rows']);
+        $this->assertEqualsWithDelta(2_675_000, $result['total_posted'], 0.01);
+        $this->assertSame(1, DB::table('gl_interest_postings')->count());
     }
 
     private function scheduleRows(string $contractId, int $n = 4, float $principalEach = 25_000_000): array

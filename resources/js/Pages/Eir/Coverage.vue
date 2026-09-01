@@ -184,6 +184,7 @@
 <script setup>
 import { computed, reactive } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
   period: { type: String, default: null },
@@ -249,3 +250,12 @@ const stateClass = (s) => {
   return base + 'bg-gray-100 text-gray-700'
 }
 </script>
+
+<style scoped>
+.form-input{@apply block rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-maiic-500 focus:outline-none focus:ring-2 focus:ring-maiic-500}
+.primary-btn{@apply inline-flex items-center justify-center rounded-md bg-maiic-600 px-4 py-2 text-sm font-semibold text-white hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2}
+.secondary-btn{@apply inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2}
+.th{@apply whitespace-nowrap bg-maiic-700 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-white}
+.td{@apply border-t border-gray-100 px-4 py-3 align-top text-sm text-gray-700}
+tbody tr:nth-child(even){@apply bg-gray-50}
+</style>
