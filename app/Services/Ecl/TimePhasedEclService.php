@@ -73,22 +73,44 @@ class TimePhasedEclService
             ->whereDate('due_date','>',$asOf)->selectRaw("SUBSTR(due_date,1,7) ym, SUM(principal_due) principal")
             ->groupByRaw("SUBSTR(due_date,1,7)")->pluck('principal','ym');
         $rateSource=$eir->rate_type==='FLOATING'?'EIR_ORIGINAL_FLOATING_PROXY':'EIR_ORIGINAL';
+        $recoveryShares=$stage===3?$this->recoveryShares($recoveries,$asOf,$months):[];
+        $pdSource=$stage===3
+            ?($recoveryShares===[]?'DEFAULTED_RESOLUTION_HORIZON':'DEFAULTED_RECOVERY_SCHEDULE')
+            :'TWELVE_MONTH_PD_CONSTANT_HAZARD';
         $weightedUndisc=0.0;$weightedDisc=0.0;$maxExponent=0.0;
 
         foreach($scenarios as $scenario){
             $scenarioPd=min(1,max(0,$basePd*(float)$scenario->pd_multiplier));
             $lgd=min(1,max(0,$baseLgd*(float)$scenario->lgd_multiplier));
             $scenarioEad=$ead*(float)$scenario->ead_multiplier;
-            $conditional=$stage===3?1.0:($scenarioPd>=1?1.0:1-pow(1-$scenarioPd,1/$months));
+            // The tape carries a twelve-month PD, so the hazard it implies is
+            // anchored to twelve months and then run for as long as the
+            // exposure lasts. Fitting it to the horizon instead — 1/$months —
+            // back-solves a hazard whose cumulative default equals the
+            // twelve-month figure over any length of time, so a sixty-month
+            // Stage 2 lifetime carried exactly the default risk of a Stage 1
+            // year and, once EAD amortisation was allowed for, less loss than
+            // it. A shorter horizon than a year now correctly carries less.
+            $conditional=$stage===3?1.0:($scenarioPd>=1?1.0:1-pow(1-$scenarioPd,1/12));
             $survival=1.0;$cumulative=0.0;$opening=$scenarioEad;
             for($m=1;$m<=$months;$m++){
                 $date=$asOf->addMonthsNoOverflow($m)->endOfMonth();
-                // Default has already occurred in Stage 3; place the expected
-                // loss at the reviewed recovery horizon so discounting reflects
-                // when the cash shortfall is expected to crystallise.
-                $marginal=$stage===3?($m===$months?1.0:0.0):$survival*$conditional;
+                // Default has already occurred in Stage 3, so the exposure
+                // resolves against the reviewed recovery plan: each month
+                // carries the share of it the plan expects to settle then,
+                // and the shortfall is discounted from those dates rather
+                // than all of it from the last one. With no approved plan
+                // there is only the resolution horizon to place it at.
+                $marginal=$stage===3
+                    ?($recoveryShares===[]?($m===$months?1.0:0.0):($recoveryShares[$m]??0.0))
+                    :$survival*$conditional;
                 $cumulative=min(1,$cumulative+$marginal);
-                $scheduled=min($opening,(float)($principalByMonth[$date->format('Y-m')]??0)*(float)$scenario->ead_multiplier);
+                // A defaulted borrower is not paying the contractual schedule,
+                // so the exposure at risk does not amortise with it. Letting it
+                // amortise wrote the loss off against instalments that will
+                // never arrive: 100,000 at 0.6 LGD over a 24-month schedule
+                // reported 2,500 rather than 60,000.
+                $scheduled=$stage===3?0.0:min($opening,(float)($principalByMonth[$date->format('Y-m')]??0)*(float)$scenario->ead_multiplier);
                 $shortfall=$opening*$marginal*$lgd;$exponent=$asOf->diffInDays($date)/365;
                 $factor=1/pow(1+$rate,$exponent);$discounted=$shortfall*$factor;$weighted=$discounted*(float)$scenario->weight;
                 DB::table('ecl_cashflow_projections')->insert(['run_id'=>$runId,'contract_id'=>$id,'reporting_period'=>$asOf->format('Y-m'),
@@ -97,14 +119,47 @@ class TimePhasedEclService
                     'conditional_pd'=>$conditional,'survival_open'=>$survival,'marginal_pd'=>$marginal,'cumulative_pd'=>$cumulative,'lgd'=>$lgd,
                     'undiscounted_shortfall'=>round($shortfall,2),'discount_rate'=>$rate,'discount_exponent'=>$exponent,'discount_factor'=>$factor,
                     'discounted_shortfall'=>round($discounted,2),'weighted_discounted_shortfall'=>round($weighted,2),'rate_source'=>$rateSource,
-                    'pd_source'=>'SCALAR_PD_FLAT_HAZARD','lgd_source'=>strtoupper($lgdField),'created_at'=>now(),'updated_at'=>now()]);
+                    'pd_source'=>$pdSource,'lgd_source'=>strtoupper($lgdField),'created_at'=>now(),'updated_at'=>now()]);
                 DB::table('ecl_pd_term_structures')->updateOrInsert(['contract_id'=>$id,'reporting_period'=>$asOf->format('Y-m'),
                     'scenario_code'=>$scenario->scenario_code,'period_index'=>$m],['projection_date'=>$date,'conditional_pd'=>$conditional,
-                    'survival_open'=>$survival,'marginal_pd'=>$marginal,'cumulative_pd'=>$cumulative,'source'=>'SCALAR_PD_FLAT_HAZARD','created_at'=>now(),'updated_at'=>now()]);
+                    'survival_open'=>$survival,'marginal_pd'=>$marginal,'cumulative_pd'=>$cumulative,'source'=>$pdSource,'created_at'=>now(),'updated_at'=>now()]);
                 $weightedUndisc+=$shortfall*(float)$scenario->weight;$weightedDisc+=$weighted;$survival=max(0,$survival-$marginal);$opening=max(0,$opening-$scheduled);$maxExponent=max($maxExponent,$exponent);
             }
         }
         return ['undiscounted'=>$weightedUndisc,'discounted'=>$weightedDisc,'rate'=>$rate,'rate_source'=>$rateSource,'horizon'=>$maxExponent];
+    }
+
+    /**
+     * The share of a defaulted exposure the approved plan expects to resolve
+     * in each projected month, keyed by period index and summing to 1.
+     *
+     * Weighting by the recovery expected in a month leaves LGD identical in
+     * every row — it is the plan's own 1 - recoveries/EAD either way — while
+     * moving each slice of the shortfall to the date the plan actually names.
+     * The denominator is the recovery that lands inside the projected grid,
+     * not the collection total, so a row dated outside the horizon cannot
+     * quietly scale the whole allowance down.
+     *
+     * Returns an empty array when no approved recovery falls in the grid, and
+     * the caller then places the loss at the resolution horizon instead.
+     *
+     * @return array<int,float>
+     */
+    private function recoveryShares(Collection $recoveries,CarbonImmutable $asOf,int $months): array
+    {
+        $indexByMonth=[];
+        for($m=1;$m<=$months;$m++) $indexByMonth[$asOf->addMonthsNoOverflow($m)->endOfMonth()->format('Y-m')]=$m;
+
+        $byIndex=[];$total=0.0;
+        foreach($recoveries as $recovery){
+            $index=$indexByMonth[CarbonImmutable::parse($recovery->recovery_date)->format('Y-m')]??null;
+            if($index===null) continue;
+            $amount=max(0.0,(float)$recovery->expected_recovery);
+            $byIndex[$index]=($byIndex[$index]??0.0)+$amount;$total+=$amount;
+        }
+        if($total<=0) return [];
+
+        return array_map(fn($amount)=>$amount/$total,$byIndex);
     }
 
     private function projectionMonths(object $loan,string $id,CarbonImmutable $asOf,int $stage,Collection $recoveries): int
