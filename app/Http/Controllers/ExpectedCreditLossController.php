@@ -6,11 +6,14 @@ use App\Models\LoanPortfolio;
 use App\Models\IndustryType;
 use App\Models\ReportingPeriods;
 use App\Models\ExpectedCreditLoss;
+use App\Services\Ecl\EclDiscountingService;
+use App\Services\Ecl\TimePhasedEclService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ExpectedCreditLossController extends Controller
@@ -55,18 +58,7 @@ class ExpectedCreditLossController extends Controller
             | YEAR FILTER
             |--------------------------------------------------------------------------
             */
-            if ($request->filled('year')) {
-                $query->whereYear('reporting_period', $request->input('year'));
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | MONTH FILTER
-            |--------------------------------------------------------------------------
-            */
-            if ($request->filled('month')) {
-                $query->whereMonth('reporting_period', $request->input('month'));
-            }
+            $this->applyReportingPeriodFilter($query, $request);
 
             /*
             |--------------------------------------------------------------------------
@@ -103,7 +95,7 @@ class ExpectedCreditLossController extends Controller
                 $query->where('ifrs9stage_post_qualitative', $request->input('stage'));
             }
 
-            $loanBooks = $query->paginate(10)->withQueryString();
+            $loanBooks = $query->paginate(15)->withQueryString();
 
             return Inertia::render('ExpectedCreditLoss/Index', [
                 'loanBooks'   => $loanBooks,
@@ -154,13 +146,7 @@ class ExpectedCreditLossController extends Controller
                 });
 
             // Apply same filters as index
-            if ($request->filled('year')) {
-                $query->whereYear('reporting_period', $request->input('year'));
-            }
-
-            if ($request->filled('month')) {
-                $query->whereMonth('reporting_period', $request->input('month'));
-            }
+            $this->applyReportingPeriodFilter($query, $request);
 
             if ($request->filled('portfolio')) {
                 $query->where('loan_portfolio_id', $request->input('portfolio'));
@@ -176,6 +162,13 @@ class ExpectedCreditLossController extends Controller
                 'COUNT(*) as total_loans,
                  COALESCE(SUM(carrying_amount),0) as exposure,
                  COALESCE(SUM(ecl_value),0) as loss,
+                 COALESCE(SUM(ecl_value_discounted),0) as discounted_loss,
+                 COALESCE(SUM(ecl_discounting_effect),0) as discounting_effect,
+                 SUM(CASE WHEN ecl_value IS NOT NULL THEN 1 ELSE 0 END) as calculated_loans,
+                 SUM(CASE WHEN ecl_value_discounted IS NOT NULL THEN 1 ELSE 0 END) as discounted_loans,
+                 SUM(CASE WHEN ecl_value IS NOT NULL AND ecl_value_discounted IS NULL
+                           AND ecl_discount_status NOT IN (\'NOT_REQUESTED\', \'NOT_CALCULATED\')
+                          THEN 1 ELSE 0 END) as discount_unresolved_loans,
                  SUM(CASE WHEN ifrs9stage_post_qualitative = 1 THEN 1 ELSE 0 END) as s1,
                  SUM(CASE WHEN ifrs9stage_post_qualitative = 2 THEN 1 ELSE 0 END) as s2,
                  SUM(CASE WHEN ifrs9stage_post_qualitative = 3 THEN 1 ELSE 0 END) as s3'
@@ -235,6 +228,11 @@ class ExpectedCreditLossController extends Controller
                 'total_exposure' => $currentExposure,
                 'total_loss' => $currentLoss,
                 'total_loans' => $currentLoans,
+                'calculated_loans' => (int) $agg->calculated_loans,
+                'total_discounted_loss' => (float) $agg->discounted_loss,
+                'total_discounting_effect' => (float) $agg->discounting_effect,
+                'discounted_loans' => (int) $agg->discounted_loans,
+                'discount_unresolved_loans' => (int) $agg->discount_unresolved_loans,
                 'previous_exposure' => $previousData ? $previousData->total_exposure : 0,
                 'previous_loss' => $previousData ? $previousData->total_loss : 0,
                 'exposure_change' => $exposureChange,
@@ -252,6 +250,30 @@ class ExpectedCreditLossController extends Controller
             return $summary;
         }
 
+        /**
+         * loan_books.reporting_period is stored as YYYY-MM, not as a complete
+         * SQL date. MySQL YEAR()/MONTH() return NULL for that representation,
+         * so filtering must operate on the canonical period string.
+         */
+        private function applyReportingPeriodFilter($query, Request $request): void
+        {
+            $year = $request->filled('year') ? (int) $request->input('year') : null;
+            $month = $request->filled('month') ? (int) $request->input('month') : null;
+
+            if ($year !== null && $month !== null) {
+                $query->where('reporting_period', sprintf('%04d-%02d', $year, $month));
+                return;
+            }
+
+            if ($year !== null) {
+                $query->where('reporting_period', 'like', sprintf('%04d-%%', $year));
+            }
+
+            if ($month !== null) {
+                $query->whereRaw('SUBSTRING(reporting_period, 6, 2) = ?', [sprintf('%02d', $month)]);
+            }
+        }
+
         public function create()
             {
                 return Inertia::render('ExpectedCreditLoss/Create', [
@@ -260,7 +282,7 @@ class ExpectedCreditLossController extends Controller
                 ]);
             }
 
-         public function calculateECL(Request $request)
+         public function calculateECL(Request $request, EclDiscountingService $discounting, ?TimePhasedEclService $timePhased = null)
             {
                 ini_set('max_execution_time', 300);
                 $startTime = microtime(true);
@@ -272,11 +294,14 @@ class ExpectedCreditLossController extends Controller
                     'reporting_period'     => 'required|date',
                     'pd_type'              => 'required|in:pd_prefli,pd_post_fli',
                     'lgd_type'             => 'required|in:customer_lgd,collection_lgd,both',
+                    'discounting_mode'     => 'nullable|in:undiscounted,discounted',
                 ]);
 
                 $level       = $validated['ecl_calculation_level'];
                 $portfolioId = $validated['ecl_calculation_id'] ?? null;
                 $sectorCode  = $validated['ecl_calculation_code'] ?? null;
+                $discountingMode = $validated['discounting_mode'] ?? 'undiscounted';
+                $runId = (string) Str::uuid();
 
                 $periodDate = Carbon::parse($validated['reporting_period']);
                 $period     = $periodDate->format('Y-m');
@@ -351,9 +376,39 @@ class ExpectedCreditLossController extends Controller
                         UPDATE loan_books
                         SET
                             lgd_value = IFNULL($lgdExpr, 0),
-                            ecl_value = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0) * IFNULL(carrying_amount, 0)
+                            ecl_value = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0)
+                                * (IFNULL(carrying_amount, 0)
+                                    + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1))
                         WHERE $baseWhere
                     ", $bindings);
+
+                    $scope = DB::table('loan_books')->whereRaw($baseWhere, $bindings);
+                    $discountResult = ['calculated' => 0, 'unresolved' => 0, 'statuses' => []];
+
+                    if ($discountingMode === 'discounted') {
+                        $loans = (clone $scope)->get();
+                        // The complete time-phased engine is authoritative on
+                        // current schemas. The fallback keeps isolated legacy
+                        // test schemas operational and remains visibly labelled.
+                        if (\Schema::hasTable('ecl_projection_runs') && DB::table('ecl_scenario_assumptions')->where('status','APPROVED')->exists()) {
+                            $discountResult = ($timePhased ?? app(TimePhasedEclService::class))->run(
+                                $loans, $period, $validated['lgd_type'], auth()->id()
+                            );
+                        } else {
+                            $discountResult = $discounting->apply($loans, $period, $runId);
+                        }
+                    } else {
+                        (clone $scope)->update([
+                            'ecl_value_discounted' => null,
+                            'ecl_discounting_effect' => null,
+                            'ecl_discount_rate' => null,
+                            'ecl_discount_rate_source' => null,
+                            'ecl_discount_status' => 'NOT_REQUESTED',
+                            'ecl_discount_horizon_years' => null,
+                            'ecl_calculation_run_id' => $runId,
+                            'ecl_calculated_at' => now(),
+                        ]);
+                    }
 
                     /*
                     |----------------------------------------------------------------------
@@ -365,6 +420,9 @@ class ExpectedCreditLossController extends Controller
                             ifrs9stage_pre_qualitative,
                             SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0) * COALESCE(facility_utilisation_rate, 1)) AS total_ead,
                             SUM(ecl_value) AS total_ecl,
+                            SUM(ecl_value_discounted) AS total_ecl_discounted,
+                            SUM(ecl_discounting_effect) AS total_discounting_effect,
+                            SUM(CASE WHEN ecl_discount_status IN ('EIR_UNAVAILABLE','HORIZON_UNAVAILABLE','TIME_PHASED_UNRESOLVED') THEN 1 ELSE 0 END) AS discount_unresolved_loans,
                             AVG($pdExpr) AS avg_pd,
                             AVG($lgdExpr) AS avg_lgd,
                             COUNT(*) AS total_loans
@@ -390,6 +448,13 @@ class ExpectedCreditLossController extends Controller
                             [
                                 'total_ead'              => $row->total_ead,
                                 'total_ecl'              => $row->total_ecl,
+                                'total_ecl_discounted'   => $row->total_ecl_discounted,
+                                'total_discounting_effect' => $row->total_discounting_effect,
+                                'discount_status'        => $discountingMode === 'undiscounted'
+                                    ? 'NOT_REQUESTED'
+                                    : ((int) $row->discount_unresolved_loans > 0 ? 'PARTIAL' : 'CALCULATED'),
+                                'discount_unresolved_loans' => $row->discount_unresolved_loans,
+                                'ecl_calculation_run_id' => $runId,
                                 'lgd_value_used'         => $row->avg_lgd,
                                 'pd_value_used'          => $row->avg_pd,
                                 'total_loans'            => $row->total_loans,
@@ -430,9 +495,14 @@ class ExpectedCreditLossController extends Controller
                     }
                 }
 
+                $message = "ECL calculated at {$level} level in {$timeTaken} minutes for {$period}.";
+                if ($discountingMode === 'discounted') {
+                    $message .= " Discounted ECL calculated for {$discountResult['calculated']} loan(s); {$discountResult['unresolved']} remain unresolved.";
+                }
+
                 return redirect()
                     ->route('expected-credit-loss.index')
-                    ->with('success', "ECL calculated at {$level} level in {$timeTaken} minutes for {$period}.");
+                    ->with('success', $message);
             }
 
 

@@ -7,6 +7,10 @@
 
                        </h2>
                        <div class="flex space-x-4">
+                            <Link :href="route('expected-credit-loss.projections')"
+                                class="inline-flex items-center border border-maiic-600 text-maiic-700 hover:bg-maiic-50 px-4 py-2 rounded-lg shadow-sm transition duration-300 mt-2">
+                                Projection Audit
+                            </Link>
                             <Link :href="route('expected-credit-loss.create')"
                                 class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
                                 Calculate ECL
@@ -28,29 +32,62 @@
 
                <div class="py-12">
                    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                       <!-- Summary Cards -->
-                       <!-- <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" v-if="summary">
-                           <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                               <div class="text-sm text-gray-600">Total Loans</div>
-                               <div class="text-2xl font-semibold">{{ summary.total_loans }}</div>
+                       <!-- Measurement basis tabs and summary cards -->
+                       <div class="mb-6" v-if="summary">
+                           <div class="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm" role="tablist" aria-label="ECL measurement basis">
+                               <button type="button" role="tab" :aria-selected="activeBasis === 'discounted'"
+                                       @click="activeBasis = 'discounted'"
+                                       :class="basisTabClass('discounted')">
+                                   Discounted ECL (EIR present value)
+                               </button>
+                               <button type="button" role="tab" :aria-selected="activeBasis === 'undiscounted'"
+                                       @click="activeBasis = 'undiscounted'"
+                                       :class="basisTabClass('undiscounted')">
+                                   Undiscounted ECL
+                               </button>
                            </div>
-                           <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                               <div class="text-sm text-gray-600">Total Balance</div>
-                               <div class="text-2xl font-semibold">{{ formatCurrency(summary.total_balance) }}</div>
+
+                           <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                               <div class="rounded-lg bg-white p-5 shadow-sm border border-gray-100">
+                                   <p class="text-sm text-gray-500">{{ activeBasis === 'discounted' ? 'Records discounted' : 'Records calculated' }}</p>
+                                   <p class="mt-1 text-2xl font-semibold text-gray-900">{{ formatNumber(activeBasis === 'discounted' ? summary.discounted_loans : summary.calculated_loans) }}</p>
+                                   <p class="mt-1 text-xs text-gray-500">of {{ formatNumber(summary.total_loans) }} records in the filtered population</p>
+                               </div>
+                               <div class="rounded-lg bg-white p-5 shadow-sm border border-gray-100">
+                                   <p class="text-sm text-gray-500">{{ activeBasis === 'discounted' ? 'Discounted ECL' : 'Undiscounted ECL' }}</p>
+                                   <p class="mt-1 text-2xl font-semibold text-gray-900">{{ formatCurrency(activeBasis === 'discounted' ? summary.total_discounted_loss : summary.total_loss) }}</p>
+                                   <p class="mt-1 text-xs text-gray-500">For the selected reporting population</p>
+                               </div>
+                               <div class="rounded-lg bg-white p-5 shadow-sm border border-gray-100">
+                                   <p class="text-sm text-gray-500">{{ activeBasis === 'discounted' ? 'Discounting effect' : 'ECL coverage of exposure' }}</p>
+                                   <p class="mt-1 text-2xl font-semibold text-gray-900">
+                                       {{ activeBasis === 'discounted' ? formatCurrency(summary.total_discounting_effect) : formatPercent(coverageRate) }}
+                                   </p>
+                                   <p class="mt-1 text-xs text-gray-500">{{ activeBasis === 'discounted' ? 'Reduction from applying EIR present value' : 'Undiscounted ECL divided by carrying exposure' }}</p>
+                               </div>
                            </div>
-                           <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                               <div class="text-sm text-gray-600">Overdue Loans</div>
-                               <div class="text-2xl font-semibold">{{ summary.overdue_loans }}</div>
+
+                           <div v-if="activeBasis === 'discounted' && summary.discount_unresolved_loans > 0"
+                                class="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                               {{ formatNumber(summary.discount_unresolved_loans) }} record(s) could not be discounted. Review their discount status, approved EIR and remaining horizon.
                            </div>
-                           <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                               <div class="text-sm text-gray-600">Total Provision</div>
-                               <div class="text-2xl font-semibold">{{ formatCurrency(summary.total_provision) }}</div>
-                           </div>
-                       </div> -->
+                       </div>
 
                        <!-- Filters -->
                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
-                           <div class="p-6 bg-white border-b border-gray-200">
+                           <button type="button" @click="showFilters = !showFilters"
+                                   class="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-gray-50"
+                                   :aria-expanded="showFilters">
+                               <span>
+                                   <span class="block text-sm font-semibold text-gray-900">Filters</span>
+                                   <span class="block text-xs text-gray-500">Year, month, stage and contract or customer search</span>
+                               </span>
+                               <span class="text-sm font-medium text-maiic-700">
+                                   {{ showFilters ? 'Hide filters' : 'Show filters' }}
+                                   <span class="ml-1 inline-block transition-transform" :class="{ 'rotate-180': showFilters }">&#9660;</span>
+                               </span>
+                           </button>
+                           <div v-show="showFilters" class="p-6 bg-white border-t border-gray-200">
                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                    <div>
                                        <label class="block text-sm font-medium text-gray-700">Year</label>
@@ -104,28 +141,62 @@
                                        <thead>
                                            <tr>
                                                <th>Contract ID</th>
-                                               <th>IFRS Stage</th>
-                                               <!-- <th>Portfolio</th> -->
-                                               <th>Balance</th>
-                                               <th>Probability Of Default</th>
-                                               <th>Loss Given Default</th>
-                                               <th>Original EIR</th>
-                                               <th>EIR Basis</th>
-                                               <th>Expected Credit Loss</th>
+                                               <th>Reporting Period</th>
+                                               <th class="text-center">IFRS Stage</th>
+                                               <th class="text-right">EAD (MWK)</th>
+                                               <template v-if="activeBasis === 'undiscounted'">
+                                                   <th class="text-center">PD</th>
+                                                   <th class="text-center">LGD</th>
+                                                   <th class="text-right">Undiscounted ECL (MWK)</th>
+                                                   <th class="text-center">ECL Coverage</th>
+                                               </template>
+                                               <template v-else>
+                                                   <th class="text-center">PD</th>
+                                                   <th class="text-center">LGD</th>
+                                                   <th class="text-right">Undiscounted ECL (MWK)</th>
+                                                   <th class="text-center">Original EIR</th>
+                                                   <th class="text-center">Discount Horizon (Months)</th>
+                                                   <th class="text-right">Discounted ECL (MWK)</th>
+                                                   <th class="text-right">Discounting Effect (MWK)</th>
+                                                   <th class="text-center">Discount Status</th>
+                                               </template>
                                                <th>Updated</th>
                                            </tr>
                                        </thead>
                                        <tbody>
                                            <tr v-for="loan in loanBooks.data" :key="loan.id">
                                                <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ loan.contract_id }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.calculated_ifrs9_stage }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatCurrency(loan.principal_balance) }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm">{{ loan.pd_value }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm" >{{ loan.lgd_value }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ eirRate(loan) }}</td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm"><span :class="eirBasisClass(loan)">{{ eirBasis(loan) }}</span></td>
-                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500"> {{ formatCurrency(loan.ecl_value) }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.reporting_period }}</td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-center text-sm">
+                                                   <span :class="['maiic-badge', stageOf(loan) === 3 ? 'maiic-badge-red' : stageOf(loan) === 2 ? 'maiic-badge-gold' : 'maiic-badge-green']">
+                                                       Stage {{ stageOf(loan) }}
+                                                   </span>
+                                               </td>
+                                               <td class="px-3 py-4 whitespace-nowrap text-right text-sm tabular-nums text-gray-500">{{ formatCurrency(eadValue(loan)) }}</td>
+                                               <template v-if="activeBasis === 'undiscounted'">
+                                                   <td class="px-3 py-4 whitespace-nowrap text-center text-sm">{{ formatRate(loan.pd_value) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-center text-sm">{{ formatRate(loan.lgd_value) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-right text-sm tabular-nums text-gray-500">{{ formatCurrency(loan.ecl_value) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ formatPercent(loanCoverage(loan)) }}</td>
+                                               </template>
+                                               <template v-else>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-center text-sm">{{ formatRate(eclPd(loan)) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-center text-sm">{{ formatRate(loan.lgd_value) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-right text-sm tabular-nums text-gray-500">{{ formatCurrency(loan.ecl_value) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500" :title="eirBasis(loan)">{{ eirRate(loan) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-500">{{ formatHorizon(loan.ecl_discount_horizon_years) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-right text-sm tabular-nums text-gray-500">{{ formatCurrency(loan.ecl_value_discounted, true) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-right text-sm tabular-nums text-gray-500">{{ formatCurrency(loan.ecl_discounting_effect, true) }}</td>
+                                                   <td class="px-3 py-4 whitespace-nowrap text-center text-sm">
+                                                       <span :class="discountStatusClass(loan.ecl_discount_status)">{{ discountStatusLabel(loan.ecl_discount_status) }}</span>
+                                                   </td>
+                                               </template>
                                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
+                                           </tr>
+                                           <tr v-if="!loanBooks.data || loanBooks.data.length === 0">
+                                               <td :colspan="activeBasis === 'discounted' ? 13 : 9" class="px-4 py-10 text-center text-sm text-gray-500">
+                                                   No ECL records match the selected reporting period and filters.
+                                               </td>
                                            </tr>
                                        </tbody>
                                    </table>
@@ -265,7 +336,7 @@
 </template>
 
 <script setup>
-import { ref, defineProps } from 'vue';
+import { computed, ref, defineProps } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
@@ -276,11 +347,23 @@ import { Inertia } from '@inertiajs/inertia';
             loanBooks: Object,
             filters: Object,
             portfolios: Array,
+            summary: Object,
+            latestPeriod: String,
+        });
+
+        const activeBasis = ref('discounted');
+        const showFilters = ref(false);
+        const latestPeriodParts = (props.latestPeriod || '').split('-');
+        const defaultYear = Number(latestPeriodParts[0]) || new Date().getFullYear();
+        const defaultMonth = Number(latestPeriodParts[1]) || new Date().getMonth() + 1;
+        const coverageRate = computed(() => {
+            const exposure = Number(props.summary?.total_exposure || 0);
+            return exposure > 0 ? (Number(props.summary?.total_loss || 0) / exposure) * 100 : 0;
         });
 
         const filters = ref({
-            year: new Date().getFullYear(),
-            month: new Date().getMonth() + 1,
+            year: defaultYear,
+            month: defaultMonth,
             overdue: '',
             search: '',
             ...props.filters
@@ -431,8 +514,8 @@ import { Inertia } from '@inertiajs/inertia';
 
         const resetFilters = () => {
             filters.value = {
-                year: new Date().getFullYear(),
-                month: new Date().getMonth() + 1,
+                year: defaultYear,
+                month: defaultMonth,
                 overdue: '',
                 search: '',
                 ...props.filters
@@ -440,9 +523,62 @@ import { Inertia } from '@inertiajs/inertia';
             fetchData();
         };
 
-        const formatCurrency = (value) => {
-            if (!value) return 'E0.00';
-            return 'K' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+        const formatCurrency = (value, blankWhenMissing = false) => {
+            if ((value === null || value === undefined || value === '') && blankWhenMissing) return '—';
+            if (!value) return ' 0.00';
+            return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+        };
+
+        const formatNumber = (value) => new Intl.NumberFormat('en-US').format(Number(value || 0));
+        const formatPercent = (value) => Number(value || 0).toFixed(2) + '%';
+        const formatRate = (value) => value === null || value === undefined || value === ''
+            ? '—'
+            : (Number(value) * 100).toFixed(2) + '%';
+        const formatHorizon = (value) => value === null || value === undefined || value === ''
+            ? '—'
+            : Math.round(Number(value) * 12) + ' months';
+
+        const eadValue = (loan) => {
+            const utilisation = loan.facility_utilisation_rate === null || loan.facility_utilisation_rate === undefined
+                ? 1
+                : Number(loan.facility_utilisation_rate);
+            return Number(loan.carrying_amount || 0) + (Number(loan.commitments || 0) * utilisation);
+        };
+        const loanCoverage = (loan) => {
+            const ead = eadValue(loan);
+            return ead > 0 ? (Number(loan.ecl_value || 0) / ead) * 100 : 0;
+        };
+        const eclPd = (loan) => loan.pd_post_fli ?? loan.pd_prefli ?? loan.pd_value;
+        // Same final-stage precedence and badge convention as Loan Books.
+        const stageOf = (loan) => Number(
+            loan.ifrs9stage_post_qualitative
+            ?? loan.calculated_ifrs9_stage
+            ?? loan.ifrs9_stage
+            ?? 1
+        );
+
+        const basisTabClass = (basis) => [
+            'rounded-md px-4 py-2 text-sm font-medium transition',
+            activeBasis.value === basis
+                ? 'bg-maiic-600 text-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+        ];
+
+        const discountStatusLabel = (status) => ({
+            CALCULATED_HORIZON_PROXY: 'Calculated',
+            FLOATING_RATE_PROXY: 'Floating-rate proxy',
+            EIR_UNAVAILABLE: 'EIR unavailable',
+            HORIZON_UNAVAILABLE: 'Horizon unavailable',
+            NOT_REQUESTED: 'Not requested',
+            NOT_CALCULATED: 'Not calculated',
+        }[status] || status || 'Not calculated');
+
+        const discountStatusClass = (status) => {
+            const base = 'inline-flex rounded-full px-2 py-0.5 text-xs font-medium ';
+            if (status === 'CALCULATED_HORIZON_PROXY') return base + 'bg-emerald-100 text-emerald-800';
+            if (status === 'FLOATING_RATE_PROXY') return base + 'bg-amber-100 text-amber-800';
+            if (status === 'EIR_UNAVAILABLE' || status === 'HORIZON_UNAVAILABLE') return base + 'bg-red-100 text-red-800';
+            return base + 'bg-gray-100 text-gray-600';
         };
 
         // The solved effective rate, shown only where one actually exists.

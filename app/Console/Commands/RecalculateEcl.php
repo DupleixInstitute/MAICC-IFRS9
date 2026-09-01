@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\ExpectedCreditLossController;
+use App\Services\Ecl\EclDiscountingService;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
 
@@ -19,11 +20,12 @@ class RecalculateEcl extends Command
         {--portfolio= : loan_portfolios.id (required when level=portfolio)}
         {--sector= : industry_types.code (required when level=sector)}
         {--pd=pd_prefli : pd_prefli|pd_post_fli}
-        {--lgd=collection_lgd : customer_lgd|collection_lgd|both}';
+        {--lgd=collection_lgd : customer_lgd|collection_lgd|both}
+        {--discounting=undiscounted : undiscounted|discounted}';
 
     protected $description = 'Recalculate IFRS 9 ECL for a reporting period (CLI wrapper around the ECL controller).';
 
-    public function handle(ExpectedCreditLossController $controller): int
+    public function handle(ExpectedCreditLossController $controller, EclDiscountingService $discounting): int
     {
         $period = $this->argument('period');
         $level  = $this->option('level');
@@ -33,6 +35,7 @@ class RecalculateEcl extends Command
             'reporting_period'      => $period . '-01',
             'pd_type'               => $this->option('pd'),
             'lgd_type'              => $this->option('lgd'),
+            'discounting_mode'      => $this->option('discounting'),
         ];
 
         if ($level === 'portfolio') {
@@ -45,7 +48,7 @@ class RecalculateEcl extends Command
 
         try {
             $request = Request::create('/expected-credit-loss/calculations', 'POST', $payload);
-            $controller->calculateECL($request);
+            $controller->calculateECL($request, $discounting);
         } catch (\Throwable $e) {
             $this->error('ECL calculation failed: ' . $e->getMessage());
             $this->line($e->getFile() . ':' . $e->getLine());

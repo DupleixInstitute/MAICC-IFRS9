@@ -879,6 +879,7 @@ Route::get('/expected-credit-loss/list', [ExpectedCreditLossController::class, '
 Route::get('/expected-credit-loss/create', [ExpectedCreditLossController::class, 'create'])->name('expected-credit-loss.create');
 Route::post('/expected-credit-loss/calculations', [ExpectedCreditLossController::class, 'calculateECL'])->name('expected-credit-loss.calculation');
 Route::get('/expected-credit-loss/reports',[ExpectedCreditLossController::class,'exportECL'])->name('expected-credit-loss.reports');
+Route::get('/expected-credit-loss/projections',[\App\Http\Controllers\EclProjectionController::class,'index'])->name('expected-credit-loss.projections');
 
 // Stageing Rules Routes
 Route::group(['prefix' => 'stageing-rules', 'as' => 'stageing-rules.'], function () {
@@ -913,6 +914,11 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
 
 // EIR module - schedule & fee intake (docs/EIR_Build.md Phase 2)
 Route::get('/eir-data', [\App\Http\Controllers\EirDataController::class, 'index'])->name('eir-data.index');
+Route::post('/eir-schedules/dry-run', [\App\Http\Controllers\EirScheduleController::class, 'dryRun'])->name('eir-schedules.dry-run');
+Route::get('/eir-schedules/{contractEir}', [\App\Http\Controllers\EirScheduleController::class, 'show'])->name('eir-schedules.show');
+Route::post('/eir-schedules/generate', [\App\Http\Controllers\EirScheduleController::class, 'generateAll'])->name('eir-schedules.generate-all');
+Route::post('/eir-schedules/{contractEir}/generate', [\App\Http\Controllers\EirScheduleController::class, 'generate'])->name('eir-schedules.generate');
+Route::post('/eir-schedules/{contractEir}/approve', [\App\Http\Controllers\EirScheduleController::class, 'approve'])->name('eir-schedules.approve');
 Route::get('/eir-reconciliation', [\App\Http\Controllers\EirReconciliationController::class, 'index'])->name('eir-reconciliation.index');
 Route::get('/eir-coverage', [\App\Http\Controllers\EirCoverageController::class, 'index'])->name('eir-coverage.index');
 
@@ -944,6 +950,7 @@ Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], func
     Route::post('/calculate', [\App\Http\Controllers\EirCalculationController::class, 'calculate'])->name('calculate');
     Route::post('/approve-all', [\App\Http\Controllers\EirCalculationController::class, 'approveAll'])->name('approve-all');
     Route::post('/{contractEir}/approve', [\App\Http\Controllers\EirCalculationController::class, 'approve'])->name('approve');
+    Route::post('/{contractEir}/reopen', [\App\Http\Controllers\EirCalculationController::class, 'reopen'])->name('reopen');
 });
 
 // Manual authoring routes. MUST stay behind auth + settings permission:

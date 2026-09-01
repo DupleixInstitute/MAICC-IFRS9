@@ -70,6 +70,20 @@ class EclGoldenNumberTest extends TestCase
             $t->double('facility_utilisation_rate')->nullable();
             $t->double('lgd_value')->nullable();
             $t->double('ecl_value')->nullable();
+            $t->double('ecl_value_discounted')->nullable();
+            $t->double('ecl_discounting_effect')->nullable();
+            $t->double('ecl_discount_rate')->nullable();
+            $t->string('ecl_discount_rate_source')->nullable();
+            $t->string('ecl_discount_status')->default('NOT_CALCULATED');
+            $t->double('ecl_discount_horizon_years')->nullable();
+            $t->string('ecl_calculation_run_id')->nullable();
+            $t->string('ecl_calculated_at')->nullable();
+            $t->double('remaining_tenor')->nullable();
+            $t->string('due_date')->nullable();
+            $t->string('contract_id')->nullable();
+            $t->string('calculated_ifrs9_stage')->nullable();
+            $t->string('ifrs9stage_post_qualitative')->nullable();
+            $t->integer('ifrs9_stage')->nullable();
             $t->string('ifrs9stage_pre_qualitative')->nullable();
             $t->timestamps();
         });
@@ -83,6 +97,11 @@ class EclGoldenNumberTest extends TestCase
             $t->string('ecl_calculation_code')->nullable();
             $t->double('total_ead')->nullable();
             $t->double('total_ecl')->nullable();
+            $t->double('total_ecl_discounted')->nullable();
+            $t->double('total_discounting_effect')->nullable();
+            $t->string('discount_status')->default('NOT_REQUESTED');
+            $t->unsignedInteger('discount_unresolved_loans')->default(0);
+            $t->string('ecl_calculation_run_id')->nullable();
             $t->double('lgd_value_used')->nullable();
             $t->double('pd_value_used')->nullable();
             $t->unsignedInteger('total_loans')->nullable();
@@ -101,6 +120,15 @@ class EclGoldenNumberTest extends TestCase
             $t->string('ecl_calculation_level')->nullable();
             $t->unsignedInteger('ecl_calculation_id')->nullable();
             $t->string('ecl_calculation_code')->nullable();
+            $t->timestamps();
+        });
+
+        Schema::create('contract_eir', function (Blueprint $t) {
+            $t->increments('id');
+            $t->string('contract_id')->unique();
+            $t->double('eir_effective_annual')->nullable();
+            $t->string('rate_type')->default('FIXED');
+            $t->string('locked_at')->nullable();
             $t->timestamps();
         });
 
@@ -148,7 +176,7 @@ class EclGoldenNumberTest extends TestCase
         ]);
     }
 
-    private function runEcl(string $pdType, string $lgdType): void
+    private function runEcl(string $pdType, string $lgdType, string $discountingMode = 'undiscounted'): void
     {
         $request = Request::create('/expected-credit-loss/calculations', 'POST', [
             'ecl_calculation_level' => 'portfolio',
@@ -156,9 +184,13 @@ class EclGoldenNumberTest extends TestCase
             'reporting_period'      => '2025-11-01',
             'pd_type'               => $pdType,
             'lgd_type'              => $lgdType,
+            'discounting_mode'      => $discountingMode,
         ]);
 
-        app(ExpectedCreditLossController::class)->calculateECL($request);
+        app(ExpectedCreditLossController::class)->calculateECL(
+            $request,
+            app(\App\Services\Ecl\EclDiscountingService::class)
+        );
     }
 
     private function eclRow(string $stage): object
@@ -179,11 +211,11 @@ class EclGoldenNumberTest extends TestCase
 
         // ---- Stage 1: loans A + B ----
         // A: pd=0.02 lgd=0.40 carry=100000 -> ecl=800,   ead=100000
-        // B: pd=0.10 lgd=0.50 carry=200000 -> ecl=10000,  ead=200000+50000*0.5=225000
+        // B: pd=0.10 lgd=0.50 ead=200000+50000*0.5=225000 -> ecl=11250
         $s1 = $this->eclRow('1');
         $this->assertNotNull($s1, 'Stage 1 ECL row missing');
         $this->assertEqualsWithDelta(325000.0, (float) $s1->total_ead, 0.001);
-        $this->assertEqualsWithDelta(10800.0,  (float) $s1->total_ecl, 0.001);
+        $this->assertEqualsWithDelta(12050.0,  (float) $s1->total_ecl, 0.001);
         $this->assertEqualsWithDelta(0.06,     (float) $s1->pd_value_used, 1e-9);  // avg(0.02,0.10)
         $this->assertEqualsWithDelta(0.45,     (float) $s1->lgd_value_used, 1e-9); // avg(0.40,0.50)
         $this->assertEquals(2, (int) $s1->total_loans);
@@ -248,9 +280,49 @@ class EclGoldenNumberTest extends TestCase
         // Stage 1 loan A: customer_lgd=0.50, collection_lgd=0.40 -> lgd=0.20
         //                 pd=0.02, carry=100000 -> ecl=0.02*0.20*100000=400
         // Stage 1 loan B: customer_lgd=0.70, collection_lgd=0.50 -> lgd=0.35
-        //                 pd=0.10, carry=200000 -> ecl=0.10*0.35*200000=7000
+        //                 pd=0.10, ead=225000 -> ecl=0.10*0.35*225000=7875
         $s1 = $this->eclRow('1');
-        $this->assertEqualsWithDelta(7400.0, (float) $s1->total_ecl, 0.001);
+        $this->assertEqualsWithDelta(8275.0, (float) $s1->total_ecl, 0.001);
         $this->assertEqualsWithDelta(0.275, (float) $s1->lgd_value_used, 1e-9); // avg(0.20,0.35)
+    }
+
+    /** @test */
+    public function discounted_mode_keeps_undiscounted_ecl_and_names_unresolved_contracts(): void
+    {
+        DB::table('contract_eir')->insert([
+            'contract_id' => 'LOCKED-1', 'eir_effective_annual' => 0.10,
+            'rate_type' => 'FIXED', 'locked_at' => '2025-01-01',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('loan_books')->insert([
+            ['contract_id' => 'LOCKED-1', 'reporting_period' => '2025-11', 'loan_portfolio_id' => 1,
+             'ifrs9stage_pre_qualitative' => '1', 'remaining_tenor' => 1,
+             'pd_prefli' => 0.10, 'collection_lgd' => 0.50, 'carrying_amount' => 200000,
+             'commitments' => 0, 'facility_utilisation_rate' => 1],
+            ['contract_id' => 'NO-EIR', 'reporting_period' => '2025-11', 'loan_portfolio_id' => 1,
+             'ifrs9stage_pre_qualitative' => '1', 'remaining_tenor' => 1,
+             'pd_prefli' => 0.10, 'collection_lgd' => 0.50, 'carrying_amount' => 100000,
+             'commitments' => 0, 'facility_utilisation_rate' => 1],
+        ]);
+
+        $this->runEcl('pd_prefli', 'collection_lgd', 'discounted');
+
+        $locked = DB::table('loan_books')->where('contract_id', 'LOCKED-1')->first();
+        $this->assertEqualsWithDelta(10000, (float) $locked->ecl_value, 0.001);
+        $this->assertEqualsWithDelta(9090.91, (float) $locked->ecl_value_discounted, 0.01);
+        $this->assertEqualsWithDelta(909.09, (float) $locked->ecl_discounting_effect, 0.01);
+        $this->assertSame('EIR_ORIGINAL', $locked->ecl_discount_rate_source);
+        $this->assertSame('CALCULATED_HORIZON_PROXY', $locked->ecl_discount_status);
+
+        $missing = DB::table('loan_books')->where('contract_id', 'NO-EIR')->first();
+        $this->assertEqualsWithDelta(5000, (float) $missing->ecl_value, 0.001);
+        $this->assertNull($missing->ecl_value_discounted);
+        $this->assertSame('EIR_UNAVAILABLE', $missing->ecl_discount_status);
+
+        $aggregate = $this->eclRow('1');
+        $this->assertEqualsWithDelta(15000, (float) $aggregate->total_ecl, 0.001);
+        $this->assertEqualsWithDelta(9090.91, (float) $aggregate->total_ecl_discounted, 0.01);
+        $this->assertSame('PARTIAL', $aggregate->discount_status);
+        $this->assertSame(1, (int) $aggregate->discount_unresolved_loans);
     }
 }

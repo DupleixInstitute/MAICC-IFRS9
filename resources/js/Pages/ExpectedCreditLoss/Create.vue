@@ -75,6 +75,33 @@
                                     <option value="both">Both (customer × collection)</option>
                                 </select>
                             </div>
+                            <div class="md:col-span-2">
+                                <jet-label value="ECL Measurement Basis" />
+                                <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <label class="flex items-start gap-3 rounded-md border border-gray-300 p-4 cursor-pointer"
+                                           :class="form.discounting_mode === 'discounted' ? 'border-maiic-500 bg-maiic-50' : ''">
+                                        <input type="radio" v-model="form.discounting_mode" value="discounted"
+                                               class="mt-1 text-maiic-600 focus:ring-maiic-500">
+                                        <span>
+                                            <span class="block font-medium text-gray-900">Discounted ECL — EIR present value</span>
+                                            <span class="block mt-1 text-sm text-gray-600">Discounts the expected loss using the approved, locked effective interest rate. The undiscounted amount is retained as a control.</span>
+                                        </span>
+                                    </label>
+                                    <label class="flex items-start gap-3 rounded-md border border-gray-300 p-4 cursor-pointer"
+                                           :class="form.discounting_mode === 'undiscounted' ? 'border-maiic-500 bg-maiic-50' : ''">
+                                        <input type="radio" v-model="form.discounting_mode" value="undiscounted"
+                                               class="mt-1 text-maiic-600 focus:ring-maiic-500">
+                                        <span>
+                                            <span class="block font-medium text-gray-900">Undiscounted ECL — no present-value adjustment</span>
+                                            <span class="block mt-1 text-sm text-gray-600">Calculates PD × LGD × EAD without applying an interest rate. Use for comparison and transition analysis.</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <p v-if="form.discounting_mode === 'discounted'" class="mt-2 text-sm text-amber-700">
+                                    Loans without a locked EIR or usable discount horizon will remain visible as unresolved exceptions.
+                                </p>
+                                <p v-if="form.errors.discounting_mode" class="mt-1 text-sm text-red-600">{{ form.errors.discounting_mode }}</p>
+                            </div>
                         </div>
 
                         <div class="flex justify-end mt-6 gap-4">
@@ -129,6 +156,7 @@ setup(props){
             reporting_period: props.loanBooks?.reporting_period ?? '',
             pd_type: 'pd_prefli',
             lgd_type: 'collection_lgd',
+            discounting_mode: 'undiscounted',
         });
 
 

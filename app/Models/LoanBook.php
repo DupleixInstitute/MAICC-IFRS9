@@ -56,6 +56,14 @@ class LoanBook extends Model
         'sicr_trigger',
         'ifrs9_stage_postqualitative',
         'ecl_value',
+        'ecl_value_discounted',
+        'ecl_discounting_effect',
+        'ecl_discount_rate',
+        'ecl_discount_rate_source',
+        'ecl_discount_status',
+        'ecl_discount_horizon_years',
+        'ecl_calculation_run_id',
+        'ecl_calculated_at',
         'pd_value',
         'lgd_value',
         'customer_lgd',
@@ -88,6 +96,11 @@ class LoanBook extends Model
         'ifrs9_stage_prequalitative' => 'integer',
         'sicr_trigger' => 'integer',
         'ifrs9_stage_postqualitative' => 'integer',
+        'ecl_value_discounted' => 'decimal:2',
+        'ecl_discounting_effect' => 'decimal:2',
+        'ecl_discount_rate' => 'decimal:12',
+        'ecl_discount_horizon_years' => 'decimal:8',
+        'ecl_calculated_at' => 'datetime',
     ];
 
     /**
