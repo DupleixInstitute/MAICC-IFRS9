@@ -42,6 +42,7 @@ class EirCoverageService
         'DRAWN_AMOUNT_MISSING' => 'Drawn amount is missing or zero',
         'FREQUENCY_INVALID' => 'Payment frequency is not a supported value',
         'FREQUENCY_ASSUMED' => 'Payment frequency was assumed, not stated by a source',
+        'SCHEDULE_NOT_APPROVED' => 'Original schedule is a draft awaiting review and approval',
         'ORIGINAL_SCHEDULE_MISSING' => 'Original contractual schedule (version 1) is missing',
         'SCHEDULE_INVALID' => 'Schedule has a missing date or negative cash flow',
         'SCHEDULE_DATE_INVALID' => 'A scheduled cash flow falls on or before origination',
@@ -111,6 +112,7 @@ class EirCoverageService
         if ((float) $contract->drawn_amount <= 0) $issues[] = 'DRAWN_AMOUNT_MISSING';
         if (! in_array((int) $contract->payments_per_year, [1, 2, 4, 6, 12], true)) $issues[] = 'FREQUENCY_INVALID';
         if (($contract->frequency_source ?? null) !== 'STATED') $issues[] = 'FREQUENCY_ASSUMED';
+        if (($contract->schedule_approval_status ?? null) !== 'APPROVED') $issues[] = 'SCHEDULE_NOT_APPROVED';
 
         $rowCount = (int) ($schedule->row_count ?? 0);
         if ($rowCount === 0) {

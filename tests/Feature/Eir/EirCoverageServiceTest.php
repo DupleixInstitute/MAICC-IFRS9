@@ -18,18 +18,24 @@ class EirCoverageServiceTest extends TestCase
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
-        Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('instrument_type')->default('AMORTISED_LOAN'); $t->string('portfolio')->nullable(); $t->string('product_type')->nullable(); $t->date('origination_date')->nullable(); $t->double('drawn_amount')->default(0); $t->integer('payments_per_year')->default(12); $t->string('frequency_source')->nullable(); $t->string('calculation_status')->default('PENDING'); $t->string('locked_at')->nullable(); $t->timestamps(); });
+        Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('instrument_type')->default('AMORTISED_LOAN'); $t->string('portfolio')->nullable(); $t->string('product_type')->nullable(); $t->date('origination_date')->nullable(); $t->double('drawn_amount')->default(0); $t->integer('payments_per_year')->default(12); $t->string('frequency_source')->nullable(); $t->string('schedule_approval_status')->default('NOT_GENERATED'); $t->string('calculation_status')->default('PENDING'); $t->string('locked_at')->nullable(); $t->timestamps(); });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->smallInteger('schedule_version')->default(1); $t->string('due_date')->nullable(); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); });
         Schema::create('contract_fees', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->double('amount')->default(0); $t->boolean('integral')->nullable(); $t->string('cashflow_direction')->nullable(); $t->string('classification_status')->default('PENDING'); });
         Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->double('carrying_amount')->default(0); });
     }
 
+    /**
+     * A contract carrying no blockers. The schedule is approved by default so
+     * that a case built here is a control against which one overridden field
+     * is the only difference — the point of every fixture in this file.
+     */
     private function contract(string $id, array $overrides = []): void
     {
         DB::table('contract_eir')->insert(array_merge([
             'contract_id' => $id, 'instrument_type' => 'AMORTISED_LOAN', 'portfolio' => 'MAIIC',
             'origination_date' => '2025-01-01', 'drawn_amount' => 1000.0, 'payments_per_year' => 12,
-            'frequency_source' => 'STATED', 'calculation_status' => 'PENDING',
+            'frequency_source' => 'STATED', 'schedule_approval_status' => 'APPROVED',
+            'calculation_status' => 'PENDING',
             'created_at' => now(), 'updated_at' => now(),
         ], $overrides));
     }
@@ -148,6 +154,7 @@ class EirCoverageServiceTest extends TestCase
         $this->contract('PENDING-FEE'); $this->schedule('PENDING-FEE');
         DB::table('contract_fees')->insert(['contract_id' => 'PENDING-FEE', 'amount' => 10, 'classification_status' => 'PENDING']);
         $this->contract('DUP-DATES'); $this->schedule('DUP-DATES', ['2025-02-01', '2025-02-01']);
+        $this->contract('DRAFT-SCHEDULE', ['schedule_approval_status' => 'DRAFT']); $this->schedule('DRAFT-SCHEDULE');
 
         $coverage = new EirCoverageService();
         $readiness = new EirReadinessService();
