@@ -56,9 +56,12 @@ function drawCallouts(callouts) {
   const launch = {
     headless: 'new',
     defaultViewport: viewport,
+    timeout: 120000, // a cold Chromium start on Windows can exceed puppeteer's 30 s default
     args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--force-device-scale-factor=1'],
   };
-  if (!BUNDLED) launch.executablePath = cfg.edge; // puppeteer-core needs an explicit browser
+  // puppeteer-core needs an explicit browser; with the bundled package an explicit
+  // path (artisan --edge) still wins so a broken bundled download is not fatal.
+  if (!BUNDLED || cfg.edge) launch.executablePath = cfg.edge;
   const browser = await puppeteer.launch(launch);
   // JPEG keeps the manual small (a full-page PNG is ~5x larger); text stays
   // crisp at quality 87. PNG output is still honoured if a file ends .png.

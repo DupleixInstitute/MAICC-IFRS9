@@ -10,8 +10,9 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 /**
- * Manual authoring (Ticket #010): chapters and articles with steps, route
- * mappings and uploaded figures. Gated by the settings permission.
+ * Manual authoring (Tickets #010 and #011): chapters and articles with steps,
+ * route mappings and uploaded figures, for each manual in the help centre
+ * (User Manual, Administrator Manual). Gated by the settings permission.
  */
 class HelpManagementController extends Controller
 {
@@ -20,24 +21,44 @@ class HelpManagementController extends Controller
         $this->middleware(['auth', 'permission:settings']);
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $manual = $this->manualKey($request->query('manual'));
+
         return Inertia::render('Help/Manage', [
-            'categories' => HelpCategory::orderBy('order')
+            'manual' => $manual,
+            'manuals' => collect(HelpController::MANUALS)->map(fn ($m, $key) => [
+                'key' => $key,
+                'title' => $m['title'],
+                'viewRoute' => $key === 'admin' ? route('help.admin') : route('help.index'),
+            ])->values(),
+            'categories' => HelpCategory::manual($manual)->orderBy('order')
                 ->with(['articles' => fn ($q) => $q->orderBy('order')->with(['steps', 'images', 'routes'])])
                 ->get(),
             'routeNames' => $this->navigableRouteNames(),
         ]);
     }
 
+    /** Whitelist the manual key against the registry; unknown keys fall back to the User Manual. */
+    private function manualKey(?string $key): string
+    {
+        return array_key_exists((string) $key, HelpController::MANUALS) ? $key : 'user';
+    }
+
     public function storeCategory(Request $request)
     {
-        $v = $request->validate(['title' => 'required|string|max:150', 'order' => 'nullable|integer']);
+        $v = $request->validate([
+            'title' => 'required|string|max:150',
+            'order' => 'nullable|integer',
+            'manual' => 'nullable|string|in:' . implode(',', array_keys(HelpController::MANUALS)),
+        ]);
+        $manual = $this->manualKey($v['manual'] ?? null);
 
         HelpCategory::create([
+            'manual' => $manual,
             'title' => $v['title'],
             'slug' => $this->uniqueSlug(HelpCategory::class, $v['title']),
-            'order' => $v['order'] ?? (HelpCategory::max('order') + 1),
+            'order' => $v['order'] ?? ((int) HelpCategory::manual($manual)->max('order') + 1),
         ]);
 
         return back()->with('success', 'Chapter created.');

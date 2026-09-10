@@ -5,9 +5,13 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import RichTextEditor from '@/Components/RichTextEditor.vue'
 
 const props = defineProps({
+    manual: { type: String, default: 'user' },
+    manuals: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     routeNames: { type: Array, default: () => [] },
 })
+
+const current = () => props.manuals.find(m => m.key === props.manual) || { title: 'User Manual', viewRoute: route('help.index') }
 
 const editing = ref(null) // article being edited (null = none)
 const newChapter = ref('')
@@ -60,7 +64,7 @@ function removeArticle(article) {
 
 function addChapter() {
     if (!newChapter.value.trim()) return
-    router.post(route('help.manage.categories.store'), { title: newChapter.value }, {
+    router.post(route('help.manage.categories.store'), { title: newChapter.value, manual: props.manual }, {
         preserveScroll: true, onSuccess: () => { newChapter.value = '' },
     })
 }
@@ -97,11 +101,20 @@ function currentImages() {
 <template>
     <AppLayout title="Manage Manual">
         <template #header>
-            <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Manage User Manual</h2>
-                <Link :href="route('help.index')" class="text-sm font-medium text-maiic-600 hover:underline">
-                    View manual &rarr;
-                </Link>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Manage {{ current().title }}</h2>
+                <div class="flex items-center gap-2">
+                    <!-- manual switcher: one help centre, two manuals -->
+                    <Link v-for="m in manuals" :key="m.key"
+                          :href="route('help.manage.index', { manual: m.key })"
+                          class="rounded-full px-3 py-1 text-sm font-semibold"
+                          :class="m.key === manual ? 'bg-maiic-600 text-white' : 'bg-maiic-50 text-maiic-700 hover:bg-maiic-100'">
+                        {{ m.title }}
+                    </Link>
+                    <Link :href="current().viewRoute" class="ml-2 text-sm font-medium text-maiic-600 hover:underline">
+                        View manual &rarr;
+                    </Link>
+                </div>
             </div>
         </template>
 

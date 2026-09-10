@@ -10,7 +10,7 @@ use Symfony\Component\Process\Process;
 /**
  * Capture hi-res, logged-in screenshots of every manual-referenced page via
  * headless Chromium (scripts/manual-screenshots.cjs). Output lands in
- * public/manual/screenshots so the User Manual embeds
+ * public/manual/screenshots so the User and Administrator Manuals embed
  * /manual/screenshots/*.jpg. Read-only: it navigates and shoots, never
  * submits. Run it after any UI change so the manual pictures stay current:
  *
@@ -58,6 +58,24 @@ class CaptureManualScreenshotsCommand extends Command
         'users.index'                 => 'users',
         'users.roles.index'           => 'roles',
         'settings.index'              => 'settings',
+        // Administrator Manual figures (Ticket #011)
+        'settings.organisation'       => 'settings-organisation',
+        'settings.general'            => 'settings-general',
+        'settings.system'             => 'settings-system',
+        'settings.email'              => 'settings-email',
+        'currencies.index'            => 'currencies',
+        'chart_of_accounts.index'     => 'chart-of-accounts',
+        'branches.index'              => 'branches',
+        'industry_types.index'        => 'sector-types',
+        'accounting.financial_periods.index' => 'financial-periods',
+        'audit-trail.index'           => 'audit-trail',
+        'help.index'                  => 'help',
+        'help.manage.index'           => 'help-manage',
+        'license.index'               => 'license',
+        'eir-data.index'              => 'eir-data',
+        'eir-calculations.index'      => 'eir-calculations',
+        'eir-reconciliation.index'    => 'eir-reconciliation',
+        'eir-coverage.index'          => 'eir-coverage',
     ];
 
     public function handle(): int
@@ -118,7 +136,8 @@ class CaptureManualScreenshotsCommand extends Command
         }
 
         $cfg = [
-            'edge'     => $edge,
+            // Bundled Chromium by default; an explicit --edge path overrides it.
+            'edge'     => $this->option('edge') ?: ($bundled ? null : $edge),
             'baseUrl'  => $baseUrl,
             'email'    => $email,
             'password' => $password,

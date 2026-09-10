@@ -46,7 +46,7 @@
 <body>
     <div class="hdr">
         <div class="co">{{ $company }}</div>
-        <div class="ti">IFRS 9 ECL &amp; EIR Platform: User Manual</div>
+        <div class="ti">IFRS 9 ECL &amp; EIR Platform: {{ $title }}</div>
         <div class="ba"></div>
     </div>
 
@@ -59,8 +59,8 @@
 
     {{-- Cover --}}
     <div class="cover">
-        <h1>User Manual</h1>
-        <h2>IFRS 9 Expected Credit Loss &amp; Effective Interest Rate Platform</h2>
+        <h1>{{ $title }}</h1>
+        <h2>{{ $subtitle }}</h2>
         <div class="bar">
             <table style="width:100%; border-collapse:collapse;"><tr>
                 <td style="height:5px; background:#16a34a;"></td>

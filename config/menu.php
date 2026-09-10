@@ -131,10 +131,14 @@ return [
             $leaf('ECL Calculation', 'expected-credit-loss.index'),
         ], 6),
 
-        // Contract deliverables 5-7: user manual now, administrator/technical
-        // manuals and the installation guide join here as they are finalised.
+        // Contract Schedule 1 deliverables 5, 6 and 7. The two manuals are
+        // database content (help centre); the technical manual and the
+        // installation guide are repository Markdown under docs/manuals.
         $group('System Documentation', 'book-open', [
             $leaf('User Manual', 'help.index'),
+            $leaf('Administrator Manual', 'help.admin'),
+            $leaf('Technical Manual', 'docs.technical'),
+            $leaf('Installation Guide', 'docs.installation'),
         ], 7),
 
         $group('Administration', 'cog', [
