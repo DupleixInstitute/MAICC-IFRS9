@@ -5,7 +5,7 @@
 //
 // Driven by a JSON config written by `php artisan manual:screenshots`:
 //   { edge, baseUrl, email, password, captcha?, outDir, viewport:{width,height},
-//     shots:[ { url, file, fullPage?, callouts?:[{x,y,n,label?}] } ] }
+//     shots:[ { url, file, fullPage?, scrollY?, callouts?:[{x,y,n,label?}] } ] }
 //
 // Usage (normally invoked by the artisan command):
 //   node scripts/manual-screenshots.cjs <config.json>
@@ -125,6 +125,10 @@ function drawCallouts(callouts) {
           else { go(); }
         })).catch(() => {});
         await new Promise((r) => setTimeout(r, 1200)); // let charts/animations settle
+        if (shot.scrollY) { // optional: capture a scrolled viewport (sticky rails, long pages)
+          await page.evaluate((y) => window.scrollTo(0, y), shot.scrollY);
+          await new Promise((r) => setTimeout(r, 400));
+        }
         if (Array.isArray(shot.callouts) && shot.callouts.length) {
           await page.evaluate(drawCallouts, shot.callouts);
         }

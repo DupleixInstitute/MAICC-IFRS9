@@ -68,9 +68,9 @@ function jump(id) {
 
                     <!-- Contents rail -->
                     <aside class="hidden w-72 flex-none lg:block">
-                        <div class="sticky top-6 maiic-panel p-4">
+                        <div class="sticky top-[4.5rem] flex h-[calc(100vh-5rem)] flex-col maiic-panel p-4">
                             <input v-model="search" type="text" placeholder="Search this document..." class="maiic-input mb-4"/>
-                            <nav class="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
+                            <nav class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                                 <div v-for="c in filteredChapters" :key="c.slug">
                                     <button @click="jump(c.slug)"
                                             class="w-full text-left text-[11px] font-extrabold uppercase tracking-wider text-maiic-800 hover:text-maiic-600">
@@ -169,6 +169,7 @@ function jump(id) {
 .docs-prose tbody td { padding: 0.4rem 0.75rem; vertical-align: top; }
 .docs-prose tbody tr:nth-child(even) { background: #f9fafb; }
 .docs-prose code { color: #92400e; background: #fffbeb; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-weight: 500; }
+.docs-prose code::before, .docs-prose code::after { content: none; } /* the typography plugin adds literal backticks */
 .docs-prose pre { background: #f8fafc; border-left: 3px solid #f59e0b; color: #1f2937; }
 .docs-prose pre code { background: transparent; color: inherit; padding: 0; }
 .docs-prose a { color: #15803d; }

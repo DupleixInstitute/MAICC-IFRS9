@@ -67,10 +67,10 @@ function jump(slug) {
 
                     <!-- TOC rail -->
                     <aside class="hidden w-64 flex-none lg:block">
-                        <div class="sticky top-6 maiic-panel p-4">
+                        <div class="sticky top-[4.5rem] flex h-[calc(100vh-5rem)] flex-col maiic-panel p-4">
                             <input v-model="search" type="text" placeholder="Search this manual..."
                                    class="maiic-input mb-4"/>
-                            <nav class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                            <nav class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
                                 <div v-for="c in filtered" :key="c.id">
                                     <p class="text-[11px] font-extrabold uppercase tracking-wider text-maiic-800">{{ c.title }}</p>
                                     <ul class="mt-1.5 space-y-1">

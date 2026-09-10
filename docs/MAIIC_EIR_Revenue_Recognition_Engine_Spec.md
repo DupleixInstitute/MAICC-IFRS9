@@ -1,9 +1,11 @@
 # MAIIC EIR & Revenue Recognition Engine — Consolidated Technical Specification
 
-**Version:** 2.5 (September build status) · **Date:** 2026-09-10 (original consolidation 2026-08-05)
+**Version:** 2.6 (floating-rate resets added as Phase 5.1) · **Date:** 2026-09-10 (original consolidation 2026-08-05)
 **Status:** Living spec — reconciles the two parallel design tracks into one authoritative document for build + client/auditor collaboration.
 **Repo:** `MAICC-IFRS9` (github.com/DupleixInstitute/MAICC-IFRS9) — Laravel 10 + Vue 3/Inertia + Tailwind
 **Owner (build):** Kundai Muriwo · **Reviewer:** Dr T. Kumwenda (MAIIC CFO) · **Auditor of record:** Deloitte · **Engagement lead:** Edward Mazibuko (Dupleix Institute)
+
+> **2026-09-10 addition (v2.6).** §7.5 records the floating-rate reset treatment (IFRS 9 B5.4.5, B5.4.6, 5.4.3, B5.5.44), the spread-lock method, the seven-step build order as Phase 5.1, and the two accounting-policy caveats. §12 gains the Phase 5.1 row; §13 gains open items #27 and #28.
 
 > **2026-09-10 status refresh (v2.5).** Section 12 now reflects the September commits on `eir_revenue_recognition` (`ac030a6` 2026-08-19 through `af7c6e2` 2026-09-02): the standing fee rulebook with rule-driven classification, the trial-balance corpus ingestion and YTD movement rule (Phase 2.8, now built), original-schedule governance (draft to approved v1, a new readiness blocker), the date-sensitive solver with admin-controlled reopening and calculation history, and the EIR-discounted, scenario-weighted time-phased ECL with the stage 2 lifetime and stage 3 exposure corrections. Nothing in sections 4 to 8 was rewritten; where those sections say "not built", section 12 is authoritative. The Technical Manual (`docs/manuals/technical/06-eir-engine.md`) now carries the code-level description and supersedes the narrative parts of sections 5 to 8 for support purposes.
 
@@ -345,6 +347,45 @@ Discounted ECL formula, implemented in `EclDiscountRateService` + rewritten `Cal
 
 ---
 
+### 7.5 Floating-rate resets (B5.4.5) — 🔲 to build, Phase 5.1 *(added 2026-09-10)*
+
+**Why this is not optional.** 102 of the 181 facilities in Extract A are variable-rate (`rate_type = FLOATING`, "reference plus markup, subject to variation"). The engine today books every contract on the origination EIR for life, which is correct for the fixed-rate FinES book and wrong for the floating commercial book: as soon as the reference rate moves, engine interest drifts away from GL interest and the reconciliation reports a rate effect that is not a finding. The schema anticipated this (`rate_type`, `reference_rate_at_origination`, `markup`, `fee_spread` on `contract_eir`; `rate_reset_events`; `RateResetEvent` model) but no service writes a reset, reads the fee spread, or checks rate type.
+
+**Accounting basis (three different rules; which one applies matters).**
+
+| Event | Rule | Treatment |
+|---|---|---|
+| Reference rate moves on a floating-rate loan | IFRS 9 **B5.4.5** | Re-estimate future cash flows; the EIR changes **prospectively**; carrying amount unchanged; **no catch-up** in profit or loss |
+| Expected cash flows change on a **fixed-rate** loan (not a modification) | **B5.4.6** | Keep the original EIR; recompute the gross carrying amount as the PV of revised flows at the original EIR; book the difference in profit or loss (catch-up) |
+| Terms renegotiated outside the contract | **5.4.3** | Discount the new flows at the original EIR; recognise a modification gain or loss |
+| Discount rate for ECL | **B5.5.44** | Fixed: original EIR (or approximation). Variable: the **current** EIR determined under the contract |
+
+A central bank or market move of the reference rate is a B5.4.5 reset because the contract already floats. Fixed-rate FinES loans stay on the origination EIR for life and only change under B5.4.6 or 5.4.3. The day-one below-market fair value question on FinES is separate (§13 item 5 and Appendix C).
+
+**Two caveats to record in the accounting policy note, not in code.**
+1. Expressing the EIR as *benchmark plus a locked fee spread* (the spread representing origination fees and transaction costs, amortised over the expected life regardless of benchmark moves) is accepted practice in the Big Four manuals and in core banking systems (T24, Finacle, FLEXCUBE hold index and spread separately). It is **not** wording in B5.4.5 itself; the paragraph only requires periodic re-estimation of the floating cash flows. The policy note should state the method chosen.
+2. MAIIC varying the **markup** at its own option, where the contract permits it, is treated as a reset in practice (lender-discretion rates such as prime-linked loans are handled this way by their auditors). This is a **judgement**: a change not linked to market rates, or a negotiated rate cut for a struggling borrower, can be argued as a **5.4.3 modification** with a gain or loss. Obtain Deloitte's written confirmation of the treatment before the first reset is booked. Open item #27.
+
+**Method.** Two accepted methods give the same answer; the engine will implement the first and keep the second as a test oracle.
+
+| Method | How it works |
+|---|---|
+| **Spread lock** *(to implement)* | At EIR lock for a FLOATING contract store `fee_spread = solved EIR − (reference + markup)`. On a reset: new EIR = new contractual rate + locked fee spread; regenerate the remaining instalments from the outstanding amortised cost at the reset date as `schedule_version N+1`. |
+| Re-solve *(test oracle)* | Solve a fresh IRR equating the current amortised cost to the revised remaining cash flows. Must agree with spread lock within solver tolerance. |
+
+Either way the treatment is prospective: periods before the reset are untouched, a new schedule version starts at the reset date, and interest from that date is the new EIR applied to the opening amortised cost. No catch-up entry.
+
+**Build order (Phase 5.1).**
+1. At EIR lock for a FLOATING contract, compute and store `fee_spread`; refuse to lock a FLOATING contract whose `reference_rate_at_origination` or `markup` is null (new readiness blocker `FLOATING_TERMS_MISSING`).
+2. Rate reset intake (screen and import): contract, reset date, new reference rate, optionally new markup; written to `rate_reset_events` with maker/checker and audit meta. A reset dated inside a period that already has a locked revenue row is refused unless that period is superseded with a reason (same rule as `eir:run-revenue --recalculate`).
+3. On approval of a reset, regenerate the remaining schedule from the outstanding amortised cost as `schedule_version N+1` (`ScheduleWorkflowService` gains a `reprice()` path; version 1 is never overwritten), and log the event.
+4. `EirRevenueService`: from the reset period onward accrue at `new contractual rate + fee_spread`, reading the schedule version in force for the period; earlier periods untouched. Rate type is checked explicitly; a FLOATING contract with no reset history accrues at the origination rate and the row is labelled `RATE_BASIS = ORIGINAL_NO_RESET_HISTORY` so the proxy is visible.
+5. `EclDiscountRateService`: FLOATING contracts discount at the current EIR (latest reset in force at the reporting date); the existing `EIR_ORIGINAL_FLOATING_PROXY` label is retired once step 2 has data.
+6. Accounting policy note: markup changes within contract terms are resets; anything negotiated outside the contract is a modification with a gain or loss (caveat 2 above).
+7. Tests: spread lock equals re-solve; a reset changes no prior period; ECL discount picks the current rate for FLOATING and the original for FIXED; a reset inside a locked period is refused without supersession.
+
+**Data MAIIC must supply before step 2 is useful:** the history of reference-rate (and markup) changes since each floating loan was written, with effective dates, because the historic schedule versions have to be rebuilt to reconcile to the GL. Open item #28. Until it arrives, step 4's `ORIGINAL_NO_RESET_HISTORY` label is the honest state of every floating row.
+
 ## 8. Reconciliation, audit pack & exports *(🟡 partial — Phase 6, 2026-08-18)*
 
 The report that directly answers the audit question — **does the engine's EIR-basis income reconcile to what the GL actually posted?**
@@ -458,6 +499,7 @@ Source: verified commit history on branch **`eir_revenue_recognition`** (pushed,
 | **3.1 — Pure solver + readiness gate** | `CalculateEirService`, `EirReadinessService`, `EirContractInputService`; ACADES golden passes | ✅ Complete — readiness gained `FREQUENCY_ASSUMED` (2026-08-12) and `SCHEDULE_NOT_APPROVED` (2026-09-01); `EirCoverageService` mirrors the gate in bulk SQL and a test asserts agreement (`af7c6e2`) |
 | **3.x — Solver orchestration** | `CalculateEirJob`, batch, persistence + **locking UI** | ✅ **Built 2026-08-18, extended 2026-09-01 (`72d4388`)** — date-sensitive solver on actual contractual dates under the contract day-count basis; maker/checker lock with admin override; **admin-controlled reopening** (stated reason, archive to `eir_calculation_history`, amortisation superseded, ECL discounting marked `STALE_EIR_REOPENED`). Fixture suite: ACADES golden passes; the Malasha / NyamNyam / Nascomex expectations still await Phase 0 rulings |
 | **3.5 — Original-schedule governance** *(new, 2026-09-01, `676d6e6`)* | Extract B remaining flows staged in `contract_remaining_cashflow_schedule`; `ScheduleWorkflowService` generates a DRAFT v1 from Extract A terms, compares it (principal and interest within 1%) and requires review notes outside tolerance; APPROVED schedules cannot be regenerated; `EirScheduleController` + `Eir/ScheduleShow.vue` | ✅ **Built** — no maker/checker on schedule approval yet (open item) |
+| **5.1 — Floating-rate resets** *(added 2026-09-10, §7.5)* | Store `fee_spread` at lock; rate-reset intake → `rate_reset_events`; reprice remaining schedule as version N+1; accrue at new contractual rate + locked spread prospectively; ECL discount at current EIR for FLOATING | 🔲 **Not started** — schema only. 102 of 181 facilities are floating, so every floating row today carries the origination rate as an unlabelled proxy. Blocked on open items #27 (auditor confirmation of the reset vs modification boundary) and #28 (reset history from MAIIC) |
 | **4 — Impairment rewire (Door 3)** | Discount ECL at EIR; Stage-1 PD pro-rating; kill `?? 0.10` | ✅ **Built 2026-08-18, extended 2026-09-01 (`1f11004`, `7da1100`)** — `EclDiscountingService` with no default rate and per-row basis audit fields; **time-phased engine** (`TimePhasedEclService`, `time_phased_ecl`, `ecl_recovery_cashflows`, Projections screen) with scenario weighting from `ecl_scenario_assumptions`; stage 2 hazard anchored to the 12-month PD and compounded over the lifetime; stage 3 exposure no longer amortises and follows a reviewed recovery plan. Stage-1 PD pro-rating still not done. Unresolved contracts keep the undiscounted figure |
 | **5 — Revenue engine (Doors 1&2)** | `RunEirRevenueJob` → `eir_amortisation`; report page (Table 2) | ✅ **Built 2026-08-18** (see §7) — `eir:run-revenue` with `--recalculate --reason` superseding later periods into `eir_amortisation_history`; original EIR and basis surfaced on the ECL list (`ba9f682`). Cure detection, modification gains/losses and rate-reset regeneration remain unbuilt (`modification_gain_loss` written as 0; only `schedule_version` 1 exists) |
 | **6 — Audit pack + reconciliation** | GL recon (Extract C), materiality report, methodology note, **Deloitte Excel export**, Reports-Hub wiring | 🟡 **Partial** — variance bridge now three-term (base effect on the GL-implied base, rate effect, **impairment effect** named separately; residual 0.00 on the 22 sample periods, `e553b48`); trial-balance control totals available through §2.8; **standing fee rulebook** (25 seeded, unapproved rules, priority-ordered, `sweepPending`, RULE classification mode, `ac030a6`). Still ❌: download/export on the reconciliation screen, proposed journal entries, methodology note, Deloitte-format export (scope to be confirmed, open item #17) |
@@ -501,6 +543,8 @@ Source: verified commit history on branch **`eir_revenue_recognition`** (pushed,
 | 24 | *(new, 2026-08-19)* 🔴 **CRITICAL PATH — Extract C at full coverage.** Per-loan interest cannot come from the GL (§3.5.1); the loan module is the only possible source. Re-requested for **all 181 accounts, Jan 2025 → Jul 2026**. Acceptance test: summed by GL code and month it must equal the §3.5 spool totals | Per-loan interest reconciliation; the entire Door-2 tie-out | Barry / Kundai |
 | 25 | ⚠️ **REWRITTEN 2026-08-20 — v2.3 stated this incorrectly.** The 2026 `NAME` column was **hand-typed by MAIIC from the narrative**, not produced by E-Banker (confirmed in writing; corroborated by 3 blanks, a pasted page-break header, and one name unrecoverable from the text). There is **no system `NAME` field to request**. Fee attribution must therefore come from the **loan module**, alongside interest — either extending open item #24's extract to carry `FEE_COMPONENT` by loan account, or a parallel fee extract. Interim fallback: Dupleix maps the 34+34 2025 rows from the narrative **with a documented, reviewable mapping table**, disclosed as a limitation | Fee attribution at customer grain | Kundai / Barry |
 | 26 | *(new, 2026-08-19; **2026 recurrence noted 2026-08-20**)* **Misposting: MK31,501,724.00 of arrangement fees sit in `4871` Legal Fees** (18% of that account). **Not confined to 2025** — `GL 4871 as at 31 July 2026` carries `By Trf BRFF Loan- Being arrangement fees on Loan drawdown` (*Sunbird Sacco*), so the practice is ongoing rather than a one-off historic error — `By Trf Arrangement fee` 15,291,724.00 and `By Trf Malawi Police Sacco arrangement` 16,210,000.00. No EIR impact (both integral, total unchanged) but affects `fee_type` and the legal-vs-arrangement disclosure split. **Do not silently reclassify** pending MAIIC's answer | `contract_fees.fee_type`; Note disclosure split | Dr Thom / Finance |
+| 27 | *(new, 2026-09-10)* **Reset versus modification boundary for floating loans** (§7.5): confirm in writing with Deloitte that (a) reference-rate moves and (b) markup changes made within the contract's variation clause are B5.4.5 resets with no catch-up, and that negotiated rate concessions are 5.4.3 modifications; and confirm the benchmark-plus-locked-fee-spread method | Phase 5.1 step 1 | Dr Thom / Deloitte / Kundai |
+| 28 | *(new, 2026-09-10)* **Reference-rate and markup change history** for every floating facility since origination, with effective dates, so historic schedule versions can be rebuilt and reconciled to the GL | Phase 5.1 step 2 | Tamanda / Barry |
 
 ---
 
