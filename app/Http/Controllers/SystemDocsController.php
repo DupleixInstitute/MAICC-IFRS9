@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Support\DocumentFrontMatter;
+use App\Support\PdfPageNumbers;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -86,17 +88,26 @@ class SystemDocsController extends Controller
     {
         $meta = self::DOCS[$doc];
 
-        return Pdf::loadView('manual.docs', [
-            'company' => $this->company(),
+        $company = $this->company();
+        $generatedAt = now()->format('d F Y');
+        $front = DocumentFrontMatter::for($doc, $company, $generatedAt);
+        // The chapter files carry the real revision date; show it as prepared.
+        $front['preparedDate'] = $this->lastRevised($doc) ?? $generatedAt;
+        $front['revisions'][0][1] = $front['preparedDate'];
+
+        $pdf = Pdf::loadView('manual.docs', [
+            'company' => $company,
             'title' => $meta['title'],
             'subtitle' => $meta['subtitle'],
             'deliverable' => $meta['deliverable'],
-            'generated_at' => now()->format('d M Y'),
+            'generated_at' => $generatedAt,
+            'front' => $front,
             'last_revised' => $this->lastRevised($doc),
             'chapters' => $this->chapters($doc),
             'schema' => $meta['schema'] ? $this->liveSchema() : [],
-        ])->setPaper('a4', 'portrait')
-          ->download($meta['file']);
+        ])->setPaper('a4', 'portrait');
+
+        return PdfPageNumbers::stamp($pdf)->download($meta['file']);
     }
 
     /**
@@ -161,7 +172,7 @@ class SystemDocsController extends Controller
         }
         $latest = collect(File::glob($dir . '/*.md'))->map(fn ($f) => filemtime($f))->max();
 
-        return $latest ? date('d M Y', $latest) : null;
+        return $latest ? date('d F Y', $latest) : null;
     }
 
     /**

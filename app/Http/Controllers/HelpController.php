@@ -6,6 +6,8 @@ use App\Models\HelpArticle;
 use App\Models\HelpArticleRoute;
 use App\Models\HelpCategory;
 use App\Models\Setting;
+use App\Support\DocumentFrontMatter;
+use App\Support\PdfPageNumbers;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Inertia\Inertia;
 
@@ -101,14 +103,19 @@ class HelpController extends Controller
     {
         $meta = self::MANUALS[$manual];
 
-        return Pdf::loadView('manual.help', [
-            'company' => $this->company(),
+        $company = $this->company();
+        $generatedAt = now()->format('d F Y');
+
+        $pdf = Pdf::loadView('manual.help', [
+            'company' => $company,
             'title' => $meta['title'],
             'subtitle' => $meta['subtitle'],
-            'generated_at' => now()->format('d M Y'),
+            'generated_at' => $generatedAt,
+            'front' => DocumentFrontMatter::for($manual, $company, $generatedAt),
             'categories' => $this->publishedTree($manual),
-        ])->setPaper('a4', 'portrait')
-          ->download($meta['file']);
+        ])->setPaper('a4', 'portrait');
+
+        return PdfPageNumbers::stamp($pdf)->download($meta['file']);
     }
 
     private function publishedTree(string $manual)

@@ -14,7 +14,7 @@
 
     .ftr { position: fixed; bottom: -42px; left: 0; right: 0; height: 30px;
            font-size: 8px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 6px; }
-    .ftr .pg:after { content: "Page " counter(page) " of " counter(pages); }
+    /* page numbers are stamped by App\Support\PdfPageNumbers after layout */
 
     .cover { text-align: center; padding-top: 190px; }
     .cover h1 { font-size: 30px; color: #14532d; margin: 0 0 6px 0; }
@@ -52,24 +52,14 @@
 
     <div class="ftr">
         <table style="width:100%"><tr>
-            <td>Generated {{ $generated_at }} &middot; MAIIC IFRS 9 ECL System &middot; Confidential</td>
+            <td>{{ $company }} IFRS 9 {{ $title }}</td>
+            <td style="text-align:center">v{{ $front['version'] }} &middot; {{ $front['classification'] }} &middot; generated {{ $generated_at }}</td>
             <td style="text-align:right" class="pg"></td>
         </tr></table>
     </div>
 
-    {{-- Cover --}}
-    <div class="cover">
-        <h1>{{ $title }}</h1>
-        <h2>{{ $subtitle }}</h2>
-        <div class="bar">
-            <table style="width:100%; border-collapse:collapse;"><tr>
-                <td style="height:5px; background:#16a34a;"></td>
-                <td style="height:5px; background:#f59e0b;"></td>
-                <td style="height:5px; background:#dc2626;"></td>
-            </tr></table>
-        </div>
-        <div class="meta">{{ $company }} &middot; Prepared by Dupleix Institute &middot; {{ $generated_at }}</div>
-    </div>
+    {{-- Cover, document control, how to use, role map (shared front matter) --}}
+    @include('manual._front_matter', ['front' => $front])
 
     {{-- Table of contents --}}
     <div class="toc" style="page-break-before: always;">
