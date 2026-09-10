@@ -28,7 +28,7 @@ const controlRows = () => [
 </script>
 
 <template>
-    <div class="mb-8">
+    <div>
         <!-- Cover -->
         <section class="maiic-panel px-6 py-12 text-center sm:py-16">
             <img v-if="front.logoUrl" :src="front.logoUrl" alt="MAIIC" class="mx-auto mb-6 h-20 w-auto"/>

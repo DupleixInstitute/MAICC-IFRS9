@@ -10,16 +10,6 @@
     "ok": true
   },
   {
-    "file": "help-admin.jpg",
-    "url": "http://127.0.0.1:8000/help/admin",
-    "ok": true
-  },
-  {
-    "file": "docs-technical.jpg",
-    "url": "http://127.0.0.1:8000/system-docs/technical",
-    "ok": true
-  },
-  {
     "file": "docs-installation.jpg",
     "url": "http://127.0.0.1:8000/system-docs/installation",
     "ok": true

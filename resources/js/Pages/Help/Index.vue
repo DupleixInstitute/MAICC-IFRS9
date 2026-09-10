@@ -63,8 +63,6 @@ function jump(slug) {
 
         <div class="py-8">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <DocumentCover v-if="front" :front="front"/>
-
                 <div class="flex gap-8">
 
                     <!-- TOC rail -->
@@ -90,6 +88,7 @@ function jump(slug) {
 
                     <!-- Content -->
                     <article class="min-w-0 flex-1 space-y-10">
+                        <DocumentCover v-if="front" :front="front"/>
                         <div v-if="!categories.length" class="maiic-panel p-10 text-center text-gray-400 font-semibold">
                             The manual has no published content yet. Use "Edit manual" to add chapters and articles.
                         </div>
