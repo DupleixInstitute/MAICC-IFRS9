@@ -30,6 +30,9 @@ class SystemDocsTest extends TestCase
         $response->assertOk();
         $props = $response->viewData('page')['props'];
         $this->assertSame('technical', $props['doc']);
+        $this->assertSame('Technical Manual', $props['front']['title']);
+        $this->assertSame('Head of ICT', $props['front']['owner']);
+        $this->assertNotEmpty($props['front']['distribution']);
         $this->assertNotEmpty($props['chapters'], 'docs/manuals/technical has no chapters.');
         $first = $props['chapters'][0];
         $this->assertStringContainsString('<h2 id="' . $first['slug'] . '">', $first['html']);

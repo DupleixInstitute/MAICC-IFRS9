@@ -70,13 +70,18 @@ class SystemDocsController extends Controller
     private function show(string $doc)
     {
         $meta = self::DOCS[$doc];
+        $company = $this->company();
+        $front = DocumentFrontMatter::for($doc, $company, now()->format('d F Y'));
+        $front['preparedDate'] = $this->lastRevised($doc) ?? $front['preparedDate'];
+        $front['revisions'][0][1] = $front['preparedDate'];
 
         return Inertia::render('Docs/Show', [
             'doc' => $doc,
+            'front' => $front,
             'title' => $meta['title'],
             'subtitle' => $meta['subtitle'],
             'deliverable' => $meta['deliverable'],
-            'company' => $this->company(),
+            'company' => $company,
             'pdfRoute' => route('docs.' . $doc . '.pdf'),
             'chapters' => $this->chapters($doc),
             'schema' => $meta['schema'] ? $this->liveSchema() : [],

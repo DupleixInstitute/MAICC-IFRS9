@@ -5,203 +5,23 @@
     "ok": true
   },
   {
-    "file": "dashboard.jpg",
-    "url": "http://127.0.0.1:8000/dashboard",
-    "ok": true
-  },
-  {
-    "file": "workspace.jpg",
-    "url": "http://127.0.0.1:8000/workspace",
-    "ok": true
-  },
-  {
-    "file": "clients.jpg",
-    "url": "http://127.0.0.1:8000/client",
-    "ok": true
-  },
-  {
-    "file": "portfolios.jpg",
-    "url": "http://127.0.0.1:8000/portfolios",
-    "ok": true
-  },
-  {
-    "file": "loanbook.jpg",
-    "url": "http://127.0.0.1:8000/loan_application/loan-books",
-    "ok": true
-  },
-  {
-    "file": "imports.jpg",
-    "url": "http://127.0.0.1:8000/import",
-    "ok": true
-  },
-  {
-    "file": "collateral.jpg",
-    "url": "http://127.0.0.1:8000/collateral/allocations",
-    "ok": true
-  },
-  {
-    "file": "eir-intake.jpg",
-    "url": "http://127.0.0.1:8000/eir-intake",
-    "ok": true
-  },
-  {
-    "file": "eir-fees.jpg",
-    "url": "http://127.0.0.1:8000/eir-fee-classification",
-    "ok": true
-  },
-  {
-    "file": "eir-rules.jpg",
-    "url": "http://127.0.0.1:8000/eir-accounting-rules",
-    "ok": true
-  },
-  {
-    "file": "staging.jpg",
-    "url": "http://127.0.0.1:8000/stageing-rules",
-    "ok": true
-  },
-  {
-    "file": "tprofiles.jpg",
-    "url": "http://127.0.0.1:8000/transition-profiles",
-    "ok": true
-  },
-  {
-    "file": "tmatrix.jpg",
-    "url": "http://127.0.0.1:8000/transition-matrix",
-    "ok": true
-  },
-  {
-    "file": "lgd.jpg",
-    "url": "http://127.0.0.1:8000/loss-given-default/list",
-    "ok": true
-  },
-  {
-    "file": "fli.jpg",
-    "url": "http://127.0.0.1:8000/macro-forecast-weighted",
-    "ok": true
-  },
-  {
-    "file": "ecl.jpg",
-    "url": "http://127.0.0.1:8000/expected-credit-loss/list",
-    "ok": true
-  },
-  {
-    "file": "reports.jpg",
-    "url": "http://127.0.0.1:8000/ifrs9-reports",
-    "ok": true
-  },
-  {
-    "file": "stress-testing.jpg",
-    "url": "http://127.0.0.1:8000/stress-testing",
-    "ok": true
-  },
-  {
-    "file": "ews.jpg",
-    "url": "http://127.0.0.1:8000/ifrs9-reports/ews",
-    "ok": true
-  },
-  {
-    "file": "tickets.jpg",
-    "url": "http://127.0.0.1:8000/tickets",
-    "ok": true
-  },
-  {
-    "file": "users.jpg",
-    "url": "http://127.0.0.1:8000/user",
-    "ok": true
-  },
-  {
-    "file": "roles.jpg",
-    "url": "http://127.0.0.1:8000/user/role",
-    "ok": true
-  },
-  {
-    "file": "settings.jpg",
-    "url": "http://127.0.0.1:8000/setting",
-    "ok": true
-  },
-  {
-    "file": "settings-organisation.jpg",
-    "url": "http://127.0.0.1:8000/setting/organisation",
-    "ok": true
-  },
-  {
-    "file": "settings-general.jpg",
-    "url": "http://127.0.0.1:8000/setting/general",
-    "ok": true
-  },
-  {
-    "file": "settings-system.jpg",
-    "url": "http://127.0.0.1:8000/setting/system",
-    "ok": true
-  },
-  {
-    "file": "settings-email.jpg",
-    "url": "http://127.0.0.1:8000/setting/email",
-    "ok": true
-  },
-  {
-    "file": "currencies.jpg",
-    "url": "http://127.0.0.1:8000/currency",
-    "ok": true
-  },
-  {
-    "file": "chart-of-accounts.jpg",
-    "url": "http://127.0.0.1:8000/chart_of_account",
-    "ok": true
-  },
-  {
-    "file": "branches.jpg",
-    "url": "http://127.0.0.1:8000/branch",
-    "ok": true
-  },
-  {
-    "file": "sector-types.jpg",
-    "url": "http://127.0.0.1:8000/industry_type",
-    "ok": true
-  },
-  {
-    "file": "financial-periods.jpg",
-    "url": "http://127.0.0.1:8000/financial_period",
-    "ok": true
-  },
-  {
-    "file": "audit-trail.jpg",
-    "url": "http://127.0.0.1:8000/audit-trail",
-    "ok": true
-  },
-  {
     "file": "help.jpg",
     "url": "http://127.0.0.1:8000/help",
     "ok": true
   },
   {
-    "file": "help-manage.jpg",
-    "url": "http://127.0.0.1:8000/help/manage",
+    "file": "help-admin.jpg",
+    "url": "http://127.0.0.1:8000/help/admin",
     "ok": true
   },
   {
-    "file": "license.jpg",
-    "url": "http://127.0.0.1:8000/license",
+    "file": "docs-technical.jpg",
+    "url": "http://127.0.0.1:8000/system-docs/technical",
     "ok": true
   },
   {
-    "file": "eir-data.jpg",
-    "url": "http://127.0.0.1:8000/eir-data",
-    "ok": true
-  },
-  {
-    "file": "eir-calculations.jpg",
-    "url": "http://127.0.0.1:8000/eir-calculations",
-    "ok": true
-  },
-  {
-    "file": "eir-reconciliation.jpg",
-    "url": "http://127.0.0.1:8000/eir-reconciliation",
-    "ok": true
-  },
-  {
-    "file": "eir-coverage.jpg",
-    "url": "http://127.0.0.1:8000/eir-coverage",
+    "file": "docs-installation.jpg",
+    "url": "http://127.0.0.1:8000/system-docs/installation",
     "ok": true
   }
 ]

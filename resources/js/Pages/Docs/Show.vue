@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import DocumentCover from '@/Shared/DocumentCover.vue'
 
 // Repository-authored documentation reader (Ticket #011): the Technical
 // Manual and the Installation Guide. Chapters arrive as pre-rendered HTML
@@ -8,6 +9,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 // appendix read from the connected database.
 const props = defineProps({
     doc: { type: String, default: 'technical' },
+    front: { type: Object, default: null },
     title: { type: String, default: '' },
     subtitle: { type: String, default: '' },
     deliverable: { type: String, default: '' },
@@ -62,6 +64,8 @@ function jump(id) {
 
         <div class="py-8">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <DocumentCover v-if="front" :front="front"/>
+
                 <div class="flex gap-8">
 
                     <!-- Contents rail -->
@@ -95,17 +99,6 @@ function jump(id) {
 
                     <!-- Document body -->
                     <article class="min-w-0 flex-1 space-y-8">
-                        <div class="maiic-panel p-5">
-                            <p class="maiic-kpi-label">Document control</p>
-                            <div class="grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
-                                <p><span class="font-semibold">Client:</span> {{ company }}</p>
-                                <p><span class="font-semibold">Prepared by:</span> Dupleix Institute</p>
-                                <p class="sm:col-span-2"><span class="font-semibold">Deliverable:</span> {{ deliverable }}</p>
-                                <p><span class="font-semibold">Source:</span> repository Markdown, rendered live</p>
-                                <p><span class="font-semibold">Last revised:</span> {{ lastRevised || 'not yet authored' }}</p>
-                            </div>
-                        </div>
-
                         <div v-if="!chapters.length" class="maiic-panel p-10 text-center font-semibold text-gray-400">
                             This document has no chapters yet. Developers add Markdown files under docs/manuals.
                         </div>

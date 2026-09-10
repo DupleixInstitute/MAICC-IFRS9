@@ -182,7 +182,8 @@ return [
             ],
         ],
         'Technical Manual and Installation Guide' => [
-            'body' => '<p>The Technical Manual and the Installation Guide are written as chapter files in the application repository, so they are versioned with the code. They are rendered live under System Documentation with a contents rail and a PDF download, and the Technical Manual carries a schema appendix read from the connected database at render time. Developers update the chapter files in the same change as the code they describe; administrators do not edit them in the application.</p>',
+            'body' => '<p>The Technical Manual and the Installation Guide are written as chapter files in the application repository, so they are versioned with the code. They are rendered live under System Documentation with a cover page, document control, a contents rail and a PDF download, and the Technical Manual carries a schema appendix read from the connected database at render time. Developers update the chapter files in the same change as the code they describe; administrators do not edit them in the application.</p>',
+            'images' => ['docs-technical' => 'The Technical Manual with its cover page and document control'],
             'routes' => ['docs.technical', 'docs.installation'],
         ],
     ],

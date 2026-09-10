@@ -139,6 +139,8 @@ class HelpManualTest extends TestCase
         $props = $admin->viewData('page')['props'];
         $this->assertSame('admin', $props['manual']);
         $this->assertSame('Administrator Manual', $props['title']);
+        $this->assertSame('Administrator Manual', $props['front']['title']);
+        $this->assertSame('Confidential', $props['front']['classification']);
         $slugs = collect($props['categories'])->flatMap(fn ($c) => collect($c['articles'])->pluck('slug'));
         $this->assertTrue($slugs->contains('closing-a-financial-period-test'));
         $this->assertFalse($slugs->contains('running-the-ecl-calculation'), 'User Manual article leaked into the Administrator Manual.');

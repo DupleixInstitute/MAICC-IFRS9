@@ -21,6 +21,8 @@ class DocumentFrontMatter
             'institution' => strcasecmp(trim($company), 'MAIIC') === 0
                 ? 'Malawi Agricultural & Industrial Investment Corporation plc'
                 : $company,
+            'logoUrl' => asset('images/maiic-logo.png'),
+            'dupleixLogoUrl' => asset('images/dupleix-institute.png'),
             'platform' => 'IFRS 9 ECL & EIR Platform',
             'platformLong' => 'IFRS 9 Expected Credit Loss and Effective Interest Rate platform',
             'version' => self::VERSION,

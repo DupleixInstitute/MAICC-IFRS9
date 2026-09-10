@@ -2,9 +2,11 @@
 import { ref, computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import DocumentCover from '@/Shared/DocumentCover.vue'
 
 const props = defineProps({
     company: { type: String, default: 'MAIIC' },
+    front: { type: Object, default: null },
     manual: { type: String, default: 'user' },
     title: { type: String, default: 'User Manual' },
     subtitle: { type: String, default: '' },
@@ -61,6 +63,8 @@ function jump(slug) {
 
         <div class="py-8">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <DocumentCover v-if="front" :front="front"/>
+
                 <div class="flex gap-8">
 
                     <!-- TOC rail -->

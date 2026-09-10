@@ -53,9 +53,11 @@ class HelpController extends Controller
     private function reader(string $manual)
     {
         $meta = self::MANUALS[$manual];
+        $company = $this->company();
 
         return Inertia::render('Help/Index', [
-            'company' => $this->company(),
+            'company' => $company,
+            'front' => DocumentFrontMatter::for($manual, $company, now()->format('d F Y')),
             'manual' => $manual,
             'title' => $meta['title'],
             'subtitle' => $meta['subtitle'],
