@@ -113,7 +113,13 @@ function drawCallouts(callouts) {
     }
 
     // ---- Capture each page ----
+    // Surface front-end failures: a page that throws renders the empty shell,
+    // which would otherwise be captured silently as a blank grey figure.
+    const pageErrors = [];
+    page.on('pageerror', (e) => pageErrors.push(String(e.message || e)));
+    page.on('console', (m) => { if (m.type() === 'error') pageErrors.push(m.text()); });
     for (const shot of cfg.shots) {
+      pageErrors.length = 0;
       try {
         // domcontentloaded (not networkidle0): pages with polling never go
         // network-idle. Wait for the Inertia shell, fonts and charts instead.
@@ -134,7 +140,12 @@ function drawCallouts(callouts) {
         }
         const out = path.join(cfg.outDir, shot.file);
         await page.screenshot(shotOpts(out, shot.fullPage));
-        results.push({ file: shot.file, url: shot.url, ok: true });
+        const textLength = await page.evaluate(() => ((document.querySelector('main') || document.body).innerText || '').trim().length).catch(() => -1);
+        if (textLength >= 0 && textLength < 40) {
+          console.warn('WARNING   ' + shot.file + ' rendered almost no text (' + textLength + ' chars); '
+            + (pageErrors.length ? 'errors: ' + pageErrors.slice(0, 3).join(' | ') : 'no console errors captured'));
+        }
+        results.push({ file: shot.file, url: shot.url, ok: true, textLength, errors: pageErrors.slice(0, 5) });
         console.log('captured  ' + shot.file);
       } catch (e) {
         results.push({ file: shot.file, url: shot.url, ok: false, error: String(e.message || e) });

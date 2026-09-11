@@ -63,8 +63,35 @@ class HelpContentSeeder extends Seeder
         $this->command?->info('User Manual seeded: ' . HelpCategory::count() . ' chapters, ' . HelpArticle::count() . ' articles.');
     }
 
-    /** @return array<string, array<string, array>> chapter => [article => spec] */
+    /**
+     * Chapter => [article => spec]. The shipped text lives in
+     * database/seeders/data/help_user_content/*.php, one file per chapter,
+     * loaded in file-name order (Ticket #011 rewrite). The inline array below
+     * is the original manual and is used only when that directory is empty.
+     *
+     * @return array<string, array<string, array>>
+     */
     private function content(): array
+    {
+        $dir = database_path('seeders/data/help_user_content');
+        $files = is_dir($dir) ? glob($dir . '/*.php') : [];
+        sort($files);
+        if ($files) {
+            $content = [];
+            foreach ($files as $file) {
+                foreach ((array) require $file as $chapter => $articles) {
+                    $content[$chapter] = array_merge($content[$chapter] ?? [], $articles);
+                }
+            }
+
+            return $content;
+        }
+
+        return $this->legacyContent();
+    }
+
+    /** The original (August 2026) manual, kept as the fallback. */
+    private function legacyContent(): array
     {
         return [
             'Getting Started' => [

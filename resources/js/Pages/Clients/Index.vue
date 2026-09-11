@@ -89,7 +89,7 @@
                 </td>
                 <td class="w-px">
                   <row-actions :view-href="route('clients.show', client.id)"
-                               :edit-href="can('clients.update') ? route('clients.edit', client.id) : null"/>
+                               :edit-href="can.edit ? route('clients.edit', client.id) : null"/>
                 </td>
               </tr>
               <tr v-if="displayedClients.length === 0">
