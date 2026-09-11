@@ -28,7 +28,7 @@ class HelpAdminContentSeeder extends Seeder
             return;
         }
 
-        $content = require database_path('seeders/data/help_admin_content.php');
+        $content = $this->content();
 
         $order = 0;
         foreach ($content as $chapterTitle => $articles) {
@@ -70,6 +70,32 @@ class HelpAdminContentSeeder extends Seeder
         $this->command?->info('Administrator Manual seeded: '
             . HelpCategory::manual(self::MANUAL)->count() . ' chapters, '
             . HelpArticle::whereHas('category', fn ($q) => $q->where('manual', self::MANUAL))->count() . ' articles.');
+    }
+
+    /**
+     * Chapter => [article => spec]. The shipped text lives in
+     * database/seeders/data/help_admin_content/*.php, one file per chapter,
+     * loaded in file-name order. The original single file is the fallback.
+     *
+     * @return array<string, array<string, array>>
+     */
+    private function content(): array
+    {
+        $dir = database_path('seeders/data/help_admin_content');
+        $files = is_dir($dir) ? glob($dir . '/*.php') : [];
+        sort($files);
+        if ($files) {
+            $content = [];
+            foreach ($files as $file) {
+                foreach ((array) require $file as $chapter => $articles) {
+                    $content[$chapter] = array_merge($content[$chapter] ?? [], $articles);
+                }
+            }
+
+            return $content;
+        }
+
+        return require database_path('seeders/data/help_admin_content.php');
     }
 
     /** Slugs are unique across both manuals, so admin chapters are prefixed. */
