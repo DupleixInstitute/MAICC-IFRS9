@@ -239,7 +239,6 @@ return [
             ],
             'images' => [
                 'sicr-triggers' => 'The SICR Trigger Alerts page with the Trigger Alert button and the Trigger History table columns',
-                'sicr-customers' => 'The raw reply of the customer search service that fills the Customer ID drop-down: each entry carries the customer identifier and its loan count',
             ],
             'routes' => ['sicr-triggers.index', 'sicr-triggers.store', 'sicr-triggers.update-loan-book', 'sicr-triggers.remove-alert', 'sicr-triggers.customers'],
         ],

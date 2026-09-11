@@ -70,8 +70,41 @@ return [
                 'currencies' => 'The currency list with the organisation currency',
                 'sector-types' => 'Sector types, which drive the concentration reports',
                 'chart-of-accounts' => 'The chart of accounts',
+                'branches' => 'Branches, the organisation structure used for grouping',
+                'legal-types' => 'Legal types, a supporting list on client records',
+                'banks' => 'Banks, a supporting list on client records',
             ],
             'routes' => ['currencies.index', 'chart_of_accounts.index', 'branches.index', 'industry_types.index', 'portfolios.index', 'groups.index', 'legal_types.index', 'banks.index'],
+        ],
+
+        'SMS and other settings' => [
+            'body' => '<p>Two pages sit at the foot of the settings hub. Both are short, and both are worth understanding because what they do is easy to overstate.</p>'
+                . '<h4>Settings, then SMS</h4>'
+                . '<ul>'
+                . '<li><b>SMS Enabled</b>, a <b>Yes</b> or <b>No</b> selector.</li>'
+                . '<li><b>Default SMS Gateway</b>, which appears only when SMS Enabled is set to Yes, and lists the gateways the installation knows about.</li>'
+                . '<li>A <b>Save</b> button.</li>'
+                . '</ul>'
+                . '<p>Be clear about what this does today: it stores the two values. Nothing in the IFRS 9 workflow sends a text message. Notifications go to the bell in the header and are held in the database, as described under Notifications. Turning SMS on therefore changes a stored setting and nothing a user will see. Leave it off unless Dupleix has delivered a gateway integration for MAIIC and told you to enable it.</p>'
+                . '<h4>Settings, then Other</h4>'
+                . '<p>This page holds a single link, <b>Loan Application Score Bands</b>, marked with a cogs icon. It opens a small screen where scoring bands are defined by name with a minimum and a maximum, and the platform refuses bands that overlap.</p>'
+                . '<p>It belongs to the legacy loan-application credit-scoring feature, which is not part of the IFRS 9 and EIR scope MAIIC contracted for. Removing that feature is logged as ticket #009. Until it is removed the page stays visible, so treat it as dormant: changing a band affects nothing in the ECL or EIR figures.</p>'
+                . '<h4>Common problems</h4>'
+                . '<ul>'
+                . '<li><b>SMS is switched on but no messages arrive.</b> Expected. There is no sending integration; only the setting is stored.</li>'
+                . '<li><b>The Other page looks empty.</b> It holds one link. That is the whole page.</li>'
+                . '<li><code>Bands overlap.</code> Two score bands claim the same value. Adjust the minimum or maximum so the ranges meet without overlapping.</li>'
+                . '</ul>',
+            'steps' => [
+                'Open Settings, then SMS, and leave SMS Enabled set to No unless Dupleix has delivered a gateway for MAIIC.',
+                'Open Settings, then Other, to see the one remaining legacy link.',
+                'Raise a ticket rather than configuring the score bands; the feature is outside the contracted scope and is scheduled for removal.',
+            ],
+            'images' => [
+                'settings-sms' => 'The SMS settings page with the enable selector and the gateway list',
+                'settings-other' => 'The Other settings page and its single legacy link',
+            ],
+            'routes' => ['settings.sms', 'settings.other'],
         ],
 
         'Licence' => [

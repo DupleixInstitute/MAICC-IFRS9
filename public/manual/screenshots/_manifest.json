@@ -8,28 +8,21 @@
     "file": "help.jpg",
     "url": "http://127.0.0.1:8010/help",
     "ok": true,
-    "textLength": 338199,
+    "textLength": 339327,
     "errors": []
   },
   {
     "file": "help-admin.jpg",
     "url": "http://127.0.0.1:8010/help/admin",
     "ok": true,
-    "textLength": 19833,
+    "textLength": 62077,
     "errors": []
   },
   {
-    "file": "docs-technical.jpg",
-    "url": "http://127.0.0.1:8010/system-docs/technical",
+    "file": "help-manage.jpg",
+    "url": "http://127.0.0.1:8010/help/manage",
     "ok": true,
-    "textLength": 91829,
-    "errors": []
-  },
-  {
-    "file": "docs-installation.jpg",
-    "url": "http://127.0.0.1:8010/system-docs/installation",
-    "ok": true,
-    "textLength": 40230,
+    "textLength": 2151,
     "errors": []
   }
 ]

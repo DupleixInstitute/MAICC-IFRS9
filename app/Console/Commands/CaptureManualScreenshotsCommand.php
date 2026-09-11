@@ -78,7 +78,6 @@ class CaptureManualScreenshotsCommand extends Command
         'sicr-groups.index'           => 'sicr-groups',
         'sicr-items.index'            => 'sicr-items',
         'sicr-triggers.index'         => 'sicr-triggers',
-        'sicr-triggers.customers'     => 'sicr-customers',
         // PD
         'transition-profiles.index'   => 'tprofiles',
         'transition-profiles.create'  => 'tprofiles-create',
