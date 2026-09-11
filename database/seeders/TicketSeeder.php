@@ -261,6 +261,10 @@ TXT;
                     . "2. Authoring UI with real image upload (no base64 into a 64KB column) behind a manage permission.\n"
                     . "3. Automated screenshot capture command that signs into the running system and refreshes the manual images after UI changes, plus a manual:pdf command rendering the same content to a branded PDF.\n"
                     . "4. Immediate fixes shipped separately: manuals CRUD is now authenticated; the broken show route and validation gaps are tracked here.",
+                'status' => 'resolved',
+                'resolved_at' => '2026-09-11 17:00:00',
+                'resolution' => 'Delivered 13 Aug 2026 (commit 8316044): the help centre tables, the authoring screen with real image upload, the screenshot capture command, and the branded PDF rendered from the same rows under #010. '
+                    . 'Extended far beyond the original scope on 11 Sep 2026 (cf39a8b, 2f274a2): the User Manual rewritten screen by screen to 11 chapters, 75 articles and about 47,000 words, carrying 329 numbered steps, 113 figures and 293 page mappings, rendering to a 171-page PDF with a cover page and document control. The capture command now covers 120 pages, warns instead of saving a blank picture, and every captured figure is used in a manual.',
             ],
             [
                 'reference' => '008',
@@ -322,7 +326,9 @@ TXT;
                     'assigned_to' => $owner?->id,
                     'created_by' => $owner?->id,
                     'resolution' => $item['resolution'] ?? null,
-                    'resolved_at' => ($item['status'] ?? null) === 'resolved' ? $raisedAt->copy()->addDay() : null,
+                    'resolved_at' => ($item['status'] ?? null) === 'resolved'
+                        ? (isset($item['resolved_at']) ? Carbon::parse($item['resolved_at']) : $raisedAt->copy()->addDay())
+                        : null,
                 ]
             );
 
