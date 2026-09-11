@@ -47,17 +47,17 @@ class DocumentFrontMatter
                 'appliesTo' => $company . ' IFRS 9 ECL and EIR platform, all business users',
                 'audience' => 'staff, auditors and the Board',
                 'howToUse' => [
-                    'This manual is task-based. Each article says what the screen is for, where to find it, the numbered steps to follow and what the result feeds downstream.',
+                    'This manual is screen-based and complete: every page, button, icon, column and status in the platform is explained in plain English, with the numbered steps to follow and what each action changes downstream. Chapters follow the sidebar from top to bottom.',
                     ['Follow the numbered steps in order within each article; figures are numbered and captioned.', 'Every screen is scoped to a reporting period; check the period selector before reading any figure.', 'Locked and closed results cannot be edited; create a new draft rather than changing an approved figure.', 'Maker and checker applies to fee classification and EIR approval: the person who prepares is never the person who approves.', 'Use the Glossary and the Troubleshooting article at the back for any term or error message.'],
                     'Before a period close, work through the Workspace checklist: import, segment, stage, PD, LGD, forward-looking adjustment, ECL run, stress run, report review, sign-off.',
                 ],
                 'roles' => [
-                    ['New user', 'Read Getting Started and Daily Use end to end before anything else.'],
-                    ['Credit or risk analyst', 'Customer and Loan Data, IFRS 9 Model Setup and ECL and Reporting: load, stage, calculate and reconcile.'],
-                    ['Finance preparer', 'EIR and Revenue Recognition and the reports: prepare the figures a reviewer approves.'],
+                    ['New user', 'Read Getting Started (especially The screen layout and Common controls and icons) and Dashboard and Workspace end to end before anything else.'],
+                    ['Credit or risk analyst', 'Portfolio Setup, Customer and Loan Data, Collateral Management, IFRS 9 Model Setup and ECL Processing: load, stage, calculate and reconcile.'],
+                    ['Finance preparer', 'EIR and Revenue Recognition and Reports: prepare the figures a reviewer approves.'],
                     ['Reviewer or CFO', 'Dashboard, Workspace and the IFRS 9 Reports hub: review, approve and sign off the period.'],
-                    ['Auditor', 'Account-level ECL trail, reconciliation reports, audit trail and the EIR coverage and reconciliation screens.'],
-                    ['Administrator', 'See the Administrator Manual for users, settings, periods and governance.'],
+                    ['Auditor', 'Reports (account-level ECL trail and reconciliations), the EIR coverage and reconciliation screens, and the Reference chapter for the icon legend and glossary.'],
+                    ['Administrator', 'The Administration overview chapter here, then the Administrator Manual for users, settings, periods and governance.'],
                 ],
                 'distribution' => [
                     ['Board of Directors and Audit Committee', 'Governance and approval', 'Controlled'],

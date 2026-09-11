@@ -1,9 +1,11 @@
 # MAIIC EIR & Revenue Recognition Engine — Consolidated Technical Specification
 
-**Version:** 2.6 (floating-rate resets added as Phase 5.1) · **Date:** 2026-09-10 (original consolidation 2026-08-05)
+**Version:** 2.7 (source screen inventory and the 11 September data request) · **Date:** 2026-09-11 (original consolidation 2026-08-05)
 **Status:** Living spec — reconciles the two parallel design tracks into one authoritative document for build + client/auditor collaboration.
 **Repo:** `MAICC-IFRS9` (github.com/DupleixInstitute/MAICC-IFRS9) — Laravel 10 + Vue 3/Inertia + Tailwind
 **Owner (build):** Kundai Muriwo · **Reviewer:** Dr T. Kumwenda (MAIIC CFO) · **Auditor of record:** Deloitte · **Engagement lead:** Edward Mazibuko (Dupleix Institute)
+
+> **2026-09-11 addition (v2.7).** §3.6 records what the 3 and 10 September 2026 walkthroughs established about where each EIR input actually lives: the LOS origination schedule versus the CBS EMI chart, the migrated cohort that was taken on at carrying amount only, the EMI chart that marks missed instalments as paid, the confirmed rate regimes and the CBS interest-rate-by-date table, fees posted manually by Finance and netted off the advance, EMI as the only repayment type in use, and restructuring as a sub-account increment. §13 gains open items #29 to #41. **Appendix E** is new: the source data request register behind the 11 September information-request email, stating for every field the source screen, the target column, the reporting period and the open item it closes.
 
 > **2026-09-10 addition (v2.6).** §7.5 records the floating-rate reset treatment (IFRS 9 B5.4.5, B5.4.6, 5.4.3, B5.5.44), the spread-lock method, the seven-step build order as Phase 5.1, and the two accounting-policy caveats. §12 gains the Phase 5.1 row; §13 gains open items #27 and #28.
 
@@ -280,6 +282,37 @@ Encoded here because two separate parsing attempts on 2026-08-19 produced wrong 
 
 ---
 
+### 3.6 Path E — the origination schedule, the EMI chart and the source screens *(established at the 3 and 10 September 2026 walkthroughs)*
+
+Two vendor/client walkthroughs settled where each EIR input physically lives. The field-by-field record is `2. Documents from clients\MAIIC EIR - Source Screen Field Inventory.docx`; this section carries only the conclusions the build depends on.
+
+**3.6.1 The landscape.** CRM onboards the customer. **LOS** runs a six-stage origination workflow (application entry, assessment, credit, risk, offer issue, accept/reject) and holds the **rate build-up, the fees and the moratorium configuration**. On acceptance LOS creates the account in **CBS (E-Banker)**, which owns disbursement, transactions, accrual and the amortisation table. The LOS application number and process reference (for example `477` / `MI-202400038`) are the only join between the LOS origination data and the CBS account, and **neither reaches us in any extract**.
+
+**3.6.2 There are two different schedules, and only one of them is the EIR input.**
+
+| Schedule | Where it lives | What it is | Why it matters |
+|---|---|---|---|
+| **LOS origination schedule** | LOS Funding Proposal, "Show Repayment Schedule" | The contractual vector the customer signs for, generated at capture | **This is the Door 2 input.** IFRS 9 solves the EIR on the cash flows promised at initial recognition |
+| **CBS EMI chart** (`rpt_FixLoan` / `printPRCReportDSC`) | CBS, per account | The live schedule with a per-instalment rate, actual paid amounts and paid dates | Evidence of floating resets and of behavioural deviation; **not** the origination vector |
+
+Confirmed on 10 September 2026: the LOS schedule **cannot be downloaded after commit**, is **not visible to Credit at all**, and prints **only as PDF, never CSV**. The CBS EMI chart **is** available for every CBS-originated loan and **does** export to CSV, but it **omits the opening balance / disbursement row**, so the vector it gives starts one period late. MAIIC has an open change request with the vendor to add the disbursement date and the opening balance to that report.
+
+**3.6.3 Migrated loans have no origination schedule in either system.** Loans written before E-Banker went live were migrated **at carrying amount only**; LOS holds no EMI chart for them and CBS cannot reproduce their life from origination. Their pre-migration Excel amortisation schedules sit with **Finance**, and are the only possible source of a full-life contractual vector for that cohort. This is a scope fact, not a data-quality issue: without those files the migrated book can only ever be solved from a `GENERATED` schedule.
+
+**3.6.4 The EMI chart marks missed instalments as paid.** Credit confirmed that where a customer skips a payment the chart still shows the instalment as paid and keeps amortising the balance down. MAIIC cannot currently issue schedules to customers for this reason. Consequence for us: the EMI chart's `Principle Paid` / `Interest Paid` / `Paid Date` columns are **not** a reliable actuals feed; actuals must continue to come from the transaction extract (Extract B) with its own `DR_CR_INDICATOR` gap. The chart's contractual columns remain usable.
+
+**3.6.5 Rate regimes, confirmed.** FinES is **fixed at 10%** for life. MAIIC Industrial and MAIIC Agricultural are **floating**, referenced to the Reserve Bank of Malawi policy rate, repriced whenever RBM announces a change (roughly every three to four months, not monthly). Reprising is applied by changing the reference rate in CBS; LOS pulls the current value through a Refresh button at capture. Barry confirmed **CBS holds a table of interest rates by date that can be spooled**, which is the feed `rate_reset_events` has been waiting for (§7.5, open item #28). The EMI chart already shows the movement: one sampled facility moves 26.50, 26.30, 26.40, 26.70 across consecutive instalments.
+
+**3.6.6 Fees are posted by Finance, not by the loan module.** Arrangement and legal fees are **captured manually in CBS by Finance at disbursement**, read off the offer letter, and **deducted from the amount advanced** (a MWK 100m facility with MWK 2m arrangement and MWK 3m legal fees pays out MWK 95m and carries MWK 100m). GL `4873` Arrangement, `4871` Legal and `4872` Consultancy are the destinations. **Neither the LOS Facility Sought screen nor any schedule carries the fee as a cash flow**, confirmed in writing on 10 September 2026. The engine's initial net investment must therefore be built as *drawn amount less fees* from a separate fee feed, which today exists only as MAIIC's own December 2025 EIR assessment workbook (67 facilities) and the GL narrative. Extends limitation #10.
+
+**3.6.7 Only EMI repayment is used.** Credit confirmed that `Type of Repayment` is set to EMI on every facility. Straight-line principal and bullet structures are configurable in LOS but not in use, which removes one branch from the Tier-2 schedule generator and makes the level-instalment assumption safe for the current book.
+
+**3.6.8 Restructuring is a new sub-account, not an overwrite.** CBS increments `SUB_ACCOUNT_NO` (1 to 2 to 3) on the same main account, retains customer and facility information, and can produce a per-account audit report. This is exactly the lineage `contract_cashflow_schedule.schedule_version` needs for modification accounting. The delivered Extract A nonetheless carries `RESTRUCTURE_DATE` blank on all 362 rows, so the lineage exists in the source and is being dropped on the way out.
+
+**3.6.9 The twelve field groups still missing.** The source screen inventory ranks them by consequence: (1) origination fees per facility, (2) floating reset history, (3) sanction-wise versus disbursement-wise schedule basis flag, (4) stored principal/interest split with paid amounts and dates, (5) moratorium type and interest start date, (6) accrual conventions (`Int. Calc. Freq.`, `Interest Freq.`, `Int. Calc. Flag`), (7) one row per actual disbursement, (8) the LOS application and process reference, (9) restructuring lineage, (10) the debit/credit indicator, (11) funded versus non-funded facility type and the account status code list, (12) the transaction type code list and the definition of the CBS field named `EIR`. Appendix E maps every one of them to its target column and reporting period.
+
+---
+
 ## 4. Architecture & data model *(implemented — `contract_eir` schema)*
 
 Follow the existing convention: monthly-snapshot tables for reporting, transaction-grain tables for evidence. **Do not extend `LoanBook`** — it is the ECL module's stable, tested table; the EIR module *reads* its live stage column and *writes* to its own tables. **No FK from EIR tables to `loan_books`** (`contract_id` is a plain indexed string) — schedule files and loan tapes arrive in either order; integrity is enforced by import validation + a Phase 6 orphan-check report.
@@ -385,6 +418,8 @@ Either way the treatment is prospective: periods before the reset are untouched,
 7. Tests: spread lock equals re-solve; a reset changes no prior period; ECL discount picks the current rate for FLOATING and the original for FIXED; a reset inside a locked period is refused without supersession.
 
 **Data MAIIC must supply before step 2 is useful:** the history of reference-rate (and markup) changes since each floating loan was written, with effective dates, because the historic schedule versions have to be rebuilt to reconcile to the GL. Open item #28. Until it arrives, step 4's `ORIGINAL_NO_RESET_HISTORY` label is the honest state of every floating row.
+
+*2026-09-11 update.* Barry confirmed at the 10 September walkthrough that **CBS holds a table of interest rates by effective date and can spool it** (§3.6.5), so this is a request rather than a reconstruction exercise. The EMI chart independently proves the resets are real: one sampled facility moves 26.50, 26.30, 26.40, 26.70 across consecutive instalments. FinES is fixed at 10% and needs no reset feed; the MAIIC Industrial and Agricultural books are the floating population. Tracked as open item #31.
 
 ## 8. Reconciliation, audit pack & exports *(🟡 partial — Phase 6, 2026-08-18)*
 
@@ -545,6 +580,19 @@ Source: verified commit history on branch **`eir_revenue_recognition`** (pushed,
 | 26 | *(new, 2026-08-19; **2026 recurrence noted 2026-08-20**)* **Misposting: MK31,501,724.00 of arrangement fees sit in `4871` Legal Fees** (18% of that account). **Not confined to 2025** — `GL 4871 as at 31 July 2026` carries `By Trf BRFF Loan- Being arrangement fees on Loan drawdown` (*Sunbird Sacco*), so the practice is ongoing rather than a one-off historic error — `By Trf Arrangement fee` 15,291,724.00 and `By Trf Malawi Police Sacco arrangement` 16,210,000.00. No EIR impact (both integral, total unchanged) but affects `fee_type` and the legal-vs-arrangement disclosure split. **Do not silently reclassify** pending MAIIC's answer | `contract_fees.fee_type`; Note disclosure split | Dr Thom / Finance |
 | 27 | *(new, 2026-09-10)* **Reset versus modification boundary for floating loans** (§7.5): confirm in writing with Deloitte that (a) reference-rate moves and (b) markup changes made within the contract's variation clause are B5.4.5 resets with no catch-up, and that negotiated rate concessions are 5.4.3 modifications; and confirm the benchmark-plus-locked-fee-spread method | Phase 5.1 step 1 | Dr Thom / Deloitte / Kundai |
 | 28 | *(new, 2026-09-10)* **Reference-rate and markup change history** for every floating facility since origination, with effective dates, so historic schedule versions can be rebuilt and reconciled to the GL | Phase 5.1 step 2 | Tamanda / Barry |
+| 29 | *(new, 2026-09-11)* **LOS origination schedule for the post-migration book.** The signed contractual vector is the Door 2 input and cannot be downloaded from LOS after commit (§3.6.2). Needed for every CBS-originated facility, as CSV from the back end; PDF only for the walkthrough sample | Door 2 solve on the post-migration book | Business team / Barry / vendor |
+| 30 | *(new, 2026-09-11)* **Pre-migration Excel amortisation schedules held by Finance.** The only full-life contractual vector that exists for the migrated cohort, which was taken on at carrying amount only (§3.6.3). Without them the migrated book is permanently `schedule_source = GENERATED` | Migrated-book EIR credibility; limitation #1 | Tamanda / Finance |
+| 31 | *(new, 2026-09-11)* **CBS interest-rate-by-date table.** Barry confirmed CBS holds rates by effective date and can spool them. This is the only feed for `rate_reset_events`; without it every floating row stays labelled `ORIGINAL_NO_RESET_HISTORY` (§7.5 step 4). Supersedes the data half of item #28 | Phase 5.1 steps 2 to 4 | Barry / vendor |
+| 32 | *(new, 2026-09-11)* **Schedule basis flag, sanction-wise versus disbursement-wise.** Both charts exist per facility and the delivered schedule carries no flag. A partially drawn facility discounted on its sanctioned schedule solves to the wrong rate with nothing in the output looking wrong | `contract_cashflow_schedule` correctness | Barry / vendor |
+| 33 | *(new, 2026-09-11)* **Moratorium type (principal / interest / both) and interest start date per facility.** Decides whether deferred interest capitalises. Worked example from the walkthrough: MWK 400m advanced, six moratorium rows totalling MWK 52,677,643 capitalised, stated `Total Principle Repayment` MWK 452,677,643, a 13% difference that the `PRINCIPAL_NOT_RECONCILED` gate would reject as invalid | `EirReadinessService` 1% principal gate; schedule shape | Barry / Credit |
+| 34 | *(new, 2026-09-11)* **Accrual conventions per facility**: `Int. Calc. Freq.` (daily in the sample), `Interest Freq.` (monthly) and `Int. Calc. Flag`. Three different periodicities that the single `REPAYMENT_FREQUENCY` we hold does not imply. Daily accrual charged monthly is a different vector from monthly accrual | Cash-flow vector construction; `source_day_count_basis` | Barry / vendor |
+| 35 | *(new, 2026-09-11)* **LOS `Application No.` and `Process Ref. No.` on the facility row.** Without them no LOS-side fee or rate build-up data can be joined to a CBS account at all | Every LOS-sourced field | Barry / vendor |
+| 36 | *(new, 2026-09-11)* **EMI chart marks missed instalments as paid** (§3.6.4). MAIIC cannot issue schedules to customers for this reason. The chart's paid columns must not be consumed as an actuals feed until the vendor fixes it; note it in the limitations register | Actuals feed; Appendix C | Credit / vendor |
+| 37 | *(new, 2026-09-11)* **EMI chart omits the opening balance and disbursement row.** The vector starts one period late. MAIIC has an open vendor change request to add the disbursement date and opening balance | Schedule import from the EMI chart | Barry / vendor |
+| 38 | *(new, 2026-09-11)* **Signed-AFS to trial-balance bridge for the two fee accounts.** The ledger carries roughly MWK 311.3m arrangement and MWK 171.1m legal; the signed 2025 AFS shows MWK 213,964k and MWK 45,354k. Confirmed on the call as an unexplained difference. Every fee figure the engine reproduces depends on which of the two is the control total. Reopens the question behind item #23 for the P&L side | Fee reconciliation; Door 1 control total | Tamanda / Dr Thom |
+| 39 | *(new, 2026-09-11)* **Account status codes `H` (42 rows) and `F` (6 rows)** in Extract A are undocumented, as is the `TRANSACTION_TYPE` code list in Extract B and the meaning of the CBS field named `EIR`. All three are consumed today as opaque values | Scoping and staging correctness | Barry / vendor |
+| 40 | *(new, 2026-09-11)* **Funded versus non-funded facility type.** Guarantees and letters of credit are not amortised-cost instruments and there is no flag anywhere in the pipeline to scope them out before a rate is solved | EIR scoping | Barry / vendor |
+| 41 | *(new, 2026-09-11)* **Loan books November 2025 to August 2026.** We hold to October 2025. The December 2025 run must be the same one produced for the audit. This is the migration source for go-live | Deliverable 2, migrated data reconciliation | Tamanda |
 
 ---
 
@@ -647,7 +695,62 @@ Root: `…\OneDrive\2026\Projects\MAIIC\`
 | Deloitte yearly template (NCBA FY2024) — **the Summary tab is the export target (§8); the 23 tenor-bucket tabs + 4 tie-out tabs are not** | `2. Documents from clients\26100.04 Interest Income - EIR Vs Contractual rate(2025-05-28 11.36.03).xlsx` |
 | Deloitte monthly template *(different client — do not reproduce its figures)* | `2. Documents from clients\Assessment of EIR monthly basis.xlsx` |
 | MAIIC's own Dec-2025 EIR workbook | `2. Documents from clients\FW MAIIC EIR Assessment as of 31st December 2025.msg` (attachment) — *moved 2026-08-18 from `1. Engagement Contracting\Emails Received\` for consistency with the rest of the client-data trail* |
+| **Source screen field inventory** (3 Sep walkthrough screenshots, field by field, with our status against each) | `2. Documents from clients\MAIIC EIR - Source Screen Field Inventory.docx` |
+| **System walkthrough, 3 Sep 2026** (vendor CRM/LOS/CBS) — recording, timestamped transcript, detailed summary | `2. Documents from clients\Meetings and Transcripts\3 September- System Walkthrough with Vendor (Core Banking, EMS, LOS)\` |
+| **Amortisation schedules walkthrough, 10 Sep 2026** (Credit, Finance, ICT) — transcript | `2. Documents from clients\Meetings and Transcripts\11 September - Amortisation Schedules\ECL Calculation - Amortization Schedules .docx` |
+| **Information request emails** | `Email requests\` |
+| Extract C at fuller coverage (3,996 rows, 120 of 181 accounts, Jan 2025 to Jul 2026; filter `RUN_ID 41` or 2025 triple-counts) | `2. Documents from clients\Database extracts\ExtractC_Jan2025-July2026.xlsx` |
 | Annual Reports 2020–2025 | `2. Documents from clients\Annual Reports\MAIIC Annual Report {2020…2025}.pdf` (2020 corrupted) |
 | This spec | repo `docs\MAIIC_EIR_Revenue_Recognition_Engine_Spec.md` (branch `eir_revenue_recognition`) **and** OneDrive `3. Project Execution\specs\` — **re-sync the OneDrive copy after this 2026-08-19 v2.3 update** |
 | Build plan / build log | repo `docs\EIR_Build.md` / `docs\Development_of_EIR.md` — **`Development_of_EIR.md` is now stale (last touched 2026-08-05); worth Kundai refreshing alongside this spec** |
 | Repo | `c:\xampp\htdocs\MAICC-IFRS9` (`github.com/DupleixInstitute/MAICC-IFRS9`) — this update is on branch `eir_revenue_recognition`, not yet merged to `master` |
+
+## Appendix E — Source data request register *(11 September 2026)*
+
+The register behind the information-request email of 11 September 2026 (`OneDrive\2026\Projects\MAIIC\Email requests\`). Every line states the source screen or report, the target column on our side, the reporting period we need it for, and the open item it closes. **Reporting periods are stated as delivered-scope, not as a refresh cadence**; the monthly cadence for live running is §10.
+
+### E.1 Reporting periods in force
+
+| Dataset | Period required | Grain | Why this period |
+|---|---|---|---|
+| Facility master (Extract A refresh) | 1 Jan 2025 to 31 Aug 2026 | One row per facility per month-end | Extract A today holds only 1 Jan and 31 Dec 2025, so no facility can be positioned in any other month |
+| Loan books | Nov 2025 to Aug 2026 | Monthly | We hold to Oct 2025. Dec 2025 must be the audit run |
+| Origination schedules (LOS) | All facilities live at any point from 1 Jan 2025 | Full life, origination to maturity | The EIR is solved once on the origination vector, whatever month we are reporting |
+| Migrated-loan Excel schedules | All loans migrated at take-on | Full life from original issue date | The migrated cohort has no system schedule at all |
+| EMI charts (CBS) | All facilities live at any point from 1 Jan 2025 | Per instalment | Reset evidence and contractual/actual comparison |
+| Rate change history | Origination of the earliest live facility to 31 Aug 2026 | Per rate, per effective date | Historic schedule versions have to be rebuilt to reconcile to the GL |
+| Fee detail per facility | 1 Jan 2025 to 31 Aug 2026 | Per fee posting | Door 1 and the initial net investment |
+| Transactions (Extract B refresh) | 1 Jan 2025 to 31 Aug 2026 | Per cash flow | Extract B stops at Dec 2025 |
+| Interest by loan (Extract C) | 1 Jan 2025 to 31 Aug 2026 | Per loan per month | Delivered to Jul 2026 for 120 of 181 accounts |
+| Trial balances | Jan 2025 to Aug 2026 | Monthly | Held to Jul 2026; Dec 2025 must agree to the signed AFS |
+| Signed AFS bridge | FY2025 | Account level | Item #38 |
+
+### E.2 Field register
+
+| # | Field or dataset | Source screen / report | Target on our side | Period | Open item |
+|---|---|---|---|---|---|
+| 1 | Agreement, legal and consultancy fee: type, GL code, basis, rate, amount, charge date, transaction reference, loan account | LOS Facility Sought; CBS manual postings to `4871` / `4872` / `4873` | `contract_fees.*` (`fee_type`, `amount`, `transaction_date`, `gl_account_ref`, `source_reference`) | Jan 2025 to Aug 2026 | #25, #26, new §3.6.6 |
+| 2 | Reference rate, margin, rate type and dated reset history (effective date, old rate, new rate) | LOS Funding Proposal; CBS interest-rate-by-date table; EMI chart `Inst Rate (%)` | `contract_eir.reference_rate_at_origination`, `.markup`, `.rate_type`; `rate_reset_events.*` | Origination to Aug 2026 | #28, #31 |
+| 3 | Schedule basis flag (sanction-wise / disbursement-wise) | LOS Show Repayment Schedule tab selection | New column on `contract_cashflow_schedule` | Per facility | #32 |
+| 4 | Stored principal and interest split per instalment, plus paid amounts and paid dates | CBS EMI Chart Wise Data | `contract_cashflow_schedule.principal_due` / `.interest_due`; `eir_actual_transactions` | Full life | #36 |
+| 5 | Moratorium type, interest start date, instalment start date, principal / interest / both moratorium counts, grace period | LOS Repayment Schedule; CBS grace flags | `contract_eir.moratorium_months` plus new interest-grace and moratorium-type columns | Per facility | #33 |
+| 6 | `Int. Calc. Freq.`, `Interest Freq.`, `Int. Calc. Flag` | CBS Transaction Posting | `contract_eir.source_day_count_basis`, `.source_compounding`, plus a new accrual-frequency column | Per facility | #34 |
+| 7 | One row per actual disbursement: date, amount, value date, posting reference | CBS; `Pending Disbursement Amount` | `contract_eir.disbursement_tranches` replaced by a tranche table | Jan 2025 to Aug 2026 | new |
+| 8 | LOS `Application No.` and `Process Ref. No.` | LOS Loan Details | New identifier columns on `contract_eir` | Per facility | #35 |
+| 9 | Restructuring lineage: sub-account sequence, prior sub-account, restructure date and reason | CBS sub-account structure; per-account audit report | `contract_cashflow_schedule.schedule_version`; `RESTRUCTURE_DATE` in Extract A | Per restructured facility | new |
+| 10 | `DR_CR_INDICATOR` | CBS `Activity` field | `eir_actual_transactions` direction | Jan 2025 to Aug 2026 | #9 |
+| 11 | Facility type (funded / non funded); account status code list including `H` and `F` | LOS Funding Proposal; CBS help | Scoping flag on `contract_eir`; documented status enum | Per facility | #39, #40 |
+| 12 | Transaction type code list; definition of the CBS field named `EIR` | CBS Transaction Posting | `import_mappings` documentation; do not consume the CBS `EIR` field | One-off written answer | #39 |
+| 13 | Undrawn commitment (`Pending Disbursement Amount`) | CBS Transaction Posting | Undrawn exposure input; CCF limitation #4 | Monthly | new |
+| 14 | Effective Rate % as held by LOS | LOS Funding Proposal | Cross-check only; never the IFRS 9 EIR | Per facility | new |
+| 15 | Signed AFS in Excel, and the audit adjustments between the final TB and the AFS | Finance | Control totals for Door 1 | FY2025 | #38 |
+
+### E.3 Sample packs requested
+
+| Pack | Count | Contents per loan | Purpose |
+|---|---|---|---|
+| Post-migration (LOS-originated) | 10 | Offer letter PDF, LOS origination schedule PDF, CBS EMI chart as at generation date, CRM and LOS input screenshots, back-end CSV of the schedule | End-to-end trace: signed document to source table to our solved rate |
+| Migrated (pre E-Banker) | 10 | Contract documents, take-on Excel amortisation schedule, CBS passbook or statement, EMI chart if any | Establish what can be reconstructed for the migrated cohort |
+| Restructured | All, expected few | Original and revised contracts, both sub-account schedules, CBS per-account audit report | Modification accounting evidence |
+
+Sample selection must span the loan situations, not be convenience-picked: performing with regular repayments, origination fees present, restructured or rescheduled, Stage 3 or defaulted with arrears and recoveries, early or partial repayment or multiple disbursements, capital-and-interest moratorium, interest-only moratorium, both MAIIC and FinES products, and at least one MAIIC Term Loan written after November 2025.
