@@ -350,5 +350,111 @@ TXT;
         }
 
         $this->command?->info('Backlog tickets #003 to #011 ensured.');
+
+        $this->seedDataReviewFindings($owner);
+    }
+
+    /**
+     * Findings from the reconciliation of MAIIC's December 2025 close pack
+     * (trial balances, the general ledger spools, the three data extracts and
+     * the signed financial statements) carried out on 11 Sep 2026. Each one
+     * changes what the platform should accept from the client extracts, so
+     * they are logged rather than left in a review note.
+     */
+    private function seedDataReviewFindings(?User $owner): void
+    {
+        $raisedAt = Carbon::parse('2026-09-11 10:00:00');
+
+        $findings = [
+            [
+                'reference' => '012',
+                'title' => 'General ledger reconciliation residual is zero by construction and proves nothing',
+                'priority' => 'high',
+                'category' => 'issue',
+                'description' => "The reconciliation in the December 2025 pack derives its balancing figure from the same totals it then reconciles, so the residual is algebraically zero whatever the underlying data says. A clean reconciliation therefore carries no assurance at all, and the same shape must not be built into the platform's own reconciliation report.
+
+"
+                    . "1. Rework the check so both sides are derived independently: the ledger movement from the general ledger spools, and the expected movement from the loan book and the effective interest rate amortisation.
+"
+                    . "2. Show the two sides and the difference between them, rather than a single residual line.
+"
+                    . "3. Fail the check, visibly, when the two sides disagree beyond the Schedule 3 tolerance of 0.1 percent.
+"
+                    . '4. Note the limitation in the Technical Manual so no one reads a zero as evidence.',
+            ],
+            [
+                'reference' => '013',
+                'title' => 'NASCOMEX balance on general ledger 3065 is outside the Extract A totals',
+                'priority' => 'high',
+                'category' => 'issue',
+                'description' => "About MWK 2.06 billion sitting on general ledger account 3065 (NASCOMEX) is carried in the trial balance but is not inside the Extract A loan totals, so the extract understates the book by that amount. Anyone tying Extract A to the trial balance will find a gap and will not be told why.
+
+"
+                    . "1. Confirm with MAIIC finance whether the balance is a loan exposure, and if so why it is outside the loan extract.
+"
+                    . "2. If it is in scope, agree how it is delivered: inside Extract A, or as a named reconciling item.
+"
+                    . "3. Until it is resolved, report it as a standing reconciling item on the general ledger reconciliation rather than absorbing it silently.
+"
+                    . '4. Record the treatment in the Technical Manual data hazards section.',
+            ],
+            [
+                'reference' => '014',
+                'title' => 'Extract B typed dates have the day and month transposed throughout',
+                'priority' => 'critical',
+                'category' => 'issue',
+                'description' => "Every one of the 775 typed Excel dates in Extract B has a day of 12 or lower, which cannot happen by chance and shows the day and month are transposed across the whole column. Text dates in the same columns are correct. Left alone this misdates disbursements and maturities, which moves ageing, staging and the effective interest rate schedules.
+
+"
+                    . "1. Ask MAIIC to re-export Extract B with dates as text in ISO form, which removes the problem at source.
+"
+                    . "2. Until that lands, detect the condition on import: if no day in the column exceeds 12, the column is ambiguous, so reject the file rather than guessing.
+"
+                    . "3. Never silently swap the values. A guessed date is worse than a rejected file because nothing downstream shows it was guessed.
+"
+                    . '4. Document the test and the rejection message in the Technical Manual and the Administrator Manual import governance article.',
+            ],
+        ];
+
+        foreach ($findings as $item) {
+            $ticket = Ticket::firstOrCreate(
+                ['reference' => $item['reference']],
+                [
+                    'title' => $item['title'],
+                    'description' => $item['description'],
+                    'category' => $item['category'],
+                    'priority' => $item['priority'],
+                    'status' => 'open',
+                    'requested_by' => 'Dupleix data review',
+                    'source' => 'review',
+                    'assigned_to' => $owner?->id,
+                    'created_by' => $owner?->id,
+                ]
+            );
+
+            if (! $ticket->wasRecentlyCreated) {
+                continue;
+            }
+
+            $ticket->timestamps = false;
+            $ticket->created_at = $raisedAt;
+            $ticket->updated_at = $raisedAt;
+            $ticket->save();
+            $ticket->timestamps = true;
+
+            $u = new TicketUpdate([
+                'ticket_id' => $ticket->id,
+                'user_id' => null,
+                'body' => 'Raised from the end-to-end reconciliation of the MAIIC December 2025 close pack on 11 Sep 2026. Awaiting MAIIC confirmation before the fix is scheduled.',
+                'new_status' => 'open',
+                'is_system' => true,
+            ]);
+            $u->timestamps = false;
+            $u->created_at = $raisedAt;
+            $u->updated_at = $raisedAt;
+            $u->save();
+        }
+
+        $this->command?->info('Data review tickets #012 to #014 ensured.');
     }
 }
