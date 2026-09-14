@@ -6,15 +6,35 @@ use App\Models\HelpArticle;
 use App\Models\HelpArticleRoute;
 use App\Models\HelpCategory;
 use App\Models\Setting;
+use App\Support\DocumentFrontMatter;
+use App\Support\PdfPageNumbers;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Inertia\Inertia;
 
 /**
- * DB-driven user manual reader (Ticket #010). The same rows feed this
- * page, the per-page help lookup and the PDF export: one source of truth.
+ * DB-driven manuals (Tickets #010 and #011). The same rows feed the reader,
+ * the per-page help lookup and the PDF export: one source of truth per
+ * manual. Two manuals live in the help centre: the User Manual (analyst
+ * workflow) and the Administrator Manual (configuration, access, periods,
+ * data operations, support). The Technical Manual and Installation Guide
+ * are repository documents rendered by SystemDocsController.
  */
 class HelpController extends Controller
 {
+    /** Manual key => presentation. Keys are also the help_categories.manual values. */
+    public const MANUALS = [
+        'user' => [
+            'title' => 'User Manual',
+            'subtitle' => 'IFRS 9 Expected Credit Loss and Effective Interest Rate Platform',
+            'file' => 'IFRS9-User-Manual.pdf',
+        ],
+        'admin' => [
+            'title' => 'Administrator Manual',
+            'subtitle' => 'Configuration, access control, periods, data operations and support',
+            'file' => 'IFRS9-Administrator-Manual.pdf',
+        ],
+    ];
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -22,16 +42,35 @@ class HelpController extends Controller
 
     public function index()
     {
+        return $this->reader('user');
+    }
+
+    public function admin()
+    {
+        return $this->reader('admin');
+    }
+
+    private function reader(string $manual)
+    {
+        $meta = self::MANUALS[$manual];
+        $company = $this->company();
+
         return Inertia::render('Help/Index', [
-            'company' => $this->company(),
-            'categories' => $this->publishedTree(),
+            'company' => $company,
+            'front' => DocumentFrontMatter::for($manual, $company, now()->format('d F Y')),
+            'manual' => $manual,
+            'title' => $meta['title'],
+            'subtitle' => $meta['subtitle'],
+            'pdfRoute' => $manual === 'admin' ? route('help.admin.pdf') : route('help.pdf'),
+            'categories' => $this->publishedTree($manual),
             'canManage' => optional(auth()->user())->can('settings') ?? false,
         ]);
     }
 
     /**
-     * Per-page help lookup: which article documents this route?
-     * Returns 404 when no mapping exists; the caller hides its button.
+     * Per-page help lookup: which article documents this route? Searches
+     * both manuals. Returns 404 when no mapping exists; the caller hides its
+     * button.
      */
     public function forRoute(string $routeName)
     {
@@ -41,30 +80,51 @@ class HelpController extends Controller
 
         abort_unless($map, 404);
 
-        $article = HelpArticle::find($map->help_article_id);
+        $article = HelpArticle::with('category')->find($map->help_article_id);
 
-        return response()->json(['slug' => $article->slug, 'title' => $article->title]);
+        return response()->json([
+            'slug' => $article->slug,
+            'title' => $article->title,
+            'manual' => $article->category->manual ?? 'user',
+        ]);
     }
 
-    /**
-     * The full manual as a branded PDF, rendered from the same DB rows
-     * (figures included via their local file paths for DomPDF).
-     */
+    /** The User Manual as a branded PDF, rendered from the same DB rows. */
     public function pdf()
     {
-        return Pdf::loadView('manual.help', [
-            'company' => $this->company(),
-            'generated_at' => now()->format('d M Y'),
-            'categories' => $this->publishedTree(),
-        ])->setPaper('a4', 'portrait')
-          ->download('IFRS9-User-Manual.pdf');
+        return $this->renderPdf('user');
     }
 
-    private function publishedTree()
+    /** The Administrator Manual as a branded PDF. */
+    public function adminPdf()
+    {
+        return $this->renderPdf('admin');
+    }
+
+    private function renderPdf(string $manual)
+    {
+        $meta = self::MANUALS[$manual];
+
+        $company = $this->company();
+        $generatedAt = now()->format('d F Y');
+
+        $pdf = Pdf::loadView('manual.help', [
+            'company' => $company,
+            'title' => $meta['title'],
+            'subtitle' => $meta['subtitle'],
+            'generated_at' => $generatedAt,
+            'front' => DocumentFrontMatter::for($manual, $company, $generatedAt),
+            'categories' => $this->publishedTree($manual),
+        ])->setPaper('a4', 'portrait');
+
+        return PdfPageNumbers::stamp($pdf)->download($meta['file']);
+    }
+
+    private function publishedTree(string $manual)
     {
         $figureNo = 0;
 
-        return HelpCategory::orderBy('order')
+        return HelpCategory::manual($manual)->orderBy('order')
             ->with(['articles' => fn ($q) => $q->where('status', 'published')->with(['steps', 'images'])])
             ->get()
             ->filter(fn ($c) => $c->articles->isNotEmpty())

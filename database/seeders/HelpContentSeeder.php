@@ -16,9 +16,12 @@ use Illuminate\Support\Str;
  */
 class HelpContentSeeder extends Seeder
 {
+    /** This seeder owns the User Manual only; the Administrator Manual has its own seeder. */
+    public const MANUAL = 'user';
+
     public function run(): void
     {
-        if (HelpCategory::exists()) {
+        if (HelpCategory::manual(self::MANUAL)->exists()) {
             $this->command?->info('Manual already has content; seeder skipped.');
 
             return;
@@ -27,6 +30,7 @@ class HelpContentSeeder extends Seeder
         $order = 0;
         foreach ($this->content() as $chapterTitle => $articles) {
             $category = HelpCategory::create([
+                'manual' => self::MANUAL,
                 'title' => $chapterTitle,
                 'slug' => Str::slug($chapterTitle),
                 'order' => ++$order,
@@ -60,11 +64,39 @@ class HelpContentSeeder extends Seeder
             }
         }
 
-        $this->command?->info('User Manual seeded: ' . HelpCategory::count() . ' chapters, ' . HelpArticle::count() . ' articles.');
+        $this->command?->info('User Manual seeded: ' . HelpCategory::manual(self::MANUAL)->count() . ' chapters, '
+            . HelpArticle::whereHas('category', fn ($q) => $q->where('manual', self::MANUAL))->count() . ' articles.');
     }
 
-    /** @return array<string, array<string, array>> chapter => [article => spec] */
+    /**
+     * Chapter => [article => spec]. The shipped text lives in
+     * database/seeders/data/help_user_content/*.php, one file per chapter,
+     * loaded in file-name order (Ticket #011 rewrite). The inline array below
+     * is the original manual and is used only when that directory is empty.
+     *
+     * @return array<string, array<string, array>>
+     */
     private function content(): array
+    {
+        $dir = database_path('seeders/data/help_user_content');
+        $files = is_dir($dir) ? glob($dir . '/*.php') : [];
+        sort($files);
+        if ($files) {
+            $content = [];
+            foreach ($files as $file) {
+                foreach ((array) require $file as $chapter => $articles) {
+                    $content[$chapter] = array_merge($content[$chapter] ?? [], $articles);
+                }
+            }
+
+            return $content;
+        }
+
+        return $this->legacyContent();
+    }
+
+    /** The original (August 2026) manual, kept as the fallback. */
+    private function legacyContent(): array
     {
         return [
             'Getting Started' => [

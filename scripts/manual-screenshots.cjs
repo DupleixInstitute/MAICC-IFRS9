@@ -5,7 +5,7 @@
 //
 // Driven by a JSON config written by `php artisan manual:screenshots`:
 //   { edge, baseUrl, email, password, captcha?, outDir, viewport:{width,height},
-//     shots:[ { url, file, fullPage?, callouts?:[{x,y,n,label?}] } ] }
+//     shots:[ { url, file, fullPage?, scrollY?, callouts?:[{x,y,n,label?}] } ] }
 //
 // Usage (normally invoked by the artisan command):
 //   node scripts/manual-screenshots.cjs <config.json>
@@ -56,9 +56,12 @@ function drawCallouts(callouts) {
   const launch = {
     headless: 'new',
     defaultViewport: viewport,
+    timeout: 120000, // a cold Chromium start on Windows can exceed puppeteer's 30 s default
     args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--force-device-scale-factor=1'],
   };
-  if (!BUNDLED) launch.executablePath = cfg.edge; // puppeteer-core needs an explicit browser
+  // puppeteer-core needs an explicit browser; with the bundled package an explicit
+  // path (artisan --edge) still wins so a broken bundled download is not fatal.
+  if (!BUNDLED || cfg.edge) launch.executablePath = cfg.edge;
   const browser = await puppeteer.launch(launch);
   // JPEG keeps the manual small (a full-page PNG is ~5x larger); text stays
   // crisp at quality 87. PNG output is still honoured if a file ends .png.
@@ -110,7 +113,13 @@ function drawCallouts(callouts) {
     }
 
     // ---- Capture each page ----
+    // Surface front-end failures: a page that throws renders the empty shell,
+    // which would otherwise be captured silently as a blank grey figure.
+    const pageErrors = [];
+    page.on('pageerror', (e) => pageErrors.push(String(e.message || e)));
+    page.on('console', (m) => { if (m.type() === 'error') pageErrors.push(m.text()); });
     for (const shot of cfg.shots) {
+      pageErrors.length = 0;
       try {
         // domcontentloaded (not networkidle0): pages with polling never go
         // network-idle. Wait for the Inertia shell, fonts and charts instead.
@@ -122,12 +131,21 @@ function drawCallouts(callouts) {
           else { go(); }
         })).catch(() => {});
         await new Promise((r) => setTimeout(r, 1200)); // let charts/animations settle
+        if (shot.scrollY) { // optional: capture a scrolled viewport (sticky rails, long pages)
+          await page.evaluate((y) => window.scrollTo(0, y), shot.scrollY);
+          await new Promise((r) => setTimeout(r, 400));
+        }
         if (Array.isArray(shot.callouts) && shot.callouts.length) {
           await page.evaluate(drawCallouts, shot.callouts);
         }
         const out = path.join(cfg.outDir, shot.file);
         await page.screenshot(shotOpts(out, shot.fullPage));
-        results.push({ file: shot.file, url: shot.url, ok: true });
+        const textLength = await page.evaluate(() => ((document.querySelector('main') || document.body).innerText || '').trim().length).catch(() => -1);
+        if (textLength >= 0 && textLength < 40) {
+          console.warn('WARNING   ' + shot.file + ' rendered almost no text (' + textLength + ' chars); '
+            + (pageErrors.length ? 'errors: ' + pageErrors.slice(0, 3).join(' | ') : 'no console errors captured'));
+        }
+        results.push({ file: shot.file, url: shot.url, ok: true, textLength, errors: pageErrors.slice(0, 5) });
         console.log('captured  ' + shot.file);
       } catch (e) {
         results.push({ file: shot.file, url: shot.url, ok: false, error: String(e.message || e) });

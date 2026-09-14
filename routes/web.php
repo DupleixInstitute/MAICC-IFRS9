@@ -1142,7 +1142,20 @@ Route::middleware(['auth', 'permission:manual.view'])->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/help', [\App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
     Route::get('/help/pdf', [\App\Http\Controllers\HelpController::class, 'pdf'])->name('help.pdf');
+    // Administrator Manual (Ticket #011): same help-centre tables, second manual.
+    Route::get('/help/admin', [\App\Http\Controllers\HelpController::class, 'admin'])->name('help.admin');
+    Route::get('/help/admin/pdf', [\App\Http\Controllers\HelpController::class, 'adminPdf'])->name('help.admin.pdf');
     Route::get('/help/for-route/{routeName}', [\App\Http\Controllers\HelpController::class, 'forRoute'])->name('help.for-route');
+
+    // Repository-authored documentation (Ticket #011): the Technical Manual and
+    // the Installation & Configuration Guide are Markdown under docs/manuals,
+    // rendered in-app with a live schema appendix and exported to PDF from the
+    // same source. The URI is /system-docs because /docs belongs to the LaRecipe
+    // package routes.
+    Route::get('/system-docs/technical', [\App\Http\Controllers\SystemDocsController::class, 'technical'])->name('docs.technical');
+    Route::get('/system-docs/technical/pdf', [\App\Http\Controllers\SystemDocsController::class, 'technicalPdf'])->name('docs.technical.pdf');
+    Route::get('/system-docs/installation', [\App\Http\Controllers\SystemDocsController::class, 'installation'])->name('docs.installation');
+    Route::get('/system-docs/installation/pdf', [\App\Http\Controllers\SystemDocsController::class, 'installationPdf'])->name('docs.installation.pdf');
 });
 
 Route::middleware(['auth', 'permission:settings'])->prefix('help/manage')->name('help.manage.')->group(function () {

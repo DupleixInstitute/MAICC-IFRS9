@@ -2,9 +2,15 @@
 import { ref, computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import DocumentCover from '@/Shared/DocumentCover.vue'
 
 const props = defineProps({
     company: { type: String, default: 'MAIIC' },
+    front: { type: Object, default: null },
+    manual: { type: String, default: 'user' },
+    title: { type: String, default: 'User Manual' },
+    subtitle: { type: String, default: '' },
+    pdfRoute: { type: String, default: '' },
     categories: { type: Array, default: () => [] },
     canManage: { type: Boolean, default: false },
 })
@@ -33,17 +39,20 @@ function jump(slug) {
 </script>
 
 <template>
-    <AppLayout title="User Manual">
+    <AppLayout :title="title">
         <template #header>
             <div class="flex flex-wrap items-center justify-between gap-3">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">User Manual</h2>
+                <div>
+                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ title }}</h2>
+                    <p v-if="subtitle" class="text-sm text-gray-500">{{ subtitle }}</p>
+                </div>
                 <div class="flex items-center gap-2">
-                    <Link v-if="canManage" :href="route('help.manage.index')"
+                    <Link v-if="canManage" :href="route('help.manage.index', { manual })"
                           class="inline-flex items-center gap-1.5 rounded-lg border border-maiic-300 bg-maiic-50 px-3 py-1.5 text-sm font-medium text-maiic-700 hover:bg-maiic-100">
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                         Edit manual
                     </Link>
-                    <a :href="route('help.pdf')"
+                    <a :href="pdfRoute || route('help.pdf')"
                        class="inline-flex items-center gap-1.5 rounded-lg bg-maiic-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-maiic-700">
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v6m0 0-3-3m3 3 3-3"/><path d="M20 21H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h9l7 7v10a1 1 0 0 1-1 1Z"/></svg>
                         Download PDF
@@ -58,10 +67,10 @@ function jump(slug) {
 
                     <!-- TOC rail -->
                     <aside class="hidden w-64 flex-none lg:block">
-                        <div class="sticky top-6 maiic-panel p-4">
-                            <input v-model="search" type="text" placeholder="Search the manual..."
+                        <div class="sticky top-[4.5rem] flex h-[calc(100vh-5rem)] flex-col maiic-panel p-4">
+                            <input v-model="search" type="text" placeholder="Search this manual..."
                                    class="maiic-input mb-4"/>
-                            <nav class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                            <nav class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
                                 <div v-for="c in filtered" :key="c.id">
                                     <p class="text-[11px] font-extrabold uppercase tracking-wider text-maiic-800">{{ c.title }}</p>
                                     <ul class="mt-1.5 space-y-1">
@@ -79,6 +88,7 @@ function jump(slug) {
 
                     <!-- Content -->
                     <article class="min-w-0 flex-1 space-y-10">
+                        <DocumentCover v-if="front" :front="front"/>
                         <div v-if="!categories.length" class="maiic-panel p-10 text-center text-gray-400 font-semibold">
                             The manual has no published content yet. Use "Edit manual" to add chapters and articles.
                         </div>

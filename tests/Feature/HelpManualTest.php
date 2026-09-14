@@ -120,6 +120,50 @@ class HelpManualTest extends TestCase
         $this->assertSame('dashboard', $article->routes()->first()->route_name);
     }
 
+    /** Ticket #011: the Administrator Manual is a second manual in the same tables. */
+    public function test_admin_manual_reader_shows_only_admin_chapters_and_exports_pdf()
+    {
+        $this->seedArticle();
+        $adminChapter = HelpCategory::create(['manual' => 'admin', 'title' => 'Admin Chapter', 'slug' => 'admin-chapter-test', 'order' => 99]);
+        HelpArticle::create([
+            'help_category_id' => $adminChapter->id,
+            'title' => 'Closing a financial period',
+            'slug' => 'closing-a-financial-period-test',
+            'body' => '<p>Admin only.</p>',
+            'order' => 1,
+            'status' => 'published',
+        ]);
+
+        $admin = $this->actingAs($this->admin())->get(route('help.admin'));
+        $admin->assertOk();
+        $props = $admin->viewData('page')['props'];
+        $this->assertSame('admin', $props['manual']);
+        $this->assertSame('Administrator Manual', $props['title']);
+        $this->assertSame('Administrator Manual', $props['front']['title']);
+        $this->assertSame('Confidential', $props['front']['classification']);
+        $slugs = collect($props['categories'])->flatMap(fn ($c) => collect($c['articles'])->pluck('slug'));
+        $this->assertTrue($slugs->contains('closing-a-financial-period-test'));
+        $this->assertFalse($slugs->contains('running-the-ecl-calculation'), 'User Manual article leaked into the Administrator Manual.');
+
+        $user = $this->actingAs($this->admin())->get(route('help.index'))->viewData('page')['props'];
+        $userSlugs = collect($user['categories'])->flatMap(fn ($c) => collect($c['articles'])->pluck('slug'));
+        $this->assertFalse($userSlugs->contains('closing-a-financial-period-test'), 'Administrator Manual article leaked into the User Manual.');
+
+        $pdf = $this->actingAs($this->admin())->get(route('help.admin.pdf'));
+        $pdf->assertOk();
+        $this->assertSame('application/pdf', $pdf->headers->get('content-type'));
+    }
+
+    public function test_authoring_a_chapter_for_the_admin_manual_keeps_it_out_of_the_user_manual()
+    {
+        $this->actingAs($this->admin())->post(route('help.manage.categories.store'), [
+            'title' => 'Housekeeping Test',
+            'manual' => 'admin',
+        ])->assertRedirect();
+
+        $this->assertSame('admin', HelpCategory::where('title', 'Housekeeping Test')->value('manual'));
+    }
+
     public function test_guests_cannot_read_and_cannot_author()
     {
         $this->get(route('help.index'))->assertRedirect('/login');

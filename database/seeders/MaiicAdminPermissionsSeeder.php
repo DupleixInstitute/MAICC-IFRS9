@@ -10,7 +10,8 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Idempotent: permissions for admin modules that were routed but never
  * seeded, leaving live 403s (Financial Periods was a dead menu item for
- * every user, admin included). Grants to internal staff roles.
+ * every user, admin included; Currencies, linked from Settings, likewise).
+ * Grants to internal staff roles.
  *
  *   php artisan db:seed --class=MaiicAdminPermissionsSeeder
  */
@@ -24,6 +25,10 @@ class MaiicAdminPermissionsSeeder extends Seeder
             'accounting.financial_periods.update' => 'Financial Periods',
             'accounting.financial_periods.destroy' => 'Financial Periods',
             'accounting.financial_periods.close' => 'Financial Periods',
+            'currencies.index' => 'Currencies',
+            'currencies.create' => 'Currencies',
+            'currencies.update' => 'Currencies',
+            'currencies.destroy' => 'Currencies',
         ];
 
         $names = [];

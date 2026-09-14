@@ -248,7 +248,7 @@ The typing also surfaced three columns that are **entirely empty** in the delive
 
 **Still open:** `DR_CR_INDICATOR` in Extract B has not been re-verified the same way.
 
-## Phase 3 — The solver 🟡 IN PROGRESS
+## Phase 3 — The solver ✅ COMPLETE (orchestration 2026-08-18, date-sensitive solver and reopening 2026-09-01)
 
 ### Phase 3.1 — Rules, pure solver and readiness gate (2026-08-03) ✅ COMPLETE
 
@@ -266,19 +266,19 @@ Planned: `CalculateEirJob` — Newton-Raphson in payment-period units, anchor = 
 
 ---
 
-## Phase 4 — Impairment rewiring 🔲 NOT STARTED
+## Phase 4 — Impairment rewiring ✅ BUILT (2026-08-18, time-phased engine 2026-09-01)
 
 Planned: discount factor into `ExpectedCreditLossController::calculateECL` at original (fixed) / current (floating) EIR; Stage-1 PD pro-rating; kill the `?? 0.10` fallback in `CalculateDiscountingJob`; use stored EIR in collateral discounting; parallel `ecl_value_undiscounted` for one period; golden-number test updated.
 
 ---
 
-## Phase 5 — Revenue engine 🔲 NOT STARTED
+## Phase 5 — Revenue engine ✅ BUILT (2026-08-18)
 
 Planned: `RunEirRevenueJob` writing `eir_amortisation`; gross/net accrual by stage; unwind; cure detection (stage 3 → lower, period-over-period); modification gains/losses; rate-reset schedule regeneration; report page (= Table 2).
 
 ---
 
-## Phase 6 — Audit pack 🔲 NOT STARTED
+## Phase 6 — Audit pack 🟡 PARTIAL (GL reconciliation 2026-08-18, three-term bridge 2026-08-19, trial-balance control totals 2026-09-01)
 
 Planned: auto-generated CIR-vs-EIR materiality report each period; reconciliations gross by stage and facility; fee-amortisation-to-GL tie; methodology note (three-column format) + governance page; limitations register kept current.
 
@@ -302,3 +302,38 @@ Planned: actuals (transaction ledger) import → `cash_source = IMPORTED` + deri
 | 6 | Data request sent (assessment workbook xlsx; schedules/terms; ledger flagged phase 2) | Phase 2 first loads | Tamanda |
 | 7 | Low-credit-risk book scope line in writing | Engagement scope | MAIIC / Dupleix |
 | 8 | ACADES basis discrepancy (solved +4.3pp uplift vs assessment max 2.79%) investigated | Phase 6 materiality report credibility | Kundai / Dr Thom |
+
+---
+
+## September 2026 addendum — what landed after the 2026-08-05 entries above
+
+The entries above stop at Phase 3.1 (2026-08-03). The following was built on `eir_revenue_recognition` between 2026-08-12 and 2026-09-02 and verified on 2026-09-10 by running the focused suites on a clone with dependencies installed. Section 12 of the spec carries the same status per phase; this addendum records the build facts.
+
+### Intake (2026-08-12)
+- Extract A contract master and Extract C GL interest intake (`ContractMasterImportService`, `GlInterestImportService`), corrected against the delivered files; duplicate contract-master rows merged rather than first-wins; stated conventions (day count, compounding, frequency source) captured; column types inferred and transforms pre-selected on the mapping screen; spreadsheets detected by content not extension; portfolio and product type stored on `contract_eir`.
+
+### Solver orchestration and workflow (2026-08-18, `e497db7`)
+- `CalculateEirJob`, `EirCalculationService`, `EirCalculationController` and `Eir/Calculations.vue`: batch calculation, maker/checker lock, bulk approval; `EirCoverageService` and `Eir/Coverage.vue` (coverage by count and exposure, blockers ranked by exposure with sole-blocker counts); `EirGlReconciliationService` and `Eir/Reconciliation.vue`; `EirRevenueService`, `RunEirRevenueJob`, `eir:run-revenue`; `EclDiscountRateService` (the `?? 0.10` fallback removed); `eir_amortisation_history`.
+
+### Rulebook and bridge (2026-08-19)
+- `ac030a6`: 25 seeded, unapproved fee rules with IFRS 9 paragraph references, priority ordering (exclusions above inclusions), `FeeRuleMatcher::sweepPending()` for PENDING lines only, and a RULE classification mode that refuses lines with no matched rule. 12 tests.
+- `e553b48`: the reconciliation bridge derives the GL accrual base from the posting (`implied base = posted / contractual monthly rate`) and names the impairment effect (`accrued - effective monthly x opening`); residual falls from MK467m to 0.00 on the 22 sample periods and the impairment effect agrees to the cent with the stage 3 unwind.
+- `ba9f682`: the ECL list shows the original EIR and its basis (fixed original, floating original as proxy, calculated not approved, no EIR).
+
+### Trial-balance corpus and schedule governance (2026-09-01)
+- `47a5d88`: `TrialBalanceImportService`, `eir:import-trial-balances`, `gl_trial_balance_lines`, `GlAccountScope` + seeder, `TrialBalanceMovementService` (movement = balance(N) - balance(N-1), January whole, balance sheet never differenced, missing prior refused, pre-closing December preferred). GL 4216 November 2025 reads 1,361,118,063 as a balance against a true monthly 166,170,924.
+- `676d6e6`: remaining Extract B flows staged separately; generated v1 schedules are DRAFT until approved (`ScheduleWorkflowService`, `EirScheduleController`, `Eir/ScheduleShow.vue`); readiness refuses `SCHEDULE_NOT_APPROVED`.
+
+### Date-sensitive solver, reopening and history (2026-09-01, `72d4388`)
+- `CalculateEirService::calculateDated()` discounts on actual due dates under ACT/365, ACT/360, 30/360 or 30E/360 and solves the effective annual rate directly; chosen automatically when every flow carries a date.
+- Reopening a locked EIR is admin-only, needs a reason of at least ten characters, archives to `eir_calculation_history`, supersedes amortisation rows and marks ECL discounting `STALE_EIR_REOPENED`.
+
+### Time-phased ECL (2026-09-01, `1f11004`, `7da1100`)
+- `TimePhasedEclService`, `EclDiscountingService`, `EclProjectionController`, `ExpectedCreditLoss/Projections.vue`, tables `time_phased_ecl` and `ecl_recovery_cashflows`, `EclScenarioAssumptionSeeder`. Monthly marginal-default and shortfall curve across approved scenarios, discounted at the locked EIR; no default rate.
+- Corrections in `7da1100`: the hazard is anchored to the twelve months the tape PD describes and compounded over the lifetime (0.12 over five years becomes 0.472); stage 3 exposure no longer amortises and follows a reviewed recovery plan. Tests now cover stage 2 lifetime, stage 3 with and without a plan, and multi-scenario weighting.
+
+### Coverage parity (2026-09-02, `af7c6e2`)
+- `EirCoverageService` reports `SCHEDULE_NOT_APPROVED`; the fixture gained a `schedule_approval_status` column so the parity test with the readiness gate is meaningful.
+
+### Still open after this addendum
+Proposed journal entries; a download on the reconciliation screen; the auditor-format export (scope to confirm); dedicated EIR permissions (everything sits behind `settings`); maker/checker on rule and schedule approval; schedule versions beyond 1 and modification accounting; stage-1 PD pro-rating; the end-to-end actuals feed and a CCF model; scheduling `eir:run-revenue` in `app/Console/Kernel.php`; the Phase 0 sign-offs (conventions memo, keyman insurance, Nascomex IAS 32, staging rebuttal) that fix the remaining fixture expectations.

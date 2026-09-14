@@ -261,6 +261,10 @@ TXT;
                     . "2. Authoring UI with real image upload (no base64 into a 64KB column) behind a manage permission.\n"
                     . "3. Automated screenshot capture command that signs into the running system and refreshes the manual images after UI changes, plus a manual:pdf command rendering the same content to a branded PDF.\n"
                     . "4. Immediate fixes shipped separately: manuals CRUD is now authenticated; the broken show route and validation gaps are tracked here.",
+                'status' => 'resolved',
+                'resolved_at' => '2026-09-11 17:00:00',
+                'resolution' => 'Delivered 13 Aug 2026 (commit 8316044): the help centre tables, the authoring screen with real image upload, the screenshot capture command, and the branded PDF rendered from the same rows under #010. '
+                    . 'Extended far beyond the original scope on 11 Sep 2026 (cf39a8b, 2f274a2): the User Manual rewritten screen by screen to 11 chapters, 75 articles and about 47,000 words, carrying 329 numbered steps, 113 figures and 293 page mappings, rendering to a 171-page PDF with a cover page and document control. The capture command now covers 120 pages, warns instead of saving a blank picture, and every captured figure is used in a manual.',
             ],
             [
                 'reference' => '008',
@@ -281,6 +285,31 @@ TXT;
                     . "2. Motivation: their controllers still reference the deleted permissions, so a manually typed URL now raises a permission-does-not-exist error instead of a clean 403.\n"
                     . "3. Retire the legacy tests for those modules at the same time so the full suite can go green.",
             ],
+            [
+                'reference' => '010',
+                'title' => 'Database-driven manual authoring and single-source PDF',
+                'priority' => 'high',
+                'description' => "Follow-on to #007: the manual text lived in a hardcoded Vue page and a separate PDF template, so the two drifted.\n\n"
+                    . "1. Help-centre tables (chapters, articles, numbered steps, figures, per-page route mappings).\n"
+                    . "2. In-app reader with search and a branded PDF rendered from the same rows.\n"
+                    . "3. Authoring screen behind the settings permission with figure upload and draft status.\n"
+                    . '4. Seeder that ports the full manual with the captured screenshots and never clobbers authored edits.',
+                'status' => 'resolved',
+                'resolution' => 'Delivered 13 Aug 2026 (commit 7e8599d): help_categories, help_articles, help_article_steps, '
+                    . 'help_article_images and help_article_routes; reader at /help with PDF export; authoring at /help/manage; '
+                    . 'HelpContentSeeder with 8 chapters and 28 articles; the hardcoded manual page and template retired.',
+            ],
+            [
+                'reference' => '011',
+                'title' => 'Administrator Manual, Technical Manual and Installation Guide (contract deliverables 6 and 7)',
+                'priority' => 'high',
+                'description' => "Schedule 1 of the signed agreement (19 Aug 2026) lists three documentation deliverables: the User Manual (item 5, delivered under #010), "
+                    . "the Administrator / Technical Manual (item 6) and the Installation and Configuration Guide (item 7). Items 6 and 7 gate Milestone 4 (handover, 45 percent).\n\n"
+                    . "1. Administrator Manual as a second manual in the help centre: access and roles, organisation settings and reference data, periods and close, data operations and locks, audit trail, tickets, documentation maintenance, housekeeping. Same authoring, screenshots and PDF pipeline as the User Manual.\n"
+                    . "2. Technical Manual as versioned Markdown in the repository (architecture, data model with a live schema appendix, import pipeline, IFRS 9 engines with formulas, EIR engine, reports, security, jobs and commands, configuration, testing, operations, extending, glossary), rendered in-app and to PDF from the same source.\n"
+                    . "3. Installation and Configuration Guide as versioned Markdown (prerequisites from Schedule 2, Linux and Windows installation, environment reference, web server and TLS, queue and scheduler, first-run checklist, data loading, backup and recovery, upgrades, troubleshooting), rendered in-app and to PDF.\n"
+                    . '4. All four documents listed under System Documentation in the navigation.',
+            ],
         ];
 
         foreach ($backlog as $item) {
@@ -297,7 +326,9 @@ TXT;
                     'assigned_to' => $owner?->id,
                     'created_by' => $owner?->id,
                     'resolution' => $item['resolution'] ?? null,
-                    'resolved_at' => ($item['status'] ?? null) === 'resolved' ? $raisedAt->copy()->addDay() : null,
+                    'resolved_at' => ($item['status'] ?? null) === 'resolved'
+                        ? (isset($item['resolved_at']) ? Carbon::parse($item['resolved_at']) : $raisedAt->copy()->addDay())
+                        : null,
                 ]
             );
 
@@ -324,6 +355,112 @@ TXT;
             $u->save();
         }
 
-        $this->command?->info('Backlog tickets #003 to #006 ensured.');
+        $this->command?->info('Backlog tickets #003 to #011 ensured.');
+
+        $this->seedDataReviewFindings($owner);
+    }
+
+    /**
+     * Findings from the reconciliation of MAIIC's December 2025 close pack
+     * (trial balances, the general ledger spools, the three data extracts and
+     * the signed financial statements) carried out on 11 Sep 2026. Each one
+     * changes what the platform should accept from the client extracts, so
+     * they are logged rather than left in a review note.
+     */
+    private function seedDataReviewFindings(?User $owner): void
+    {
+        $raisedAt = Carbon::parse('2026-09-11 10:00:00');
+
+        $findings = [
+            [
+                'reference' => '012',
+                'title' => 'General ledger reconciliation residual is zero by construction and proves nothing',
+                'priority' => 'high',
+                'category' => 'issue',
+                'description' => "The reconciliation in the December 2025 pack derives its balancing figure from the same totals it then reconciles, so the residual is algebraically zero whatever the underlying data says. A clean reconciliation therefore carries no assurance at all, and the same shape must not be built into the platform's own reconciliation report.
+
+"
+                    . "1. Rework the check so both sides are derived independently: the ledger movement from the general ledger spools, and the expected movement from the loan book and the effective interest rate amortisation.
+"
+                    . "2. Show the two sides and the difference between them, rather than a single residual line.
+"
+                    . "3. Fail the check, visibly, when the two sides disagree beyond the Schedule 3 tolerance of 0.1 percent.
+"
+                    . '4. Note the limitation in the Technical Manual so no one reads a zero as evidence.',
+            ],
+            [
+                'reference' => '013',
+                'title' => 'NASCOMEX balance on general ledger 3065 is outside the Extract A totals',
+                'priority' => 'high',
+                'category' => 'issue',
+                'description' => "About MWK 2.06 billion sitting on general ledger account 3065 (NASCOMEX) is carried in the trial balance but is not inside the Extract A loan totals, so the extract understates the book by that amount. Anyone tying Extract A to the trial balance will find a gap and will not be told why.
+
+"
+                    . "1. Confirm with MAIIC finance whether the balance is a loan exposure, and if so why it is outside the loan extract.
+"
+                    . "2. If it is in scope, agree how it is delivered: inside Extract A, or as a named reconciling item.
+"
+                    . "3. Until it is resolved, report it as a standing reconciling item on the general ledger reconciliation rather than absorbing it silently.
+"
+                    . '4. Record the treatment in the Technical Manual data hazards section.',
+            ],
+            [
+                'reference' => '014',
+                'title' => 'Extract B typed dates have the day and month transposed throughout',
+                'priority' => 'critical',
+                'category' => 'issue',
+                'description' => "Every one of the 775 typed Excel dates in Extract B has a day of 12 or lower, which cannot happen by chance and shows the day and month are transposed across the whole column. Text dates in the same columns are correct. Left alone this misdates disbursements and maturities, which moves ageing, staging and the effective interest rate schedules.
+
+"
+                    . "1. Ask MAIIC to re-export Extract B with dates as text in ISO form, which removes the problem at source.
+"
+                    . "2. Until that lands, detect the condition on import: if no day in the column exceeds 12, the column is ambiguous, so reject the file rather than guessing.
+"
+                    . "3. Never silently swap the values. A guessed date is worse than a rejected file because nothing downstream shows it was guessed.
+"
+                    . '4. Document the test and the rejection message in the Technical Manual and the Administrator Manual import governance article.',
+            ],
+        ];
+
+        foreach ($findings as $item) {
+            $ticket = Ticket::firstOrCreate(
+                ['reference' => $item['reference']],
+                [
+                    'title' => $item['title'],
+                    'description' => $item['description'],
+                    'category' => $item['category'],
+                    'priority' => $item['priority'],
+                    'status' => 'open',
+                    'requested_by' => 'Dupleix data review',
+                    'source' => 'review',
+                    'assigned_to' => $owner?->id,
+                    'created_by' => $owner?->id,
+                ]
+            );
+
+            if (! $ticket->wasRecentlyCreated) {
+                continue;
+            }
+
+            $ticket->timestamps = false;
+            $ticket->created_at = $raisedAt;
+            $ticket->updated_at = $raisedAt;
+            $ticket->save();
+            $ticket->timestamps = true;
+
+            $u = new TicketUpdate([
+                'ticket_id' => $ticket->id,
+                'user_id' => null,
+                'body' => 'Raised from the end-to-end reconciliation of the MAIIC December 2025 close pack on 11 Sep 2026. Awaiting MAIIC confirmation before the fix is scheduled.',
+                'new_status' => 'open',
+                'is_system' => true,
+            ]);
+            $u->timestamps = false;
+            $u->created_at = $raisedAt;
+            $u->updated_at = $raisedAt;
+            $u->save();
+        }
+
+        $this->command?->info('Data review tickets #012 to #014 ensured.');
     }
 }
