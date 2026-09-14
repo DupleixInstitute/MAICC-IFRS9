@@ -920,11 +920,13 @@ Route::post('/eir-schedules/generate', [\App\Http\Controllers\EirScheduleControl
 Route::post('/eir-schedules/{contractEir}/generate', [\App\Http\Controllers\EirScheduleController::class, 'generate'])->name('eir-schedules.generate');
 Route::post('/eir-schedules/{contractEir}/approve', [\App\Http\Controllers\EirScheduleController::class, 'approve'])->name('eir-schedules.approve');
 Route::get('/eir-reconciliation', [\App\Http\Controllers\EirReconciliationController::class, 'index'])->name('eir-reconciliation.index');
+Route::post('/eir-reconciliation/run-revenue', [\App\Http\Controllers\EirReconciliationController::class, 'runRevenue'])->name('eir-reconciliation.run-revenue');
 Route::get('/eir-coverage', [\App\Http\Controllers\EirCoverageController::class, 'index'])->name('eir-coverage.index');
 
 Route::group(['prefix' => 'eir-intake', 'as' => 'eir-intake.'], function () {
     Route::get('/', [\App\Http\Controllers\EirIntakeController::class, 'index'])->name('index');
     Route::get('/imports/{import}/status', [\App\Http\Controllers\EirIntakeController::class, 'status'])->name('status');
+    Route::get('/sample/{type}', [\App\Http\Controllers\EirIntakeController::class, 'sample'])->name('sample');
     Route::post('/analyze', [\App\Http\Controllers\EirIntakeController::class, 'analyze'])->name('analyze');
     Route::post('/save-template', [\App\Http\Controllers\EirIntakeController::class, 'saveTemplate'])->name('save-template');
     Route::post('/import', [\App\Http\Controllers\EirIntakeController::class, 'import'])->name('import');

@@ -36,6 +36,73 @@
         </form>
       </div>
 
+      <!-- The revenue run. Without it there is nothing to reconcile against:
+           this page joins GL postings to amortisation rows, so an engine that
+           has never run reports every posting as "not calculated". -->
+      <div v-if="period" class="rounded-lg border p-4 shadow-sm" :class="chainComplete ? 'border-gray-200 bg-white' : 'border-amber-200 bg-amber-50'">
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div class="min-w-0">
+            <h3 class="font-semibold" :class="chainComplete ? 'text-gray-900' : 'text-amber-900'">
+              {{ chainComplete ? 'Amortised-cost roll-forward' : 'No calculated interest to compare against' }}
+            </h3>
+            <p class="mt-1 text-xs" :class="chainComplete ? 'text-gray-500' : 'text-amber-800'">
+              <template v-if="chainComplete">
+                {{ revenueReadiness.rows_for_period }} amortisation row(s) exist for {{ period }}, from
+                {{ revenueReadiness.locked_contracts }} contract(s) with an approved and locked EIR. Re-running leaves
+                calculated periods unchanged.
+              </template>
+              <template v-else>
+                {{ revenueReadiness.missing_periods.length }} period(s) up to {{ period }} have no amortisation rows,
+                starting at {{ revenueReadiness.missing_periods[0] }}. Each opening balance is the prior period's
+                closing, so the catch-up runs every period in order from {{ revenueReadiness.first_period }}.
+              </template>
+            </p>
+            <p v-if="!revenueReadiness.locked_contracts" class="mt-1 text-xs font-medium text-amber-900">
+              No contract has a locked EIR yet, so a run would produce nothing. Solve and approve them on EIR
+              Calculations first.
+            </p>
+          </div>
+          <div class="flex shrink-0 flex-wrap gap-2">
+            <button type="button" class="secondary-btn" :disabled="running || !revenueReadiness.locked_contracts"
+                    @click="runRevenue('period')">
+              Run {{ period }} only
+            </button>
+            <button type="button" class="primary-btn" :disabled="running || !revenueReadiness.locked_contracts"
+                    @click="runRevenue('catch_up')">
+              {{ running ? 'Running…' : `Run every period to ${period}` }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="revenueRun" class="mt-4 rounded-md border p-3 text-xs"
+             :class="revenueRun.status === 'REFUSED' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-gray-200 bg-gray-50 text-gray-700'">
+          <div v-if="revenueRun.status === 'REFUSED'">{{ revenueRun.message }}</div>
+          <template v-else>
+            <div class="font-semibold text-gray-900">
+              Ran {{ revenueRun.periods_run.length }} period(s): {{ revenueRun.periods_run.join(', ') }}
+            </div>
+            <div class="mt-1 flex flex-wrap gap-x-5 gap-y-1">
+              <span>Rows created: <strong>{{ revenueRun.totals.created }}</strong></span>
+              <span>Already calculated: <strong>{{ revenueRun.totals.unchanged }}</strong></span>
+              <span>Blocked: <strong>{{ revenueRun.totals.blocked }}</strong></span>
+              <span>Cash taken from the schedule: <strong>{{ revenueRun.totals.cash_derived_from_schedule }}</strong></span>
+              <span v-if="revenueRun.totals.unclassified_cash">
+                Unclassified cash: <strong>{{ money(revenueRun.totals.unclassified_cash) }}</strong>
+              </span>
+            </div>
+            <div v-if="Object.keys(revenueRun.blocked_contracts || {}).length" class="mt-2">
+              <div class="font-semibold text-amber-900">Contracts that produced no row:</div>
+              <div v-for="(reason, key) in revenueRun.blocked_contracts" :key="key" class="mt-0.5">
+                <span class="font-medium text-gray-900">{{ key }}</span> — {{ reason }}
+              </div>
+              <div v-if="revenueRun.blocked_truncated" class="mt-1 text-gray-500">
+                and {{ revenueRun.blocked_truncated }} more.
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <div v-if="!period" class="rounded-lg border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 shadow-sm">
         No GL interest postings have been loaded yet. Use EIR Data Intake to load an interest posting extract.
       </div>
@@ -144,7 +211,7 @@
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -156,6 +223,8 @@ const props = defineProps({
   rows: { type: Array, default: () => [] },
   bridge: { type: Object, required: true },
   summary: { type: Object, required: true },
+  revenueReadiness: { type: Object, default: () => ({ locked_contracts: 0, calculated_periods: 0, rows_for_period: 0, missing_periods: [], first_period: null }) },
+  revenueRun: { type: Object, default: null },
 })
 
 const form = reactive({
@@ -166,6 +235,23 @@ const form = reactive({
 const apply = () => router.get(route('eir-reconciliation.index'),
   { period: form.period, portfolio: form.portfolio },
   { preserveState: true, preserveScroll: true, replace: true })
+
+const running = ref(false)
+
+/** Every period up to the selected one already holds amortisation rows. */
+const chainComplete = computed(() => props.revenueReadiness.missing_periods.length === 0)
+
+/**
+ * The run is synchronous: it writes accounting rows the page then reads back,
+ * so the reconciliation has to reload from them rather than from what was on
+ * screen before.
+ */
+const runRevenue = (mode) => {
+  running.value = true
+  router.post(route('eir-reconciliation.run-revenue'),
+    { period: props.period, portfolio: form.portfolio, mode },
+    { preserveScroll: true, onFinish: () => { running.value = false } })
+}
 
 const money = (v) => {
   if (v === null || v === undefined) return '—'

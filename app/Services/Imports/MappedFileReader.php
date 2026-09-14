@@ -416,6 +416,32 @@ class MappedFileReader
      * hint, not a contract — when it does not fit the cell we fall back to
      * flexible parsing rather than discarding the value, because a silent
      * null here drops the row at validation with a misleading reason.
+     *
+     * That fallback must not be Carbon::parse alone. Carbon reads a
+     * slash-separated numeric date month-first, the US order, so a source
+     * value of 02/09/2020 — 2 September in every MAIIC extract and in the
+     * core banking loan book report — silently became 9 February. It only
+     * misreads dates whose day and month are both 12 or under, which is why
+     * the damage was scattered rather than obvious: on the delivered
+     * Extract A it transposed the day and month of 9 of the 66 origination
+     * dates that the core banking report can corroborate. Origination date
+     * anchors the whole EIR discounting timeline, so a transposed day is a
+     * wrong solved rate, not a cosmetic defect.
+     *
+     * Numeric day/month/year dates are therefore resolved here, ahead of
+     * Carbon, on these rules:
+     *
+     *  - where both leading components are a possible month the value is
+     *    genuinely ambiguous and is read day-first, the convention of every
+     *    source delivered to date;
+     *  - where only one reading yields a valid month that reading is taken,
+     *    whichever way round it falls. This is not a guess, so a stray
+     *    month-first cell still resolves rather than being dropped;
+     *  - where neither reading is valid the value is not a date in any
+     *    order and is refused.
+     *
+     * A source that is month-first throughout must declare `date:m/d/Y`;
+     * the round-trip check below still lets a declared format win outright.
      */
     private function toDateString($value, ?string $format): ?string
     {
@@ -447,11 +473,63 @@ class MappedFileReader
             }
         }
 
+        if (preg_match('#^(\d{1,2})([-/])(\d{1,2})\2(\d{2}|\d{4})$#', $raw, $parts)) {
+            return $this->fromDayFirstDate($parts);
+        }
+
         try {
             return Carbon::parse($raw)->toDateString();
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Resolve a matched d/m/y-shaped date. See toDateString() for why the
+     * day-first reading is preferred and when it is not applied.
+     *
+     * @param  array{0:string,1:string,2:string,3:string,4:string}  $parts
+     *         [raw, first component, separator, second component, year]
+     */
+    private function fromDayFirstDate(array $parts): ?string
+    {
+        [$raw, $first, $separator, $second, $year] = $parts;
+
+        $firstIsMonth = (int) $first >= 1 && (int) $first <= 12;
+        $secondIsMonth = (int) $second >= 1 && (int) $second <= 12;
+
+        if ($secondIsMonth) {
+            // Day first, which includes the genuinely ambiguous case.
+            $order = 'j' . $separator . 'n';
+            [$day, $month] = [(int) $first, (int) $second];
+        } elseif ($firstIsMonth) {
+            // Only a month-first reading yields a valid month, so it is the
+            // one the cell can mean.
+            $order = 'n' . $separator . 'j';
+            [$day, $month] = [(int) $second, (int) $first];
+        } else {
+            return null;
+        }
+
+        $format = $order . $separator . (strlen($year) === 4 ? 'Y' : 'y');
+
+        try {
+            $date = Carbon::createFromFormat($format, $raw);
+        } catch (Throwable) {
+            return null;
+        }
+
+        if ($date === false) {
+            return null;
+        }
+
+        // createFromFormat rolls overflow forward, turning 31/02/2025 into
+        // 3 March. Reading the components back refuses that instead.
+        if ((int) $date->format('j') !== $day || (int) $date->format('n') !== $month) {
+            return null;
+        }
+
+        return $date->toDateString();
     }
 
     /* ------------------------------------------------------------------ */
@@ -630,7 +708,17 @@ class MappedFileReader
         return $normalised;
     }
 
-    private function templateFor(string $importType): array
+    /**
+     * The built-in header aliases for a type, normalised.
+     *
+     * Public because the intake's downloadable templates need to know which
+     * canonical field names a source header already claims for a different
+     * field, and must withdraw those columns rather than emit a template that
+     * feeds one field from two headers.
+     *
+     * @return array<string,string> normalised source header => target field
+     */
+    public static function aliasTemplateFor(string $importType): array
     {
         $aliases = match ($importType) {
             'contract_master' => ContractMasterImport::aliases(),
@@ -639,8 +727,42 @@ class MappedFileReader
             default => [],
         };
 
+        $normalised = [];
+        foreach ($aliases as $sourceHeader => $targetField) {
+            $normalised[self::normalizeHeader($sourceHeader)] = $targetField;
+        }
+
+        return $normalised;
+    }
+
+    /**
+     * A header already spelled as the internal field name maps to itself.
+     *
+     * Files this application produces carry exactly those headers — the
+     * intake's sample templates above all — and without an identity layer
+     * every one of them needs a manual mapping pass that can only reproduce
+     * the identity, on a screen whose whole purpose is reshaping files that
+     * do not already agree with us.
+     *
+     * It is the lowest-precedence layer on purpose. An alias that reads a
+     * header as a *different* field must keep winning: a delivered contract
+     * master's RATE_BASIS carries Fixed/Variable and is deliberately read as
+     * `rate_type`, and an identity match would undo that decision silently.
+     *
+     * @return array<string,string>
+     */
+    private function identityTemplate(string $importType): array
+    {
+        $fields = array_merge(self::REQUIRED_FIELDS[$importType], self::OPTIONAL_FIELDS[$importType]);
+
+        return $this->normaliseTemplate(array_combine($fields, $fields));
+    }
+
+    private function templateFor(string $importType): array
+    {
         return array_replace(
-            $this->normaliseTemplate($aliases),
+            $this->identityTemplate($importType),
+            self::aliasTemplateFor($importType),
             $this->normaliseTemplate(ImportMapping::templateFor($importType))
         );
     }

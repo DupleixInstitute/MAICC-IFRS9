@@ -50,6 +50,15 @@
                             <option value="contract_transactions">Contract transactions (Extract B) — scheduled and actual cash flows</option>
                             <option value="gl_interest">GL interest postings (Extract C) — what the ledger posted</option>
                         </select>
+                        <a :href="sampleUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-medium text-maiic-700 hover:text-maiic-900">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                            </svg>
+                            <span class="underline">Download {{ sampleFileName }}</span>
+                        </a>
+                        <p class="mt-1 text-xs text-gray-500">
+                            This type's columns with worked example rows. Its headers map automatically, so a file built from it needs no column mapping.
+                        </p>
                     </div>
                     <div class="md:col-span-2">
                         <jet-label class="text-sm font-medium text-gray-900">File (CSV / XLSX)</jet-label>
@@ -280,6 +289,13 @@ export default {
         }
     },
     computed: {
+        /** Named for the type so a folder of downloads stays readable. */
+        sampleFileName() {
+            return `${this.importType}_sample.csv`
+        },
+        sampleUrl() {
+            return this.route('eir-intake.sample', { type: this.importType })
+        },
         allTargetFields() {
             const spec = this.fieldSpec[this.importType]
             return [...spec.required, ...spec.optional]

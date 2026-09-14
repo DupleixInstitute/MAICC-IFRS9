@@ -6,6 +6,7 @@ use App\Models\ImportMapping;
 use App\Models\Import;
 use App\Models\AuditLog;
 use App\Jobs\ProcessEirImportJob;
+use App\Services\Eir\EirSampleFileService;
 use App\Services\Eir\ScheduleImportService;
 use App\Services\Imports\MappedFileReader;
 use Illuminate\Http\Request;
@@ -53,6 +54,28 @@ class EirIntakeController extends Controller
                 'required' => MappedFileReader::REQUIRED_FIELDS[$type],
                 'optional' => MappedFileReader::OPTIONAL_FIELDS[$type],
             ]])->all(),
+        ]);
+    }
+
+    /**
+     * A blank column template for one import type, named after that type.
+     *
+     * The headers are the canonical field names, so a file built from the
+     * template maps to itself and the operator's first upload is a real
+     * import rather than a rejection that teaches them the column list. One
+     * file per type, because the five types share almost no columns and a
+     * single combined workbook would have to be edited down before use.
+     */
+    public function sample(string $type, EirSampleFileService $samples)
+    {
+        abort_unless(in_array($type, self::IMPORT_TYPES, true), 404);
+
+        $csv = $samples->csv($type);
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $samples->fileName($type) . '"',
+            'Cache-Control' => 'no-store',
         ]);
     }
 
