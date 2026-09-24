@@ -93,6 +93,7 @@ return [
             $leaf('EIR Calculations', 'eir-calculations.index'),
             $leaf('GL Reconciliation', 'eir-reconciliation.index'),
             $leaf('Coverage & Blockers', 'eir-coverage.index'),
+            $leaf('Reference Rates', 'eir-reference-rates.index'),
         ], 4),
 
         $group('IFRS 9 Model Setup', 'chart-line', [
