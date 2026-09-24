@@ -64,6 +64,9 @@ The EIR enters IFRS 9 three times, and the engine has to serve all three:
 | 4 Aug 2026 | Specification v1 |
 | 19 Aug 2026 | Contract signed; trial-balance corpus and GL spools received |
 | 20 Aug 2026 | Consolidated specification (v2.3) |
+| 19 Aug to 2 Sep 2026 | The September build: trial-balance corpus, original-schedule governance (draft to approved version 1), date-sensitive solver with controlled reopening, time-phased ECL discounted at the EIR, standing fee rulebook, GL accrual base derived from the data |
+| 3 and 10 Sep 2026 | Source-screen walkthroughs with MAIIC and the vendor: where each EIR input lives (LOS or E-Banker), the two schedules, fees posted by Finance, EMI-only repayment, restructure as a new sub-account |
+| 10 Sep 2026 | Consolidated specification v2.5: Path E (source screens), the floating-rate reset design (Phase 5.1), the data request register (Appendix E) |
 | 11 Sep 2026 | Consolidated Information Request to MAIIC: 15 numbered items |
 | 17 Sep 2026 | Interest Rate Change History file received (dates later found to be corrupted in Excel, not in E-Banker) |
 | 21 Sep 2026 | E-Banker and LOS user manuals received (request 14 closed) |
@@ -77,7 +80,9 @@ Everything in this specification traces to one of the sources below. They are ci
 | Short name | Document | Where |
 |---|---|---|
 | [Spec v1] | MAIIC EIR and Revenue Recognition Engine, Technical Specification, 4 Aug 2026 | OneDrive `3. Project Execution\specs\MAIIC_EIR_Revenue_Recognition_Engine_Spec_v1_2026-08-04.md` |
-| [Spec v2] | Consolidated Technical Specification, 20 Aug 2026 (v2.3) | same folder, `MAIIC_EIR_Revenue_Recognition_Engine_Spec.md`; also `docs/` in the repository |
+| [Spec v2] | Consolidated Technical Specification, v2.5 of 10 Sep 2026 (v2.3 of 20 Aug in OneDrive) | `docs/MAIIC_EIR_Revenue_Recognition_Engine_Spec.md` in the repository; the OneDrive copy is v2.3 |
+| [Inventory] | Source Screen Field Inventory from the 3 and 10 Sep 2026 walkthroughs | `2. Documents from clients\MAIIC EIR - Source Screen Field Inventory.docx` |
+| [Analysis] | Branch inspection report, 24 Sep 2026 | `docs/EIR_Branch_Analysis_2026-09-24.md` in the repository; copy in the meeting pack |
 | [Explained] | The engine explained, plain-language companion, 5 Aug 2026 | same folder, `..._Explained.md/.pdf` |
 | [Build] | EIR Build (phases and acceptance bar) and Development of EIR (build log) | `docs/EIR_Build.md`, `docs/Development_of_EIR.md` |
 | [Research] | MAIIC Data Extracts, Research Report, 24 Sep 2026 | `specs\MAIIC_Extracts_Research_Report_2026-09-24.md` |
@@ -114,7 +119,7 @@ Each decision below has been taken. The date and the person are given so that no
 
 | # | Decision | By | Why |
 |---|---|---|---|
-| D8 | **One EIR per rate period.** A new child table `eir_rate_periods` holds the EIR that applied from each reset date. `contract_eir` stays the origination record and is never overwritten. | EM 24 Sep | B5.4.5: a floating loan gets a fresh EIR at every reference-rate change; the history must survive |
+| D8 | **One EIR per rate period.** A new child table `eir_rate_periods` holds the EIR that applied from each reset date. `contract_eir` stays the origination record and is never overwritten. | EM 24 Sep | B5.4.5: a floating loan gets a fresh EIR at every reference-rate change; the history must survive. [Spec v2] s.7.5 chose the spread-lock method (new EIR = new contractual rate + the fee spread locked at origination) with a full re-solve as the test oracle; each rate period stores both and flags any disagreement beyond solver tolerance |
 | D9 | **Day count is actual/365, compounding monthly**, as the native convention. 30/360 is available as a governed alternative. | EM 24 Sep; proven in [Recon] | E-Banker's own postings reproduce to the cent on this basis (section 7.7) |
 | D10 | A capitalising moratorium **compounds monthly**: the balance rises each month by exactly the interest posted. | proven in [Recon] | Observed on every moratorium loan in the sample |
 | D11 | **Stage 3 interest is recognised on the net carrying amount** (IFRS 9 5.4.1(b)) by default. Governable. | EM 24 Sep | Inherits the standard's rule; the ECL module supplies the stage |
@@ -133,6 +138,21 @@ Each decision below has been taken. The date and the person are given so that no
 | D19 | The reference-rate series is loaded from the repaired file [PLR] with **ISO dates (`yyyy-mm-dd`)**. The importer **rejects** any date column that is mixed-type or ambiguous; it never guesses day against month. | [Research], 1,134 wrong dates found | The Excel locale problem must not reach the engine |
 | D20 | The **acceptance test for interest** is the reconstruction in [Recon]: on a clean month the engine's contractual interest must equal E-Banker's posting to the cent; every difference must be explained by a named cause (late disbursement, catch-up posting, mid-month tranche). | [Recon] | This is what "reconcile within the agreed tolerance" in the contract will mean in practice |
 | D21 | Every build on the branch starts and ends with the EIR test suite **green** on the in-memory test database, never against the live development database. Baseline confirmed on 24 Sep 2026: 124 tests, 512 assertions, all passing. | [Spec v2] s.12; repo check 24 Sep | A `RefreshDatabase` test once wiped the dev database; the baseline is now proven, so a regression will show |
+
+### 3.4 Facts established with MAIIC and the vendor at the September walkthroughs
+
+These were confirmed on 3 and 10 September 2026 and recorded in [Spec v2] s.3.6 and [Inventory]. They are treated as settled.
+
+| # | Fact | Consequence for the engine |
+|---|---|---|
+| F1 | LOS holds the rate build-up, the fees and the moratorium configuration; on acceptance it creates the account in E-Banker, which owns disbursement, transactions, accrual and the amortisation table. The LOS application number and process reference are the only join, and they reach us in no extract. | Section 5.1 asks for both identifiers |
+| F2 | There are two schedules. The LOS origination schedule is the one the customer signs; it cannot be downloaded after commit, is not visible to Credit, and prints only as PDF. The E-Banker EMI chart exports to CSV but omits the opening (disbursement) row; MAIIC has a change request open with the vendor to add it. | File D is optional (5.4); the engine generates version 1 from terms and reconciles to E-Banker (7.7) |
+| F3 | The EMI chart marks a missed instalment as paid and keeps amortising. | The chart is evidence of resets, never an actuals feed; cash comes from the loan book (D14) |
+| F4 | Migrated loans (written before E-Banker) were migrated at carrying amount only and have no origination schedule in either system; their pre-migration Excel schedules sit with Finance. | The take-on schedules of 31 Oct 2024 are the only full-life vector for that cohort |
+| F5 | FinES is fixed at 10 percent for life; MAIIC Industrial and Agricultural float with the Reserve Bank rate, repriced whenever it changes (roughly every three to four months). E-Banker holds a table of interest rates by effective date that can be spooled. | File C (5.3) is that table; the repaired copy is [PLR] |
+| F6 | Arrangement and legal fees are captured manually in E-Banker by Finance at disbursement, read off the offer letter, deducted from the amount advanced, and posted to GL 4873 (arrangement), 4871 (legal) and 4872 (consultancy). No screen or schedule carries the fee as a cash flow. | Fees need their own feed (O14); the initial net investment is drawn amount less fees |
+| F7 | Only EMI repayment is in use; straight-line and bullet are configurable but not used. | The level-instalment generator covers the whole current book |
+| F8 | A restructure increments the sub-account number on the same main account (1, 2, 3) and E-Banker can produce a per-account audit report. Extract A nonetheless shows sub-account 1 and a blank restructure date on every row. | Lineage exists at source and is lost on export; the ask is the Reschedule Report and the sub-account sequence |
 
 ## 4. What has not yet been agreed
 
@@ -156,6 +176,8 @@ Each item below is a real choice. The options are listed with Dupleix's recommen
 | O14 | **Fee attribution per loan.** The GL proves the fees exist (accounts 4871, 4873) but the per-facility allocation is missing; the 2026 NAME column was hand-typed. | (a) Fees as a column set on the extended Loan Book Report; (b) a separate fee extract per posting with the account number; (c) an interim mapping table by Dupleix, disclosed | Barry | Request 4 of 11 Sep, still the largest gap |
 | O15 | **Roles and permissions** for the EIR screens and the auditor downloads. | Reuse the ECL module's role set with three new permissions: view, run, export | Wadzanai, Kundai | [Spec v2] open item 12 |
 | O16 | **Modification threshold.** | (a) 10 percent by analogy to B3.3.6; (b) a lower internal threshold | Dr Thom | Whether MAIIC wants a stricter policy than the standard |
+| O17 | **Reset or modification?** MAIIC can vary the spread at its own option where the contract permits. A change linked to the Reserve Bank rate is a B5.4.5 reset; a negotiated rate cut for a struggling borrower can be argued as a 5.4.3 modification with a gain or loss. | (a) Rate moves within the contract are resets; anything negotiated outside the contract is a modification, stated in the accounting policy note; (b) treat every rate change as a reset | Dr Thom, with Deloitte's written confirmation before the first reset is booked | [Spec v2] open item 27 |
+| O18 | **Maker-checker on schedule approval.** Version 1 schedules now move from draft to approved, but one person can do both. | (a) Require a second person, as for fee classification and the EIR lock; (b) leave as is for the first run | Dr Thom | [Spec v2] s.12 phase 3.5 |
 
 ## 5. The data the engine needs, file by file
 
@@ -200,7 +222,7 @@ Extract B as produced, re-supplied with ISO dates and a debit/credit indicator (
 
 ### 5.4 File D: repayment schedules as issued (one row per instalment, optional)
 
-The LOS schedule printed on the offer letter: due date, instalment, principal, interest, balance. Loaded as `schedule_version = 1` and kept unchanged for ever. If it is not supplied, the engine generates version 1 from File A (`schedule_source = GENERATED`) and says so. [ExtB] shows the issued schedule is not the cash flow the core account produces (O7), so even when supplied it is the reference, not the expectation.
+The LOS schedule printed on the offer letter: due date, instalment, principal, interest, balance. Loaded as `schedule_version = 1` and kept unchanged for ever. If it is not supplied, the engine generates version 1 from File A (`schedule_source = GENERATED`) and says so. [ExtB] shows the issued schedule is not the cash flow the core account produces (O7), so even when supplied it is the reference, not the expectation. The walkthroughs (F2, F3) settled that the LOS schedule cannot be exported after commit and that the E-Banker EMI chart, which can, omits the opening row and marks missed instalments as paid.
 
 ### 5.5 The monthly Loan Book Report (Menu ID 3868, mandatory, already loaded)
 
@@ -224,13 +246,15 @@ Not inputs to the calculation, but sources the engine's reconciliation and audit
 
 ## 6. What already exists in the system, and what has to change
 
-This section comes from a line-by-line inspection of the repository on 24 September 2026 (branch `eir_revenue_recognition`, commit `a8c8926` of 20 August 2026, 27 commits ahead of `master`, nothing uncommitted). Every statement names the file that proves it.
+This section comes from a line-by-line inspection of the repository on 24 September 2026 [Analysis], made on the 20 August state of the branch (commit `a8c8926`) and then brought up to the branch head fetched the same day (commit `08485e2`, which adds 27 commits made between 19 August and 10 September). Every statement names the file that proves it.
 
 ### 6.1 The branch today, in plain terms
 
-The August build put in place the bones of the engine and they work: files can be loaded through a mapping screen; fees can be classified as integral or not by one person and approved by another; an EIR can be solved and locked per contract; a monthly amortised-cost roll-forward can be run for a period; interest posted per account (Extract C) can be reconciled to EIR interest on screen; and the ECL module discounts at the solved EIR. The EIR test suite runs and passes: 124 tests, 512 assertions (`php artisan test tests/Unit/Eir tests/Unit/Support tests/Feature/Eir`).
+The August build put in place the bones of the engine and they work: files can be loaded through a mapping screen; fees can be classified as integral or not by one person and approved by another; an EIR can be solved and locked per contract; a monthly amortised-cost roll-forward can be run for a period; interest posted per account (Extract C) can be reconciled to EIR interest on screen; and the ECL module discounts at the solved EIR. The EIR and ECL test suites run and pass at the branch head: 170 tests, 24 skipped, 772 assertions.
 
-What the August build does not do is anything specific to a **floating** loan, a **moratorium of the "Principle Only" kind**, a **restructure**, **partial disbursements**, or **arrears read from the loan book**; and it accrues interest on a convention that is not E-Banker's. Those are the subjects of this specification.
+**Added in September** (commits `ac030a6` to `af7c6e2`, 19 August to 2 September, plus the manuals of 10 to 13 September): a governed life for the version 1 schedule (a DRAFT generated from Extract A terms, compared with Extract B's remaining flows to within 1 percent, reviewed, APPROVED and then never regenerated: `ScheduleWorkflowService`, `EirScheduleController`, `ScheduleShow.vue`, `contract_remaining_cashflow_schedule`, readiness blocker `SCHEDULE_NOT_APPROVED`); a date-sensitive solver on actual contractual dates under the contract's day count (`DateSensitiveEirService`), with admin-controlled reopening archived to `eir_calculation_history`; the trial-balance corpus (`gl_trial_balance_lines`, `gl_account_scope`, `TrialBalanceImportService`, `TrialBalanceMovementService`, `eir:import-trial-balances`, cumulative-YTD rule applied on read); a three-term variance bridge whose GL accrual base is derived from the data rather than assumed; a standing fee rulebook (25 seeded rules, priority-ordered sweep); time-phased, scenario-weighted ECL discounted at the EIR (`EclDiscountingService`, `TimePhasedEclService`, Projections screen); and the user, administrator, technical and installation manuals under `docs/manuals`.
+
+What the branch still does not do is anything specific to a **floating** loan, a **moratorium of the "Principle Only" kind**, a **restructure**, **partial disbursements**, or **arrears read from the loan book**; and it accrues interest on a convention that is not E-Banker's. Those are the subjects of this specification.
 
 **Tables in place** (migrations `2026_07_27` to `2026_08_18`): `contract_eir` (59 attributes: identity, classification, pricing, dates, amounts, profile, results, solver audit, workflow, lineage), `contract_cashflow_schedule` (versioned, unique on contract + version + due date), `contract_fees` (signed lines, integral flag, maker-checker fields), `eir_amortisation` and `eir_amortisation_history`, `rate_reset_events` (present, never written or read), `eir_actual_transactions` (Extract B actual rows), `gl_interest_postings` (Extract C), `import_mappings`, `staging_thresholds`, `eir_accounting_rules`, `eir_fee_classification_events`.
 
@@ -242,11 +266,11 @@ What the August build does not do is anything specific to a **floating** loan, a
 
 | Capability the engine needs | Today | Proof | Change |
 |---|---|---|---|
-| Solve an EIR by IRR, with an audit trail | Exists | `CalculateEirService.php` | Add a date-based option so an irregular first period (moratorium gap, quarterly with a short stub) is discounted by actual days, not by ordinal period |
+| Solve an EIR by IRR, with an audit trail | Exists, date-sensitive since September | `CalculateEirService.php`, `DateSensitiveEirService.php` | Carry the same date basis into the revenue roll-forward |
 | Fees netted off proceeds, maker-checker | Exists | `EirContractInputService.php` line 80 | Respect `transaction_date` so a fee charged later in the life is not treated as at origination |
 | Bulk import with column mapping and exception file | Exists | `MappedFileReader.php`, `ProcessEirImportJob.php` | Add the reference-rate, disbursement and restructure-schedule import types; ISO-only date rule |
 | Monthly roll-forward with history, Stage 3 net basis | Exists, wrong convention | `EirRevenueService.php` lines 64-67 accrue (1+EIR)^(1/12)-1 per calendar month, no day count | Accrue at the EIR of the rate period in force, actual/365 (D9); look up the period's EIR from `eir_rate_periods` |
-| Contractual interest as E-Banker posts it | Missing | `EirGlReconciliationService.php` lines 111-119 assume contractual/12 on the original drawn amount | New `ContractualInterestService`: prior month-end balance x rate x days/365, first month from disbursement day inclusive, monthly capitalisation (7.7) |
+| Contractual interest as E-Banker posts it | Partial | `EirGlReconciliationService.php` derives the GL accrual base from the data since September (`e553b48`) but still models one rate per month with no day count | New `ContractualInterestService`: prior month-end balance x rate x days/365, first month from disbursement day inclusive, monthly capitalisation (7.7); the bridge reads it |
 | Floating loans and PLR resets | Missing | `rate_reset_events` has no writer or reader (grep); revenue accrues at the locked EIR for every period (`EirRevenueService.php` line 64) | `reference_rate_series` table; reset detector; `eir_rate_periods`; per-period solve (7.3) |
 | Interest Policy, scheme settings, interest basis | Missing | `contract_eir` has `rate_type` FIXED/FLOATING mapped from `RATE_BASIS` (`ContractMasterImport.php` lines 68-71) | Store E-Banker's codes verbatim (D16); derive `reprice_flag` from `interest_policy` |
 | Spread added to the prime rate (margin) | Captured, not used | `markup` decimal(8,5) is imported and never consumed | `SpreadDerivationService` (D13); constancy check; quarantine on drift |
@@ -254,7 +278,9 @@ What the August build does not do is anything specific to a **floating** loan, a
 | Interest on sanctioned amount versus balance | Missing | no column, no logic | `interest_calc_base` and `installment_based_on` columns; generator and contractual-interest service honour them (O6) |
 | Partial disbursements, undrawn commitments | Captured as text, not used | `disbursement_tranches` text; `CalculateEirService::validate` line 53 rejects a second drawdown; no code references `commitments` | `contract_disbursements` table; drawdowns enter the cash-flow vector as later outflows; undrawn = approved minus sum of drawdowns |
 | Arrears from the loan book | Missing | `loan_books.repayments` is never populated by `LoanBooksImport.php` | Loan-book importer writes `repayments`; `LoanBookCashService` computes the monthly change and flags resets (D14, O5); B5.4.6 re-estimation in the roll-forward |
-| Restructuring | Missing | schedule version 2 has no writer (`ScheduleImportService.php` line 102 and `GenerateContractSchedules.php` line 108 hardcode 1); `modification_gain_loss` written as 0 (`EirRevenueService.php` line 81) | Version N+1 import; `contract_modifications` table; 10 percent test; lineage on sub-account (7.5) |
+| Original schedule governance | Exists since September | `ScheduleWorkflowService.php`, `ScheduleShow.vue` | Maker-checker on approval (O18) |
+| Trial-balance control totals | Exists since September | `TrialBalanceMovementService.php` | Wire into the month-end run as test T6 |
+| Restructuring | Missing (version 1 is governed; version N+1 has no writer) | schedule version 2 has no writer (`ScheduleImportService.php` line 102 and `GenerateContractSchedules.php` line 108 hardcode 1); `modification_gain_loss` written as 0 (`EirRevenueService.php` line 81) | Version N+1 import; `contract_modifications` table; 10 percent test; lineage on sub-account (7.5) |
 | Governance Centre | Missing | every convention is a code constant (tolerance 1 percent at `EirGlReconciliationService.php` line 36; 1/12; frequency list) | `governance_settings` with effective dating, approver and history; all services read their conventions through `GovernanceService` (section 8) |
 | Month-end run | Partial | `RunEirRevenueJob` runs a period for locked contracts; not scheduled, no screen, no period lock, no ordered pipeline; `RunEirRevenue.php` line 31 records a null user from the console | Ordered pipeline with a screen and a period lock (7.9); user recorded on every run |
 | Exports | Missing | no download action on any EIR page (grep); the IFRS 9 hub has `Ifrs9ReportExport.php` | Excel and PDF for reconciliation, the revenue table and the audit pack, using the hub's export pattern |
@@ -284,12 +310,12 @@ Tables used that exist but are idle: `rate_reset_events` (written by the reset d
 
 ### 6.4 Repairs the inspection found, to be made in the same build
 
-1. Readiness is implemented twice (`EirReadinessService::assess` and `EirCoverageService::assess`) and reconciliation three times (the service, and raw SQL in `EirDataController` lines 68-115, MySQL-only). One implementation each; the controller calls the service.
+1. Readiness is implemented twice (`EirReadinessService::assess` and `EirCoverageService::assess`; since September a test asserts the two agree) and reconciliation three times (the service, and raw SQL in `EirDataController` lines 68-115, MySQL-only). One implementation each; the controller calls the service.
 2. `ContractMasterImport.php` maps WEEKLY to 52 and FORTNIGHTLY to 26; the readiness gate then rejects both. Either support them or refuse them at import with a named reason.
 3. The moratorium meaning conflicts between the import (principal grace) and the generator (full holiday with capitalisation). Resolved by `moratorium_type`.
 4. `ScheduleImportService.php` line 55 refers to a restructure flow that does not exist. Built in 7.5.
 5. `RunEirRevenue.php` line 31 records `auth()->id()` from the console, which is null. Console runs take a `--user` option and refuse to run without one.
-6. The GL bridge assumes contractual/12 on the original drawn amount. Replaced by 7.7.
+6. The GL bridge assumed contractual/12 on the original drawn amount; September derives the base from the data. 7.7 completes it with the day-count rule and the disbursement-day start.
 7. `docs/Development_of_EIR.md` says phases 4 to 7 are not started; they are. The log is brought up to date with this specification.
 8. `storage/superseded-scratch-2026-08-04/` holds an abandoned schema. Deleted from the working tree (it is untracked) so no future `git add -A` picks it up.
 9. `reporting_period` on `loan_books` is a free string read with `SUBSTR` and `REPLACE` tricks in three places. One helper normalises it.
@@ -427,7 +453,7 @@ The contract makes acceptance turn on EIR calculations that "reconcile within th
 | T4 Spread constancy | The derived spread over prime is constant per account | 23 of 35 stable to within 0.15 pp in the first pass; the rest quarantined |
 | T5 Cash tie-out | Change in Repayments equals the fall in Outstanding Balance | Exact on every non-reset month tested |
 | T6 GL control total | Contractual interest summed by GL code and month equals the trial balance | Requires Extract C at full coverage (61 accounts missing) |
-| T7 Test suite | The branch's PHPUnit suite is green on the in-memory database before and after the build | Green on 24 Sep 2026: 124 passed, 512 assertions (`php artisan test tests/Unit/Eir tests/Unit/Support tests/Feature/Eir`) |
+| T7 Test suite | The branch's PHPUnit suite is green on the in-memory database before and after the build | Green on 24 Sep 2026 at commit `08485e2`: 170 passed, 24 skipped, 772 assertions across the EIR and ECL suites |
 | T8 Date integrity | No imported date is ambiguous | Importer rule (D19); [DateScan] on the loan books |
 
 ## 11. Data requests: where each one stands
@@ -435,6 +461,8 @@ The contract makes acceptance turn on EIR calculations that "reconcile within th
 The full request-by-request record, with the wording of each email and the reason behind it, is in [Workbook], sheet "Requests". In summary, of the fifteen items of 11 September: three are closed (2 loan books, 3 take-on schedules, 14 manuals); three are partly received (7 rate history, 8 extra fields, 12 restructured loans); nine are outstanding, of which fees per facility (4), LOS schedules after go-live (5) and the EMI chart with a drawdown row (6) are critical. Two outstanding items are now less critical because the engine derives the spread (D13) and takes cash from the loan book (D14).
 
 Six new asks were added on 24 September: Interest Policy and the other five scheme settings per account; the three documented reports never requested (Audit Trail 692, Reschedule 2839, IFRS9 Detail 3863); ISO dates on every extract and re-supply of Extracts A and B; the IFRS9 Detail Report's full column list and a sample; confirmation of the go-live date and a re-run of the Loan Book Report for November 2024 to November 2025; and the change request to extend the Loan Book Report. [Deck] slides 10 to 16 carry them.
+
+The register behind the 11 September email, field by field with the source screen, the target column and the reporting period, is Appendix E of [Spec v2]. The three sample packs it requests (ten LOS-originated loans, ten migrated loans, and every restructured loan, each with its documents, schedules and screenshots) remain outstanding and are the fastest route to T1 and T2 at full coverage.
 
 ## 12. Build plan and who does what
 
@@ -446,7 +474,7 @@ Six new asks were added on 24 September: Interest Policy and the other five sche
 | P2 Reference rates and spread | `reference_rate_series` import (ISO-only, ordering check); `SpreadDerivationService` with constancy check; `schemes` and the verbatim code columns; `reprice_flag` | [PLR]; Interest Policy per account (new ask 1) or observed behaviour as fallback | 26 rate changes load; 8-of-8 spread test reproduced on the Dec 2025 to Aug 2026 loan books (T4) |
 | P3 Contractual interest and reconciliation | `ContractualInterestService` (7.7); reconciliation rewritten on it with named causes; exports | P2 | T1: clean months to the cent on the ten sample loans |
 | P4 Schedules | Generator: both moratorium shapes, grace period, EMI calc types, sanction versus balance basis, date-based periods; drawdowns table and import | P2; the six scheme settings per account | T2: offer-letter instalments reproduced (6 of 6 once Milele's annual structure is modelled); T3 workbook fixtures |
-| P5 Floating resets | Reset detector; `eir_rate_periods`; per-period solve; revenue roll-forward reads the period's EIR and accrues actual/365 | P2, P3, P4 | T3 reset figures from [Teach]; every PLR-linked loan has one rate period per PLR change since its start date |
+| P5 Floating resets | The Phase 5.1 order in [Spec v2] s.7.5, extended: readiness blocker `FLOATING_TERMS_MISSING`; reset detector from `reference_rate_series` writing `rate_reset_events`; reset intake with maker-checker; a reset inside a locked period refused unless the period is superseded with a reason; `eir_rate_periods` holding the spread-lock EIR and the re-solved EIR; revenue roll-forward reads the period's EIR and accrues actual/365; ECL discounts floating loans at the current EIR | P2, P3, P4; O17 confirmed by Deloitte before the first reset is booked | T3 reset figures from [Teach]; spread-lock equals re-solve within tolerance; a reset changes no prior period; every PLR-linked loan has one rate period per PLR change since its start date |
 | P6 Arrears | `eir_cash_receipts` from the loan book; reset handling; B5.4.6 re-estimation in the roll-forward; IRR on actual expected flows | P4, P5 | T5 cash tie-out; T3 arrears figures (the 55 basis-point case) |
 | P7 Restructuring | Version N+1 import; `contract_modifications`; 10 percent test; lineage | P6 | T3 modification figures (2.6 percent change, loss of 31,911.33) |
 | P8 Month-end run and screens | Pipeline, period lock, Contract Profile, Rate Resets, Restructures, Drawdowns, Month-end Run, help articles, manual regenerated | P1 to P7 | A full month runs end to end on the Dec 2025 to Aug 2026 loan books with every exception explained |

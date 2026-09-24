@@ -1,3 +1,5 @@
+> **Scope note (added 24 Sep 2026, 06:50).** This report describes the branch as checked out locally at commit `a8c8926` (20 Aug 2026). A fetch made after it was written showed 27 further commits on `origin/eir_revenue_recognition` (19 Aug to 10 Sep 2026: schedule governance, date-sensitive solver and reopening, trial-balance corpus, time-phased ECL, fee rulebook, spec v2.5, manuals). Section 6.1 of `MAIIC_EIR_Engine_Specification_v3_2026-09-24.md` summarises those additions; the test count at the branch head is 170 passed, 24 skipped, 772 assertions. Statements below about the solver's date basis, the GL bridge's accrual base, the coverage/readiness agreement test and the docs build log are superseded by the September commits.
+
 # MAICC-IFRS9 repository analysis: branch `eir_revenue_recognition`
 
 Prepared 2026-09-24 from a read-only inspection of `c:\xampp\htdocs\MAICC-IFRS9`. Every claim below cites the file (and line where it matters) that was opened. Nothing in the repository was modified, no migration was run against any database, and the only execution was the EIR test suite, which `phpunit.xml` pins to an in-memory sqlite database.
