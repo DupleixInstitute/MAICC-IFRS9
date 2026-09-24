@@ -63,6 +63,33 @@ trait CreatesGovernanceSchema
         });
     }
 
+    /**
+     * The columns of loan_books the contractual-interest calculation reads: the
+     * outstanding balance the month before, the rate for the month, the
+     * cumulative amount disbursed and the customer name. The EIR tests build
+     * their own private schema rather than migrating, so the table has to be
+     * declared where they can share it.
+     */
+    protected function createLoanBookSchema(): void
+    {
+        if (Schema::hasTable('loan_books')) {
+            return;
+        }
+
+        Schema::create('loan_books', function (Blueprint $t) {
+            $t->increments('id');
+            $t->string('contract_id');
+            $t->string('customer_name')->nullable();
+            $t->string('reporting_period')->nullable();
+            $t->double('interest_rate')->default(0);
+            $t->double('carrying_amount')->default(0);
+            $t->double('principal_balance')->default(0);
+            $t->double('disbursed')->default(0);
+            $t->string('create_date')->nullable();
+            $t->timestamps();
+        });
+    }
+
     /** Dupleix's recommended defaults, APPROVED and effective 2025-01-01. */
     protected function seedGovernanceDefaults(): void
     {
