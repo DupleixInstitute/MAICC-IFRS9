@@ -71,7 +71,7 @@ The EIR enters IFRS 9 three times, and the engine has to serve all three:
 | 17 Sep 2026 | Interest Rate Change History file received (dates later found to be corrupted in Excel, not in E-Banker) |
 | 21 Sep 2026 | E-Banker and LOS user manuals received (request 14 closed) |
 | 22 to 24 Sep 2026 | Teaching workbook, extracts research, field reference, reconstruction test, Extract B check, loan-book date scan |
-| 25 Sep 2026 | Progress meeting with Dr Thom and Barry Makumba |
+| 25 Sep 2026 | Progress meeting with Dr Thom, Tamanda, Dibwa and the credit team. The fee route, the restructure source and the historic EIR method were all settled; the offer letters we had been working from turned out to be schedules, not offer letters |
 
 ## 2. Where this document comes from: the references
 
@@ -153,6 +153,14 @@ These were confirmed on 3 and 10 September 2026 and recorded in [Spec v2] s.3.6 
 | F6 | Arrangement and legal fees are captured manually in E-Banker by Finance at disbursement, read off the offer letter, deducted from the amount advanced, and posted to GL 4873 (arrangement), 4871 (legal) and 4872 (consultancy). No screen or schedule carries the fee as a cash flow. | Fees need their own feed (O14); the initial net investment is drawn amount less fees |
 | F7 | Only EMI repayment is in use; straight-line and bullet are configurable but not used. | The level-instalment generator covers the whole current book |
 | F8 | A restructure increments the sub-account number on the same main account (1, 2, 3) and E-Banker can produce a per-account audit report. Extract A nonetheless shows sub-account 1 and a blank restructure date on every row. | Lineage exists at source and is lost on export; the ask is the Reschedule Report and the sub-account sequence |
+| F9 | **MAIIC has never calculated an EIR per loan.** They ran an assessment: compare the contractual rate against an estimated EIR and, where the variance sat below a materiality threshold, book nothing. The auditors accepted it. The 2026 assessment has not been done, because this system is replacing it. | Our 2026 figure is not a cross-check against MAIIC's number. It is the number. Section 10 gains test T9 |
+| F10 | Loan-related fees sit in fee and non-interest income accounts, and a **manual journal** moves the EIR-related portion into the interest income line, specifically Interest on term loans. The journals are passed post year end, at audit time. | A GL dump of fee income will exceed the accounts line; interest income plus loan-related income is what ties. The reconciliation must bridge to the AFS, not only to the ledger |
+| F11 | **Fees are never amortised forward today.** Because of the book's history and size, the whole fee is earned in the year it is charged. | Moving to a real EIR shifts revenue between years. That shift, per year, is the output Dr Thom asked for by name |
+| F12 | Around 90 percent of 2024 revenue was money market income, where the money market rate is itself the effective rate. Interest income on loans and advances was MWK 1.4 billion of about 9.45 billion. | The engine's scope is the loan book, and the size of any EIR adjustment is bounded by that 1.4 billion, not by total revenue |
+| F13 | **The ten "offer letters" we have been working from are not offer letters.** They are a schedule printed from the origination system. They show "Fee Amount: MWK" with no figure and the reference rate with no margin, so the customer's actual rate is not on them. The signed offer letter carries both. Credit confirmed the fees are captured in system fields. | The signed offer letter is the contractual record. Section 5.4 and open item O19 |
+| F14 | Offer letters are still produced **outside E-Banker**, even after migration. | What is extracted from E-Banker may not match the signed conditions, though the underlying loan does. This is a control point as much as a data one |
+| F15 | MAIIC keeps an **Excel register of restructured loans**, running from the institution's inception, because the system configuration could not accommodate restructuring. Modification gains and losses have historically been **embedded inside the ECL**, never calculated separately. | The restructure population arrives as a file, not a report. The engine calculates modification gains and losses separately and auditably (phase P7) |
+| F16 | On some loans the schedule's serial numbers do not run in due-date order; sorting by date makes the running balance flow. | Never trust the sequence number. Order by due date and raise the anomaly rather than silently correcting it |
 
 ## 4. What has not yet been agreed
 
@@ -173,10 +181,13 @@ Each item below is a real choice. The options are listed with Dupleix's recommen
 | O11 | **Reconciliation tolerance.** | (a) 100 basis points on the annual EIR and MWK 1 per account-month on interest; (b) an amount threshold agreed with Deloitte | Dr Thom and Deloitte | [Spec v2] open item 11 |
 | O12 | **Deloitte export format.** | (a) The Summary-tab shape; (b) the full 23-tab worked example | Kundai, Dr Thom, Deloitte | [Spec v2] open item 17 |
 | O13 | **Phase 0 sign-offs still pending:** conventions memo; keyman insurance as an integral fee or not; Nascomex preference-share classification; staging rebuttal. | Sign as drafted | Dr Thom | Unchanged since August |
-| O14 | **Fee attribution per loan.** The GL proves the fees exist (accounts 4871, 4873) but the per-facility allocation is missing; the 2026 NAME column was hand-typed. | (a) Fees as a column set on the extended Loan Book Report; (b) a separate fee extract per posting with the account number; (c) an interim mapping table by Dupleix, disclosed | Barry | Request 4 of 11 Sep, still the largest gap |
+| O14 | **Fee attribution per loan. SETTLED 25 September 2026.** No system extract carries the fee against its loan, and asking the vendor would return the ledger and nothing more, because Finance keys each fee by hand at disbursement. MAIIC completes a fee import template instead, from the reconciliation Finance already holds. The template was issued the same day. | Settled: the template route | Tamanda completes it; Dupleix loads it | The completed file. This was the largest gap in the engagement |
 | O15 | **Roles and permissions** for the EIR screens and the auditor downloads. | Reuse the ECL module's role set with three new permissions: view, run, export | Wadzanai, Kundai | [Spec v2] open item 12 |
 | O16 | **Modification threshold.** | (a) 10 percent by analogy to B3.3.6; (b) a lower internal threshold | Dr Thom | Whether MAIIC wants a stricter policy than the standard |
 | O17 | **Reset or modification?** MAIIC can vary the spread at its own option where the contract permits. A change linked to the Reserve Bank rate is a B5.4.5 reset; a negotiated rate cut for a struggling borrower can be argued as a 5.4.3 modification with a gain or loss. | (a) Rate moves within the contract are resets; anything negotiated outside the contract is a modification, stated in the accounting policy note; (b) treat every rate change as a reset | Dr Thom, with Deloitte's written confirmation before the first reset is booked | [Spec v2] open item 27 |
+| O19 | **Which record is the contractual one?** The signed offer letter carries the fees and the margin; the system's schedule does not. Where the two differ, one of them governs the EIR. | (a) The signed offer letter governs, and the system record is evidence; (b) the system record governs | Dr Thom, in writing | The walkthrough with Credit, Tamanda and Barry |
+| O20 | **The materiality threshold.** MAIIC's historic method turned on a threshold the auditors accepted, but its value has not been given to us. | (a) Hold it as a governed setting so the engine can reproduce the historic assessment alongside the detailed calculation; (b) drop the assessment and report only the detailed figure | Dr Thom and Deloitte | The threshold used for 2024 and 2025 |
+| O21 | **Where fee income is reclassified.** The manual journal moves fee income into Interest on term loans post year end. The engine will propose its own EIR entries. | (a) The engine's proposal replaces the manual journal and reconciles to it for 2024 and 2025; (b) both run in parallel for one year | Dr Thom | O10, the GL account for the true-up |
 | O18 | **Maker-checker on schedule approval.** Version 1 schedules now move from draft to approved, but one person can do both. | (a) Require a second person, as for fee classification and the EIR lock; (b) leave as is for the first run | Dr Thom | [Spec v2] s.12 phase 3.5 |
 
 ## 5. The data the engine needs, file by file
@@ -221,6 +232,8 @@ Extract B as produced, re-supplied with ISO dates and a debit/credit indicator (
 | `SOURCE_ROW`, `AS_DELIVERED`, `INTERPRETATION` | text | Audit trail: what the file said and how it was read. The repaired file [PLR] carries 48 rows, 20 of them with day and month swapped back, and 26 genuine rate changes |
 
 ### 5.4 File D: repayment schedules as issued (one row per instalment, optional)
+
+**Corrected on 25 September 2026.** What we had been treating as the offer letter is a schedule printed from the origination system. It shows the fee line with no amount and the reference rate with no margin, so neither the fees nor the customer's actual rate can be read from it, and it cannot be the contractual source. The signed offer letter carries both and is held on file. Credit is sending the signed letters for the ten samples. Until O19 is settled the signed letter is treated as the contractual record and the system schedule as evidence.
 
 The LOS schedule printed on the offer letter: due date, instalment, principal, interest, balance. Loaded as `schedule_version = 1` and kept unchanged for ever. If it is not supplied, the engine generates version 1 from File A (`schedule_source = GENERATED`) and says so. [ExtB] shows the issued schedule is not the cash flow the core account produces (O7), so even when supplied it is the reference, not the expectation. The walkthroughs (F2, F3) settled that the LOS schedule cannot be exported after commit and that the E-Banker EMI chart, which can, omits the opening row and marks missed instalments as paid.
 
@@ -460,6 +473,7 @@ The contract makes acceptance turn on EIR calculations that "reconcile within th
 | T5 Cash tie-out | Change in Repayments equals the fall in Outstanding Balance | Exact on every non-reset month tested |
 | T6 GL control total | Contractual interest summed by GL code and month equals the trial balance | Requires Extract C at full coverage (61 accounts missing) |
 | T7 Test suite | The branch's PHPUnit suite is green on the in-memory database before and after the build | Green on 24 Sep 2026 at commit `08485e2`: 170 passed, 24 skipped, 772 assertions across the EIR and ECL suites |
+| T9 EIR revenue by year | The engine states EIR revenue for 2024, 2025 and 2026, reconciled to the ledger and to the audited accounts, and shows the difference against what was recognised. This is the output Dr Thom asked for by name, and for 2026 it is the only figure that will exist | Blocked on the fee file and on Extract C at full coverage |
 | T8 Date integrity | No imported date is ambiguous | Importer rule (D19); [DateScan] on the loan books |
 
 ## 11. Data requests: where each one stands
@@ -524,7 +538,7 @@ Three housekeeping items carry forward. Run `eir:import-reference-rates` and `ei
 | R3 | The fourteen-month gap is not filled | EIR history for legacy loans starts at December 2025 or rests on Finance's Excel books | O8; disclose as a limitation in the audit pack |
 | R4 | The LOS schedule differs from the core cash flow (start date, rate) | Wrong expected flows if the schedule is trusted | O7; generate from core terms; keep the schedule as reference |
 | R5 | Tranche history and restructure lineage are lost on export | Interest on partly drawn loans cannot reconcile; modification accounting lacks its "before" | Per-drawdown extract; key on account plus sub-account |
-| R6 | Fees cannot be attributed per loan from the GL | Integral fees missing from the EIR for most loans | O14; interim mapping table disclosed |
+| R6 | Fees cannot be attributed per loan from any system extract | Integral fees missing from the EIR for most loans, which is most of the point of the exercise | Settled 25 Sep: MAIIC completes the fee import template. The risk moves from "can it be got" to "is it complete", so the load is reconciled to GL 4871, 4872 and 4873 |
 | R7 | Interest Policy = Manual accounts | No rule to follow | O4; read monthly from the loan book |
 | R8 | Repayments counter resets | Cash for that month unknown | O5; Extract B for those months |
 | R9 | Test suite not green | Regressions go unnoticed | D21 before any new build |
