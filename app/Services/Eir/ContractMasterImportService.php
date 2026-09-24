@@ -52,6 +52,12 @@ class ContractMasterImportService
         'reference_rate_at_origination', 'markup',
         'payments_per_year', 'frequency_source', 'tenor_months', 'moratorium_months',
         'opening_amortised_cost', 'opening_amortised_cost_date',
+        // E-Banker codes verbatim, the categories derived from them, and the
+        // lineage back to the offer letter (P2).
+        'scheme_code', 'interest_policy', 'floating_flag', 'interest_calc_base',
+        'installment_based_on', 'emi_calc_type', 'moratorium_type', 'moratorium_type_verbatim',
+        'grace_period_months', 'interest_start_date', 'first_instalment_date', 'reprice_flag',
+        'account_status_code', 'los_application_no', 'los_process_ref', 'predecessor_sub_account',
     ];
 
     public function __construct(private readonly FeeImportService $fees) {}
@@ -70,6 +76,7 @@ class ContractMasterImportService
         $held = [];
         $skipped = [];
         $incomplete = [];
+        $notes = [];
         $unknownFrequencies = [];
         $feeRows = [];
         $created = 0;
@@ -96,7 +103,7 @@ class ContractMasterImportService
                 continue;
             }
 
-            $terms = $this->terms($row, $contractId, $unknownFrequencies);
+            $terms = $this->terms($row, $contractId, $unknownFrequencies, $notes);
             $existing = DB::table('contract_eir')->where('contract_id', $contractId)->first();
 
             if ($existing === null) {
@@ -166,6 +173,7 @@ class ContractMasterImportService
             'held' => $held,
             'skipped' => $skipped,
             'incomplete' => $incomplete,
+            'notes' => $notes,
             'unknown_frequencies' => $unknownFrequencies,
             'fee_rows_routed' => count($feeRows),
             'fee_result' => $feeResult,
@@ -257,9 +265,30 @@ class ContractMasterImportService
      * earlier, richer file supplied.
      *
      * @param  array<string,int>  $unknownFrequencies  accumulated by reference
+     * @param  array<string,string>  $notes  loaded, but a reviewer should read why; by reference
      */
-    private function terms(array $row, string $contractId, array &$unknownFrequencies): array
+    private function terms(array $row, string $contractId, array &$unknownFrequencies, array &$notes): array
     {
+        $rowNotes = [];
+        $interestPolicy = $this->code($row['interest_policy'] ?? null, 'INTEREST_POLICY', $rowNotes);
+        $floatingFlag = $this->code($row['floating_flag'] ?? null, 'FLOATING_FLAG', $rowNotes);
+        $moratoriumVerbatim = $this->text($row['moratorium_type'] ?? null);
+        $moratoriumType = ContractMasterImport::moratoriumType($moratoriumVerbatim);
+        if ($moratoriumVerbatim !== null && $moratoriumType === null) {
+            $rowNotes[] = "moratorium type '{$moratoriumVerbatim}' is not one of E-Banker's two options (Principle Only, Both); stored verbatim and left unmapped";
+        }
+
+        // The floating flag is stored for cross-check only (D16). Policy P
+        // means the loan reprices with the PLR and F means it never does, so
+        // a flag of N beside P, or any other flag beside F, is worth a look.
+        // rate_type keeps its own mapping from RATE_BASIS and is not touched.
+        if ($interestPolicy !== null && $floatingFlag !== null) {
+            $flagSaysFloating = $floatingFlag !== 'N';
+            if (($interestPolicy === 'P' && ! $flagSaysFloating) || ($interestPolicy === 'F' && $flagSaysFloating)) {
+                $rowNotes[] = "floating flag '{$floatingFlag}' disagrees with interest policy '{$interestPolicy}'; both stored verbatim, reprice_flag follows the policy";
+            }
+        }
+
         $terms = [
             'portfolio' => $this->text($row['portfolio'] ?? null),
             'product_type' => $this->text($row['product_type'] ?? null),
@@ -293,9 +322,68 @@ class ContractMasterImportService
             'moratorium_months' => ContractMasterImport::monthsFromDuration($row['moratorium_months'] ?? null),
             'opening_amortised_cost' => $this->amount($row['opening_amortised_cost'] ?? null),
             'opening_amortised_cost_date' => $this->date($row['opening_amortised_cost_date'] ?? null),
+
+            // E-Banker's codes as written (D16), the lineage fields, and the
+            // one category derived here. Truncation matches the columns.
+            'scheme_code' => $this->textLimited($row['scheme_code'] ?? null, 30),
+            'interest_policy' => $interestPolicy,
+            'floating_flag' => $floatingFlag,
+            'interest_calc_base' => $this->code($row['interest_calc_base'] ?? null, 'LOAN_INTEREST_CALC_BASE', $rowNotes),
+            'installment_based_on' => $this->textLimited($row['installment_based_on'] ?? null, 20),
+            'emi_calc_type' => $this->code($row['emi_calc_type'] ?? null, 'EMI_CALC_TYPE', $rowNotes),
+            'moratorium_type' => $moratoriumType,
+            'moratorium_type_verbatim' => $moratoriumVerbatim === null ? null : mb_substr($moratoriumVerbatim, 0, 40),
+            'grace_period_months' => ContractMasterImport::monthsFromDuration($row['grace_period_months'] ?? null),
+            'interest_start_date' => $this->date($row['interest_start_date'] ?? null),
+            'first_instalment_date' => $this->date($row['first_instalment_date'] ?? null),
+            'account_status_code' => $this->textLimited($row['account_status_code'] ?? null, 10),
+            'los_application_no' => $this->textLimited($row['los_application_no'] ?? null, 40),
+            'los_process_ref' => $this->textLimited($row['los_process_ref'] ?? null, 40),
+            'predecessor_sub_account' => $this->textLimited($row['predecessor_sub_account'] ?? null, 60),
         ];
 
-        return array_filter($terms, fn ($value) => $value !== null);
+        $terms = array_filter($terms, fn ($value) => $value !== null);
+
+        // reprice_flag is decided by the policy, so it is written whenever the
+        // policy is, including back to null when a re-delivery moves a loan
+        // from P or F to a code the engine does not decide (M).
+        if ($interestPolicy !== null) {
+            $terms['reprice_flag'] = ContractMasterImport::repriceFlag($interestPolicy);
+        }
+
+        if ($rowNotes !== []) {
+            $notes[$contractId] = implode('; ', $rowNotes);
+        }
+
+        return $terms;
+    }
+
+    /**
+     * A one-letter E-Banker code (Interest Policy N M L P S U R W F, Floating
+     * Flag N F I B, and so on). A longer value such as "P - Link with PLR" is
+     * read by its leading letter; anything that does not start with a letter
+     * is not a code and is left blank with a note.
+     */
+    private function code($value, string $column, array &$rowNotes): ?string
+    {
+        $text = $this->text($value);
+        if ($text === null) {
+            return null;
+        }
+        if (preg_match('/^([A-Za-z])(?:$|\s*[-:(\/])/', $text, $m)) {
+            return strtoupper($m[1]);
+        }
+
+        $rowNotes[] = "{$column} '{$text}' is not a one-letter E-Banker code; left blank";
+
+        return null;
+    }
+
+    private function textLimited($value, int $length): ?string
+    {
+        $text = $this->text($value);
+
+        return $text === null ? null : mb_substr($text, 0, $length);
     }
 
     /**
@@ -329,6 +417,14 @@ class ContractMasterImportService
             if (! in_array($field, self::TERM_FIELDS, true)) {
                 continue;
             }
+            // Only reprice_flag can arrive as null (policy M): clearing a
+            // stored flag is a change, agreeing with an empty one is not.
+            if ($value === null) {
+                if (($existing->{$field} ?? null) !== null) {
+                    $changes[$field] = null;
+                }
+                continue;
+            }
             if (! $this->sameValue($existing->{$field} ?? null, $value)) {
                 $changes[$field] = $value;
             }
@@ -342,6 +438,9 @@ class ContractMasterImportService
     {
         if ($stored === null) {
             return false;
+        }
+        if (is_bool($incoming)) {
+            return filter_var($stored, FILTER_VALIDATE_BOOLEAN) === $incoming;
         }
         if (is_float($incoming) || is_int($incoming)) {
             return abs((float) $stored - (float) $incoming) < 0.005;

@@ -91,7 +91,12 @@ class ContractMasterImport
             'PAYMENTS_PER_YEAR' => 'payments_per_year',
             'TENOR_MONTHS' => 'tenor_months',
             'TENOR' => 'tenor_months',
-            'GRACE_PERIOD_MONTHS' => 'moratorium_months',
+            // E-Banker keeps the grace period (p.31) apart from the moratorium
+            // (spec v3 section 5.1 asks for both), so GRACE_PERIOD_MONTHS is
+            // its own column since P2. The delivered file writes the
+            // moratorium as PRINCIPAL_GRACE_PERIOD, which still lands on
+            // moratorium_months below.
+            'GRACE_PERIOD_MONTHS' => 'grace_period_months',
             'GRACE PERIOD' => 'moratorium_months',
             'MORATORIUM_MONTHS' => 'moratorium_months',
             // The file carries principal and interest grace separately and
@@ -112,7 +117,75 @@ class ContractMasterImport
             'OPENING AMORTISED COST' => 'opening_amortised_cost',
             'OPENING_AMORTIZED_COST' => 'opening_amortised_cost',
             'OPENING_BALANCE_DATE' => 'opening_amortised_cost_date',
+
+            // E-Banker's own codes, stored verbatim (decision D16). The
+            // engine derives its categories from these; nothing is inferred
+            // from the floating flag alone.
+            'INTEREST_POLICY' => 'interest_policy',
+            'INTEREST POLICY' => 'interest_policy',
+            'FLOATING_FLAG' => 'floating_flag',
+            'FLOATING FLAG' => 'floating_flag',
+            'LOAN_INTEREST_CALC_BASE' => 'interest_calc_base',
+            'INTEREST_CALC_BASE' => 'interest_calc_base',
+            'LOAN INTEREST CAL. BASE ON' => 'interest_calc_base',
+            'INSTALLMENT_BASED_ON' => 'installment_based_on',
+            'INSTALMENT_BASED_ON' => 'installment_based_on',
+            'EMI_CALC_TYPE' => 'emi_calc_type',
+            'MORATORIUM_TYPE' => 'moratorium_type',
+            'MORATORIUM TYPE' => 'moratorium_type',
+            'INTEREST_START_DATE' => 'interest_start_date',
+            'FIRST_INSTALMENT_DATE' => 'first_instalment_date',
+            'FIRST_INSTALLMENT_DATE' => 'first_instalment_date',
+            'SCHEME_CODE' => 'scheme_code',
+            'SCHEME CODE' => 'scheme_code',
+            'ACCOUNT_STATUS' => 'account_status_code',
+            'ACCOUNT_STATUS_CODE' => 'account_status_code',
+            'APPLICATION_NO' => 'los_application_no',
+            'LOS_APPLICATION_NO' => 'los_application_no',
+            'PROCESS_REF_NO' => 'los_process_ref',
+            'LOS_PROCESS_REF' => 'los_process_ref',
+            'PREDECESSOR_SUB_ACCOUNT' => 'predecessor_sub_account',
         ];
+    }
+
+    /**
+     * E-Banker's Moratorium Type has exactly two options (LOS p.76, decision
+     * D4): "Principle Only" and "Both (Interest + Principle)". The text is
+     * kept verbatim beside the mapped value; anything else maps to null and
+     * is named, never guessed into one of the two shapes.
+     */
+    public static function moratoriumType(?string $verbatim): ?string
+    {
+        $text = strtoupper(preg_replace('/[^A-Za-z]+/', ' ', (string) $verbatim));
+        $text = trim(preg_replace('/\s+/', ' ', $text));
+
+        if ($text === '') {
+            return null;
+        }
+        if (str_starts_with($text, 'BOTH')) {
+            return 'BOTH';
+        }
+        if ((str_starts_with($text, 'PRINCIPLE') || str_starts_with($text, 'PRINCIPAL')) && str_contains($text, 'ONLY')) {
+            return 'PRINCIPAL_ONLY';
+        }
+
+        return null;
+    }
+
+    /**
+     * reprice_flag from Interest Policy (E-Banker p.19): P links the loan to
+     * the PLR and it reprices at every change; F never reprices; M reads the
+     * rate from the loan book each month (open item O4) and the other codes
+     * are not yet mapped, so both leave the flag undecided. The floating flag
+     * plays no part here (decision D16).
+     */
+    public static function repriceFlag(?string $interestPolicy): ?bool
+    {
+        return match (strtoupper(trim((string) $interestPolicy))) {
+            'P' => true,
+            'F' => false,
+            default => null,
+        };
     }
 
     /**
