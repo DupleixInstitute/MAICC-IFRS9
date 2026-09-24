@@ -40,6 +40,14 @@
                         Rows marked <strong>Actual</strong> are retained as transaction evidence and do not appear in the contractual Cash Flows tab. Fee component is optional; a blank fee does not block principal and interest.
                     </p>
                 </div>
+                <div v-if="importType === 'reference_rates'" class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    <p class="font-semibold">Reference rates: dates must be written year first (yyyy-mm-dd).</p>
+                    <p class="mt-1">
+                        A file with any other date shape is refused as a whole, naming the column and the first bad row. The importer never guesses day against month.
+                        Dates must rise strictly down the file; a row that repeats the previous rate is loaded but is not counted as a rate change.
+                        Rates are percentages, such as 25.30.
+                    </p>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <jet-label class="text-sm font-medium text-gray-900">Import type</jet-label>
@@ -49,6 +57,7 @@
                             <option value="fees">Fees and transaction costs</option>
                             <option value="contract_transactions">Contract transactions (Extract B) — scheduled and actual cash flows</option>
                             <option value="gl_interest">GL interest postings (Extract C) — what the ledger posted</option>
+                            <option value="reference_rates">Reference rates (File C) - the prime lending rate by effective date</option>
                         </select>
                         <a :href="sampleUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-medium text-maiic-700 hover:text-maiic-900">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -151,6 +160,22 @@
                             {{ period }}: {{ Number(total).toLocaleString() }}
                         </span>
                     </div>
+                </div>
+
+                <div v-else-if="importType === 'reference_rates'" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.loaded_rows }}</div><div class="text-xs text-maiic-800 mt-1">Rates loaded</div></div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.unchanged }}</div><div class="text-xs text-gray-800 mt-1">Already stored</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.rate_changes }}</div><div class="text-xs text-maiic-800 mt-1">Rate changes in the file</div></div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.repeated_rate_rows }}</div><div class="text-xs text-gray-800 mt-1">Rows repeating the previous rate</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.series && result.series.current_rate !== null ? Number(result.series.current_rate).toFixed(2) + '%' : '-' }}</div><div class="text-xs text-maiic-800 mt-1">{{ result.index_code }} rate now in force</div></div>
+                </div>
+
+                <div v-if="importType === 'reference_rates' && result.series" class="mb-4 text-sm text-gray-600">
+                    The stored {{ result.series.index_code }} series now holds
+                    <span class="font-semibold text-gray-900">{{ result.series.rows }}</span> rows and
+                    <span class="font-semibold text-gray-900">{{ result.series.changes }}</span> rate changes from
+                    {{ result.series.first_date }} to {{ result.series.last_date }}.
+                    <Link :href="route('eir-reference-rates.index')" class="text-maiic-700 underline font-medium">Open Reference Rates</Link>
                 </div>
 
                 <div v-else-if="importType === 'fees'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -264,11 +289,12 @@ export default {
         coverage: Object,
         templates: Object,
         fieldSpec: Object,
+        initialType: { type: String, default: 'contract_master' },
     },
     components: { AppLayout, JetLabel, Link },
     data() {
         return {
-            importType: 'contract_master',
+            importType: this.initialType || 'contract_master',
             file: null,
             analysis: null,
             mapping: {},      // header -> target field
@@ -323,6 +349,11 @@ export default {
             }
             for (const [contract, reason] of Object.entries(this.result.restatements || {})) {
                 entries.push({ contract, status: 'restated', reason })
+            }
+            // Notes are keyed by contract (Extract A) or are a plain list
+            // (the reference-rate series, where a note is about a row).
+            for (const [key, reason] of Object.entries(this.result.notes || {})) {
+                entries.push({ contract: Number.isNaN(Number(key)) ? key : 'file', status: 'note', reason })
             }
             return entries
         },
@@ -422,7 +453,9 @@ export default {
                 const analysis = await this.requestAnalysis(selectedType)
                 if (analysis.import_type && analysis.import_type !== selectedType) {
                     this.importType = analysis.import_type
-                    this.autoDetectedType = 'Contract transactions (Extract B)'
+                    this.autoDetectedType = analysis.import_type === 'reference_rates'
+                        ? 'Reference rates (File C)'
+                        : 'Contract transactions (Extract B)'
                 }
                 // Analysis data is display-only. Avoid recursively proxying
                 // every profile/preview cell on the browser's main thread.

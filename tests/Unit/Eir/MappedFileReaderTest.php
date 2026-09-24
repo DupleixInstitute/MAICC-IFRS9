@@ -60,7 +60,13 @@ class MappedFileReaderTest extends TestCase
         $this->assertSame('origination_date', $master['LOAN_START_DATE']);
         $this->assertSame('approved_amount', $master['SANCTIONED_AMOUNT']);
         $this->assertSame('drawn_amount', $master['PRINCIPAL_DISBURSED']);
-        $this->assertSame('moratorium_months', $master['GRACE_PERIOD_MONTHS']);
+        // Since P2 the grace period is its own term; the delivered file's
+        // moratorium column is PRINCIPAL_GRACE_PERIOD, tested below.
+        $this->assertSame('grace_period_months', $master['GRACE_PERIOD_MONTHS']);
+        $this->assertSame('moratorium_months', $master['PRINCIPAL_GRACE_PERIOD']);
+        $this->assertSame('interest_policy', $master['INTEREST_POLICY']);
+        $this->assertSame('interest_calc_base', $master['LOAN INTEREST CAL. BASE ON']);
+        $this->assertSame('account_status_code', $master['ACCOUNT_STATUS']);
 
         $gl = GlInterestImport::aliases();
         $this->assertSame('contract_id', $gl['LOAN_ACCOUNT_NUMBER']);

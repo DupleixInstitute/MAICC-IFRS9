@@ -1,0 +1,49 @@
+source_row,effective_date,plr_rate_pct,is_rate_change,change_pp,particulars,active,original_cell_as_delivered,interpretation
+1,2020-03-04,13.4,Y,,,Y,03/04/2020,REPAIRED - Excel had transposed day and month
+2,2020-05-13,13.3,Y,-0.1,,Y,13/05/2020,"as supplied (text, unambiguous)"
+3,2020-05-29,13.3,N,0.0,,Y,29/05/2020,"as supplied (text, unambiguous)"
+4,2020-09-01,13.4,Y,0.1,,Y,09/01/2020,REPAIRED - Excel had transposed day and month
+5,2020-10-13,13.4,N,0.0,,Y,13/10/2020,"as supplied (text, unambiguous)"
+6,2021-03-11,12.0,Y,-1.4,,Y,03/11/2021,REPAIRED - Excel had transposed day and month
+7,2021-04-07,12.0,N,0.0,,Y,04/07/2021,REPAIRED - Excel had transposed day and month
+8,2021-11-25,12.2,Y,0.2,,Y,25/11/2021,"as supplied (text, unambiguous)"
+9,2022-05-18,12.2,N,0.0,,Y,18/05/2022,"as supplied (text, unambiguous)"
+10,2022-07-04,13.9,Y,1.7,,Y,07/04/2022,REPAIRED - Excel had transposed day and month
+11,2022-08-16,13.9,N,0.0,,Y,16/08/2022,"as supplied (text, unambiguous)"
+12,2022-09-14,13.9,N,0.0,,Y,14/09/2022,"as supplied (text, unambiguous)"
+13,2022-10-19,13.9,N,0.0,ADJUSTMENT EFFECTIVE MAY 2024,Y,19/10/2022,"as supplied (text, unambiguous)"
+14,2023-02-13,17.3,Y,3.4,ADJUSTMENT EFFECTIVE MAY 2024,Y,13/02/2023,"as supplied (text, unambiguous)"
+15,2024-03-25,24.9,Y,7.6,ADJUSTMENT EFFECTIVE MAY 2024,Y,25/03/2024,"as supplied (text, unambiguous)"
+16,2024-07-16,25.0,Y,0.1,ADJUSTMENT EFFECTIVE MAY 2024,Y,16/07/2024,"as supplied (text, unambiguous)"
+17,2024-08-14,25.0,N,0.0,ADJUSTMENT EFFECTIVE MAY 2024,Y,14/08/2024,"as supplied (text, unambiguous)"
+18,2024-09-16,25.4,Y,0.4,ADJUSTMENT EFFECTIVE MAY 2024,Y,16/09/2024,"as supplied (text, unambiguous)"
+19,2024-12-09,25.3,Y,-0.1,NEW REFERENCE RATE,Y,12/09/2024,REPAIRED - Excel had transposed day and month
+20,2024-12-10,25.3,N,0.0,AS PER CREDIT DEPARTMENT,Y,12/10/2024,REPAIRED - Excel had transposed day and month
+21,2025-04-14,25.1,Y,-0.2,FROM CREDIT,Y,14/04/2025,"as supplied (text, unambiguous)"
+22,2025-04-16,25.1,N,0.0,REQUEST FROM CREDIT DEPARTMENT. CHANGE REQUEST 050820251,Y,16/04/2025,"as supplied (text, unambiguous)"
+23,2025-04-17,25.1,N,0.0,,Y,17/04/2025,"as supplied (text, unambiguous)"
+24,2025-04-22,25.1,N,0.0,,Y,22/04/2025,"as supplied (text, unambiguous)"
+25,2025-04-23,25.1,N,0.0,,Y,23/04/2025,"as supplied (text, unambiguous)"
+26,2025-04-30,25.1,N,0.0,,Y,30/04/2025,"as supplied (text, unambiguous)"
+27,2025-05-19,25.1,N,0.0,,Y,19/05/2025,"as supplied (text, unambiguous)"
+28,2025-05-22,25.1,N,0.0,,Y,22/05/2025,"as supplied (text, unambiguous)"
+29,2025-05-27,25.2,Y,0.1,,Y,27/05/2025,"as supplied (text, unambiguous)"
+30,2025-05-28,25.2,N,0.0,,Y,28/05/2025,"as supplied (text, unambiguous)"
+31,2025-06-05,25.2,N,0.0,,Y,06/05/2025,REPAIRED - Excel had transposed day and month
+32,2025-06-16,25.1,Y,-0.1,,Y,16/06/2025,"as supplied (text, unambiguous)"
+33,2025-07-08,25.3,Y,0.2,,Y,07/08/2025,REPAIRED - Excel had transposed day and month
+34,2025-07-15,25.3,N,0.0,,Y,15/07/2025,"as supplied (text, unambiguous)"
+35,2025-07-16,25.3,N,0.0,,Y,16/07/2025,"as supplied (text, unambiguous)"
+36,2025-07-23,25.3,N,0.0,,Y,23/07/2025,"as supplied (text, unambiguous)"
+37,2025-09-03,25.3,N,0.0,,Y,09/03/2025,REPAIRED - Excel had transposed day and month
+38,2025-10-01,25.4,Y,0.1,,Y,10/01/2025,REPAIRED - Excel had transposed day and month
+39,2025-11-01,25.3,Y,-0.1,,Y,11/01/2025,REPAIRED - Excel had transposed day and month
+40,2026-02-04,24.7,Y,-0.6,CR00402 REQUEST FROM CREDIT DEPARTMENT,Y,02/04/2026,REPAIRED - Excel had transposed day and month
+41,2026-03-05,23.7,Y,-1.0,NEW RATE,Y,03/05/2026,REPAIRED - Excel had transposed day and month
+42,2026-03-09,22.4,Y,-1.3,NEW RATE,Y,03/09/2026,REPAIRED - Excel had transposed day and month
+43,2026-04-20,20.8,Y,-1.6,NEW REFERENCE RATE,Y,20/04/2026,"as supplied (text, unambiguous)"
+44,2026-05-06,20.6,Y,-0.2,NEW REFERNACE RATE FOR MAY 2026,Y,05/06/2026,REPAIRED - Excel had transposed day and month
+45,2026-06-03,20.4,Y,-0.2,NEW RATE,Y,06/03/2026,REPAIRED - Excel had transposed day and month
+46,2026-07-03,20.5,Y,0.1,,Y,07/03/2026,REPAIRED - Excel had transposed day and month
+47,2026-08-05,20.8,Y,0.3,NEW RATE,Y,08/05/2026,REPAIRED - Excel had transposed day and month
+48,2026-09-03,21.2,Y,0.4,A REQUEST FROM CREDIT DEPARTMENT - ACCORDING TO RBM NEW RATES,Y,09/03/2026,REPAIRED - Excel had transposed day and month
