@@ -4,14 +4,18 @@ namespace Tests\Feature\Eir;
 
 use App\Services\Eir\EirReadinessService;
 use App\Services\Eir\EirContractInputService;
+use App\Services\Eir\GovernanceService;
 use App\Exceptions\EirContractNotReadyException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 class EirReadinessServiceTest extends TestCase
 {
+    use CreatesGovernanceSchema;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -19,6 +23,8 @@ class EirReadinessServiceTest extends TestCase
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
+        $this->createGovernanceSchema();
+        $this->seedGovernanceDefaults();
         Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('instrument_type')->default('AMORTISED_LOAN'); $t->string('rate_type')->default('FIXED'); $t->string('origination_date')->nullable(); $t->double('drawn_amount')->nullable(); $t->integer('payments_per_year')->default(12); $t->string('frequency_source')->default('ASSUMED'); $t->string('schedule_source')->nullable(); $t->string('schedule_approval_status')->default('NOT_GENERATED'); $t->string('locked_at')->nullable(); $t->timestamps(); });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->integer('schedule_version')->default(1); $t->string('due_date'); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); });
         Schema::create('contract_fees', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('fee_type')->default('other'); $t->string('description')->nullable(); $t->double('amount'); $t->boolean('integral')->nullable(); $t->string('classification_status')->default('PENDING'); $t->string('cashflow_direction')->nullable(); $t->string('transaction_date')->nullable(); $t->string('source_reference')->nullable(); $t->string('gl_account_ref')->nullable(); });
@@ -95,7 +101,7 @@ class EirReadinessServiceTest extends TestCase
         DB::table('contract_fees')->insert(['contract_id' => 'C-1', 'fee_type' => 'legal', 'amount' => 10, 'integral' => true, 'classification_status' => 'REVIEWED', 'cashflow_direction' => 'PAID']);
         DB::table('contract_fees')->insert(['contract_id' => 'C-1', 'fee_type' => 'monitoring', 'amount' => 99, 'integral' => false, 'classification_status' => 'REVIEWED', 'cashflow_direction' => 'RECEIVED']);
 
-        $input = (new EirContractInputService(new EirReadinessService()))->assemble('C-1');
+        $input = (new EirContractInputService(new EirReadinessService(), new GovernanceService()))->assemble('C-1');
 
         $this->assertSame(980.0, $input['initial_net_investment']);
         $this->assertSame(30.0, $input['fee_adjustments']['received']);
@@ -113,7 +119,7 @@ class EirReadinessServiceTest extends TestCase
         DB::table('contract_fees')->insert(['contract_id' => 'C-1', 'fee_type' => 'legal', 'amount' => 10, 'classification_status' => 'PENDING']);
 
         try {
-            (new EirContractInputService(new EirReadinessService()))->assemble('C-1');
+            (new EirContractInputService(new EirReadinessService(), new GovernanceService()))->assemble('C-1');
             $this->fail('Expected a blocked-contract exception.');
         } catch (EirContractNotReadyException $e) {
             $this->assertSame('C-1', $e->contractId);

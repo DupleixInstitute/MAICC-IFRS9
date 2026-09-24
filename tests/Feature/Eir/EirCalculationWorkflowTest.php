@@ -7,14 +7,18 @@ use App\Services\Eir\CalculateEirService;
 use App\Services\Eir\EirCalculationService;
 use App\Services\Eir\EirContractInputService;
 use App\Services\Eir\EirReadinessService;
+use App\Services\Eir\GovernanceService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use LogicException;
+use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 class EirCalculationWorkflowTest extends TestCase
 {
+    use CreatesGovernanceSchema;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -22,6 +26,8 @@ class EirCalculationWorkflowTest extends TestCase
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
+        $this->createGovernanceSchema();
+        $this->seedGovernanceDefaults();
         Schema::create('contract_eir', function (Blueprint $t) {
             $t->increments('id'); $t->string('contract_id')->unique(); $t->string('instrument_type')->default('AMORTISED_LOAN');
             $t->string('rate_type')->default('FIXED'); $t->string('origination_date')->nullable(); $t->double('drawn_amount')->nullable();
@@ -44,7 +50,11 @@ class EirCalculationWorkflowTest extends TestCase
     private function service(): EirCalculationService
     {
         $readiness = new EirReadinessService();
-        return new EirCalculationService(new EirContractInputService($readiness), new CalculateEirService());
+
+        return new EirCalculationService(
+            new EirContractInputService($readiness, new GovernanceService()),
+            new CalculateEirService()
+        );
     }
 
     private function seedContract(string $id = 'C-1', bool $ready = true): void

@@ -13,8 +13,10 @@ use RuntimeException;
  */
 class EirContractInputService
 {
-    public function __construct(private readonly EirReadinessService $readiness)
-    {
+    public function __construct(
+        private readonly EirReadinessService $readiness,
+        private readonly GovernanceService $governance,
+    ) {
     }
 
     /**
@@ -91,7 +93,12 @@ class EirContractInputService
             'schedule_version' => 1,
             'schedule_source' => $contract->schedule_source,
             'drawn_amount' => $drawn,
-            'day_count_basis' => $contract->source_day_count_basis ?: 'ACT/365',
+            // The contract's own stated basis wins. Where the source system stated none,
+            // the governed convention in force at origination applies, so that a later
+            // change to the setting never restates a contract already solved. There is
+            // no basis written into this code: a missing setting fails closed.
+            'day_count_basis' => $contract->source_day_count_basis
+                ?: $this->governance->get('day_count', $contract->origination_date),
         ];
         $feeAdjustments = [
             'received' => $received,
