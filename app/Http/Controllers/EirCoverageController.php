@@ -14,7 +14,8 @@ class EirCoverageController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['auth', 'permission:settings']);
+        // Read-only screen: the EIR view permission, not the broad Settings one.
+        $this->middleware(['auth', 'permission:eir.view']);
     }
 
     public function index(Request $request, EirCoverageService $coverage)

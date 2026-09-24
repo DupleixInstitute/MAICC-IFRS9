@@ -160,6 +160,11 @@ class ContractMasterImport
      * Repayment frequency as MAIIC's files spell it → payments per year.
      * Anything unrecognised returns null and is reported, never guessed: a
      * wrong frequency silently changes the solved periodic rate.
+     *
+     * Weekly and fortnightly are recognised but not supported: the engine
+     * solves only the frequencies in SUPPORTED_PAYMENTS_PER_YEAR, so a
+     * facility on either is refused at import (see unsupportedFrequencyReason)
+     * rather than mapped to 52 or 26 and rejected later by the readiness gate.
      */
     public static function paymentsPerYear(?string $frequency): ?int
     {
@@ -168,8 +173,25 @@ class ContractMasterImport
             'QUARTERLY', 'QUARTER', 'Q' => 4,
             'SEMI-ANNUAL', 'SEMI ANNUAL', 'SEMIANNUAL', 'HALF-YEARLY', 'BI-ANNUAL' => 2,
             'ANNUAL', 'ANNUALLY', 'YEARLY', 'Y' => 1,
-            'WEEKLY' => 52,
-            'FORTNIGHTLY', 'BI-WEEKLY' => 26,
+            default => null,
+        };
+    }
+
+    /** The payment frequencies the solver, readiness gate and coverage accept. */
+    public const SUPPORTED_PAYMENTS_PER_YEAR = [1, 2, 4, 6, 12];
+
+    /**
+     * A named reason when the file states a frequency the engine recognises
+     * but cannot solve, so the row is refused with the cause on the exception
+     * file instead of being created and blocked downstream.
+     */
+    public static function unsupportedFrequencyReason(?string $frequency): ?string
+    {
+        $stated = trim((string) $frequency);
+
+        return match (strtoupper($stated)) {
+            'WEEKLY' => "repayment frequency '{$stated}' is not supported: the EIR engine solves monthly, quarterly, half-yearly and annual instalments only",
+            'FORTNIGHTLY', 'BI-WEEKLY' => "repayment frequency '{$stated}' is not supported: the EIR engine solves monthly, quarterly, half-yearly and annual instalments only",
             default => null,
         };
     }

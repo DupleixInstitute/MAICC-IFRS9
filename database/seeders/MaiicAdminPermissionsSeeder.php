@@ -13,6 +13,12 @@ use Spatie\Permission\PermissionRegistrar;
  * every user, admin included; Currencies, linked from Settings, likewise).
  * Grants to internal staff roles.
  *
+ * Also the EIR module's own permissions (spec v3 section 12.1, phase P1):
+ * eir.view for the read-only screens, eir.run for calculations and runs,
+ * eir.export for downloads and eir.govern for the Governance Centre. Until
+ * the other EIR routes move off the broad Settings permission, only
+ * eir.view and eir.govern are enforced.
+ *
  *   php artisan db:seed --class=MaiicAdminPermissionsSeeder
  */
 class MaiicAdminPermissionsSeeder extends Seeder
@@ -29,6 +35,10 @@ class MaiicAdminPermissionsSeeder extends Seeder
             'currencies.create' => 'Currencies',
             'currencies.update' => 'Currencies',
             'currencies.destroy' => 'Currencies',
+            'eir.view' => 'EIR & Revenue Recognition',
+            'eir.run' => 'EIR & Revenue Recognition',
+            'eir.export' => 'EIR & Revenue Recognition',
+            'eir.govern' => 'EIR & Revenue Recognition',
         ];
 
         $names = [];

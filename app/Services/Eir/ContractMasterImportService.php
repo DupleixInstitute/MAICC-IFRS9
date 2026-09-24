@@ -96,6 +96,15 @@ class ContractMasterImportService
                 continue;
             }
 
+            // A frequency the engine cannot solve (weekly, fortnightly) is
+            // refused here with its reason, not created and then blocked by
+            // the readiness gate with a less specific one (spec 6.4 item 2).
+            $unsupported = ContractMasterImport::unsupportedFrequencyReason($row['repayment_frequency'] ?? null);
+            if ($unsupported !== null) {
+                $skipped[$contractId] = $unsupported;
+                continue;
+            }
+
             $terms = $this->terms($row, $contractId, $unknownFrequencies);
             $existing = DB::table('contract_eir')->where('contract_id', $contractId)->first();
 

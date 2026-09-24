@@ -5,6 +5,7 @@ namespace App\Services\Eir;
 use App\Models\ContractEir;
 use App\Models\EirAmortisation;
 use App\Models\GlInterestPosting;
+use Carbon\CarbonImmutable;
 
 /**
  * Explains the difference between EIR interest income and what the ledger
@@ -49,11 +50,22 @@ use App\Models\GlInterestPosting;
  */
 class EirGlReconciliationService
 {
-    /** A row inside this band of the posted amount is treated as agreeing. */
-    public const TOLERANCE_PERCENT = 1.0;
+    private readonly GovernanceService $governance;
 
-    /** Absolute floor so near-zero postings do not register a false variance. */
-    private const TOLERANCE_FLOOR = 1.0;
+    /**
+     * The band inside which a row is treated as agreeing: a share of the
+     * posted amount with an absolute floor so near-zero postings do not
+     * register a false variance. It is the governed setting recon_tolerance
+     * in force at the period end, never a number written here.
+     *
+     * @var array{percent:float, floor:float}|null
+     */
+    private ?array $tolerance = null;
+
+    public function __construct(?GovernanceService $governance = null)
+    {
+        $this->governance = $governance ?? app(GovernanceService::class);
+    }
 
     /** @return list<string> Periods that have GL postings, newest first. */
     public function availablePeriods(): array
@@ -76,6 +88,11 @@ class EirGlReconciliationService
         }
 
         [$year, $month] = array_map('intval', explode('-', $period));
+        // The band that governed this period: a later change to the setting
+        // never restates a month already reconciled under the old one.
+        $this->tolerance = $this->governance->reconciliationTolerance(
+            CarbonImmutable::createFromFormat('Y-m-d', $period . '-01')->endOfMonth()
+        );
         $postings = GlInterestPosting::query()->where('period_year', $year)->where('period_month', $month)
             ->orderBy('contract_id')->get();
 
@@ -166,7 +183,15 @@ class EirGlReconciliationService
 
     private function withinTolerance(float $variance, float $posted): bool
     {
-        return abs($variance) <= max(self::TOLERANCE_FLOOR, abs($posted) * self::TOLERANCE_PERCENT / 100);
+        $band = $this->tolerance ?? $this->governance->reconciliationTolerance();
+
+        return abs($variance) <= max($band['floor'], abs($posted) * $band['percent'] / 100);
+    }
+
+    /** The governed share of the posted amount, for the screen's tolerance note. */
+    private function tolerancePercent(): float
+    {
+        return ($this->tolerance ?? $this->governance->reconciliationTolerance())['percent'];
     }
 
     /** The walk from what the ledger posted to what the engine calculated. */
@@ -199,7 +224,7 @@ class EirGlReconciliationService
             'within_tolerance' => $statuses['WITHIN_TOLERANCE'] ?? 0,
             'variance_rows' => $statuses['VARIANCE'] ?? 0,
             'not_calculated' => ($statuses['NOT_CALCULATED'] ?? 0) + ($statuses['NO_CONTRACT'] ?? 0),
-            'tolerance_percent' => self::TOLERANCE_PERCENT,
+            'tolerance_percent' => $this->tolerancePercent(),
         ];
     }
 
@@ -213,7 +238,7 @@ class EirGlReconciliationService
     private function emptySummary(): array
     {
         return ['posting_rows' => 0, 'within_tolerance' => 0, 'variance_rows' => 0, 'not_calculated' => 0,
-            'tolerance_percent' => self::TOLERANCE_PERCENT];
+            'tolerance_percent' => $this->tolerancePercent()];
     }
 
     private function periodKey(int $year, int $month): string

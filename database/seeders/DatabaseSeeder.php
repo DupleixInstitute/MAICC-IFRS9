@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             TicketsPermissionsSeeder::class,
             MaiicAdminPermissionsSeeder::class,
             LegacyPermissionsCleanupSeeder::class,
+            GovernanceSettingsSeeder::class,
             HelpContentSeeder::class,
             HelpAdminContentSeeder::class,
             UsersTableSeeder::class,
