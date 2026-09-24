@@ -60,6 +60,15 @@ class ContractMasterImportService
         'account_status_code', 'los_application_no', 'los_process_ref', 'predecessor_sub_account',
     ];
 
+    /**
+     * Loaded, but a reviewer should read why: an E-Banker code that is not
+     * a code, a moratorium type outside the two options, a floating flag
+     * that disagrees with the policy. Keyed by contract, reset per import.
+     *
+     * @var array<string,string>
+     */
+    private array $notes = [];
+
     public function __construct(private readonly FeeImportService $fees) {}
 
     /**
@@ -73,10 +82,10 @@ class ContractMasterImportService
      */
     public function import(array $rows): array
     {
+        $this->notes = [];
         $held = [];
         $skipped = [];
         $incomplete = [];
-        $notes = [];
         $unknownFrequencies = [];
         $feeRows = [];
         $created = 0;
@@ -103,7 +112,7 @@ class ContractMasterImportService
                 continue;
             }
 
-            $terms = $this->terms($row, $contractId, $unknownFrequencies, $notes);
+            $terms = $this->terms($row, $contractId, $unknownFrequencies);
             $existing = DB::table('contract_eir')->where('contract_id', $contractId)->first();
 
             if ($existing === null) {
@@ -173,7 +182,7 @@ class ContractMasterImportService
             'held' => $held,
             'skipped' => $skipped,
             'incomplete' => $incomplete,
-            'notes' => $notes,
+            'notes' => $this->notes,
             'unknown_frequencies' => $unknownFrequencies,
             'fee_rows_routed' => count($feeRows),
             'fee_result' => $feeResult,
@@ -265,9 +274,8 @@ class ContractMasterImportService
      * earlier, richer file supplied.
      *
      * @param  array<string,int>  $unknownFrequencies  accumulated by reference
-     * @param  array<string,string>  $notes  loaded, but a reviewer should read why; by reference
      */
-    private function terms(array $row, string $contractId, array &$unknownFrequencies, array &$notes): array
+    private function terms(array $row, string $contractId, array &$unknownFrequencies): array
     {
         $rowNotes = [];
         $interestPolicy = $this->code($row['interest_policy'] ?? null, 'INTEREST_POLICY', $rowNotes);
@@ -352,7 +360,7 @@ class ContractMasterImportService
         }
 
         if ($rowNotes !== []) {
-            $notes[$contractId] = implode('; ', $rowNotes);
+            $this->notes[$contractId] = implode('; ', $rowNotes);
         }
 
         return $terms;
