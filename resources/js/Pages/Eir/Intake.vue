@@ -149,6 +149,8 @@
 
                 <div v-if="importType === 'disbursements' && result.loaded_rows" class="mb-4 text-sm text-gray-600">
                     Drawdowns in the file run from {{ result.first_date || '-' }} to {{ result.last_date || '-' }}.
+                    <Link :href="route('eir-drawdowns.index')" class="text-maiic-700 underline font-medium">Open Drawdowns</Link>
+                    to see the undrawn commitment per facility.
                 </div>
 
                 <div v-if="importType === 'contract_transactions'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">

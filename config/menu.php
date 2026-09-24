@@ -90,6 +90,7 @@ return [
             $leaf('Accounting Rules', 'eir-accounting-rules.index'),
             $leaf('EIR Data', 'eir-data.index'),
             $leaf('Reference Rates', 'eir-reference-rates.index'),
+            $leaf('Drawdowns', 'eir-drawdowns.index'),
             $leaf('Fee Classification', 'eir-fee-classification.index'),
             $leaf('EIR Calculations', 'eir-calculations.index'),
             $leaf('GL Reconciliation', 'eir-reconciliation.index'),

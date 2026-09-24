@@ -923,6 +923,8 @@ Route::get('/eir-reconciliation', [\App\Http\Controllers\EirReconciliationContro
 Route::post('/eir-reconciliation/run-revenue', [\App\Http\Controllers\EirReconciliationController::class, 'runRevenue'])->name('eir-reconciliation.run-revenue');
 Route::get('/eir-coverage', [\App\Http\Controllers\EirCoverageController::class, 'index'])->name('eir-coverage.index');
 Route::get('/eir-reference-rates', [\App\Http\Controllers\EirReferenceRateController::class, 'index'])->name('eir-reference-rates.index');
+// Drawdowns and undrawn commitments (spec v3 section 7.6, phase P4).
+Route::get('/eir-drawdowns', [\App\Http\Controllers\EirDrawdownController::class, 'index'])->name('eir-drawdowns.index');
 
 Route::group(['prefix' => 'eir-intake', 'as' => 'eir-intake.'], function () {
     Route::get('/', [\App\Http\Controllers\EirIntakeController::class, 'index'])->name('index');
