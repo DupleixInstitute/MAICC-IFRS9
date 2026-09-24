@@ -17,7 +17,10 @@ class EirReconciliationController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['auth', 'permission:settings']);
+        // Reading the reconciliation needs only the EIR view permission;
+        // running the revenue stays on the permission it had.
+        $this->middleware(['auth', 'permission:eir.view'])->only('index');
+        $this->middleware(['auth', 'permission:settings'])->except('index');
     }
 
     public function index(Request $request, EirGlReconciliationService $reconciliation)

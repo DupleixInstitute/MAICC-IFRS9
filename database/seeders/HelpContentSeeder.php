@@ -188,6 +188,10 @@ class HelpContentSeeder extends Seeder
                     'images' => ['eir-fees' => 'EIR fee classification work queue'],
                     'routes' => ['eir-fee-classification.index'],
                 ],
+                'Governance Centre' => [
+                    'body' => '<p>The Governance Centre keeps every calculation convention the EIR engine uses as a setting with a fixed list of options, the value in force, its effective date, who proposed it and who approved it. A change is proposed by one person with a reason and approved by a second; it applies from its effective date forward only, so a month already run keeps the settings it was run under. No convention is written in code: a setting with no approved value stops the calculation that needs it.</p>',
+                    'routes' => ['eir-governance.index'],
+                ],
             ],
 
             'IFRS 9 Model Setup' => [

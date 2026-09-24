@@ -115,5 +115,17 @@ return [
             ],
             'images' => ['eir-reconciliation' => 'The GL reconciliation that reads the monthly revenue rows'],
         ],
+
+        'Governance Centre' => [
+            'body' => '<p>The Governance Centre is where the conventions the EIR engine calculates with are kept. Open the sidebar, expand <b>EIR &amp; Revenue Recognition</b> and choose <b>Governance Centre</b>. It needs the EIR govern permission.</p><h4>What a setting is</h4><p>A setting is one calculation convention with a fixed list of options: for example the day count (actual/365 or 30/360), what happens when the prime lending rate changes inside a month, or the band inside which the engine\'s interest and the ledger\'s posting count as agreeing. The page shows each setting with the option in force today, the date it took effect, who proposed it and who approved it, and every value it has ever had. The first value of every setting is Dupleix\'s recommendation, seeded with the system; MAIIC can change any of them. Nothing is written in the program: if a setting has no approved value, the calculation that needs it stops and names the setting that is missing.</p><h4>Why a change needs an approver</h4><p>A change is made in two steps by two people. One person proposes it: the new option, the date it takes effect and the reason, in plain words. A second person approves it. The person who proposed a change cannot approve it; an administrator can, as an override, and the override is recorded. The audit log keeps the setting, the old value, the new value, who proposed, who approved, when, why and the first month it applies to, so an auditor can see every convention and every change without asking anyone.</p><h4>Why a locked period keeps its settings</h4><p>A change applies from its effective date forward only, and the effective date must be later than the last approved change to the same setting. A month that was run under the old value keeps it: the engine looks up the value that was in force on the last day of the month it is calculating, not the value in force today. That is what makes a locked period repeatable, and it is why the old value stays on the page as history instead of being overwritten.</p>',
+            'steps' => [
+                'Open Governance Centre from the EIR & Revenue Recognition group in the sidebar.',
+                'Read the value in force for the setting, its effective date and its approver. A red badge means no value is approved and the calculation that needs it will stop.',
+                'To change a setting press Propose change, choose the new option, set the effective date, write the reason and press Propose change.',
+                'Ask a second person with the govern permission to open the page and press Approve beside the proposal.',
+                'Press History to see every value the setting has had and the audit copies of the values that were superseded.',
+            ],
+            'routes' => ['eir-governance.index'],
+        ],
     ],
 ];

@@ -955,6 +955,14 @@ Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], func
     Route::post('/{contractEir}/reopen', [\App\Http\Controllers\EirCalculationController::class, 'reopen'])->name('reopen');
 });
 
+// EIR Governance Centre (spec v3 section 8): every calculation convention as
+// a governed setting with options, an effective date and maker-checker.
+Route::group(['prefix' => 'eir-governance', 'as' => 'eir-governance.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirGovernanceController::class, 'index'])->name('index');
+    Route::post('/propose', [\App\Http\Controllers\EirGovernanceController::class, 'propose'])->name('propose');
+    Route::post('/{setting}/approve', [\App\Http\Controllers\EirGovernanceController::class, 'approve'])->name('approve');
+});
+
 // Manual authoring routes. MUST stay behind auth + settings permission:
 // they were previously reachable (create/edit/DELETE) with no login at all.
 Route::middleware(['auth', 'permission:settings'])->group(function () {
