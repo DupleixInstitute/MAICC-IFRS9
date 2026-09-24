@@ -48,6 +48,14 @@
                         Rates are percentages, such as 25.30.
                     </p>
                 </div>
+                <div v-if="importType === 'disbursements'" class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    <p class="font-semibold">Drawdowns: one row per tranche, dates written year first (yyyy-mm-dd).</p>
+                    <p class="mt-1">
+                        A file with any other date shape is refused as a whole, naming the column and the first bad row. Every amount must be above zero: a drawdown is money paid
+                        out, and a reversal is a correction to make at source. The same file loaded twice adds nothing, because each row is matched on the facility, the date, the
+                        amount, the tranche and the reference.
+                    </p>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <jet-label class="text-sm font-medium text-gray-900">Import type</jet-label>
@@ -58,6 +66,7 @@
                             <option value="contract_transactions">Contract transactions (Extract B) — scheduled and actual cash flows</option>
                             <option value="gl_interest">GL interest postings (Extract C) — what the ledger posted</option>
                             <option value="reference_rates">Reference rates (File C) - the prime lending rate by effective date</option>
+                            <option value="disbursements">Drawdowns - one row per tranche paid out</option>
                         </select>
                         <a :href="sampleUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-medium text-maiic-700 hover:text-maiic-900">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -128,6 +137,18 @@
                     <div class="bg-green-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-green-700">{{ result.loaded_rows }}</div><div class="text-xs text-green-800 mt-1">Remaining rows staged</div></div>
                     <div class="bg-red-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-red-700">{{ scheduleRowsNotLoaded }}</div><div class="text-xs text-red-800 mt-1">Rows not staged</div></div>
                     <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.loaded_contracts }}</div><div class="text-xs text-maiic-800 mt-1">Contracts staged</div></div>
+                </div>
+
+                <div v-if="importType === 'disbursements'" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.loaded_rows }}</div><div class="text-xs text-maiic-800 mt-1">Drawdowns loaded</div></div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.already_stored }}</div><div class="text-xs text-gray-800 mt-1">Already stored</div></div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-gray-700">{{ result.duplicate_source_rows }}</div><div class="text-xs text-gray-800 mt-1">Repeated rows in the file</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ result.contracts }}</div><div class="text-xs text-maiic-800 mt-1">Facilities in the file</div></div>
+                    <div class="bg-maiic-50 rounded-lg p-4 text-center"><div class="text-2xl font-bold text-maiic-700">{{ Number(result.total_amount || 0).toLocaleString() }}</div><div class="text-xs text-maiic-800 mt-1">Total drawn in the file</div></div>
+                </div>
+
+                <div v-if="importType === 'disbursements' && result.loaded_rows" class="mb-4 text-sm text-gray-600">
+                    Drawdowns in the file run from {{ result.first_date || '-' }} to {{ result.last_date || '-' }}.
                 </div>
 
                 <div v-if="importType === 'contract_transactions'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">

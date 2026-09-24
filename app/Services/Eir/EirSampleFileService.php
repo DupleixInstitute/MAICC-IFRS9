@@ -73,6 +73,7 @@ class EirSampleFileService
             'contract_transactions' => $this->transactionExamples(),
             'gl_interest' => $this->glInterestExamples(),
             'reference_rates' => $this->referenceRateExamples(),
+            'disbursements' => $this->disbursementExamples(),
         };
     }
 
@@ -270,6 +271,29 @@ class EirSampleFileService
             [
                 'effective_date' => '2025-05-27', 'rate' => 25.2, 'index_code' => 'PLR', 'source_row' => 29,
                 'as_delivered' => '27/05/2025', 'interpretation' => 'as supplied (text, unambiguous)',
+            ],
+        ];
+    }
+
+    /**
+     * A facility drawn in three tranches. The dates are written year first,
+     * which is the only shape the importer reads, and each row carries its own
+     * reference so two drawdowns of the same amount on the same day stay apart.
+     */
+    private function disbursementExamples(): array
+    {
+        return [
+            [
+                'contract_id' => self::SAMPLE_CONTRACT_A, 'disbursement_date' => '2025-07-15',
+                'amount' => 200000000, 'sub_account_no' => '01', 'tranche_no' => 1, 'reference' => 'PV-2025-0715-A',
+            ],
+            [
+                'contract_id' => self::SAMPLE_CONTRACT_A, 'disbursement_date' => '2025-10-02',
+                'amount' => 150000000, 'sub_account_no' => '01', 'tranche_no' => 2, 'reference' => 'PV-2025-1002-A',
+            ],
+            [
+                'contract_id' => self::SAMPLE_CONTRACT_B, 'disbursement_date' => '2025-08-28',
+                'amount' => 96000000, 'sub_account_no' => '01', 'tranche_no' => 1, 'reference' => 'PV-2025-0828-B',
             ],
         ];
     }
