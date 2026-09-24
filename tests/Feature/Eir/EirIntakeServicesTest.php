@@ -572,6 +572,31 @@ class EirIntakeServicesTest extends TestCase
     }
 
     /**
+     * Weekly and fortnightly used to map to 52 and 26 and then be rejected by
+     * the readiness gate with a generic reason. The engine cannot solve them,
+     * so the row is refused at import with the cause named (spec 6.4 item 2).
+     */
+    public function test_weekly_and_fortnightly_frequencies_are_refused_at_import_with_a_named_reason(): void
+    {
+        $this->seedLoan('104450000053', 100_000_000);
+        $this->seedLoan('104450000054', 100_000_000);
+
+        $result = app(ContractMasterImportService::class)->import([
+            $this->masterRow(['repayment_frequency' => 'Weekly']),
+            $this->masterRow(['contract_id' => '000104450000054', 'repayment_frequency' => 'Fortnightly']),
+        ]);
+
+        $this->assertSame(0, $result['created']);
+        $this->assertSame(0, DB::table('contract_eir')->count());
+        $this->assertSame([], $result['unknown_frequencies']);
+        $this->assertStringContainsString("'Weekly' is not supported", $result['skipped']['104450000053']);
+        $this->assertStringContainsString("'Fortnightly' is not supported", $result['skipped']['104450000054']);
+        $this->assertStringContainsString('monthly, quarterly, half-yearly and annual', $result['skipped']['104450000053']);
+        $this->assertNull(\App\Imports\ContractMasterImport::paymentsPerYear('WEEKLY'));
+        $this->assertNull(\App\Imports\ContractMasterImport::paymentsPerYear('FORTNIGHTLY'));
+    }
+
+    /**
      * A later file that does state the frequency promotes the contract; a
      * sparse one that omits it must not demote a frequency already stated.
      */

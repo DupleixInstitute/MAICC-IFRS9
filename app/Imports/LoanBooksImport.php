@@ -169,6 +169,8 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     $data['interest_rate']  = $this->cleanNumber($normalizedRow['interest_rate'] ?? 0);
                     $data['disbursed']      = $this->cleanNumber($normalizedRow['disbursed'] ?? 0);
                     $data['carrying_amount']= $this->cleanNumber($normalizedRow['carrying_amount'] ?? 0);
+                    $data['approved_amount']= $normalizedRow['approved_amount'] ?? $normalizedRow['approved'] ?? $normalizedRow['sanctioned_amount'] ?? null;
+                    $data['repayments']     = $normalizedRow['repayments'] ?? null;
                     $data['product_group']  = $normalizedRow['type'] ?? null;
                     $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
                     $data['internal_grade_code']  = $normalizedRow['internal_grade_code'] ?? null;
@@ -239,6 +241,8 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                         $data['interest_rate']  = $this->cleanNumber($normalizedRow['interest_rate'] ?? 0);
                         $data['disbursed']      = $this->cleanNumber($normalizedRow['disbursed'] ?? 0);
                         $data['carrying_amount']= $this->cleanNumber($normalizedRow['carrying_amount'] ?? 0);
+                        $data['approved_amount']= $normalizedRow['approved_amount'] ?? $normalizedRow['approved'] ?? $normalizedRow['sanctioned_amount'] ?? null;
+                        $data['repayments']     = $normalizedRow['repayments'] ?? null;
                         $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
                         $data['industry_type']  = $normalizedRow['industry_type'] ?? null;
                         $data['internal_grade_code']  = $normalizedRow['internal_grade'] ?? null;
@@ -291,6 +295,14 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     $principal = $carryingAmount;
                 }
 
+                // The report's Repayments column is a cumulative counter; the
+                // EIR engine reads a month's cash as its increase (spec v3
+                // decision D14). The undrawn commitment is what was approved
+                // less what has been disbursed (spec v3 section 6.3).
+                $disbursed = $this->cleanNumber($data['disbursed'] ?? 0);
+                $approved = $this->cleanNumber($data['approved_amount'] ?? 0);
+                $commitments = $approved > 0 ? max(0.0, $approved - $disbursed) : 0.0;
+
                 // Build bulk insert
                 $loanData = [
                     'customer_id'                 => $client->id,
@@ -310,7 +322,10 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     'interest_rate'               => $this->cleanNumber($data['interest_rate'] ?? 0),
                     'remaining_tenor'             => $remainingLife ?? 0,
                     'principal_balance'           => $principal,
-                    'disbursed'                   => $this->cleanNumber($data['disbursed'] ?? 0),
+                    'approved_amount'             => $approved,
+                    'disbursed'                   => $disbursed,
+                    'repayments'                  => $this->cleanNumber($data['repayments'] ?? 0),
+                    'commitments'                 => $commitments,
                     'carrying_amount'             => $carryingAmount,
                     'ifrs9stage_pre_qualitative'  => $this->classifyIFRS9Stage($normalizedRow),
                     'ifrs9stage_post_qualitative' => $this->classifyIFRS9Stage($normalizedRow),
@@ -369,10 +384,13 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                         $chunk,
                         ['customer_id', 'loan_portfolio_id', 'reporting_period', 'contract_id'],
                         [
-                            'principal_balance', 
+                            'principal_balance',
                             'carrying_amount',
+                            'approved_amount',
                             'disbursed',
-                            'create_date', 
+                            'repayments',
+                            'commitments',
+                            'create_date',
                             'due_date', 
                             'ifrs9stage_pre_qualitative', 
                             'ifrs9stage_post_qualitative', 
