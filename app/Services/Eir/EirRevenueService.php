@@ -13,6 +13,13 @@ use RuntimeException;
 /** Builds one monthly amortised-cost roll-forward from the locked original EIR. */
 class EirRevenueService
 {
+    private readonly GovernanceService $governance;
+
+    public function __construct(?GovernanceService $governance = null)
+    {
+        $this->governance = $governance ?? app(GovernanceService::class);
+    }
+
     /**
      * Delivered transaction types that represent cash collected from the
      * customer. Amounts are read from `total_amount` rather than summed from
@@ -62,7 +69,10 @@ class EirRevenueService
                 if (! in_array($stage, [1, 2, 3], true)) throw new RuntimeException("The IFRS 9 stage for {$period} is missing or invalid.");
                 $allowance = max(0.0, (float) ($loan->expected_loss_provision ?? 0));
                 $monthlyRate = pow(1 + (float) $contract->eir_effective_annual, 1 / 12) - 1;
-                $basis = $stage === 3 ? 'NET' : 'GROSS';
+                // Stage 3 accrues on the basis governed for this period
+                // (stage3_interest_basis, IFRS 9 5.4.1(b) by default); a
+                // performing loan always accrues on gross.
+                $basis = $stage === 3 ? $this->governance->stage3InterestBasis($this->periodEnd($period)) : 'GROSS';
                 $netOpening = max(0.0, $opening - $allowance);
                 $interest = $monthlyRate * ($basis === 'NET' ? $netOpening : $opening);
                 $unwind = $basis === 'NET' ? $monthlyRate * min($allowance, $opening) : 0.0;
@@ -192,6 +202,11 @@ class EirRevenueService
             ->where('schedule_version', 1)
             ->whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
             ->selectRaw('COALESCE(SUM(principal_due + interest_due + fee_due), 0) as due')->value('due');
+    }
+
+    private function periodEnd(string $period): CarbonImmutable
+    {
+        return CarbonImmutable::createFromFormat('Y-m-d', $period . '-01')->endOfMonth();
     }
 
     private function normalisePeriod(string $period): string

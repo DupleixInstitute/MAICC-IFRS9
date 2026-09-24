@@ -2,14 +2,19 @@
 
 namespace Tests\Feature\Eir;
 
+use App\Exceptions\GovernanceSettingMissingException;
 use App\Services\Eir\EirGlReconciliationService;
+use App\Services\Eir\GovernanceService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 class EirGlReconciliationServiceTest extends TestCase
 {
+    use CreatesGovernanceSchema;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -20,6 +25,9 @@ class EirGlReconciliationServiceTest extends TestCase
         Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('portfolio')->nullable(); $t->double('drawn_amount')->default(0); $t->double('contractual_rate')->nullable(); $t->double('eir_effective_annual')->nullable(); $t->timestamps(); });
         Schema::create('eir_amortisation', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period', 7); $t->double('opening_gross'); $t->double('interest_accrued'); $t->string('interest_basis')->default('GROSS'); $t->double('unwind_amount')->default(0); $t->double('cash_received')->default(0); $t->string('cash_source')->default('IMPORTED'); $t->double('modification_gain_loss')->default(0); $t->double('closing_gross')->default(0); $t->double('ecl_allowance')->default(0); $t->timestamps(); });
         Schema::create('gl_interest_postings', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('gl_account_code')->nullable(); $t->integer('period_year'); $t->integer('period_month'); $t->double('interest_income_posted'); $t->timestamps(); });
+        // The tolerance band is the governed setting recon_tolerance, not a constant.
+        $this->createGovernanceSchema();
+        $this->seedGovernanceDefaults();
     }
 
     /** A facility with no integral fees: the solved EIR is the contractual rate compounded. */
@@ -185,5 +193,42 @@ class EirGlReconciliationServiceTest extends TestCase
 
         $this->assertCount(1, $result['rows']);
         $this->assertEqualsWithDelta(10_000, $result['bridge']['gl_total'], 0.01);
+    }
+
+    /**
+     * The band comes from the Governance Centre and is read for the period
+     * being reconciled: tightening it from November leaves October's verdict
+     * exactly as it was, because October was governed by the old band.
+     */
+    public function test_the_tolerance_is_the_governed_setting_in_force_for_the_period(): void
+    {
+        $this->contract('C-1', 1_000_000, 0.24);
+        $this->posting('C-1', 2025, 10, 10_000);
+        $this->accrual('C-1', '2025-10', 1_000_000, 10_080); // 0.8 percent over
+        $this->posting('C-1', 2025, 11, 10_000);
+        $this->accrual('C-1', '2025-11', 1_000_000, 10_080);
+
+        $governance = new GovernanceService();
+        $proposal = $governance->propose('recon_tolerance', '0.5 percent of the posted amount, floor MWK 1', '2025-11-01', 'Auditor asked for a tighter band from November.', 10);
+        $governance->approve($proposal->id, 20);
+
+        $service = new EirGlReconciliationService();
+        $october = $service->forPeriod('2025-10');
+        $november = $service->forPeriod('2025-11');
+
+        $this->assertSame('WITHIN_TOLERANCE', $october['rows'][0]['status']);
+        $this->assertSame(1.0, $october['summary']['tolerance_percent']);
+        $this->assertSame('VARIANCE', $november['rows'][0]['status']);
+        $this->assertSame(0.5, $november['summary']['tolerance_percent']);
+    }
+
+    public function test_reconciliation_stops_when_no_tolerance_is_approved_for_the_period(): void
+    {
+        $this->contract('C-1', 1_000_000, 0.24);
+        $this->posting('C-1', 2024, 6, 10_000);
+        $this->accrual('C-1', '2024-06', 1_000_000, 10_000);
+
+        $this->expectException(GovernanceSettingMissingException::class);
+        (new EirGlReconciliationService())->forPeriod('2024-06');
     }
 }

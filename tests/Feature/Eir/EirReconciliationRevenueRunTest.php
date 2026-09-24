@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
+use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 /**
@@ -22,6 +23,8 @@ use Tests\TestCase;
  */
 class EirReconciliationRevenueRunTest extends TestCase
 {
+    use CreatesGovernanceSchema;
+
     protected $seed = false;
 
     private const PERIODS = ['2025-07', '2025-08', '2025-09'];
@@ -113,6 +116,8 @@ class EirReconciliationRevenueRunTest extends TestCase
             $t->text('user_agent')->nullable();
             $t->timestamps();
         });
+        $this->createGovernanceSchema();
+        $this->seedGovernanceDefaults();
 
         $this->seedLockedContract();
     }

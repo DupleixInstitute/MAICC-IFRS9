@@ -3,13 +3,17 @@
 namespace Tests\Feature\Eir;
 
 use App\Services\Eir\EirRevenueService;
+use App\Services\Eir\GovernanceService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 class EirRevenueServiceTest extends TestCase
 {
+    use CreatesGovernanceSchema;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -23,6 +27,9 @@ class EirRevenueServiceTest extends TestCase
         Schema::create('eir_actual_transactions', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('transaction_date'); $t->string('transaction_type', 50)->nullable(); $t->double('principal_component')->default(0); $t->double('interest_component')->default(0); $t->double('fee_component')->default(0); $t->double('total_amount')->default(0); });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->smallInteger('schedule_version')->default(1); $t->string('due_date'); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); });
         Schema::create('eir_amortisation_history', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period', 7); $t->double('opening_gross'); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->string('originally_created_at')->nullable(); $t->string('superseded_at')->nullable(); $t->integer('superseded_by')->nullable(); $t->string('supersession_reason', 500); $t->timestamps(); });
+        // The Stage 3 basis is the governed setting stage3_interest_basis, not a constant.
+        $this->createGovernanceSchema();
+        $this->seedGovernanceDefaults();
     }
 
     private function actual(string $id, string $date, string $type, float $total): void
@@ -230,5 +237,47 @@ class EirRevenueServiceTest extends TestCase
         $result = (new EirRevenueService())->run('NO-STAGE', '2025-01');
         $this->assertSame('BLOCKED', $result['status']);
         $this->assertStringContainsString('stage', $result['error']);
+    }
+
+    /**
+     * The Stage 3 basis is read from the Governance Centre for the period
+     * being run. A change approved from February accrues February on gross
+     * and leaves January, run under the net basis, exactly as it was.
+     */
+    public function test_stage_three_basis_is_the_governed_setting_in_force_for_the_period(): void
+    {
+        $this->seedLocked();
+        $this->loan('C-1', '2025-01', 3, 200);
+        $this->loan('C-1', '2025-02', 3, 200);
+
+        $governance = new GovernanceService();
+        $proposal = $governance->propose('stage3_interest_basis', 'Gross with allowance unwind', '2025-02-01', 'Board elected the gross presentation from February.', 10);
+        $governance->approve($proposal->id, 20);
+
+        $service = new EirRevenueService();
+        $january = $service->run('C-1', '2025-01');
+        $february = $service->run('C-1', '2025-02');
+
+        $rows = DB::table('eir_amortisation')->orderBy('reporting_period')->get();
+        $this->assertSame('NET', $rows[0]->interest_basis);
+        $this->assertEqualsWithDelta(8.0, $rows[0]->interest_accrued, 0.01); // 1% of (1000 - 200)
+        $this->assertEqualsWithDelta(2.0, $rows[0]->unwind_amount, 0.01);
+        $this->assertSame('GROSS', $rows[1]->interest_basis);
+        $this->assertEqualsWithDelta($rows[0]->closing_gross * 0.01, $rows[1]->interest_accrued, 0.01);
+        $this->assertEqualsWithDelta(0.0, $rows[1]->unwind_amount, 0.01);
+        $this->assertSame('CREATED', $january['status']);
+        $this->assertSame('CREATED', $february['status']);
+    }
+
+    public function test_a_stage_three_run_is_blocked_when_no_basis_is_approved_for_the_period(): void
+    {
+        $this->seedLocked();
+        $this->loan('C-1', '2024-06', 3, 200);
+
+        $result = (new EirRevenueService())->run('C-1', '2024-06');
+
+        $this->assertSame('BLOCKED', $result['status']);
+        $this->assertStringContainsString('stage3_interest_basis', $result['error']);
+        $this->assertSame(0, DB::table('eir_amortisation')->count());
     }
 }
