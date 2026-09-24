@@ -33,16 +33,20 @@ class EirReadinessService
 
         $principalDue = (float) $schedule->sum('principal_due');
         $drawn = (float) $contract->drawn_amount;
-        // A generated capital-and-interest holiday amortises the balance
-        // after contractual moratorium interest has capitalised. Imported
-        // original schedules remain controlled directly to the drawdown.
+        // A generated schedule retires the balance the generator recorded when
+        // it built the draft: the amount drawn, the approved amount where the
+        // instalment is sized on the sanction, plus any interest capitalised
+        // during a moratorium of type Both. Reading that figure replaces the
+        // old assumption that every moratorium capitalises at the annual rate
+        // over twelve, which was true of only one of the two shapes E-Banker
+        // offers (spec v3 section 7.1). Imported original schedules remain
+        // controlled directly to the drawdown.
         $expectedPrincipal = $drawn;
-        if ($contract->schedule_source === 'GENERATED' && (int) $contract->moratorium_months > 0) {
-            $annualRate = (float) ($contract->contractual_rate ?? 0);
-            if ($annualRate > 1) $annualRate /= 100;
-            $expectedPrincipal = round($drawn * pow(1 + $annualRate / 12, (int) $contract->moratorium_months), 2);
+        $recorded = $contract->schedule_amortising_balance ?? null;
+        if ($contract->schedule_source === 'GENERATED' && $recorded !== null && (float) $recorded > 0) {
+            $expectedPrincipal = round((float) $recorded, 2);
         }
-        if ($expectedPrincipal > 0 && $schedule->isNotEmpty() && abs($principalDue - $expectedPrincipal) > max(1.0, $expectedPrincipal * 0.01)) $issues[] = ['code' => 'PRINCIPAL_NOT_RECONCILED', 'message' => 'Scheduled principal does not reconcile to the expected contractual balance within 1%.'];
+        if ($expectedPrincipal > 0 && $schedule->isNotEmpty() && abs($principalDue - $expectedPrincipal) > max(1.0, $expectedPrincipal * 0.01)) $issues[] = ['code' => 'PRINCIPAL_NOT_RECONCILED', 'message' => 'Scheduled principal does not reconcile to the expected contractual balance within 1%. Where the schedule was generated before the moratorium shapes were built, generate it again so the balance it amortises is recorded.'];
 
         $fees = DB::table('contract_fees')->where('contract_id', $contractId)->get();
         $unresolved = $fees->whereNotIn('classification_status', ['REVIEWED', 'REJECTED']);

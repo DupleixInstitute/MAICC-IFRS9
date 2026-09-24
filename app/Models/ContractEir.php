@@ -78,6 +78,16 @@ class ContractEir extends Model
         'schedule_generated_at',
         'schedule_approved_at',
         'schedule_approved_by',
+        // What the generator decided, recorded beside the terms it decided it
+        // from (P4): the balance the instalments retire, the shapes and the
+        // day count in force when the draft was built.
+        'schedule_amortising_balance',
+        'schedule_moratorium_type',
+        'schedule_emi_calc_type',
+        'schedule_interest_basis',
+        'schedule_instalment_basis',
+        'schedule_day_count',
+        'schedule_basis_sources',
         'below_market_flag',
         'solver_iterations',
         'solver_residual',
@@ -118,6 +128,7 @@ class ContractEir extends Model
         'reprice_flag'                  => 'boolean',
         'schedule_generated_at'         => 'datetime',
         'schedule_approved_at'          => 'datetime',
+        'schedule_amortising_balance'   => 'float',
         'eir_period'                    => 'float',
         'eir_nominal_annual'            => 'float',
         'eir_effective_annual'          => 'float',
