@@ -4,6 +4,7 @@ namespace App\Services\Imports;
 
 use App\Imports\ContractMasterImport;
 use App\Imports\ContractTransactionImport;
+use App\Imports\DisbursementImport;
 use App\Imports\GlInterestImport;
 use App\Imports\ReferenceRateImport;
 use App\Models\ImportMapping;
@@ -72,6 +73,10 @@ class MappedFileReader
         // File C, the reference-rate series. A row is a dated rate; the
         // index defaults to PLR because it is the only series that exists.
         'reference_rates' => ['effective_date', 'rate'],
+        // The per-drawdown extract. A row is one tranche paid out: which
+        // facility, on what date, for how much. Nothing else is required,
+        // because nothing else can be reconstructed from the other files.
+        'disbursements' => ['contract_id', 'disbursement_date', 'amount'],
     ];
 
     /** Optional target fields per import type (for the mapping UI). */
@@ -108,6 +113,7 @@ class MappedFileReader
             'transaction_count', 'posting_references', 'row_note', 'generated_on',
         ],
         'reference_rates' => ['index_code', 'source_row', 'as_delivered', 'interpretation'],
+        'disbursements' => ['sub_account_no', 'tranche_no', 'reference'],
     ];
 
     /**
@@ -736,6 +742,7 @@ class MappedFileReader
             'contract_transactions' => ContractTransactionImport::aliases(),
             'gl_interest' => GlInterestImport::aliases(),
             'reference_rates' => ReferenceRateImport::aliases(),
+            'disbursements' => DisbursementImport::aliases(),
             default => [],
         };
 

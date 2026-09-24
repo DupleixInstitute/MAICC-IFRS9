@@ -35,9 +35,10 @@ class EirIntakeController extends Controller
         'contract_transactions',
         'gl_interest',
         'reference_rates',
+        'disbursements',
     ];
 
-    private const TYPE_RULE = 'in:contract_master,schedule,fees,contract_transactions,gl_interest,reference_rates';
+    private const TYPE_RULE = 'in:contract_master,schedule,fees,contract_transactions,gl_interest,reference_rates,disbursements';
 
     public function __construct()
     {

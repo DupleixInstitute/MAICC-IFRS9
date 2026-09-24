@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -29,4 +30,25 @@ class Scheme extends Model
     protected $casts = [
         'effective_from' => 'date',
     ];
+
+    /**
+     * The scheme in force for a code on a date: the row with the latest
+     * effective date on or before it. Null when the contract carries no scheme
+     * code or no scheme has been loaded, which callers must read as "the scheme
+     * says nothing", never as a default setting.
+     */
+    public static function inForce(?string $schemeCode, CarbonInterface $asOf): ?self
+    {
+        $code = trim((string) $schemeCode);
+        if ($code === '') {
+            return null;
+        }
+
+        return static::query()
+            ->where('scheme_code', $code)
+            ->whereDate('effective_from', '<=', $asOf->toDateString())
+            ->orderByDesc('effective_from')
+            ->orderByDesc('id')
+            ->first();
+    }
 }

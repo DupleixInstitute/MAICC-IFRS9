@@ -6,10 +6,22 @@ use Carbon\CarbonImmutable;
 use InvalidArgumentException;
 use RuntimeException;
 
-/** Pure periodic IRR solver. Database orchestration belongs in CalculateEirJob. */
+/**
+ * Pure periodic IRR solver. Database orchestration belongs in CalculateEirJob.
+ *
+ * Amounts are receipts and must be positive, with one exception: a facility
+ * drawn in tranches pays money out again after origination, and that later
+ * drawdown belongs in the vector as an outflow (spec v3 section 7.6). A row
+ * says so of itself, by carrying flow_type DISBURSEMENT or is_drawdown true,
+ * and only such a row may be negative. An unmarked negative is still refused,
+ * because that is what a wrong sign in a delivered file looks like.
+ */
 class CalculateEirService
 {
     private const RATE_FLOOR = -0.999999;
+
+    /** The flow_type a row carries when its negative amount is money paid out. */
+    public const FLOW_DISBURSEMENT = 'DISBURSEMENT';
 
     /**
      * @param list<array{period:int|float,amount:int|float}> $cashFlows future contractual receipts
@@ -54,7 +66,7 @@ class CalculateEirService
             if (empty($flow['due_date']) || !isset($flow['amount']) || !is_numeric($flow['amount'])) throw new InvalidArgumentException("Dated cash flow {$i} needs a due_date and numeric amount.");
             $date = CarbonImmutable::parse($flow['due_date'])->startOfDay();
             if ($date->lte($origin)) throw new InvalidArgumentException('Every future contractual cash flow must fall after origination.');
-            if ((float)$flow['amount'] < 0) throw new InvalidArgumentException('Future receipt amounts cannot be negative.');
+            if ((float)$flow['amount'] < 0 && ! self::isDrawdown($flow)) throw new InvalidArgumentException('Future receipt amounts cannot be negative. A later drawdown may be negative, but the row has to say it is one: give it flow_type DISBURSEMENT.');
             $flows[] = ['due_date'=>$date->toDateString(),'amount'=>(float)$flow['amount'],'exponent'=>$this->yearFraction($origin,$date,$dayCountBasis)];
         }
         if ($flows === [] || array_sum(array_column($flows,'amount')) <= 0) throw new InvalidArgumentException('Future contractual receipts must be greater than zero.');
@@ -104,11 +116,22 @@ class CalculateEirService
         $periods = [];
         foreach ($flows as $i => $flow) {
             if (! isset($flow['period'], $flow['amount']) || ! is_numeric($flow['period']) || ! is_numeric($flow['amount'])) throw new InvalidArgumentException("Cash flow {$i} needs numeric period and amount.");
-            if ((float) $flow['period'] <= 0 || (float) $flow['amount'] < 0) throw new InvalidArgumentException('Future periods must be positive and receipt amounts cannot be negative.');
+            if ((float) $flow['period'] <= 0) throw new InvalidArgumentException('Future periods must be positive and receipt amounts cannot be negative.');
+            if ((float) $flow['amount'] < 0 && ! self::isDrawdown($flow)) throw new InvalidArgumentException('Future periods must be positive and receipt amounts cannot be negative. A later drawdown may be negative, but the row has to say it is one: give it flow_type DISBURSEMENT.');
             if (isset($periods[(string) $flow['period']])) throw new InvalidArgumentException('Cash-flow periods must be unique; aggregate flows in the same period.');
             $periods[(string) $flow['period']] = true;
         }
         if (array_sum(array_column($flows, 'amount')) <= 0) throw new InvalidArgumentException('Future contractual receipts must be greater than zero.');
+    }
+
+    /**
+     * True when a row says its negative amount is money paid out on a later
+     * tranche rather than a wrong sign on a receipt.
+     */
+    public static function isDrawdown(array $flow): bool
+    {
+        return strtoupper(trim((string) ($flow['flow_type'] ?? ''))) === self::FLOW_DISBURSEMENT
+            || ($flow['is_drawdown'] ?? false) === true;
     }
 
     private function newton(float $initial, array $flows, float $guess): array

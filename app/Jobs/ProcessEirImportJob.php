@@ -6,6 +6,7 @@ use App\Models\Import;
 use App\Services\AuditLoggerService;
 use App\Services\Eir\ContractMasterImportService;
 use App\Services\Eir\ContractTransactionImportService;
+use App\Services\Eir\DisbursementImportService;
 use App\Services\Eir\FeeImportService;
 use App\Services\Eir\GlInterestImportService;
 use App\Services\Eir\ReferenceRateImportService;
@@ -47,6 +48,7 @@ class ProcessEirImportJob implements ShouldQueue
         ContractMasterImportService $master,
         GlInterestImportService $glInterest,
         ReferenceRateImportService $referenceRates,
+        DisbursementImportService $disbursements,
     ): void {
         $import = Import::findOrFail($this->importId);
         $import->update(['status' => 'processing', 'started_at' => now()]);
@@ -61,6 +63,11 @@ class ProcessEirImportJob implements ShouldQueue
                 // screen suggested is dropped here rather than trusted.
                 unset($transforms['effective_date']);
             }
+            if ($this->importType === 'disbursements') {
+                // Same rule for the drawdown date: it decides which month a
+                // tranche falls in, so it is refused rather than re-read.
+                unset($transforms['disbursement_date']);
+            }
             $read = $reader->read(Storage::path($this->storedPath), $this->importType, $this->mapping, $transforms);
             $result = match ($this->importType) {
                 'contract_master' => $master->import($read['rows']),
@@ -69,6 +76,7 @@ class ProcessEirImportJob implements ShouldQueue
                 'contract_transactions' => $transactions->import($read['rows']),
                 'gl_interest' => $glInterest->import($read['rows']),
                 'reference_rates' => $referenceRates->import($read['rows'], importId: $import->id, userId: $this->userId ?? auth()->id()),
+                'disbursements' => $disbursements->import($read['rows'], $import->id, $this->userId ?? auth()->id()),
             };
             $exceptions = $this->failureRows($result);
             if ($exceptions !== []) $this->writeExceptionFile($exceptionPath, $exceptions);
