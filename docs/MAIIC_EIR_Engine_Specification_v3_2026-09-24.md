@@ -95,7 +95,7 @@ Everything in this specification traces to one of the sources below. They are ci
 | [Teach] | IFRS 9 floating-rate EIR teaching workbook (10-year loan, fees, three missed instalments, year-6 restructure, 28 integrity checks) | `Documents\IFRS9_Floating_Rate_EIR_Illustration.xlsx` |
 | [Manual] | E-Banker user manual (pages cited as "E-Banker p.NN") | MAIIC folder, `Ebanker MANUAL.pdf` |
 | [LOS] | Loan Origination System manual (pages cited as "LOS p.NN") | MAIIC folder, `LOS MANUAL.pdf` |
-| [Request] | Consolidated Information Request of 11 Sep 2026 (items 1 to 15) | MAIIC folder, `Email requests ... UPDATED (to MAIIC).html` |
+| [Request] | Consolidated Information Request of 11 Sep 2026 (items 1 to 15) | `3. Project Execution\Correspondence - Information Requests\...UPDATED (to MAIIC).html` |
 | [Contract] | Agreement DUP/MAIIC/IFRS9/2026, signed 19 Aug 2026 | `1. Engagement Contracting\Final Contract` |
 | [Deck] | Progress deck for the 25 Sep 2026 meeting (20 slides with presenter notes) | meeting pack, `MAIIC_EIR_Progress_and_Data_Requests_2026-09-25.pptx` |
 
