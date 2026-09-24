@@ -79,10 +79,13 @@ class EirGovernanceControllerTest extends TestCase
         $this->assertContains('permission:eir.view', $middleware(EirCoverageController::class));
         $this->assertContains('permission:eir.view', $middleware(EirReconciliationController::class));
 
-        // Running the revenue from the reconciliation page keeps the permission it had.
+        // Running the revenue from the reconciliation page keeps the permission
+        // it had; the downloads sit on the export permission (spec open item
+        // O15: view, run, export).
         $reconciliation = collect((new EirReconciliationController())->getMiddleware());
         $this->assertSame(['index'], $reconciliation->firstWhere('middleware', 'permission:eir.view')['options']['only']);
-        $this->assertSame(['index'], $reconciliation->firstWhere('middleware', 'permission:settings')['options']['except']);
+        $this->assertSame(['export'], $reconciliation->firstWhere('middleware', 'permission:eir.export')['options']['only']);
+        $this->assertSame(['index', 'export'], $reconciliation->firstWhere('middleware', 'permission:settings')['options']['except']);
     }
 
     public function test_a_proposal_is_recorded_against_the_signed_in_user_and_flashes_the_effective_date(): void

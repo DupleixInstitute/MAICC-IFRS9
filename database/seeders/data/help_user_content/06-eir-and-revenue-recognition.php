@@ -140,5 +140,45 @@ return [
             ],
             'routes' => ['eir-governance.index'],
         ],
+
+        'How the interest reconciliation works' => [
+            'body' => '<p>Two figures exist for the same loan in the same month: the interest the core banking system posted to the general ledger, and the interest the loan contract says should have been charged. The reconciliation puts them side by side, account by account, and names the reason for every difference. Open the sidebar, expand <b>EIR &amp; Revenue Recognition</b> and choose <b>GL Reconciliation</b>.</p>'
+                . '<h4>The formula</h4>'
+                . '<p>The expected interest for a month is the <b>outstanding balance at the end of the month before, times the annual interest rate, times the number of days in the calendar month, divided by 365</b>. This is not a theory about how the core system behaves. It is the calculation that reproduces the bank\'s own postings to the tambala, and it was proven on MAIIC\'s loan books and general ledger before it was built.</p>'
+                . '<p>Three rules go with it:</p>'
+                . '<ul>'
+                . '<li><b>The month the money is paid out.</b> Interest runs from the disbursement day itself to the end of the month. Money paid out on 8 August is charged 24 days of August, not 23 and not a whole month.</li>'
+                . '<li><b>A moratorium that defers interest as well as capital.</b> The interest is added to the balance every month, so the next month opens on a balance higher by exactly the interest charged.</li>'
+                . '<li><b>Never the annual rate divided by twelve.</b> A twelfth of the year is not a month. In February a twelfth overstates the charge by between 8 and 9 percent, and no reconciliation survives that.</li>'
+                . '</ul>'
+                . '<h4>Where each input comes from</h4>'
+                . '<p>The opening balance is the outstanding balance on the previous month\'s Loan Book Report. The rate is the one the loan book carries for the month being charged; where it carries none, the contract master is used, and the screen says which of the two was used. The day count and the band inside which a difference is treated as agreement are settings in the Governance Centre (<b>day count</b> and <b>reconciliation tolerance</b>), read for the month being reconciled. A change to either applies from its effective date forward, so a month already reported keeps the basis it was calculated on.</p>'
+                . '<p>Where an input is missing the engine produces no figure at all. It never fills the gap with an assumption: the row says what is missing instead.</p>'
+                . '<h4>The cause on each row, and what to do about it</h4>'
+                . '<ul>'
+                . '<li><b>Agrees.</b> The posting and the contract are inside the governed band. Nothing to do.</li>'
+                . '<li><b>Late disbursement.</b> The loan was paid out during the month, so only part of the month is charged. Check the disbursement date on the contract against the first day the ledger accrued on; if the ledger started a day later, the disbursement date we hold may be wrong.</li>'
+                . '<li><b>Catch-up posting.</b> The ledger posted nothing for one or more earlier months and then posted them all at once. The row names the months it covers. Read the posting as covering those months together; do not judge any single one of them on its own.</li>'
+                . '<li><b>Mid-month tranche.</b> More money was drawn during the month, so the balance at the month end is not the balance the whole month was charged on. This is the case that needs the per-drawdown extract: the date and amount of each drawdown, so the days can be counted properly.</li>'
+                . '<li><b>Rate mismatch.</b> The posting works out at a rate the loan book does not carry but another record does, usually the contract master or the offer letter. Ask MAIIC which rate the core system holds for the account, and whether it was repriced.</li>'
+                . '<li><b>Nothing posted.</b> The loan book shows the account live with a balance and the ledger has no interest for it at all. Ask for the missing posting, or for the reason the account was not accrued: a loan in litigation or on a suspense account is a valid answer, and it belongs in the audit file.</li>'
+                . '<li><b>Data gap.</b> Something the calculation needs is missing, so there is no expected figure. The row names it: no loan book for the month before, no rate on record, no disbursement date. Load the missing month or ask for the missing field, then look again.</li>'
+                . '<li><b>Unexplained.</b> None of the causes above accounts for the difference. The row shows the rate the posting implies so the account can be investigated. These rows are reported, never absorbed into a total, and each one should be cleared or explained in writing before the period is closed.</li>'
+                . '</ul>'
+                . '<h4>The bridge at the top of the screen</h4>'
+                . '<p>The bridge walks from what the ledger posted to the interest the engine calculated at the effective interest rate, in four steps that add up exactly. The <b>base effect</b> is the ledger against the contract, which is the total of the differences the causes explain. The <b>carrying amount effect</b> is the same charge worked out on the balance the engine amortises rather than the balance the loan book reports. The <b>rate effect</b> is the difference between accruing at the effective interest rate and charging the contractual rate on the same balance, which is where the fees that are part of the yield show up. The <b>impairment effect</b> is a Stage 3 loan accruing on the amount net of its loss allowance, which is correct under IFRS 9 and not an error. Anything the four cannot account for is shown as unexplained rather than hidden.</p>'
+                . '<h4>The downloads</h4>'
+                . '<p><b>Download Excel</b> and <b>Download PDF</b> give the whole month: a header block stating the formula, the day count and the band in force, one row per account with its opening balance, rate, days, expected interest, posted interest, difference and cause, and a table saying what each cause means. Both need the EIR export permission, and every download is recorded in the audit trail with the settings it was produced under.</p>',
+            'steps' => [
+                'Open GL Reconciliation from the EIR & Revenue Recognition group in the sidebar.',
+                'Choose the reporting period and, if you want a narrower view, the portfolio.',
+                'Read the four cards: interest posted in the ledger, contractual interest expected, the difference to explain, and how many rows agree.',
+                'Work down the facilities table from the largest difference. The Cause column names the reason and the line under it explains that row in particular.',
+                'Clear every row whose cause asks something of you: a missing month, a missing rate, a missing drawdown date, a posting the ledger never made.',
+                'Investigate anything marked Unexplained and write down the conclusion before the period is closed.',
+                'Press Download Excel or Download PDF to keep the month, with the settings it was worked out under, for the audit file.',
+            ],
+            'routes' => ['eir-reconciliation.index'],
+        ],
     ],
 ];

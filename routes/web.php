@@ -923,6 +923,8 @@ Route::get('/eir-reconciliation', [\App\Http\Controllers\EirReconciliationContro
 Route::post('/eir-reconciliation/run-revenue', [\App\Http\Controllers\EirReconciliationController::class, 'runRevenue'])->name('eir-reconciliation.run-revenue');
 Route::get('/eir-coverage', [\App\Http\Controllers\EirCoverageController::class, 'index'])->name('eir-coverage.index');
 Route::get('/eir-reference-rates', [\App\Http\Controllers\EirReferenceRateController::class, 'index'])->name('eir-reference-rates.index');
+// P3: the interest reconciliation as a workbook or a PDF, on the export permission.
+Route::get('/eir-reconciliation/export', [\App\Http\Controllers\EirReconciliationController::class, 'export'])->name('eir-reconciliation.export');
 
 Route::group(['prefix' => 'eir-intake', 'as' => 'eir-intake.'], function () {
     Route::get('/', [\App\Http\Controllers\EirIntakeController::class, 'index'])->name('index');

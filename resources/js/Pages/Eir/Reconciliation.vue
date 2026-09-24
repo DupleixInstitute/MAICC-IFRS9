@@ -10,6 +10,8 @@
           <p class="mt-1 text-sm text-gray-600">Why calculated interest income differs from what the ledger posted</p>
         </div>
         <div class="flex flex-wrap gap-2">
+          <a v-if="period" :href="downloadUrl('xlsx')" class="secondary-btn">Download Excel</a>
+          <a v-if="period" :href="downloadUrl('pdf')" class="secondary-btn">Download PDF</a>
           <Link :href="route('eir-data.index', { tab: 'gl' })" class="secondary-btn">GL Postings</Link>
           <Link :href="route('eir-calculations.index')" class="primary-btn">EIR Calculations</Link>
         </div>
@@ -119,13 +121,15 @@
           <div class="border-b border-gray-200 p-4">
             <h3 class="font-semibold text-gray-900">Variance bridge — {{ period }}</h3>
             <p class="mt-1 text-xs text-gray-500">
-              Both sides accrue monthly, so the difference resolves into three terms that sum to the variance exactly.
-              The <strong>base effect</strong> is the gap between the balance the engine amortises and the balance the
-              ledger accrued on &mdash; derived from the posting itself rather than assumed, so a ledger that amortises
-              and one that posts flat on original principal both decompose cleanly. The <strong>rate effect</strong> is
-              the yield uplift from fees integral to the EIR. The <strong>impairment effect</strong> is Stage&nbsp;3
-              accruing on the amortised cost net of the loss allowance, which is a correct measurement difference
-              rather than an error.
+              The difference resolves into four terms that sum to the variance exactly. The <strong>base effect</strong>
+              is the ledger against the interest the contract charges: the prior month-end outstanding balance
+              times the annual rate times the days in the month, on the governed day count. Every row's share of it
+              carries a named cause. The <strong>carrying amount effect</strong> is that same charge on the balance the
+              engine amortises instead of the balance the loan book reports. The <strong>rate effect</strong> is
+              accruing at the EIR rather than at the contractual rate on the same balance: the uplift from fees
+              integral to the EIR, and any difference between the two conventions. The <strong>impairment
+              effect</strong> is Stage&nbsp;3 accruing on the amortised cost net of the loss allowance, which is a
+              correct measurement difference rather than an error.
             </p>
           </div>
           <table class="min-w-full">
@@ -140,20 +144,35 @@
             </tbody>
           </table>
           <p v-if="Math.abs(bridge.unexplained) < 1" class="border-t border-gray-200 px-4 py-3 text-xs text-emerald-700">
-            The three effects account for the variance in full — no unexplained residual.
+            The four effects account for the variance in full &mdash; no unexplained residual.
           </p>
           <p v-else class="border-t border-gray-200 px-4 py-3 text-xs text-amber-700">
-            {{ money(bridge.unexplained) }} is not explained by any of the three effects — for at least one facility the
-            ledger did not post at the contractual rate at all. Review the rows below.
+            {{ money(bridge.unexplained) }} is not explained by any of the four effects. For at least one facility the
+            expected interest could not be worked out, so the difference cannot be split. Review the rows below and
+            read the cause on each.
           </p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 class="font-semibold text-gray-900">Why the ledger and the contract differ</h3>
+          <p class="mt-1 text-xs text-gray-500">
+            Every row outside the band carries one named cause. {{ summary.expected_agrees }} of {{ summary.rows }}
+            row(s) agree inside the band, {{ summary.expected_explained }} are explained by a named cause and
+            {{ summary.expected_unexplained }} are still unexplained.
+          </p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <span v-for="(count, cause) in summary.causes" :key="cause" :class="causeClass(cause)">
+              {{ causeLabel(cause) }}: {{ count }}
+            </span>
+          </div>
         </div>
 
         <div v-if="Math.abs(bridge.rate_effect) < 100 && bridge.gl_matched !== 0" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <h4 class="text-sm font-semibold text-amber-900">The rate effect is effectively nil</h4>
           <p class="mt-1 text-xs text-amber-800">
-            A solved EIR carrying no integral fees de-compounds to exactly the contractual monthly rate, so the entire
-            variance is a balance difference. Until fee lines are classified as integral, this reconciliation measures
-            the ledger's accrual basis rather than any EIR yield uplift.
+            A solved EIR carrying no integral fees accrues at very nearly the contractual rate, so the whole variance
+            is a balance or a convention difference. Until fee lines are classified as integral, this reconciliation
+            measures the ledger's basis rather than any EIR yield uplift.
           </p>
         </div>
 
@@ -161,7 +180,10 @@
           <div class="border-b border-gray-200 p-4">
             <h3 class="font-semibold text-gray-900">Facilities</h3>
             <p class="text-xs text-gray-500">
-              Sorted by absolute variance. Tolerance is ±{{ summary.tolerance_percent }}% of the posted amount.
+              Sorted by absolute variance. Expected interest is the prior month-end balance times the annual rate
+              times the days charged, on the governed day count ({{ summary.day_count || 'not approved' }}). A row
+              agrees when the difference is inside {{ summary.tolerance_percent }} percent of the amount posted,
+              with a floor of {{ money(summary.tolerance_floor) }}.
             </p>
           </div>
           <div class="overflow-x-auto">
@@ -169,9 +191,10 @@
               <thead>
                 <tr>
                   <th class="th">Contract</th><th class="th">Basis</th>
-                  <th class="th text-right">GL posted</th><th class="th text-right">EIR accrued</th>
-                  <th class="th text-right">Variance</th><th class="th text-right">GL implied base</th>
-                  <th class="th text-right">Base effect</th><th class="th text-right">Rate effect</th>
+                  <th class="th text-right">Expected interest</th><th class="th text-right">GL posted</th>
+                  <th class="th text-right">Expected less posted</th><th class="th">Cause</th>
+                  <th class="th text-right">EIR accrued</th><th class="th text-right">Variance</th>
+                  <th class="th text-right">Carrying amount</th><th class="th text-right">Rate effect</th>
                   <th class="th text-right">Impairment</th><th class="th">Status</th>
                 </tr>
               </thead>
@@ -179,27 +202,40 @@
                 <tr v-for="r in sortedRows" :key="r.contract_id">
                   <td class="td">
                     <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
-                    <div class="text-xs text-gray-500">{{ r.portfolio || '—' }}{{ r.gl_account_code ? ' · ' + r.gl_account_code : '' }}</div>
+                    <div class="text-xs text-gray-500">{{ r.customer_name || r.portfolio || '—' }}{{ r.gl_account_code ? ' · ' + r.gl_account_code : '' }}</div>
                   </td>
                   <td class="td text-xs text-gray-600">
-                    <div v-if="r.opening_gross !== null">Opening {{ money(r.opening_gross) }}</div>
-                    <div v-if="r.drawn_amount !== null">Drawn {{ money(r.drawn_amount) }}</div>
-                    <div v-if="r.interest_basis">{{ r.interest_basis }}</div>
+                    <div v-if="r.expected_opening_balance !== null">
+                      Opening {{ money(r.expected_opening_balance) }}
+                      <span v-if="r.expected_rate !== null">at {{ (r.expected_rate * 100).toFixed(2) }}%</span>
+                      <span v-if="r.expected_days !== null">for {{ r.expected_days }} day(s)</span>
+                    </div>
+                    <div v-if="r.opening_gross !== null">Amortised {{ money(r.opening_gross) }}</div>
+                    <div v-if="r.gl_implied_base !== null">Ledger implies {{ money(r.gl_implied_base) }}</div>
+                    <div v-if="r.first_disbursement_month" class="font-medium text-amber-700">Month of first disbursement</div>
+                    <div v-if="r.capitalising_moratorium_month" class="font-medium text-amber-700">Capitalising moratorium</div>
                   </td>
-                  <td class="td text-right tabular-nums">{{ money(r.gl_posted) }}</td>
+                  <td class="td text-right tabular-nums">{{ r.expected_interest === null ? '—' : money(r.expected_interest) }}</td>
+                  <td class="td text-right tabular-nums">{{ r.has_posting ? money(r.gl_posted) : 'nothing posted' }}</td>
+                  <td class="td text-right tabular-nums" :class="toneFor(r.expected_difference)">
+                    {{ r.expected_difference === null ? '—' : money(r.expected_difference) }}
+                  </td>
+                  <td class="td">
+                    <span :class="causeClass(r.cause)">{{ causeLabel(r.cause) }}</span>
+                    <div class="mt-1 max-w-sm text-xs text-gray-500">{{ r.cause_detail }}</div>
+                  </td>
                   <td class="td text-right tabular-nums">{{ r.eir_accrued === null ? '—' : money(r.eir_accrued) }}</td>
                   <td class="td text-right tabular-nums" :class="toneFor(r.variance)">
                     {{ r.variance === null ? '—' : money(r.variance) }}
                     <div v-if="r.variance_percent !== null" class="text-xs text-gray-500">{{ r.variance_percent }}%</div>
                   </td>
-                  <td class="td text-right tabular-nums text-gray-600">{{ r.gl_implied_base === null ? '—' : money(r.gl_implied_base) }}</td>
-                  <td class="td text-right tabular-nums text-gray-600">{{ r.base_effect === null ? '—' : money(r.base_effect) }}</td>
+                  <td class="td text-right tabular-nums text-gray-600">{{ r.carrying_amount_effect === null ? '—' : money(r.carrying_amount_effect) }}</td>
                   <td class="td text-right tabular-nums text-gray-600">{{ r.rate_effect === null ? '—' : money(r.rate_effect) }}</td>
                   <td class="td text-right tabular-nums text-gray-600">{{ r.impairment_effect === null ? '—' : money(r.impairment_effect) }}</td>
                   <td class="td"><span :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td>
                 </tr>
                 <tr v-if="!rows.length">
-                  <td colspan="10" class="p-10 text-center text-sm text-gray-500">No GL postings for this period and portfolio.</td>
+                  <td colspan="12" class="p-10 text-center text-sm text-gray-500">No GL postings or live loan-book rows for this period and portfolio.</td>
                 </tr>
               </tbody>
             </table>
@@ -260,10 +296,11 @@ const money = (v) => {
 }
 
 const cards = computed(() => [
-  { label: 'GL interest posted', value: money(props.bridge.gl_total), tone: 'text-gray-900' },
-  { label: 'EIR interest calculated', value: money(props.bridge.eir_total), tone: 'text-gray-900' },
-  { label: 'Net variance', value: money(props.bridge.net_variance), tone: toneFor(props.bridge.net_variance) },
-  { label: 'Rows within tolerance', value: `${props.summary.within_tolerance} of ${props.summary.posting_rows - props.summary.not_calculated}`, tone: 'text-gray-900' },
+  { label: 'Interest posted in the ledger', value: money(props.summary.posted_total), tone: 'text-gray-900' },
+  { label: 'Contractual interest expected', value: money(props.summary.expected_total), tone: 'text-gray-900' },
+  { label: 'Difference to explain', value: money(props.summary.expected_difference_total),
+    tone: toneFor(props.summary.expected_difference_total) },
+  { label: 'Rows agreeing with the ledger', value: `${props.summary.expected_agrees} of ${props.summary.rows}`, tone: 'text-gray-900' },
 ])
 
 const bridgeLines = computed(() => [
@@ -271,12 +308,39 @@ const bridgeLines = computed(() => [
   { label: 'Postings with no calculated counterpart', value: -props.bridge.gl_without_counterpart, indent: true,
     note: `${props.summary.not_calculated} row(s)`, tone: 'text-gray-600' },
   { label: 'GL interest on matched facilities', value: props.bridge.gl_matched, emphasis: true },
-  { label: 'Base effect — amortised balance vs the balance GL accrued on', value: props.bridge.base_effect, indent: true, tone: toneFor(props.bridge.base_effect) },
-  { label: 'Rate effect — integral fee yield uplift', value: props.bridge.rate_effect, indent: true, tone: toneFor(props.bridge.rate_effect) },
-  { label: 'Impairment effect — Stage 3 accrued on net', value: props.bridge.impairment_effect, indent: true, tone: toneFor(props.bridge.impairment_effect) },
+  { label: 'Base effect: the ledger against the interest the contract charges', value: props.bridge.base_effect, indent: true,
+    note: 'a named cause per row', tone: toneFor(props.bridge.base_effect) },
+  { label: 'Contractual interest on the loan-book balance', value: props.bridge.expected_total, emphasis: true },
+  { label: 'Carrying amount effect: the amortised cost instead of the loan-book balance', value: props.bridge.carrying_amount_effect, indent: true, tone: toneFor(props.bridge.carrying_amount_effect) },
+  { label: 'Rate effect: the EIR instead of the contractual rate on the same balance', value: props.bridge.rate_effect, indent: true, tone: toneFor(props.bridge.rate_effect) },
+  { label: 'Impairment effect: Stage 3 accrued on net', value: props.bridge.impairment_effect, indent: true, tone: toneFor(props.bridge.impairment_effect) },
   { label: 'Unexplained', value: props.bridge.unexplained, indent: true, tone: toneFor(props.bridge.unexplained) },
   { label: 'EIR interest calculated', value: props.bridge.eir_total, emphasis: true },
 ])
+
+/** The workbook and the PDF of this period, on the EIR export permission. */
+const downloadUrl = (format) => route('eir-reconciliation.export', {
+  period: props.period, portfolio: form.portfolio || null, format,
+})
+
+const causeLabel = (cause) => ({
+  WITHIN_TOLERANCE: 'Agrees',
+  LATE_DISBURSEMENT: 'Late disbursement',
+  CATCH_UP_POSTING: 'Catch-up posting',
+  MID_MONTH_TRANCHE: 'Mid-month tranche',
+  RATE_MISMATCH: 'Rate mismatch',
+  NO_POSTING: 'Nothing posted',
+  DATA_GAP: 'Data gap',
+  UNEXPLAINED: 'Unexplained',
+}[cause] || cause)
+
+const causeClass = (cause) => {
+  const base = 'inline-flex rounded-full px-2 py-0.5 text-xs font-semibold '
+  if (cause === 'WITHIN_TOLERANCE') return base + 'bg-emerald-100 text-emerald-800'
+  if (cause === 'UNEXPLAINED' || cause === 'NO_POSTING') return base + 'bg-rose-100 text-rose-800'
+  if (cause === 'DATA_GAP') return base + 'bg-gray-200 text-gray-800'
+  return base + 'bg-amber-100 text-amber-800'
+}
 
 const sortedRows = computed(() => [...props.rows].sort((a, b) => {
   if (a.variance === null) return 1
