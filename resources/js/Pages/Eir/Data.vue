@@ -74,7 +74,11 @@
             </div>
           </div>
           <p class="mt-3 text-xs text-gray-600">
-            Variance is calculated EIR interest minus GL interest. Positive means additional income may be required; negative means the GL exceeds the EIR calculation. Tolerance is ±{{ reconciliation.tolerance_percent }}% of the GL amount.
+            Variance is calculated EIR interest minus GL interest. Positive means additional income may be required; negative means the GL exceeds the EIR calculation. Tolerance is ±{{ reconciliation.tolerance_percent }}% of the GL amount, the band approved in the Governance Centre for each month.
+          </p>
+          <p v-if="reconciliation.ungoverned_rows" class="mt-1 text-xs font-medium text-amber-700">
+            {{ number(reconciliation.ungoverned_rows) }} posting(s) fall in a month with no approved band, so they are
+            counted but not judged. Approve a reconciliation tolerance from that month in the Governance Centre.
           </p>
         </div>
 
@@ -317,7 +321,10 @@ export default {
       this.approvalModal = { open: false, row: null, notes: '', processing: false, error: null }
     },
     reconciliationLabel(status) {
-      return status === 'WITHIN_TOLERANCE' ? 'Within tolerance' : status === 'VARIANCE' ? 'Variance' : 'Not calculated'
+      if (status === 'WITHIN_TOLERANCE') return 'Within tolerance'
+      if (status === 'VARIANCE') return 'Variance'
+      if (status === 'NOT_GOVERNED') return 'No approved band'
+      return 'Not calculated'
     },
     varianceTextClass(value) {
       if (value === null || value === undefined || Number(value) === 0) return 'text-gray-700'
