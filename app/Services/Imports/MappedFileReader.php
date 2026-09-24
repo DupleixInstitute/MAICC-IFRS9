@@ -5,6 +5,7 @@ namespace App\Services\Imports;
 use App\Imports\ContractMasterImport;
 use App\Imports\ContractTransactionImport;
 use App\Imports\GlInterestImport;
+use App\Imports\ReferenceRateImport;
 use App\Models\ImportMapping;
 use App\Support\ContractId;
 use Carbon\Carbon;
@@ -68,6 +69,9 @@ class MappedFileReader
         // Extract C. The period is required because a posting without one
         // cannot be reconciled against any month.
         'gl_interest' => ['contract_id', 'period_year', 'period_month', 'interest_income_posted'],
+        // File C, the reference-rate series. A row is a dated rate; the
+        // index defaults to PLR because it is the only series that exists.
+        'reference_rates' => ['effective_date', 'rate'],
     ];
 
     /** Optional target fields per import type (for the mapping UI). */
@@ -87,6 +91,12 @@ class MappedFileReader
             'markup', 'repayment_frequency', 'payments_per_year', 'tenor_months',
             'moratorium_months', 'arrangement_fee', 'legal_fees',
             'opening_amortised_cost', 'opening_amortised_cost_date',
+            // E-Banker's own codes and lineage fields (spec v3 section 5.1),
+            // stored verbatim by ContractMasterImportService.
+            'scheme_code', 'interest_policy', 'floating_flag', 'interest_calc_base',
+            'installment_based_on', 'emi_calc_type', 'moratorium_type', 'grace_period_months',
+            'interest_start_date', 'first_instalment_date', 'account_status_code',
+            'los_application_no', 'los_process_ref', 'predecessor_sub_account',
         ],
         // Extract B delivered without a populated fee component. It remains
         // supported when supplied, but an absent/blank column is explicitly
@@ -97,6 +107,7 @@ class MappedFileReader
             'run_id', 'gl_account_code', 'period_type', 'reporting_period',
             'transaction_count', 'posting_references', 'row_note', 'generated_on',
         ],
+        'reference_rates' => ['index_code', 'source_row', 'as_delivered', 'interpretation'],
     ];
 
     /**
@@ -724,6 +735,7 @@ class MappedFileReader
             'contract_master' => ContractMasterImport::aliases(),
             'contract_transactions' => ContractTransactionImport::aliases(),
             'gl_interest' => GlInterestImport::aliases(),
+            'reference_rates' => ReferenceRateImport::aliases(),
             default => [],
         };
 
@@ -773,6 +785,14 @@ class MappedFileReader
         $set = array_fill_keys($headers, true);
         if (isset($set['scheduled_actual_flag'], $set['loan_account_number'], $set['principal_component'], $set['interest_component'])) {
             return 'contract_transactions';
+        }
+        // A dated rate with no account column is the reference-rate series,
+        // whichever type was selected: the file has no loan on it to match.
+        $hasDate = isset($set['effective_date']) || isset($set['appli_from_date']);
+        $hasRate = isset($set['rate']) || isset($set['plr_rate']) || isset($set['plr_rate_pct']);
+        $hasAccount = isset($set['contract_id']) || isset($set['loan_account_number']) || isset($set['account_number']);
+        if ($hasDate && $hasRate && ! $hasAccount) {
+            return 'reference_rates';
         }
         return $selectedType;
     }

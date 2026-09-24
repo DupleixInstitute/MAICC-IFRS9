@@ -34,9 +34,10 @@ class EirIntakeController extends Controller
         'fees',
         'contract_transactions',
         'gl_interest',
+        'reference_rates',
     ];
 
-    private const TYPE_RULE = 'in:contract_master,schedule,fees,contract_transactions,gl_interest';
+    private const TYPE_RULE = 'in:contract_master,schedule,fees,contract_transactions,gl_interest,reference_rates';
 
     public function __construct()
     {
@@ -44,9 +45,14 @@ class EirIntakeController extends Controller
         $this->middleware('permission:settings');
     }
 
-    public function index(ScheduleImportService $schedules)
+    public function index(Request $request, ScheduleImportService $schedules)
     {
+        // A link from another screen may pre-select the type (?type=...), so
+        // the Reference Rates page can send the operator straight to File C.
+        $requestedType = (string) $request->query('type', '');
+
         return Inertia::render('Eir/Intake', [
+            'initialType' => in_array($requestedType, self::IMPORT_TYPES, true) ? $requestedType : 'contract_master',
             'coverage'  => $schedules->coverage(),
             'templates' => ImportMapping::orderBy('import_type')->orderBy('source_header')->get()
                 ->groupBy('import_type'),
@@ -210,7 +216,8 @@ class EirIntakeController extends Controller
                 $file->getClientOriginalName(),
                 $importType,
                 $mapping,
-                $transforms
+                $transforms,
+                auth()->id()
             );
 
             return response()->json([

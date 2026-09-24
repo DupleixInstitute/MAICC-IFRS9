@@ -8,6 +8,7 @@ use App\Services\Eir\ContractMasterImportService;
 use App\Services\Eir\ContractTransactionImportService;
 use App\Services\Eir\FeeImportService;
 use App\Services\Eir\GlInterestImportService;
+use App\Services\Eir\ReferenceRateImportService;
 use App\Services\Eir\ScheduleImportService;
 use App\Services\Imports\MappedFileReader;
 use Illuminate\Bus\Queueable;
@@ -33,6 +34,9 @@ class ProcessEirImportJob implements ShouldQueue
         private readonly string $importType,
         private readonly array $mapping,
         private readonly array $transforms,
+        // Who pressed Import. A queue worker has no authenticated user, so the
+        // id travels with the job for the rows that record created_by.
+        private readonly ?int $userId = null,
     ) {}
 
     public function handle(
@@ -42,19 +46,29 @@ class ProcessEirImportJob implements ShouldQueue
         ContractTransactionImportService $transactions,
         ContractMasterImportService $master,
         GlInterestImportService $glInterest,
+        ReferenceRateImportService $referenceRates,
     ): void {
         $import = Import::findOrFail($this->importId);
         $import->update(['status' => 'processing', 'started_at' => now()]);
         $exceptionPath = "failed_imports/eir_exception_{$import->id}.csv";
 
         try {
-            $read = $reader->read(Storage::path($this->storedPath), $this->importType, $this->mapping, $this->transforms);
+            $transforms = $this->transforms;
+            if ($this->importType === 'reference_rates') {
+                // Decision D19: the effective date reaches the service exactly
+                // as the file wrote it. A declared date format would re-read a
+                // dd/mm cell instead of refusing it, so the transform the
+                // screen suggested is dropped here rather than trusted.
+                unset($transforms['effective_date']);
+            }
+            $read = $reader->read(Storage::path($this->storedPath), $this->importType, $this->mapping, $transforms);
             $result = match ($this->importType) {
                 'contract_master' => $master->import($read['rows']),
                 'schedule' => $schedules->import($read['rows']),
                 'fees' => $fees->import($read['rows']),
                 'contract_transactions' => $transactions->import($read['rows']),
                 'gl_interest' => $glInterest->import($read['rows']),
+                'reference_rates' => $referenceRates->import($read['rows'], importId: $import->id, userId: $this->userId ?? auth()->id()),
             };
             $exceptions = $this->failureRows($result);
             if ($exceptions !== []) $this->writeExceptionFile($exceptionPath, $exceptions);
@@ -114,8 +128,12 @@ class ProcessEirImportJob implements ShouldQueue
     private function failureRows(array $result): array
     {
         $rows = [];
-        foreach (['held', 'skipped', 'incomplete', 'restatements'] as $status) {
-            foreach (($result[$status] ?? []) as $scope => $reason) $rows[] = compact('scope', 'status', 'reason');
+        // notes may be keyed by contract (Extract A) or be a plain list (the
+        // reference-rate series, where a note is about a row, not a loan).
+        foreach (['held', 'skipped', 'incomplete', 'restatements', 'notes'] as $status) {
+            foreach (($result[$status] ?? []) as $scope => $reason) {
+                $rows[] = ['scope' => is_int($scope) ? 'file' : $scope, 'status' => $status, 'reason' => $reason];
+            }
         }
         return $rows;
     }

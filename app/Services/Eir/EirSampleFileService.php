@@ -72,6 +72,7 @@ class EirSampleFileService
             'fees' => $this->feeExamples(),
             'contract_transactions' => $this->transactionExamples(),
             'gl_interest' => $this->glInterestExamples(),
+            'reference_rates' => $this->referenceRateExamples(),
         };
     }
 
@@ -247,6 +248,28 @@ class EirSampleFileService
                 'interest_income_posted' => 2759200.00, 'run_id' => 'SAMPLE-RUN', 'gl_account_code' => '4010100',
                 'period_type' => 'MONTH', 'reporting_period' => '2025-01', 'transaction_count' => 1,
                 'posting_references' => 'GL-2025-01-0002', 'generated_on' => '2025-02-05',
+            ],
+        ];
+    }
+
+    /**
+     * Three dated PLR rows, written year first. The audit columns show the
+     * shape the repaired file uses: what the cell held and how it was read.
+     */
+    private function referenceRateExamples(): array
+    {
+        return [
+            [
+                'effective_date' => '2024-12-09', 'rate' => 25.3, 'index_code' => 'PLR', 'source_row' => 19,
+                'as_delivered' => '12/09/2024', 'interpretation' => 'REPAIRED - Excel had transposed day and month',
+            ],
+            [
+                'effective_date' => '2025-04-14', 'rate' => 25.1, 'index_code' => 'PLR', 'source_row' => 21,
+                'as_delivered' => '14/04/2025', 'interpretation' => 'as supplied (text, unambiguous)',
+            ],
+            [
+                'effective_date' => '2025-05-27', 'rate' => 25.2, 'index_code' => 'PLR', 'source_row' => 29,
+                'as_delivered' => '27/05/2025', 'interpretation' => 'as supplied (text, unambiguous)',
             ],
         ];
     }
