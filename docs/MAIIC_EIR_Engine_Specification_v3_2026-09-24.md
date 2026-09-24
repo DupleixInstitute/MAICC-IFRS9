@@ -511,7 +511,9 @@ The register behind the 11 September email, field by field with the source scree
 
 ### 12.4 The immediate build order
 
-P1 and P2 were built on 25 September 2026 and are merged into `eir_revenue_recognition`, because neither waited on MAIIC. The next session starts with **P3**, the contractual-interest service and the reconciliation rewritten on it, because the convention is proven (7.7) and Extract C for 120 accounts is in hand; then **P4**, the schedule shapes, against the teaching workbook's fixtures so that it is ready when the scheme settings arrive. Two housekeeping items go with P3: run `eir:import-reference-rates` and `eir:derive-spreads` against the live loan books to complete test T4, and run the permissions and governance seeders on any environment before the EIR screens are opened. Nothing waits idle on a data request.
+P1 to P4 were built on 25 September 2026 and are merged into `eir_revenue_recognition`, because none of them waited on MAIIC. The next session starts at **P5**, the floating-rate resets, which is the last piece of the calculation and the one the reference-rate series in P2 was built to feed. It needs one answer from MAIIC first, O17: whether a rate change MAIIC makes at its own option is a reset or a modification, confirmed in writing by Deloitte before the first reset is booked. **P6** (arrears from the loan book) and **P7** (restructuring) follow.
+
+Three housekeeping items carry forward. Run `eir:import-reference-rates` and `eir:derive-spreads` against the live loan books to complete test T4. Run the permissions and governance seeders on any environment before the EIR screens are opened, or they return 403. And run `npm run build` where that is allowed, because four new Vue pages have been added and not yet compiled. Nothing waits idle on a data request.
 
 ## 13. Risks and limitations
 
