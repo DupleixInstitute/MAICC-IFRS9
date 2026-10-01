@@ -33,9 +33,12 @@
 // $download=true => the route returns a file (e.g. PDF). The sidebar must
 // render it as a plain <a>, not an Inertia <Link>, or the SPA hangs trying
 // to parse the binary as an Inertia response.
-$leaf = fn ($name, $route, $icon = 'circle', $download = false) => [
+// $permission hides the leaf from users who lack it (HandleInertiaRequests
+// filters the menu); it must match the permission the route's controller
+// enforces, or a user sees a link that answers 403.
+$leaf = fn ($name, $route, $icon = 'circle', $download = false, $permission = '') => [
     'name' => $name, 'icon' => $icon, 'route' => $route, 'route_check' => $route,
-    'permissions' => '', 'dropdown' => false, 'children' => [], 'order' => 0,
+    'permissions' => $permission, 'dropdown' => false, 'children' => [], 'order' => 0,
     'download' => $download,
 ];
 $group = fn ($name, $icon, $children, $order) => [
@@ -87,15 +90,15 @@ return [
         // One pipeline: rules suggest -> intake imports -> classification applies
         // maker/checker. Kept together (contract: EIR module).
         $group('EIR & Revenue Recognition', 'percent', [
-            $leaf('Accounting Rules', 'eir-accounting-rules.index'),
-            $leaf('EIR Data', 'eir-data.index'),
-            $leaf('Reference Rates', 'eir-reference-rates.index'),
-            $leaf('Drawdowns', 'eir-drawdowns.index'),
-            $leaf('Fee Classification', 'eir-fee-classification.index'),
-            $leaf('EIR Calculations', 'eir-calculations.index'),
-            $leaf('GL Reconciliation', 'eir-reconciliation.index'),
-            $leaf('Coverage & Blockers', 'eir-coverage.index'),
-            $leaf('Governance Centre', 'eir-governance.index'),
+            $leaf('Accounting Rules', 'eir-accounting-rules.index', permission: 'settings'),
+            $leaf('EIR Data', 'eir-data.index', permission: 'eir.view'),
+            $leaf('Reference Rates', 'eir-reference-rates.index', permission: 'eir.view'),
+            $leaf('Drawdowns', 'eir-drawdowns.index', permission: 'eir.view'),
+            $leaf('Fee Classification', 'eir-fee-classification.index', permission: 'settings'),
+            $leaf('EIR Calculations', 'eir-calculations.index', permission: 'settings'),
+            $leaf('GL Reconciliation', 'eir-reconciliation.index', permission: 'eir.view'),
+            $leaf('Coverage & Blockers', 'eir-coverage.index', permission: 'eir.view'),
+            $leaf('Governance Centre', 'eir-governance.index', permission: 'eir.govern'),
         ], 4),
 
         $group('IFRS 9 Model Setup', 'chart-line', [

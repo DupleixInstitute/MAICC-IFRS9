@@ -83,7 +83,9 @@ class HandleInertiaRequests extends Middleware
                     'can' => $u->getAllPermissions()->pluck('name'),
                 ];
             },
-            'menu' => fn () => (Auth::check() && Auth::user()->hasRole('member')) ? config('menu.member') : config('menu.admin'),
+            'menu' => fn () => $this->visibleMenu(
+                (Auth::check() && Auth::user()->hasRole('member')) ? config('menu.member') : config('menu.admin')
+            ),
             'logoUrl' => $logo ? asset('storage/' . $logo) : asset('images/maiic-logo-white.png'),
             'smallLogoUrl' => $smallLogo ? asset('storage/' . $smallLogo) : asset('images/maiic-logo-white.png'),
             'companyName' => $settings['company_name'] ?? 'MAIIC',
@@ -95,5 +97,31 @@ class HandleInertiaRequests extends Middleware
             'notifications_unread' => fn () => Auth::check() ? Auth::user()->unreadNotifications()->count() : 0,
             'route_name' => Route::currentRouteName(),
         ]);
+    }
+
+    /**
+     * Drop the menu entries whose 'permissions' the user lacks, and any group
+     * left with no children. An entry with no permission stays visible, so
+     * only entries that declare one are affected.
+     */
+    private function visibleMenu(?array $items): array
+    {
+        $user = Auth::user();
+        $visible = [];
+        foreach ($items ?? [] as $item) {
+            $permission = $item['permissions'] ?? '';
+            if ($permission !== '' && ! ($user && $user->can($permission))) {
+                continue;
+            }
+            if (! empty($item['dropdown'])) {
+                $item['children'] = $this->visibleMenu($item['children'] ?? []);
+                if ($item['children'] === []) {
+                    continue;
+                }
+            }
+            $visible[] = $item;
+        }
+
+        return $visible;
     }
 }
