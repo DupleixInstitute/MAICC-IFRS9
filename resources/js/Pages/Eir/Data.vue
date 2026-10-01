@@ -49,9 +49,9 @@
             <select v-if="activeTab === 'schedules'" v-model="comparisonStatus" class="form-input md:w-56" @change="applySearch">
               <option value="">All comparison results</option>
               <option value="WITHIN_TOLERANCE">Within tolerance ({{ comparisonCounts.within_tolerance || 0 }})</option>
-              <option value="PRINCIPAL_VARIANCE">Principal variance ({{ comparisonCounts.principal_variance || 0 }})</option>
-              <option value="INTEREST_VARIANCE">Interest variance ({{ comparisonCounts.interest_variance || 0 }})</option>
-              <option value="NO_REMAINING_DATA">No Extract B evidence ({{ comparisonCounts.no_remaining_data || 0 }})</option>
+              <option value="CASH_VARIANCE">Cash variance ({{ comparisonCounts.cash_variance || 0 }})</option>
+              <option value="NOT_COMPARABLE">Recalculated before any match ({{ comparisonCounts.not_comparable || 0 }})</option>
+              <option value="NO_REMAINING_DATA">No E-Banker schedule ({{ comparisonCounts.no_remaining_data || 0 }})</option>
               <option value="NOT_COMPARED">Not compared / blocked ({{ comparisonCounts.not_compared || 0 }})</option>
             </select>
             <input v-model="search" class="form-input md:w-72" placeholder="Contract, account or reference">
@@ -84,17 +84,21 @@
 
         <div class="overflow-x-auto">
           <table v-if="activeTab === 'contracts'" class="min-w-full">
-            <thead><tr><th class="th">Contract</th><th class="th">Portfolio / product</th><th class="th">Terms</th><th class="th">Amounts</th><th class="th">Source coverage</th><th class="th">EIR status</th></tr></thead>
+            <thead><tr><th class="th">Contract</th><th class="th">Portfolio / product</th><th class="th">Terms</th><th class="th">Tenor / repayment</th><th class="th">Amounts</th><th class="th">Source coverage</th><th class="th">EIR status</th></tr></thead>
             <tbody>
               <tr v-for="r in data.data" :key="r.id">
-                <td class="td"><div class="font-semibold text-gray-900">{{ r.contract_id }}</div><div class="text-xs text-gray-500">{{ r.sub_account_no || r.gl_account_code || 'No sub-account' }}</div></td>
+                <td class="td">
+                  <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
+                  <div class="text-xs text-gray-500">{{ r.customer_name || 'Customer name unavailable' }}</div>
+                </td>
                 <td class="td"><div>{{ r.portfolio || '—' }}</div><div class="text-xs text-gray-500">{{ r.product_type || r.instrument_type }}</div></td>
-                <td class="td"><div>{{ date(r.origination_date) }} → {{ date(r.maturity_date) }}</div><div class="text-xs text-gray-500">{{ frequency(r.payments_per_year) }} · {{ percent(r.contractual_rate) }}</div></td>
+                <td class="td"><div>{{ date(r.origination_date) }} → {{ date(r.maturity_date) }}</div><div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500"><span>{{ frequency(r.payments_per_year) }}</span><span class="inline-flex rounded-full bg-purple-100 px-2 py-0.5 font-semibold text-purple-800">{{ percent(r.contractual_rate) }}</span><span v-if="r.spread_over_prime !== null && r.spread_over_prime !== undefined" class="inline-flex rounded-full px-2 py-0.5 font-semibold" :class="Number(r.spread_drift_flag) ? 'bg-red-100 text-red-800' : 'bg-sky-100 text-sky-800'" :title="Number(r.spread_drift_flag) ? 'The spread moved across the loan books by more than the tolerance: held for review' : `Spread over the prime rate, ${String(r.spread_source || '').toLowerCase()} from the loan books`">PLR + {{ Number(r.spread_over_prime).toFixed(2) }}<template v-if="Number(r.spread_drift_flag)"> · drifts</template></span></div></td>
+                <td class="td"><div>{{ r.tenor_months ? `${r.tenor_months} months` : 'Tenor pending' }}</div><div class="mt-1"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" :class="repaymentTypeClass(r)">{{ repaymentType(r) }}</span></div><div class="mt-1 text-xs text-gray-500">Moratorium: {{ r.moratorium_months ? `${r.moratorium_months} months` : 'None' }}</div></td>
                 <td class="td"><div>{{ money(r.drawn_amount) }} {{ r.currency || '' }}</div><div class="text-xs text-gray-500">Approved {{ money(r.approved_amount) }}</div></td>
                 <td class="td"><div>{{ r.schedules_count }} cash flows · {{ r.fees_count }} fees</div><div class="text-xs text-gray-500">{{ r.terms_source_system || 'Source not recorded' }}</div></td>
                 <td class="td"><span :class="statusClass(r.calculation_status)">{{ r.calculation_status || 'PENDING' }}</span><div v-if="r.eir_effective_annual !== null" class="mt-1 text-xs font-medium">{{ percent(r.eir_effective_annual) }} effective annual</div></td>
               </tr>
-              <tr v-if="!data.data.length"><td colspan="6" class="p-10 text-center text-sm text-gray-500">No records found. Use EIR Data Intake to load data.</td></tr>
+              <tr v-if="!data.data.length"><td colspan="7" class="p-10 text-center text-sm text-gray-500">No records found. Use EIR Data Intake to load data.</td></tr>
             </tbody>
           </table>
 
@@ -102,7 +106,10 @@
             <thead><tr><th class="th">Contract</th><th class="th">Version</th><th class="th">Due date</th><th class="th">Principal</th><th class="th">Interest</th><th class="th">Fees</th><th class="th">Total due</th><th class="th">Source</th></tr></thead>
             <tbody>
               <tr v-for="r in data.data" :key="r.id">
-                <td class="td font-semibold">{{ r.contract_id }}</td><td class="td">v{{ r.schedule_version }}</td><td class="td">{{ date(r.due_date) }}</td><td class="td">{{ money(r.principal_due) }}</td><td class="td">{{ money(r.interest_due) }}</td><td class="td">{{ money(r.fee_due) }}</td><td class="td font-semibold">{{ money(r.total_due) }}</td><td class="td"><div>{{ r.schedule_source || r.source_system || '—' }}</div><div class="text-xs text-gray-500">{{ r.source_reference }}</div></td>
+                <td class="td">
+                  <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
+                  <div class="text-xs font-normal text-gray-500">{{ r.customer_name || 'Customer name unavailable' }}</div>
+                </td><td class="td">v{{ r.schedule_version }}</td><td class="td">{{ date(r.due_date) }}</td><td class="td">{{ money(r.principal_due) }}</td><td class="td">{{ money(r.interest_due) }}</td><td class="td">{{ money(r.fee_due) }}</td><td class="td font-semibold">{{ money(r.total_due) }}</td><td class="td"><div>{{ r.schedule_source || r.source_system || '—' }}</div><div class="text-xs text-gray-500">{{ r.source_reference }}</div></td>
               </tr>
               <tr v-if="!data.data.length"><td colspan="8" class="p-10 text-center text-sm text-gray-500">No records found. Use EIR Data Intake to load data.</td></tr>
             </tbody>
@@ -112,11 +119,14 @@
             <thead><tr><th class="th">Contract</th><th class="th">Extract A terms</th><th class="th">Generated</th><th class="th">Extract B remaining</th><th class="th">Comparison</th><th class="th">Approval</th><th class="th">Actions</th></tr></thead>
             <tbody>
               <tr v-for="r in data.data" :key="r.id">
-                <td class="td font-semibold">{{ r.contract_id }}</td>
+                <td class="td">
+                  <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
+                  <div class="text-xs font-normal text-gray-500">{{ r.customer_name || 'Customer name unavailable' }}</div>
+                </td>
                 <td class="td"><div>{{ frequency(r.payments_per_year) }} · {{ percent(r.contractual_rate) }}</div><div class="text-xs text-gray-500">{{ date(r.origination_date) }} → {{ date(r.maturity_date) }}</div><div v-if="!r.generation_ready" class="mt-1 text-xs text-red-700">{{ (r.generation_issues || []).join('; ') }}</div></td>
                 <td class="td">{{ r.schedules_count }} rows</td>
                 <td class="td">{{ r.remaining_rows }} rows<div class="text-xs text-gray-500">from {{ date(r.comparison?.cutoff_date) }}</div></td>
-                <td class="td"><span :class="comparisonClass(r.comparison?.status)">{{ label(r.comparison?.status) }}</span><div v-if="r.comparison?.principal_variance !== null" class="mt-1 text-xs">Principal Δ {{ signedMoney(r.comparison.principal_variance) }}<br>Interest Δ {{ signedMoney(r.comparison.interest_variance) }}</div></td>
+                <td class="td"><span :class="comparisonClass(r.comparison?.status)">{{ label(r.comparison?.status) }}</span><div v-if="r.comparison?.cash_variance !== null && r.comparison?.cash_variance !== undefined" class="mt-1 text-xs">Cash Δ {{ signedMoney(r.comparison.cash_variance) }} on {{ r.comparison.compared_rows }} instalment(s)</div><div v-if="r.comparison?.recalculated_rows" class="text-xs text-gray-500">{{ r.comparison.recalculated_rows }} after E-Banker recalculated from {{ date(r.comparison.recalculated_from) }}</div></td>
                 <td class="td"><span :class="approvalClass(r.schedule_approval_status)">{{ label(r.schedule_approval_status) }}</span></td>
                 <td class="td"><div class="flex flex-col gap-2"><Link :href="route('eir-schedules.show', { contractEir: r.id })" class="secondary-btn">View schedule</Link><button v-if="r.schedule_approval_status !== 'APPROVED'" class="secondary-btn" :disabled="!r.generation_ready" @click="post('eir-schedules.generate', r.id)">Generate draft</button><button v-if="r.schedule_approval_status === 'DRAFT'" class="primary-btn" @click="approve(r)">Approve v1</button></div></td>
               </tr>
@@ -173,8 +183,8 @@
               <span :class="comparisonClass(approvalModal.row?.comparison?.status)">{{ label(approvalModal.row?.comparison?.status) }}</span>
             </div>
             <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div><div class="text-xs text-gray-500">Principal variance</div><div class="mt-1 font-semibold text-gray-900">{{ signedMoney(approvalModal.row?.comparison?.principal_variance) }}</div></div>
-              <div><div class="text-xs text-gray-500">Interest variance</div><div class="mt-1 font-semibold text-gray-900">{{ signedMoney(approvalModal.row?.comparison?.interest_variance) }}</div></div>
+              <div><div class="text-xs text-gray-500">Cash variance, instalments before any recalculation</div><div class="mt-1 font-semibold text-gray-900">{{ signedMoney(approvalModal.row?.comparison?.cash_variance) }}</div></div>
+              <div><div class="text-xs text-gray-500">Instalments compared / recalculated by E-Banker</div><div class="mt-1 font-semibold text-gray-900">{{ approvalModal.row?.comparison?.compared_rows ?? 0 }} / {{ approvalModal.row?.comparison?.recalculated_rows ?? 0 }}</div></div>
             </div>
           </div>
 
@@ -284,13 +294,29 @@ export default {
     frequency(value) {
       return ({ 1: 'Annual', 2: 'Semi-annual', 4: 'Quarterly', 6: 'Bi-monthly', 12: 'Monthly' })[value] || 'Frequency pending'
     },
+    repaymentType(row) {
+      const hasCapital = Number(row.principal_payment_rows || 0) > 0
+      const hasInterest = Number(row.interest_payment_rows || 0) > 0
+      if (hasCapital && hasInterest) return 'Capital + interest'
+      if (hasInterest) return 'Interest only'
+      if (hasCapital) return 'Capital only'
+      return 'Repayment type pending'
+    },
+    repaymentTypeClass(row) {
+      return {
+        'Capital + interest': 'bg-green-100 text-green-800',
+        'Interest only': 'bg-blue-100 text-blue-800',
+        'Capital only': 'bg-amber-100 text-amber-800',
+        'Repayment type pending': 'bg-gray-100 text-gray-600',
+      }[this.repaymentType(row)]
+    },
     statusClass(status) {
       return status === 'LOCKED' ? 'badge-green' : status === 'CALCULATED' ? 'badge-blue' : status === 'BLOCKED' ? 'badge-red' : 'badge-yellow'
     },
     reconciliationClass(status) {
       return status === 'WITHIN_TOLERANCE' ? 'badge-green' : status === 'VARIANCE' ? 'badge-red' : 'badge-yellow'
     },
-    comparisonClass(status) { return status === 'WITHIN_TOLERANCE' ? 'badge-green' : status === 'NO_REMAINING_DATA' ? 'badge-yellow' : 'badge-red' },
+    comparisonClass(status) { return status === 'WITHIN_TOLERANCE' ? 'badge-green' : ['NO_REMAINING_DATA', 'NOT_COMPARABLE'].includes(status) ? 'badge-yellow' : 'badge-red' },
     approvalClass(status) { return status === 'APPROVED' ? 'badge-green' : status === 'DRAFT' ? 'badge-blue' : 'badge-yellow' },
     label(value) { return String(value || 'NOT GENERATED').replaceAll('_', ' ') },
     post(name, id = null) { router.post(this.route(name, id ? { contractEir: id } : {}), {}, { preserveScroll: true }) },

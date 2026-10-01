@@ -1,5 +1,6 @@
 <?php
 namespace App\Services\Eir;
+use App\Services\Imports\MappedFileReader;
 use App\Support\ContractId;
 use Illuminate\Support\Facades\DB;
 
@@ -18,13 +19,18 @@ class RemainingScheduleImportService
             if ($externalId==='') $externalId=hash('sha256',implode('|',[$id,$row['due_date'],$index,$row['principal_due']??0,$row['interest_due']??0,$row['fee_due']??0]));
             $source=trim((string)($row['source_system']??'MAIIC_EXTRACT_B'))?:'MAIIC_EXTRACT_B';
             if (DB::table('contract_remaining_cashflow_schedule')->where('source_system',$source)->where('external_transaction_id',$externalId)->exists()) { $unchanged++; continue; }
-            DB::table('contract_remaining_cashflow_schedule')->insert([
+            $insert=[
                 'contract_id'=>$id,'due_date'=>$row['due_date'],'principal_due'=>(float)($row['principal_due']??0),
                 'interest_due'=>(float)($row['interest_due']??0),'fee_due'=>(float)($row['fee_due']??0),
                 'source_system'=>$source,'source_reference'=>($row['source_reference']??null)?:null,
                 'external_transaction_id'=>$externalId,'row_note'=>($row['row_note']??null)?:null,
                 'created_at'=>now(),'updated_at'=>now(),
-            ]); $contracts[$id]=true; $loaded++;
+            ];
+            // The printed balance after the instalment, when the source gives one.
+            // Blank stays null: a balance of nil is a fact, a missing one is not.
+            $balance=$row['closing_balance']??null;
+            if ($balance!==null && trim((string)$balance)!=='') $insert['closing_balance']=MappedFileReader::cleanNumber($balance);
+            DB::table('contract_remaining_cashflow_schedule')->insert($insert); $contracts[$id]=true; $loaded++;
         }
         return ['loaded_contracts'=>count($contracts),'loaded_rows'=>$loaded,'unchanged'=>$unchanged,'held'=>$held,'skipped'=>$skipped,'coverage'=>['covered'=>count($contracts),'total'=>0]];
     }

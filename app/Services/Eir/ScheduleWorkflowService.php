@@ -145,24 +145,131 @@ class ScheduleWorkflowService
         return ['generated'=>$generated,'skipped'=>count($skipped),'exceptions'=>$skipped];
     }
 
+    /** Statuses the comparison can end in. */
+    public const COMPARISON_WITHIN_TOLERANCE = 'WITHIN_TOLERANCE';
+    public const COMPARISON_CASH_VARIANCE = 'CASH_VARIANCE';
+    public const COMPARISON_NOT_COMPARABLE = 'NOT_COMPARABLE';
+    public const COMPARISON_NO_REMAINING_DATA = 'NO_REMAINING_DATA';
+
+    /**
+     * Version 1 against E-Banker's own schedule (Extract B or the EMI chart).
+     *
+     * Three rules, all learned on JAT Group (104430000087):
+     *
+     *  - Cash, not principal and interest. E-Banker adds the interest of the
+     *    months with no instalment to the balance and repays it as principal,
+     *    so its principal ran 77,672,610 above ours while the cash was the same
+     *    thing split differently. Each instalment is compared on its total.
+     *
+     *  - Only the instalments before E-Banker recalculated. The EMI chart is
+     *    E-Banker's current schedule: it is regenerated at every rate reset and
+     *    whenever arrears are spread over the instalments left. Version 1 is the
+     *    promise at origination, so it can only be held to the rows before the
+     *    first regeneration; the rest are labelled and belong to P5 (resets)
+     *    and P6 (arrears). A level instalment that changes, other than the last
+     *    one or the first after an interest-only spell, marks a regeneration.
+     *
+     *  - Instalment by instalment, not date by date. The nth instalment is set
+     *    against the nth, and a different due date is named as a cause instead
+     *    of leaving both rows unmatched.
+     */
     public function comparison(ContractEir $contract): array
     {
-        $remaining=DB::table('contract_remaining_cashflow_schedule')->where('contract_id',$contract->contract_id)->orderBy('due_date')->get();
-        if ($remaining->isEmpty()) return ['status'=>'NO_REMAINING_DATA','cutoff_date'=>null,'generated_rows'=>0,'remaining_rows'=>0,
-            'principal_variance'=>null,'interest_variance'=>null,'matched_dates'=>0];
+        $remaining=DB::table('contract_remaining_cashflow_schedule')->where('contract_id',$contract->contract_id)->orderBy('due_date')->orderBy('id')->get()->values();
+        $empty=['cutoff_date'=>null,'generated_rows'=>0,'remaining_rows'=>0,'compared_rows'=>0,'recalculated_rows'=>0,
+            'recalculated_from'=>null,'cash_variance'=>null,'principal_variance'=>null,'interest_variance'=>null,'matched_dates'=>0,'rows'=>[]];
+        if ($remaining->isEmpty()) return ['status'=>self::COMPARISON_NO_REMAINING_DATA]+$empty;
+
         $cutoff=(string)$remaining->min('due_date');
         $generated=DB::table('contract_cashflow_schedule')->where('contract_id',$contract->contract_id)->where('schedule_version',1)
-            ->whereDate('due_date','>=',$cutoff)->get();
-        $pVar=(float)$generated->sum('principal_due')-(float)$remaining->sum('principal_due');
-        $iVar=(float)$generated->sum('interest_due')-(float)$remaining->sum('interest_due');
-        $dates=$generated->pluck('due_date')->map(fn($v)=>(string)$v)->intersect($remaining->pluck('due_date')->map(fn($v)=>(string)$v))->unique()->count();
-        $pBase=abs((float)$remaining->sum('principal_due')); $iBase=abs((float)$remaining->sum('interest_due'));
-        $pOk=abs($pVar)<=max(1,$pBase*.01); $iOk=abs($iVar)<=max(1,$iBase*.01);
-        $status=$pOk&&$iOk?'WITHIN_TOLERANCE':(!$pOk?'PRINCIPAL_VARIANCE':'INTEREST_VARIANCE');
+            ->whereDate('due_date','>=',$cutoff)->orderBy('due_date')->get()->values();
+
+        $total=fn($r)=>$r===null?null:round((float)$r->principal_due+(float)$r->interest_due+(float)$r->fee_due,2);
+        $recalculatedFrom=$this->firstRegeneration($remaining,(string)$contract->emi_calc_type);
+        $resetDates=$this->repricesWithPlr($contract)
+            ? DB::table('reference_rate_series')->whereDate('effective_date','>',$contract->origination_date ?? $cutoff)->orderBy('effective_date')->pluck('effective_date')->map(fn($d)=>substr((string)$d,0,10))->all()
+            : [];
+
+        $rows=[]; $compared=0; $recalculated=0; $cash=0.0; $pVar=0.0; $iVar=0.0; $ebankerCash=0.0; $sameDate=0;
+        $count=max($generated->count(),$remaining->count());
+        for ($i=0; $i<$count; $i++) {
+            $g=$generated[$i]??null; $e=$remaining[$i]??null;
+            $gTotal=$total($g); $eTotal=$total($e);
+            $due=(string)($e->due_date??$g->due_date);
+            $causes=[];
+            if ($e!==null && $recalculatedFrom!==null && $i>=$recalculatedFrom) {
+                $segment='RECALCULATED'; $recalculated++;
+                if ($i===$recalculatedFrom) {
+                    $previous=(string)$remaining[$i-1]->due_date;
+                    foreach ($resetDates as $d) if ($d>$previous && $d<=$due) { $causes[]='Rate reset on '.$d.' (compared in P5)'; break; }
+                    if ($this->inArrearsBetween($contract->contract_id,$previous,$due)) $causes[]='Arrears spread over the instalments left (handled in P6)';
+                    if ($causes===[]) $causes[]='E-Banker regenerated its schedule here: a rate reset (P5) or arrears spread over the instalments left (P6)';
+                } else {
+                    $causes[]='After E-Banker recalculated';
+                }
+            } elseif ($g!==null && $e!==null) {
+                $segment='COMPARED'; $compared++;
+                $cash+=$gTotal-$eTotal; $ebankerCash+=$eTotal;
+                $pVar+=(float)$g->principal_due-(float)$e->principal_due; $iVar+=(float)$g->interest_due-(float)$e->interest_due;
+                if ((string)$g->due_date===(string)$e->due_date) $sameDate++; else $causes[]='Due dates differ ('.$g->due_date.' against '.$e->due_date.')';
+                if (abs($gTotal-$eTotal)>1) $causes[]='Instalment differs: check the rate and how the instalment is sized';
+                if ($causes===[]) $causes[]='Agrees';
+            } elseif ($g!==null) {
+                $segment='ONLY_GENERATED'; $causes[]='No E-Banker instalment here: the two schedules have a different number of instalments';
+            } else {
+                $segment='ONLY_EBANKER'; $causes[]='No generated instalment here: the two schedules have a different number of instalments';
+            }
+            $rows[]=['number'=>$i+1,'generated_due_date'=>$g?->due_date,'ebanker_due_date'=>$e?->due_date,
+                'generated_total'=>$gTotal,'ebanker_total'=>$eTotal,
+                'difference'=>$gTotal!==null&&$eTotal!==null?round($gTotal-$eTotal,2):null,
+                'segment'=>$segment,'causes'=>$causes];
+        }
+
+        $status=$compared===0 ? self::COMPARISON_NOT_COMPARABLE
+            : (abs($cash)<=max(1,abs($ebankerCash)*.01) ? self::COMPARISON_WITHIN_TOLERANCE : self::COMPARISON_CASH_VARIANCE);
+
         return ['status'=>$status,'cutoff_date'=>$cutoff,'generated_rows'=>$generated->count(),'remaining_rows'=>$remaining->count(),
-            'generated_principal'=>(float)$generated->sum('principal_due'),'remaining_principal'=>(float)$remaining->sum('principal_due'),
-            'principal_variance'=>$pVar,'generated_interest'=>(float)$generated->sum('interest_due'),
-            'remaining_interest'=>(float)$remaining->sum('interest_due'),'interest_variance'=>$iVar,'matched_dates'=>$dates];
+            'compared_rows'=>$compared,'recalculated_rows'=>$recalculated,
+            'recalculated_from'=>$recalculatedFrom===null?null:(string)$remaining[$recalculatedFrom]->due_date,
+            'cash_variance'=>$compared?round($cash,2):null,
+            // Kept for the screens that show them, and measured on the same
+            // compared instalments only, so capitalised interest after a
+            // regeneration cannot swell them.
+            'principal_variance'=>$compared?round($pVar,2):null,'interest_variance'=>$compared?round($iVar,2):null,
+            'matched_dates'=>$sameDate,'rows'=>$rows];
+    }
+
+    /**
+     * Index of the first E-Banker row that belongs to a regenerated schedule,
+     * or null. A level instalment (EMI type E) is regenerated when it changes;
+     * an equal-principal one (type P) when its principal changes. The final
+     * row may differ (it retires what is left), and the first row after an
+     * interest-only spell is the instalment starting, not a regeneration.
+     */
+    private function firstRegeneration($rows, string $emiCalcType): ?int
+    {
+        $level=fn($r)=>strtoupper($emiCalcType)==='P'
+            ? round((float)$r->principal_due,2)
+            : round((float)$r->principal_due+(float)$r->interest_due+(float)$r->fee_due,2);
+        $last=$rows->count()-1;
+        for ($i=1; $i<$last; $i++) {
+            if ((float)$rows[$i-1]->principal_due<=0.0) continue;
+            if (abs($level($rows[$i])-$level($rows[$i-1]))>1) return $i;
+        }
+        return null;
+    }
+
+    private function repricesWithPlr(ContractEir $contract): bool
+    {
+        return (bool)$contract->reprice_flag || strtoupper((string)$contract->interest_policy)==='P';
+    }
+
+    /** Any loan-book month-end between two dates that shows the account overdue. */
+    private function inArrearsBetween(string $contractId, string $from, string $to): bool
+    {
+        return DB::table('loan_books')->where('contract_id',$contractId)
+            ->where('reporting_period','>=',substr($from,0,7))->where('reporting_period','<=',substr($to,0,7))
+            ->where('overdue_days','>',0)->exists();
     }
 
     public function approve(ContractEir $contract, int $userId, ?string $notes=null): void

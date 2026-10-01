@@ -67,7 +67,8 @@ class ContractTransactionImportService
                 $scheduleRows[] = $base + ['due_date' => $row['transaction_date'] ?? null,
                     'principal_due' => (float) ($row['principal_component'] ?? 0),
                     'interest_due' => (float) ($row['interest_component'] ?? 0),
-                    'fee_due' => (float) ($row['fee_component'] ?? 0)];
+                    'fee_due' => (float) ($row['fee_component'] ?? 0),
+                    'closing_balance' => $row['balance_after_transaction'] ?? null];
                 continue;
             }
             if ($flag !== 'ACTUAL') {

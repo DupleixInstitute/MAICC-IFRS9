@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ContractCashflowSchedule;
 use App\Models\ContractEir;
 use App\Models\GlInterestPosting;
+use App\Models\LoanBook;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\Eir\EirGlReconciliationService;
@@ -24,7 +25,7 @@ class EirDataController extends Controller
         $tab = in_array($request->input('tab'), ['contracts', 'cashflows', 'schedules', 'gl'], true) ? $request->input('tab') : 'contracts';
         $search = trim((string) $request->input('search'));
         $comparisonStatus = in_array($request->input('comparison_status'), [
-            'WITHIN_TOLERANCE', 'PRINCIPAL_VARIANCE', 'INTEREST_VARIANCE', 'NO_REMAINING_DATA', 'NOT_COMPARED',
+            'WITHIN_TOLERANCE', 'CASH_VARIANCE', 'NOT_COMPARABLE', 'NO_REMAINING_DATA', 'NOT_COMPARED',
         ], true) ? $request->input('comparison_status') : '';
 
         $data = match ($tab) {
@@ -46,8 +47,8 @@ class EirDataController extends Controller
                 'approved_schedules' => ContractEir::where('schedule_approval_status','APPROVED')->count(),
                 'schedule_comparisons' => [
                     'within_tolerance' => ContractEir::where('schedule_comparison_status','WITHIN_TOLERANCE')->count(),
-                    'principal_variance' => ContractEir::where('schedule_comparison_status','PRINCIPAL_VARIANCE')->count(),
-                    'interest_variance' => ContractEir::where('schedule_comparison_status','INTEREST_VARIANCE')->count(),
+                    'cash_variance' => ContractEir::where('schedule_comparison_status','CASH_VARIANCE')->count(),
+                    'not_comparable' => ContractEir::where('schedule_comparison_status','NOT_COMPARABLE')->count(),
                     'no_remaining_data' => ContractEir::where('schedule_comparison_status','NO_REMAINING_DATA')->count(),
                     'not_compared' => ContractEir::whereNull('schedule_comparison_status')->count(),
                 ],
@@ -59,12 +60,15 @@ class EirDataController extends Controller
 
     private function scheduleReviews(string $search, string $comparisonStatus)
     {
-        $page=ContractEir::query()->when($search!=='',fn($q)=>$q->where('contract_id','like',"%{$search}%"))
+        $page=ContractEir::query()
+            ->addSelect(['loan_book_customer_name' => $this->latestLoanBookName()])
+            ->when($search!=='',fn($q)=>$q->where('contract_id','like',"%{$search}%"))
             ->when($comparisonStatus === 'NOT_COMPARED', fn($q) => $q->whereNull('schedule_comparison_status'))
             ->when($comparisonStatus !== '' && $comparisonStatus !== 'NOT_COMPARED', fn($q) => $q->where('schedule_comparison_status',$comparisonStatus))
             ->withCount(['schedules'])->orderBy('contract_id')->paginate(15)->withQueryString();
         $workflow=app(ScheduleWorkflowService::class);
         $page->getCollection()->transform(function($contract) use ($workflow) {
+            $this->withDisplayName($contract);
             $readiness=$workflow->readiness($contract); $comparison=$workflow->comparison($contract);
             $contract->setAttribute('generation_ready',$readiness['ready']);
             $contract->setAttribute('generation_issues',$readiness['issues']);
@@ -77,21 +81,68 @@ class EirDataController extends Controller
 
     private function contracts(string $search)
     {
-        return ContractEir::query()
+        $page = ContractEir::query()
+            ->addSelect(['loan_book_customer_name' => $this->latestLoanBookName()])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('contract_id', 'like', "%{$search}%")
+                ->orWhere('customer_name', 'like', "%{$search}%")
                 ->orWhere('sub_account_no', 'like', "%{$search}%")->orWhere('portfolio', 'like', "%{$search}%")
                 ->orWhere('product_type', 'like', "%{$search}%")))
-            ->withCount(['schedules', 'fees'])
-            ->orderByDesc('terms_imported_at')->orderByDesc('id')->paginate(30)->withQueryString();
+            ->withCount([
+                'schedules',
+                'fees',
+                'schedules as principal_payment_rows' => fn ($q) => $q->where('principal_due', '>', 0),
+                'schedules as interest_payment_rows' => fn ($q) => $q->where('interest_due', '>', 0),
+            ])
+            ->orderBy('contract_id')->orderByDesc('terms_imported_at')->paginate(30)->withQueryString();
+        $page->getCollection()->transform(fn ($contract) => $this->withDisplayName($contract));
+
+        return $page;
     }
 
     private function cashflows(string $search)
     {
-        return ContractCashflowSchedule::query()
+        // select() resets the column list, so it has to come before the
+        // name subqueries rather than after them.
+        $page = ContractCashflowSchedule::query()
+            ->select('*')->selectRaw('(principal_due + interest_due + fee_due) as total_due')
+            ->addSelect([
+                'customer_name' => ContractEir::query()
+                    ->select('customer_name')
+                    ->whereColumn('contract_eir.contract_id', 'contract_cashflow_schedule.contract_id')
+                    ->limit(1),
+                'loan_book_customer_name' => $this->latestLoanBookName('contract_cashflow_schedule'),
+            ])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('contract_id', 'like', "%{$search}%")
                 ->orWhere('source_reference', 'like', "%{$search}%")))
-            ->select('*')->selectRaw('(principal_due + interest_due + fee_due) as total_due')
-            ->orderByDesc('due_date')->orderByDesc('id')->paginate(30)->withQueryString();
+            ->orderBy('contract_id')->orderBy('due_date')->orderBy('id')->paginate(30)->withQueryString();
+        $page->getCollection()->transform(fn ($row) => $this->withDisplayName($row));
+
+        return $page;
+    }
+
+    /**
+     * The borrower name from the most recent loan book row. Only a fallback:
+     * the name imported on the contract master is used first, so a contract
+     * loaded before its first loan book still shows who it belongs to.
+     */
+    private function latestLoanBookName(string $table = 'contract_eir')
+    {
+        return LoanBook::query()
+            ->select('customer_name')
+            ->whereColumn('loan_books.contract_id', "{$table}.contract_id")
+            ->orderByDesc('reporting_period')
+            ->orderByDesc('id')
+            ->limit(1);
+    }
+
+    private function withDisplayName($model)
+    {
+        if (blank($model->customer_name)) {
+            $model->setAttribute('customer_name', $model->loan_book_customer_name);
+        }
+        $model->offsetUnset('loan_book_customer_name');
+
+        return $model;
     }
 
     /**

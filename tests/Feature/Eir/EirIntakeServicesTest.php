@@ -67,6 +67,7 @@ class EirIntakeServicesTest extends TestCase
         Schema::create('contract_remaining_cashflow_schedule', function (Blueprint $t) {
             $t->increments('id'); $t->string('contract_id'); $t->string('due_date');
             $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0);
+            $t->double('closing_balance')->nullable();
             $t->string('source_system'); $t->string('source_reference')->nullable(); $t->string('external_transaction_id');
             $t->text('row_note')->nullable(); $t->timestamps();
         });
@@ -261,6 +262,30 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame('104450000053', DB::table('contract_remaining_cashflow_schedule')->value('contract_id'));
         $this->assertSame('104450000053', DB::table('eir_actual_transactions')->value('contract_id'));
         $this->assertSame('104450000053', DB::table('contract_fees')->value('contract_id'));
+    }
+
+    public function test_scheduled_rows_keep_the_balance_the_source_prints(): void
+    {
+        // JAT Group's EMI chart: interest is added to the balance between
+        // quarterly instalments, so the printed balance cannot be worked back
+        // from the principal and has to travel with the row.
+        $this->seedLoan('104430000087', 209336236, '5012');
+        $row = [
+            'customer_id' => '', 'contract_id' => '104430000087', 'sub_account_no' => '1',
+            'transaction_type' => 'EMI instalment', 'fee_component' => 0,
+            'scheduled_actual_flag' => 'SCHEDULED',
+        ];
+        $result = app(ContractTransactionImportService::class)->import([
+            $row + ['gl_posting_ref' => 'EMI-1', 'transaction_date' => '2025-10-23', 'principal_component' => 24050066,
+                'interest_component' => 4574916, 'total_amount' => 28624982, 'balance_after_transaction' => '203,201,492.00'],
+            $row + ['gl_posting_ref' => 'EMI-2', 'transaction_date' => '2026-01-23', 'principal_component' => 24094469,
+                'interest_component' => 5144751, 'total_amount' => 29239220],
+        ]);
+
+        $this->assertSame(2, $result['scheduled_rows_routed']);
+        $balances = DB::table('contract_remaining_cashflow_schedule')->orderBy('due_date')->pluck('closing_balance')->all();
+        $this->assertSame(203201492.0, (float) $balances[0]);
+        $this->assertNull($balances[1], 'a row with no printed balance stays blank rather than nil');
     }
 
     public function test_contract_transactions_hold_unknown_loans_and_rejects_customer_conflicts(): void
