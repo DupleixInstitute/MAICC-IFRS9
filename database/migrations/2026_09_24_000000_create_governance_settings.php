@@ -51,7 +51,7 @@ return new class extends Migration
             $table->timestamp('approved_at')->nullable();
             $table->string('reason', 500)->nullable();
             $table->string('status', 20);
-            $table->timestamp('superseded_at');
+            $table->timestamp('superseded_at')->useCurrent();
             $table->foreignId('superseded_by')->nullable()->constrained('users');
             $table->unsignedBigInteger('superseded_by_setting_id')->nullable()
                   ->comment('The governance_settings row whose approval superseded this one');

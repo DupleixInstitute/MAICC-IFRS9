@@ -442,4 +442,174 @@ class MappedFileReaderTest extends TestCase
 
         $this->assertSame('2025-06-03', $result['rows'][0]['due_date']);
     }
+
+    /**
+     * The regression this guards: Carbon reads a slash-separated numeric
+     * date month-first, so an undeclared 02/09/2020 became 9 February
+     * instead of 2 September. Every MAIIC extract and the core banking loan
+     * book report writes day first, and origination date anchors the EIR
+     * discounting timeline, so the transposition produced wrong solved
+     * rates on the contracts it touched.
+     */
+    public function test_ambiguous_slash_date_without_a_declared_format_reads_day_first(): void
+    {
+        $path = $this->csv(
+            "Contract,Due,Principal,Interest
+" .
+            "X-1,02/09/2020,100,10
+" .   // 2 September, not 9 February
+            "X-1,09/12/2024,100,10
+" .   // 9 December, not 12 September
+            "X-1,05/06/2024,100,10
+"     // 5 June, not 6 May
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'Contract'  => 'contract_id',
+                'Due'       => 'due_date',
+                'Principal' => 'principal_due',
+                'Interest'  => 'interest_due',
+            ],
+            transforms: ['due_date' => 'date']
+        );
+
+        $this->assertSame('2020-09-02', $result['rows'][0]['due_date']);
+        $this->assertSame('2024-12-09', $result['rows'][1]['due_date']);
+        $this->assertSame('2024-06-05', $result['rows'][2]['due_date']);
+    }
+
+    /**
+     * A day past the 12th cannot be a month, so Carbon threw and the cell
+     * became null. Those rows then failed validation for a reason that had
+     * nothing to do with the data.
+     */
+    public function test_unambiguous_day_first_date_is_no_longer_dropped(): void
+    {
+        $path = $this->csv(
+            "Contract,Due,Principal,Interest
+" .
+            "X-1,13/07/2022,100,10
+" .
+            "X-1,30/03/2026,100,10
+"
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'Contract'  => 'contract_id',
+                'Due'       => 'due_date',
+                'Principal' => 'principal_due',
+                'Interest'  => 'interest_due',
+            ],
+            transforms: ['due_date' => 'date']
+        );
+
+        $this->assertSame('2022-07-13', $result['rows'][0]['due_date']);
+        $this->assertSame('2026-03-30', $result['rows'][1]['due_date']);
+    }
+
+    /**
+     * Where only one reading yields a valid month there is nothing to guess,
+     * so a stray month-first cell resolves rather than being refused.
+     */
+    public function test_month_first_cell_resolves_when_day_first_is_impossible(): void
+    {
+        $path = $this->csv(
+            "Contract,Due,Principal,Interest
+" .
+            "X-1,02/13/2020,100,10
+"
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'Contract'  => 'contract_id',
+                'Due'       => 'due_date',
+                'Principal' => 'principal_due',
+                'Interest'  => 'interest_due',
+            ],
+            transforms: ['due_date' => 'date']
+        );
+
+        $this->assertSame('2020-02-13', $result['rows'][0]['due_date']);
+    }
+
+    /**
+     * createFromFormat rolls overflow forward, so 31/02 would otherwise
+     * become 3 March. A date that exists in neither order is refused.
+     */
+    public function test_impossible_numeric_date_is_refused_rather_than_rolled_forward(): void
+    {
+        $path = $this->csv(
+            "Contract,Due,Principal,Interest
+" .
+            "X-1,31/02/2025,100,10
+" .
+            "X-1,13/13/2025,100,10
+"
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'Contract'  => 'contract_id',
+                'Due'       => 'due_date',
+                'Principal' => 'principal_due',
+                'Interest'  => 'interest_due',
+            ],
+            transforms: ['due_date' => 'date']
+        );
+
+        $this->assertNull($result['rows'][0]['due_date']);
+        $this->assertNull($result['rows'][1]['due_date']);
+    }
+
+    /** An ISO cell keeps its own order and is never re-read day-first. */
+    public function test_iso_and_named_month_dates_are_untouched(): void
+    {
+        $path = $this->csv(
+            "Contract,Due,Principal,Interest
+" .
+            "X-1,2022-07-06,100,10
+" .
+            "X-1,12-Mar-2024,100,10
+"
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'Contract'  => 'contract_id',
+                'Due'       => 'due_date',
+                'Principal' => 'principal_due',
+                'Interest'  => 'interest_due',
+            ],
+            transforms: ['due_date' => 'date']
+        );
+
+        $this->assertSame('2022-07-06', $result['rows'][0]['due_date']);
+        $this->assertSame('2024-03-12', $result['rows'][1]['due_date']);
+    }
+
+    /** A genuinely month-first source still wins by declaring its format. */
+    public function test_declared_month_first_format_overrides_the_day_first_default(): void
+    {
+        $path = $this->csv(
+            "Contract,Due,Principal,Interest
+" .
+            "X-1,06/03/2025,100,10
+"
+        );
+
+        $result = $this->reader->read($path, 'schedule',
+            mapping: [
+                'Contract'  => 'contract_id',
+                'Due'       => 'due_date',
+                'Principal' => 'principal_due',
+                'Interest'  => 'interest_due',
+            ],
+            transforms: ['due_date' => 'date:m/d/Y']
+        );
+
+        $this->assertSame('2025-06-03', $result['rows'][0]['due_date']);
+    }
 }
