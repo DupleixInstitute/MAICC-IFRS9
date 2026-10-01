@@ -56,8 +56,9 @@ class GovernanceServiceTest extends TestCase
     public function test_the_seeder_writes_every_catalogue_setting_once_as_an_approved_default(): void
     {
         $this->assertSame(count(GovernanceService::catalogue()), GovernanceSetting::count());
-        $this->assertSame(12, GovernanceSetting::count());
-        $this->assertSame(12, GovernanceSetting::where('status', 'APPROVED')->count());
+        // Twelve from spec v3 section 8, plus period_rate_basis (29 Sep 2026).
+        $this->assertSame(13, GovernanceSetting::count());
+        $this->assertSame(13, GovernanceSetting::where('status', 'APPROVED')->count());
 
         foreach (GovernanceService::catalogue() as $key => $definition) {
             $this->assertSame($definition['default'], $this->service()->get($key), $key);
@@ -69,7 +70,7 @@ class GovernanceServiceTest extends TestCase
 
         // Running it again changes nothing: an approved MAIIC change is never overwritten.
         $this->seedGovernanceDefaults();
-        $this->assertSame(12, GovernanceSetting::count());
+        $this->assertSame(13, GovernanceSetting::count());
     }
 
     public function test_the_value_in_force_is_resolved_by_effective_date(): void
@@ -248,7 +249,7 @@ class GovernanceServiceTest extends TestCase
         $service->propose('day_count', 'ACT/365', '2026-09-01', 'Reverting after the auditor comment.', 10);
 
         $overview = collect($service->overview(CarbonImmutable::parse('2026-06-30')))->keyBy('key');
-        $this->assertCount(12, $overview);
+        $this->assertCount(count(GovernanceService::catalogue()), $overview);
 
         $dayCount = $overview['day_count'];
         $this->assertSame('Day count', $dayCount['label']);

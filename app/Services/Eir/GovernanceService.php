@@ -80,6 +80,12 @@ class GovernanceService
                 'options' => ['ACT/365', '30/360'],
                 'default' => 'ACT/365',
             ],
+            'period_rate_basis' => [
+                'label' => 'Rate for a quarterly or annual period',
+                'description' => 'How a schedule charges a period longer than a month. E-Banker adds each month\'s interest to the balance and charges the next month on it, so a quarter is (1 + rate/12) cubed, less one; JAT Group\'s first quarterly instalment of 28,624,982 reproduces to 23 tambala on this basis and is 341,296 short on the annual rate divided by four. Monthly loans are the same under either option.',
+                'options' => ['Monthly compounded (E-Banker)', 'Annual rate divided by payments a year'],
+                'default' => 'Monthly compounded (E-Banker)',
+            ],
             'cash_source' => [
                 'label' => 'Where actual cash received comes from',
                 'description' => 'The cash a customer paid in a month can be read from the monthly Loan Book Report (the increase in the cumulative Repayments column), from the transaction ledger (Extract B), or assumed from the contractual schedule. Agreed as decision D14.',

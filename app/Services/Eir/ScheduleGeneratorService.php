@@ -52,6 +52,13 @@ use InvalidArgumentException;
  *    days under the day count in force. The day count is read from the
  *    Governance Centre key `day_count` (ACT/365 by default, decision D9),
  *    never from a number written here.
+ *
+ *  - The rate for a period longer than a month. E-Banker adds each month's
+ *    interest to the balance and charges the next month on it, so a quarter
+ *    is (1 + rate/12)^3 - 1, not rate/4. JAT Group's first quarterly
+ *    instalment, 28,624,982, reproduces to 23 tambala on that basis and is
+ *    341,296 away on rate/4. The choice is the Governance Centre key
+ *    `period_rate_basis`; a monthly loan is the same under either.
  */
 class ScheduleGeneratorService
 {
@@ -87,6 +94,12 @@ class ScheduleGeneratorService
 
     /** The day counts the Governance Centre offers, plus ACT/360 for completeness. */
     private const DAY_COUNTS = ['ACT/365', 'ACT/360', '30/360'];
+
+    /** A period's rate compounds the monthly rate over its months: E-Banker's way. */
+    public const PERIOD_RATE_COMPOUNDED = 'MONTHLY_COMPOUNDED';
+
+    /** A period's rate is the annual rate over the payments a year. */
+    public const PERIOD_RATE_SIMPLE = 'SIMPLE';
 
     public function __construct(private readonly ?GovernanceService $governance = null)
     {
@@ -163,6 +176,7 @@ class ScheduleGeneratorService
         $startDate = $this->date($terms['start_date'] ?? 'today');
         $asOf = isset($terms['as_of']) && $terms['as_of'] ? $this->date($terms['as_of']) : $startDate;
         $dayCount = $this->dayCount($terms, $asOf);
+        [$periodRate, $periodRateBasis] = $this->periodRate($annualRate, $paymentsPerYear, $terms, $asOf);
 
         $sanctioned = (float) ($terms['approved_amount'] ?? 0);
         if ($sanctioned <= 0) {
@@ -265,7 +279,6 @@ class ScheduleGeneratorService
             ));
         }
 
-        $periodRate = $annualRate / $paymentsPerYear;
         $instalment = $emiCalcType === self::EMI_EQUAL_PRINCIPAL
             ? round($amortisingOpening / $nPayments, 2)
             : $this->levelInstalment($amortisingOpening, $periodRate, $nPayments);
@@ -275,14 +288,14 @@ class ScheduleGeneratorService
         for ($t = 1; $t <= $nPayments; $t++) {
             $due = $firstDue->addMonthsNoOverflow(($t - 1) * $intervalMonths);
             $days = $previous->diffInDays($due);
-            // A whole payment period is charged at the nominal rate over the
-            // payments a year, the basis the offer letters reproduce; anything
-            // else is charged on its actual days under the day count in force.
+            // A whole payment period is charged at the period rate (for a
+            // quarter, three months compounded under the E-Banker basis);
+            // anything else is charged on its actual days under the day count.
             $wholePeriod = $previous->addMonthsNoOverflow($intervalMonths)->isSameDay($due);
-            $fraction = $wholePeriod ? 1 / $paymentsPerYear : $this->yearFraction($previous, $due, $dayCount);
+            $rateForPeriod = $wholePeriod ? $periodRate : $annualRate * $this->yearFraction($previous, $due, $dayCount);
 
             $opening = $balance;
-            $interest = round($interestBaseFor($balance) * $annualRate * $fraction, 2);
+            $interest = round($interestBaseFor($balance) * $rateForPeriod, 2);
 
             if ($emiCalcType === self::EMI_EQUAL_PRINCIPAL) {
                 $principalDue = $instalment;
@@ -335,6 +348,8 @@ class ScheduleGeneratorService
             'moratorium_end' => $moratoriumEnd?->toDateString(),
             'grace_period_months' => $graceMonths,
             'day_count' => $dayCount,
+            'period_rate' => $periodRate,
+            'period_rate_basis' => $periodRateBasis,
             'approved_amount' => round($sanctioned, 2),
             'drawn_amount' => round($principal, 2),
             'capitalised_principal' => $capitalisedPrincipal,
@@ -595,6 +610,51 @@ class ScheduleGeneratorService
         }
 
         return $stated;
+    }
+
+    /**
+     * The rate for one whole payment period, and the basis it was taken on.
+     *
+     * A monthly loan is rate/12 whatever the setting says, so the setting is
+     * only read, and only required, for a longer period. Like the day count it
+     * may be stated in the terms (the pure unit tests do); otherwise it comes
+     * from the Governance Centre, and nothing here falls back to a basis.
+     *
+     * @return array{0: float, 1: string}
+     */
+    private function periodRate(float $annualRate, int $paymentsPerYear, array $terms, CarbonImmutable $asOf): array
+    {
+        $monthly = $annualRate / 12;
+        if ($paymentsPerYear === 12) {
+            return [$monthly, self::PERIOD_RATE_COMPOUNDED];
+        }
+
+        $stated = trim((string) ($terms['period_rate_basis'] ?? ''));
+        if ($stated === '') {
+            if ($this->governance === null) {
+                throw new InvalidArgumentException(
+                    'PERIOD_RATE_BASIS_UNAVAILABLE: the rate for a period longer than a month could not be read. Resolve this service through the container so it can read the Governance Centre setting "Rate for a quarterly or annual period", or state period_rate_basis in the terms.'
+                );
+            }
+            $stated = $this->governance->get('period_rate_basis', $asOf);
+        }
+
+        $text = strtoupper($stated);
+        $basis = match (true) {
+            str_contains($text, 'COMPOUND') => self::PERIOD_RATE_COMPOUNDED,
+            str_contains($text, 'SIMPLE'), str_contains($text, 'DIVIDED') => self::PERIOD_RATE_SIMPLE,
+            default => throw new InvalidArgumentException(sprintf(
+                'PERIOD_RATE_BASIS_NOT_RECOGNISED: "%s" is not a period rate basis the engine applies. The Governance Centre offers monthly compounded (E-Banker) or the annual rate divided by the payments a year.',
+                $stated
+            )),
+        };
+
+        $months = intdiv(12, $paymentsPerYear);
+
+        return [
+            $basis === self::PERIOD_RATE_COMPOUNDED ? (1 + $monthly) ** $months - 1 : $annualRate / $paymentsPerYear,
+            $basis,
+        ];
     }
 
     /** The share of a year between two dates under the day count in force. */

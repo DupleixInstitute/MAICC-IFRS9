@@ -47,6 +47,9 @@ class ScheduleGeneratorServiceTest extends TestCase
             'start_date'        => '2025-05-22',
             'moratorium_months' => 0,
             'day_count'         => 'ACT/365',
+            // The implied rate above was read off the letter as rate/4, so it
+            // is fed back on the same basis.
+            'period_rate_basis' => ScheduleGeneratorService::PERIOD_RATE_SIMPLE,
         ]);
 
         $this->assertEqualsWithDelta(17_099_839.71, $result['instalment'], 2_500,
@@ -59,6 +62,100 @@ class ScheduleGeneratorServiceTest extends TestCase
         $this->assertSame('2025-11-22', $result['rows'][1]['due_date']);
         $this->assertSame('2027-05-22', $result['rows'][7]['due_date']);
         $this->assertSame('INSTALMENT', $result['rows'][0]['phase']);
+    }
+
+    /**
+     * JAT Group (account 104430000087): MWK 209,336,236 sanctioned, quarterly,
+     * twelve quarters from 23 July 2025. E-Banker's EMI chart sized the first
+     * instalment at 28,624,982 on 33.4 percent, which only reproduces when a
+     * quarter compounds the monthly rate: (1 + 0.334/12)^3 - 1. The annual
+     * rate over four, the basis this generator used before, is 341,296 short.
+     */
+    public function test_a_quarter_compounds_the_monthly_rate_as_ebanker_does(): void
+    {
+        $terms = [
+            'principal'            => 209_336_236,
+            'approved_amount'      => 209_336_236,
+            'annual_rate'          => 0.334,
+            'payments_per_year'    => 4,
+            'n_payments'           => 12,
+            'start_date'           => '2025-07-23',
+            'first_due_date'       => '2025-10-23',
+            'emi_calc_type'        => 'E',
+            'interest_calc_base'   => 'B',
+            'installment_based_on' => 'sanction',
+            'day_count'            => 'ACT/365',
+        ];
+
+        $compounded = $this->generator->generate($terms + ['period_rate_basis' => ScheduleGeneratorService::PERIOD_RATE_COMPOUNDED]);
+        $simple = $this->generator->generate($terms + ['period_rate_basis' => ScheduleGeneratorService::PERIOD_RATE_SIMPLE]);
+
+        $this->assertEqualsWithDelta(28_624_982.00, $compounded['instalment'], 0.50, 'the EMI chart instalment');
+        $this->assertEqualsWithDelta(28_283_686.41, $simple['instalment'], 0.01);
+        $this->assertSame(ScheduleGeneratorService::PERIOD_RATE_COMPOUNDED, $compounded['period_rate_basis']);
+
+        // The whole first quarter is charged at the compounded rate: the same
+        // interest E-Banker adds month by month across the three months.
+        $quarter = (1 + 0.334 / 12) ** 3 - 1;
+        $this->assertEqualsWithDelta($quarter, $compounded['period_rate'], 1e-12);
+        $this->assertEqualsWithDelta(round(209_336_236 * $quarter, 2), $compounded['rows'][0]['interest_due'], 0.01);
+        $this->assertSame('INSTALMENT', $compounded['rows'][0]['phase']);
+
+        // Either way the schedule retires exactly what was lent.
+        $this->assertEqualsWithDelta(209_336_236, $compounded['totals']['principal'], 0.01);
+        $this->assertSame(0.0, end($compounded['rows'])['closing_balance']);
+    }
+
+    /**
+     * The semi-annual and annual offer letters, sized the way the letters and
+     * E-Banker size them: the period compounds the monthly rate. Microloan
+     * Foundation (FinES, semi-annual) and Milele Agroprocessing (annual, 34.75
+     * percent) both reproduce to the kwacha. Milele is why the basis matters
+     * most for annual loans: rate/1 would be MWK 67.4 million a year short.
+     *
+     * @dataProvider longPeriodLetters
+     */
+    public function test_semi_annual_and_annual_letters_reproduce(float $principal, float $rate, int $perYear, int $n, string $start, string $first, float $letter): void
+    {
+        $result = $this->generator->generate([
+            'principal' => $principal, 'annual_rate' => $rate, 'payments_per_year' => $perYear,
+            'n_payments' => $n, 'start_date' => $start, 'first_due_date' => $first,
+            'emi_calc_type' => 'E', 'day_count' => 'ACT/365',
+            'period_rate_basis' => ScheduleGeneratorService::PERIOD_RATE_COMPOUNDED,
+        ]);
+
+        $this->assertEqualsWithDelta($letter, $result['instalment'], 1.0);
+        $this->assertCount($n, $result['rows']);
+        $this->assertSame(0.0, end($result['rows'])['closing_balance']);
+    }
+
+    public static function longPeriodLetters(): array
+    {
+        return [
+            'Microloan Foundation, semi-annual' => [400_000_000, 0.10, 2, 4, '2025-12-01', '2026-06-01', 113_080_866],
+            'Milele Agroprocessing, annual' => [1_347_651_030, 0.3475, 1, 5, '2026-03-01', '2027-03-01', 671_741_197],
+        ];
+    }
+
+    public function test_a_monthly_loan_needs_no_period_rate_basis(): void
+    {
+        $result = $this->generator->generate([
+            'principal' => 10_000_000, 'annual_rate' => 0.30, 'payments_per_year' => 12,
+            'n_payments' => 12, 'start_date' => '2025-01-31', 'day_count' => 'ACT/365',
+        ]);
+
+        $this->assertEqualsWithDelta(0.025, $result['period_rate'], 1e-12);
+    }
+
+    public function test_a_quarterly_loan_without_a_period_rate_basis_stops_the_generator(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('PERIOD_RATE_BASIS_UNAVAILABLE');
+
+        $this->generator->generate([
+            'principal' => 10_000_000, 'annual_rate' => 0.30, 'payments_per_year' => 4,
+            'n_payments' => 8, 'start_date' => '2025-01-31', 'day_count' => 'ACT/365',
+        ]);
     }
 
     /**
