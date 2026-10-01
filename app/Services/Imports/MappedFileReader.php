@@ -88,7 +88,7 @@ class MappedFileReader
             'basis', 'gl_account_ref',
         ],
         'contract_master' => [
-            'run_id', 'customer_id', 'portfolio', 'sub_account_no', 'gl_account_code', 'currency',
+            'run_id', 'customer_id', 'customer_name', 'portfolio', 'sub_account_no', 'gl_account_code', 'currency',
             'product_type', 'origination_date', 'first_repayment_date', 'maturity_date',
             'closure_date', 'last_restructure_date', 'approved_amount', 'drawn_amount',
             'contractual_rate', 'rate_basis', 'rate_type', 'reference_rate_at_origination',

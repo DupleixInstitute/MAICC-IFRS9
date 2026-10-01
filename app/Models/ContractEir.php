@@ -15,6 +15,7 @@ class ContractEir extends Model
 
     protected $fillable = [
         'contract_id',
+        'customer_name',
         'portfolio',
         'product_type',
         'source_day_count_basis',

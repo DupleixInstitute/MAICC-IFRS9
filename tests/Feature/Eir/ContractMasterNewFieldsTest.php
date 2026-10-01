@@ -40,6 +40,7 @@ class ContractMasterNewFieldsTest extends TestCase
         Schema::create('contract_eir', function (Blueprint $t) {
             $t->increments('id');
             $t->string('contract_id')->unique();
+            $t->string('customer_name')->nullable();
             $t->string('instrument_type')->default('AMORTISED_LOAN');
             $t->string('rate_type')->default('FIXED');
             $t->string('portfolio')->nullable();
@@ -134,6 +135,7 @@ class ContractMasterNewFieldsTest extends TestCase
             'run_id' => '7',
             'customer_id' => '93',
             'contract_id' => '000104450000053',
+            'customer_name' => 'JAT GROUP LTD',
             'sub_account_no' => '1',
             'origination_date' => '2025-05-22',
             'maturity_date' => '2027-05-22',
@@ -172,6 +174,7 @@ class ContractMasterNewFieldsTest extends TestCase
         $this->assertSame([], $result['notes']);
 
         $c = $this->contract();
+        $this->assertSame('JAT GROUP LTD', $c->customer_name);
         $this->assertSame('MAIIC-IND-01', $c->scheme_code);
         $this->assertSame('P', $c->interest_policy);
         $this->assertSame('F', $c->floating_flag);
@@ -190,6 +193,42 @@ class ContractMasterNewFieldsTest extends TestCase
         // The spread is derived later, by SpreadDerivationService; the import leaves it alone.
         $this->assertNull($c->spread_over_prime);
         $this->assertSame(0, (int) $c->spread_drift_flag);
+    }
+
+    public function test_the_customer_name_header_maps_to_the_contract(): void
+    {
+        $aliases = \App\Services\Imports\MappedFileReader::aliasTemplateFor('contract_master');
+
+        $this->assertSame('customer_name', $aliases['customer_name']);
+        $this->assertSame('customer_name', $aliases['client_name']);
+    }
+
+    public function test_a_later_file_without_a_name_keeps_the_stored_one(): void
+    {
+        $service = app(ContractMasterImportService::class);
+
+        $service->import([$this->row()]);
+        $service->import([$this->row(['customer_name' => ''])]);
+
+        $this->assertSame('JAT GROUP LTD', $this->contract()->customer_name);
+    }
+
+    public function test_a_rate_change_under_half_a_point_is_applied_on_reimport(): void
+    {
+        // JAT Group: re-imported at 33.30% after loading at 33.00%. Stored as
+        // 0.333 against 0.33, the change was read as no change until rates were
+        // compared at their own precision.
+        $service = app(ContractMasterImportService::class);
+
+        $service->import([$this->row(['contractual_rate' => 33.00])]);
+        $result = $service->import([$this->row(['contractual_rate' => 33.30])]);
+
+        $this->assertSame(1, $result['updated'] ?? null, json_encode($result));
+        $this->assertEqualsWithDelta(0.333, (float) $this->contract()->contractual_rate, 1e-9);
+
+        // A genuine repeat of the same file is still no change.
+        $again = $service->import([$this->row(['contractual_rate' => 33.30])]);
+        $this->assertSame(0, $again['updated'] ?? null);
     }
 
     public function test_reprice_flag_follows_the_interest_policy_alone(): void

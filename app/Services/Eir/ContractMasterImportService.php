@@ -42,7 +42,7 @@ class ContractMasterImportService
 
     /** Terms this import owns. Solver output and lock state are never touched. */
     private const TERM_FIELDS = [
-        'portfolio', 'product_type',
+        'customer_name', 'portfolio', 'product_type',
         'sub_account_no', 'gl_account_code', 'currency',
         'origination_date', 'first_repayment_date', 'maturity_date',
         'closure_date', 'last_restructure_date',
@@ -59,6 +59,9 @@ class ContractMasterImportService
         'grace_period_months', 'interest_start_date', 'first_instalment_date', 'reprice_flag',
         'account_status_code', 'los_application_no', 'los_process_ref', 'predecessor_sub_account',
     ];
+
+    /** Terms held as a fraction of one (0.333 for 33.30%), compared to five decimals. */
+    private const RATE_FIELDS = ['contractual_rate', 'reference_rate_at_origination', 'markup'];
 
     /**
      * Loaded, but a reviewer should read why: an E-Banker code that is not
@@ -307,6 +310,8 @@ class ContractMasterImportService
         }
 
         $terms = [
+            // The column takes the project's default string length (199).
+            'customer_name' => $this->textLimited($row['customer_name'] ?? null, 199),
             'portfolio' => $this->text($row['portfolio'] ?? null),
             'product_type' => $this->text($row['product_type'] ?? null),
             'sub_account_no' => $this->text($row['sub_account_no'] ?? null),
@@ -442,7 +447,7 @@ class ContractMasterImportService
                 }
                 continue;
             }
-            if (! $this->sameValue($existing->{$field} ?? null, $value)) {
+            if (! $this->sameValue($existing->{$field} ?? null, $value, $field)) {
                 $changes[$field] = $value;
             }
         }
@@ -451,7 +456,7 @@ class ContractMasterImportService
     }
 
     /** Compare stored-vs-incoming without treating 100.00 ≠ 100 as a change. */
-    private function sameValue($stored, $incoming): bool
+    private function sameValue($stored, $incoming, string $field = ''): bool
     {
         if ($stored === null) {
             return false;
@@ -460,7 +465,13 @@ class ContractMasterImportService
             return filter_var($stored, FILTER_VALIDATE_BOOLEAN) === $incoming;
         }
         if (is_float($incoming) || is_int($incoming)) {
-            return abs((float) $stored - (float) $incoming) < 0.005;
+            // Half a tambala is the right tolerance for an amount, not for a
+            // rate held as a fraction: 33.00% to 33.30% is 0.33 to 0.333, a
+            // difference of 0.003, and was silently read as no change (JAT
+            // Group, 30 Sep 2026). Rates are compared to their stored precision.
+            $tolerance = in_array($field, self::RATE_FIELDS, true) ? 0.000005 : 0.005;
+
+            return abs((float) $stored - (float) $incoming) < $tolerance;
         }
 
         // Stored dates may carry a time component depending on the driver.
