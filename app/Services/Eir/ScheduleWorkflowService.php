@@ -6,6 +6,7 @@ use App\Models\Scheme;
 use App\Services\AuditLoggerService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
 class ScheduleWorkflowService
@@ -172,6 +173,12 @@ class ScheduleWorkflowService
                 'drawdowns'=>$result['drawdowns'] ?? [],'tranched'=>$result['tranched'] ?? false,'replaced_approved_schedule'=>$replacing,
             ],'meta'=>['basis_sources'=>$result['basis_sources'],'grace_period_months'=>$result['grace_period_months'],
                 'interest_basis_evidence'=>$result['interest_basis_evidence'] ?? null]]);
+            // Reset versions are built on version 1; a new draft makes them
+            // stale, so they go and are rebuilt from it (P5 step 3). Only
+            // where the P5 schema is in place.
+            if (Schema::hasColumn('contract_cashflow_schedule','schedule_type') && Schema::hasTable('rate_reset_events')) {
+                app(ResetScheduleService::class)->discard($contract->contract_id);
+            }
         });
         $comparison=$this->comparison($contract->fresh());
         $contract->update(['schedule_comparison_status'=>$comparison['status']]);
