@@ -7,10 +7,12 @@ use App\Services\Eir\GovernanceService;
 use Illuminate\Database\Seeder;
 
 /**
- * Idempotent: writes Dupleix's recommended default for each of the twelve
- * governance settings (spec v3 section 8) as an APPROVED row effective
- * 1 January 2025, the first month of the loan books held. A key that already
- * has any row is left alone so an approved MAIIC change is never overwritten.
+ * Idempotent: writes Dupleix's recommended default for every governance
+ * setting in the catalogue (the twelve conventions of spec v3 section 8 and
+ * the open choices of section 4) as an APPROVED row effective 1 January 2025,
+ * the first month of the loan books held. A key that already has any row is
+ * left alone so an approved MAIIC change is never overwritten; re-running the
+ * seeder on an installed system adds only the keys that are new.
  *
  *   php artisan db:seed --class=GovernanceSettingsSeeder
  */

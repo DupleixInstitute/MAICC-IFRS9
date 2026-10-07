@@ -29,9 +29,10 @@ class GovernanceService
     private array $memo = [];
 
     /**
-     * The twelve conventions of spec v3 section 8, in the order the screen
-     * shows them. The default is Dupleix's recommendation; the seeder writes
-     * it as the first APPROVED row and the engine reads only the database.
+     * The twelve conventions of spec v3 section 8, then the open choices of
+     * section 4, in the order the screen shows them. The default is Dupleix's
+     * recommendation; the seeder writes it as the first APPROVED row and the
+     * engine reads only the database.
      *
      * @return array<string, array{label:string, description:string, options:list<string>, default:string}>
      */
@@ -40,9 +41,9 @@ class GovernanceService
         return [
             'plr_mid_period' => [
                 'label' => 'PLR change inside a month',
-                'description' => 'When the Reserve Bank prime lending rate changes part-way through a month, this decides from which day the new rate applies to a floating loan. Open choice O2 in the specification; not yet agreed with MAIIC.',
-                'options' => ['Pro rata from the effective date', 'From the next month-end', 'From the next instalment date'],
-                'default' => 'Pro rata from the effective date',
+                'description' => 'When the Reserve Bank prime lending rate changes part-way through a month, this decides how the new rate reaches a floating loan\'s contractual interest. E-Banker\'s own ledger (narrations of 2,047 interest postings, 7 October 2026) charges the whole calendar month, 1st to month-end, at the rate on the account when the month-end runs: in 217 of the 229 months where the rate changed the full month was charged at the new rate, in 2 at the old rate, and in no month was the period split. The default reproduces that; the other two options are the alternatives the specification listed. Open choice O2.',
+                'options' => ['Whole month at the month-end rate (E-Banker)', 'Pro rata from the effective date', 'From the next instalment date'],
+                'default' => 'Whole month at the month-end rate (E-Banker)',
             ],
             'reset_trigger' => [
                 'label' => 'When a floating loan\'s EIR is re-solved',
@@ -120,6 +121,103 @@ class GovernanceService
                 'description' => 'The loan book\'s Repayments column is cumulative and should only rise. When it falls (a restructure, a settlement or a data reset), this decides what the engine does with that month\'s cash: treat it as a discontinuity and take cash from Extract B, treat it as a settlement, or hold the account for manual review. Open choice O5.',
                 'options' => ['Discontinuity: take cash from Extract B', 'Settlement', 'Manual review'],
                 'default' => 'Discontinuity: take cash from Extract B',
+            ],
+
+            // The open choices of spec v3 section 4 that were not yet settings
+            // (added 7 October 2026). Each is seeded with Dupleix's
+            // recommendation so that Dr Thom can confirm or change it in the
+            // Governance Centre when he is ready, with the same maker-checker
+            // and effective date as every other convention. An option is at
+            // most 60 characters: that is the width of the value column.
+            'contractual_record' => [
+                'label' => 'Which record is the contractual one',
+                'description' => 'The terms, rates, fees and cash flows the engine calculates from. Decided 7 October 2026 (O19): the E-Banker system record governs; the signed offer letter is evidence, and a difference between the two is reported to Credit as a control exception, not booked as a modification. Dr Thom\'s written confirmation to be filed.',
+                'options' => ['E-Banker system record governs', 'Signed offer letter governs'],
+                'default' => 'E-Banker system record governs',
+            ],
+            'partly_drawn_interest_basis' => [
+                'label' => 'Interest basis on a partly drawn facility',
+                'description' => 'E-Banker can charge interest on the sanctioned amount or on the drawn balance, and the instalment likewise. The flag is now supplied per account (loan master and scheme settings). Open choice O6.',
+                'options' => ['Per-account flag, then the scheme, else refuse', 'Balance-wise everywhere, flag exceptions'],
+                'default' => 'Per-account flag, then the scheme, else refuse',
+            ],
+            'expected_cashflow_basis' => [
+                'label' => 'Which schedule is the expected cash flow',
+                'description' => 'The origination system\'s schedule starts accrual on the 1st of the month and may carry a different rate; the core account accrues from the disbursement day at the core rate. This decides which one the engine expects cash against. Open choice O7.',
+                'options' => ['Core dates and rate; LOS schedule is reference only', 'LOS schedule as issued; difference is a modification'],
+                'default' => 'Core dates and rate; LOS schedule is reference only',
+            ],
+            'history_before_dec_2025' => [
+                'label' => 'Loan books before December 2025',
+                'description' => 'Where the engine takes the monthly loan book for the months before the Excel reports begin. The stored loan book history (query P2_08) holds every month-end from December 2024; the months from the July 2024 take-on to November 2024 are rebuilt from the balance history and the ledger. Open choice O8.',
+                'options' => ['Stored loan book history, every month-end', 'Ledger and balance history, disclosed', 'Start at December 2025 and disclose'],
+                'default' => 'Stored loan book history, every month-end',
+            ],
+            'loan_book_feed' => [
+                'label' => 'How the monthly loan book arrives',
+                'description' => 'The permanent route for the month-end loan book: a CSV of the loan book query run with ISO dates and loaded by the bootstrap importer, the vendor extending the printed Loan Book Report, a scheduled database view, or an API. Open choice O9; a vendor change needs Dr Thom\'s authorisation.',
+                'options' => ['Monthly CSV of the loan book query', 'Extended Loan Book Report (vendor change)', 'Scheduled database view', 'API'],
+                'default' => 'Monthly CSV of the loan book query',
+            ],
+            'trueup_gl_account' => [
+                'label' => 'Which GL absorbs the EIR true-up',
+                'description' => 'The difference between interest at the effective rate and the contractual interest E-Banker posted has to land in a ledger account when the engine proposes its journals: a dedicated EIR adjustment income account that Finance opens, or the existing interest income account of each product. Open choice O10; needed before the first journal is proposed.',
+                'options' => ['Dedicated EIR adjustment income account', 'Interest income account per product'],
+                'default' => 'Dedicated EIR adjustment income account',
+            ],
+            'auditor_export_format' => [
+                'label' => 'Shape of the auditor export',
+                'description' => 'What the Deloitte download contains: the summary-tab shape agreed in August, or the full worked example with every supporting tab. Open choice O12, with Kundai and Deloitte.',
+                'options' => ['Summary-tab shape', 'Full worked example, every tab'],
+                'default' => 'Summary-tab shape',
+            ],
+            'keyman_insurance_treatment' => [
+                'label' => 'Keyman insurance charged to the borrower',
+                'description' => 'Whether a keyman insurance premium collected with the loan is an integral fee that enters the EIR, or a pass-through to the insurer outside it. One of the Phase 0 sign-offs (O13).',
+                'options' => ['Not integral: pass-through, outside the EIR', 'Integral fee: enters the EIR'],
+                'default' => 'Not integral: pass-through, outside the EIR',
+            ],
+            'nascomex_preference_shares' => [
+                'label' => 'Nascomex preference shares',
+                'description' => 'Whether the Nascomex preference shares are an equity instrument under IAS 32, outside the EIR engine, or a loan at amortised cost inside it. One of the Phase 0 sign-offs (O13).',
+                'options' => ['Equity instrument (IAS 32), outside the EIR', 'Loan at amortised cost, inside the EIR'],
+                'default' => 'Equity instrument (IAS 32), outside the EIR',
+            ],
+            'staging_rebuttal' => [
+                'label' => 'Rebutting the 30-day Stage 2 presumption',
+                'description' => 'IFRS 9 presumes a significant increase in credit risk at 30 days past due but lets the presumption be rebutted with reasonable and supportable evidence. This decides whether MAIIC rebuts it, with a documented reason approved by a second person, or never. One of the Phase 0 sign-offs (O13).',
+                'options' => ['Allowed with documented evidence, approved', 'Never: 30 days past due is Stage 2'],
+                'default' => 'Allowed with documented evidence, approved',
+            ],
+            'rate_change_classification' => [
+                'label' => 'Reset or modification',
+                'description' => 'A rate move the contract already provides for (the prime rate changes) is a B5.4.5 reset; a rate cut MAIIC negotiates outside the contract for a struggling borrower can be a 5.4.3 modification with a gain or loss. This decides which changes are modifications. Open choice O17; Deloitte\'s written confirmation before the first reset is booked.',
+                'options' => ['In-contract moves reset; negotiated changes modify', 'Every rate change is a reset'],
+                'default' => 'In-contract moves reset; negotiated changes modify',
+            ],
+            'schedule_approval_control' => [
+                'label' => 'Approving a version 1 schedule',
+                'description' => 'A generated schedule moves from draft to approved before it is used. This decides whether a second person must approve it, as for a fee classification and the EIR lock, or one person may draft and approve for the first run. Open choice O18.',
+                'options' => ['Second person must approve', 'One person may draft and approve'],
+                'default' => 'Second person must approve',
+            ],
+            'historic_materiality_assessment' => [
+                'label' => 'The historic materiality assessment',
+                'description' => 'MAIIC\'s past method judged the EIR effect immaterial at a threshold the auditors accepted. This decides whether the engine reproduces that assessment beside the detailed calculation (the threshold is then recorded as a governed amount once Finance supplies it) or reports the detailed figure only. Open choice O20, with Deloitte.',
+                'options' => ['Reproduce it beside the detailed figure', 'Report the detailed figure only'],
+                'default' => 'Reproduce it beside the detailed figure',
+            ],
+            'fee_reclass_journal' => [
+                'label' => 'The year-end fee reclassification journal',
+                'description' => 'Finance moves the EIR-related part of fee income into Interest on term loans by a manual journal after year end. This decides whether the engine\'s proposed entries replace that journal, reconciling to it for 2024 and 2025, or both run in parallel for one year. Open choice O21; follows the true-up account.',
+                'options' => ['Engine journal replaces the manual reclass', 'Both run in parallel for one year'],
+                'default' => 'Engine journal replaces the manual reclass',
+            ],
+            'mega_farms_scope' => [
+                'label' => 'Mega Farms facilities',
+                'description' => 'The Mega Farms facilities are about half of 2025 loan interest, sit on their own ledger series and carry a very large loss allowance; a credit-impaired loan accrues on the net carrying amount. This decides whether they are inside the engine, with their stage and the basis of the interest already recognised confirmed first, or outside it and disclosed. Open choice O22.',
+                'options' => ['In scope, stage and interest basis confirmed first', 'Out of scope, disclosed'],
+                'default' => 'In scope, stage and interest basis confirmed first',
             ],
         ];
     }
