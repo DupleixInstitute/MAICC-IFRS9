@@ -106,7 +106,7 @@ On 31 December 2025 E-Banker posted 28 "Diff Int Credit by ROI" entries (type 12
 |---|---|---|---|
 | D20 | **The E-Banker record is the contractual record** (O19). The engine reads terms, rates, fees and cash flows from E-Banker. The signed offer letter is evidence; a difference between letter and system is reported to Credit as a control exception, never booked as a modification. | Dupleix, 7 Oct 2026; Dr Thom to confirm in writing | The signed terms were never keyed into E-Banker (F14), while the system now carries fees, margins and cash flows in full. It is the only record the engine can read completely. The twelve offer letters requested from Credit become test evidence, not a data source. |
 | D21 | **Every open choice of version 3 is a governed setting** with Dupleix's recommendation seeded as the value in force from 1 January 2025. Dr Thom confirms or changes each one in the Governance Centre when he is ready, with maker-checker and an effective date, and the engine records which value every month was run under. | Dupleix, 7 Oct 2026, at Edward's request | Nothing waits on a meeting. A choice that is changed later applies forward only; a month already run keeps the settings it was run under. |
-| D22 | **E-Banker is ingested through a landing zone and the monthly loan book is derived from the ledger** (section 6): raw tables that mirror E-Banker, loaded append-only by whichever of five routes MAIIC uses, with gates that refuse a pack that does not tie, and one re-runnable derivation. The Excel report importer becomes a fallback. | Dupleix, 7 Oct 2026; amended the same day from a bootstrap of the stored report | The ledger is the primary record and ties to every other table; the report starts only in December 2024 and stores every re-run. Every derived figure traces to raw rows an auditor can open. |
+| D22 | **E-Banker is ingested through a landing zone and the monthly loan book is derived from the ledger** (section 6): raw tables that mirror E-Banker, loaded append-only by whichever of five routes MAIIC uses, with gates that refuse a pack that does not tie, and one re-runnable build by either of two methods, the bootstrap of the stored report or the derivation from the ledger, chosen at any time. The Excel report importer becomes a fallback. | Dupleix, 7 Oct 2026; the landing zone and the second method added the same day at Edward's direction, the bootstrap kept as an option | The ledger is the primary record and ties to every other table; the report starts only in December 2024 and stores every re-run. Every derived figure traces to raw rows an auditor can open. |
 | D24 | **The Dupleix-suite layout is adopted for the user interface** (section 11): the six working groups with their colours, the icon rail, the page header with breadcrumb, the period chip, and light and dark mode as a per-user setting, as the Dupleix suite builds them. Routes, permissions and calculations are unchanged; screens move to where the suite puts them. | Edward, 7 Oct 2026 | One shape of screen across every Dupleix system; the EIR screens of P8 are placed in it from the start |
 | D25 | **Dupleix's compliance audit workbooks are adopted** (section 12): five workbooks (IFRS 9 EIR, IFRS 9 impairment, IFRS 7 and IAS 1, RBM classification, Contract Schedule 1), each row naming the governance setting that governs it and the test that proves it; a register in the Governance Centre where MAIIC signs; an auditor's pack per period in the Report Hub. | Edward, 7 Oct 2026 | Deloitte walks from paragraph to screen to test; the status counts are the project's status in one line |
 | D23 | **The three MAIIC extract scripts are retired.** The engine's importers read the tables directly, through CSVs produced with the session settings of the 6 October request (ISO dates, point decimal). | Dupleix, 7 Oct 2026 | Removes the three script faults of section 2.1 at source. |
@@ -133,8 +133,9 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | Which record is the contractual one | **E-Banker system record governs** | Decided D20 | O19 |
 | Interest basis on a partly drawn facility | Per-account flag, then the scheme, else refuse | Recommendation; the flags are now supplied | O6 |
 | Which schedule is the expected cash flow | Core dates and rate; LOS schedule is reference only | Recommendation; follows D20 | O7 |
-| Loan books before December 2025 | Stored loan book history, every month-end | Decided D22 | O8 |
+| Loan books before December 2025 | Stored loan book history, every month-end | Decided D22; superseded by the build-method setting below, which covers every month | O8 |
 | How E-Banker data arrives: the feed route (`ebanker_feed_route`) | Route 1, manual pack | Decided D22: all five routes of section 6.5 are built; MAIIC switches the route in force at any time; routes 4 and 5 need Dr Thom and ICT | O9 |
+| How the loan book is built (`loan_book_build_method`) | Method B, derived from the ledger | Decided D22: both methods of section 6.2 are built; MAIIC switches at any time; the method used is recorded on every row | O8 |
 | Which GL absorbs the EIR true-up | Dedicated EIR adjustment income account | Recommendation; Finance opens the account | O10 |
 | Shape of the auditor export | Summary-tab shape | Recommendation, with Deloitte | O12 |
 | Keyman insurance charged to the borrower | Not integral: pass-through, outside the EIR | Recommendation; a Phase 0 sign-off | O13 |
@@ -170,11 +171,13 @@ Nothing further is needed from the database to start building. These are the ans
 
 Until now the system has been fed by hand: a report printed from E-Banker, saved through Excel, uploaded once a month. Version 3 proposed loading the stored Loan Book Report table instead. The follow-up extracts showed something better is possible: the ledger itself, the primary record of every posting, ties to every other table we hold, so the monthly loan book can be **derived from the ledger** rather than copied from a report. And because the extracts are now ordinary queries with known keys, they can arrive by whichever road MAIIC finds convenient, from a file Barry uploads to a scheduled read over the VPN, without changing anything downstream.
 
-The design has three parts. A **landing zone**: raw tables that mirror E-Banker's, loaded exactly as received and never edited. A **derivation**: one command that builds the monthly loan book from the landing zone, re-runnable whenever a rule or a source row changes. And a **feed**: the one door through which every pack of extracts enters, whichever road it came by, with gates that refuse a pack that does not tie.
+The design has three parts. A **landing zone**: raw tables that mirror E-Banker's, loaded exactly as received and never edited. A **build** of the monthly loan book from the landing zone by one of two methods, both kept and both available at any time: the **bootstrap**, which takes the stored Loan Book Report's latest run for each month as it is, and the **derivation**, which builds the row from the ledger; one command, re-runnable whenever a rule or a source row changes. And a **feed**: the one door through which every pack of extracts enters, whichever road it came by, with gates that refuse a pack that does not tie.
 
-### 6.2 What is derived from what
+### 6.2 The two build methods
 
-For every account and every month-end from the take-on at 31 July 2024 to the latest month, the loan book row is built as follows.
+**Method A, the bootstrap.** The loan book row is the stored Loan Book Report's latest run for that account and month-end (`ebanker_loan_book_runs`, highest row id per account-month), column for column: E-Banker's own carrying amount, principal, interest to date, repayments, arrears, status and rate, mapped once to `loan_books` through a saved template. It is the simplest method, it is what MAIIC's own report says, and it is already tied to the ledger on 2,264 of 2,264 account-months. It covers December 2024 onward, which is where the stored report begins; the months from the take-on at 31 July 2024 to November 2024 are built from the balance history and the ledger and marked as derived.
+
+**Method B, the derivation.** For every account and every month-end from the take-on to the latest month, the row is built from the primary records as follows.
 
 | Loan book field | Source | Why |
 |---|---|---|
@@ -184,7 +187,9 @@ For every account and every month-end from the take-on at 31 July 2024 to the la
 | Arrears buckets, overdue days, status, segment | The stored loan book's latest run for that month-end | E-Banker's own arrears arithmetic depends on its instalment chart, which is unreliable to reproduce, and these are the figures MAIIC reports to RBM |
 | Undisbursed commitment | Approved less disbursed, checked against the disbursement schedule | Both sources held |
 
-Beside every derived carrying amount the stored loan book's figure is kept, and a difference is a flagged row, never a silent choice. The months before December 2024, which the stored report does not hold, are built from the same sources without exception; they are no longer "derived and marked", they are the same as every other month.
+Under method B every month from July 2024 is built the same way, and beside every derived carrying amount the stored loan book's figure is kept; a difference is a flagged row, never a silent choice.
+
+**Choosing between them.** The method in force is a Governance Centre setting (`loan_book_build_method`, section 4.2) with the two methods as its options, changed under maker-checker with an effective date; a month is built by the method in force on its period end, and the method used is recorded on every row. Both methods read the same landing zone and pass the same gates, so switching changes no import, no route and no screen. Dupleix's recommendation is method B, because it covers every month from the take-on on one basis and traces every figure to a posting; method A is the right choice while the derivation is being proven, for a quick reload of a single month, or whenever MAIIC prefers the report's own figures to stand. Whichever is in force, the other remains available on the feed screen for a named month.
 
 ### 6.3 The landing zone
 
@@ -198,7 +203,7 @@ Raw tables that mirror E-Banker column for column, under their own names, loaded
 | `ebanker_account_master`, `ebanker_loan_master`, `ebanker_rate_setup`, `ebanker_plr_master`, `ebanker_charges`, `ebanker_disbursement_schedule`, `ebanker_status_history` | `P1_02`, `P1_03`, `P1_04`, `P2_06`, `P2_07`, `P3_12`, `P3_13` | Their own ids | Whole each time; they are small |
 | `ebanker_loads` | The packs themselves | Pack hash | One row per pack: period, route, who, when, the manifest, the gate results, the watermark after loading |
 
-Three rules. **Nothing is overwritten**: a source row that arrives again with different content (a back-dated change, a deleted flag set) is stored as a new version with its load date, so a month can be re-derived exactly as it looked at the time. **Every row carries its pack**: the hash of the file it came from and the load id, so every derived figure traces to raw rows an auditor can open. **The zone is read by the derivation only**: no screen edits it.
+Three rules. **Nothing is overwritten**: a source row that arrives again with different content (a back-dated change, a deleted flag set) is stored as a new version with its load date, so a month can be re-derived exactly as it looked at the time. **Every row carries its pack**: the hash of the file it came from and the load id, so every derived figure traces to raw rows an auditor can open. **The zone is read by the build only**: no screen edits it.
 
 ### 6.4 The pack: one contract for every route
 
@@ -222,15 +227,15 @@ Every route produces the same pack and enters by the same door; the ingester doe
 
 Whichever route is in use, the system never writes to E-Banker; the Oracle role is read-only; credentials live in the environment file, not in code; and the extracts carry customer data, so route 2's folder and route 3's endpoint are restricted to the two systems and logged.
 
-### 6.6 The derivation
+### 6.6 Building the loan book
 
-`eir:derive-loan-books {from} {to}` builds `loan_books` for the months asked, from the landing zone, as 6.2 states. It is idempotent on account and reporting period, re-runnable at any time, and run under maker-checker from the feed screen: one person asks for the derivation, a second approves it, and the audit log records the pack hashes it read. Re-deriving a month already run prints every difference first; a locked period is never restated. The ECL columns on `loan_books` (stage, LGD, forward-looking adjustments) are not touched by the derivation.
+`eir:build-loan-books {from} {to} {--method=bootstrap|derive}` builds `loan_books` for the months asked, from the landing zone, by the method in force unless one is named (6.2). It is idempotent on account and reporting period, re-runnable at any time, and run under maker-checker from the feed screen: one person asks for the build, a second approves it, and the audit log records the method and the pack hashes it read. Rebuilding a month already run, by either method, prints every difference first; a locked period is never restated. The ECL columns on `loan_books` (stage, LGD, forward-looking adjustments) are not touched by either method.
 
 ### 6.7 Loading the history, once
 
 1. **Freeze the 7 October pack.** The eighteen follow-up extracts and the five of the afternoon, with their SHA-256 hashes, become pack 1 under route 1. They are never opened in Excel.
 2. **Gates.** The pack passes 6.4 with two accepted exceptions recorded against the load: the FInES GL openings of section 3.5 until Finance corrects them, and the Zaithwa Farms balance rows from May 2025 until the vendor rebuilds them.
-3. **Derive on a copy of the production database** for every month from July 2024 to August 2026. December 2025 to August 2026 are already loaded from the Excel reports; the derivation prints every difference before it overwrites.
+3. **Build on a copy of the production database** for every month from July 2024 to August 2026, by method A first (the stored report is the quickest proof) and then by method B, and compare the two: the carrying amounts must agree on every account-month except the flagged rows of section 3.5. December 2025 to August 2026 are already loaded from the Excel reports; the build prints every difference before it overwrites.
 4. **Prove.** Run one ECL month and one EIR month on the copy and compare with the Excel-loaded results; the Baselines sheet of section 12 must show PASS on every tie of section 9.
 5. **Production**, then the same every month by route 1 until route 2 is installed.
 
@@ -238,7 +243,7 @@ A side benefit stands: with twenty-six months in `loan_books`, the ECL module ca
 
 ### 6.8 The feed screen
 
-Data Foundation, E-Banker Feed: the queries (versioned, downloadable as the file Barry runs); the load history (pack, route, period, the gate results or the refusal reason, who loaded, when); the watermarks; the quarantine; and the Derive action with its approval. Every derived loan-book row links back to its raw rows and its pack.
+Data Foundation, E-Banker Feed: the queries (versioned, downloadable as the file Barry runs); the load history (pack, route, period, the gate results or the refusal reason, who loaded, when); the watermarks; the quarantine; and the Build action (method A or B, a month or a range) with its approval. Every derived loan-book row links back to its raw rows and its pack.
 
 ## 7. The importers, reworked
 
@@ -278,7 +283,7 @@ Phases P1 to P4 are built. The order from today, with what each one waits for:
 
 | Phase | Content | Waits for |
 |---|---|---|
-| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the derivation; the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists | Nothing; route 4 waits for Dr Thom and ICT |
+| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by both methods; the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists | Nothing; route 4 waits for Dr Thom and ICT |
 | **P5 Floating resets** | Reset detector from the PLR series writing `rate_reset_events`; a spread change as a separate event; maker-checker intake; a reset inside a locked period refused; prospective re-estimation under B5.4.5 | Nothing to build; O17 confirmed by Deloitte before the first reset is booked |
 | **P6 Arrears** | Cash receipts from the ledger (exact); re-estimation under B5.4.6; IRR on actual expected flows | P5 |
 | **P7 Restructuring** | Version N+1 import; `contract_modifications`; the 10 percent test; lineage | The restructure register from MAIIC |
@@ -304,7 +309,7 @@ The ties achieved this week become regression tests. A build that cannot reprodu
 | Take-on postings of 31 July 2024 | 77 postings, MWK 8,297,388,309.25 |
 | Year-end adjustments of 31 December 2025 | 28 postings: 22 debits 96,390,096.16; 6 credits 85,166,683.31 |
 | Take-on mapping | 105 of 109 facilities; 98 of 100 schedule blocks linked |
-| Derived loan book against the stored loan book's carrying amount, every month-end from December 2024 | 2,264 of 2,264 agree; every difference is a flagged row with a named cause |
+| Loan book built by method B against the same month built by method A, every month-end from December 2024 | 2,264 of 2,264 carrying amounts agree; every difference is a flagged row with a named cause |
 
 ## 10. Risks and how they are held
 
@@ -351,7 +356,7 @@ The tree is the single source of truth: the server holds it in `config/menu.php`
 | **Data Foundation** (teal) | Clients | `clients.index` | | Customer & Loan Data |
 | | Loan Book | `loan_applications.loan-book` | | Customer & Loan Data |
 | | Imports | `imports.index` | | Customer & Loan Data |
-| | E-Banker Feed (queries, loads, watermarks, derive) | `eir-feed.index` (new, section 6.8) | eir.view; derive needs eir.govern | new |
+| | E-Banker Feed (queries, loads, watermarks, build) | `eir-feed.index` (new, section 6.8) | eir.view; derive needs eir.govern | new |
 | | Loan Portfolios | `portfolios.index` | | Portfolio Setup |
 | | Product Groups | `groups.index` | | Portfolio Setup |
 | | Sector Types | `industry_types.index` | | Portfolio Setup |
@@ -534,6 +539,8 @@ CA-1 port the engine and add the two columns and the Baselines sheet (one day); 
 - **Latest run**: of several stored runs of the same month, the one with the highest row id; the one the engine keeps.
 - **Take-on**: the loading of the pre-existing loans into E-Banker on 31 July 2024, with one opening posting each.
 - **Diff Int Credit by ROI**: E-Banker's year-end adjustment of a year's interest to the rate on the account at year end (type 120).
+- **Bootstrap (method A)**: building a month's loan book from the stored Loan Book Report's latest run, as E-Banker printed it.
+- **Derivation (method B)**: building it from the ledger and the masters, with E-Banker's own arrears fields.
 - **Landing zone**: the raw tables that mirror E-Banker, loaded exactly as received and never edited; everything else is derived from them.
 - **Pack**: one month's set of extract files plus a manifest of what they are, which query version made them and their hashes; the one form in which data enters, whichever route delivers it.
 - **Watermark**: the last source key loaded for a table; the next pack starts after it.
