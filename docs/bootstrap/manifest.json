@@ -431,164 +431,188 @@
       "bytes": 22821
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_28 February 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_28 February 2025.xls",
       "query_id": "TB_2025-02",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "14ef5744604d5ce46da9502bb09d783bf2ce0df2ee18825194e4f7a4a1c6d52e",
       "bytes": 51712
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_28 February 2026.xls",
+      "file": "trial-balances/monthly/Trial Balance_28 February 2026.xls",
       "query_id": "TB_2026-02",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "cb974478b7d4578a8469ab285ad191ea8c44617de7b12887a0cfbe2f1b3cc4be",
       "bytes": 51712
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_30 April 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_30 April 2025.xls",
       "query_id": "TB_2025-04",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "850a5ae2768012872190d88df0b1d68b246fb37cc9e75591c79d1f0160ce0aaa",
       "bytes": 52736
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_30 April 2026.xls",
+      "file": "trial-balances/monthly/Trial Balance_30 April 2026.xls",
       "query_id": "TB_2026-04",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "70fc293fa5275ddf69673065352a4a7b51285ca1cbc139053f0d93856cc9ef7f",
       "bytes": 54784
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_30 June 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_30 June 2025.xls",
       "query_id": "TB_2025-06",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "c84908a35fc2b8fd358475fafad6b22889384f2b2217a46a6a2b2d6d22ff92c9",
       "bytes": 52736
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_30 June 2026.xls",
+      "file": "trial-balances/monthly/Trial Balance_30 June 2026.xls",
       "query_id": "TB_2026-06",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "4e4b8b94b169f9453e36620336ee2452acfc65561c6bf7901e5ac961d86c1751",
       "bytes": 54272
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_30 November 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_30 November 2025.xls",
       "query_id": "TB_2025-11",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "183583402344c53c5b4d6a17c087c40d3faab8b47e7983750eed61de9f2ffd4e",
       "bytes": 53760
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_30 September 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_30 September 2025.xls",
       "query_id": "TB_2025-09",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "2f3714dc63fae0a394e31a2e540eafaa95b5894e5e735fc2f0841a8861893ad4",
       "bytes": 53248
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 August 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 August 2025.xls",
       "query_id": "TB_2025-08",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "c95460798ef8127b6c3deaae941830398c4a4e09788c4dd0ff487b453212d2f4",
       "bytes": 53248
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 December 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 August 2026.xls",
+      "query_id": "TB_2026-08",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
+      "rows": null,
+      "sha256": "00e17e879e54fe5c198a9e7adad0d121ac4f49245d55771581d0201d17dd3acc",
+      "bytes": 49152
+    },
+    {
+      "file": "trial-balances/monthly/Trial Balance_31 December 2025.xls",
       "query_id": "TB_2025-12",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "e884e38f5ea145425ab653dc829d1c74e681188cc5202fc71ddbdcb2921c373d",
       "bytes": 44032
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 January 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 January 2025.xls",
       "query_id": "TB_2025-01",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "cbd2f76b680e11d0d6ed074dc93961c5ca028d772cc9f89df5b4072f85929e70",
       "bytes": 50688
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 January 2026.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 January 2026.xls",
       "query_id": "TB_2026-01",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "dacc77d7de527600eb0c3f0945d95918179f8426c1275fc66d07a1ba09ff3f75",
       "bytes": 50688
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 July 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 July 2025.xls",
       "query_id": "TB_2025-07",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "814c934bc30508de9f97f73513476177d7f126aa6fc8cb8bfd68568993741fb1",
       "bytes": 53248
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 July 2026.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 July 2026.xls",
       "query_id": "TB_2026-07",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "299b461c2088b8a100e53200b01782416574cc495915ffd9b72663ec74dc4bbd",
       "bytes": 54784
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 March 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 March 2025.xls",
       "query_id": "TB_2025-03",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "0a0a87be3ad6a3bbb0c990551940bae0aeb0ce0cd50373b1bc62de66842831bd",
       "bytes": 52224
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 March 2026.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 March 2026.xls",
       "query_id": "TB_2026-03",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "1c115551a58d1504dda9ac29cb4dee22d6ae6d0b335a9a12807e62778593c8d0",
       "bytes": 52224
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 May 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 May 2025.xls",
       "query_id": "TB_2025-05",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "1789e3f5dc79d54b713e1b890f3f24ba03c6d54a8fb35019874e22878f875bd5",
       "bytes": 52736
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 May 2026.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 May 2026.xls",
       "query_id": "TB_2026-05",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "a5728ff773739f34b641036bac99375297c6243756161ae9a5faca2992dea4e5",
       "bytes": 54784
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/Trial Balance_31 October 2025.xls",
+      "file": "trial-balances/monthly/Trial Balance_31 October 2025.xls",
       "query_id": "TB_2025-10",
-      "kind": "monthly trial balance as received from Finance on 19 Aug 2026 (P&L cumulative year-to-date)",
+      "kind": "monthly trial balance as received from Finance (P&L cumulative year-to-date); Jan 2025 to Jul 2026 received 19 Aug 2026, Aug 2026 received 15 Sep 2026",
       "rows": null,
       "sha256": "728857c7492fb79ac07da5a3b52f91d806dc366733ffa3c5333f7cf14e9a58d0",
       "bytes": 53760
     },
     {
-      "file": "trial-balances-2025-01-to-2026-07/AFS Final TB and Initial TB Mapped to E-Banker TB for MAIIC for December 2025.xlsx",
-      "query_id": "TB_AFS_2025-12",
-      "kind": "AFS bridge: final and initial TB mapped to the E-Banker TB, December 2025 (sheet 'Final E-Banker TB Dec 2025')",
+      "file": "trial-balances/afs-bridge-2025-12/2026-08-19/AFS Final TB and Initial TB Mapped to E-Banker TB for MAIIC for December 2025.xlsx",
+      "query_id": "TB_AFS_2025-12_v1",
+      "kind": "AFS bridge, December 2025, as received 19 Aug 2026: sheet 'Final E-Banker TB Dec 2025' holds amounts as text with thousands separators; superseded by the 10 Sep 2026 version for loading",
       "rows": null,
       "sha256": "2594572cc54c2bb887849b744de8faa61ff58bc38c985842d1404c4c5cc5a5ba",
       "bytes": 1027205
+    },
+    {
+      "file": "trial-balances/afs-bridge-2025-12/2026-09-10/AFS Final TB and Initial TB Mapped to E-Banker TB for MAIIC for December 2025.xlsx",
+      "query_id": "TB_AFS_2025-12",
+      "kind": "AFS bridge, December 2025, as received 10 Sep 2026: 'FINAL AFS TB as of 19th Mar 26', 'Initial TB Submitted to Auditor', 'TB December 2025', 'Final E-Banker TB Dec 2025' (amounts numeric). The mapped December 2025 TB that agrees to the audited accounts; the version the importer reads",
+      "rows": null,
+      "sha256": "c8ac9041ac196ae16bc40dab9118972c2b38eb4049117729130c4efb283a91fc",
+      "bytes": 1025415
+    },
+    {
+      "file": "trial-balances/afs-mapping-2023-to-2026-08/Mapping TBs August 2026 to Audited Financial Statements4.xlsx",
+      "query_id": "TB_AFS_MAP",
+      "kind": "every GL line mapped to its audited-accounts category, with year-end balances Dec 2023, Dec 2024, Dec 2025 and Aug 2026 (sheets 'Mapping TBs', 'Income Statement 2022 to Aug26', 'Balance Sheet 2022 to Aug 2026'); received 21 Sep 2026, saved 24 Sep; the [TB] of spec v3 F17",
+      "rows": null,
+      "sha256": "3a601fa29bd4421dab7aa568004648958f832a0cd58e41266e1a50ad5b32b636",
+      "bytes": 20336838
     }
   ]
 }
