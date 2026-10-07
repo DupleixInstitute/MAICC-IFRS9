@@ -111,7 +111,7 @@ On 31 December 2025 E-Banker posted 28 "Diff Int Credit by ROI" entries (type 12
 | D22 | **E-Banker is ingested through a landing zone and the monthly loan book is derived from the ledger** (section 6): raw tables that mirror E-Banker, loaded append-only by whichever of five routes MAIIC uses, with gates that refuse a pack that does not tie, and one re-runnable build by any of three methods, the bootstrap of the stored report, the derivation from the ledger, or the printed report importer MAIIC uses today, chosen at any time. | Dupleix, 7 Oct 2026; the landing zone and the derivation added the same day at Edward's direction, the bootstrap and the report importer kept as options | The ledger is the primary record and ties to every other table; the report starts only in December 2024 and stores every re-run. Every derived figure traces to raw rows an auditor can open. |
 | D24 | **The Dupleix-suite layout is adopted for the user interface** (section 11): the six working groups with their colours, the icon rail, the page header with breadcrumb, the period chip, and light and dark mode as a per-user setting, as the Dupleix suite builds them. Routes, permissions and calculations are unchanged; screens move to where the suite puts them. | Edward, 7 Oct 2026 | One shape of screen across every Dupleix system; the EIR screens of P8 are placed in it from the start |
 | D25 | **Dupleix's compliance audit workbooks are adopted** (section 12): five workbooks (IFRS 9 EIR, IFRS 9 impairment, IFRS 7 and IAS 1, RBM classification, Contract Schedule 1), each row naming the governance setting that governs it and the test that proves it; a register in the Governance Centre where MAIIC signs; an auditor's pack per period in the Report Hub. | Edward, 7 Oct 2026 | Deloitte walks from paragraph to screen to test; the status counts are the project's status in one line |
-| D26 | **One-command bootstrap from committed inputs** (section 6.10): the E-Banker pack, the data-dictionary results, the take-on workbook and the queries are committed under `docs/bootstrap/` with a manifest, and `eir:bootstrap` builds a clean install to a proven state. | Edward, 7 Oct 2026 | Any server, including UAT and Deloitte's copy, is reproducible from nothing; the bootstrap is also the end-to-end test of the data foundation |
+| D26 | **One-command bootstrap from committed inputs** (section 6.10): the E-Banker pack, the data-dictionary results, the trial balances, the take-on workbook and the queries are committed under `docs/bootstrap/` with a manifest; `eir:bootstrap` builds a clean install, runs every engine in dependency order and verifies the result against the baselines and MAIIC's golden numbers. | Edward, 7 Oct 2026 | Any server, including UAT and Deloitte's copy, is reproducible from nothing; the bootstrap is also the end-to-end test of the data foundation |
 | D27 | **Macro statistics are ingested from the World Bank and the IMF the way the suite does it** (section 13): indicator codes on the series, a fetcher and a parser, preview before commit, a batch of provenance on every observation, a command for the bootstrap and the scheduler, the Reserve Bank series by file, and a governed rule for which source wins. The existing tables and the six forward-looking screens are kept. | Edward, 7 Oct 2026 | Forward-looking information with its source, address and time against every figure, which is what B5.5.49 to B5.5.54 and Deloitte ask for |
 | D28 | **The forward-looking adjustment gains a correlation finder, a repaired regression, a manual overlay route and lineage on the loan** (section 14); the arithmetic that applies the adjustment to PDs and feeds the ECL is unchanged. | Edward, 7 Oct 2026 | Which series explains MAIIC's losses is found, tested and approved by two people; judgement has a governed road; every post-FLI PD says where it came from |
 | D29 | **The scenario set is a governed object per period and the ECL is weighted across scenarios** (section 15): three or more scenarios with narratives, weights, source vintage, calibration to Malawi's own history, shocks on the base path, two approvals, a lock, back-tests and sensitivity; the weighting moves from the macro path to the loss. | Edward, 7 Oct 2026 | IFRS 9 B5.5.42 asks for the probability-weighted loss over a range of outcomes; IFRS 7.35G asks for the disclosure; the auditors ask for the governance |
@@ -297,7 +297,7 @@ The Dupleix suite installs a client system with one command that wipes a clean d
 
 **The command.**
 
-`php artisan eir:bootstrap --fresh --with-client-inputs --build --verify`
+`php artisan eir:bootstrap --fresh --with-client-inputs --build --run-engines --verify`
 
 | Step | What it does | Idempotent |
 |---|---|---|
@@ -306,11 +306,51 @@ The Dupleix suite installs a client system with one command that wipes a clean d
 | 3 | Lands the committed pack and the trial balances into the landing zone by route 1 (section 6.4): the manifest is checked file by file, the gates run, the accepted exceptions are recorded against the load | Yes: a file whose hash is already loaded is skipped |
 | 4 | Lands the take-on workbook (section 6.9) and the fees it carries | Yes |
 | 5 | On `--build`: builds the loan books for every month from July 2024 to the last month in the pack by the method in force (section 6.2), builds the take-on population under its basis, generates the version 1 schedules | Yes: a locked period is never restated |
-| 6 | On `--verify`: runs the baselines of section 9 against the database and prints the table, PASS or FAIL per row, and exits non-zero on any FAIL | Yes |
+| 6 | On `--run-engines`: runs the engine chain of 6.10.1 end to end for every period from the first full month to the last month in the pack, in the order the modules depend on each other, synchronously (the queue driver is set to `sync` for the run, so no worker is needed and nothing is left waiting) | Yes: a period already run and locked is skipped |
+| 7 | On `--verify`: runs the baselines of section 9 and the golden numbers of 6.10.2 against the database, prints the table, PASS or FAIL per row, and exits non-zero on any FAIL | Yes |
 
-Anything the bootstrap approves (a load, a build, a generated schedule) is stamped with the approver label "System Bootstrap (automated data-readiness, not a MAIIC approval)", so that no one can mistake it for a sign-off by MAIIC; the maker-checker approvals of the Governance Centre and the register are never given by the bootstrap.
 
-**What it is for.** The first installation on MAIIC's server; every UAT and acceptance round, which starts from a bootstrap so that the result is reproducible; Deloitte's copy; and the developers' own daily state, since a bootstrap with `--build --verify` is also the end-to-end test of the data foundation. The monthly packs of section 6.5 are loaded by the feed, not by the bootstrap; the bootstrap loads what is committed.
+#### 6.10.1 The engine chain the bootstrap runs
+
+The suite's bootstrap runs its engines in dependency order and treats the result as the proof of the installation. MAIIC's chain, in the order the modules depend on each other, with what each needs and how the bootstrap supplies it where a person would normally act:
+
+| Order | Engine | Entry point | Needs | How the bootstrap meets it |
+|---|---|---|---|---|
+| 1 | Macro statistics | `macro:import-worldbank`; the WEO snapshot | Internet, or the committed snapshot | Snapshot under `docs/bootstrap/macro/` when the fetch fails (13.3) |
+| 2 | Scenario set | the seeded first set of 15.8 | An approved set | Seeded as *proposed*; the bootstrap approves it under the automated label so the chain can run; it is not a MAIIC approval and the screen says so |
+| 3 | Staging and SICR | `StagingClassifier` on each month's loan book | Governed thresholds; the loan book | Thresholds seeded; loan books built in step 5 |
+| 4 | PD: transition matrices | `TransitionMatrixService`, cumulative | Twelve or more months of graded loan books | The 26 months from the landing zone |
+| 5 | LGD | `CalculateLGDJob` and its chunks | Payments and collateral | Payments from the ledger; collateral from the register; runs synchronously |
+| 6 | Forward-looking adjustment | the route in force (14.6) | An approved model, or an overlay | With no approvable model on a clean install the bootstrap runs the **manual overlay route at zero** and marks every post-FLI PD "no adjustment: bootstrap"; the regression route is used once a model has been approved by two people |
+| 7 | ECL | `ifrs9:recalculate-ecl --pd=pd_post_fli`, the time-phased service | PD, LGD, EAD, stage, the EIR for discounting | Steps 3 to 6 and 9 |
+| 8 | EIR: schedules | `eir:generate-schedules` | Terms, drawdowns, the take-on basis | Steps of 6.9; version 1 approved under the automated label |
+| 9 | EIR: solve and revenue | `CalculateEirJob`, `eir:run-revenue {period}` | Approved schedules, fees, rates, the governed conventions | Step 8; fees from the charges table and the take-on workbook |
+| 10 | GL reconciliation | `EirGlReconciliationService` | The trial balances | Landed in step 3 of the bootstrap |
+| 11 | Stress testing | `StressTestingController` logic as a service | The ECL of step 7 | Run for the seeded scenario set |
+| 12 | Reports and the audit workbooks | the 30 reports; `tools/compliance` | Everything above | Generated for the last period; the Baselines sheet reads the live figures |
+
+Two orderings matter and are enforced: the ECL is discounted at the EIR, so step 9 runs before step 7 for each period (the chain runs 8 and 9 first, then 3 to 7, then 10 to 12); and the forward-looking adjustment runs once per scenario under the seeded weighting method of 15.5, so step 6 is a loop over the set of step 2.
+
+Three engines are queued jobs today (LGD, EIR solve, revenue). Under `--run-engines` they run synchronously; on a server they still run through the queue, and the installation guide carries the worker command with a memory ceiling, because the suite found that a worker left on its default limit stops itself part-way through a full chain and later jobs wait in silence.
+
+#### 6.10.2 Golden numbers
+
+`--verify` checks the section 9 baselines and, once the engines have run, these figures. They are MAIIC's own, so a bootstrap on any server either reproduces them or fails:
+
+| Golden number | Expected | Source |
+|---|---|---|
+| ECL at 31 December 2025, total and by stage | The audited impairment allowance in the 2025 financial statements | The AFS mapping workbook (`TB_AFS_MAP`), the impairment lines; the signed statements |
+| ECL at 31 December 2024 | The audited 2024 allowance | The same workbook's December 2024 column |
+| Contractual interest 2025, by loan GL | MWK 5,293,988,207.06 for January 2025 to July 2026 (section 9), split by month | The ledger |
+| Interest income 2025 against the trial balance | The year-to-date tie, 83 of 83 account-months | Section 9 |
+| Loan balances by GL at each year-end | The audited figures: 2024 and 2025 by GL | The AFS mapping workbook |
+| The revenue shift 2024 and 2025 | Recorded on the first run that Dr Thom approves, then held as the number later builds must reproduce | The engine, once approved |
+
+The last row is how a golden number is born: the first approved run writes it, and from then on `--verify` fails any build that changes it without a governed reason.
+
+Anything the bootstrap approves (a load, a build, a generated schedule, the seeded scenario set) is stamped with the approver label "System Bootstrap (automated data-readiness, not a MAIIC approval)", so that no one can mistake it for a sign-off by MAIIC; the maker-checker approvals of the Governance Centre and the register are never given by the bootstrap.
+
+**What it is for.** The first installation on MAIIC's server; every UAT and acceptance round, which starts from a bootstrap so that the result is reproducible; Deloitte's copy; and the developers' own daily state, since a bootstrap with `--build --run-engines --verify` is the end-to-end test of the data foundation and of every engine on it. The monthly packs of section 6.5 are loaded by the feed, not by the bootstrap; the bootstrap loads what is committed.
 
 ### 6.11 The EIR as at any date
 
@@ -873,7 +913,8 @@ SC-1 the set, the scenarios, the shocks, the migration from the two old structur
 - **Report importer (method C)**: building it from the printed Loan Book Report uploaded as Excel, the way MAIIC has loaded every month until now, with the file landed and date-checked.
 - **As at a date**: the computation of a loan's EIR and amortised cost using only what was posted, in force and locked on that date; any date, not only a month-end.
 - **Take-on basis**: whether a take-on loan's EIR is recomputed from its origination (schedule and fees) or started at its 31 July 2024 balance; recorded on every take-on loan.
-- **Bootstrap (the command)**: `eir:bootstrap`, which builds a clean install from the inputs committed under `docs/bootstrap/` and verifies it against the baselines.
+- **Bootstrap (the command)**: `eir:bootstrap`, which builds a clean install from the inputs committed under `docs/bootstrap/`, runs the engine chain and verifies the result against the baselines and the golden numbers.
+- **Golden number**: a figure MAIIC has already accepted (an audited allowance, a tie proven on the ledger, an approved run's result) that every later build must reproduce.
 - **Batch (macro import)**: the record of one import of macro statistics: source, address, fetched-at, who committed it, rows; every observation points to its batch.
 - **WEO**: the IMF World Economic Outlook database, the source of the forecast years.
 - **Pre-FLI and post-FLI PD**: the probability of default measured from history, and the same probability after the forward-looking adjustment; the ECL is calculated on the second.
