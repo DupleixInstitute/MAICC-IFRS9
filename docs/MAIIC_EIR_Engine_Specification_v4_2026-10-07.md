@@ -205,6 +205,7 @@ Raw tables that mirror E-Banker column for column, under their own names, loaded
 | `ebanker_balance_history` | ACCOUNT_BALANCE (`P2_09`) | `ACCOUNT_BAL_MST_ID` | Incrementally by key |
 | `ebanker_loan_book_runs` | LOAN_BOOK_DETAILS_ALL (`P2_08`) | `LOAN_BOOK_DET_ID_A` | Incrementally by key; every run kept, the latest per account-month used |
 | `ebanker_account_master`, `ebanker_loan_master`, `ebanker_rate_setup`, `ebanker_plr_master`, `ebanker_charges`, `ebanker_disbursement_schedule`, `ebanker_status_history` | `P1_02`, `P1_03`, `P1_04`, `P2_06`, `P2_07`, `P3_12`, `P3_13` | Their own ids | Whole each time; they are small |
+| `ebanker_trial_balances` | The monthly trial balance files as received from Finance (19 to date) and the AFS bridge workbook | File hash and row number | One table per file; every GL line exactly as printed, with its cumulative year-to-date balance. `gl_trial_balance_lines`, the GL side of the reconciliation, is derived from it on build; the year-to-date rule of section 7.7 is applied on read, never stored |
 | `ebanker_loan_book_reports` | The printed Loan Book Report as uploaded (method C) | File hash and row number | One table per upload; the parsed rows exactly as read |
 | `ebanker_loads` | The packs themselves | Pack hash | One row per pack: period, route, who, when, the manifest, the gate results, the watermark after loading |
 
@@ -212,7 +213,7 @@ Three rules. **Nothing is overwritten**: a source row that arrives again with di
 
 ### 6.4 The pack: one contract for every route
 
-A pack is a set of CSV files, one per query, plus a manifest. The manifest (`manifest.json`) records the period, the run timestamp, the session settings used (ISO dates, point decimal, the RUN 0 settings of the 6 October request) and, for each file, the query id, the query version, the row count and the SHA-256 hash.
+A pack is a set of files, one per query, plus the month's trial balance from Finance, plus a manifest. The manifest (`manifest.json`) records the period, the run timestamp, the session settings used (ISO dates, point decimal, the RUN 0 settings of the 6 October request) and, for each file, the query id, the query version, the row count and the SHA-256 hash.
 
 - **The queries are versioned in the system**, not in an email. Data Foundation, E-Banker Feed, Queries holds the SQL text of each extract with a version number and a checksum, and hands Barry the file to run. A column added later is a new version; the manifest says which version produced each file.
 - **Watermarks.** For each incremental table the system records the last key loaded; the query for the next pack is "where the key is greater than the watermark", plus the two-month re-pull. Masters come whole.
@@ -278,7 +279,7 @@ The seeded option is the reasonable one: it uses the history wherever MAIIC can 
 
 The Dupleix suite installs a client system with one command that wipes a clean database, seeds it, loads the client's own input files from a folder committed in the repository, runs the engines and checks the result against the golden numbers. MAIIC adopts the same method (decision D26), so that any server, including Deloitte's copy and the UAT copy, is built from nothing to a proven state without anyone sending a file.
 
-**The committed inputs.** `docs/bootstrap/` in the repository holds, exactly as received and never re-saved: the E-Banker pack of 7 October 2026 (the 18 extracts and the 5 afternoon queries, 23 files), the data-dictionary results of 6 October (24 files), the take-on workbook with its fee columns, the SQL that produced the pack, and `manifest.json` with every file's query id, row count and SHA-256 and the accepted exceptions the gates allow. The committed copy is read first; a OneDrive path is only a local fallback for development. A replacement, for example the workbook Finance returns with the fees filled in, is a new file beside the old one and a new manifest entry; nothing in the folder is edited in place. The files are MAIIC's data (borrower names and balances); the repository is private and access to it is governed as access to the production database is.
+**The committed inputs.** `docs/bootstrap/` in the repository holds, exactly as received and never re-saved: the E-Banker pack of 7 October 2026 (the 18 extracts and the 5 afternoon queries, 23 files), the data-dictionary results of 6 October (24 files), the 19 monthly trial balances of January 2025 to July 2026 with the AFS bridge workbook for December 2025, the take-on workbook with its fee columns, the SQL that produced the pack, and `manifest.json` with every file's query id, row count and SHA-256 and the accepted exceptions the gates allow. The committed copy is read first; a OneDrive path is only a local fallback for development. A replacement, for example the workbook Finance returns with the fees filled in, is a new file beside the old one and a new manifest entry; nothing in the folder is edited in place. The files are MAIIC's data (borrower names and balances); the repository is private and access to it is governed as access to the production database is.
 
 **The command.**
 
@@ -288,7 +289,7 @@ The Dupleix suite installs a client system with one command that wipes a clean d
 |---|---|---|
 | 1 | `migrate:fresh` on `--fresh`, refused if user data exists unless `--force-wipe` is also passed | Safety, not a step |
 | 2 | Seeds: roles and permissions, the Governance Centre defaults (section 4.2), the help centre, the fee rulebook, the compliance-audit modules (section 12) | Yes: a key that exists is left alone |
-| 3 | Lands the committed pack into the landing zone by route 1 (section 6.4): the manifest is checked file by file, the gates run, the accepted exceptions are recorded against the load | Yes: a file whose hash is already loaded is skipped |
+| 3 | Lands the committed pack and the trial balances into the landing zone by route 1 (section 6.4): the manifest is checked file by file, the gates run, the accepted exceptions are recorded against the load | Yes: a file whose hash is already loaded is skipped |
 | 4 | Lands the take-on workbook (section 6.9) and the fees it carries | Yes |
 | 5 | On `--build`: builds the loan books for every month from July 2024 to the last month in the pack by the method in force (section 6.2), builds the take-on population under its basis, generates the version 1 schedules | Yes: a locked period is never restated |
 | 6 | On `--verify`: runs the baselines of section 9 against the database and prints the table, PASS or FAIL per row, and exits non-zero on any FAIL | Yes |
@@ -335,9 +336,9 @@ The chart exists for 75 of 184 accounts and is unreliable where it exists, so th
 
 As section 6.9: the workbook landed as `takeon_blocks` and `takeon_schedule_lines`, the gates, the build of `contract_takeon` under the `takeon_history_basis` setting, and the Take-on Schedules screen.
 
-### 7.7 The trial-balance importer (unchanged) and the GL opening balances
+### 7.7 The trial balances: landed with the rest, and the GL opening balances
 
-The trial-balance corpus of September stands. `GL_02` is added as a small table of keyed GL opening balances so that the bridge can show the two FInES differences as what they are.
+The trial balance is the check on everything else, so it enters by the same door as everything else. The 19 monthly files and the AFS bridge workbook are committed under `docs/bootstrap/trial-balances-2025-01-to-2026-07/` and landed as `ebanker_trial_balances` (section 6.3); each later month arrives as one more file in the monthly pack, with its hash in the manifest. `gl_trial_balance_lines`, which the reconciliation reads, is derived from the landed files by the build, and `gl_account_scope` still says what each GL code is. The two rules of the September importer are unchanged: a P&L balance is cumulative year-to-date and is turned into a month on read (January taken whole); a balance-sheet balance is never differenced. `GL_02` is landed as the small table of keyed GL opening balances so that the bridge shows the two FInES differences as what they are. The ties the trial balance gives (section 9: the loan GLs to the cent, the FInES differences, interest income year-to-date on 83 of 83) are run by `eir:bootstrap --verify` like every other baseline.
 
 ## 8. The build plan from here
 
