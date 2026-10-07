@@ -135,6 +135,7 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | Which schedule is the expected cash flow | Core dates and rate; LOS schedule is reference only | Recommendation; follows D20 | O7 |
 | Loan books before December 2025 | Stored loan book history, every month-end | Decided D22; superseded by the build-method setting below, which covers every month | O8 |
 | How E-Banker data arrives: the feed route (`ebanker_feed_route`) | Route 1, manual pack | Decided D22: all five routes of section 6.5 are built; MAIIC switches the route in force at any time; routes 4 and 5 need Dr Thom and ICT | O9 |
+| Pre-migration history of the take-on loans (`takeon_history_basis`) | Recompute from origination where the block and fees exist, else start at the take-on balance | Recommendation (section 6.9); the loan carries the basis it was built on | new |
 | How the loan book is built (`loan_book_build_method`) | Method B, derived from the ledger | Decided D22: all three methods of section 6.2 are built (bootstrap of the stored run, derivation from the ledger, the printed report importer); MAIIC switches at any time; the method used is recorded on every row | O8 |
 | Which GL absorbs the EIR true-up | Dedicated EIR adjustment income account | Recommendation; Finance opens the account | O10 |
 | Shape of the auditor export | Summary-tab shape | Recommendation, with Deloitte | O12 |
@@ -158,7 +159,7 @@ Nothing further is needed from the database to start building. These are the ans
 | Who | What | Asked in | Why it matters |
 |---|---|---|---|
 | Tamanda | Tick the take-on mapping workbook (4 unmatched, 11 carrying-amount differences above 5 percent) | `Take-on schedules with mapping - for Tamanda to confirm - 7 Oct 2026.xlsx` | Loads the 109 take-on loans |
-| Tamanda | The fee template for the take-on loans (O14) and the explanation of the 2024 arrangement fee of MWK 1.34 billion (O23) | Fee template of 25 Sep; the 2024 question in version 3 | Fees are the EIR; the 2024 figure decides how much of 2024 belongs in it |
+| Tamanda | The fees of the take-on loans, in the yellow columns of the returned workbook (O14), and the explanation of the 2024 arrangement fee of MWK 1.34 billion (O23) | The workbook with fee columns of 7 Oct; the 2024 question in version 3 | Fees are the EIR; the 2024 figure decides how much of 2024 belongs in it |
 | Credit | The twelve offer letters: the ten samples and the two over-sanction accounts (Mchinji 50m against 100m drawn; VNC Bricks 20m against 200m) | `Request to Credit - the twelve offer letters - 7 Oct 2026.pdf` | Test evidence under D20; the two sanction checks are a control finding |
 | Finance | Which 2024 figure agreed to the audited accounts for 1050201 and 1050202, then the GL opening adjustment | `Outcome - GL differences and Zaithwa Farms explained - 7 Oct 2026.pdf` | The ledger-to-accounts bridge |
 | Finance | The questions on the 28 year-end adjustments; the historic materiality threshold | `Note to Barry - the 28 interest adjustments of 31 Dec 2025.pdf`; O20 | December 2025 interest; the historic assessment |
@@ -248,6 +249,38 @@ A side benefit stands: with twenty-six months in `loan_books`, the ECL module ca
 
 Data Foundation, E-Banker Feed: the queries (versioned, downloadable as the file Barry runs); the load history (pack, route, period, the gate results or the refusal reason, who loaded, when); the watermarks; the quarantine; and the Build action (method A, B or C, a month or a range; method C takes the report file) with its approval. Every derived loan-book row links back to its raw rows and its pack.
 
+### 6.9 The take-on schedules
+
+**What they are for.** E-Banker's history of the 109 take-on loans begins on 31 July 2024 with one opening posting each. The effective interest rate needs what happened before that: the origination date, the original principal, the contractual rate and instalment pattern, and the fees charged at the start. Tamanda's workbook of amortisation schedules at 31 October 2024 (100 blocks, mapped on 7 October to 105 of the 109 facilities) is the only record of that. The engine uses it for two things: to solve the EIR at origination and roll the amortised cost forward to 31 July 2024, so that the loan enters E-Banker at its true amortised cost rather than its take-on balance; and as the version 1 schedule of those loans (`schedule_source = TAKEON_WORKBOOK`) in place of a generated one.
+
+**The fees.** Neither the workbook nor E-Banker records the fees charged when a take-on loan was granted, and the EIR cannot be solved without them. The mapping workbook returned to Tamanda on 7 October (`Take-on schedules with mapping - with fee columns - for Tamanda to confirm - 7 Oct 2026.xlsx`) carries, on its Upload summary sheet, seven columns for her to complete per facility: the arrangement fee, the legal fees, any other fee that was a condition of the loan, the date charged, whether the fees were deducted from the amount paid out, the offer letter or receipt the figures come from, and a total. A blank means no such fee; a zero means known to be nil. This replaces the separate fee template of 25 September for the take-on loans (O14 is unchanged in substance: Finance supplies the fees; the system reads them).
+
+**Landed, not typed.** The workbook enters by the feed door as a pack of its own kind: its hash, then two raw tables. `takeon_blocks` holds one row per block: title, principal, rate, term, start date, the mapped account, the mapping confidence, Tamanda's tick, the fees, and the sheet and cell each value came from. `takeon_schedule_lines` holds one row per instalment line: due date, instalment, principal, interest, balance, serial, with its cell reference. Every figure traces to the cell in the workbook she signed; the Upload summary's formulas already point there.
+
+**Gates.** Every block is mapped to one account that exists in the master, or is explicitly marked not matched or refused (the three equity positions); no account has two blocks; the block principal equals the take-on posting (exact on 77) or the difference is named; the schedule's balance at 31 July 2024 is compared with E-Banker's take-on balance and the difference flagged as arrears or prepayment at take-on; every date is unambiguous; serial numbers out of due-date order are sorted by date and the anomaly raised (F16); a mapped facility with no fee row is flagged, never assumed fee-free. A refusal names the block and the cell.
+
+**The build** writes `contract_takeon` per account: origination date, original principal, contractual rate, fees, and the pre-migration cash flows. Those flows are contractual, not actual: nobody holds the receipts before E-Banker. How the engine treats them is a governed setting, `takeon_history_basis`:
+
+| Option | Meaning |
+|---|---|
+| **Recompute from origination where the block and fees exist, else start at the take-on balance** (seeded) | Where a facility has a mapped block and its fees, solve the EIR on the original schedule and fees, assume instalments were paid as scheduled to 31 July 2024 except where the take-on balance says otherwise, and book that difference as arrears at take-on. Where it has not (the four unmatched facilities, the eight closed accounts without a block, any block still without fees), treat the 31 July 2024 carrying amount as the opening amortised cost with no day-one history, and flag the loan |
+| Recompute from origination for every take-on loan | As above, and refuse a loan whose block or fees are missing until they are supplied |
+| Start every take-on loan at its take-on balance | No pre-migration history for any of them; the EIR is solved from 31 July 2024 on E-Banker's flows |
+
+The seeded option is the reasonable one: it uses the history wherever MAIIC can evidence it and is honest where it cannot, and every loan carries the basis it was built on so an auditor sees which. Changing the setting rebuilds the take-on population only.
+
+**Where.** Data Foundation, Take-on Schedules: upload the workbook, see each block with its mapping, confidence, tick and fees, the gate results, and the Build with approval. Tamanda may confirm a mapping or enter a fee in the screen instead of in Excel; the screen's entry is the one that counts and is audit-logged. Re-uploading creates a new version; the previous build is kept.
+
+### 6.10 The EIR as at any date
+
+A requirement in its own right: **the system shows the EIR computation for any loan as at any date the user names**, not only at month-ends and not only for the latest run.
+
+- **What "as at a date" means.** The engine takes every posting in the landing zone dated on or before the date, the rate in force on the date, the governance values in force on the date, the schedule version in force on the date, and the take-on basis of 6.9, and produces for that date: the EIR in force and when it was last re-solved, the amortised cost, the gross carrying amount, the interest recognised to the date in the period and the year, the cumulative difference between the EIR interest and the contractual interest posted, the remaining expected cash flows, and the modification history. Each figure is shown with the inputs that produced it.
+- **Any date, not only a period end.** A date inside a month uses the actual-day convention of section 3 (prior month-end balance, rate, days over 365) for the part-month. A date in a locked period reproduces the locked figures exactly, because a locked period keeps the settings and the schedule it was locked under; a date after the last loaded pack is refused with the last loaded date named, never estimated.
+- **For the whole book.** The same view at portfolio level: the EIR interest, the contractual interest and the difference for the year to the date, by product, by GL and in total, which is the revenue shift Dr Thom asked for, at any date.
+- **Where.** The Contract Profile carries a date picker ("View as at") beside the schedule; the Report Hub carries "EIR as at a date" for the book, with the Excel and PDF downloads; both read the same service (`EirAsAtService`), so a figure on the screen and in the download are the same computation.
+- **The dates that matter now.** 31 December 2024, 31 December 2025 and 31 December 2026 are the year-ends Deloitte will ask for. Section 9 gains them as baselines once the first two are run.
+
 ## 7. The importers, reworked
 
 Version 3 section 5 described five input files. The five remain, but four of them are now read from E-Banker's own tables. This section says what each importer does and the rules it enforces. Every importer refuses an ambiguous date and names the row (D19), logs what it ignored, and is idempotent.
@@ -274,7 +307,7 @@ The chart exists for 75 of 184 accounts and is unreliable where it exists, so th
 
 ### 7.6 The take-on loader (new)
 
-Reads the Upload summary sheet of the mapping workbook once Tamanda has ticked it: account number, principal, take-on balance at 31 July 2024, rate, term, instalment, first instalment date, fees from the template. Every figure on the sheet is a formula back to Tamanda's original schedule, so the load is auditable to its source.
+As section 6.9: the workbook landed as `takeon_blocks` and `takeon_schedule_lines`, the gates, the build of `contract_takeon` under the `takeon_history_basis` setting, and the Take-on Schedules screen.
 
 ### 7.7 The trial-balance importer (unchanged) and the GL opening balances
 
@@ -286,11 +319,11 @@ Phases P1 to P4 are built. The order from today, with what each one waits for:
 
 | Phase | Content | Waits for |
 |---|---|---|
-| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by all three methods (the report importer landed and gated); the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists | Nothing; route 4 waits for Dr Thom and ICT |
+| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by all three methods (the report importer landed and gated); the take-on schedules landed, gated and built (6.9); `EirAsAtService` (6.10); the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists | Nothing; route 4 waits for Dr Thom and ICT |
 | **P5 Floating resets** | Reset detector from the PLR series writing `rate_reset_events`; a spread change as a separate event; maker-checker intake; a reset inside a locked period refused; prospective re-estimation under B5.4.5 | Nothing to build; O17 confirmed by Deloitte before the first reset is booked |
 | **P6 Arrears** | Cash receipts from the ledger (exact); re-estimation under B5.4.6; IRR on actual expected flows | P5 |
 | **P7 Restructuring** | Version N+1 import; `contract_modifications`; the 10 percent test; lineage | The restructure register from MAIIC |
-| **P8 Month-end run and screens** | Pipeline, period lock, Contract Profile, Rate Resets, Restructures, Drawdowns, Month-end Run; help articles; the journal proposal reading the true-up account (O10) | P5 to P7; O10 |
+| **P8 Month-end run and screens** | Pipeline, period lock, Contract Profile with the as-at date picker, Rate Resets, Restructures, Drawdowns, Month-end Run, the EIR-as-at-a-date report; help articles; the journal proposal reading the true-up account (O10) | P5 to P7; O10 |
 | **P9 Acceptance and UAT** | T1 to T8 on MAIIC's data; the revenue shift per year, 2024, 2025 and 2026 to date, which is the output Dr Thom asked for by name; UAT with Finance | The fee template; Mega Farms decided; the sign-offs |
 | **P10 Deployment and training** | Install in MAIIC's environment; training; manuals; source code | P9 |
 
@@ -311,7 +344,7 @@ The ties achieved this week become regression tests. A build that cannot reprodu
 | The month of a rate change | Whole month at the new rate on 217 of 229 |
 | Take-on postings of 31 July 2024 | 77 postings, MWK 8,297,388,309.25 |
 | Year-end adjustments of 31 December 2025 | 28 postings: 22 debits 96,390,096.16; 6 credits 85,166,683.31 |
-| Take-on mapping | 105 of 109 facilities; 98 of 100 schedule blocks linked |
+| Take-on mapping | 105 of 109 facilities; 98 of 100 schedule blocks linked; principal equals the take-on posting on 77 |
 | Loan book built by method B against the same month built by method A, every month-end from December 2024 | 2,264 of 2,264 carrying amounts agree; every difference is a flagged row with a named cause |
 
 ## 10. Risks and how they are held
@@ -360,6 +393,7 @@ The tree is the single source of truth: the server holds it in `config/menu.php`
 | | Loan Book | `loan_applications.loan-book` | | Customer & Loan Data |
 | | Imports | `imports.index` | | Customer & Loan Data |
 | | E-Banker Feed (queries, loads, watermarks, build) | `eir-feed.index` (new, section 6.8) | eir.view; derive needs eir.govern | new |
+| | Take-on Schedules (workbook, mapping, fees, build) | `eir-takeon.index` (new, section 6.9) | eir.view; build needs eir.govern | new |
 | | Loan Portfolios | `portfolios.index` | | Portfolio Setup |
 | | Product Groups | `groups.index` | | Portfolio Setup |
 | | Sector Types | `industry_types.index` | | Portfolio Setup |
@@ -391,6 +425,7 @@ The tree is the single source of truth: the server holds it in `config/menu.php`
 | | Early Warning System | `ifrs9-reports.ews` | | a tile in the hub |
 | | Data Quality | `ifrs9-reports.data-quality` | | a tile in the hub |
 | **Report Hub** (violet) | IFRS 9 Reports (the full catalogue of 30) | `ifrs9-reports.index` | | Reports |
+| | EIR as at a date (the book, with downloads) | `eir-as-at.index` (new, section 6.10) | eir.view | new |
 | | Executive Summary | `ifrs9-reports.executive` | | a tile in the hub |
 | | AI Commentary | `ifrs9-reports.ai-narrative` | | a tile in the hub |
 | | ECL Reconciliation | `reports.ecl-reconciliation` | | Reports |
@@ -545,6 +580,8 @@ CA-1 port the engine and add the two columns and the Baselines sheet (one day); 
 - **Bootstrap (method A)**: building a month's loan book from the stored Loan Book Report's latest run, as E-Banker printed it.
 - **Derivation (method B)**: building it from the ledger and the masters, with E-Banker's own arrears fields.
 - **Report importer (method C)**: building it from the printed Loan Book Report uploaded as Excel, the way MAIIC has loaded every month until now, with the file landed and date-checked.
+- **As at a date**: the computation of a loan's EIR and amortised cost using only what was posted, in force and locked on that date; any date, not only a month-end.
+- **Take-on basis**: whether a take-on loan's EIR is recomputed from its origination (schedule and fees) or started at its 31 July 2024 balance; recorded on every take-on loan.
 - **Landing zone**: the raw tables that mirror E-Banker, loaded exactly as received and never edited; everything else is derived from them.
 - **Pack**: one month's set of extract files plus a manifest of what they are, which query version made them and their hashes; the one form in which data enters, whichever route delivers it.
 - **Watermark**: the last source key loaded for a table; the next pack starts after it.
