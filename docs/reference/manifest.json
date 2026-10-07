@@ -1,0 +1,524 @@
+{
+  "purpose": "Reference logic the specification cites, copied verbatim from Dupleix's own repositories so that the completeness of spec v4 can be verified against working code. Code only; no client data.",
+  "assembled": "2026-10-07",
+  "sources": {
+    "znbs-suite": {
+      "path": "C:\\xampp\\htdocs\\Stress-Testing-App",
+      "commit": "5be6d97a39846439885bc8fb2f25e5b5863f6f10"
+    },
+    "fdh-ifrs9-laravel": {
+      "path": "C:\\xampp\\htdocs\\FDH_IFRS9_Laravel",
+      "commit": "98de97db4f569d7f52546fd8535915d8428e61db"
+    },
+    "fdh-ifrs9-plain-php": {
+      "path": "C:\\xampp\\htdocs\\ifrs9",
+      "commit": "09e8e7268f2e2e6b6f2ed6b01d23a99bb5847510"
+    }
+  },
+  "files": [
+    {
+      "repo": "znbs-suite",
+      "path": "app/Console/Commands/IcaapBootstrapCommand.php",
+      "spec_section": "6.10",
+      "verify": "One-command bootstrap: --fresh safety, committed inputs read first, steps, automated-approver label, --verify golden table",
+      "sha256": "2c00e8bbf9e598b69e6e88c4f5abfa9d2721e348727c41047aff3283eaf7545d",
+      "bytes": 195113
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Models/SourceImportBatch.php",
+      "spec_section": "6.4, 13.3",
+      "verify": "Provenance of an import: source, address, fetched-at, who, rows, hash",
+      "sha256": "5ae00363b76ad2ca6c7a1eaf8c186d42dcd2cc77ecc5a690ca5455848f8265a7",
+      "bytes": 5117
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/migrations/2026_05_20_185622_create_source_import_manifest_tables.php",
+      "spec_section": "6.4",
+      "verify": "Manifest and batch tables for landed files",
+      "sha256": "c9f9b3fd1ccca9360add2999f3cec9c2731d24b971d683f5911ef6d0b92703e3",
+      "bytes": 7601
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Console/Commands/ImportZnbsLoanListingCommand.php",
+      "spec_section": "6.5 route 1",
+      "verify": "A committed client input landed by command, idempotent on the file",
+      "sha256": "87ab26d24f10f88071f2fab72abd658408664abadac491e4706b9b924705d258",
+      "bytes": 18570
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/nav.js",
+      "spec_section": "11.2, 11.3",
+      "verify": "The navigation tree as single source of truth: groups, accents, items, routes",
+      "sha256": "0a65b2ac544fe439022c577f32bed960962e98048cf6a7d9c8edaf20b94fed98",
+      "bytes": 7776
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Layouts/AppLayout.vue",
+      "spec_section": "11.2, 11.4",
+      "verify": "Shell: sidebar collapse with localStorage, mobile drawer, page header with breadcrumb derived from the tree, busy pill, per-page help",
+      "sha256": "a7f3639fc029e32ce7faac0c66bc54e6a265568cad3f97b255f9b1c159ee4976",
+      "bytes": 9464
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Components/Shell/Sidebar.vue",
+      "spec_section": "11.2, 11.4",
+      "verify": "Accent-coloured groups, one open at a time, active bar, icon rail",
+      "sha256": "d87bf4fef5461ccf3924b6e345263b13ce785ad78a145b7b21d5d05e8686ea5b",
+      "bytes": 8143
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Components/Shell/Topbar.vue",
+      "spec_section": "11.2, 11.5",
+      "verify": "Menu toggle, period chip, theme toggle, notifications, user menu",
+      "sha256": "f34e866aa108c2cfce05a5eef322552c56143bded16390bf258ae68473cfc510",
+      "bytes": 7466
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Components/Shell/Icon.vue",
+      "spec_section": "11.2",
+      "verify": "Icon set used by the shell",
+      "sha256": "5ed6e23d47790c34023a31441824fbe047c058728c078b9f149a00621d9e6d5b",
+      "bytes": 5681
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Components/Shell/StatCard.vue",
+      "spec_section": "11.2",
+      "verify": "Dashboard stat card",
+      "sha256": "da2a66f72e25b9176788fc3d80963305ab2bb316fe9e9a56bc5ab570073b3026",
+      "bytes": 1611
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Components/Shell/EmptyState.vue",
+      "spec_section": "11.2",
+      "verify": "Empty state",
+      "sha256": "5e06836f7993e3fb56cadc60bd8485293610f736e4d3e895092d10978eae7fee",
+      "bytes": 1422
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/composables/useTheme.js",
+      "spec_section": "11.5",
+      "verify": "Light/dark: class mode, localStorage, one shared ref",
+      "sha256": "379aea6fb0bdc706729f73cb36cc5a7d572b9cefaa87a814b36c1d691da40289",
+      "bytes": 1372
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/views/app.blade.php",
+      "spec_section": "11.5",
+      "verify": "The no-flash inline script that sets the dark class before paint",
+      "sha256": "9f3837f5476d2c143b6aef1c318024c7b12948418988032e829482b15652d634",
+      "bytes": 1156
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "tailwind.config.js",
+      "spec_section": "11.5",
+      "verify": "darkMode: 'class'",
+      "sha256": "353bf9dcf389a5b7625481ca513e46d5b501116e147f98c9c67da8bb35d5b589",
+      "bytes": 1076
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Components/CollapsibleHelp.vue",
+      "spec_section": "11.2",
+      "verify": "Per-page collapsible help panel",
+      "sha256": "601f7fce9dee156cba02903bb7bab37c246cf9ea3d99b60a8499f19db12bd798",
+      "bytes": 3214
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Components/ManualHelpButton.vue",
+      "spec_section": "11.2",
+      "verify": "Floating help button",
+      "sha256": "e5baab9747e303ff7bf97b3b9b482ba66fdce2c63ad9efd267281f9c49218036",
+      "bytes": 7562
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "resources/js/Pages/Audit/Trace.vue",
+      "spec_section": "12.5",
+      "verify": "Per-record audit trace, oldest to newest",
+      "sha256": "3c088a9628b9f3af2829a9738e6484e54769eb0470e683f95f2d41b994bdb7f9",
+      "bytes": 12200
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "resources/js/Pages/Audit/Index.vue",
+      "spec_section": "12.5",
+      "verify": "Audit index",
+      "sha256": "5afce6d30b7a6c1af4b5a034f8e2a7892fdc9717378c53fb4df3562d68202302",
+      "bytes": 18042
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "tools/compliance/audit_workbook.py",
+      "spec_section": "12.3, 12.4",
+      "verify": "Contents / Audit / Findings sheets, nine columns, statuses, validation that refuses a misleading workbook",
+      "sha256": "e19a376fb42d93b4d5011885712924a6d037770200ea3c2a65c773c07c4e0362",
+      "bytes": 13049
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "tools/compliance/build_audit.py",
+      "spec_section": "12.6",
+      "verify": "One data module to three outputs",
+      "sha256": "5a12a0c4b14c43fbca8330fcadfd3b37b39d910fba03c0766d90655f32641d8c",
+      "bytes": 1575
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "tools/compliance/md_to_pdf.py",
+      "spec_section": "12.6",
+      "verify": "Markdown twin to PDF",
+      "sha256": "27cba352469396278bc14debb55f0f3878488b97469110b327bccc70aaf1890b",
+      "bytes": 6815
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "tools/compliance/directives/__init__.py",
+      "spec_section": "12.6",
+      "verify": "Directive module registry",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "tools/compliance/directives/notice_1198_icaap.py",
+      "spec_section": "12.6",
+      "verify": "An example data module: META, ROWS, FINDINGS (content is BoZ-specific; the shape is what MAIIC reuses)",
+      "sha256": "16ba72e33882522ced232e959d844d3e24bf66e521f562acb9eef2d807bd4139",
+      "bytes": 47419
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Services/Macro/WorldBankFetcherService.php",
+      "spec_section": "13.3",
+      "verify": "World Bank fetch: endpoint, timeout, retries, country, year range, preview payload",
+      "sha256": "1f87f2144a3520952c3aa20077b6a224801e20159c220bc45ae7ccd7e94fc7d2",
+      "bytes": 6618
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Services/Macro/ImfWeoParserService.php",
+      "spec_section": "13.3",
+      "verify": "WEO parser: UTF-16 tab file, country filter, estimates-start year to actual/forecast",
+      "sha256": "44e79cef34c75ce4019ba221cb6b14620b23a95a257e862450d3f3ba5d97c36f",
+      "bytes": 8296
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Console/Commands/ImportWorldBankMacroCommand.php",
+      "spec_section": "13.3",
+      "verify": "macro:import-worldbank, non-fatal per indicator",
+      "sha256": "5ebe97855f9d5248bdb0e07cea3bdb2f81b3ed1fdcdec2db78d7a8bdf5b77aa1",
+      "bytes": 4917
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/seeders/MacroExternalCodesSeeder.php",
+      "spec_section": "13.3, 13.4",
+      "verify": "Indicator codes on the variable",
+      "sha256": "9d662da9663c75c1cb898cbd2d054b5d9a1c439b0a04459cd1b26db9350cfe3b",
+      "bytes": 2078
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Http/Controllers/MacroController.php",
+      "spec_section": "13.3",
+      "verify": "Preview and commit endpoints for both sources; CSV template and export",
+      "sha256": "6d66320b6a649a934d4a91b14718c4d2db7e811da082bc49a1e290bb7ef95011",
+      "bytes": 32666
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Models/MacroVariable.php",
+      "spec_section": "13.3",
+      "verify": "external_codes",
+      "sha256": "5faf044a673b9c4d393f57db3dc4412cd16321e61bb5c6f1a2eb765d37580c18",
+      "bytes": 1627
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Models/MacroObservation.php",
+      "spec_section": "13.3",
+      "verify": "Observation keyed on variable, period, period type",
+      "sha256": "e412e9c6ffc319abd91e057ac09f7ee3b993d44fdc4032e909784153383b075d",
+      "bytes": 1729
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Models/MacroImportLog.php",
+      "spec_section": "13.3",
+      "verify": "Import log",
+      "sha256": "760fd8825fb0bde60120d6bdff1f8928958cce09bac7362a4bb97ba1f35dcd30",
+      "bytes": 1135
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/migrations/2026_03_30_100001_create_macro_variables_table.php",
+      "spec_section": "13.3",
+      "verify": "macro_variables",
+      "sha256": "02535da0c6812ae024a85fad9eaf92aafd7b3273cca2c9b8be2f9605a1e6316a",
+      "bytes": 1559
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/migrations/2026_03_30_100002_create_macro_observations_table.php",
+      "spec_section": "13.3",
+      "verify": "macro_observations",
+      "sha256": "e72bb6453bb06e4551f1fcf457a5395ebe1b6523422a3b3834420d999fa4eeea",
+      "bytes": 1639
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "resources/js/Pages/Macro/Index.vue",
+      "spec_section": "13.3, 15.4",
+      "verify": "The five-tab screen; the governed assumptions tab with approval lineage",
+      "sha256": "16c7dd322c22d188390677aeb526a364863399dff672e202c9c5fd75cb1e3ced",
+      "bytes": 72618
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/CorrelationFinder.php",
+      "spec_section": "14.4",
+      "verify": "Auto-correlate: X x Y x lag grid, Spearman, Theil-Sen, Pearson, OLS, ranking, reasons, immutable runs, fail-closed",
+      "sha256": "c6dac82132c356e9d20c85b8fe7e86e07c6ba72ba20cfc288b5c9f579c2e0b11",
+      "bytes": 16945
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/RegressionEngine.php",
+      "spec_section": "14.5",
+      "verify": "Regression with the full coefficient vector",
+      "sha256": "335192e6da1789cce950f37d38e495465222d49dfcb92b5a6d2bbd972fcdfb0d",
+      "bytes": 19402
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/Diagnostics.php",
+      "spec_section": "14.4",
+      "verify": "Normality, break window, overlap diagnostics",
+      "sha256": "a4ce03de94021291a8596be9ed8b080611d24b346f8e0de5b6e6a1184df75494",
+      "bytes": 7642
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/Guardrail.php",
+      "spec_section": "14.4, 14.5",
+      "verify": "Guardrails on what may be approved",
+      "sha256": "28717a2d3a577fc2a6a9e3ad77c8eafa788e70d4d469043a1ea75b0560e5ad44",
+      "bytes": 4412
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/AdjustmentMethodEngine.php",
+      "spec_section": "14.6",
+      "verify": "The adjustment methods",
+      "sha256": "eeea037571f288940390bffea9285ce31078a8b34ada225cb0a31f413d250905",
+      "bytes": 5083
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/CreditLossProxyDeriver.php",
+      "spec_section": "14.4",
+      "verify": "Deriving the credit-loss proxies (Y series)",
+      "sha256": "0b8e26fd817ec3fcba38417a0c9d2dc98d53d3a0c0570eaf164f2574cb03a310",
+      "bytes": 8231
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/FliSeriesProfiler.php",
+      "spec_section": "14.4",
+      "verify": "Series profiling",
+      "sha256": "be1c1dae21c1499901e82892771948ac7be4d3fd76d98b198699e6f374eeff1e",
+      "bytes": 4793
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/StatisticsSidecar.php",
+      "spec_section": "14.4",
+      "verify": "Statistics helpers",
+      "sha256": "451c47eae4156f2f1c0ca17798afd0d29f806f7d26da9a603cb0c62dac7798ad",
+      "bytes": 2010
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/StructuralEventsRegister.php",
+      "spec_section": "14.6, 15.4",
+      "verify": "Register of structural events (devaluations, droughts) used as anchors",
+      "sha256": "804f3ae3ad99460b24506d650e046df96481529f5d293aa1a9979dbfa46dbded",
+      "bytes": 5168
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/ScenarioWeightValidator.php",
+      "spec_section": "15.6",
+      "verify": "Scenario weight validation",
+      "sha256": "ec37d7af5957f27acfd748dff599018fa3663eb0372bbf236ddf255aafadb26c",
+      "bytes": 4913
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Services/Fli/MacroModule.php",
+      "spec_section": "13, 14",
+      "verify": "Module wiring",
+      "sha256": "9e160412e8f871a2ca950feaf973c2e2871c1c6a3acf1a40f17f78f4032459c2",
+      "bytes": 7447
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "app/Http/Controllers/CalculatorController.php",
+      "spec_section": "14.8",
+      "verify": "The FLI calculator endpoints",
+      "sha256": "04888423a212fdc1e627b06ceadf37d90940580c67355df5a3afafb5093372bc",
+      "bytes": 39891
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Pages/Calculators/Fli.vue",
+      "spec_section": "14.8",
+      "verify": "The FLI / Correlation Finder screen",
+      "sha256": "4accca4a06a0686bc97c8077f38ef3e88949d40bf62ca7c1080cd2ee3d8b5bd6",
+      "bytes": 33490
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "resources/js/Pages/Governance/FliRegisters.vue",
+      "spec_section": "14.6, 14.8",
+      "verify": "The FLI registers screen (suggestions, models, overlays)",
+      "sha256": "7c378fff1106135862d8e3a49f7cd8729da2e13555d61aba095eb1f82bdc8b7c",
+      "bytes": 11046
+    },
+    {
+      "repo": "fdh-ifrs9-laravel",
+      "path": "docs/SCOPING_NOTES.md",
+      "spec_section": "11, 14",
+      "verify": "Scoping notes B4/B5: the suite grouping convention",
+      "sha256": "31b2ddf3278d2f888191eff36402dccb8ca83d10961658c31f99ae126801ea24",
+      "bytes": 13863
+    },
+    {
+      "repo": "fdh-ifrs9-plain-php",
+      "path": "calculator/regression/regression_calculator.php",
+      "spec_section": "14.4",
+      "verify": "The original correlation tests: expected sign, R2 cut-off, red/green, slope and intercept",
+      "sha256": "f52391acfe1f3ece8d5eb5e1987233d72835b4f61d2a3b9756180029637a296b",
+      "bytes": 40661
+    },
+    {
+      "repo": "fdh-ifrs9-plain-php",
+      "path": "calculator/regression/fetch_regression_results.php",
+      "spec_section": "14.4",
+      "verify": "Results fetch",
+      "sha256": "e6be84d6c205f5c9a02f4ef565319d910938a654e83d0b9a3733826c29995a87",
+      "bytes": 2328
+    },
+    {
+      "repo": "fdh-ifrs9-plain-php",
+      "path": "maintenance/regression_definitions/regression_definitions.php",
+      "spec_section": "14.4",
+      "verify": "Regression definitions: statistic, credit-loss code, expected sign, R2 cut-off",
+      "sha256": "30b99aa60327fda09c33a83e04be2cfb19a5a3cffbfa45eb10e28a08ba800827",
+      "bytes": 22462
+    },
+    {
+      "repo": "fdh-ifrs9-plain-php",
+      "path": "maintenance/regression_definitions/fetch_regression_definitions.php",
+      "spec_section": "14.4",
+      "verify": "Definitions fetch",
+      "sha256": "db5c8ede85a7d05b64df206f327ebdea30bb44708795ddbdfafa5977c2c7e4b7",
+      "bytes": 1878
+    },
+    {
+      "repo": "fdh-ifrs9-plain-php",
+      "path": "MacroStatisticsRegressionDefinitions.htm",
+      "spec_section": "14.4",
+      "verify": "Definitions page",
+      "sha256": "d12f2b266a7f8ec5bbd6438373422f5eca7b034c840fa0de4446116ee782f295",
+      "bytes": 27143
+    },
+    {
+      "repo": "fdh-ifrs9-plain-php",
+      "path": "README.md",
+      "spec_section": "14",
+      "verify": "The plain-PHP app's pipeline: PD, LGD, EAD, FLI, ECL",
+      "sha256": "b8b5ede017e938b09536546485046654238db0d35c612180fde45205712a21d0",
+      "bytes": 7570
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/migrations/2026_03_30_400001_create_scenarios_table.php",
+      "spec_section": "15.4",
+      "verify": "scenarios",
+      "sha256": "65dfecb619f611d935a024e1615174da9c9f302a9a0d8b4b4cb85943b01236b3",
+      "bytes": 1497
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/migrations/2026_03_30_400002_create_scenario_shocks_table.php",
+      "spec_section": "15.4",
+      "verify": "Shocks: pct_change, absolute, replace, multiplier, by variable and year offset",
+      "sha256": "78e15171bec5cc0ea8be4d8964cbb568ef64b48dfb1ab7e18801e1299c34d636",
+      "bytes": 1328
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/migrations/2026_04_02_100001_extend_scenario_engine.php",
+      "spec_section": "15.4",
+      "verify": "Scenario engine extension",
+      "sha256": "8f0bee6f98c97c7207599639649bc2ecae98f830a183194fd22025194e466c62",
+      "bytes": 19296
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/migrations/2026_05_21_260000_step19_scenario_governance.php",
+      "spec_section": "15.4, 15.6",
+      "verify": "Scenario governance: approval, lock",
+      "sha256": "a0a810f39078759fa7f97bdbb3cfb4ce98d4d36d03dbe385a923e65a54386599",
+      "bytes": 3549
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "database/migrations/2026_05_12_140000_create_scenario_parameter_library_table.php",
+      "spec_section": "15.4",
+      "verify": "Parameter library",
+      "sha256": "7e8ff93ad13c02e3606f1635db08169ba8224abd0acaa7abbd23133cdac532fe",
+      "bytes": 929
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Http/Controllers/ScenarioController.php",
+      "spec_section": "15.4, 15.9",
+      "verify": "Scenario CRUD, propose, approve, lock",
+      "sha256": "51b8e02f906c9913af1f233abd0e091ff98cd055a3bd42514342f0c98922b6dd",
+      "bytes": 38415
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Http/Controllers/ScenarioSupportingDocumentController.php",
+      "spec_section": "15.4",
+      "verify": "Evidence attachments on a scenario",
+      "sha256": "07e6350f5b9ac8a8d0818fafb4961f17459b1de3e70b452ff21bcc962b3ff8e6",
+      "bytes": 4133
+    },
+    {
+      "repo": "znbs-suite",
+      "path": "app/Models/ApprovalAuditLog.php",
+      "spec_section": "15.4",
+      "verify": "Approval audit log",
+      "sha256": "f87eeb0d59889ca17fa22e00761b09bfb79d8e56295cc070ba03177234446596",
+      "bytes": 1524
+    }
+  ]
+}

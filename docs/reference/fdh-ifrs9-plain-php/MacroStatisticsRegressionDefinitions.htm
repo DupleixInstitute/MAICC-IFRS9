@@ -1,0 +1,385 @@
+<html>
+<head>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   
+   <TITLE>MACRO STATISTICS REGRESSION DEFINITIONS</TITLE>
+   
+   <link href="Dupleix.css" rel="stylesheet" type="text/css">
+   <script type="text/javascript" src="Dupleix.js"></script>  
+   <script type="text/javascript" src="jquery-3.5.1.js"></script>
+   <!-- Calling jquery.number.js script file for As-You-Type number formating with Comma separator for thousands -->
+   <script type="text/javascript" src="jquery.number.js"></script>
+   <!-- <script src = "easy-number-separator"></script> -->
+    
+   <script type="text/javascript">
+      
+	    //<!-- Document.Ready to set up jquery.number.js -->
+	    $(function()
+		    {
+					// Set up the number formatting.
+				
+				//document.getElementById("legal_name").innerHTML = localStorage.legal_name + " " + localStorage.customer_type;
+			    document.MacroStatisticRegressionDefinitionsForm.reporting_year.value = localStorage.reporting_year;
+				document.MacroStatisticRegressionDefinitionsForm.reporting_period.value = localStorage.reporting_period;
+				document.MacroStatisticRegressionDefinitionsForm.username.value = localStorage.username;
+					
+				/*
+				document.MacroStatisticDefinition.financial_year0.value = localStorage.financial_year0;
+				document.MacroStatisticDefinition.financial_year1.value = localStorage.financial_year1;
+				document.MacroStatisticDefinition.financial_year2.value = localStorage.financial_year2;
+				document.MacroStatisticDefinition.financial_year3.value = localStorage.financial_year3;
+				*/	
+				
+				$('#number_container').slideDown('fast');
+				
+				$('.price').on('change',function(){
+					console.log('Change event.');
+					var val = $('.price').val();
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+				
+				$('.price').change(function(){
+					console.log('Second change event...');
+					
+				});
+				
+				$('.price').number( true, 0 );
+				
+				// Get the value of the number for the demo.
+				$('#get_number').on('click',function(){
+					
+					var val = $('.price').val();
+					
+					$('#the_number').text( val !== '' ? val : '(empty)' );
+				});
+			
+			    //Slide jquery to update to next value to next control
+		  	    $('.slider').on('input change', function(){
+                $(this).next($('.slider_label')).html(this.value);
+	
+                 });
+                $('.slider_label').each(function(){
+                var value = $(this).prev().attr('value');
+                $(this).html(value);
+                });  
+			    MacroStatisticRegressionDefinitionsForm_LoadData();
+				MacroStatisticRegressionDefinitionsForm_Recalculate();
+			
+			});
+	    //<!-- Convert number input into a thousand seperator -->
+        
+	
+
+			
+		
+	  function Thousands_Separators(num)
+      {
+         numStr = num+= "";
+		// var num_parts = num.toString().split(".");
+         //num_parts[0] = num_parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		//return num_parts.join(".");
+	
+      }
+  
+ 
+		function ToNumber(nStr) 
+		{
+	  
+	       if   (typeof(nStr) == "undefined")
+		      {  return 0;}
+		   else  
+		      {
+		        if (nStr == "") {return 0};
+		        if (nStr != "") {return parseFloat(nStr.replace(/,/g,''))};
+		      } 
+	    }  
+   </script 
+</head>
+
+
+				
+				
+<body style="background-color:lightgrey;" >
+   <form name="MacroStatisticsDefinitionsForm" onchange="MacroStatisticsDefinitionsForm_Recalculate()" onsubmit="MacroStatisticsDefinitionsForm_SaveData()" method="post" action = "MacroStatisticsDefinitionData.php">    
+   <div class = "DivHeader">
+      <h1> Model Definitions : Macro Statistics Regression Definitions </h1>
+   </div>
+   <table border = 0 cellspacing = 0 class = "bdr" align = "center" >
+  	  <table align = "center">
+	   
+	  <tr>
+	      <td colspan = 3>Username</td>
+	      <td colspan = 2 align = center>Reporting Year</td>
+		  <td colspan = 2 align = center>Reporting Period</td>
+	  </tr>
+      <tr>
+	     <td colspan = 3><input style="background-color:powderblue;text-align:center" name = "username" readonly></td>
+         <td colspan = 2><input style="background-color:powderblue;text-align:center" name = "reporting_year" readonly></td>
+         <td colspan = 2 align = center><input style="background-color:powderblue;text-align:center" name = "reporting_period" readonly></td>
+	  </tr>
+	    
+		<tr>
+		   <td colspan = 9></td>
+		</tr>
+		<tr bgcolor = darkblue style = "color:white;font-family:arial;font-size:12">
+	      <th width=5 bgcolor = darkblue color = white>Line No</th>
+		  <th Width = 10 style="color:white; font-family:arial;font-size:12">Statistic<br>Code</th>
+		  <th Width = 20 style="color:white">Statistic Name</th>
+		  <th Width = 10 style="color:white">Credit<br>Loss<br>Code</th>
+		  <th Width = 20 style="color:white">Credit Loss Name</th>
+		  <th Width = 20 style="color:white">Expected<br>Correlation<br>Sign (Positive /Negative)</th>
+		  <th Width = 5 style="color:white">Correlation<br>Parameter<br>(R)</th>
+		  <th Width = 10 style="color:white">Correlation<br>Parameter<br>(R2 as %)</th>
+		  <th Width = 10 style="color:white">R2<br>Cut-off<br>(%)</th>
+		  <th Width = 10 style="color:white">R2<br>Cut-off<br>Test <br>(Past /Fail)</th>
+		  <th Width = 10 style="color:white">R2 <br>Sign<br> Test <br>(Past /Fail)</th>
+		  <th Width = 10 style="color:white"><br>Regression<br>Parameter<br>-Gradient</th>
+		  <th Width = 10 style="color:white"><br>Regression<br>Parameter<br>-Intercept</th>
+		  <th bgcolor = #fcba03 Width = 10 style="color:black"><br>Missing<br>Historical<br>Period<br>-(Count)</th>
+		  <th bgcolor = #fcba03 Width = 10 style="color:black"><br>Missing<br>Historical<br>Period<br>-(%)</th>
+		</tr>
+		
+	    <!--  Row 1 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">1</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode1" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName1" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode1" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName1" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign1" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 5 style="color:white"><Input size = 5 type="text" name="CorrParamR1" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent1" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold1" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest1" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest1" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient1" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept1" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods1" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage1" style="background-color:#fcba03;text-align:left"></td>
+	    
+		<!--  Row 2 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">2</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode1" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName1" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode1" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName1" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign1" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent2" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold2" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest2" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest2" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient2" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept2" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods2" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage2" style="background-color:#fcba03;text-align:left"></td>
+	    <!--  Row 3 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">3</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode3" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName3" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode3" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName3" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign3" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR3" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent3" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold3" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest3" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest3" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient3" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept3" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods3" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage3" style="background-color:#fcba03;text-align:left"></td>
+	    <!--  Row 4-->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">4</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode4" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName4" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode4" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName4" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign4" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR4" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent4" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold4" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest4" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest4" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient4" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept4" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods4" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage4" style="background-color:#fcba03;text-align:left"></td>
+	    <!--  Row 5 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">5</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode5" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName5" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode5" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName5" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign5" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR5" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent5" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold5" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest5" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest5" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient5" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept5" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods5" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage5" style="background-color:#fcba03;text-align:left"></td>
+	    <!--  Row 6 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">6</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode6" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName6" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode6" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName6" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign6" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR6" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent6" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold6" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest6" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest6" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient6" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept6" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods6" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage6" style="background-color:#fcba03;text-align:left"></td>
+	    <!--  Row 7 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">7</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode7" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName7" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode7" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName7" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign7" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR7" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent7" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold7" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest7" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest7" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient7" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept7" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods7" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage7" style="background-color:#fcba03;text-align:left"></td>
+	    <!--  Row 8 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">8</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode8" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName8" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode8" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName8" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign8" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR8" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent8" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold8" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest8" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest8" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient8" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept8" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods8" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage8" style="background-color:#fcba03;text-align:left"></td>
+	    <!--  Row 9 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">9</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode9" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName9" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode9" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName9" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign9" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR9" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent9" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold9" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest9" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest9" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient9" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept9" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods9" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage9" style="background-color:#fcba03;text-align:left"></td>
+	    <!--  Row 10 -->
+		<tr>
+	      <th bgcolor = darkblue style = "color:white">10</th>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="StatisticCode10" style="text-align:left"></td>
+		  <td Width = 30 style="color:white"><Input type="text" name="StatisticName10" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CreditLossCode10" style="text-align:left"></td>
+		  <td Width = 20 style="color:white"><Textarea rows = 3 cols = 15 name = "CreditLossName10" style="background-color:white;color:black"></textarea></td>  
+		  <td Width = 10 style="size:10;color:white;align = center">
+		      <SELECT NAME="Expected_Correlation_Sign10" > 
+                     <option value="Positive">Positive</option>
+                     <option value="Negative">Negative</option>
+              </SELECT>
+           </td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR10" style="text-align:left"></td>
+		  <td Width = 40 style="color:white"><Input size = 5 type="text" name="CorrParamR2Percent10" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2Threshold10" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2ThresholdTest10" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="CorrParamR2SignTest10" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Gradient10" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input size = 5 type="text" name="Intercept10" style="text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 5 type="text" name="MissingHistPeriods10" style="background-color:#fcba03;text-align:left"></td>
+		  <td Width = 10 style="color:white"><Input readonly size = 3 type="text" name="MissingHistPeriodsPercentage10" style="background-color:#fcba03;text-align:left"></td>
+	 	    <!-- Total Row -->
+	    <tr bgcolor = darkblue style = "color:white">
+		  <th colspan = 15 style="color:white;text-align:right">*</th>
+			</tr>
+				  
+		</tr>
+						
+		      <td></td>
+		  <td colspan = 2><Input type = Submit value = "Save/Submit" 
+		      onclick = "MacroStatisticRegressionDefinitionsForm_SaveData()" >
+			  <Input type = reset value = "Clear Form">
+		  </td>
+	    </table>
+   </table>
+   <script>
+
+  </script>
+   </Form>
+</body>
+
+</html>

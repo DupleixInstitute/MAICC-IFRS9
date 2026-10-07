@@ -20,6 +20,8 @@ This document records that. It is written, as before, for three readers at once:
 
 Where a file is named, it is one of the extracts committed under `docs/bootstrap/` in the repository (section 6.10), with a copy in `2. Documents from clients\Raw Query Scripts\Query Requests to MAIIC\Follow-Up Scripts Resutls\`. The scripts that produced every figure in this document are in `Build files\` beside them, with a README that says which script makes which number.
 
+Where a section says a design is taken from the Dupleix suite (sections 6, 11, 12, 13, 14 and 15), the code it was taken from is copied verbatim under `docs/reference/` in the repository, indexed by section in its README and pinned to the source commits in its manifest, so that the completeness of this document can be verified against working code and the build can port rather than reinvent. That folder is code only.
+
 ## 1. What has happened since version 3
 
 | When | What |
