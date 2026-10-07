@@ -107,7 +107,7 @@ On 31 December 2025 E-Banker posted 28 "Diff Int Credit by ROI" entries (type 12
 | D20 | **The E-Banker record is the contractual record** (O19). The engine reads terms, rates, fees and cash flows from E-Banker. The signed offer letter is evidence; a difference between letter and system is reported to Credit as a control exception, never booked as a modification. | Dupleix, 7 Oct 2026; Dr Thom to confirm in writing | The signed terms were never keyed into E-Banker (F14), while the system now carries fees, margins and cash flows in full. It is the only record the engine can read completely. The twelve offer letters requested from Credit become test evidence, not a data source. |
 | D21 | **Every open choice of version 3 is a governed setting** with Dupleix's recommendation seeded as the value in force from 1 January 2025. Dr Thom confirms or changes each one in the Governance Centre when he is ready, with maker-checker and an effective date, and the engine records which value every month was run under. | Dupleix, 7 Oct 2026, at Edward's request | Nothing waits on a meeting. A choice that is changed later applies forward only; a month already run keeps the settings it was run under. |
 | D22 | **The month-end loan books are loaded from the stored loan book history**, not re-typed from Excel reports, by a bootstrap importer (section 6). | Dupleix, 7 Oct 2026 | 21 month-ends in one run, each tied to the ledger; the Excel reports carried scrambled dates. |
-| D24 | **The Dupleix-suite layout is adopted for the user interface** (section 11): the six working groups with their colours, the icon rail, the page header with breadcrumb and the period chip, as built for FDH on the ZNBS pattern. Routes, permissions and calculations are unchanged; screens move to where the suite puts them. | Edward, 7 Oct 2026 | One shape of screen across every Dupleix system; the EIR screens of P8 are placed in it from the start |
+| D24 | **The Dupleix-suite layout is adopted for the user interface** (section 11): the six working groups with their colours, the icon rail, the page header with breadcrumb, the period chip, and light and dark mode as a per-user setting, as built for FDH on the ZNBS pattern. Routes, permissions and calculations are unchanged; screens move to where the suite puts them. | Edward, 7 Oct 2026 | One shape of screen across every Dupleix system; the EIR screens of P8 are placed in it from the start |
 | D23 | **The three MAIIC extract scripts are retired.** The engine's importers read the tables directly, through CSVs produced with the session settings of the 6 October request (ISO dates, point decimal). | Dupleix, 7 Oct 2026 | Removes the three script faults of section 2.1 at source. |
 
 ### 4.2 Decided and seeded: every setting, its default, and where it stands
@@ -272,7 +272,7 @@ The ties achieved this week become regression tests. A build that cannot reprodu
 
 Every system Dupleix now delivers (the ZNBS stress-testing suite, the BBS suite, the FDH IFRS 9 platform) uses the same shape of screen, so that a finance officer who has learned one of them can find their way around the next. MAIIC's system was built earlier, and its menu still follows the headings of the contract schedule ("Customer & Loan Data", "IFRS 9 Model Setup", "ECL Processing") rather than the way the work is actually done. Decision D24 adopts the suite layout for MAIIC.
 
-The shape is simple. On the left is a dark navigation panel with six working groups, each with its own colour: **Data Foundation** (what comes in), **Governance Centre** (the rules and settings that govern the calculations), **Financial Modelling** (the engines), **Risk & Regulatory** (the regulatory views), **Monitoring** (the watch-lists and alerts) and the **Report Hub** (what goes out), followed by System Documentation and Administration. Across the top is a bar with the menu toggle, the financial period the system is working in, notifications and the user's menu. Every page opens with a header that says where you are (the group, then the page) and what the page is for. The panel can be folded to a narrow rail of icons when the screen is small or the user wants room for a wide table. Nothing about the calculations changes; the screens move to where a user would look for them.
+The shape is simple. On the left is a dark navigation panel with six working groups, each with its own colour: **Data Foundation** (what comes in), **Governance Centre** (the rules and settings that govern the calculations), **Financial Modelling** (the engines), **Risk & Regulatory** (the regulatory views), **Monitoring** (the watch-lists and alerts) and the **Report Hub** (what goes out), followed by System Documentation and Administration. Across the top is a bar with the menu toggle, the financial period the system is working in, an appearance switch (light, dark, or follow the device), notifications and the user's menu. Every page opens with a header that says where you are (the group, then the page) and what the page is for. The panel can be folded to a narrow rail of icons when the screen is small or the user wants room for a wide table. Nothing about the calculations changes; the screens move to where a user would look for them.
 
 ### 11.2 What the layout is made of
 
@@ -280,13 +280,13 @@ The shape is simple. On the left is a dark navigation panel with six working gro
 |---|---|---|
 | Navigation panel (sidebar) | The brand at the top, then the two top-level links (Dashboard, Workspace), then the groups. One group is open at a time; the group that contains the current page opens by itself. Each group has an icon tile in its own colour, and the page in use is marked with a bar in that colour. | FDH `Components/Shell/Sidebar.vue`; MAIIC keeps its own recursive renderer so that a group can hold sub-groups (the modelling group needs them) |
 | Icon rail | The hamburger in the top bar folds the panel to 68 pixels of icons; the choice is remembered in the browser. On a phone the same button opens the panel as a drawer over the page. | FDH `AppLayout.vue` |
-| Top bar | Menu toggle; a chip showing the financial period the system is working in and whether it is open or closed; the notification bell; the user menu (profile, API tokens, log out). The decorative search box that does nothing today is removed. | FDH `Components/Shell/Topbar.vue`, less the dark-mode switch |
+| Top bar | Menu toggle; a chip showing the financial period the system is working in and whether it is open or closed; the appearance switch (11.5); the notification bell; the user menu (profile, API tokens, log out). The decorative search box that does nothing today is removed. | FDH `Components/Shell/Topbar.vue` |
 | Page header | An icon tile, the breadcrumb (group, then page) derived from the navigation tree and the current route, the page title, a one-line description, and a slot on the right for the page's actions. A page that already supplies its own header keeps it, inside this frame. | FDH `AppLayout.vue` |
 | Processing pill | The floating "Processing" and "Done" indicator while a request is in flight. Already in MAIIC; unchanged. | Both |
 | Fail-loud error dialogue | The plain-language explanation of a 403, 419, 404 or server error. Already in MAIIC; unchanged. | MAIIC |
 | Per-page help | MAIIC's help centre and the Help button on every page stay as they are. The guide text that names menu groups is re-worded to the new groups. | MAIIC |
 
-Not adopted: the dark-mode switch. MAIIC's pages were not written with a dark variant and would render half-styled; it can follow in a later pass once every page carries the variant.
+Everything in the FDH shell is adopted, including light and dark mode (11.5). MAIIC's pages were not written with a dark variant, so the dark mode is delivered in two steps: the shell and the shared styles first, then a sweep of the pages (11.9).
 
 ### 11.3 Where every screen lives
 
@@ -351,31 +351,50 @@ Three rules behind the placement. A screen that **captures or shows what came in
 - **Page header.** `title` and `description` may be passed as props; otherwise the title is the active entry's name and the description is empty. The `#header` slot, where a page provides one, renders inside the header frame in place of the derived title; the `#actions` slot renders on the right.
 - **Colours.** Group colours are Tailwind families (teal, amber, sky, indigo, emerald, violet, slate, rose) written in full in one accent map so that the build includes them. The brand remains MAIIC navy and gold on the dark gradient.
 
-### 11.5 What changes in the code, and what does not
+### 11.5 Light and dark mode
+
+Every user chooses how the system looks, and the choice follows them.
+
+- **Three settings.** Light, Dark, and Follow the device. The switch is in the top bar and cycles through the three; the same choice is on the user's profile page. The default for a new user is Follow the device.
+- **How it is applied.** Tailwind runs in class mode (`darkMode: 'class'`): the whole system is dark when the `dark` class is on the `<html>` element and light when it is not. Nothing else decides the theme, so there is one switch to test.
+- **No flash of the wrong theme.** A four-line script in `app.blade.php` runs before the page paints: it reads the saved choice from the browser (`maiic.theme`), falls back to the device setting when the choice is Follow the device or absent, and sets the class. The Vue code then mirrors that state in one shared composable (`useTheme`) so the top-bar switch, the profile page and any other consumer stay in step.
+- **Where the choice is kept.** In the browser, so that the first paint is right, and on the user's record (`users.theme_preference`, values `light`, `dark`, `system`), so that it follows the user to another machine: on login the server's value is written to the browser; when the user changes it, the browser value is written and the server is told. If the browser's storage is unavailable, the theme still applies for the session.
+- **What dark mode must look like.** The sidebar keeps its dark gradient in both modes (it is dark by design). The page background, cards, tables, inputs, buttons, badges, modals, charts and the help panels carry a dark variant: slate backgrounds, light text, the group colours unchanged, MAIIC gold kept for the active marks. Contrast meets WCAG AA in both modes; no screen may show light text on a light ground or dark on dark.
+- **How the pages get there without rewriting 281 components.** The shared classes the pages already use (`.card`, `.th`, `.td`, `.primary-btn`, `.secondary-btn`, the form inputs, the badges, the flash messages) are given their dark variant once in `app.css`, so most pages inherit the theme. The pages that style elements directly are then swept one group at a time (11.9), each page checked in both modes before it is signed off. Printed and exported outputs (PDF, Excel) are always rendered in the light palette, whatever the screen shows.
+
+### 11.6 What changes in the code, and what does not
 
 | Change | Where |
 |---|---|
 | The tree regrouped as in 11.3, with an `accent` key on every group | `config/menu.php` |
 | Accent map and group colours in the renderer; icon-rail mode | `resources/js/Jetstream/DropdownMenu.vue`, `SidebarNav.vue`, a new `resources/js/navAccents.js` |
 | Collapse state, drawer, page header with breadcrumb, period chip; the dummy search removed; the dead consultation-channel code removed | `resources/js/Layouts/AppLayout.vue` |
-| `currentPeriod` shared with every page | `app/Http/Middleware/HandleInertiaRequests.php` |
+| `currentPeriod` and the user's `theme_preference` shared with every page | `app/Http/Middleware/HandleInertiaRequests.php` |
+| Tailwind in class mode; the no-flash script; the `useTheme` composable; the top-bar switch; the profile setting and its endpoint; `users.theme_preference` | `tailwind.config.js`, `resources/views/app.blade.php`, `resources/js/composables/useTheme.js`, `AppLayout.vue`, the profile page, one migration and `ProfileController` |
+| Dark variants of the shared classes, then of the pages that style directly, group by group | `resources/css/app.css`, then the page components under `resources/js/Pages` |
 | Help-centre guides that name a group (fifteen passages) re-worded | `database/seeders/data/help_user_content`, `help_admin_content` |
 | User and Administrator manuals: navigation chapter re-written and screenshots retaken | `docs/manuals` |
 | A test that every leaf in the tree names a registered route and that every group has an accent | `tests/Feature/NavigationTest.php` (new); `SystemDocsTest` unchanged |
 
 Not changed: any route, controller, page component, permission or calculation. The three icons the groups need and MAIIC does not yet register (shield, bell, balance-scale) are added to the Font Awesome library.
 
-### 11.6 Acceptance
+### 11.7 Acceptance
 
 1. Every entry in 11.3 is reachable from the panel by a user with the right permission, and absent for one without it.
 2. The breadcrumb on each of the 60 screens reads group, then page, as 11.3 lists them.
 3. The rail, the drawer and the open-one-group rule behave as 11.4 states, on a 1366-pixel laptop and a phone.
 4. The help centre and the two manuals name no group that no longer exists.
 5. `SystemDocsTest` and the new navigation test pass; the EIR suite is unaffected.
+6. The appearance switch cycles Light, Dark and Follow the device; the choice survives a reload, a new tab and a login on another browser; there is no flash of the wrong theme on load.
+7. Every screen in 11.3 is checked in both modes: no unreadable text, no white panel on a dark page, charts and modals themed; PDF and Excel outputs unchanged.
 
-### 11.7 Order of work
+### 11.8 Order of work
 
-UI-1 the tree and the accent map (half a day); UI-2 the shell: rail, header, period chip (half a day); UI-3 help text and the manuals' navigation chapter with new screenshots (half a day); UI-4 the walk-through of 11.6 on a copy of the database. It is done before P8, so that the new EIR screens of P8 are placed in the suite layout from the start, and after P4b, which does not touch the interface.
+UI-1 the tree and the accent map (half a day); UI-2 the shell: rail, header, period chip, the appearance switch, the no-flash script and the shared dark classes (one day); UI-3 help text and the manuals' navigation chapter with new screenshots in both modes (half a day); UI-4 the walk-through of 11.7 items 1 to 6 on a copy of the database; UI-5 the page sweep for dark mode in the order of 11.9 (two days), with item 7 signed off group by group. UI-1 to UI-4 are done before P8, so that the new EIR screens of P8 are placed in the suite layout, and in both modes, from the start; UI-5 may run beside P5 to P7. All of it follows P4b, which does not touch the interface.
+
+### 11.9 The dark-mode sweep, in order
+
+The pages are swept in the order a user meets them, and each group is signed off in both modes before the next starts: (1) Dashboard, Workspace and the login pages; (2) the Report Hub and the IFRS 9 reports, which are what the CFO and the auditors open; (3) Data Foundation; (4) Governance Centre, including the Governance Centre screen itself; (5) Financial Modelling; (6) Risk & Regulatory and Monitoring; (7) System Documentation and Administration. The EIR screens are written with both variants from the start and are not part of the sweep.
 
 ## 12. Glossary of the new terms
 
@@ -386,5 +405,6 @@ UI-1 the tree and the accent map (half a day); UI-2 the shell: rail, header, per
 - **Diff Int Credit by ROI**: E-Banker's year-end adjustment of a year's interest to the rate on the account at year end (type 120).
 - **Seeded default**: the value Dupleix wrote into the Governance Centre as the first approved value, in force until MAIIC changes it.
 - **Icon rail**: the navigation panel folded to a narrow column of icons; labels appear as tooltips.
+- **Appearance (light, dark, follow the device)**: the per-user choice of how the screens are coloured; kept in the browser for the first paint and on the user's record so that it follows them.
 - **Breadcrumb**: the line at the top of a page that reads group, then page, so the reader knows where in the system they are.
 - **Control exception**: a difference between the signed offer letter and the system record, reported to Credit for action; not an accounting entry.
