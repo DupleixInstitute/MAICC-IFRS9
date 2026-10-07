@@ -146,6 +146,9 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | How the forward-looking adjustment is produced (`fli_adjustment_route`) | Regression | Recommendation (section 14.6); the manual overlay and the combined route are the alternatives | new |
 | Expected-sign test on a regression pair (`fli_expected_sign_test`) | Required | Recommendation (section 14.4) | new |
 | R-squared cut-off for an approvable model (`fli_r2_cutoff`) | 30 percent | Recommendation (section 14.4); MAIIC may tighten | new |
+| Minimum observations for a fit (`fli_min_observations`) | 12 | Recommendation (section 14.4, the guardrail) | new |
+| Significance level for a fit (`fli_alpha`) | 5 percent | Recommendation (section 14.4, the guardrail) | new |
+| Normality limits for a series profile (`fli_normality_limits`) | Skewness 1.0; excess kurtosis 3.0 | Recommendation (section 14.4, the profiler) | new |
 | How scenarios are weighted (`scenario_weighting_method`) | Weight the ECL across scenarios | Recommendation (section 15.5); the macro-path method kept for reconciliation | new |
 | Minimum scenarios in a set (`scenario_minimum_count`) | 3 | Recommendation (section 15.6) | new |
 | Floor on the base weight and ceiling on any weight (`scenario_weight_bounds`) | Base at least 40 percent; none above 60 percent | Recommendation (section 15.6) | new |
@@ -782,6 +785,15 @@ The finder answers the first question an analyst has: which economic series, at 
 - **Immutable runs.** Every sweep is an analysis run with the hash of the inputs it read, so a suggestion can be reproduced from the data vintage; a later sweep is a new run, not an edit.
 - **The tests, governed.** Two thresholds from the Governance Centre decide what may go forward: the **expected sign** per pair (positive, negative or not stated) and an **R-squared cut-off**. A pair that fails either is shown in red with the reason, as the earlier Dupleix calculator did it; it may still be studied, but it cannot be approved as a model.
 
+**Four further pieces of the suite's forward-looking module are adopted by name**, because each closes a gap a reviewer would otherwise find:
+
+- **The guardrail that declines.** A fitted relationship may feed an adjustment only when all four hold: enough observations (a governed minimum), the realised sign matches the expected sign, R-squared at or above the governed cut-off, and statistical significance (p-value at or below a governed alpha). Otherwise the verdict is *declined* with its reason, the relationship is quarantined, and the PD stays at its pre-FLI value until a person decides. This is the sign and cut-off test of the earlier calculator made complete: a weak or wrong-signed fit cannot reach a loan by accident, and the system says so rather than silently applying nothing.
+- **The structural-events register.** A governed table of the dated events that break economic series: for Malawi the 2012 float, the 2016 drought, the 2023 devaluation, the 2024 to 2025 policy-rate steps, each with its source (RBM, IMF). The finder's diagnostics test for a break at those dates (a Chow test) before trusting a fit across them; the scenario set of section 15 uses the same events as its anchors; the SICR engine may use them as qualitative triggers. One register, three consumers, so the "why 2023" of a scenario and the "why this fit fails across 2023" of a regression cite the same row.
+- **The credit-loss proxy deriver.** The Y series are derived from MAIIC's own data and never typed or invented: the NPL ratio (Stage 3 exposure over gross exposure) per period from the loan books, and the Stage 1 to default 12-month rate from the approved transition matrices. With fewer than two periods a proxy is recorded as not derivable, not interpolated.
+- **The series profiler.** The distribution of every X and Y series is stored, not recomputed: observations, span, mean, standard deviation, skewness and kurtosis, a normality verdict against governed limits, and a unit-root verdict, with the correlation method the shape can support. The finder reads the profile to choose rank or linear methods, and the audit workbook cites it, so the choice of method is a recorded fact rather than a default.
+
+These add three settings to the Governance Centre beside the two of 14.8: the minimum observations for a fit (seeded 12), the significance level (seeded 5 percent), and the skewness and kurtosis limits for a normality verdict (seeded 1.0 and 3.0). The register is seeded with the Malawi events above as proposals for Dr Thom to confirm.
+
 ### 14.5 The regression, repaired
 
 - **The model that is trained is the model that is applied.** The parameter record stores the approved model's id and its full coefficient vector; the predicted proxy uses every variable in it, each at its own lag and transform.
@@ -816,7 +828,7 @@ Financial Modelling › Forward-Looking Model: **Correlation Finder** (new), **R
 4. Every loan row names its route, parameter record, model version and scenario set; the ECL shows the overlay as its own line.
 5. The existing ECL tests pass unchanged on the regression route.
 
-FL-1 the finder (one day); FL-2 the regression repair with its tests (one day); FL-3 the FLI Adjustments screen, the overlay register and the route setting (one day); FL-4 lineage, the computed weighting, the back-test and the workbook rows (one day). FL-1 needs the macro series of section 13; the rest can follow P4b.
+FL-1 the finder with the guardrail, the register, the proxy deriver and the profiler (one and a half days); FL-2 the regression repair with its tests (one day); FL-3 the FLI Adjustments screen, the overlay register and the route setting (one day); FL-4 lineage, the computed weighting, the back-test and the workbook rows (one day). FL-1 needs the macro series of section 13; the rest can follow P4b.
 
 ## 15. Economic scenarios: governance and incorporation
 
@@ -919,6 +931,8 @@ SC-1 the set, the scenarios, the shocks, the migration from the two old structur
 - **WEO**: the IMF World Economic Outlook database, the source of the forecast years.
 - **Pre-FLI and post-FLI PD**: the probability of default measured from history, and the same probability after the forward-looking adjustment; the ECL is calculated on the second.
 - **Correlation finder**: the sweep of every macro series against every credit-loss proxy, over lags and transforms, that ranks which relationships are worth a model.
+- **Guardrail**: the four tests (observations, sign, strength, significance) a fitted relationship must pass before it may adjust a PD; a fit that fails is declined with its reason and quarantined.
+- **Structural event**: a dated break in the economy (a float, a drought, a devaluation) kept in a governed register and used by the diagnostics, the scenarios and the SICR triggers alike.
 - **Overlay**: a forward-looking adjustment applied by judgement rather than by a model, with its reason, owner, expiry and two approvals, shown as its own line.
 - **Scenario set**: the governed collection of economic scenarios for a reporting period, with their weights, paths, narratives, source vintage and approvals.
 - **Shock**: the recorded transformation that turns the base path into another scenario's path: a percentage change, an absolute change, a replacement or a multiplier, by series and year.
