@@ -18,7 +18,7 @@ This document records that. It is written, as before, for three readers at once:
 - **Decided and seeded** is new. It means a choice that has been settled by Dupleix on the evidence, written into the Governance Centre as the default in force, and is waiting only for Dr Thom to confirm or change it. Section 4 lists every one, with its default.
 - **Proven** means a fact tested against MAIIC's own data and reproduced, with the file and the count given so that anyone can repeat the test.
 
-Where a file is named, it is one of the extracts in `2. Documents from clients\Raw Query Scripts\Query Requests to MAIIC\Follow-Up Scripts Resutls\`. The scripts that produced every figure in this document are in `Build files\` beside them, with a README that says which script makes which number.
+Where a file is named, it is one of the extracts committed under `docs/bootstrap/` in the repository (section 6.10), with a copy in `2. Documents from clients\Raw Query Scripts\Query Requests to MAIIC\Follow-Up Scripts Resutls\`. The scripts that produced every figure in this document are in `Build files\` beside them, with a README that says which script makes which number.
 
 ## 1. What has happened since version 3
 
@@ -109,6 +109,7 @@ On 31 December 2025 E-Banker posted 28 "Diff Int Credit by ROI" entries (type 12
 | D22 | **E-Banker is ingested through a landing zone and the monthly loan book is derived from the ledger** (section 6): raw tables that mirror E-Banker, loaded append-only by whichever of five routes MAIIC uses, with gates that refuse a pack that does not tie, and one re-runnable build by any of three methods, the bootstrap of the stored report, the derivation from the ledger, or the printed report importer MAIIC uses today, chosen at any time. | Dupleix, 7 Oct 2026; the landing zone and the derivation added the same day at Edward's direction, the bootstrap and the report importer kept as options | The ledger is the primary record and ties to every other table; the report starts only in December 2024 and stores every re-run. Every derived figure traces to raw rows an auditor can open. |
 | D24 | **The Dupleix-suite layout is adopted for the user interface** (section 11): the six working groups with their colours, the icon rail, the page header with breadcrumb, the period chip, and light and dark mode as a per-user setting, as the Dupleix suite builds them. Routes, permissions and calculations are unchanged; screens move to where the suite puts them. | Edward, 7 Oct 2026 | One shape of screen across every Dupleix system; the EIR screens of P8 are placed in it from the start |
 | D25 | **Dupleix's compliance audit workbooks are adopted** (section 12): five workbooks (IFRS 9 EIR, IFRS 9 impairment, IFRS 7 and IAS 1, RBM classification, Contract Schedule 1), each row naming the governance setting that governs it and the test that proves it; a register in the Governance Centre where MAIIC signs; an auditor's pack per period in the Report Hub. | Edward, 7 Oct 2026 | Deloitte walks from paragraph to screen to test; the status counts are the project's status in one line |
+| D26 | **One-command bootstrap from committed inputs** (section 6.10): the E-Banker pack, the data-dictionary results, the take-on workbook and the queries are committed under `docs/bootstrap/` with a manifest, and `eir:bootstrap` builds a clean install to a proven state. | Edward, 7 Oct 2026 | Any server, including UAT and Deloitte's copy, is reproducible from nothing; the bootstrap is also the end-to-end test of the data foundation |
 | D23 | **The three MAIIC extract scripts are retired.** The engine's importers read the tables directly, through CSVs produced with the session settings of the 6 October request (ISO dates, point decimal). | Dupleix, 7 Oct 2026 | Removes the three script faults of section 2.1 at source. |
 
 ### 4.2 Decided and seeded: every setting, its default, and where it stands
@@ -237,7 +238,9 @@ Whichever route is in use, the system never writes to E-Banker; the Oracle role 
 
 ### 6.7 Loading the history, once
 
-1. **Freeze the 7 October pack.** The eighteen follow-up extracts and the five of the afternoon, with their SHA-256 hashes, become pack 1 under route 1. They are never opened in Excel.
+The history is loaded by the bootstrap of section 6.10 from the committed inputs; the steps below are what it does and how it is proven.
+
+1. **The 7 October pack is committed** under `docs/bootstrap/ebanker-pack-2026-10-07/` with its manifest and hashes; it is pack 1 under route 1. The files are never opened in Excel.
 2. **Gates.** The pack passes 6.4 with two accepted exceptions recorded against the load: the FInES GL openings of section 3.5 until Finance corrects them, and the Zaithwa Farms balance rows from May 2025 until the vendor rebuilds them.
 3. **Build on a copy of the production database** for every month from July 2024 to August 2026, by method A first (the stored report is the quickest proof) and then by method B, and compare the two: the carrying amounts must agree on every account-month except the flagged rows of section 3.5. December 2025 to August 2026 are already loaded from the Excel reports; the build prints every difference before it overwrites.
 4. **Prove.** Run one ECL month and one EIR month on the copy and compare with the Excel-loaded results; the Baselines sheet of section 12 must show PASS on every tie of section 9.
@@ -269,9 +272,32 @@ Data Foundation, E-Banker Feed: the queries (versioned, downloadable as the file
 
 The seeded option is the reasonable one: it uses the history wherever MAIIC can evidence it and is honest where it cannot, and every loan carries the basis it was built on so an auditor sees which. Changing the setting rebuilds the take-on population only.
 
-**Where.** Data Foundation, Take-on Schedules: upload the workbook, see each block with its mapping, confidence, tick and fees, the gate results, and the Build with approval. Tamanda may confirm a mapping or enter a fee in the screen instead of in Excel; the screen's entry is the one that counts and is audit-logged. Re-uploading creates a new version; the previous build is kept.
+**Where.** The workbook is committed under `docs/bootstrap/takeon/` and loaded by the bootstrap (6.10); the returned version with the fees replaces it as a new file. Data Foundation, Take-on Schedules: upload a workbook (the alternative to the committed copy), see each block with its mapping, confidence, tick and fees, the gate results, and the Build with approval. Tamanda may confirm a mapping or enter a fee in the screen instead of in Excel; the screen's entry is the one that counts and is audit-logged. Re-uploading creates a new version; the previous build is kept.
 
-### 6.10 The EIR as at any date
+### 6.10 The bootstrap: a clean install that loads itself and proves itself
+
+The Dupleix suite installs a client system with one command that wipes a clean database, seeds it, loads the client's own input files from a folder committed in the repository, runs the engines and checks the result against the golden numbers. MAIIC adopts the same method (decision D26), so that any server, including Deloitte's copy and the UAT copy, is built from nothing to a proven state without anyone sending a file.
+
+**The committed inputs.** `docs/bootstrap/` in the repository holds, exactly as received and never re-saved: the E-Banker pack of 7 October 2026 (the 18 extracts and the 5 afternoon queries, 23 files), the data-dictionary results of 6 October (24 files), the take-on workbook with its fee columns, the SQL that produced the pack, and `manifest.json` with every file's query id, row count and SHA-256 and the accepted exceptions the gates allow. The committed copy is read first; a OneDrive path is only a local fallback for development. A replacement, for example the workbook Finance returns with the fees filled in, is a new file beside the old one and a new manifest entry; nothing in the folder is edited in place. The files are MAIIC's data (borrower names and balances); the repository is private and access to it is governed as access to the production database is.
+
+**The command.**
+
+`php artisan eir:bootstrap --fresh --with-client-inputs --build --verify`
+
+| Step | What it does | Idempotent |
+|---|---|---|
+| 1 | `migrate:fresh` on `--fresh`, refused if user data exists unless `--force-wipe` is also passed | Safety, not a step |
+| 2 | Seeds: roles and permissions, the Governance Centre defaults (section 4.2), the help centre, the fee rulebook, the compliance-audit modules (section 12) | Yes: a key that exists is left alone |
+| 3 | Lands the committed pack into the landing zone by route 1 (section 6.4): the manifest is checked file by file, the gates run, the accepted exceptions are recorded against the load | Yes: a file whose hash is already loaded is skipped |
+| 4 | Lands the take-on workbook (section 6.9) and the fees it carries | Yes |
+| 5 | On `--build`: builds the loan books for every month from July 2024 to the last month in the pack by the method in force (section 6.2), builds the take-on population under its basis, generates the version 1 schedules | Yes: a locked period is never restated |
+| 6 | On `--verify`: runs the baselines of section 9 against the database and prints the table, PASS or FAIL per row, and exits non-zero on any FAIL | Yes |
+
+Anything the bootstrap approves (a load, a build, a generated schedule) is stamped with the approver label "System Bootstrap (automated data-readiness, not a MAIIC approval)", so that no one can mistake it for a sign-off by MAIIC; the maker-checker approvals of the Governance Centre and the register are never given by the bootstrap.
+
+**What it is for.** The first installation on MAIIC's server; every UAT and acceptance round, which starts from a bootstrap so that the result is reproducible; Deloitte's copy; and the developers' own daily state, since a bootstrap with `--build --verify` is also the end-to-end test of the data foundation. The monthly packs of section 6.5 are loaded by the feed, not by the bootstrap; the bootstrap loads what is committed.
+
+### 6.11 The EIR as at any date
 
 A requirement in its own right: **the system shows the EIR computation for any loan as at any date the user names**, not only at month-ends and not only for the latest run.
 
@@ -319,7 +345,7 @@ Phases P1 to P4 are built. The order from today, with what each one waits for:
 
 | Phase | Content | Waits for |
 |---|---|---|
-| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by all three methods (the report importer landed and gated); the take-on schedules landed, gated and built (6.9); `EirAsAtService` (6.10); the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists | Nothing; route 4 waits for Dr Thom and ICT |
+| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by all three methods (the report importer landed and gated); the take-on schedules landed, gated and built (6.9); `EirAsAtService` (6.11); `eir:bootstrap` with the committed inputs and `--verify` (6.10); the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists | Nothing; route 4 waits for Dr Thom and ICT |
 | **P5 Floating resets** | Reset detector from the PLR series writing `rate_reset_events`; a spread change as a separate event; maker-checker intake; a reset inside a locked period refused; prospective re-estimation under B5.4.5 | Nothing to build; O17 confirmed by Deloitte before the first reset is booked |
 | **P6 Arrears** | Cash receipts from the ledger (exact); re-estimation under B5.4.6; IRR on actual expected flows | P5 |
 | **P7 Restructuring** | Version N+1 import; `contract_modifications`; the 10 percent test; lineage | The restructure register from MAIIC |
@@ -331,7 +357,7 @@ P4b and P5 start now. Fees and the Mega Farms decision are the two items that ga
 
 ## 9. Acceptance baselines
 
-The ties achieved this week become regression tests. A build that cannot reproduce them has broken something.
+The ties achieved this week become regression tests, run by `eir:bootstrap --verify` (section 6.10) and shown on the Baselines sheet of every audit workbook (section 12). A build that cannot reproduce them has broken something.
 
 | Test | Expected |
 |---|---|
@@ -425,7 +451,7 @@ The tree is the single source of truth: the server holds it in `config/menu.php`
 | | Early Warning System | `ifrs9-reports.ews` | | a tile in the hub |
 | | Data Quality | `ifrs9-reports.data-quality` | | a tile in the hub |
 | **Report Hub** (violet) | IFRS 9 Reports (the full catalogue of 30) | `ifrs9-reports.index` | | Reports |
-| | EIR as at a date (the book, with downloads) | `eir-as-at.index` (new, section 6.10) | eir.view | new |
+| | EIR as at a date (the book, with downloads) | `eir-as-at.index` (new, section 6.11) | eir.view | new |
 | | Executive Summary | `ifrs9-reports.executive` | | a tile in the hub |
 | | AI Commentary | `ifrs9-reports.ai-narrative` | | a tile in the hub |
 | | ECL Reconciliation | `reports.ecl-reconciliation` | | Reports |
@@ -582,6 +608,7 @@ CA-1 port the engine and add the two columns and the Baselines sheet (one day); 
 - **Report importer (method C)**: building it from the printed Loan Book Report uploaded as Excel, the way MAIIC has loaded every month until now, with the file landed and date-checked.
 - **As at a date**: the computation of a loan's EIR and amortised cost using only what was posted, in force and locked on that date; any date, not only a month-end.
 - **Take-on basis**: whether a take-on loan's EIR is recomputed from its origination (schedule and fees) or started at its 31 July 2024 balance; recorded on every take-on loan.
+- **Bootstrap (the command)**: `eir:bootstrap`, which builds a clean install from the inputs committed under `docs/bootstrap/` and verifies it against the baselines.
 - **Landing zone**: the raw tables that mirror E-Banker, loaded exactly as received and never edited; everything else is derived from them.
 - **Pack**: one month's set of extract files plus a manifest of what they are, which query version made them and their hashes; the one form in which data enters, whichever route delivers it.
 - **Watermark**: the last source key loaded for a table; the next pack starts after it.

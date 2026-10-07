@@ -1,0 +1,434 @@
+{
+  "pack": "MAIIC E-Banker bootstrap inputs",
+  "assembled": "2026-10-07",
+  "source": "E-Banker (Virtual Galaxy CBS, schema VGCBS), run by Barry Makumba in SQL Developer; dates exported as m/d/yyyy (the RUN 0 ISO settings were not applied on this first pack); amounts signed, debits negative",
+  "scope_scheme_ids": [
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    140,
+    141,
+    142,
+    143,
+    144,
+    145
+  ],
+  "accepted_exceptions": [
+    "GL 1050201 trial balance +400,000.00 and 1050202 -1,000,000.00 against the accounts: keyed GL opening balances, Finance to correct (spec v4 s.3.5)",
+    "Account 000104450000015 Zaithwa Farms: balance-history rows wrong from May 2025 (duplicate 30 Apr 2025 row); ledger correct; vendor to rebuild (spec v4 s.3.5)",
+    "P2_06 PLR master: use this (morning) export; the afternoon re-export lost the date on PLR id 2",
+    "P1_05 interest summary: latest month only (Aug 2026); the table holds no history"
+  ],
+  "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "ebanker-pack-2026-10-07/P1_01_ledger_all.csv",
+      "query_id": "P1_01",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 3640,
+      "sha256": "8412efbf4a077242a15ccace064b7ee6acda41dce94c1688398b456fef69ce2d",
+      "bytes": 2221448
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P1_02_account_master_all.csv",
+      "query_id": "P1_02",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 184,
+      "sha256": "be880c98782020b59e9e40db30c6a3e2196054c096c21f7c212d7b854fc90192",
+      "bytes": 167405
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P1_03_loan_master_all.csv",
+      "query_id": "P1_03",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 184,
+      "sha256": "b781913f41878e90b0ff84f3f7bf7b974fb87c6cb9a866bc50353c4d34c29188",
+      "bytes": 82822
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P1_04_rate_setup_per_account.csv",
+      "query_id": "P1_04",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 1291,
+      "sha256": "a8157cf461f54506b0bafcb95eb6b951e65c747e1ec62ff71c88376a5a4b91e8",
+      "bytes": 366867
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P1_05_interest_posted_by_account.csv",
+      "query_id": "P1_05",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 82,
+      "sha256": "5ba6bba542b3d2908ef353fe50ad9d810e1acd0631c2fc45ad54c190f3047c0c",
+      "bytes": 26788
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P2_06_plr_master.csv",
+      "query_id": "P2_06",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 49,
+      "sha256": "902e174b909e4f2a83d763f253faa1194e96ae2c5bd3d262d14bb6da774e74db",
+      "bytes": 8199
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P2_07_disbursement_charges.csv",
+      "query_id": "P2_07",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 3651,
+      "sha256": "9638cf405419b63aec5eda65288db82bcad8fb0c37b89b410acf4330efc11069",
+      "bytes": 515136
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P2_08_loan_book_history.csv",
+      "query_id": "P2_08",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 12414,
+      "sha256": "741ae415d59e2a58b1eec2e4815bde5501eca7588f8d9a1ea656da49af9690b7",
+      "bytes": 5622450
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P2_09_balance_history.csv",
+      "query_id": "P2_09",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 2549,
+      "sha256": "4e258e8e149ec8c80dac0300ad2322c7cc7117a0be03d60603c07a59c62d1abd",
+      "bytes": 800878
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P2_10_instalment_chart_current.csv",
+      "query_id": "P2_10",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 2742,
+      "sha256": "9ba87b8f65f61b56d248a9ac0d609bbf3cb2ff54ad51c658f5dda287deb9250e",
+      "bytes": 727118
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P3_11_instalment_plans.csv",
+      "query_id": "P3_11",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 1958,
+      "sha256": "af37d180103fac47ccba09673c6a3cd499807ec7d7b9aa1795f04390c6a3f328",
+      "bytes": 359016
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P3_12_disbursement_schedules.csv",
+      "query_id": "P3_12",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 251,
+      "sha256": "b956181bf3a7dd520d713037fc11ba1686d5c3aecd1d8f8e97aceb9f69adeaf3",
+      "bytes": 43219
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P3_13_status_history.csv",
+      "query_id": "P3_13",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 283,
+      "sha256": "6a42fabcc9a8ee90bf3f46bc233e6a4ae06a3f4e64b8d3a52d8fb047a6fae4c0",
+      "bytes": 46687
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P3_14_daily_interest_accrual.csv",
+      "query_id": "P3_14",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 7489,
+      "sha256": "ebab99db0840171f55b962ee9f1a04c8361ee406e2580177742a5f4837e0f8d1",
+      "bytes": 759280
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P3_15_slab_master.csv",
+      "query_id": "P3_15",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 100,
+      "sha256": "eb551761b3559fbd0fefb24b58403d3284899b7167b5e6482a8fcb2ce0733a58",
+      "bytes": 34592
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P3_16_forgiven_interest.csv",
+      "query_id": "P3_16",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 2,
+      "sha256": "da3aca44f3b4116e82803250614c9d3b6a6b4e4a346d5b3d65aff975d90fe314",
+      "bytes": 775
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P3_17_auto_charges.csv",
+      "query_id": "P3_17",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 1,
+      "sha256": "c3117aac129b33c1af3721bb50615efbb58b04946d93d541bd20bcbe97e58797",
+      "bytes": 945
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/P3_18_date_time_check.csv",
+      "query_id": "P3_18",
+      "kind": "follow-up extract, run 7 Oct 2026 by 10:00",
+      "rows": 3,
+      "sha256": "d420436b893e7cef7070fc42a6e4686aa42b2d2ecb5f1799b3cd38653ed2a5fe",
+      "bytes": 213
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/GL_01_fines_postings_without_account.csv",
+      "query_id": "GL_01",
+      "kind": "follow-up query of 7 Oct 2026 afternoon (GL openings, Zaithwa Farms)",
+      "rows": 0,
+      "sha256": "966dc7853c52c2cb779b5ee0eb0bf9aee52d0e4f74b4a712b82569c3b1e5f1d5",
+      "bytes": 1270
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/GL_02_fines_opening_balances.csv",
+      "query_id": "GL_02",
+      "kind": "follow-up query of 7 Oct 2026 afternoon (GL openings, Zaithwa Farms)",
+      "rows": 13,
+      "sha256": "4b20307d91656a38645cb0f5edfe22f0076f4b7d10ed003208373f8cbd71b533",
+      "bytes": 3434
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/ZF_01_all_postings.csv",
+      "query_id": "ZF_01",
+      "kind": "follow-up query of 7 Oct 2026 afternoon (GL openings, Zaithwa Farms)",
+      "rows": 24,
+      "sha256": "8cb7356ec4e9c5b725fb9bac876132c45b7945d2a7380aac6352360b28bdaf21",
+      "bytes": 15950
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/ZF_02_amount_search.csv",
+      "query_id": "ZF_02",
+      "kind": "follow-up query of 7 Oct 2026 afternoon (GL openings, Zaithwa Farms)",
+      "rows": 0,
+      "sha256": "966dc7853c52c2cb779b5ee0eb0bf9aee52d0e4f74b4a712b82569c3b1e5f1d5",
+      "bytes": 1270
+    },
+    {
+      "file": "ebanker-pack-2026-10-07/ZF_03_balance_rows.csv",
+      "query_id": "ZF_03",
+      "kind": "follow-up query of 7 Oct 2026 afternoon (GL openings, Zaithwa Farms)",
+      "rows": 27,
+      "sha256": "a2fbb801c17dfde61d90c186b81513ed149826672ecd782203359838957f282e",
+      "bytes": 8637
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_01_schema.csv",
+      "query_id": "DD_01",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 13,
+      "sha256": "e5e3c46f67a6337ea095036022d69c8878e4314d1ca0a221255dffb1c79da95f",
+      "bytes": 718
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_02_tables.csv",
+      "query_id": "DD_02",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 1285,
+      "sha256": "e988b2e8aa79511c1c82e085d8ad15321d4cd72c151b59d8b2d9641d886255b6",
+      "bytes": 71688
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_03_columns.csv",
+      "query_id": "DD_03",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 36044,
+      "sha256": "46b52b421018e676e371a122f70845f25e093bc30d9dca936c81aff6e15c01c2",
+      "bytes": 3137718
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_04_keys.csv",
+      "query_id": "DD_04",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 2069,
+      "sha256": "c9516f47fea2699188a98f20208618677166a111097d9882ffd630ef36bdcd81",
+      "bytes": 220525
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_05_indexes.csv",
+      "query_id": "DD_05",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 1378,
+      "sha256": "207c9c73a9dca41739c6e262b9ccd8dc377bb428726370fc7cede0b80b266609",
+      "bytes": 112766
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_06_account_key_tables.csv",
+      "query_id": "DD_06",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 1110,
+      "sha256": "af99ae0be08c1c956a86e001a685b4132de870e7c349b8f6432c5a7a051f2084",
+      "bytes": 69375
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_07_tables_by_subject.csv",
+      "query_id": "DD_07",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 261,
+      "sha256": "c31640e93a073bf6586617d1662cf26905d0448d46d61421cb87ac4dd908d7d2",
+      "bytes": 9835
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_08_stored_code.csv",
+      "query_id": "DD_08",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 1731,
+      "sha256": "c2faa4bdd45f8562ff990ffd30e4dfd5688a24b0df2413b28e56937957ba484d",
+      "bytes": 95761
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_09_schemes_all.csv",
+      "query_id": "DD_09",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 114,
+      "sha256": "a67b5a3e475dd213b036560163d58f83b2767ab2472b9045bec4d9453e429b34",
+      "bytes": 5525
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_10_scheme_settings.csv",
+      "query_id": "DD_10",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 18,
+      "sha256": "034e09c5b9682d793dfc2aa3f303b25677ae8660538ae218aeb0bc56aad3b72b",
+      "bytes": 11895
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_11_account_status_codes.csv",
+      "query_id": "DD_11",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 5,
+      "sha256": "c26046e32153e1d1aab0d72a0cd8108164b7e8f1a95f2bb8f767831766757acb",
+      "bytes": 275
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_12_transaction_types.csv",
+      "query_id": "DD_12",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 11,
+      "sha256": "46f2740a6f3aea54996951a6c1f00dc18b59e3a3ad382102bcfe5fc607b7242a",
+      "bytes": 891
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_13_gl_codes_posted.csv",
+      "query_id": "DD_13",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 30,
+      "sha256": "a0a11452da73080a635520bbe22603f3170d78356d4cf8ec3765bf9725055cac",
+      "bytes": 2853
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_14_other_codes.csv",
+      "query_id": "DD_14",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 10,
+      "sha256": "e8b718561c49c6b6bdfb9eece88dc3e72578bbf74ce47b2027a37da28ffcc88a",
+      "bytes": 566
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_15_row_counts.csv",
+      "query_id": "DD_15",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 7,
+      "sha256": "a980f7abea4e7ca8fdae2e0a1b88eed71f62ad5fbd8b952003c4576dfff6cb68",
+      "bytes": 264
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16a_sample_acmaster.csv",
+      "query_id": "DD_16a",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 1,
+      "sha256": "ea0aed89a9d2d94d69bbbb3ffedd96f8333de0c8928d2403d53c0d09d89396d8",
+      "bytes": 3482
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16b_sample_acloanmaster.csv",
+      "query_id": "DD_16b",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 1,
+      "sha256": "e493e9aca563aa3bf643c2a31b8d3f818582d8544f0b0fb4317901e79f0e32ed",
+      "bytes": 1800
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16c_sample_disbursement_schedule.csv",
+      "query_id": "DD_16c",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 5,
+      "sha256": "efd49596c4e76e28947c9407506ca50e333b438cd758f6be53043012a003f1d5",
+      "bytes": 1335
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16d_sample_instalment_chart.csv",
+      "query_id": "DD_16d",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 926,
+      "sha256": "f4274cfd4a433d8d34b8b4a45625873f23938a63a10d4a409e6e75a9debf62e5",
+      "bytes": 256088
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16e_sample_instalment_plan.csv",
+      "query_id": "DD_16e",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 18,
+      "sha256": "333bbf6823387179c30c1aacb7b1b3fe9add795d63b33ff000439942c5b10b04",
+      "bytes": 4528
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16f_sample_ledger.csv",
+      "query_id": "DD_16f",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 30,
+      "sha256": "8c1cdd49c21d6257ec666ce384466f6258f07c70371be0fd3566049724cffe53",
+      "bytes": 20162
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16g_sample_balances.csv",
+      "query_id": "DD_16g",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 13,
+      "sha256": "0b08daa844f669992cabd136219a4cca5fc475f905d3a4910d9d1b625dcbe5d4",
+      "bytes": 4399
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16h_sample_reschedule.csv",
+      "query_id": "DD_16h",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 0,
+      "sha256": "f1f5c87a044e951b6d441866907b22c7e51cfd584a4b4f8a7825a30b6f1b92a9",
+      "bytes": 617
+    },
+    {
+      "file": "data-dictionary-2026-10-06/DD_16i_sample_writeoff.csv",
+      "query_id": "DD_16i",
+      "kind": "data-dictionary result, run 6 Oct 2026",
+      "rows": 0,
+      "sha256": "ecd21966b23c20be14ef2245532bec12c1275726eaa5553711b5a0334e532b49",
+      "bytes": 383
+    },
+    {
+      "file": "takeon/Take-on schedules with mapping - with fee columns - for Tamanda to confirm - 7 Oct 2026.xlsx",
+      "query_id": "Take-on schedules with mapping - with fee columns - for Tamanda to confirm - 7 Oct 2026.xlsx",
+      "kind": "take-on amortisation schedules mapped to E-Banker accounts; fee columns AO:AU for Finance to complete",
+      "rows": null,
+      "sha256": "7713893c7d19672030ea3ac4b7c3b347ceedb1920cdf67655baa26716bc38872",
+      "bytes": 513214
+    },
+    {
+      "file": "queries/FOLLOW-UP extracts for Barry - 6 Oct 2026.sql",
+      "query_id": "FOLLOW-UP extracts for Barry - 6 Oct 2026.sql",
+      "kind": "the SQL that produced the pack; version 1",
+      "rows": null,
+      "sha256": "f7b1d671aa2f42f04af00872b13d01c389a2424ec2483b891a689bc1110738b8",
+      "bytes": 12475
+    },
+    {
+      "file": "queries/MAIIC_EBanker_Data_Dictionary_Queries.sql",
+      "query_id": "MAIIC_EBanker_Data_Dictionary_Queries.sql",
+      "kind": "the SQL that produced the pack; version 1",
+      "rows": null,
+      "sha256": "18e42db3a0925b55909d4526a7560285350e2c01acde84c9910158a8c8055827",
+      "bytes": 22821
+    }
+  ]
+}
