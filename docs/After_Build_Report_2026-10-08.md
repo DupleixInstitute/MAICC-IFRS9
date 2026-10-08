@@ -1,6 +1,6 @@
 # MAIIC EIR and IFRS 9 system: after-build report, 8 October 2026
 
-**What this is.** On 8 October 2026 the build set out in *MAIIC EIR Engine Specification v4* (7 October 2026) was carried out against the specification, section by section, on the MAICC-IFRS9 repository (branch `eir_revenue_recognition`, commits `32e7d99` to `a26ccec`). This report says what was built, what the system proved when it ran, what the build found in the data and in the system that the specification did not know, and what is still owed. It is the comparison the specification asked for in its own section 8 (the build plan): the original specification stands as written; this report is read beside it.
+**What this is.** On 8 October 2026 the build set out in *MAIIC EIR Engine Specification v4* (7 October 2026) was carried out against the specification, section by section, on the MAICC-IFRS9 repository (branch `eir_revenue_recognition`, commits `32e7d99` to `09ac5da`). This report says what was built, what the system proved when it ran, what the build found in the data and in the system that the specification did not know, and what is still owed. It is the comparison the specification asked for in its own section 8 (the build plan): the original specification stands as written; this report is read beside it.
 
 The production database `maiic_ifrs9` was not opened. The build was proven twice: on the demo copy (`maiic_ifrs9_demo`, which also holds the data of the 8 October demo), and on a throwaway database (`maiic_ifrs9_bootstrap`) wiped and rebuilt from nothing by the bootstrap command, which is the test the specification set for the data foundation.
 
@@ -28,7 +28,7 @@ What remains is set out in section 6: the forward-looking regression chain and t
 | 6.8 Feed screen | Queries, loads, watermarks, quarantine, build with approval | Yes | `EirFeedController`, `Pages/Eir/Feed/Index.vue` |
 | 6.9 Take-on | Landed not typed; blocks and lines with cells; gates; the build under `takeon_history_basis`; the screen with confirm and fees | Yes | `TakeonLandingService`, `eir:land-takeon`, `EirTakeonController`, 3 tests |
 | 6.10 Bootstrap | One command: fresh, seed, land, build, engines, verify | Yes | `eir:bootstrap` |
-| 6.10.1 Engine chain | Twelve engines in dependency order | Steps 1 (macro), 3 (staging), 7 (ECL), 8 and 9 (EIR), 10 (reconciliation) run; 2, 4, 5, 6, 11, 12 are the screens' engines not yet callable without a request (section 6 below) | `Bootstrap::stepEngines` |
+| 6.10.1 Engine chain | Twelve engines in dependency order | Steps 1 (macro), 2 (scenario set), 3 (staging), 4 (PD transition matrix), 5 (LGD cohort workout), 6 (forward-looking chain), 7 (ECL), 8 and 9 (EIR), 10 (reconciliation) run; 11 (stress) and 12 (reports and workbooks) remain the screens' | `Bootstrap::stepEngines`, `PdEngineService`, `LgdEngineService` |
 | 6.10.2 Golden numbers | The section 9 baselines and the year-end ties | Nine checks, all PASS | `Bootstrap::stepVerify` |
 | 6.11 As at any date | The EIR computation for a loan or the book at any date; refused after the last posting | Yes | `EirAsAtService`, `eir:as-at`, `EirAsAtController`, 4 tests |
 | 7.1 Ledger importer | The ledger as the primary record: interest posted and cash movements from it | Yes: interest per account-month (retiring Extract C) and the cash movements as actual transactions (retiring Extract B) | `ContractInputsBuildService` |
@@ -36,13 +36,14 @@ What remains is set out in section 6: the forward-looking regression chain and t
 | 11 Suite layout | Six groups with accents, rail, top bar, page header with breadcrumb, light and dark | Shell, shared styles and the tree built; the page-by-page dark sweep (11.9) remains | `config/menu.php`, `AppLayout.vue`, `useTheme.js`, `NavigationTest` |
 | 13 Macro statistics | Codes on the series, World Bank fetcher, batches with provenance, the command with a snapshot | MS-1 to MS-3 built; the IMF WEO parser, the RBM file tab and the five-tab screen remain | `MacroSeriesSeeder`, `WorldBankFetcherService`, `MacroImportService`, `macro:import-worldbank` |
 | 14.7 Transmission methods | Governed methods, each explained with live preconditions and a worked example | Yes | `TransmissionMethodCatalogue`, `fli:method-cards`, 4 tests |
-| 14.3 to 14.6, 15 | Guardrail, structural events, proxy deriver, profiler, correlation finder, regression, scenario sets | The suite's engines and their support classes are in `docs/reference` complete; the adapter to MAIIC's tables is not yet written | section 6 |
-| 12 Audit workbooks | The compliance modules and workbooks | Not started | section 6 |
+| 14.3 to 14.6 Forward-looking chain | Guardrail, structural events, proxy deriver, profiler, correlation finder, regression | Yes: the suite's engines ported as they are over a bridge from MAIIC's tables; `fli:correlate` | `FliBridgeService`, `app/Services/Fli/*`, 1 test |
+| 15 Scenario sets | The governed set: rules, shocks on the base, approval, lock, versions, back-test, sensitivity; the first set of 15.8 | Yes | `ScenarioSetService`, `scenario:sets`, Governance Centre / Scenario Sets, 3 tests |
+| 12 Audit workbooks | The engine with the two columns and the Baselines sheet; the five modules | Engine ported (CA-1); IFRS 9 EIR and impairment modules drafted and built in three formats (CA-2, part of CA-4); the register, trace and pack (CA-3) and three modules remain | `tools/compliance/`, `docs/compliance/` |
 | 16 Mega Farm | The programme in the ECL module under D30 | Not started; the November 2025 book found (section 4) | section 6 |
 
 ## 3. What the system proved when it ran
 
-The bootstrap on the wiped database, 8 October 2026 evening:
+The bootstrap on the wiped database, 8 October 2026 evening, then the engine chain as completed in the second round (about 90 seconds in all):
 
 | Step | Result |
 |---|---|
@@ -56,6 +57,11 @@ The bootstrap on the wiped database, 8 October 2026 evening:
 | Revenue | 138 roll-forward rows, 12 contracts, January 2025 to August 2026; 107 months take their cash from the ledger |
 | Staging | 26 periods; 1,267 / 454 / 1,028 row-months in Stages 1, 2, 3 |
 | ECL | August 2026 computed on the pre-FLI PD |
+| PD | Transition matrix over August 2025 to August 2026 (108 transitions): PD to Stage 3 of 35.9% from Stage 1 and 35.2% from Stage 2 |
+| LGD | Cohort of 41 Stage 3 loans (4.12bn) followed twelve months: cure 21.2%, recovery 23.5%, LGD 60.25% |
+| ECL, August 2026 | 8.33bn on 23.32bn gross: Stage 1 1.58bn, Stage 2 1.82bn, Stage 3 4.93bn |
+| Scenario set | The first set of 15.8 approved under the bootstrap label; sensitivity on 135 loans: base 9.63bn, upside 9.00bn, downside 11.10bn, severe 12.99bn, weighted 10.24bn |
+| Forward-looking chain | 1,045 driver x proxy x lag evaluations; 209 suggestions (55 recommended); 209 fits, 39 applied by the guardrail, 170 declined with reasons |
 | Verify | 9 checks, 0 FAIL (the table in section 3.1) |
 
 ### 3.1 The golden numbers
@@ -107,15 +113,15 @@ Under the governed rule (Stage 2 from 31 days; Stage 3 from 91 days for a facili
 | Item | Spec | What it is | Size |
 |---|---|---|---|
 | Routes 2 to 5 of the feed | 6.5 | The scheduled export, the API push, the direct read, the vendor view: the same pack through the same door | Route 2: a script and a scheduler job; route 4 needs ICT's consent |
-| The engines not yet callable without a request | 6.10.1 | PD transition matrices, LGD, the forward-looking route, stress testing and the reports run from their controllers today; the bootstrap records them as pending | Lift each controller's logic into a service; one day |
-| Forward-looking chain | 14.3 to 14.6 | Guardrail, structural events register, credit-loss proxy deriver, series profiler, correlation finder, repaired regression; the suite's code and its support classes are in `docs/reference` complete | An adapter from MAIIC's tables (`macro_statistics_data`, `macro_credit_loss_data`, `governance_settings`, the transition matrices) to the engines' inputs; two to three days |
-| Scenario sets | 15 | Propose, approve, lock, versions, weights, back-test, sensitivity | Two days; the ZNBS controller and migrations are in `docs/reference` |
-| Macro screen, IMF WEO, RBM file | 13 | The five-tab screen, the WEO parser, the policy-rate file tab | One to two days |
-| Audit workbooks | 12 | The compliance modules and the Baselines sheet | Two days; `tools/compliance` of the ZNBS suite is in `docs/reference` |
+| Stress testing and the reports in the chain | 6.10.1 steps 11, 12 | Run from their screens today | Half a day each |
+| FLI Adjustments screen and the fit approval | 14.6 | The chain's applied fits are proposals; a reviewer approves one on a screen and the route applies it per scenario | One day |
+| The chain per scenario | 15.5 | The sensitivity uses the scenario multipliers; the full method runs the fitted relationship under each scenario's shocked path | One day after the fit approval |
+| Macro screen, IMF WEO, RBM file | 13 | The five-tab screen, the WEO parser (the forecast years), the policy-rate file tab | One to two days |
+| Audit workbooks: register, trace, pack; three modules | 12 (CA-3, rest of CA-4) | The register where MAIIC signs each row, the per-record trace, the auditor's pack; IFRS 7 / IAS 1, the RBM directive, Contract Schedule 1 | Two to three days |
 | Mega Farm module | 16 | The programme in the ECL module under D30 with the three PD options | After Dr Thom's confirmation and the monthly books |
-| Dark-mode sweep | 11.9 | The pages that style elements directly, group by group | Ongoing; the shell and shared classes are done |
-| Help-centre texts and the user manual's navigation chapter | 11.6 | Re-worded for the new groups; screenshots retaken | Half a day |
-| Golden numbers for the ECL and the revenue shift | 6.10.2 | Born on the first approved run | After the decisions above |
+| Dark-mode sweep; help texts; the user manual's navigation chapter | 11.6, 11.9 | The pages that style elements directly; fifteen passages; screenshots | Ongoing; half a day for the texts |
+| Tests for the PD and LGD services | 6.10.1 | The engines are proven by the bootstrap run; unit tests on a fixture are owed | Half a day |
+| Golden numbers for the ECL and the revenue shift | 6.10.2 | Born on the first approved run | After the decisions in section 5 |
 
 ## 7. How to reproduce
 
@@ -124,10 +130,13 @@ mysql -uroot -e "CREATE DATABASE maiic_ifrs9_bootstrap"
 php artisan --env=bootstrap eir:bootstrap --fresh --force-wipe --with-client-inputs --build --run-engines --verify
 php artisan --env=bootstrap eir:as-at 2025-12-31
 php artisan --env=bootstrap fli:method-cards
+php artisan --env=bootstrap fli:correlate 2026-08
+php artisan --env=bootstrap scenario:sets 2026-08
+python tools/compliance/build_audit.py --all --env=bootstrap
 php artisan test tests/Feature/Eir tests/Feature/Ebanker tests/Feature/FLI/TransmissionMethodCatalogueTest.php tests/Feature/NavigationTest.php
 ```
 
-`.env.bootstrap` names the throwaway database and is git-ignored, like `.env.demo`. The test run above: 280 passed, 24 skipped. The 92 legacy medical tests and the five legacy FLI page tests fail on `master` before this work and are unrelated.
+`.env.bootstrap` names the throwaway database and is git-ignored, like `.env.demo`. The test run above: 301 passed, 24 skipped. The 92 legacy medical tests and the five legacy FLI page tests fail on `master` before this work and are unrelated.
 
 ## 8. Files
 

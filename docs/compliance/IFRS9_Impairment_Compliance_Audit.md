@@ -42,7 +42,7 @@ Source: IFRS 9 Financial Instruments as issued by the IASB, section 5.5 and B5.5
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 20:26:01 from maiic_ifrs9_bootstrap.
+Generated 2026-10-08 20:35:55 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
@@ -58,12 +58,12 @@ Generated 2026-10-08 20:26:01 from maiic_ifrs9_bootstrap.
 
 ## Findings - items that need a decision or a fix
 
-### F1. The PD engine has not run on the clean install (5.5.17) - Open
+### F1. The PD and LGD of the clean install are the bootstrap's, not MAIIC's (5.5.17) - Open
 
-- **What was found:** The transition-matrix PD runs from its screen and is not yet callable by the bootstrap; every PD is null and the ECL of the period is nil.
-- **Impact:** No weighted ECL for a period; the scenario sensitivity reports zero loans with a PD.
-- **Recommended action:** Lift the transition-matrix logic into a service the bootstrap calls (engine step 4), then run the ECL under the approved scenario set.
-- **Owner:** Dupleix
+- **What was found:** PdEngineService and LgdEngineService run the transition matrix and the cohort workout under the bootstrap label; no MAIIC reviewer has key-locked a matrix or an LGD calculation in the system.
+- **Impact:** The ECL of 8.33bn at August 2026 is a system figure awaiting review.
+- **Recommended action:** A reviewer key-locks the matrix and the LGD on their screens; the ECL is then re-run under the approved scenario set.
+- **Owner:** Dr Thom / the reviewer
 
 ### F2. No fit is approved by a MAIIC reviewer (B5.5.49) - Open
 
