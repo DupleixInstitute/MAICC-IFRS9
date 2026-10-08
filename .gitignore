@@ -27,3 +27,4 @@ yarn-error.log
 # Local scratch space: database dumps, inspection scripts, REPL history.
 # The dumps are full copies of the client test database (spec open item 15).
 /.tmp/
+.env.bootstrap

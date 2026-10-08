@@ -73,6 +73,36 @@ class EirAccountingRuleSeeder extends Seeder
             // ---------------------------------------------------------------
             // 10-19  HARD EXCLUSIONS — these must outrank every inclusion.
             // ---------------------------------------------------------------
+            // ---------------------------------------------------------------
+            // E-Banker's own charge names on the LOS disbursement charges
+            // (P2_07: "Agreement Fee (%)", "Legal Fee (%)", "Other Fee (%)"),
+            // which carry no GL or direction. Seeded unapproved, like every
+            // rule: a MAIIC reviewer approves the rulebook, never the bootstrap.
+            // ---------------------------------------------------------------
+            [
+                'name' => 'E-Banker LOS agreement fee charged at disbursement',
+                'fee_type' => 'arrangement',
+                'description_contains' => 'agreement fee',
+                'proposed_integral' => true,
+                'priority' => 5,
+                'rationale' => 'The agreement (arrangement) fee E-Banker charges the borrower at disbursement is a fee received that is an integral part of the effective interest rate (IFRS 9 B5.4.1(a)): it is charged as a condition of the loan and compensates MAIIC for originating it. Spec v4 section 7.4.',
+            ],
+            [
+                'name' => 'E-Banker LOS legal fee charged at disbursement',
+                'fee_type' => 'legal',
+                'description_contains' => 'legal fee',
+                'proposed_integral' => true,
+                'priority' => 6,
+                'rationale' => 'The legal fee E-Banker charges the borrower at disbursement recovers the cost of documenting the facility; charged as a condition of the loan it is integral to the yield (IFRS 9 B5.4.1(a), B5.4.2). Recovery and enforcement legal costs are a different thing and are ranked below. Spec v4 section 7.4.',
+            ],
+            [
+                'name' => 'E-Banker LOS other fee charged at disbursement',
+                'fee_type' => 'other',
+                'description_contains' => 'other fee',
+                'proposed_integral' => true,
+                'priority' => 7,
+                'rationale' => 'Any other charge E-Banker levies as a condition of disbursement; proposed integral for review, since the LOS records it with the loan, and a reviewer may reverse it line by line. Spec v4 section 7.4.',
+            ],
             [
                 'name' => 'Internal administrative and staff cost',
                 'fee_type' => 'other',
