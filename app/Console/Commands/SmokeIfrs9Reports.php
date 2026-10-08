@@ -40,7 +40,12 @@ class SmokeIfrs9Reports extends Command
         }
 
         try {
-            Pdf::loadView('manual.ifrs9', ['company' => 'Test', 'generated_at' => now()->format('d M Y')])->output();
+            // the manual PDF is the help centre's (HelpController::pdf) since ticket #010; render it as that route does
+            $request = \Illuminate\Http\Request::create('/manual/pdf', 'GET');
+            $response = app(\App\Http\Controllers\HelpController::class)->pdf($request);
+            if (! $response || strlen((string) $response->getContent()) < 1000) {
+                throw new \RuntimeException('empty manual PDF');
+            }
             $this->info('  manual PDF = OK');
         } catch (\Throwable $e) {
             $failures++;

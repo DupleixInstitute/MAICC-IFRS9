@@ -139,69 +139,7 @@ class StressTestingController extends Controller
      */
     private function execute(string $period, ?int $portfolioId, array $pd, array $lg): array
     {
-        // Per-stage CASE expressions (bindings in stage order 1,2,3).
-        // LEAST() is MySQL; SQLite (the test database) spells it MIN().
-        $least   = DB::connection()->getDriverName() === 'sqlite' ? 'MIN' : 'LEAST';
-        $pdCase  = "CASE ifrs9stage_pre_qualitative WHEN 1 THEN ? WHEN 2 THEN ? WHEN 3 THEN ? ELSE 1 END";
-        $lgCase  = "CASE ifrs9stage_pre_qualitative WHEN 1 THEN ? WHEN 2 THEN ? WHEN 3 THEN ? ELSE 0 END";
-        $baseEcl = self::EAD . ' * ' . self::PD . ' * ' . self::LGD;
-        $strEcl  = self::EAD
-            . " * $least(1, " . self::PD . " * ($pdCase))"
-            . " * $least(1, " . self::LGD . " + ($lgCase))";
-
-        // Binding order: stress PD case (3), stress LGD case (3).
-        $b = [$pd[1], $pd[2], $pd[3], $lg[1], $lg[2], $lg[3]];
-
-        $scope = function ($q) use ($period, $portfolioId) {
-            $q->where('reporting_period', $period);
-            if (! empty($portfolioId)) {
-                $q->where('loan_portfolio_id', $portfolioId);
-            }
-            return $q;
-        };
-
-        $byStage = $scope(DB::table('loan_books'))
-            ->whereIn('ifrs9stage_pre_qualitative', [1, 2, 3])
-            ->groupBy('ifrs9stage_pre_qualitative')
-            ->orderBy('ifrs9stage_pre_qualitative')
-            ->selectRaw(
-                "ifrs9stage_pre_qualitative AS stage,
-                 COUNT(*) AS accounts,
-                 SUM(" . self::EAD . ") AS exposure,
-                 SUM($baseEcl) AS base_ecl,
-                 SUM($strEcl) AS stress_ecl,
-                 AVG(" . self::PD . ") AS avg_pd,
-                 AVG(" . self::LGD . ") AS avg_lgd",
-                $b
-            )->get();
-
-        $byPortfolio = $scope(DB::table('loan_books as lb'))
-            ->leftJoin('loan_portfolios as p', 'p.id', 'lb.loan_portfolio_id')
-            ->whereIn('ifrs9stage_pre_qualitative', [1, 2, 3])
-            ->groupBy('p.name')
-            ->selectRaw(
-                "COALESCE(p.name,'Unmapped') AS portfolio,
-                 COUNT(*) AS accounts,
-                 SUM(" . self::EAD . ") AS exposure,
-                 SUM($baseEcl) AS base_ecl,
-                 SUM($strEcl) AS stress_ecl",
-                $b
-            )->get()
-            ->sortByDesc('stress_ecl')->values();
-
-        $totBase   = (float) $byStage->sum('base_ecl');
-        $totStress = (float) $byStage->sum('stress_ecl');
-
-        return [
-            'period'           => $period,
-            'total_base_ecl'   => $totBase,
-            'total_stress_ecl' => $totStress,
-            'delta'            => $totStress - $totBase,
-            'delta_pct'        => $totBase > 0 ? ($totStress - $totBase) / $totBase : 0,
-            'total_exposure'   => (float) $byStage->sum('exposure'),
-            'by_stage'         => $byStage,
-            'by_portfolio'     => $byPortfolio,
-        ];
+        return app(\App\Services\Stress\StressTestService::class)->execute($period, $portfolioId, $pd, $lg);
     }
 
     public function save(Request $request)

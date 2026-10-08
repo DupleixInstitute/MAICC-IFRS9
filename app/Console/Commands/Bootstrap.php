@@ -327,6 +327,21 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.2 scenario sensitivity', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
+        // 11 stress testing: the approved set's scenarios as saved stress runs
+        try {
+            $st = app(\App\Services\Stress\StressTestService::class)->runSet($to, $portfolio, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+            $this->note('6.11 stress testing', $st === [] ? 'no approved scenario set' : collect($st)->map(fn ($r, $n) => "{$n} " . number_format($r['stress_ecl'], 0) . ' (' . ($r['delta_pct'] >= 0 ? '+' : '') . $r['delta_pct'] . '%)')->implode('; '));
+        } catch (Throwable $e) {
+            $this->note('6.11 stress testing', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
+        // 12 the reports: every IFRS 9 report rendered for the period
+        try {
+            $code = Artisan::call('ifrs9:smoke-reports', ['period' => $to]);
+            $out = Artisan::output();
+            $this->note('6.12 reports', ($code === 0 ? 'every report rendered for ' . $to : 'FAILED') . ': ' . trim(preg_replace('/\s+/', ' ', substr($out, -220))));
+        } catch (Throwable $e) {
+            $this->note('6.12 reports', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
         // 10 reconciliation
         try {
             $rec = app(EirGlReconciliationService::class)->forPeriod($to);
