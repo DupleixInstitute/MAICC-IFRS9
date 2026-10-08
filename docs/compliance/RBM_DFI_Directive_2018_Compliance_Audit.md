@@ -37,7 +37,7 @@ Source: docs/regulatory/RBM Financial Services (Credit Risk Management for DFIs)
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 20:53:36 from maiic_ifrs9_bootstrap.
+Generated 2026-10-08 21:18:15 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|

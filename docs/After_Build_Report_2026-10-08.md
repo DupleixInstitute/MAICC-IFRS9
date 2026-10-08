@@ -1,6 +1,6 @@
 # MAIIC EIR and IFRS 9 system: after-build report, 8 October 2026
 
-**What this is.** On 8 October 2026 the build set out in *MAIIC EIR Engine Specification v4* (7 October 2026) was carried out against the specification, section by section, on the MAICC-IFRS9 repository (branch `eir_revenue_recognition`, commits `32e7d99` to `09ac5da`). This report says what was built, what the system proved when it ran, what the build found in the data and in the system that the specification did not know, and what is still owed. It is the comparison the specification asked for in its own section 8 (the build plan): the original specification stands as written; this report is read beside it.
+**What this is.** On 8 October 2026 the build set out in *MAIIC EIR Engine Specification v4* (7 October 2026) was carried out against the specification, section by section, on the MAICC-IFRS9 repository (branch `eir_revenue_recognition`, commits `32e7d99` to `a86e88b` (three rounds on 8 and 9 October)). This report says what was built, what the system proved when it ran, what the build found in the data and in the system that the specification did not know, and what is still owed. It is the comparison the specification asked for in its own section 8 (the build plan): the original specification stands as written; this report is read beside it.
 
 The production database `maiic_ifrs9` was not opened. The build was proven twice: on the demo copy (`maiic_ifrs9_demo`, which also holds the data of the 8 October demo), and on a throwaway database (`maiic_ifrs9_bootstrap`) wiped and rebuilt from nothing by the bootstrap command, which is the test the specification set for the data foundation.
 
@@ -22,28 +22,28 @@ What remains is set out in section 6: the forward-looking regression chain and t
 | 3.6 / D31 Staging | The directive's thresholds by tenor class; DPD from the oldest overdue instalment; the missed-instalment trigger | Yes | `StagingThresholdSeeder`, `StagingService`, `eir:stage` |
 | 6.3 Landing zone | Raw tables mirroring E-Banker, append-only, versioned, every row carrying its pack | Yes, as one physical table with the query id as the logical table | migration `create_ebanker_landing_zone`, `PackLandingService` |
 | 6.4 Gates | Hashes, counts, dates, register, keys; a failure names the file and row; quarantine | Yes, with key uniqueness and composite keys added | `PackLandingService`, 10 tests |
-| 6.5 Routes | Five routes, the one in force governed | Route 1 built (command and screen upload); routes 2 to 5 are the same door with a different carrier and are not yet wired | `eir:land-pack`, `EirFeedController::land` |
+| 6.5 Routes | Five routes, the one in force governed | Routes 1 (manual), 2 (the polled folder, scheduled) and 3 (the API push) built through the one door; the SQLcl export template for route 2 committed; routes 4 and 5 await ICT and the vendor | `eir:land-pack`, `eir:poll-feed-folder`, the `ebanker-feed.api` route |
 | 6.2 / 6.6 Build | Methods A, B and C; maker-checker; differences first; locked periods never restated; ECL columns untouched | Yes | `LoanBookBuildService`, `eir:build-loan-books`, `eir:lock-period`, 11 tests |
 | 6.7 History | Built on a copy by A then B and compared | Yes: B equals the stored report to the cent on every account-month but one (1 cent) | the bootstrap's verify |
 | 6.8 Feed screen | Queries, loads, watermarks, quarantine, build with approval | Yes | `EirFeedController`, `Pages/Eir/Feed/Index.vue` |
 | 6.9 Take-on | Landed not typed; blocks and lines with cells; gates; the build under `takeon_history_basis`; the screen with confirm and fees | Yes | `TakeonLandingService`, `eir:land-takeon`, `EirTakeonController`, 3 tests |
 | 6.10 Bootstrap | One command: fresh, seed, land, build, engines, verify | Yes | `eir:bootstrap` |
-| 6.10.1 Engine chain | Twelve engines in dependency order | Steps 1 (macro), 2 (scenario set), 3 (staging), 4 (PD transition matrix), 5 (LGD cohort workout), 6 (forward-looking chain), 7 (ECL), 8 and 9 (EIR), 10 (reconciliation) run; 11 (stress) and 12 (reports and workbooks) remain the screens' | `Bootstrap::stepEngines`, `PdEngineService`, `LgdEngineService` |
+| 6.10.1 Engine chain | Twelve engines in dependency order | All twelve run from one command: macro, the scenario set, staging, PD, LGD, the forward-looking chain and route, the ECL on the post-FLI PD, the EIR and revenue, the reconciliation, stress testing for every scenario, every report, the compliance register; the Mega Farm step runs where the book holds the programme | `Bootstrap::stepEngines`; `PdEngineService`, `LgdEngineService`, `FliRouteService`, `StressTestService`, `MegaFarmEclService` |
 | 6.10.2 Golden numbers | The section 9 baselines and the year-end ties | Nine checks, all PASS | `Bootstrap::stepVerify` |
 | 6.11 As at any date | The EIR computation for a loan or the book at any date; refused after the last posting | Yes | `EirAsAtService`, `eir:as-at`, `EirAsAtController`, 4 tests |
 | 7.1 Ledger importer | The ledger as the primary record: interest posted and cash movements from it | Yes: interest per account-month (retiring Extract C) and the cash movements as actual transactions (retiring Extract B) | `ContractInputsBuildService` |
 | 7.2 to 7.4 | Rate history, contract master, fees from E-Banker's tables | Yes, through the importers that already exist | `ContractInputsBuildService` |
-| 11 Suite layout | Six groups with accents, rail, top bar, page header with breadcrumb, light and dark | Shell, shared styles and the tree built; the page-by-page dark sweep (11.9) remains | `config/menu.php`, `AppLayout.vue`, `useTheme.js`, `NavigationTest` |
-| 13 Macro statistics | Codes on the series, World Bank fetcher, batches with provenance, the command with a snapshot | MS-1 to MS-3 built; the IMF WEO parser, the RBM file tab and the five-tab screen remain | `MacroSeriesSeeder`, `WorldBankFetcherService`, `MacroImportService`, `macro:import-worldbank` |
+| 11 Suite layout | Six groups with accents, rail, top bar, page header with breadcrumb, light and dark; the help texts | Shell, shared styles, the tree and the help centre (114 passages re-worded, a navigation article) built; the page-by-page dark sweep (11.9) remains | `config/menu.php`, `AppLayout.vue`, `useTheme.js`, `NavigationTest`, the help seeders |
+| 13 Macro statistics | Codes, the World Bank fetcher, the IMF WEO parser, the RBM file, preview then commit, batches, the five-tab screen, the precedence rule | Yes | `app/Services/Macro/*`, `MacroStatisticsController`, `Pages/Macro/Index.vue` |
 | 14.7 Transmission methods | Governed methods, each explained with live preconditions and a worked example | Yes | `TransmissionMethodCatalogue`, `fli:method-cards`, 4 tests |
-| 14.3 to 14.6 Forward-looking chain | Guardrail, structural events, proxy deriver, profiler, correlation finder, regression | Yes: the suite's engines ported as they are over a bridge from MAIIC's tables; `fli:correlate` | `FliBridgeService`, `app/Services/Fli/*`, 1 test |
+| 14.3 to 14.8 Forward-looking chain and route | Guardrail, structural events, proxy deriver, profiler, correlation finder, regression; a fit approved under maker-checker; the route once per scenario; the lineage on every loan; the FLI Adjustments screen | Yes | `FliBridgeService`, `FliRouteService`, `app/Services/Fli/*`, `Pages/Fli/Adjustments.vue`, 4 tests |
 | 15 Scenario sets | The governed set: rules, shocks on the base, approval, lock, versions, back-test, sensitivity; the first set of 15.8 | Yes | `ScenarioSetService`, `scenario:sets`, Governance Centre / Scenario Sets, 3 tests |
-| 12 Audit workbooks | The engine with the two columns and the Baselines sheet; the five modules | Engine ported (CA-1); IFRS 9 EIR and impairment modules drafted and built in three formats (CA-2, part of CA-4); the register, trace and pack (CA-3) and three modules remain | `tools/compliance/`, `docs/compliance/` |
-| 16 Mega Farm | The programme in the ECL module under D30 | Not started; the November 2025 book found (section 4) | section 6 |
+| 12 Audit workbooks | The engine, the five modules, the register, the trace, the pack | Yes: five workbooks (66 sections) in three formats with the Baselines sheet; the register with maker-checker sign-off; the per-contract trace; the auditor's pack with checksums | `tools/compliance/`, `docs/compliance/`, `ComplianceAuditService`, `AuditTraceController`, `compliance:audits --pack` |
+| 16 Mega Farm | The programme in the ECL module under D30 with the governed PD methods | Mechanics built and run on the November 2025 book; the figure awaits Dr Thom's confirmation of D30 and the monthly books | `MegaFarmEclService`, `megafarm:ecl` |
 
 ## 3. What the system proved when it ran
 
-The bootstrap on the wiped database, 8 October 2026 evening, then the engine chain as completed in the second round (about 90 seconds in all):
+The bootstrap on the wiped database, 8 and 9 October 2026, with the engine chain as completed over the three rounds (about 125 seconds in all):
 
 | Step | Result |
 |---|---|
@@ -61,6 +61,9 @@ The bootstrap on the wiped database, 8 October 2026 evening, then the engine cha
 | LGD | Cohort of 41 Stage 3 loans (4.12bn) followed twelve months: cure 21.2%, recovery 23.5%, LGD 60.25% |
 | ECL, August 2026 | 8.33bn on 23.32bn gross: Stage 1 1.58bn, Stage 2 1.82bn, Stage 3 4.93bn |
 | Scenario set | The first set of 15.8 approved under the bootstrap label; sensitivity on 135 loans: base 9.63bn, upside 9.00bn, downside 11.10bn, severe 12.99bn, weighted 10.24bn |
+| Forward-looking route | The best applied fit on a book-level proxy (the PLR to the Stage 3 share, lag 9) approved under the label; adjustments of -8.7% upside, +21.8% downside, +34.9% severe; the ECL on the post-FLI PD 8.94bn |
+| Stress testing | The set's scenarios as saved runs: base 8.94bn, upside 8.31bn (-7.1%), downside 10.22bn (+14.3%), severe 11.86bn (+32.7%) |
+| Reports and the register | Every one of the thirty reports rendered (in its own process); the five compliance workbooks loaded into the register |
 | Forward-looking chain | 1,045 driver x proxy x lag evaluations; 209 suggestions (55 recommended); 209 fits, 39 applied by the guardrail, 170 declined with reasons |
 | Verify | 9 checks, 0 FAIL (the table in section 3.1) |
 
@@ -110,18 +113,17 @@ Under the governed rule (Stage 2 from 31 days; Stage 3 from 91 days for a facili
 
 ## 6. What is still owed
 
-| Item | Spec | What it is | Size |
-|---|---|---|---|
-| Routes 2 to 5 of the feed | 6.5 | The scheduled export, the API push, the direct read, the vendor view: the same pack through the same door | Route 2: a script and a scheduler job; route 4 needs ICT's consent |
-| Stress testing and the reports in the chain | 6.10.1 steps 11, 12 | Run from their screens today | Half a day each |
-| FLI Adjustments screen and the fit approval | 14.6 | The chain's applied fits are proposals; a reviewer approves one on a screen and the route applies it per scenario | One day |
-| The chain per scenario | 15.5 | The sensitivity uses the scenario multipliers; the full method runs the fitted relationship under each scenario's shocked path | One day after the fit approval |
-| Macro screen, IMF WEO, RBM file | 13 | The five-tab screen, the WEO parser (the forecast years), the policy-rate file tab | One to two days |
-| Audit workbooks: register, trace, pack; three modules | 12 (CA-3, rest of CA-4) | The register where MAIIC signs each row, the per-record trace, the auditor's pack; IFRS 7 / IAS 1, the RBM directive, Contract Schedule 1 | Two to three days |
-| Mega Farm module | 16 | The programme in the ECL module under D30 with the three PD options | After Dr Thom's confirmation and the monthly books |
-| Dark-mode sweep; help texts; the user manual's navigation chapter | 11.6, 11.9 | The pages that style elements directly; fifteen passages; screenshots | Ongoing; half a day for the texts |
-| Tests for the PD and LGD services | 6.10.1 | The engines are proven by the bootstrap run; unit tests on a fixture are owed | Half a day |
-| Golden numbers for the ECL and the revenue shift | 6.10.2 | Born on the first approved run | After the decisions in section 5 |
+Everything the specification asked for that can be built without MAIIC's input is built. What remains is either MAIIC's to decide or supply, or needs a third party:
+
+| Item | Spec | What it needs |
+|---|---|---|
+| Routes 4 and 5 of the feed | 6.5 | ICT's consent to a read-only Oracle account over the VPN (route 4); a paid change request to the vendor (route 5) |
+| The golden numbers for the ECL at the year-ends and the revenue shift | 6.10.2 | The first run Dr Thom approves: the fee rulebook, the matrix and LGD key-locks, the fit and the set |
+| The Mega Farm figure | 16 | Dr Thom's confirmation of D30 and the monthly Mega Farm books (MF_01 to MF_08 from Barry); the mechanics run today on the November 2025 book |
+| The restructure history and the 10 percent test | 5.4.3, 3.3.2 | E-Banker's Reschedule Report from the vendor |
+| Contract Schedule 1's clause numbers | 12 | The signed schedule from Dr Thom |
+| The dark-mode page sweep | 11.9 | Ongoing: the shell and the shared classes carry the theme; pages that style elements directly are swept group by group as they are touched |
+| The Mega Farm screen; the method cards beside the Governance Centre setting | 16, 14.7 | Small screen work; the cards are on the FLI Adjustments screen and the JSON route |
 
 ## 7. How to reproduce
 
@@ -133,10 +135,13 @@ php artisan --env=bootstrap fli:method-cards
 php artisan --env=bootstrap fli:correlate 2026-08
 php artisan --env=bootstrap scenario:sets 2026-08
 python tools/compliance/build_audit.py --all --env=bootstrap
+php artisan --env=bootstrap fli:apply 2026-08 --fits
+php artisan --env=bootstrap compliance:audits --pack=2026-08
+php artisan --env=demo megafarm:ecl 2025-11
 php artisan test tests/Feature/Eir tests/Feature/Ebanker tests/Feature/FLI/TransmissionMethodCatalogueTest.php tests/Feature/NavigationTest.php
 ```
 
-`.env.bootstrap` names the throwaway database and is git-ignored, like `.env.demo`. The test run above: 301 passed, 24 skipped. The 92 legacy medical tests and the five legacy FLI page tests fail on `master` before this work and are unrelated.
+`.env.bootstrap` names the throwaway database and is git-ignored, like `.env.demo`. The test run above: 308 passed, 24 skipped. The 92 legacy medical tests and the five legacy FLI page tests fail on `master` before this work and are unrelated.
 
 ## 8. Files
 

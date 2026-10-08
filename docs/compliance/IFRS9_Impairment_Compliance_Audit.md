@@ -42,7 +42,7 @@ Source: IFRS 9 Financial Instruments as issued by the IASB, section 5.5 and B5.5
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 20:53:34 from maiic_ifrs9_bootstrap.
+Generated 2026-10-08 21:18:14 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|

@@ -274,6 +274,27 @@ class Bootstrap extends Command
             $this->note('6.5 LGD cohort workout', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
 
+        // 2 the scenario set: the first set of 15.8 seeded as proposed and approved under the bootstrap label so the chain can run
+        try {
+            $sets = app(\App\Services\Scenario\ScenarioSetService::class);
+            $setId = $sets->seedFirstSet($to, $user);
+            if (DB::table('governed_scenario_sets')->where('id', $setId)->value('status') === 'PROPOSED') {
+                $sets->approve($setId, null, \App\Services\Scenario\ScenarioSetService::BOOTSTRAP_LABEL);
+            }
+            $this->note('6.2 scenario set', "set {$setId} for {$to}: " . DB::table('governed_scenario_sets')->where('id', $setId)->value('status') . ' under the bootstrap label (not a MAIIC approval)');
+        } catch (Throwable $e) {
+            $this->note('6.2 scenario set', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
+        // 6 forward-looking chain: bridge, profile, sweep, fit; applied fits are proposals, not adjustments
+        try {
+            Artisan::call('fli:correlate', ['period' => $to, '--top' => 0]);
+            $out = Artisan::output();
+            $this->note('6.6 forward-looking chain', trim(preg_replace('/\s+/', ' ', (preg_match('/(Auto-Correlate complete[^
+]*)/', $out, $m) ? $m[1] : '') . ' ' . (preg_match('/(Regression: [^|
+]*)/', $out, $m2) ? $m2[1] : ''))));
+        } catch (Throwable $e) {
+            $this->note('6.6 forward-looking chain', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
         // 6b the route: the best applied fit on a book-level proxy, approved under the bootstrap label, applied once per scenario
         try {
             $ym = str_replace('-', '', $to);
@@ -295,27 +316,6 @@ class Bootstrap extends Command
             $this->note('6.7 ECL', $to . ': ' . trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 240))));
         } catch (Throwable $e) {
             $this->note('6.7 ECL', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
-        }
-        // 2 the scenario set: the first set of 15.8 seeded as proposed and approved under the bootstrap label so the chain can run
-        try {
-            $sets = app(\App\Services\Scenario\ScenarioSetService::class);
-            $setId = $sets->seedFirstSet($to, $user);
-            if (DB::table('governed_scenario_sets')->where('id', $setId)->value('status') === 'PROPOSED') {
-                $sets->approve($setId, null, \App\Services\Scenario\ScenarioSetService::BOOTSTRAP_LABEL);
-            }
-            $this->note('6.2 scenario set', "set {$setId} for {$to}: " . DB::table('governed_scenario_sets')->where('id', $setId)->value('status') . ' under the bootstrap label (not a MAIIC approval)');
-        } catch (Throwable $e) {
-            $this->note('6.2 scenario set', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
-        }
-        // 6 forward-looking chain: bridge, profile, sweep, fit; applied fits are proposals, not adjustments
-        try {
-            Artisan::call('fli:correlate', ['period' => $to, '--top' => 0]);
-            $out = Artisan::output();
-            $this->note('6.6 forward-looking chain', trim(preg_replace('/\s+/', ' ', (preg_match('/(Auto-Correlate complete[^
-]*)/', $out, $m) ? $m[1] : '') . ' ' . (preg_match('/(Regression: [^|
-]*)/', $out, $m2) ? $m2[1] : ''))));
-        } catch (Throwable $e) {
-            $this->note('6.6 forward-looking chain', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
         // the scenario sensitivity, now that the loans carry a PD and an LGD
         try {
@@ -346,10 +346,12 @@ class Bootstrap extends Command
             $this->note('6.11 stress testing', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
         // 12 the reports: every IFRS 9 report rendered for the period
+        // in its own process: rendering thirty reports and the manual's PDF after the whole chain exhausts this one's memory
         try {
-            $code = Artisan::call('ifrs9:smoke-reports', ['period' => $to]);
-            $out = Artisan::output();
-            $this->note('6.12 reports', ($code === 0 ? 'every report rendered for ' . $to : 'FAILED') . ': ' . trim(preg_replace('/\s+/', ' ', substr($out, -220))));
+            $proc = new \Symfony\Component\Process\Process([PHP_BINARY, base_path('artisan'), '--env=' . app()->environment(), 'ifrs9:smoke-reports', $to], base_path(), null, null, 1200);
+            $proc->run();
+            $out = $proc->getOutput() . $proc->getErrorOutput();
+            $this->note('6.12 reports', ($proc->getExitCode() === 0 ? 'every report rendered for ' . $to : 'FAILED') . ': ' . trim(preg_replace('/\s+/', ' ', substr($out, -220))));
         } catch (Throwable $e) {
             $this->note('6.12 reports', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
