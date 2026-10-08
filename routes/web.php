@@ -1265,3 +1265,9 @@ Route::post('/profile/theme', function (\Illuminate\Http\Request $request) {
 
     return back(303);
 })->middleware('auth')->name('profile.theme');
+
+// The transmission-method cards (spec v4 section 14.7): what each method does,
+// its formula, what it implies, its preconditions checked live, a worked example.
+Route::get('/fli/transmission-methods', function (\App\Services\Fli\TransmissionMethodCatalogue $catalogue, \Illuminate\Http\Request $request) {
+    return response()->json(['in_force' => $catalogue->inForce(), 'cards' => $catalogue->cards($request->query('period'))]);
+})->middleware('auth')->name('fli.transmission-methods');
