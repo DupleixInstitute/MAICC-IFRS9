@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'ebanker_feed' => ['folder' => env('EBANKER_FEED_FOLDER'), 'api_token' => env('EBANKER_FEED_TOKEN')],
+    'worldbank' => ['country' => env('WORLDBANK_COUNTRY', 'MWI')],
 
     /*
     |--------------------------------------------------------------------------

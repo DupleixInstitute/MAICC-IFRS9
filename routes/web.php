@@ -1305,3 +1305,22 @@ Route::group(['prefix' => 'compliance-audits', 'as' => 'compliance-audits.'], fu
     Route::post('/rows/{row}/sign', [\App\Http\Controllers\ComplianceAuditController::class, 'sign'])->name('sign');
     Route::post('/rows/{row}/approve', [\App\Http\Controllers\ComplianceAuditController::class, 'approve'])->name('approve');
 });
+
+// Route 3 of the E-Banker feed (spec v4 s.6.5): the export script posts the zipped pack with a token over HTTPS;
+// it is unzipped into the inbox the poller lands from, through the same gates as every other route.
+Route::post('/api/ebanker-feed/pack', function (\Illuminate\Http\Request $request) {
+    $token = (string) config('services.ebanker_feed.api_token');
+    abort_unless($token !== '' && hash_equals($token, (string) $request->bearerToken()), 401, 'A valid feed token is required.');
+    $request->validate(['pack' => ['required', 'file', 'mimes:zip']]);
+    $dir = storage_path('app/ebanker-inbox/' . now()->format('Ymd-His') . '-' . substr(hash_file('sha256', $request->file('pack')->getRealPath()), 0, 8));
+    mkdir($dir, 0775, true);
+    $zip = new \ZipArchive();
+    abort_unless($zip->open($request->file('pack')->getRealPath()) === true, 422, 'The file is not a readable zip.');
+    $zip->extractTo($dir);
+    $zip->close();
+    $manifest = is_file($dir . '/manifest.json') ? $dir : (glob($dir . '/*/manifest.json') ? dirname(glob($dir . '/*/manifest.json')[0]) : null);
+    abort_unless($manifest !== null, 422, 'The zip holds no manifest.json.');
+    \App\Services\AuditLoggerService::log('E-Banker Pack Received by API', 'ebanker_loads', null, ['new_values' => ['inbox' => basename($dir)], 'meta' => ['ip' => $request->ip()]]);
+
+    return response()->json(['received' => basename($dir), 'note' => 'The pack is in the inbox; the poller lands it through the gates (eir:poll-feed-folder --also-route-3).'], 202);
+})->name('ebanker-feed.api')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
