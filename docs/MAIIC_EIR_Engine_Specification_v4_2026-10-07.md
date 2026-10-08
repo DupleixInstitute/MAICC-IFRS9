@@ -144,6 +144,8 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | Pre-migration history of the take-on loans (`takeon_history_basis`) | Recompute from origination where the block and fees exist, else start at the take-on balance | Recommendation (section 6.9); the loan carries the basis it was built on | new |
 | Which macro source wins where two overlap (`macro_source_precedence`) | World Bank for actuals, IMF WEO for forecasts, RBM file for rates; manual overrides only with a reason | Recommendation (section 13.5) | new |
 | How the forward-looking adjustment is produced (`fli_adjustment_route`) | Regression | Recommendation (section 14.6); the manual overlay and the combined route are the alternatives | new |
+| How the adjustment reaches the PD (`fli_transmission_method`) | Multiplicative scalar on the proxy ratio | Recommendation (section 14.7); the segment scalar, the nine reference methods, the logit model and the Vasicek shift are the alternatives, each declined until its data exists | new |
+| Asset correlation for the Vasicek shift (`fli_asset_correlation`) | 0.12 per portfolio | A starting value in the range regulators use for corporate exposures; used only under the Vasicek method | new |
 | Expected-sign test on a regression pair (`fli_expected_sign_test`) | Required | Recommendation (section 14.4) | new |
 | R-squared cut-off for an approvable model (`fli_r2_cutoff`) | 30 percent | Recommendation (section 14.4); MAIIC may tighten | new |
 | Minimum observations for a fit (`fli_min_observations`) | 12 | Recommendation (section 14.4, the guardrail) | new |
@@ -812,23 +814,43 @@ A Governance Centre setting, `fli_adjustment_route`, says how the adjustment is 
 
 The manual overlay is a register, not a free field: every entry carries its scope, reason, evidence, owner, expiry, proposer and approver, and the ECL shows the overlay as its own line, which is how the auditor and the Board see what judgement added.
 
-### 14.7 Lineage on the loan
+### 14.7 How the adjustment reaches the PD: the transmission method
 
-Four columns are added to the loan-book row beside the adjustment and the post-FLI PD: the route used, the parameter record, the model version and the scenario set. The ECL report and the impairment audit workbook can then say, for every loan, which model, which overlay, which scenario and which approval produced its post-FLI PD. The scenario-weighted macro value of step 3, typed today, becomes computed and shown: the row says which scenarios, at which weights, gave the figure, and the three values behind it.
+The route of 14.6 says where the adjustment comes from. The transmission method says how it moves a loan's PD once it exists. MAIIC has one method today, the multiplicative scalar; it is kept as the default, and the alternatives are built as governed choices with the data each one needs, so that the method can change when the history can support it without a change to the code.
 
-### 14.8 Where it lives, and the settings
+**What the scalar does, and what it implies.** The adjustment is a ratio to the base period (predicted proxy in the window over predicted proxy today, less one), and the loan's PD is multiplied by one plus that ratio. It is proportional, the same for every loan whatever its starting PD, and linear in the macro variable. Real credit risk is neither: a downturn moves weak borrowers far more than strong ones, and loss rates accelerate as conditions worsen. The first effect is why the cap at 100 percent is needed at all; the second is recovered at the scenario level by weighting the ECL across scenarios (15.5) even though the transmission inside each scenario stays linear. With two years of core-banking history, the scalar is the honest choice: the richer methods below need a default-rate series the institution does not yet have.
+
+**The governed setting**, `fli_transmission_method`, with the preconditions the guardrail checks before a method may run. A method whose preconditions are not met is declined with the reason and the PD holds, exactly as a failed fit is declined.
+
+| Method | Transmission | Needs | Status |
+|---|---|---|---|
+| **Multiplicative scalar on the proxy ratio** (seeded) | post-FLI PD = pre-FLI PD × (1 + adjustment); the adjustment is predicted proxy(window) / predicted proxy(base) − 1 | An approved fit, or an overlay | MAIIC's method; kept |
+| Segment-specific scalar | The same, with one fit and one adjustment per portfolio or product group, from the segment proxies the deriver produces | A derivable proxy per segment (two or more periods each) | The natural next step; the deriver of 14.4 makes it possible |
+| The nine reference methods | The suite's governed producers of a factor from a fit crossed with the scenario-weighted driver: the weighted statistic; the annual difference and the annual change in the driver; both scaled by the correlation; the absolute PD forecast from the equation; the forecast-over-base ratio (MAIIC's scalar is this one); and the two correlation-scaled difference and change variants | An approved fit with slope, intercept and correlation; the scenario-weighted driver | Ported as they are; selectable one at a time; each returns nothing rather than a fabricated figure when an input is undefined |
+| Logit-linear PD model | logit(PD) = α + β × macro; the move is in log-odds, so proportional in the odds rather than the probability and bounded by construction | A grade-level or loan-level default series long enough to fit (the guardrail's minimum observations, at the grade level) | Available when the history allows; declined until then |
+| Vasicek single-factor Z-shift | The through-the-cycle PD is moved through the latent systematic factor: PIT PD = Φ[(Φ⁻¹(TTC PD) − √ρ × Z) / √(1 − ρ)], with Z from the macro fit and ρ governed; the shift is largest for mid-range PDs and bounded by construction | A governed asset correlation ρ per portfolio and a Z series calibrated on a default-rate history | Available when the history allows; declined until then |
+
+Whichever method is in force, three things do not change: Stage 3 is 100 percent; Stage 1 takes the 12-month window and Stage 2 the lifetime window; and the result is floored at 0 and capped at 100 percent. The method runs once per scenario under the weighting of 15.5, and the loan row records the method beside the route (14.8), so two loans adjusted under different methods in different periods can both be explained.
+
+**Switching.** A change of method is a governed change with an effective date, under maker-checker, like every other setting. The first period run under a new method shows the ECL under both methods and the difference, which is itself a disclosure the auditors will want, as it is for the scenario weighting.
+
+### 14.8 Lineage on the loan
+
+Five columns are added to the loan-book row beside the adjustment and the post-FLI PD: the route used, the transmission method, the parameter record, the model version and the scenario set. The ECL report and the impairment audit workbook can then say, for every loan, which model, which overlay, which scenario and which approval produced its post-FLI PD. The scenario-weighted macro value of step 3, typed today, becomes computed and shown: the row says which scenarios, at which weights, gave the figure, and the three values behind it.
+
+### 14.9 Where it lives, and the settings
 
 Financial Modelling › Forward-Looking Model: **Correlation Finder** (new), **Regression Analysis** (repaired), **FLI Adjustments** (new: the route, the regression result, the overlay register, the apply-to-loans step with its counts), **Weighted Forecast** (now computed from the scenario set). The three settings in the Governance Centre (section 4.2): `fli_adjustment_route` (seeded: Regression), `fli_expected_sign_test` (seeded: Required), `fli_r2_cutoff` (seeded: 30 percent, a common starting threshold for annual macro data; MAIIC may tighten it). The finder's runs, the approved models and the overlays are cited in the impairment audit workbook's rows for B5.5.49 to B5.5.54.
 
-### 14.9 Acceptance and order of work
+### 14.10 Acceptance and order of work
 
 1. The finder sweeps every series and proxy and ranks suggestions with reasons; a pair with fewer than the governed minimum of overlapping periods is rejected with the reason.
 2. A model that fails the sign or cut-off test cannot be approved; approval needs a second person; the applied prediction uses every coefficient of the approved model.
-3. Each route produces adjustment rows; the loans' post-FLI PDs equal pre-FLI × (1 + adjustment), floored and capped, Stage 3 at 100 percent, as today.
+3. Each route produces adjustment rows; under the seeded method the loans' post-FLI PDs equal pre-FLI × (1 + adjustment), floored and capped, Stage 3 at 100 percent, as today; each alternative method reproduces a hand calculation on a sample, and a method whose preconditions are missing is declined with the reason.
 4. Every loan row names its route, parameter record, model version and scenario set; the ECL shows the overlay as its own line.
 5. The existing ECL tests pass unchanged on the regression route.
 
-FL-1 the finder with the guardrail, the register, the proxy deriver and the profiler (one and a half days); FL-2 the regression repair with its tests (one day); FL-3 the FLI Adjustments screen, the overlay register and the route setting (one day); FL-4 lineage, the computed weighting, the back-test and the workbook rows (one day). FL-1 needs the macro series of section 13; the rest can follow P4b.
+FL-1 the finder with the guardrail, the register, the proxy deriver and the profiler (one and a half days); FL-2 the regression repair with its tests (one day); FL-3 the FLI Adjustments screen, the overlay register, the route setting and the transmission-method setting with the nine reference methods ported and the logit and Vasicek methods behind their preconditions (one and a half days); FL-4 lineage, the computed weighting, the back-test and the workbook rows (one day). FL-1 needs the macro series of section 13; the rest can follow P4b.
 
 ## 15. Economic scenarios: governance and incorporation
 
@@ -933,6 +955,7 @@ SC-1 the set, the scenarios, the shocks, the migration from the two old structur
 - **Correlation finder**: the sweep of every macro series against every credit-loss proxy, over lags and transforms, that ranks which relationships are worth a model.
 - **Guardrail**: the four tests (observations, sign, strength, significance) a fitted relationship must pass before it may adjust a PD; a fit that fails is declined with its reason and quarantined.
 - **Structural event**: a dated break in the economy (a float, a drought, a devaluation) kept in a governed register and used by the diagnostics, the scenarios and the SICR triggers alike.
+- **Transmission method**: how an adjustment moves a loan's PD once it exists: a multiplicative scalar, a segment scalar, one of the nine reference producers, a logit-linear model or a Vasicek shift; governed, and declined where its data does not exist.
 - **Overlay**: a forward-looking adjustment applied by judgement rather than by a model, with its reason, owner, expiry and two approvals, shown as its own line.
 - **Scenario set**: the governed collection of economic scenarios for a reporting period, with their weights, paths, narratives, source vintage and approvals.
 - **Shock**: the recorded transformation that turns the base path into another scenario's path: a percentage change, an absolute change, a replacement or a multiplier, by series and year.
