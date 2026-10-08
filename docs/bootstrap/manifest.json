@@ -613,6 +613,14 @@
       "rows": null,
       "sha256": "3a601fa29bd4421dab7aa568004648958f832a0cd58e41266e1a50ad5b32b636",
       "bytes": 20336838
+    },
+    {
+      "file": "queries/Query GL_03 - where the 22 year-end interest debits were posted - 8 Oct 2026.sql",
+      "query_id": "GL_03",
+      "kind": "follow-up query of 8 Oct 2026: both legs of the year-end interest batches INTP 41 and 42, to find the contra account of the 22 debits; result not yet received",
+      "rows": null,
+      "sha256": "b87bb112f2354909680efdf5b8c0d55dbfaf4f4c610489a2479fb2624eac6a67",
+      "bytes": 978
     }
   ]
 }

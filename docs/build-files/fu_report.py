@@ -334,6 +334,7 @@ TAB(["Test", "Result"], [
     ["ZF_03: balance table rows for Zaithwa Farms", "27 rows; 30 April 2025 appears twice (ids 256080 and 317562); the May row shows nil receipts and a balance of -27,303.21 against the ledger's -1,854,936.83"],
     ["Balance table: duplicate month-end rows across all accounts", "One account only, Zaithwa Farms, 30 April 2025"],
     ["P1_05 re-sent (13:03): interest summary", "12 rows, the first 12 of the morning's 82, August 2026 only. The table is a working table rebuilt each month-end; it holds no history. The history comes from P1_04 rates, P3_14 daily accrual and the ledger, which is what the rebuild used"],
+    ["Year-end adjustments: the contra side (8 Oct)", "The 6 credits (85,166,683.31) went through interest income 4215 and 4216: December movements agree to MWK 3 and MWK 23. The 22 debits (96,390,096.16) are in neither December nor January income and no single GL moved by their amount; the contra sits in a balance-sheet account, most likely 1040 Accrued Interest Income. Query GL_03 (8 Oct) pulls both legs of batches INTP 41 and 42"],
     ["P2_06 re-sent (13:04): PLR master", "49 rows, identical to the morning file except that PLR id 2 (13.40% from 13 October 2020) lost its applicable-from date in the export; the row kept its sort position, so the date is still in the database. Same rate as the row before it, so no effect. The morning file is the one to use"],
 ], [0.40, 0.60])
 
