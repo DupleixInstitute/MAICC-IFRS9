@@ -15,6 +15,7 @@ class LossGivenDefault extends Model
     use HasFactory;
     protected $table = 'loss_given_default';
     protected $fillable = [
+        'written_offs', 'total_payment', 'discounted_payment_partly', 'discounted_payment_full', 'discount_rate_source', 'is_discounting',
         'reporting_period',
         'start_period',
         'lgd_calculation_level',

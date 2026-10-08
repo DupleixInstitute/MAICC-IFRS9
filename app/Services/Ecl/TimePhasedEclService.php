@@ -80,6 +80,14 @@ class TimePhasedEclService
         $weightedUndisc=0.0;$weightedDisc=0.0;$maxExponent=0.0;
 
         foreach($scenarios as $scenario){
+            if($stage===3){
+                // Default has occurred: the loss is measured at the reporting
+                // date, not projected along a schedule nobody is paying
+                // (system audit of 9 October 2026, finding C3).
+                [$undisc,$disc,$exp]=$this->stageThree($runId,$id,$asOf,$ead,$baseLgd,$recoveries,$rate,$scenario,$rateSource,$pdSource,$lgdField);
+                $weightedUndisc+=$undisc*(float)$scenario->weight;$weightedDisc+=$disc*(float)$scenario->weight;$maxExponent=max($maxExponent,$exp);
+                continue;
+            }
             $scenarioPd=min(1,max(0,$basePd*(float)$scenario->pd_multiplier));
             $lgd=min(1,max(0,$baseLgd*(float)$scenario->lgd_multiplier));
             $scenarioEad=$ead*(float)$scenario->ead_multiplier;
@@ -130,6 +138,64 @@ class TimePhasedEclService
     }
 
     /**
+     * Stage 3 under IFRS 9 5.5.3 and B5.5.33: the exposure has defaulted, so the
+     * allowance is the shortfall measured at the reporting date, EAD less the
+     * present value of the recoveries the approved plan expects, each
+     * discounted at the locked EIR from its own date. With no approved plan
+     * the loss is EAD times the cohort LGD at the reporting date, undiscounted,
+     * because nothing in it is dated later. Projecting EAD x LGD along the
+     * contractual schedule and discounting it from the last due date (as this
+     * engine did) understated a 60,000 loss to 49,587 over 24 months at 10
+     * percent, and netting the recoveries before discounting understated the
+     * planned case too.
+     *
+     * The rows written: period 0 at the reporting date carries the exposure
+     * (or the loss, when there is no plan); each recovery month carries the
+     * recovery as a negative shortfall with its own discount factor, so the
+     * projection reads as EAD less PV(recoveries) line by line.
+     *
+     * @return array{0:float,1:float,2:float} undiscounted loss, discounted loss, last exponent
+     */
+    private function stageThree(string $runId,string $id,CarbonImmutable $asOf,float $ead,float $baseLgd,Collection $recoveries,float $rate,object $scenario,string $rateSource,string $pdSource,string $lgdField): array
+    {
+        $scenarioEad=$ead*(float)$scenario->ead_multiplier;
+        $period=$asOf->format('Y-m');
+        $row=fn(int $index,CarbonImmutable $date,float $opening,float $marginal,float $lgd,float $shortfall,float $exponent)=>DB::table('ecl_cashflow_projections')->insert([
+            'run_id'=>$runId,'contract_id'=>$id,'reporting_period'=>$period,'ifrs9_stage'=>3,'scenario_code'=>$scenario->scenario_code,
+            'scenario_weight'=>$scenario->weight,'period_index'=>$index,'projection_date'=>$date,'opening_ead'=>round($opening,2),'scheduled_principal'=>0,
+            'closing_ead'=>round($opening,2),'conditional_pd'=>1,'survival_open'=>1,'marginal_pd'=>$marginal,'cumulative_pd'=>1,'lgd'=>$lgd,
+            'undiscounted_shortfall'=>round($shortfall,2),'discount_rate'=>$rate,'discount_exponent'=>$exponent,'discount_factor'=>1/pow(1+$rate,$exponent),
+            'discounted_shortfall'=>round($shortfall/pow(1+$rate,$exponent),2),'weighted_discounted_shortfall'=>round($shortfall/pow(1+$rate,$exponent)*(float)$scenario->weight,2),
+            'rate_source'=>$rateSource,'pd_source'=>$pdSource,'lgd_source'=>strtoupper($lgdField),'created_at'=>now(),'updated_at'=>now()]);
+
+        if($recoveries->isEmpty()){
+            $lgd=min(1,max(0,$baseLgd*(float)$scenario->lgd_multiplier));
+            $loss=$scenarioEad*$lgd;
+            $row(0,$asOf,$scenarioEad,1.0,$lgd,$loss,0.0);
+            DB::table('ecl_pd_term_structures')->updateOrInsert(['contract_id'=>$id,'reporting_period'=>$period,'scenario_code'=>$scenario->scenario_code,'period_index'=>0],
+                ['projection_date'=>$asOf,'conditional_pd'=>1,'survival_open'=>1,'marginal_pd'=>1,'cumulative_pd'=>1,'source'=>$pdSource,'created_at'=>now(),'updated_at'=>now()]);
+            return [$loss,$loss,0.0];
+        }
+
+        $totalRecovery=0.0;$pvRecovery=0.0;$maxExponent=0.0;$index=0;
+        $row(0,$asOf,$scenarioEad,0.0,1.0,$scenarioEad,0.0);
+        foreach($recoveries as $recovery){
+            $amount=max(0.0,(float)$recovery->expected_recovery)*(float)$scenario->ead_multiplier;
+            if($amount<=0) continue;
+            $date=CarbonImmutable::parse($recovery->recovery_date);
+            $exponent=$asOf->diffInDays($date)/365;
+            $totalRecovery+=$amount;$pvRecovery+=$amount/pow(1+$rate,$exponent);$maxExponent=max($maxExponent,$exponent);
+            $row(++$index,$date,$scenarioEad,$amount/max(1e-9,$recoveries->sum('expected_recovery')),1-min(1,$totalRecovery/$scenarioEad),-$amount,$exponent);
+        }
+        $undisc=max(0,$scenarioEad-$totalRecovery);$disc=max(0,$scenarioEad-$pvRecovery);
+        // the scenario's LGD multiplier scales the loss the plan leaves, never above the exposure
+        $undisc=min($scenarioEad,$undisc*(float)$scenario->lgd_multiplier);$disc=min($scenarioEad,$disc*(float)$scenario->lgd_multiplier);
+        DB::table('ecl_pd_term_structures')->updateOrInsert(['contract_id'=>$id,'reporting_period'=>$period,'scenario_code'=>$scenario->scenario_code,'period_index'=>0],
+            ['projection_date'=>$asOf,'conditional_pd'=>1,'survival_open'=>1,'marginal_pd'=>1,'cumulative_pd'=>1,'source'=>$pdSource,'created_at'=>now(),'updated_at'=>now()]);
+        return [$undisc,$disc,$maxExponent];
+    }
+
+    /**
      * The share of a defaulted exposure the approved plan expects to resolve
      * in each projected month, keyed by period index and summing to 1.
      *
@@ -166,7 +232,7 @@ class TimePhasedEclService
     {
         $last=DB::table('contract_cashflow_schedule')->where('contract_id',$id)->where('schedule_version',1)->whereDate('due_date','>',$asOf)->max('due_date');
         if($stage===3 && $recoveries->isNotEmpty()) $last=$recoveries->max('recovery_date');
-        $months=$last?max(1,$asOf->diffInMonths(CarbonImmutable::parse($last)->endOfMonth())):(int)ceil((float)($loan->remaining_tenor??0)*12);
+        $months=$last?max(1,$asOf->diffInMonths(CarbonImmutable::parse($last)->endOfMonth())):(int)ceil((float)($loan->remaining_tenor??0)); // remaining_tenor is in months
         if($months<1)throw new RuntimeException('A remaining contractual horizon is unavailable.');
         return $stage===1?min(12,$months):min(600,$months);
     }

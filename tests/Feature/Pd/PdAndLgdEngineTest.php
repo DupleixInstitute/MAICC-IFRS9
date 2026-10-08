@@ -38,8 +38,9 @@ class PdAndLgdEngineTest extends TestCase
         // MySQL matches 'Start' and 'start' alike; SQLite does not, and the engine asks for the capitalised form
         DB::table('transition_profile_options')->where('is_start_or_end', 'start')->update(['is_start_or_end' => 'Start']);
         DB::table('transition_profile_options')->where('is_start_or_end', 'end')->update(['is_start_or_end' => 'End']);
-        // four loans: A stays in Stage 1; B goes 1 -> 3; C is Stage 3 and cures to 2; D is Stage 3 and is paid down by half
-        $start = [['A', '1', 1000], ['B', '1', 1000], ['C', '3', 500], ['D', '3', 500]];
+        // five loans: A stays in Stage 1; B goes 1 -> 3; C is Stage 3 and cures to 2; D is Stage 3 and is paid down by half;
+        // E is Stage 3 and is absent from the end book with a balance still owing (a write-off, audit H7)
+        $start = [['A', '1', 1000], ['B', '1', 1000], ['C', '3', 500], ['D', '3', 500], ['E', '3', 500]];
         $end = [['A', '1', 1000], ['B', '3', 1000], ['C', '2', 500], ['D', '3', 250]];
         foreach ([['2025-08', $start], ['2026-08', $end]] as [$p, $rows]) {
             foreach ($rows as [$id, $stage, $ca]) {
@@ -66,13 +67,16 @@ class PdAndLgdEngineTest extends TestCase
     public function test_the_lgd_engine_follows_the_stage_3_cohort(): void
     {
         $r = (new LgdEngineService())->run('2026-08', 1, 12, null, 'test');
-        $this->assertSame(2, $r['cohort']);
-        $this->assertEquals(1000.0, $r['start_balance']);
-        $this->assertEqualsWithDelta(0.5, $r['cure_rate'], 1e-6);       // C (500 of 1,000) cured to Stage 2
-        $this->assertEqualsWithDelta(0.25, $r['recovery_rate'], 1e-6);  // D paid 250 of the 1,000
-        $this->assertEqualsWithDelta(0.375, $r['lgd'], 1e-6);           // (1 - 0.5)(1 - 0.25)
+        $this->assertSame(3, $r['cohort']);
+        $this->assertEquals(1500.0, $r['start_balance']);
+        $this->assertEqualsWithDelta(1 / 3, $r['cure_rate'], 1e-6);     // C (500 of 1,500) cured to Stage 2
+        // of the 1,000 that did not cure, D paid 250 and E (absent, still owing) recovered nothing: 25 percent.
+        // Before the audit E counted as fully recovered and the cured loan sat in the recovery denominator.
+        $this->assertEqualsWithDelta(0.25, $r['recovery_rate'], 1e-6);
+        $this->assertEqualsWithDelta(0.5, $r['lgd'], 1e-6);             // (1 - 1/3)(1 - 0.25)
         $this->assertSame(4, $r['updated']);
-        $this->assertEqualsWithDelta(0.375, (float) DB::table('loan_books')->where('reporting_period', '2026-08')->where('contract_id', 'A')->value('collection_lgd'), 1e-6);
+        $this->assertEqualsWithDelta(500.0, (float) DB::table('loss_given_default')->where('id', $r['lgd_id'])->value('written_offs'), 1e-6);
+        $this->assertEqualsWithDelta(0.5, (float) DB::table('loan_books')->where('reporting_period', '2026-08')->where('contract_id', 'A')->value('collection_lgd'), 1e-6);
         $this->assertSame('closed', DB::table('loss_given_default')->where('id', $r['lgd_id'])->value('is_active_or_closed'));
         $this->assertSame('system', DB::table('loss_given_default')->where('id', $r['lgd_id'])->value('calculation_source'));
     }

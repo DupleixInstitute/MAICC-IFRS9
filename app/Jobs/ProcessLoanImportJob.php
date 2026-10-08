@@ -598,8 +598,8 @@ class ProcessLoanImportJob implements ShouldQueue
                 $months += 12;
             }
             
-            $decimalYears = $years + ($months / 12);
-            $remainingTenor = round($decimalYears, 2);
+            // months, the unit the governed build writes and every engine reads (audit C2)
+            $remainingTenor = round($years * 12 + $months, 2);
             
             // Only apply max(0, ...) if actually negative
             return $remainingTenor < 0 ? 0 : $remainingTenor;

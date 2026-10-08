@@ -81,6 +81,9 @@ class TimePhasedEclServiceTest extends TestCase
         // Amortising the exposure wrote the loss off against instalments a
         // defaulted borrower will never pay, and reported 2,500 of 60,000.
         $this->assertEqualsWithDelta(60000,$result['undiscounted'],.01);
+        // With no recovery plan the loss sits at the reporting date, undiscounted:
+        // discounting it from the last due date gave 49,587 (audit finding C3).
+        $this->assertEqualsWithDelta(60000,$result['discounted'],.01);
         $this->assertSame(100000.0,(float)DB::table('ecl_cashflow_projections')->orderByDesc('period_index')->value('opening_ead'));
         $this->assertSame('DEFAULTED_RESOLUTION_HORIZON',DB::table('ecl_cashflow_projections')->value('pd_source'));
     }
@@ -97,17 +100,21 @@ class TimePhasedEclServiceTest extends TestCase
         }
         $result=$this->project();
 
-        // The plan recovers 40,000 of 100,000, so LGD is its own 0.6 and the
-        // tape's 0.9 is superseded. Three quarters of that settles in July.
+        // The plan recovers 40,000 of 100,000, so the undiscounted loss is 60,000
+        // and the tape's 0.9 is superseded. Three quarters of it settles in July.
         $this->assertEqualsWithDelta(60000,$result['undiscounted'],.01);
         $shares=DB::table('ecl_cashflow_projections')->where('marginal_pd','>',0)->orderBy('period_index')->pluck('marginal_pd','period_index');
-        $this->assertEqualsWithDelta(.75,(float)$shares[6],1e-8);
-        $this->assertEqualsWithDelta(.25,(float)$shares[12],1e-8);
+        $this->assertEqualsWithDelta(.75,(float)$shares[1],1e-8);
+        $this->assertEqualsWithDelta(.25,(float)$shares[2],1e-8);
 
-        // Placing all of it at the final recovery date discounted a loss that
-        // mostly crystallises six months earlier, and understated it.
-        $this->assertGreaterThan(60000/1.1,$result['discounted']);
-        $this->assertLessThan(60000,$result['discounted']);
+        // IFRS 9: the loss is EAD less the present value of each recovery from
+        // its own date; the reporting date is the last instant of 31 January,
+        // so July is 180 days and next January 364: 100,000 - 30,000/1.1^(180/365)
+        // - 10,000/1.1^(364/365). Discounting the net shortfall from the recovery
+        // dates (as before) gave about 56,560 and the test asserted that range.
+        $expected=100000-30000/pow(1.1,180/365)-10000/pow(1.1,364/365);
+        $this->assertEqualsWithDelta($expected,$result['discounted'],.01);
+        $this->assertGreaterThan(60000,$result['discounted']);
         $this->assertSame('DEFAULTED_RECOVERY_SCHEDULE',DB::table('ecl_cashflow_projections')->value('pd_source'));
     }
 

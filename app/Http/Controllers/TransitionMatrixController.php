@@ -520,7 +520,7 @@ class TransitionMatrixController extends Controller
 
                         DB::statement("
                             UPDATE loan_books
-                            SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
+                            SET lifetime_pd = 1 - POWER((1 - ?), (CASE WHEN remaining_tenor < 1 THEN 1 ELSE remaining_tenor END) / 12.0)
                             WHERE reporting_period = ?
                             AND ifrs9stage_pre_qualitative = ?
                             AND remaining_tenor IS NOT NULL
@@ -543,7 +543,7 @@ class TransitionMatrixController extends Controller
 
                         DB::statement("
                             UPDATE loan_books
-                            SET lifetime_pd = 1 - POWER((1 - ?), remaining_tenor)
+                            SET lifetime_pd = 1 - POWER((1 - ?), (CASE WHEN remaining_tenor < 1 THEN 1 ELSE remaining_tenor END) / 12.0)
                             WHERE reporting_period = ?
                             AND ifrs9stage_pre_qualitative = ?
                             AND remaining_tenor IS NOT NULL

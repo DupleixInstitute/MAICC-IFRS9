@@ -65,9 +65,9 @@ class PdEngineService
                 $pd = $stage === 3 ? 1.0 : (float) $pds[$stage]->transition_probability_month / 100;
                 $applied[$stage] = round($pd, 6);
                 $updated += DB::update('UPDATE loan_books SET pd_prefli = ?, `12m_pd` = ? WHERE reporting_period = ? AND ifrs9stage_pre_qualitative = ? AND loan_portfolio_id = ?', [$pd, round($pd * 100, 2), $period, (string) $stage, $portfolioId]);
-                // lifetime PD from the remaining tenor in years: 1 - (1 - annual PD)^years, at least one year
+                // lifetime PD over the remaining tenor (months): 1 - (1 - annual PD)^(months/12), at least one month
                 foreach (DB::table('loan_books')->where('reporting_period', $period)->where('ifrs9stage_pre_qualitative', (string) $stage)->where('loan_portfolio_id', $portfolioId)->whereNotNull('remaining_tenor')->get(['id', 'remaining_tenor']) as $loan) {
-                    $years = max(1.0, (float) $loan->remaining_tenor / 12);
+                    $years = max(1.0, (float) $loan->remaining_tenor) / 12;
                     DB::table('loan_books')->where('id', $loan->id)->update(['lifetime_pd' => round(min(1.0, 1 - (1 - $pd) ** $years), 8)]);
                 }
             }

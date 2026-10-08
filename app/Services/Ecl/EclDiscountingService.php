@@ -78,7 +78,7 @@ class EclDiscountingService
 
     private function horizonYears(object $loan, string $reportingPeriod): ?float
     {
-        $remaining = (float) ($loan->remaining_tenor ?? 0);
+        $remaining = (float) ($loan->remaining_tenor ?? 0) / 12; // remaining_tenor is in months
         if ($remaining <= 0 && ! empty($loan->due_date)) {
             $asOf = CarbonImmutable::createFromFormat('Y-m-d', $this->rates->periodKey($reportingPeriod) . '-01')->endOfMonth();
             $due = CarbonImmutable::parse($loan->due_date);

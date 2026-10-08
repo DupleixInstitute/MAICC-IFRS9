@@ -141,7 +141,7 @@ class EclGoldenNumberTest extends TestCase
      * the subject under test; the last two rows are noise that must be
      * excluded by the period and portfolio filters.
      */
-    private function seedCanonicalBook(): void
+    private function seedCanonicalBookRows(): void
     {
         DB::table('loan_books')->insert([
             // Stage 1 — A: pd falls back to pd_prefli; no commitments/util.
@@ -159,6 +159,11 @@ class EclGoldenNumberTest extends TestCase
              'pd_prefli' => 0.20, 'pd_post_fli' => 0.25, 'customer_lgd' => 0.60, 'collection_lgd' => 0.60,
              'carrying_amount' => 300000, 'commitments' => 0, 'facility_utilisation_rate' => 1],
 
+            // Stage 2 — E: 36 months remaining, 12-month PD 10 percent: lifetime PD 1 - 0.9^3 = 27.1 percent (audit C1).
+            ['reporting_period' => '2025-11', 'loan_portfolio_id' => 1, 'ifrs9stage_pre_qualitative' => '2',
+             'pd_prefli' => 0.10, 'pd_post_fli' => 0.10, 'customer_lgd' => 0.50, 'collection_lgd' => 0.50,
+             'carrying_amount' => 1000000, 'commitments' => 0, 'facility_utilisation_rate' => 1],
+
             // Stage 3 — D.
             ['reporting_period' => '2025-11', 'loan_portfolio_id' => 1, 'ifrs9stage_pre_qualitative' => '3',
              'pd_prefli' => 1.0, 'pd_post_fli' => 1.0, 'customer_lgd' => 0.90, 'collection_lgd' => 0.80,
@@ -174,6 +179,12 @@ class EclGoldenNumberTest extends TestCase
              'pd_prefli' => 0.99, 'pd_post_fli' => 0.99, 'customer_lgd' => 0.99, 'collection_lgd' => 0.99,
              'carrying_amount' => 8888888, 'commitments' => 0, 'facility_utilisation_rate' => null],
         ]);
+    }
+
+    private function seedCanonicalBook(): void
+    {
+        $this->seedCanonicalBookRows();
+        DB::table('loan_books')->where('reporting_period', '2025-11')->where('carrying_amount', 1000000)->update(['remaining_tenor' => 36]);
     }
 
     private function runEcl(string $pdType, string $lgdType, string $discountingMode = 'undiscounted'): void
@@ -220,13 +231,15 @@ class EclGoldenNumberTest extends TestCase
         $this->assertEqualsWithDelta(0.45,     (float) $s1->lgd_value_used, 1e-9); // avg(0.40,0.50)
         $this->assertEquals(2, (int) $s1->total_loans);
 
-        // ---- Stage 2: loan C ----
+        // ---- Stage 2: loans C and E ----
+        // C: no tenor on the row, so a twelve-month horizon: 0.20*0.60*300000 = 36000
+        // E: 36 months, lifetime PD 1 - 0.9^3 = 0.271; 0.271*0.50*1000000 = 135500 (a 12-month ECL would be 50000)
         $s2 = $this->eclRow('2');
-        $this->assertEqualsWithDelta(300000.0, (float) $s2->total_ead, 0.001);
-        $this->assertEqualsWithDelta(36000.0,  (float) $s2->total_ecl, 0.001); // 0.20*0.60*300000
-        $this->assertEqualsWithDelta(0.20,     (float) $s2->pd_value_used, 1e-9);
-        $this->assertEqualsWithDelta(0.60,     (float) $s2->lgd_value_used, 1e-9);
-        $this->assertEquals(1, (int) $s2->total_loans);
+        $this->assertEqualsWithDelta(1300000.0, (float) $s2->total_ead, 0.001);
+        $this->assertEqualsWithDelta(171500.0,  (float) $s2->total_ecl, 0.01);
+        $this->assertEqualsWithDelta(0.15,     (float) $s2->pd_value_used, 1e-9); // the 12-month PDs averaged, as the row says
+        $this->assertEqualsWithDelta(0.55,     (float) $s2->lgd_value_used, 1e-9);
+        $this->assertEquals(2, (int) $s2->total_loans);
 
         // ---- Stage 3: loan D ----
         $s3 = $this->eclRow('3');
@@ -296,11 +309,11 @@ class EclGoldenNumberTest extends TestCase
         ]);
         DB::table('loan_books')->insert([
             ['contract_id' => 'LOCKED-1', 'reporting_period' => '2025-11', 'loan_portfolio_id' => 1,
-             'ifrs9stage_pre_qualitative' => '1', 'remaining_tenor' => 1,
+             'ifrs9stage_pre_qualitative' => '1', 'remaining_tenor' => 12, // months (audit C2)
              'pd_prefli' => 0.10, 'collection_lgd' => 0.50, 'carrying_amount' => 200000,
              'commitments' => 0, 'facility_utilisation_rate' => 1],
             ['contract_id' => 'NO-EIR', 'reporting_period' => '2025-11', 'loan_portfolio_id' => 1,
-             'ifrs9stage_pre_qualitative' => '1', 'remaining_tenor' => 1,
+             'ifrs9stage_pre_qualitative' => '1', 'remaining_tenor' => 12, // months (audit C2)
              'pd_prefli' => 0.10, 'collection_lgd' => 0.50, 'carrying_amount' => 100000,
              'commitments' => 0, 'facility_utilisation_rate' => 1],
         ]);

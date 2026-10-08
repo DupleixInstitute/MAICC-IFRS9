@@ -315,6 +315,23 @@ class ExpectedCreditLossController extends Controller
                     ? 'COALESCE(pd_prefli, pd_post_fli)'
                     : 'pd_post_fli';
 
+                /*
+                | The PD the allowance is measured on, by stage (IFRS 9 5.5.3 and
+                | 5.5.5; system audit of 9 October 2026, finding C1). $pdExpr is the
+                | 12-month PD. Stage 1 carries it over the shorter of twelve months
+                | and the remaining life; Stage 2 carries the lifetime PD,
+                | 1 - (1 - PD12)^(months/12), over the remaining tenor; Stage 3 is
+                | 1. remaining_tenor is in months; a loan with no tenor is given
+                | twelve months and is flagged on the row. The stage is the one the
+                | staging engine measured, post qualitative.
+                */
+                $pd12 = "CASE WHEN {$pdExpr} > 1 THEN 1 WHEN {$pdExpr} < 0 THEN 0 ELSE {$pdExpr} END";
+                $months = 'CASE WHEN remaining_tenor IS NULL OR remaining_tenor < 1 THEN 12 ELSE remaining_tenor END';
+                $stageExpr = 'COALESCE(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative)';
+                $stagePdExpr = "CASE WHEN {$stageExpr} IN ('3', 3) THEN 1"
+                    . " WHEN {$stageExpr} IN ('2', 2) THEN 1 - POWER(1 - ({$pd12}), ({$months}) / 12.0)"
+                    . " ELSE 1 - POWER(1 - ({$pd12}), (CASE WHEN ({$months}) < 12 THEN ({$months}) ELSE 12 END) / 12.0) END";
+
                 $lgdExpr = $validated['lgd_type'] === 'both'
                     ? '(IFNULL(customer_lgd,0) * IFNULL(collection_lgd,0))'
                     : ($validated['lgd_type'] === 'customer_lgd' ? 'customer_lgd' : 'collection_lgd');
@@ -376,7 +393,7 @@ class ExpectedCreditLossController extends Controller
                         UPDATE loan_books
                         SET
                             lgd_value = IFNULL($lgdExpr, 0),
-                            ecl_value = IFNULL($pdExpr, 0) * IFNULL($lgdExpr, 0)
+                            ecl_value = IFNULL($stagePdExpr, 0) * IFNULL($lgdExpr, 0)
                                 * (IFNULL(carrying_amount, 0)
                                     + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1))
                         WHERE $baseWhere

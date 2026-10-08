@@ -283,7 +283,7 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
 
                 $dueCarbon     = Carbon::createFromFormat('Y-m-d', $dueDate);
                 $reportingEnd  = Carbon::createFromFormat('Y-m', $reportingPeriod)->endOfMonth();
-                $remainingLife = $reportingEnd->floatDiffInYears($dueCarbon, false);
+                $remainingLife = round($reportingEnd->floatDiffInMonths($dueCarbon, false), 2); // months (audit C2)
                 if ($remainingLife < 0) {
                     $remainingLife = 0;
                 }

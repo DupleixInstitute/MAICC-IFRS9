@@ -49,6 +49,15 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(199);
 
+        // The engines use POWER() in SQL (lifetime PD from the 12-month PD over
+        // the remaining tenor). MySQL has it; sqlite, which the tests run on,
+        // does not, so it is registered on every sqlite connection.
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Database\Events\ConnectionEstablished::class, function ($event) {
+            if ($event->connection->getDriverName() === 'sqlite') {
+                $event->connection->getPdo()->sqliteCreateFunction('POWER', fn ($base, $exp) => pow((float) $base, (float) $exp), 2);
+            }
+        });
+
         // Force HTTPS for all generated URLs once a certificate is installed.
         // Controlled by FORCE_HTTPS in .env so local http development is safe.
         if (config('security.force_https')) {
