@@ -37,7 +37,7 @@ Source: docs/regulatory/RBM Financial Services (Credit Risk Management for DFIs)
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 22:00:02 from maiic_ifrs9_bootstrap.
+Generated 2026-10-09 00:03:49 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
@@ -69,8 +69,8 @@ Generated 2026-10-08 22:00:02 from maiic_ifrs9_bootstrap.
 
 ### F3. The RBM Classification report's day bands differed from the directive's (9 to 11) - Closed
 
-- **What was found:** The older RBM Classification report classified every facility on one ladder (90, 180, 365 days) with 1 percent on pass and special mention; the directive classifies by term (90/180/360 for short-term, 180/360/720 for medium and long) with 0 and 5 percent. Resolved 9 October 2026: the report, the provision comparison and the arrears ageing now classify by the directive's bands by term and rates, from the same rule as the return; a test proves the two agree at every band edge on both terms.
-- **Impact:** None remaining: the two screens show one class for every facility.
+- **What was found:** The older RBM Classification report classified every facility on one ladder (90, 180, 365 days) with 1 percent on pass and special mention. Resolved in two steps: on 9 October 2026 the report, the provision comparison and the arrears ageing were put on one rule with the RBM Return; the system audit of the same day then found that rule itself carried wrong medium- and long-term bands (30/180/360/720, from a note carried between sessions) and both were corrected to the Gazette's section 10: short-term 30/90/180/365, medium and long 90/180/365/746, with a test at every boundary on both terms.
+- **Impact:** None remaining: both screens classify by the Gazette's bands.
 - **Recommended action:** Done.
 - **Owner:** Dupleix
 
@@ -113,8 +113,8 @@ Generated 2026-10-08 22:00:02 from maiic_ifrs9_bootstrap.
 
 **11. Doubtful and loss** - *Partially done*
 
-- **What it requires:** Doubtful from 181 (short-term) or 361 days (medium and long term); loss from 361 or 721 days, or where recovery is not expected.
-- **What the engine does:** The RBM Classification report and the RBM Return apply the doubtful and loss bands by term (181/361 days short-term, 361/721 otherwise); the loan book's buckets end at 271 to 360 days and the build counts days from the overdue date without a ceiling, so the bands are classified from the day count; the qualitative 'recovery not expected' flag is the write-off policy MAIIC has not stated.
+- **What it requires:** Doubtful from 181 (short-term) or 366 days (medium and long term); loss beyond 365 or 746 days, or where recovery is not expected.
+- **What the engine does:** The RBM Classification report and the RBM Return apply the doubtful and loss bands by term from section 10 of the Gazette (181/366 days short-term, 366/747 otherwise); the loan book's buckets end at 271 to 360 days and the build counts days from the overdue date without a ceiling, so the bands are classified from the day count; the qualitative 'recovery not expected' flag is the write-off policy MAIIC has not stated.
 - **Compliance comment:** Partially done: the day bands are applied; the qualitative loss criterion awaits the policy.
 - **Where to see it:** Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm
 - **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest`

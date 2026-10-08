@@ -552,9 +552,9 @@ class Ifrs9ReportsController extends Controller
                     WHEN COALESCE(overdue_days,0) <= 30 THEN '0-30'
                     WHEN overdue_days <= 90  THEN '31-90'
                     WHEN overdue_days <= 180 THEN '91-180'
-                    WHEN overdue_days <= 360 THEN '181-360'
-                    WHEN overdue_days <= 720 THEN '361-720'
-                    ELSE '721+' END bucket,
+                    WHEN overdue_days <= 365 THEN '181-365'
+                    WHEN overdue_days <= 746 THEN '366-746'
+                    ELSE '747+' END bucket,
                 " . $this->rbmClassCase() . " rbm,
                 MIN(COALESCE(overdue_days,0)) ord,
                 COUNT(*) n, SUM(" . self::EAD_SQL . ") ead, SUM(COALESCE(ecl_value,0)) ecl")
@@ -1159,19 +1159,19 @@ class Ifrs9ReportsController extends Controller
      * 12). The same bands and rates as RbmReturnService, so this report and
      * the RBM Return agree on every loan. NPL = Substandard + Doubtful + Loss.
      *
-     *   class            short-term   medium/long   rate
-     *   Pass             0 to 30      0 to 30       0 %
-     *   Special Mention  31 to 90     31 to 180     5 %
-     *   Substandard      91 to 180    181 to 360    20 %
-     *   Doubtful         181 to 360   361 to 720    50 %
-     *   Loss             over 360     over 720      100 %
+     *   class            short-term   medium/long   rate   (Gazette section 10, pages 683 and 685)
+     *   Pass             0 to 30      0 to 90       0 %
+     *   Special Mention  31 to 90     91 to 180     5 %
+     *   Substandard      91 to 180    181 to 365    20 %
+     *   Doubtful         181 to 365   366 to 746    50 %
+     *   Loss             over 365     over 746      100 %
      */
     private const RBM = [
-        'Pass'            => ['short' => [0, 30],    'long' => [0, 30],    'rate' => 0.00],
-        'Special Mention' => ['short' => [31, 90],   'long' => [31, 180],  'rate' => 0.05],
-        'Substandard'     => ['short' => [91, 180],  'long' => [181, 360], 'rate' => 0.20],
-        'Doubtful'        => ['short' => [181, 360], 'long' => [361, 720], 'rate' => 0.50],
-        'Loss'            => ['short' => [361, null], 'long' => [721, null], 'rate' => 1.00],
+        'Pass'            => ['short' => [0, 30],    'long' => [0, 90],    'rate' => 0.00],
+        'Special Mention' => ['short' => [31, 90],   'long' => [91, 180],  'rate' => 0.05],
+        'Substandard'     => ['short' => [91, 180],  'long' => [181, 365], 'rate' => 0.20],
+        'Doubtful'        => ['short' => [181, 365], 'long' => [366, 746], 'rate' => 0.50],
+        'Loss'            => ['short' => [366, null], 'long' => [747, null], 'rate' => 1.00],
     ];
 
     /** SQL CASE that maps overdue_days and the tenor to the RBM class label, by the directive's bands by term. */
@@ -1181,11 +1181,12 @@ class Ifrs9ReportsController extends Controller
             WHEN COALESCE(overdue_days,0) <= 30 THEN 'Pass'
             WHEN COALESCE(tenor,0) <= 12 AND overdue_days <= 90  THEN 'Special Mention'
             WHEN COALESCE(tenor,0) <= 12 AND overdue_days <= 180 THEN 'Substandard'
-            WHEN COALESCE(tenor,0) <= 12 AND overdue_days <= 360 THEN 'Doubtful'
+            WHEN COALESCE(tenor,0) <= 12 AND overdue_days <= 365 THEN 'Doubtful'
             WHEN COALESCE(tenor,0) <= 12                         THEN 'Loss'
+            WHEN overdue_days <= 90  THEN 'Pass'
             WHEN overdue_days <= 180 THEN 'Special Mention'
-            WHEN overdue_days <= 360 THEN 'Substandard'
-            WHEN overdue_days <= 720 THEN 'Doubtful'
+            WHEN overdue_days <= 365 THEN 'Substandard'
+            WHEN overdue_days <= 746 THEN 'Doubtful'
             ELSE 'Loss' END";
     }
 
@@ -1235,7 +1236,7 @@ class Ifrs9ReportsController extends Controller
         }
 
         return [
-            'subtitle' => 'Prudential classification by days past due under the directive\'s bands by term: 30/90/180/360 days for a facility of 12 months or less, 30/180/360/720 otherwise (RBM Credit Risk Management for DFIs Directive, 2018, sections 9 to 12); the same bands and rates as the RBM Return',
+            'subtitle' => 'Prudential classification by days past due under the directive\'s bands by term: 30/90/180/365 days for a facility of 12 months or less, 90/180/365/746 otherwise (RBM Credit Risk Management for DFIs Directive, 2018, section 10 and the Schedule); the same bands and rates as the RBM Return',
             'kpis' => [
                 ['label' => 'NPL Ratio (substandard and below)', 'value' => $this->pct($totEad ? $nplEad / $totEad : 0), 'tone' => 'rose'],
                 ['label' => 'RBM Provision', 'value' => $this->money($totProv), 'tone' => 'amber'],

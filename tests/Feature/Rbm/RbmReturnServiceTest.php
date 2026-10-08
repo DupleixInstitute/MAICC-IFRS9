@@ -47,15 +47,13 @@ class RbmReturnServiceTest extends TestCase
 
     public function test_the_directive_bands_by_term(): void
     {
-        $this->assertSame('Pass', RbmReturnService::classify(30, 12));
-        $this->assertSame('Special mention', RbmReturnService::classify(31, 12));
-        $this->assertSame('Substandard', RbmReturnService::classify(91, 12));
-        $this->assertSame('Special mention', RbmReturnService::classify(91, 36));
-        $this->assertSame('Substandard', RbmReturnService::classify(181, 36));
-        $this->assertSame('Doubtful', RbmReturnService::classify(181, 12));
-        $this->assertSame('Doubtful', RbmReturnService::classify(361, 36));
-        $this->assertSame('Loss', RbmReturnService::classify(361, 12));
-        $this->assertSame('Loss', RbmReturnService::classify(721, 36));
+        // Gazette section 10 (pages 683 and 685): short-term 30/90/180/365; medium and long 90/180/365/746
+        foreach ([[30, 'Pass'], [31, 'Special mention'], [90, 'Special mention'], [91, 'Substandard'], [180, 'Substandard'], [181, 'Doubtful'], [365, 'Doubtful'], [366, 'Loss']] as [$dpd, $class]) {
+            $this->assertSame($class, RbmReturnService::classify($dpd, 12), "short-term {$dpd} days");
+        }
+        foreach ([[30, 'Pass'], [90, 'Pass'], [91, 'Special mention'], [180, 'Special mention'], [181, 'Substandard'], [365, 'Substandard'], [366, 'Doubtful'], [746, 'Doubtful'], [747, 'Loss']] as [$dpd, $class]) {
+            $this->assertSame($class, RbmReturnService::classify($dpd, 36), "medium/long-term {$dpd} days");
+        }
     }
 
     public function test_the_return_fills_the_sections_from_the_book(): void
@@ -89,13 +87,13 @@ class RbmReturnServiceTest extends TestCase
     public function test_the_rbm_classification_report_agrees_with_the_return_on_every_loan(): void
     {
         // the edge of every band, on both terms
-        foreach ([[12, 31], [12, 90], [12, 91], [12, 180], [12, 181], [12, 360], [12, 361], [36, 31], [36, 180], [36, 181], [36, 360], [36, 361], [36, 720], [36, 721]] as $i => [$tenor, $dpd]) {
+        foreach ([[12, 31], [12, 90], [12, 91], [12, 180], [12, 181], [12, 365], [12, 366], [36, 31], [36, 90], [36, 91], [36, 180], [36, 181], [36, 365], [36, 366], [36, 746], [36, 747]] as $i => [$tenor, $dpd]) {
             DB::table('loan_books')->insert(['contract_id' => 'X' . $i, 'reporting_period' => '2026-08', 'product_code' => '1050101', 'tenor' => $tenor, 'overdue_days' => $dpd, 'carrying_amount' => 1, 'principal_balance' => 1]);
         }
         $case = new \ReflectionMethod(\App\Http\Controllers\Reports\Ifrs9ReportsController::class, 'rbmClassCase');
         $sql = $case->invoke(app(\App\Http\Controllers\Reports\Ifrs9ReportsController::class));
         $rows = DB::table('loan_books')->where('reporting_period', '2026-08')->selectRaw("contract_id, tenor, overdue_days, {$sql} rbm")->get();
-        $this->assertCount(19, $rows);
+        $this->assertCount(21, $rows);
         foreach ($rows as $row) {
             $this->assertSame(strtolower(RbmReturnService::classify((int) $row->overdue_days, (int) $row->tenor)), strtolower($row->rbm), "loan {$row->contract_id}: tenor {$row->tenor}, {$row->overdue_days} days");
         }

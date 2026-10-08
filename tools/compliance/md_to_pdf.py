@@ -130,7 +130,7 @@ doc = SimpleDocTemplate(out, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * m
 
 def footer(canvas, d):
     canvas.saveState(); canvas.setFont("Helvetica", 7.5); canvas.setFillColor(colors.HexColor("#666666"))
-    canvas.drawString(18 * mm, 9 * mm, "ZNBS ICAAP - " + re.sub(r"^# ", "", lines[0])[:90])
+    canvas.drawString(18 * mm, 9 * mm, "MAIIC IFRS 9 - " + re.sub(r"^# ", "", lines[0])[:90])
     canvas.drawRightString(A4[0] - 18 * mm, 9 * mm, "Page %d" % d.page); canvas.restoreState()
 
 

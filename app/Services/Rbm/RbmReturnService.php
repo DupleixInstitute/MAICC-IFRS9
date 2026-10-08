@@ -22,18 +22,20 @@ use Illuminate\Support\Facades\DB;
  * figures stay as they are; until then every output says "provisional".
  *
  * Bands, by the term of the facility (section 2: short-term 12 months or
- * less; medium and long term over 12):
- *   Pass              0 to 30 days                  provision  0 percent
- *   Special mention   31 to 90   | 31 to 180        provision  5 percent
- *   Substandard       91 to 180  | 181 to 360       provision 20 percent
- *   Doubtful          181 to 360 | 361 to 720       provision 50 percent
- *   Loss              over 360   | over 720         provision 100 percent
+ * less; medium and long term over 12), from section 10 of the Gazette
+ * (docs/regulatory, pages 683 and 685):
+ *                     short-term   | medium and long
+ *   Pass (standard)   0 to 30      | 0 to 90          provision  0 percent
+ *   Special mention   31 to 90     | 91 to 180        provision  5 percent
+ *   Substandard       91 to 180    | 181 to 365       provision 20 percent
+ *   Doubtful          181 to 365   | 366 to 746       provision 50 percent
+ *   Loss              over 365     | over 746         provision 100 percent
  */
 class RbmReturnService
 {
     public const CLASSES = ['Pass', 'Special mention', 'Substandard', 'Doubtful', 'Loss'];
     public const MINIMUM = ['Pass' => 0.00, 'Special mention' => 0.05, 'Substandard' => 0.20, 'Doubtful' => 0.50, 'Loss' => 1.00];
-    private const BANDS = ['short' => [30, 90, 180, 360], 'long' => [30, 180, 360, 720]];
+    public const BANDS = ['short' => [30, 90, 180, 365], 'long' => [90, 180, 365, 746]];
 
     public function __construct(private LandingZoneReader $zone)
     {

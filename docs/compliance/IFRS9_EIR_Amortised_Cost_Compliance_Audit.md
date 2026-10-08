@@ -48,7 +48,7 @@ Source: IFRS 9 Financial Instruments as issued by the IASB, Appendix A (defined 
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 21:18:12 from maiic_ifrs9_bootstrap.
+Generated 2026-10-09 00:03:12 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|

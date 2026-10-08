@@ -40,7 +40,7 @@ Source: The implementation agreement between MAIIC and Dupleix Institute, Schedu
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 21:18:08 from maiic_ifrs9_bootstrap.
+Generated 2026-10-09 00:03:09 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
