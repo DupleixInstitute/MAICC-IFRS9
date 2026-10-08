@@ -213,10 +213,19 @@ class Bootstrap extends Command
     {
         $build = app(LoanBookBuildService::class);
         $from = (string) $this->option('from');
-        $to ??= $this->option('to') ?? substr((string) app(LandingZoneReader::class)->lastLedgerDate(), 0, 7);
+        $to ??= $this->option('to') ?? (string) DB::table('loan_books')->whereNotNull('build_method')->max('reporting_period');
         $periods = $build->periods($from, $to);
 
-        // 8-9 EIR first: the ECL is discounted at it
+        // 3 staging first: the revenue roll-forward reads the stage (Stage 3 interest on the net basis)
+        $staging = app(StagingService::class);
+        $s = ['stage1' => 0, 'stage2' => 0, 'stage3' => 0];
+        foreach ($periods as $p) {
+            $c = $staging->stage($p, $user);
+            foreach ($s as $k => $v) { $s[$k] += $c[$k]; }
+        }
+        $this->note('6.3 staging', count($periods) . ' periods; row-months by stage ' . json_encode($s));
+
+        // 8-9 EIR before the ECL: the ECL is discounted at it
         $calc = app(EirCalculationService::class);
         $solved = 0; $locked = 0; $failed = [];
         foreach (ContractEir::query()->where('schedule_approval_status', 'APPROVED')->whereNull('locked_at')->get() as $c) {
@@ -230,23 +239,16 @@ class Bootstrap extends Command
             }
         }
         $this->note('6.9 EIR solved and locked', "{$solved} solved, {$locked} locked (administrator override under the bootstrap label); " . count($failed) . ' not solved' . ($failed !== [] ? ': ' . implode(' | ', array_slice($failed, 0, 3)) : ''));
-        $ran = 0; $blocked = 0;
+        $before = DB::table('eir_amortisation')->count();
+        $errors = [];
         foreach ($periods as $p) {
-            Artisan::call('eir:run-revenue', ['period' => $p, '--user' => $user]);
-            $out = Artisan::output();
-            $ran += (int) (preg_match('/(\d+)\s+(?:contract|row|generated)/i', $out, $m) ? $m[1] : 0);
-            $blocked += substr_count($out, 'BLOCKED');
+            $code = Artisan::call('eir:run-revenue', ['period' => $p, '--user' => $user]);
+            if ($code !== 0) {
+                $errors[] = $p . ': ' . trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 120)));
+            }
         }
-        $this->note('6.9 revenue', count($periods) . " periods run {$from}..{$to}");
-
-        // 3 staging
-        $staging = app(StagingService::class);
-        $s = ['stage1' => 0, 'stage2' => 0, 'stage3' => 0];
-        foreach ($periods as $p) {
-            $c = $staging->stage($p, $user);
-            foreach ($s as $k => $v) { $s[$k] += $c[$k]; }
-        }
-        $this->note('6.3 staging', count($periods) . ' periods; row-months by stage ' . json_encode($s));
+        $rows = DB::table('eir_amortisation')->count();
+        $this->note('6.9 revenue', count($periods) . " periods run {$from}..{$to}; " . ($rows - $before) . " roll-forward rows written, {$rows} in all" . ($errors !== [] ? '; failed: ' . implode(' | ', array_slice($errors, 0, 3)) : ''));
 
         // 4-7 PD, LGD, FLI, ECL: the engines that exist run for the last period
         $portfolio = (int) DB::table('loan_portfolios')->orderBy('id')->value('id');
