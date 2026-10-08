@@ -1324,3 +1324,6 @@ Route::post('/api/ebanker-feed/pack', function (\Illuminate\Http\Request $reques
 
     return response()->json(['received' => basename($dir), 'note' => 'The pack is in the inbox; the poller lands it through the gates (eir:poll-feed-folder --also-route-3).'], 202);
 })->name('ebanker-feed.api')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+
+// The per-record audit trace (spec v4 section 12.5).
+Route::get('/audit-trace', [\App\Http\Controllers\AuditTraceController::class, 'index'])->name('audit-trace.index');

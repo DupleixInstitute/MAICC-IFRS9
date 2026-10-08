@@ -80,6 +80,7 @@ return [
             $leaf('Compliance Audits', 'compliance-audits.index', 'clipboard-check', false, '', 'One workbook per standard: every section, what the system does, where to see it, the test that proves it, signed under maker-checker (spec v4 section 12)'),
             $leaf('Financial Periods', 'accounting.financial_periods.index'),
             $leaf('Audit Trail', 'audit-trail.index'),
+            $leaf('Audit Trace', 'audit-trace.index', 'history', false, '', 'One contract, oldest to newest: its schedule, resets, runs and the governance values each month ran under (spec v4 section 12.5)'),
         ], 2, 'amber', 'The rules and settings the engines obey'),
 
         $group('Financial Modelling', 'chart-line', [
