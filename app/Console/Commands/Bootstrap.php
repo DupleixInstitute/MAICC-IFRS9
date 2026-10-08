@@ -265,7 +265,17 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.7 ECL', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
-        $this->note('6.4-6.6 PD, LGD, FLI', 'PD transition matrices, LGD and the forward-looking route run from their screens today; the bootstrap records them as pending until their services are callable without a request (sections 13 to 15)');
+        // 6 forward-looking chain: bridge, profile, sweep, fit; applied fits are proposals, not adjustments
+        try {
+            Artisan::call('fli:correlate', ['period' => $to, '--top' => 0]);
+            $out = Artisan::output();
+            $this->note('6.6 forward-looking chain', trim(preg_replace('/\s+/', ' ', (preg_match('/(Auto-Correlate complete[^
+]*)/', $out, $m) ? $m[1] : '') . ' ' . (preg_match('/(Regression: [^|
+]*)/', $out, $m2) ? $m2[1] : ''))));
+        } catch (Throwable $e) {
+            $this->note('6.6 forward-looking chain', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
+        $this->note('6.4-6.5 PD, LGD', 'PD transition matrices and LGD run from their screens today; the bootstrap records them as pending until their services are callable without a request');
 
         // 10 reconciliation
         try {
