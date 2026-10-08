@@ -39,7 +39,11 @@ class LoanBookBuildService
     /** Ledger transaction types, from DD_12 and the GL audit (spec v4 sections 3.4 and 7.1). */
     public const TYPE_DISBURSEMENT = ['301', '400'];
     public const TYPE_INTEREST = ['303', '120'];
-    public const TYPE_RECEIPT = ['305', '306', '343', '900', '901', '401', '300'];
+    public const TYPE_RECEIPT = ['305', '306', '343', '900', '901'];
+    /** 300: a write-off. It reduces the gross through the allowance; it is not cash received (spec 3.3; audit H1). */
+    public const TYPE_WRITEOFF = ['300'];
+    /** 401: the Nascomex loan settled by redemption of its preference shares, a settlement in kind, not cash (spec 3.3 and O13; audit H1). */
+    public const TYPE_SETTLEMENT_IN_KIND = ['401'];
 
     /** The loan-book columns a build writes; nothing else on the row is touched. */
     private const COLUMNS = [
@@ -393,7 +397,7 @@ class LoanBookBuildService
         sort($accounts);
         $rows = [];
         foreach ($accounts as $account) {
-            $sum = ['all' => 0.0, 'disb' => 0.0, 'int' => 0.0, 'rec' => 0.0, 'other' => 0.0, 'n' => 0, 'first' => null, 'last' => null, 'load' => null];
+            $sum = ['all' => 0.0, 'disb' => 0.0, 'int' => 0.0, 'rec' => 0.0, 'woff' => 0.0, 'kind' => 0.0, 'other' => 0.0, 'n' => 0, 'first' => null, 'last' => null, 'load' => null];
             foreach ($ledger[$account] ?? [] as $post) {
                 $amt = $this->num($post['payload']['TRANSAMT'] ?? 0);
                 $type = (string) ($post['payload']['TRANTYPE'] ?? '');
@@ -405,6 +409,10 @@ class LoanBookBuildService
                     $sum['int'] += $amt;
                 } elseif (in_array($type, self::TYPE_RECEIPT, true)) {
                     $sum['rec'] += $amt;
+                } elseif (in_array($type, self::TYPE_WRITEOFF, true)) {
+                    $sum['woff'] += $amt;     // in the balance, never in repayments
+                } elseif (in_array($type, self::TYPE_SETTLEMENT_IN_KIND, true)) {
+                    $sum['kind'] += $amt;     // in the balance, never in repayments
                 } else {
                     $sum['other'] += $amt;
                 }
@@ -455,7 +463,7 @@ class LoanBookBuildService
                 'build_method' => 'B', 'build_load_id' => $sum['load'] ?? ($run['load_id'] ?? null), 'build_source_key' => $run['source_key'] ?? null,
                 'build_flag' => $flags === [] ? null : implode('; ', $flags),
                 'build_basis' => ['postings' => $sum['n'], 'first_posting' => $sum['first'], 'last_posting' => $sum['last'],
-                    'ledger' => ['disbursed' => $disbursed, 'interest' => $interest, 'receipts' => $receipts, 'other' => round($sum['other'], 2)],
+                    'ledger' => ['disbursed' => $disbursed, 'interest' => $interest, 'receipts' => $receipts, 'written_off' => round($sum['woff'], 2), 'settled_in_kind' => round($sum['kind'], 2), 'other' => round($sum['other'], 2)],
                     'stored_run' => $run !== null ? $run['query_id'] . ':' . $run['source_key'] : null, 'rate_source' => $this->rateSource],
             ] + $arrears, $monthEnd);
         }

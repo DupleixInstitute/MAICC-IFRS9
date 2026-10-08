@@ -26,7 +26,10 @@ class EirRevenueService
      * the components: the two agree on all but the adjustment rows, which
      * carry a total with every component left at zero.
      */
-    private const COLLECTION_TYPES = ['Interest', 'Principal+Interest', 'Fee'];
+    private const COLLECTION_TYPES = ['Principal+Interest', 'Fee']; // 'Interest' removed: an interest charge is not cash collected (spec 7.4, audit M15)
+
+    /** Derecognition without cash: a write-off (against the allowance) or a settlement in kind. Reduces the gross; never cash received (audit H1). */
+    private const DERECOGNITION_TYPES = ['Write-off', 'Settlement in kind'];
 
     /** Cash advanced to the customer — the opposite direction, never a receipt. */
     private const ADVANCE_TYPES = ['Disbursement'];
@@ -77,7 +80,8 @@ class EirRevenueService
                 $interest = $monthlyRate * ($basis === 'NET' ? $netOpening : $opening);
                 $unwind = $basis === 'NET' ? $monthlyRate * min($allowance, $opening) : 0.0;
                 $cash = $this->cashReceived($contractId, $period);
-                $closing = max(0.0, $opening + $interest + $unwind - $cash['amount']);
+                // a write-off or a settlement in kind leaves the gross without being cash
+                $closing = max(0.0, $opening + $interest + $unwind - $cash['amount'] - $cash['derecognised']);
 
                 $row = EirAmortisation::create([
                     'contract_id' => $contractId,
@@ -88,7 +92,7 @@ class EirRevenueService
                     'unwind_amount' => round($unwind, 2),
                     'cash_received' => round($cash['amount'], 2),
                     'cash_source' => $cash['source'],
-                    'modification_gain_loss' => 0,
+                    'modification_gain_loss' => round(-$cash['derecognised'], 2), // derecognition without cash, disclosed on the row
                     'closing_gross' => round($closing, 2),
                     'ecl_allowance' => round($allowance, 2),
                 ]);
@@ -206,11 +210,12 @@ class EirRevenueService
             && $end->toDateString() >= $contractStart;
 
         if (! $covered) {
-            return ['amount' => $this->scheduledCash($contractId, $start, $end), 'source' => 'DERIVED', 'unclassified' => 0.0];
+            return ['amount' => $this->scheduledCash($contractId, $start, $end), 'source' => 'DERIVED', 'unclassified' => 0.0, 'derecognised' => 0.0];
         }
 
         $collected = 0.0;
         $unclassified = 0.0;
+        $derecognised = 0.0;
         $rows = DB::table('eir_actual_transactions')->where('contract_id', $contractId)
             ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])
             ->selectRaw('transaction_type, SUM(total_amount) as amount')->groupBy('transaction_type')->get();
@@ -218,12 +223,14 @@ class EirRevenueService
         foreach ($rows as $row) {
             if (in_array($row->transaction_type, self::COLLECTION_TYPES, true)) {
                 $collected += (float) $row->amount;
+            } elseif (in_array($row->transaction_type, self::DERECOGNITION_TYPES, true)) {
+                $derecognised += (float) $row->amount;
             } elseif (! in_array($row->transaction_type, self::ADVANCE_TYPES, true)) {
                 $unclassified += (float) $row->amount;
             }
         }
 
-        return ['amount' => $collected, 'source' => 'IMPORTED', 'unclassified' => $unclassified];
+        return ['amount' => $collected, 'source' => 'IMPORTED', 'unclassified' => $unclassified, 'derecognised' => $derecognised];
     }
 
     /** The contractual promise for the period — used only where no actuals cover it. */

@@ -77,7 +77,7 @@ class EirRevenueServiceTest extends TestCase
         $this->seedLocked();
         $this->loan('C-1', '2025-01', 1);
         $this->actual('C-1', '2025-01-05', 'Disbursement', 5_000);
-        $this->actual('C-1', '2025-01-20', 'Interest', 100);
+        $this->actual('C-1', '2025-01-20', 'Principal+Interest', 100);
 
         $result = (new EirRevenueService())->run('C-1', '2025-01');
         $row = DB::table('eir_amortisation')->first();
@@ -92,7 +92,7 @@ class EirRevenueServiceTest extends TestCase
     {
         $this->seedLocked();
         $this->loan('C-1', '2025-01', 1);
-        $this->actual('C-1', '2025-01-20', 'Interest', 100);
+        $this->actual('C-1', '2025-01-20', 'Principal+Interest', 100);
         $this->actual('C-1', '2025-01-31', 'Other/Adjustment', 250);
 
         $result = (new EirRevenueService())->run('C-1', '2025-01');
@@ -121,8 +121,8 @@ class EirRevenueServiceTest extends TestCase
         $this->seedLocked();
         $this->loan('C-1', '2025-02', 1);
         // The feed covers January and March; the customer paid nothing in February.
-        $this->actual('C-1', '2025-01-20', 'Interest', 100);
-        $this->actual('C-1', '2025-03-20', 'Interest', 100);
+        $this->actual('C-1', '2025-01-20', 'Principal+Interest', 100);
+        $this->actual('C-1', '2025-03-20', 'Principal+Interest', 100);
         $this->scheduled('C-1', '2025-02-28', 90, 10);
 
         $row = (new EirRevenueService())->run('C-1', '2025-02');
@@ -153,14 +153,32 @@ class EirRevenueServiceTest extends TestCase
     {
         $this->seedLocked();
         $this->loan('C-1', '2025-06', 3);
-        $this->actual('C-1', '2025-01-20', 'Interest', 100);   // the borrower's last receipt
-        $this->actual('C-2', '2025-07-15', 'Interest', 50);    // the feed itself runs to July
+        $this->actual('C-1', '2025-01-20', 'Principal+Interest', 100);   // the borrower's last receipt
+        $this->actual('C-2', '2025-07-15', 'Principal+Interest', 50);    // the feed itself runs to July
         $this->scheduled('C-1', '2025-06-30', 90, 10);
 
         $row = (new EirRevenueService())->run('C-1', '2025-06');
 
         $this->assertSame('IMPORTED', $row['cash_source']);
         $this->assertEqualsWithDelta(0, DB::table('eir_amortisation')->value('cash_received'), 0.01);
+    }
+
+    /** Audit H1: a write-off or a settlement in kind leaves the gross without being cash received. */
+    public function test_a_write_off_reduces_the_gross_but_is_not_cash(): void
+    {
+        $this->seedLocked();
+        $this->loan('C-1', '2025-01', 3);
+        $this->actual('C-1', '2025-01-10', 'Principal+Interest', 100);
+        $this->actual('C-1', '2025-01-20', 'Write-off', 300);
+        $this->actual('C-1', '2025-01-25', 'Settlement in kind', 200);
+
+        $result = (new EirRevenueService())->run('C-1', '2025-01');
+        $row = DB::table('eir_amortisation')->first();
+
+        $this->assertEqualsWithDelta(100, $row->cash_received, 0.01);
+        $this->assertEqualsWithDelta(-500, $row->modification_gain_loss, 0.01);
+        $this->assertEqualsWithDelta($row->opening_gross + $row->interest_accrued + $row->unwind_amount - 100 - 500, $row->closing_gross, 0.01);
+        $this->assertEqualsWithDelta(0, $result['unclassified_cash'], 0.01);
     }
 
     public function test_stage_three_recognises_net_interest_and_discloses_unwind(): void
