@@ -1289,3 +1289,13 @@ Route::group(['prefix' => 'fli-adjustments', 'as' => 'fli-adjustments.'], functi
     Route::post('/{fit}/propose', [\App\Http\Controllers\FliAdjustmentsController::class, 'propose'])->name('propose');
     Route::post('/{fit}/approve', [\App\Http\Controllers\FliAdjustmentsController::class, 'approve'])->name('approve');
 });
+
+// Compliance audits: the register (spec v4 section 12.5).
+Route::group(['prefix' => 'compliance-audits', 'as' => 'compliance-audits.'], function () {
+    Route::get('/', [\App\Http\Controllers\ComplianceAuditController::class, 'index'])->name('index');
+    Route::post('/reload', [\App\Http\Controllers\ComplianceAuditController::class, 'reload'])->name('reload');
+    Route::get('/{audit}', [\App\Http\Controllers\ComplianceAuditController::class, 'show'])->name('show');
+    Route::get('/{audit}/download/{ext}', [\App\Http\Controllers\ComplianceAuditController::class, 'download'])->name('download');
+    Route::post('/rows/{row}/sign', [\App\Http\Controllers\ComplianceAuditController::class, 'sign'])->name('sign');
+    Route::post('/rows/{row}/approve', [\App\Http\Controllers\ComplianceAuditController::class, 'approve'])->name('approve');
+});

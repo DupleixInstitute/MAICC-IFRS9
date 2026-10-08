@@ -342,6 +342,13 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.12 reports', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
+        // 12b the compliance register from the committed workbooks
+        try {
+            $reg = app(\App\Services\Compliance\ComplianceAuditService::class)->load();
+            $this->note('6.12 compliance register', collect($reg)->map(fn ($n, $k) => "{$k} {$n}")->implode(', ') . ' rows');
+        } catch (Throwable $e) {
+            $this->note('6.12 compliance register', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
         // 10 reconciliation
         try {
             $rec = app(EirGlReconciliationService::class)->forPeriod($to);

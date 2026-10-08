@@ -61,11 +61,21 @@ def build(name, env=None):
     meta = dict(mod.META, generated_at=sysb["generated_at"], database=sysb["database"])
     baselines = sysb["checks"] + list(getattr(mod, "BASELINES", []))
     stem = os.path.join(OUT_DIR, meta["file_stem"])
-    build_xlsx(meta, mod.ROWS, mod.FINDINGS, baselines, stem + ".xlsx")
-    build_markdown(meta, mod.ROWS, mod.FINDINGS, baselines, stem + ".md")
+    # the signed state from the register (php artisan compliance:export-signed) overrides a row's status and sign-off
+    signed_path = stem + ".signed.json"
+    rows = list(mod.ROWS)
+    if os.path.isfile(signed_path):
+        signed = {r["reference"]: r for r in json.load(open(signed_path, encoding="utf-8")).get("rows", [])}
+        rows = [tuple(list(r[:4]) + [signed[r[1]]["status"]] + list(r[5:])) if r[1] in signed and signed[r[1]].get("status") else r for r in rows]
+    # the same rows as JSON, the source the register's seeder reads
+    with open(stem + ".json", "w", encoding="utf-8") as fh:
+        json.dump({"key": name, "meta": mod.META, "rows": [dict(zip(["part", "reference", "section_name", "requirement", "status", "engine_comment", "general_comment", "compliance_comment", "where_to_see", "governance_setting", "test"], r)) for r in rows],
+                   "findings": [dict(zip(["number", "reference", "finding", "what_was_found", "impact", "recommended_action", "owner", "status"], f)) for f in mod.FINDINGS]}, fh, indent=1, ensure_ascii=False)
+    build_xlsx(meta, rows, mod.FINDINGS, baselines, stem + ".xlsx")
+    build_markdown(meta, rows, mod.FINDINGS, baselines, stem + ".md")
     subprocess.run([sys.executable, os.path.join(ROOT, "tools", "compliance", "md_to_pdf.py"), stem + ".md", stem + ".pdf"], check=True)
     counts = {}
-    for r in mod.ROWS:
+    for r in rows:
         counts[r[4]] = counts.get(r[4], 0) + 1
     passing = sum(1 for b in baselines if b.get("ok"))
     print(f"{name}: {len(mod.ROWS)} sections {counts} | findings {len(mod.FINDINGS)} | baselines {passing}/{len(baselines)} PASS ({sysb['database']})")

@@ -12,3 +12,5 @@ python tools/compliance/build_audit.py ifrs9_eir
 - `standards/` — one module per workbook exposing `META`, `ROWS`, `FINDINGS`, `BASELINES`: `ifrs9_eir` (the EIR and amortised cost), `ifrs9_impairment`. Still to draft: IFRS 7 / IAS 1 disclosure, the RBM directive, Contract Schedule 1.
 
 Requires the Python environment with `openpyxl` and `reportlab` (the same one that renders the specifications).
+
+The five modules now: `ifrs9_eir`, `ifrs9_impairment`, `ifrs7_ias1_disclosure`, `rbm_dfi_directive`, `contract_schedule1`. The builder also writes `<file_stem>.json`, the source the register loads (`php artisan compliance:audits --load`), and reads `<file_stem>.signed.json` back (`--export-signed`) so a regenerated workbook carries the register's signed statuses. `php artisan compliance:audits --pack=YYYY-MM` builds the auditor's pack.

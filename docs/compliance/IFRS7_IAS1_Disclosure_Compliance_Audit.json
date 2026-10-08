@@ -1,0 +1,191 @@
+{
+ "key": "ifrs7_ias1_disclosure",
+ "meta": {
+  "file_stem": "IFRS7_IAS1_Disclosure_Compliance_Audit",
+  "short": "IFRS 7 and IAS 1 - presentation and disclosure",
+  "title": "IAS 1 Presentation of Financial Statements (1.82(a)) and IFRS 7 Financial Instruments: Disclosures (7.20, 7.35A to 7.35N) - the lines and disclosures the system produces",
+  "basis": "Prepared 9 October 2026 from the report catalogue (Report Hub, thirty reports, every one rendered by ifrs9:smoke-reports on the clean install), the EIR as at a date, the scenario sets and the stress runs.",
+  "source": "IAS 1.82(a) (interest revenue calculated using the effective interest method presented separately); IFRS 7.20 (income, expense, gains and losses), 7.35A to 7.35N (credit risk: practices, quantitative and qualitative information, the allowance reconciliation 7.35H, collateral 7.35K, write-off 7.35L, sensitivity 7.35G). Spec v4 sections 6.11, 12, 15.7.",
+  "reviewer": "Deloitte"
+ },
+ "rows": [
+  {
+   "part": "IAS 1 PRESENTATION",
+   "reference": "IAS 1.82(a)",
+   "section_name": "Interest revenue at the effective interest method as its own line",
+   "requirement": "The statement of profit or loss presents interest revenue calculated using the effective interest method separately.",
+   "status": "Done",
+   "engine_comment": "The EIR as at a date gives the EIR interest, the contractual interest posted and the difference for the year to any date, by product, by GL and in total, with the CSV download; the GL reconciliation ties the contractual interest to the ledger.",
+   "general_comment": "The revenue shift is the difference column.",
+   "compliance_comment": "Compliant: the line is produced; the year-end figure becomes a golden number on the first approved run.",
+   "where_to_see": "Report Hub, EIR as at a Date: /eir-as-at; GL Reconciliation: /eir-reconciliation",
+   "governance_setting": "stage3_interest_basis",
+   "test": "Tests\\Feature\\Eir\\EirAsAtServiceTest::test_the_book_rolls_up_by_product_and_gl"
+  },
+  {
+   "part": "IFRS 7 INCOME AND EXPENSE",
+   "reference": "7.20(b)",
+   "section_name": "Total interest revenue and interest expense (effective interest method)",
+   "requirement": "Disclose total interest revenue calculated using the effective interest method for financial assets at amortised cost.",
+   "status": "Done",
+   "engine_comment": "As IAS 1.82(a): the book view's EIR interest year to date.",
+   "general_comment": "",
+   "compliance_comment": "Compliant.",
+   "where_to_see": "/eir-as-at",
+   "governance_setting": "",
+   "test": "Tests\\Feature\\Eir\\EirAsAtServiceTest"
+  },
+  {
+   "part": "IFRS 7 INCOME AND EXPENSE",
+   "reference": "7.20A",
+   "section_name": "Gain or loss on derecognition of amortised-cost assets",
+   "requirement": "Disclose the gain or loss on derecognition and the reasons.",
+   "status": "Outstanding",
+   "engine_comment": "The 10 percent test and derecognition are not built (IFRS 9 EIR workbook, 3.3.2).",
+   "general_comment": "",
+   "compliance_comment": "Outstanding with the restructure history.",
+   "where_to_see": "",
+   "governance_setting": "",
+   "test": ""
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35F",
+   "section_name": "Credit risk management practices",
+   "requirement": "Explain how the entity determines a significant increase in credit risk and default, how instruments were grouped, and the write-off policy.",
+   "status": "Partially done",
+   "engine_comment": "The staging thresholds by facility class with their rebuttal basis, the missed-instalment trigger, the SICR groups and the 48 governed settings are in the system with their rationale; the write-off policy is MAIIC's to state.",
+   "general_comment": "",
+   "compliance_comment": "Partially done: the write-off policy is evidence awaited.",
+   "where_to_see": "Governance Centre: /eir-governance; Staging & SICR Rules: /stageing-rules",
+   "governance_setting": "staging_rebuttal; dpd_basis; stage3_missed_instalments",
+   "test": "Tests\\Feature\\Eir\\StagingThresholdSeederTest"
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35G",
+   "section_name": "Inputs, assumptions and estimation techniques; sensitivity",
+   "requirement": "Explain the basis of inputs and assumptions, how forward-looking information was incorporated, and changes from the previous period; sensitivity of the ECL to the inputs.",
+   "status": "Done",
+   "engine_comment": "The scenario set stores its sensitivity (the ECL under each scenario, weighted, ten points to the downside and to the upside) and its back-test; the stress runs save the ECL under each scenario; the method cards explain the transmission; the Sensitivity report renders.",
+   "general_comment": "",
+   "compliance_comment": "Compliant.",
+   "where_to_see": "Governance Centre, Scenario Sets: /scenario-sets; Risk & Regulatory, Stress Testing: /stress-testing; Sensitivity: /ifrs9-reports/sensitivity",
+   "governance_setting": "scenario_weighting_method; fli_transmission_method",
+   "test": "Tests\\Feature\\Scenario\\ScenarioSetServiceTest::test_approval_needs_a_second_person_and_a_lock_is_final"
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35H",
+   "section_name": "Reconciliation of the loss allowance",
+   "requirement": "Reconcile the opening to the closing loss allowance by class, showing changes from staging transfers, originations, derecognitions and remeasurement.",
+   "status": "Done",
+   "engine_comment": "The ECL Reconciliation report and the provision comparison render for every period from the staged loan books.",
+   "general_comment": "",
+   "compliance_comment": "Compliant.",
+   "where_to_see": "Report Hub, ECL Reconciliation: /reports/ecl-reconciliation",
+   "governance_setting": "",
+   "test": "Tests\\Feature\\Ecl\\TimePhasedEclServiceTest"
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35I",
+   "section_name": "Changes in the gross carrying amount that contributed to changes in the allowance",
+   "requirement": "Explain how significant changes in the gross carrying amount contributed to changes in the loss allowance.",
+   "status": "Done",
+   "engine_comment": "The loan book of every month from July 2024 holds the gross carrying amount derived from the ledger with its provenance; the Loan Book Reconciliation and the disbursements (vintage) report render.",
+   "general_comment": "",
+   "compliance_comment": "Compliant.",
+   "where_to_see": "Report Hub, Loan Book Reconciliation: /reports/loan-book-reconciliation; Disbursements: /reports/disbursement-report",
+   "governance_setting": "loan_book_build_method",
+   "test": "Tests\\Feature\\Ebanker\\LoanBookBuildServiceTest"
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35K",
+   "section_name": "Collateral and other credit enhancements",
+   "requirement": "Disclose the effect of collateral on the amount of the loss allowance and the nature of the collateral held.",
+   "status": "Evidence needed from MAIIC",
+   "engine_comment": "The security register (P2_11) is landed and the collateral register screens exist; 31 active accounts carry no security on the register and the valuations are not held.",
+   "general_comment": "",
+   "compliance_comment": "Evidence needed from Credit.",
+   "where_to_see": "Data Foundation, Collateral Register: /collateral/register",
+   "governance_setting": "",
+   "test": ""
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35L",
+   "section_name": "Written-off assets still subject to enforcement",
+   "requirement": "Disclose the contractual amount outstanding on written-off assets still under enforcement.",
+   "status": "Evidence needed from MAIIC",
+   "engine_comment": "No write-off has been posted since the take-on; the policy and any pre-migration write-offs are MAIIC's to supply.",
+   "general_comment": "",
+   "compliance_comment": "Evidence needed.",
+   "where_to_see": "",
+   "governance_setting": "",
+   "test": ""
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35M",
+   "section_name": "Credit risk exposure by credit-risk rating grade and stage",
+   "requirement": "Disclose the gross carrying amount by credit risk rating grade, separately for 12-month and lifetime ECL (Stage 1, 2, 3).",
+   "status": "Done",
+   "engine_comment": "The IFRS 9 disclosure report and the RBM classification report present the book by stage and by grade; the staging writes the stage every period under the governed thresholds.",
+   "general_comment": "",
+   "compliance_comment": "Compliant.",
+   "where_to_see": "Risk & Regulatory, IFRS 9 Disclosure: /ifrs9-reports/fs-disclosure; RBM Classification: /ifrs9-reports/rbm-classification",
+   "governance_setting": "dpd_basis",
+   "test": "Tests\\Feature\\Eir\\StagingServiceTest"
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35N",
+   "section_name": "Concentrations of credit risk",
+   "requirement": "Disclose concentrations of credit risk.",
+   "status": "Done",
+   "engine_comment": "The Concentration report renders by sector, product and borrower.",
+   "general_comment": "",
+   "compliance_comment": "Compliant.",
+   "where_to_see": "Risk & Regulatory, Concentration: /ifrs9-reports/concentration",
+   "governance_setting": "",
+   "test": "Tests\\Feature\\Eir\\EirAsAtServiceTest"
+  },
+  {
+   "part": "THE PACK",
+   "reference": "12.5",
+   "section_name": "The auditor's pack",
+   "requirement": "The disclosures and the figures behind them handed to the auditor as one archive with a manifest.",
+   "status": "Done",
+   "engine_comment": "compliance:audits --pack={period} bundles the workbooks, the EIR as at the period end, the baselines and the ECL by stage with a SHA-256 per file in manifest.json.",
+   "general_comment": "",
+   "compliance_comment": "Compliant.",
+   "where_to_see": "compliance:audits --pack",
+   "governance_setting": "",
+   "test": "Tests\\Feature\\Eir\\EirAsAtServiceTest"
+  }
+ ],
+ "findings": [
+  {
+   "number": "F1",
+   "reference": "7.35K",
+   "finding": "Collateral evidence for 31 active accounts",
+   "what_was_found": "The register carries no security against 31 active accounts (the request to Credit of 7 October).",
+   "impact": "The collateral disclosure and the LGD rest on an incomplete register.",
+   "recommended_action": "Credit supplies the security and valuations; the register is reloaded by the feed.",
+   "owner": "Credit",
+   "status": "Open"
+  },
+  {
+   "number": "F2",
+   "reference": "7.35F, 7.35L",
+   "finding": "No write-off policy in the system",
+   "what_was_found": "No write-off has been posted in E-Banker since the take-on and the policy is not held.",
+   "impact": "The practices disclosure is incomplete.",
+   "recommended_action": "Finance supplies the policy; the help centre carries it.",
+   "owner": "Finance",
+   "status": "Open"
+  }
+ ]
+}

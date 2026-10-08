@@ -77,6 +77,7 @@ return [
             ], 0, 'amber'),
             $leaf('Scenario Sets', 'scenario-sets.index', 'balance-scale', false, '', 'The scenario sets of each period: proposed, approved, locked, with their back-test and sensitivity (spec v4 section 15)'),
             $leaf('Scenario Profiles (legacy)', 'scenarios.profiles'),
+            $leaf('Compliance Audits', 'compliance-audits.index', 'clipboard-check', false, '', 'One workbook per standard: every section, what the system does, where to see it, the test that proves it, signed under maker-checker (spec v4 section 12)'),
             $leaf('Financial Periods', 'accounting.financial_periods.index'),
             $leaf('Audit Trail', 'audit-trail.index'),
         ], 2, 'amber', 'The rules and settings the engines obey'),
