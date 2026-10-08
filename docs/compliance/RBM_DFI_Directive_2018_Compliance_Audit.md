@@ -24,9 +24,9 @@ Source: docs/regulatory/RBM Financial Services (Credit Risk Management for DFIs)
 | **PART I - PRELIMINARY** | | | | |
 | 2 | Definitions: short-, medium- and long-term facilities | Done | dpd_basis | Tests\Feature\Eir\StagingThresholdSeederTest |
 | **PART III - CLASSIFICATION** | | | | |
-| 9 | Classification of credit facilities | Done | dpd_basis | Tests\Feature\Eir\StagingServiceTest |
+| 9 | Classification of credit facilities | Done | dpd_basis | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_rbm_classification_report_agrees_with_the_return_on_every_loan |
 | 10 | Non-performing: substandard from 91 days (short-term) or 181 days (medium and long term) | Done | dpd_basis; staging_rebuttal | Tests\Feature\Eir\StagingServiceTest::test_the_directive_thresholds_by_tenor_class_and_the_bucket_fallback |
-| 11 | Doubtful and loss | Partially done |  | Tests\Feature\Eir\StagingServiceTest |
+| 11 | Doubtful and loss | Partially done |  | Tests\Feature\Rbm\RbmReturnServiceTest |
 | **PART IV - PROVISIONING** | | | | |
 | 12 | Minimum provisions by class | Done |  | Tests\Feature\Ecl\TimePhasedEclServiceTest |
 | 13 | Non-accrual of interest | Done | stage3_interest_basis | Tests\Feature\Eir\EirRevenueServiceTest |
@@ -37,7 +37,7 @@ Source: docs/regulatory/RBM Financial Services (Credit Risk Management for DFIs)
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 21:50:42 from maiic_ifrs9_bootstrap.
+Generated 2026-10-08 22:00:02 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
@@ -67,11 +67,11 @@ Generated 2026-10-08 21:50:42 from maiic_ifrs9_bootstrap.
 - **Recommended action:** MAIIC Risk supplies the current form (the Excel or PDF sent to the Bank); the provisional layout is re-ordered and re-worded to it line for line; the figures stay as they are.
 - **Owner:** MAIIC Risk / Dupleix
 
-### F3. The RBM Classification report's day bands differ from the directive's (9 to 11) - Open
+### F3. The RBM Classification report's day bands differed from the directive's (9 to 11) - Closed
 
-- **What was found:** The older RBM Classification report classifies every facility on one ladder (90, 180, 365 days); the directive classifies by term (90/180/360 for short-term, 180/360/720 for medium and long). The provisional return applies the directive's bands.
-- **Impact:** The two screens can show different classes for the same medium-term facility.
-- **Recommended action:** Align the RBM Classification report to the directive's bands by term (or retire it in favour of the return).
+- **What was found:** The older RBM Classification report classified every facility on one ladder (90, 180, 365 days) with 1 percent on pass and special mention; the directive classifies by term (90/180/360 for short-term, 180/360/720 for medium and long) with 0 and 5 percent. Resolved 9 October 2026: the report, the provision comparison and the arrears ageing now classify by the directive's bands by term and rates, from the same rule as the return; a test proves the two agree at every band edge on both terms.
+- **Impact:** None remaining: the two screens show one class for every facility.
+- **Recommended action:** Done.
 - **Owner:** Dupleix
 
 ## Section-by-section audit
@@ -93,11 +93,11 @@ Generated 2026-10-08 21:50:42 from maiic_ifrs9_bootstrap.
 **9. Classification of credit facilities** - *Done*
 
 - **What it requires:** Classify every facility as pass, special mention, substandard, doubtful or loss by the days in arrears and the qualitative factors.
-- **What the engine does:** The RBM Classification report classifies each loan from the days past due the build counts from the oldest overdue instalment, with the bucket ageing beside it; the IFRS 9 stage is mapped to the RBM class in the IFRS 9 vs RBM report.
+- **What the engine does:** The RBM Classification report classifies each loan from the days past due the build counts from the oldest overdue instalment, under the directive's bands by term of facility (the same bands as the RBM Return, proven to agree at every band edge); the arrears ageing shows the class beside each day band; the IFRS 9 stage is mapped to the RBM class in the IFRS 9 vs RBM report.
 - **Compliance comment:** Compliant.
 - **Where to see it:** Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm
 - **Governance setting:** `dpd_basis`
-- **Test that proves it:** `Tests\Feature\Eir\StagingServiceTest`
+- **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_the_rbm_classification_report_agrees_with_the_return_on_every_loan`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 **10. Non-performing: substandard from 91 days (short-term) or 181 days (medium and long term)** - *Done*
@@ -114,10 +114,10 @@ Generated 2026-10-08 21:50:42 from maiic_ifrs9_bootstrap.
 **11. Doubtful and loss** - *Partially done*
 
 - **What it requires:** Doubtful from 181 (short-term) or 361 days (medium and long term); loss from 361 or 721 days, or where recovery is not expected.
-- **What the engine does:** The RBM Classification report applies the day bands; the loan book's buckets end at 271 to 360 days and the build counts days from the overdue date without a ceiling, so the doubtful and loss bands are classified from the day count; the qualitative 'recovery not expected' flag is the write-off policy MAIIC has not stated.
+- **What the engine does:** The RBM Classification report and the RBM Return apply the doubtful and loss bands by term (181/361 days short-term, 361/721 otherwise); the loan book's buckets end at 271 to 360 days and the build counts days from the overdue date without a ceiling, so the bands are classified from the day count; the qualitative 'recovery not expected' flag is the write-off policy MAIIC has not stated.
 - **Compliance comment:** Partially done: the day bands are applied; the qualitative loss criterion awaits the policy.
 - **Where to see it:** Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm
-- **Test that proves it:** `Tests\Feature\Eir\StagingServiceTest`
+- **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 ### PART IV - PROVISIONING

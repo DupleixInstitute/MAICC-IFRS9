@@ -84,4 +84,20 @@ class RbmReturnServiceTest extends TestCase
         $this->assertSame('Substandard', $r['per_loan']['B']['class']);
         $this->assertStringContainsString('PROVISIONAL', $r['notes'][0]);
     }
+
+    /** Finding F3 of workbook 4: the RBM Classification report classifies by the same bands by term as the return. */
+    public function test_the_rbm_classification_report_agrees_with_the_return_on_every_loan(): void
+    {
+        // the edge of every band, on both terms
+        foreach ([[12, 31], [12, 90], [12, 91], [12, 180], [12, 181], [12, 360], [12, 361], [36, 31], [36, 180], [36, 181], [36, 360], [36, 361], [36, 720], [36, 721]] as $i => [$tenor, $dpd]) {
+            DB::table('loan_books')->insert(['contract_id' => 'X' . $i, 'reporting_period' => '2026-08', 'product_code' => '1050101', 'tenor' => $tenor, 'overdue_days' => $dpd, 'carrying_amount' => 1, 'principal_balance' => 1]);
+        }
+        $case = new \ReflectionMethod(\App\Http\Controllers\Reports\Ifrs9ReportsController::class, 'rbmClassCase');
+        $sql = $case->invoke(app(\App\Http\Controllers\Reports\Ifrs9ReportsController::class));
+        $rows = DB::table('loan_books')->where('reporting_period', '2026-08')->selectRaw("contract_id, tenor, overdue_days, {$sql} rbm")->get();
+        $this->assertCount(19, $rows);
+        foreach ($rows as $row) {
+            $this->assertSame(strtolower(RbmReturnService::classify((int) $row->overdue_days, (int) $row->tenor)), strtolower($row->rbm), "loan {$row->contract_id}: tenor {$row->tenor}, {$row->overdue_days} days");
+        }
+    }
 }

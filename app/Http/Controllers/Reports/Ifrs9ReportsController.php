@@ -546,17 +546,20 @@ class Ifrs9ReportsController extends Controller
     public function nplArrears(Request $request)
     {
         $period = $this->period($request);
+        // the day bands are the directive's; the class a band carries depends on the term, so it is a column of its own
         $buckets = DB::table('loan_books')->where('reporting_period', $period)
             ->selectRaw("CASE
-                    WHEN COALESCE(overdue_days,0) <= 30 THEN '0-30 (Pass)'
-                    WHEN overdue_days <= 89  THEN '31-89 (Special Mention)'
-                    WHEN overdue_days <= 179 THEN '90-179 (Substandard)'
-                    WHEN overdue_days <= 364 THEN '180-364 (Doubtful)'
-                    ELSE '365+ (Loss)' END bucket,
+                    WHEN COALESCE(overdue_days,0) <= 30 THEN '0-30'
+                    WHEN overdue_days <= 90  THEN '31-90'
+                    WHEN overdue_days <= 180 THEN '91-180'
+                    WHEN overdue_days <= 360 THEN '181-360'
+                    WHEN overdue_days <= 720 THEN '361-720'
+                    ELSE '721+' END bucket,
+                " . $this->rbmClassCase() . " rbm,
                 MIN(COALESCE(overdue_days,0)) ord,
                 COUNT(*) n, SUM(" . self::EAD_SQL . ") ead, SUM(COALESCE(ecl_value,0)) ecl")
-            ->groupBy('bucket')->orderBy('ord')->get()
-            ->map(fn ($r) => [$r->bucket, number_format($r->n), $this->money($r->ead), $this->money($r->ecl)])->all();
+            ->groupBy('bucket', 'rbm')->orderBy('ord')->orderBy('rbm')->get()
+            ->map(fn ($r) => [$r->bucket, $r->rbm, number_format($r->n), $this->money($r->ead), $this->money($r->ecl)])->all();
 
         $npl = DB::table('loan_books')->where('reporting_period', $period)
             ->where('ifrs9stage_pre_qualitative', 3)
@@ -571,9 +574,9 @@ class Ifrs9ReportsController extends Controller
                 ['label' => 'Loans', 'value' => number_format($tot->loans ?? 0), 'tone' => 'emerald'],
             ],
             'sections' => [[
-                'heading' => 'Arrears Ageing (Days Past Due)',
-                'columns' => ['DPD Bucket', 'Loans', 'Exposure (EAD)', 'ECL'],
-                'align' => ['l', 'r', 'r', 'r'],
+                'heading' => 'Arrears Ageing (days past due, with the RBM class by term of facility)',
+                'columns' => ['DPD Band', 'RBM Class', 'Loans', 'Exposure (EAD)', 'ECL'],
+                'align' => ['l', 'l', 'r', 'r', 'r'],
                 'rows' => $buckets,
             ]]]);
     }
@@ -1150,26 +1153,39 @@ class Ifrs9ReportsController extends Controller
     /* ===================================================================== */
 
     /**
-     * RBM Financial Asset Classification Directive (2018) — 5 categories by
-     * days past due, with minimum provisioning rates. NPL = Substandard +
-     * Doubtful + Loss (90+ DPD).
+     * RBM Credit Risk Management for DFIs Directive (2018): five classes by
+     * days past due, the bands by the term of the facility (section 2: short
+     * term is 12 months or less), the minimum provision per class (section
+     * 12). The same bands and rates as RbmReturnService, so this report and
+     * the RBM Return agree on every loan. NPL = Substandard + Doubtful + Loss.
+     *
+     *   class            short-term   medium/long   rate
+     *   Pass             0 to 30      0 to 30       0 %
+     *   Special Mention  31 to 90     31 to 180     5 %
+     *   Substandard      91 to 180    181 to 360    20 %
+     *   Doubtful         181 to 360   361 to 720    50 %
+     *   Loss             over 360     over 720      100 %
      */
     private const RBM = [
-        'Pass'            => ['min' => 0,   'max' => 30,    'rate' => 0.01],
-        'Special Mention' => ['min' => 31,  'max' => 89,    'rate' => 0.01],
-        'Substandard'     => ['min' => 90,  'max' => 179,   'rate' => 0.20],
-        'Doubtful'        => ['min' => 180, 'max' => 364,   'rate' => 0.50],
-        'Loss'            => ['min' => 365, 'max' => 999999, 'rate' => 1.00],
+        'Pass'            => ['short' => [0, 30],    'long' => [0, 30],    'rate' => 0.00],
+        'Special Mention' => ['short' => [31, 90],   'long' => [31, 180],  'rate' => 0.05],
+        'Substandard'     => ['short' => [91, 180],  'long' => [181, 360], 'rate' => 0.20],
+        'Doubtful'        => ['short' => [181, 360], 'long' => [361, 720], 'rate' => 0.50],
+        'Loss'            => ['short' => [361, null], 'long' => [721, null], 'rate' => 1.00],
     ];
 
-    /** SQL CASE that maps overdue_days to the RBM class label. */
+    /** SQL CASE that maps overdue_days and the tenor to the RBM class label, by the directive's bands by term. */
     private function rbmClassCase(): string
     {
         return "CASE
-            WHEN COALESCE(overdue_days,0) <= 30  THEN 'Pass'
-            WHEN overdue_days <= 89              THEN 'Special Mention'
-            WHEN overdue_days <= 179             THEN 'Substandard'
-            WHEN overdue_days <= 364             THEN 'Doubtful'
+            WHEN COALESCE(overdue_days,0) <= 30 THEN 'Pass'
+            WHEN COALESCE(tenor,0) <= 12 AND overdue_days <= 90  THEN 'Special Mention'
+            WHEN COALESCE(tenor,0) <= 12 AND overdue_days <= 180 THEN 'Substandard'
+            WHEN COALESCE(tenor,0) <= 12 AND overdue_days <= 360 THEN 'Doubtful'
+            WHEN COALESCE(tenor,0) <= 12                         THEN 'Loss'
+            WHEN overdue_days <= 180 THEN 'Special Mention'
+            WHEN overdue_days <= 360 THEN 'Substandard'
+            WHEN overdue_days <= 720 THEN 'Doubtful'
             ELSE 'Loss' END";
     }
 
@@ -1219,16 +1235,16 @@ class Ifrs9ReportsController extends Controller
         }
 
         return [
-            'subtitle' => 'Prudential asset classification by days past due (RBM Financial Asset Classification Directive, 2018)',
+            'subtitle' => 'Prudential classification by days past due under the directive\'s bands by term: 30/90/180/360 days for a facility of 12 months or less, 30/180/360/720 otherwise (RBM Credit Risk Management for DFIs Directive, 2018, sections 9 to 12); the same bands and rates as the RBM Return',
             'kpis' => [
-                ['label' => 'NPL Ratio (90+ DPD)', 'value' => $this->pct($totEad ? $nplEad / $totEad : 0), 'tone' => 'rose'],
+                ['label' => 'NPL Ratio (substandard and below)', 'value' => $this->pct($totEad ? $nplEad / $totEad : 0), 'tone' => 'rose'],
                 ['label' => 'RBM Provision', 'value' => $this->money($totProv), 'tone' => 'amber'],
                 ['label' => 'IFRS 9 ECL', 'value' => $this->money($totEcl), 'tone' => 'rose'],
                 ['label' => 'ECL − RBM', 'value' => $this->money($totEcl - $totProv), 'tone' => ($totEcl - $totProv) >= 0 ? 'emerald' : 'rose'],
             ],
             'sections' => [[
-                'heading' => 'RBM Asset Classification (by Days Past Due)',
-                'columns' => ['RBM Class', 'Loans', 'Exposure (EAD)', 'RBM Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL − RBM'],
+                'heading' => 'RBM Asset Classification (by days past due and term of facility)',
+                'columns' => ['RBM Class', 'Loans', 'Exposure (EAD)', 'Minimum Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL − RBM'],
                 'align' => ['l', 'r', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $rows,
             ]],

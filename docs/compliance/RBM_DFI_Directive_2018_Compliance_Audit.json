@@ -28,12 +28,12 @@
    "section_name": "Classification of credit facilities",
    "requirement": "Classify every facility as pass, special mention, substandard, doubtful or loss by the days in arrears and the qualitative factors.",
    "status": "Done",
-   "engine_comment": "The RBM Classification report classifies each loan from the days past due the build counts from the oldest overdue instalment, with the bucket ageing beside it; the IFRS 9 stage is mapped to the RBM class in the IFRS 9 vs RBM report.",
+   "engine_comment": "The RBM Classification report classifies each loan from the days past due the build counts from the oldest overdue instalment, under the directive's bands by term of facility (the same bands as the RBM Return, proven to agree at every band edge); the arrears ageing shows the class beside each day band; the IFRS 9 stage is mapped to the RBM class in the IFRS 9 vs RBM report.",
    "general_comment": "",
    "compliance_comment": "Compliant.",
    "where_to_see": "Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm",
    "governance_setting": "dpd_basis",
-   "test": "Tests\\Feature\\Eir\\StagingServiceTest"
+   "test": "Tests\\Feature\\Rbm\\RbmReturnServiceTest::test_the_rbm_classification_report_agrees_with_the_return_on_every_loan"
   },
   {
    "part": "PART III - CLASSIFICATION",
@@ -54,12 +54,12 @@
    "section_name": "Doubtful and loss",
    "requirement": "Doubtful from 181 (short-term) or 361 days (medium and long term); loss from 361 or 721 days, or where recovery is not expected.",
    "status": "Partially done",
-   "engine_comment": "The RBM Classification report applies the day bands; the loan book's buckets end at 271 to 360 days and the build counts days from the overdue date without a ceiling, so the doubtful and loss bands are classified from the day count; the qualitative 'recovery not expected' flag is the write-off policy MAIIC has not stated.",
+   "engine_comment": "The RBM Classification report and the RBM Return apply the doubtful and loss bands by term (181/361 days short-term, 361/721 otherwise); the loan book's buckets end at 271 to 360 days and the build counts days from the overdue date without a ceiling, so the bands are classified from the day count; the qualitative 'recovery not expected' flag is the write-off policy MAIIC has not stated.",
    "general_comment": "",
    "compliance_comment": "Partially done: the day bands are applied; the qualitative loss criterion awaits the policy.",
    "where_to_see": "Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm",
    "governance_setting": "",
-   "test": "Tests\\Feature\\Eir\\StagingServiceTest"
+   "test": "Tests\\Feature\\Rbm\\RbmReturnServiceTest"
   },
   {
    "part": "PART IV - PROVISIONING",
@@ -138,12 +138,12 @@
   {
    "number": "F3",
    "reference": "9 to 11",
-   "finding": "The RBM Classification report's day bands differ from the directive's",
-   "what_was_found": "The older RBM Classification report classifies every facility on one ladder (90, 180, 365 days); the directive classifies by term (90/180/360 for short-term, 180/360/720 for medium and long). The provisional return applies the directive's bands.",
-   "impact": "The two screens can show different classes for the same medium-term facility.",
-   "recommended_action": "Align the RBM Classification report to the directive's bands by term (or retire it in favour of the return).",
+   "finding": "The RBM Classification report's day bands differed from the directive's",
+   "what_was_found": "The older RBM Classification report classified every facility on one ladder (90, 180, 365 days) with 1 percent on pass and special mention; the directive classifies by term (90/180/360 for short-term, 180/360/720 for medium and long) with 0 and 5 percent. Resolved 9 October 2026: the report, the provision comparison and the arrears ageing now classify by the directive's bands by term and rates, from the same rule as the return; a test proves the two agree at every band edge on both terms.",
+   "impact": "None remaining: the two screens show one class for every facility.",
+   "recommended_action": "Done.",
    "owner": "Dupleix",
-   "status": "Open"
+   "status": "Closed"
   }
  ]
 }
