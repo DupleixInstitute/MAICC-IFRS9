@@ -1,0 +1,34 @@
+"""Spec v4 3.6: the three staging rules compared (policy, November model, directive), the inconsistencies, the decision; O13 row; two settings; Finance question."""
+p = r"C:\Users\wadza\OneDrive\2026\Projects\MAIIC\3. Project Execution\specs\MAIIC_EIR_Engine_Specification_v4_2026-10-07.md"
+s = open(p, encoding="utf-8").read()
+def rep(old, new):
+    global s
+    assert old in s, old[:70]
+    s = s.replace(old, new)
+add = '''
+**The three rules MAIIC lives with, compared.** The signed 2025 accounting policy, the ECL model that produced the 2025 figures and the directive do not say the same thing, and the engine has to carry all three in a way the auditors can follow.
+
+| | The accounting policy (2025 statements, notes 3.8 and 22.8.1) | The November 2025 ECL model | The directive, as seeded |
+|---|---|---|---|
+| Stage 3, default | "when the borrower has missed four consecutive contractual payments, or the loan becomes 90 days past due", with note 3.8's door: "unless the Entity has reasonable and supportable information to demonstrate that a more lagging default criterion is more appropriate" | Over 181 days past due. Nothing at 90 | Non-performing from 181 days (medium and long term), 91 (short term) |
+| Stage 2, significant increase in credit risk | Changes in the probability of default against inception, qualitative events, the 30-day backstop | 31 to 180 days past due. The probability-change test exists in the sheet but fired on none of the 100 loans | 31 days (IFRS 9 B5.5.11, not rebutted) |
+| The directive's classes | not mentioned | a column, blank on every loan | Standard, special mention, substandard, doubtful, loss, by tenor |
+| A tenor split | none | none: 181 for every facility | 91 days at 12 months or less, 181 above |
+| November 2025 | | 100 loans: 72, 10 and 18 by stage; exposure 11.54, 1.22 and 1.08 billion | the E-Banker book of 125 loans on the demo: 79, 25 and 21; 7.39, 4.38 and 2.06 billion |
+
+Five things follow. **The policy note says 90 days and the model applied 181**; the note's door was walked through but the note does not say so, and for the 2026 statements it must, with the directive as the reason, or the model must move to 90. **The four-consecutive-payments test** is in the policy and in neither the model nor the directive; on monthly instalments it falls at about 120 days, and the engine will carry it as a second Stage 3 trigger from the instalment plan and the ledger. **Stage 2 was, in practice, days past due alone**; the engine's 31 days reproduces that, and the probability-change test is the work of section 14. **No tenor split existed**, so the eight short-term facilities of November were staged at 181 where the directive says 91: small on the MAIIC book, decisive on the Mega Farm book. **The model held 100 loans where E-Banker held 125**; the 25 it leaves out (closed, code H, nil balances) are to be named by Finance before the two stagings can be reconciled.
+
+**Which days past due.** The directive counts days from the overdue instalment. The stored report carries both the date of the oldest unpaid instalment and the ageing of the overdue amounts by bucket, and on some accounts they disagree: an account partly cured keeps an old overdue date while its buckets empty. The engine takes the instalment date, as the directive does, and shows the bucket ageing beside it; the choice is governed (`dpd_basis`) so that it can be changed with a reason.
+
+**Decision D31.** The governed thresholds stand as seeded: Stage 3 at 181 days for medium- and long-term facilities and 91 for short-term and Mega Farm, Stage 2 at 31 days. They follow the directive and reproduce the 2025 model, so the 2025 figures do not move. The rebuttal of the 90-day presumption is written down as the O13 sign-off, with the directive cited by gazette and section, and a sentence is drafted for the 2026 policy note. The four-payment trigger and the days-past-due basis become governed items beside the thresholds.
+
+'''
+rep("Two differences between the directive and IFRS 9 that the engine must show rather than resolve:", add + "Two differences between the directive and IFRS 9 that the engine must show rather than resolve:")
+rep("| D23 | **The three MAIIC extract scripts are retired.**",
+    "| D31 | **The staging thresholds follow the RBM DFI directive and reproduce the 2025 model** (section 3.6): Stage 3 at 181 days past due for medium- and long-term facilities, 91 for short-term and the Mega Farm programme; Stage 2 at 31 days; the 90-day presumption rebutted in writing on the directive; the four-consecutive-payments trigger and the days-past-due basis governed beside them; the 2026 policy note to say so. | Dupleix, 8 Oct 2026; Dr Thom to sign the rebuttal (O13) | The policy note says 90 days, the model applied 181 and the statements rest on it; the gap is closed by documenting the rebuttal, not by moving the number |\n| D23 | **The three MAIIC extract scripts are retired.**")
+rep("| Rebutting the 30-day Stage 2 presumption | Allowed with documented evidence, approved | Recommendation; a Phase 0 sign-off. The 90-day default presumption is already rebutted on the RBM DFI directive of 2018 (section 3.6): Stage 3 at 181 days for medium- and long-term facilities, 91 for short-term and Mega Farm | O13 |",
+    "| Rebutting the 30-day Stage 2 presumption | Allowed with documented evidence, approved | Recommendation; a Phase 0 sign-off. The 90-day default presumption is already rebutted on the RBM DFI directive of 2018 (section 3.6, D31): Stage 3 at 181 days for medium- and long-term facilities, 91 for short-term and Mega Farm; the policy note of 2026 to record it | O13 |\n| Days-past-due basis (`dpd_basis`) | Oldest overdue instalment (the directive's count) | Recommendation (section 3.6); bucket ageing shown beside it | new |\n| Missed-instalment trigger for Stage 3 (`stage3_missed_instalments`) | 4 consecutive | The accounting policy's own second test (note 22.8.1); a Stage 3 trigger beside the day count | new |")
+rep("| Finance | Whether the year-end re-rating of 31 December 2025 was intended as policy (the posting itself is now fully explained, section 3.4); the historic materiality threshold;",
+    "| Finance | Whether the year-end re-rating of 31 December 2025 was intended as policy (the posting itself is now fully explained, section 3.4); which 25 loans the November 2025 ECL model leaves out of E-Banker's 125 and why (section 3.6); the historic materiality threshold;")
+rep("- **Non-performing**:", "- **Days past due basis**: whether days overdue are counted from the oldest unpaid instalment (the directive's count, governed default) or read from the ageing of overdue amounts by bucket.\n- **Non-performing**:")
+open(p, "w", encoding="utf-8").write(s); print("3.6 comparison and D31 added; settings; Finance question; glossary")
