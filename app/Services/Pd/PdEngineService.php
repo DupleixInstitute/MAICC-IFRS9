@@ -23,6 +23,7 @@ class PdEngineService
     /** @return array{matrix_id:int,window:string,transitioned:int,pds:array<int,float>,updated:int} */
     public function run(string $period, int $portfolioId, int $windowMonths = 12, ?string $userName = 'system', ?int $userId = null): array
     {
+        \App\Support\ReportingPeriodLock::assertOpen($period, 'the PD engine');
         $profileId = (int) (DB::table('transition_profile_definitions')->where('profile_code', 'M101')->value('id') ?? DB::table('transition_profile_definitions')->min('id'));
         if (! $profileId) {
             throw new RuntimeException('No transition profile: run MaiicTransitionProfileSeeder.');

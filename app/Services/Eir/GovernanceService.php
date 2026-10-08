@@ -207,6 +207,12 @@ class GovernanceService
                 'options' => ['In-contract moves reset; negotiated changes modify', 'Every rate change is a reset'],
                 'default' => 'In-contract moves reset; negotiated changes modify',
             ],
+            'maker_checker_admin_override' => [
+                'label' => 'Administrator override of maker-checker',
+                'description' => 'Whether a user with the administrator role may approve a governance change, lock an EIR or review a fee classification they themselves proposed. The default refuses it: the two-person rule holds for everyone. System audit of 9 October 2026, finding H9: the override was a role check with no governance over it.',
+                'options' => ['Not allowed', 'Allowed for administrators'],
+                'default' => 'Not allowed',
+            ],
             'schedule_approval_control' => [
                 'label' => 'Approving a version 1 schedule',
                 'description' => 'A generated schedule moves from draft to approved before it is used. This decides whether a second person must approve it, as for a fee classification and the EIR lock, or one person may draft and approve for the first run. Open choice O18.',
@@ -369,6 +375,20 @@ class GovernanceService
     }
 
     /** The approved row in force for a key on a date, or null when there is none. */
+    /** The governed answer to "may this administrator approve their own change?" (finding H9). */
+    public function adminOverrideAllowed(?object $user = null, ?CarbonInterface $asOf = null): bool
+    {
+        $user = $user ?? auth()->user();
+        if (! $user || ! method_exists($user, 'hasRole') || ! $user->hasRole('admin')) {
+            return false;
+        }
+        try {
+            return $this->get('maker_checker_admin_override', $asOf) === 'Allowed for administrators';
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     public function inForce(string $key, ?CarbonInterface $asOf = null): ?GovernanceSetting
     {
         $date = ($asOf ?? CarbonImmutable::today())->toDateString();

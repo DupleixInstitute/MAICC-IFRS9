@@ -66,6 +66,6 @@ class EirGovernanceController extends Controller
     /** Administrators may approve their own proposal, as with the EIR lock. */
     private function adminOverride(): bool
     {
-        return (bool) auth()->user()?->hasRole('admin');
+        return app(GovernanceService::class)->adminOverrideAllowed(auth()->user()); // governed (audit H9)
     }
 }

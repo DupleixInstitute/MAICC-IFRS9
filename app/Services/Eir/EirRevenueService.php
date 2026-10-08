@@ -41,6 +41,11 @@ class EirRevenueService
     public function run(string $contractId, string $period, bool $recalculate = false, ?int $userId = null, ?string $reason = null): array
     {
         $period = $this->normalisePeriod($period);
+        try {
+            \App\Support\ReportingPeriodLock::assertOpen($period, 'the EIR roll-forward');
+        } catch (\App\Support\LockedPeriodException $e) {
+            return ['contract_id' => $contractId, 'reporting_period' => $period, 'status' => 'BLOCKED', 'error' => $e->getMessage()];
+        }
         if ($recalculate && trim((string) $reason) === '') {
             return ['contract_id' => $contractId, 'reporting_period' => $period, 'status' => 'BLOCKED',
                 'error' => 'A recalculation must state a reason.'];

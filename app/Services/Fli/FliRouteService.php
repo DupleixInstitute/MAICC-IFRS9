@@ -77,6 +77,7 @@ class FliRouteService
      */
     public function apply(string $period, ?int $userId = null): array
     {
+        \App\Support\ReportingPeriodLock::assertOpen($period, 'the forward-looking route');
         $asOf = CarbonImmutable::parse($period . '-01')->endOfMonth();
         $route = $this->setting('fli_adjustment_route', 'Regression', $asOf);
         $weighting = $this->setting('scenario_weighting_method', 'Weight the ECL across scenarios', $asOf);

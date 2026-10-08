@@ -24,6 +24,7 @@ class LgdEngineService
     /** @return array{lgd_id:int,window:string,cohort:int,start_balance:float,cure_rate:float,recovery_rate:float,lgd:float,updated:int} */
     public function run(string $period, int $portfolioId, int $windowMonths = 12, ?int $userId = null, ?string $label = null): array
     {
+        \App\Support\ReportingPeriodLock::assertOpen($period, 'the LGD engine');
         $end = CarbonImmutable::parse($period . '-01');
         $start = $end->subMonths($windowMonths);
         $available = DB::table('loan_books')->whereNotNull('calculated_ifrs9_stage')->where('loan_portfolio_id', $portfolioId)->min('reporting_period');

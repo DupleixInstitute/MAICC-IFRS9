@@ -159,7 +159,7 @@ class EirFeeClassificationController extends Controller
         $data = $request->validate(['fee_ids' => ['required', 'array', 'min:1'], 'fee_ids.*' => ['integer', 'exists:contract_fees,id']]);
         $fees = ContractFee::whereIn('id', $data['fee_ids'])->where('classification_status', 'CLASSIFIED')->get();
         $own = $fees->where('classified_by', auth()->id());
-        $adminOverride = (bool) auth()->user()?->hasRole('admin');
+        $adminOverride = app(\App\Services\Eir\GovernanceService::class)->adminOverrideAllowed(auth()->user()); // governed (audit H9)
         if ($own->isNotEmpty() && ! $adminOverride) return back()->withErrors(['fee_ids' => 'A classifier cannot review their own decision.']);
 
         DB::transaction(function () use ($fees) {

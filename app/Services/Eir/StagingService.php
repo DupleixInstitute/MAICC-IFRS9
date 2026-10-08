@@ -37,6 +37,9 @@ class StagingService
     /** @return array{period:string,rows:int,stage1:int,stage2:int,stage3:int,by_dpd:int,by_instalments:int,by_sicr:int,by_bucket:int} */
     public function stage(string $period, ?int $userId = null, bool $dryRun = false): array
     {
+        if (! $dryRun) {
+            \App\Support\ReportingPeriodLock::assertOpen($period, 'staging');
+        }
         $monthEnd = CarbonImmutable::parse($period . '-01')->endOfMonth();
         $missedTrigger = $this->missedTrigger($monthEnd);
         $rows = DB::table('loan_books')->where('reporting_period', $period)
@@ -47,7 +50,7 @@ class StagingService
         $updates = [];
         foreach ($rows as $r) {
             $class = str_contains(strtolower((string) $r->product_group), 'mega') ? 'MEGA_FARM' : 'DEFAULT';
-            [$s2, $s3] = $this->thresholds($class, (int) $r->tenor);
+            [$s2, $s3] = $this->thresholds($class, (int) $r->tenor, $monthEnd);
             // the build counts days from the oldest overdue instalment; a row with no
             // count (loaded by the report importer, or the Mega Farm book) ages by bucket
             $dpd = (int) $r->overdue_days;
@@ -106,20 +109,21 @@ class StagingService
     }
 
     /** @return array{0:int,1:int} */
-    private function thresholds(string $class, int $tenorMonths): array
+    private function thresholds(string $class, int $tenorMonths, ?CarbonImmutable $asOf = null): array
     {
-        $t = StagingThreshold::forFacility($class, $tenorMonths);
+        $t = StagingThreshold::forFacility($class, $tenorMonths, $asOf?->toDateString());
+        if ($t === null) {
+            // no silent default (D21): a month without a rule in force is an error to fix, not a 31/181 to assume
+            throw new \RuntimeException("No staging threshold is in force for facility class '{$class}' (tenor {$tenorMonths} months)" . ($asOf ? " at {$asOf->toDateString()}" : '') . '. Seed or approve one on the Staging & SICR Rules screen.');
+        }
 
-        return $t ? [(int) $t->stage2_dpd, (int) $t->stage3_dpd] : [31, 181];
+        return [(int) $t->stage2_dpd, (int) $t->stage3_dpd];
     }
 
     private function missedTrigger(CarbonImmutable $asOf): int
     {
-        try {
-            $v = $this->governance->get('stage3_missed_instalments', $asOf);
-        } catch (Throwable) {
-            return 4;
-        }
+        // no default in code (D21): the governed value or a named error
+        $v = $this->governance->get('stage3_missed_instalments', $asOf);
 
         return (int) (preg_match('/^(\d+)/', $v, $m) ? $m[1] : 0);
     }

@@ -128,9 +128,18 @@ class EirGovernanceControllerTest extends TestCase
         $this->assertSame('APPROVED', $proposal->fresh()->status);
         $this->assertSame(20, (int) $proposal->fresh()->approved_by);
 
-        // An administrator may approve their own proposal; the override is recorded.
+        // An administrator may approve their own proposal only when the governed
+        // setting allows it (audit H9); by default it does not.
         $this->propose(30, ['value' => 'ACT/365', 'effective_from' => '2026-06-01']);
         $own = GovernanceSetting::where('status', 'PROPOSED')->firstOrFail();
+        $this->approve(30, $own);
+        $this->assertStringContainsString('cannot approve', session('errors')->first('governance'));
+        $this->assertSame('PROPOSED', $own->fresh()->status);
+
+        // allowed by a change two people made: proposed by 40, approved by 50
+        $governance = new \App\Services\Eir\GovernanceService();
+        $allow = $governance->propose('maker_checker_admin_override', 'Allowed for administrators', '2026-05-01', 'The board allows the administrator override for the first run.', 40);
+        $governance->approve($allow->id, 50);
         $this->approve(30, $own);
         $this->assertSame('APPROVED', $own->fresh()->status);
         $meta = json_decode(DB::table('audit_logs')->where('action', 'EIR Governance Setting Approved')->orderByDesc('id')->value('meta'), true);

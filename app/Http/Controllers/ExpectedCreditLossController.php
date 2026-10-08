@@ -305,6 +305,11 @@ class ExpectedCreditLossController extends Controller
 
                 $periodDate = Carbon::parse($validated['reporting_period']);
                 $period     = $periodDate->format('Y-m');
+                try {
+                    \App\Support\ReportingPeriodLock::assertOpen($period, 'the ECL');
+                } catch (\App\Support\LockedPeriodException $e) {
+                    return redirect()->route('expected-credit-loss.index')->with('error', $e->getMessage());
+                }
 
                 /*
                 |--------------------------------------------------------------------------

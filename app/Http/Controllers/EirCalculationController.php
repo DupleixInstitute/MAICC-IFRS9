@@ -198,6 +198,6 @@ class EirCalculationController extends Controller
 
     private function adminOverride(): bool
     {
-        return (bool) auth()->user()?->hasRole('admin');
+        return app(\App\Services\Eir\GovernanceService::class)->adminOverrideAllowed(auth()->user()); // governed (audit H9)
     }
 }

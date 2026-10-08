@@ -59,8 +59,9 @@ class GovernanceServiceTest extends TestCase
         // Twelve from spec v3 section 8, plus period_rate_basis (29 Sep 2026),
         // plus the fifteen open choices of section 4 (7 Oct 2026), plus the
         // twenty settings of spec v4 sections 6, 13, 14, 15, 16 and 3.6 (8 Oct 2026).
-        $this->assertSame(48, GovernanceSetting::count());
-        $this->assertSame(48, GovernanceSetting::where('status', 'APPROVED')->count());
+        // plus maker_checker_admin_override (9 Oct 2026, audit H9).
+        $this->assertSame(49, GovernanceSetting::count());
+        $this->assertSame(49, GovernanceSetting::where('status', 'APPROVED')->count());
 
         foreach (GovernanceService::catalogue() as $key => $definition) {
             $this->assertSame($definition['default'], $this->service()->get($key), $key);
@@ -86,7 +87,7 @@ class GovernanceServiceTest extends TestCase
 
         // Running it again changes nothing: an approved MAIIC change is never overwritten.
         $this->seedGovernanceDefaults();
-        $this->assertSame(48, GovernanceSetting::count());
+        $this->assertSame(49, GovernanceSetting::count());
     }
 
     /** Audit finding H10: the generator resolves settings at origination, and MAIIC's earliest contract is March 2020. */
