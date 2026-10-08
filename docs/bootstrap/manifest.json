@@ -409,11 +409,12 @@
     },
     {
       "file": "takeon/Take-on schedules with mapping - with fee columns - for Tamanda to confirm - 7 Oct 2026.xlsx",
-      "query_id": "Take-on schedules with mapping - with fee columns - for Tamanda to confirm - 7 Oct 2026.xlsx",
+      "query_id": "TAKEON_MAPPING",
       "kind": "take-on amortisation schedules mapped to E-Banker accounts; fee columns AO:AU for Finance to complete",
       "rows": null,
       "sha256": "7713893c7d19672030ea3ac4b7c3b347ceedb1920cdf67655baa26716bc38872",
-      "bytes": 513214
+      "bytes": 513214,
+      "note": "The mapping workbook returned to Tamanda on 7 Oct 2026 with the fee columns; its figures link to the original"
     },
     {
       "file": "queries/FOLLOW-UP extracts for Barry - 6 Oct 2026.sql",
@@ -686,6 +687,13 @@
       "rows": 200,
       "sha256": "c66276674da61e5ff38c69120d0175181f4f3e4735305b6468c53e147f64b902",
       "bytes": 35588
+    },
+    {
+      "file": "takeon/Amortisation schedules as at 31 October 2024 - as received 11 Sep 2026.xlsx",
+      "query_id": "TAKEON_ORIGINAL",
+      "rows": null,
+      "sha256": "525db5520d9dec9616b2d0cec6e550d039c47f3722b855d90a607dac865d732e",
+      "note": "Tamanda's take-on workbook of 11 Sep 2026 exactly as received (Excel-saved, so every formula carries its value); the landing reads the figures here and the mapping, ticks and fees from the mapping workbook"
     }
   ]
 }
