@@ -1235,3 +1235,33 @@ Route::middleware(['auth', 'permission:reports.ifrs9'])
         Route::post('/save', [$s, 'save'])->name('save');
         Route::delete('/{stressScenario}', [$s, 'destroy'])->name('destroy');
     });
+
+// The E-Banker feed, the take-on schedules and the EIR as at a date
+// (spec v4 sections 6.8, 6.9 and 6.11).
+Route::group(['prefix' => 'eir-feed', 'as' => 'eir-feed.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirFeedController::class, 'index'])->name('index');
+    Route::get('/queries', [\App\Http\Controllers\EirFeedController::class, 'queries'])->name('queries');
+    Route::post('/land', [\App\Http\Controllers\EirFeedController::class, 'land'])->name('land');
+    Route::post('/build', [\App\Http\Controllers\EirFeedController::class, 'build'])->name('build');
+    Route::post('/build/{build}/approve', [\App\Http\Controllers\EirFeedController::class, 'approve'])->name('approve');
+});
+Route::group(['prefix' => 'eir-takeon', 'as' => 'eir-takeon.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirTakeonController::class, 'index'])->name('index');
+    Route::post('/upload', [\App\Http\Controllers\EirTakeonController::class, 'upload'])->name('upload');
+    Route::post('/build', [\App\Http\Controllers\EirTakeonController::class, 'build'])->name('build');
+    Route::post('/{block}/confirm', [\App\Http\Controllers\EirTakeonController::class, 'confirm'])->name('confirm');
+    Route::post('/{block}/fees', [\App\Http\Controllers\EirTakeonController::class, 'fees'])->name('fees');
+});
+Route::group(['prefix' => 'eir-as-at', 'as' => 'eir-as-at.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirAsAtController::class, 'index'])->name('index');
+    Route::get('/export', [\App\Http\Controllers\EirAsAtController::class, 'export'])->name('export');
+});
+
+// The user's appearance choice, kept on their record so it follows them to
+// another machine (spec v4 section 11.5).
+Route::post('/profile/theme', function (\Illuminate\Http\Request $request) {
+    $data = $request->validate(['theme' => ['required', 'in:light,dark,system']]);
+    $request->user()->forceFill(['theme_preference' => $data['theme']])->save();
+
+    return back(303);
+})->middleware('auth')->name('profile.theme');

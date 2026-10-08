@@ -9,6 +9,19 @@
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 
 
+        <!-- The theme before the page paints, so there is no flash of the wrong
+             theme: the saved choice (maiic.theme) or, for "follow the device"
+             and for a new browser, the device setting (spec v4 section 11.5). -->
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('maiic.theme');
+                    var dark = t === 'dark' || ((!t || t === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    if (dark) document.documentElement.classList.add('dark');
+                } catch (e) {}
+            })();
+        </script>
+
         <!-- Fonts -->
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap">
 
@@ -18,7 +31,7 @@
         @routes
 
     </head>
-    <body class="font-sans antialiased bg-gray-100 ">
+    <body class="font-sans antialiased bg-gray-100 text-gray-900 dark:bg-slate-900 dark:text-slate-100">
         @inertia
     </body>
 </html>

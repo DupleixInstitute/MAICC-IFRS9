@@ -81,6 +81,7 @@ class HandleInertiaRequests extends Middleware
                     'profile_photo_url' => $u->profile_photo_url,
                     'current_role' => $u->current_role,
                     'can' => $u->getAllPermissions()->pluck('name'),
+                    'theme_preference' => $u->theme_preference ?? 'system',
                 ];
             },
             'menu' => fn () => $this->visibleMenu(
@@ -96,6 +97,13 @@ class HandleInertiaRequests extends Middleware
             'currency' => $currency,
             'notifications_unread' => fn () => Auth::check() ? Auth::user()->unreadNotifications()->count() : 0,
             'route_name' => Route::currentRouteName(),
+            // The period chip in the top bar: the latest financial period and
+            // whether it is open or closed. A display, not a control (spec v4 s.11.4).
+            'currentPeriod' => fn () => cache()->remember('inertia.current_period', 60, function () {
+                $p = \App\Models\FinancialPeriod::query()->orderByDesc('end_date')->first();
+
+                return $p ? ['name' => $p->name ?? ($p->start_date . ' to ' . $p->end_date), 'closed' => (bool) $p->closed] : null;
+            }),
         ]);
     }
 

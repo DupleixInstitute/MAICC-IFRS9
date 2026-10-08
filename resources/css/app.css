@@ -153,3 +153,45 @@
         @apply text-xs font-extrabold uppercase tracking-wider text-maiic-800 pb-2 mb-3 mt-6 border-b-2 border-maiicgold-400/60;
     }
 }
+
+/* ============================================================
+   Dark variants of the shared classes (spec v4 section 11.5). The pages
+   inherit the theme through these; the sidebar keeps its dark gradient in
+   both modes. Printed and exported outputs stay in the light palette.
+   ============================================================ */
+@layer components {
+    .dark .maiic-panel, .dark .card { @apply bg-slate-800 border-slate-700; }
+    .dark .maiic-table thead th { @apply bg-slate-700 text-slate-100; }
+    .dark .maiic-table tbody td { @apply border-slate-700 text-slate-200; }
+    .dark .maiic-table tbody tr:nth-child(even) { @apply bg-slate-800/60; }
+    .dark .maiic-table tbody tr:hover { @apply bg-slate-700/60; }
+    .dark .maiic-table tfoot th, .dark .maiic-table tr.total td { @apply bg-slate-700 text-slate-100 border-maiicgold-500; }
+    .dark .maiic-empty { @apply text-slate-500; }
+    .dark .maiic-filterbar { @apply bg-slate-800 border-slate-700; }
+    .dark .maiic-flabel, .dark .maiic-kpi-label { @apply text-slate-400; }
+    .dark .maiic-input, .dark .maiic-select, .dark .form-control, .dark input[type="text"], .dark input[type="number"], .dark input[type="date"], .dark input[type="search"], .dark input[type="email"], .dark select, .dark textarea {
+        @apply bg-slate-900 border-slate-600 text-slate-100 placeholder-slate-500;
+    }
+    .dark .maiic-action-neutral { @apply bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white; }
+    .dark .maiic-action-view { @apply bg-maiic-900/40 text-maiic-300 hover:bg-maiic-900/60; }
+    .dark .maiic-action-edit { @apply bg-amber-900/40 text-amber-300 hover:bg-amber-900/60; }
+    .dark .maiic-action-delete { @apply bg-red-900/40 text-red-300 hover:bg-red-900/60; }
+    .dark .maiic-badge-green { @apply bg-maiic-900/50 text-maiic-200; }
+    .dark .maiic-badge-gold { @apply bg-amber-900/50 text-amber-200; }
+    .dark .maiic-badge-red { @apply bg-red-900/50 text-red-200; }
+    .dark .maiic-badge-grey { @apply bg-slate-700 text-slate-200; }
+    .dark .maiic-kpi { @apply bg-slate-800 border-slate-700; }
+    .dark .maiic-kpi-value { @apply text-slate-100; }
+    .dark .maiic-section-title { @apply text-maiic-200; }
+    .dark .label-blue-gray { @apply text-slate-200 bg-slate-700; }
+    .dark .label-orange, .dark .label-warning { @apply text-amber-200 bg-amber-900/50; }
+    .dark .label-red { @apply text-red-200 bg-red-900/50; }
+    /* the plain white cards most pages still draw by hand */
+    .dark .bg-white { @apply bg-slate-800; }
+    .dark .bg-gray-50 { @apply bg-slate-800/70; }
+    .dark .bg-gray-100 { @apply bg-slate-900; }
+    .dark .text-gray-900, .dark .text-gray-800 { @apply text-slate-100; }
+    .dark .text-gray-700, .dark .text-gray-600 { @apply text-slate-300; }
+    .dark .text-gray-500 { @apply text-slate-400; }
+    .dark .border-gray-200, .dark .border-gray-100, .dark .divide-gray-200 > * { @apply border-slate-700; }
+}
