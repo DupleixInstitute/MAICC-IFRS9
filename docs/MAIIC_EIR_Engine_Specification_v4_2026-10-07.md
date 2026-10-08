@@ -20,7 +20,7 @@ This document records that. It is written, as before, for three readers at once:
 
 Where a file is named, it is one of the extracts committed under `docs/bootstrap/` in the repository (section 6.10), with a copy in `2. Documents from clients\Raw Query Scripts\Query Requests to MAIIC\Follow-Up Scripts Resutls\`. The scripts that produced every figure in this document are in `Build files\` beside them, with a README that says which script makes which number.
 
-Where a section says a design is taken from the Dupleix suite (sections 6, 11, 12, 13, 14 and 15), the code it was taken from is copied verbatim under `docs/reference/` in the repository, indexed by section in its README and pinned to the source commits in its manifest, so that the completeness of this document can be verified against working code and the build can port rather than reinvent. That folder is code only.
+Where a section says a design is taken from the Dupleix suite (sections 6, 11, 12, 13, 14 and 15), the code it was taken from is copied verbatim under `docs/reference/` in the repository, indexed by section in its README and pinned to the source commits in its manifest, so that the completeness of this document can be verified against working code and the build can port rather than reinvent. That folder is code only. The regulatory texts the document relies on are under `docs/regulatory/` (section 3.6).
 
 ## 1. What has happened since version 3
 
@@ -107,6 +107,28 @@ The engine treats the 28 as interest of December 2025 and shows them as their ow
 
 **Zaithwa Farms (000104450000015).** The month-end balance table shows the customer MWK 1,827,633.62 better off than the ledger from May 2025. The ledger is complete and right (24 postings, closing at 1,225,683.03 in the customer's favour) and so is the stored loan book. The balance table holds 30 April 2025 twice, and its May row restarted from nil and omitted both May receipts; every later row inherits the error. It is the only duplicate month-end row in the whole table. Fix: the vendor rebuilds the account's rows from May 2025; Finance checks any statement sent to the customer. No change to the engine, which reads the ledger.
 
+### 3.6 The Reserve Bank's directive for development finance institutions, and staging
+
+MAIIC is licensed as a development finance institution, and the Reserve Bank of Malawi classifies its lending under the **Financial Services (Credit Risk Management for Development Finance Institutions) Directive, 2018** (Malawi Gazette Supplement of 13 July 2018, No. 18A, pages 42 to 47; a copy is under `docs/regulatory/` in the repository and beside this document). It is the authority behind MAIIC's staging, and the engine's governed thresholds follow it.
+
+The directive sorts facilities by repayment period (section 2): short term, not more than 12 months; medium term, 12 to 60 months; long term, over 60 months. It then classifies each by how long instalments are overdue (section 10) and sets the provision for each class (the Schedule):
+
+| Class | Short-term facility | Medium- and long-term facility | Provision |
+|---|---|---|---|
+| Standard | current, to 30 days overdue | 31 to 90 days | 0 percent |
+| Special mention | 31 to 90 days | 91 to 180 days | 5 percent |
+| Substandard | 91 to 180 days | 181 to 365 days | 20 percent |
+| Doubtful | 181 to 365 days | 366 to 746 days | 50 percent |
+| Loss | over 365 days | over 746 days | 100 percent |
+
+Substandard, doubtful and loss are **non-performing**: the facility goes on non-accrual (section 13), interest accrued but not collected is reversed and interest is recognised only when received in cash, regardless of collateral; a loss facility is written off in the following quarter (section 12); where the directive's provision exceeds the IFRS one, the excess is an appropriation to a loan-loss reserve, not capital (section 15).
+
+**What the engine takes from it.** Stage 3 (credit-impaired) is the directive's non-performing line: **181 days past due for a medium- or long-term facility, 91 days for a short-term one.** That is where MAIIC's long-standing rule of "over 181 days" comes from, and it rebuts the IFRS 9 presumption that default occurs no later than 90 days past due (B5.5.37) on the authority of the regulator's own classification of development-finance lending; the 2025 financial statements rest on it. Stage 2 is kept at 31 days past due for every tenor: the IFRS 9 presumption of a significant increase in credit risk at 30 days (B5.5.11) is not rebutted, because the directive's wider "standard" band for medium- and long-term facilities is a prudential classification, not evidence that credit risk has not risen. The rebuttal of that 30-day presumption stays available as a governed proposal, inactive until Dr Thom signs it (the staging rebuttal of O13).
+
+The thresholds are seeded by tenor class into `staging_thresholds`, each row carrying the directive section it rests on: short term 31 and 91; medium and long term 31 and 181; the Mega Farm programme, which is seasonal input finance repaid after harvest and therefore short term whatever tenor the account carries, 31 and 91; and the long-term Stage 2 proposal at 91, future-dated. The classifier reads days past due from the stored report's overdue date and arrears buckets (section 6.2).
+
+Two differences between the directive and IFRS 9 that the engine must show rather than resolve: the directive stops interest on a non-performing facility, where IFRS 9 5.4.1(b) continues it on the net carrying amount (the trial balance's interest-suspense account, 1320, is the directive's rule in practice, and the reconciliation carries the difference as its own line); and the directive's provision percentages are prudential floors, so the loan-loss reserve of section 15 is where any excess over the ECL sits.
+
 ## 4. Decisions, and the Governance Centre
 
 ### 4.1 Agreed this week
@@ -169,7 +191,7 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | Shape of the auditor export | Summary-tab shape | Recommendation, with Deloitte | O12 |
 | Keyman insurance charged to the borrower | Not integral: pass-through, outside the EIR | Recommendation; a Phase 0 sign-off | O13 |
 | Nascomex preference shares | Equity instrument (IAS 32), outside the EIR | Recommendation; a Phase 0 sign-off | O13 |
-| Rebutting the 30-day Stage 2 presumption | Allowed with documented evidence, approved | Recommendation; a Phase 0 sign-off | O13 |
+| Rebutting the 30-day Stage 2 presumption | Allowed with documented evidence, approved | Recommendation; a Phase 0 sign-off. The 90-day default presumption is already rebutted on the RBM DFI directive of 2018 (section 3.6): Stage 3 at 181 days for medium- and long-term facilities, 91 for short-term and Mega Farm | O13 |
 | Reset or modification | In-contract moves reset; negotiated changes modify | Recommendation; Deloitte in writing before the first reset is booked | O17 |
 | Approving a version 1 schedule | Second person must approve | Recommendation | O18 |
 | The historic materiality assessment | Reproduce it beside the detailed figure | Recommendation; Finance supplies the threshold | O20 |
@@ -1036,7 +1058,7 @@ Dr Thom asked for one number: how much revenue moves between years when MAIIC's 
 3. **Anchor the probability on cohort default rates, with a benchmark.** Each segment's observed season default rate is blended with a benchmark for a normal year (Malawi's farm-input programmes and their recovery record, microfinance agricultural lending, the 2024 cohort as the one ordinary season on record), weighted by how many seasons of own data exist. This is the standard treatment of a short-history book: the own experience gains weight each season, and the benchmark says what a normal year looks like until the book has seen one.
 4. **Put the probability second and recovery first.** For the 95 percent already in default the probability is 100 percent by definition; the provision depends entirely on how much comes back: the maize delivered, its value, how much the buyers pay and when. The loss given default is built from the 2025 collection experience (K14.8 billion repaid on the fund, the maize write-down, the buyer receivables) by segment and season. That is where the K39.8 billion of provision comes from, and it is the part the data supports.
 5. **Forward-looking by scenario, not by regression.** A regression on the economy needs years; two seasons give nothing. The scenario set of section 15 (a normal rainfall season, a drought season, a devaluation year) carries a default rate and a recovery rate per segment for the programme, weighted as section 15 describes, and the manual overlay route of 14.6 is used with the reason written down.
-6. **Keep it separate and label it.** The MAIIC book keeps its transition-matrix probabilities. The Mega Farm schemes get their own method card in the system (section 14.7's cards), their own back-test every season, and a rule that the method is reviewed once three seasons exist. The audit workbook then says exactly what was done for which book and why.
+6. **Keep it separate and label it.** Under the Reserve Bank's directive (section 3.6) the programme's seasonal facilities are short term and non-performing from 91 days past due, not the 181 that applies to MAIIC's medium- and long-term book; the governed thresholds carry a Mega Farm class for that. The MAIIC book keeps its transition-matrix probabilities. The Mega Farm schemes get their own method card in the system (section 14.7's cards), their own back-test every season, and a rule that the method is reviewed once three seasons exist. The audit workbook then says exactly what was done for which book and why.
 
 **A third option: MAIIC's agricultural-sector PD, scaled to the programme.** MAIIC's own agricultural book has what the programme lacks, which is time: six years of migrations, a term structure (how the probability builds over 12, 24 and 36 months) and an observed sensitivity to the same drivers, rainfall, maize prices, the kwacha and input costs. What it does not have is the programme's level of default: a sector probability of a few percent applied to a book that lost a third of its 2024 cohort in a year, and 95 percent of its 2025 cohort, would be wrong exactly where it matters, on the Stage 1 loans and on every new season. The method therefore takes the shape from the sector and the level from the programme:
 
@@ -1059,6 +1081,8 @@ This is the benchmark prior of step 3 with the prior chosen well: MAIIC's own se
 - **Stored loan book**: the table behind the printed Loan Book Report, one row per account per run.
 - **Latest run**: of several stored runs of the same month, the one with the highest row id; the one the engine keeps.
 - **Take-on**: the loading of the pre-existing loans into E-Banker on 31 July 2024, with one opening posting each.
+- **The DFI directive**: the Reserve Bank of Malawi's Financial Services (Credit Risk Management for Development Finance Institutions) Directive, 2018, which classifies MAIIC's facilities by days overdue and tenor; the source of Stage 3 at 181 days (section 3.6).
+- **Non-performing**: substandard, doubtful or loss under the directive; placed on non-accrual.
 - **Diff Int by ROI**: E-Banker's year-end re-rating of a year's interest to the rate on the account at year end: debits to customers as type 303, credits as type 120, and one net voucher per batch to interest income.
 - **Bootstrap (method A)**: building a month's loan book from the stored Loan Book Report's latest run, as E-Banker printed it.
 - **Derivation (method B)**: building it from the ledger and the masters, with E-Banker's own arrears fields.

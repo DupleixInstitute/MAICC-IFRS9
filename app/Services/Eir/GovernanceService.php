@@ -185,7 +185,7 @@ class GovernanceService
             ],
             'staging_rebuttal' => [
                 'label' => 'Rebutting the 30-day Stage 2 presumption',
-                'description' => 'IFRS 9 presumes a significant increase in credit risk at 30 days past due but lets the presumption be rebutted with reasonable and supportable evidence. This decides whether MAIIC rebuts it, with a documented reason approved by a second person, or never. One of the Phase 0 sign-offs (O13).',
+                'description' => 'IFRS 9 presumes a significant increase in credit risk at 30 days past due (B5.5.11) and default at 90 days (B5.5.37), and lets both be rebutted with reasonable and supportable evidence. The 90-day default presumption is rebutted for medium- and long-term facilities on the Reserve Bank of Malawi's Financial Services (Credit Risk Management for Development Finance Institutions) Directive, 2018, which classifies them non-performing from 181 days (short-term and Mega Farm facilities from 91); the governed thresholds carry that. This setting decides whether the 30-day Stage 2 presumption may also be rebutted, with a documented reason approved by a second person, or never. One of the Phase 0 sign-offs (O13).',
                 'options' => ['Allowed with documented evidence, approved', 'Never: 30 days past due is Stage 2'],
                 'default' => 'Allowed with documented evidence, approved',
             ],
