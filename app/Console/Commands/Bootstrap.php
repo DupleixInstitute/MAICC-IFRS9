@@ -265,6 +265,17 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.7 ECL', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
+        // 2 the scenario set: the first set of 15.8 seeded as proposed and approved under the bootstrap label so the chain can run
+        try {
+            $sets = app(\App\Services\Scenario\ScenarioSetService::class);
+            $setId = $sets->seedFirstSet($to, $user);
+            if (DB::table('governed_scenario_sets')->where('id', $setId)->value('status') === 'PROPOSED') {
+                $sets->approve($setId, null, \App\Services\Scenario\ScenarioSetService::BOOTSTRAP_LABEL);
+            }
+            $this->note('6.2 scenario set', "set {$setId} for {$to}: " . DB::table('governed_scenario_sets')->where('id', $setId)->value('status') . ' under the bootstrap label (not a MAIIC approval)');
+        } catch (Throwable $e) {
+            $this->note('6.2 scenario set', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
         // 6 forward-looking chain: bridge, profile, sweep, fit; applied fits are proposals, not adjustments
         try {
             Artisan::call('fli:correlate', ['period' => $to, '--top' => 0]);

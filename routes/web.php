@@ -1271,3 +1271,13 @@ Route::post('/profile/theme', function (\Illuminate\Http\Request $request) {
 Route::get('/fli/transmission-methods', function (\App\Services\Fli\TransmissionMethodCatalogue $catalogue, \Illuminate\Http\Request $request) {
     return response()->json(['in_force' => $catalogue->inForce(), 'cards' => $catalogue->cards($request->query('period'))]);
 })->middleware('auth')->name('fli.transmission-methods');
+
+// Scenario sets as governed objects (spec v4 section 15).
+Route::group(['prefix' => 'scenario-sets', 'as' => 'scenario-sets.'], function () {
+    Route::get('/', [\App\Http\Controllers\ScenarioSetController::class, 'index'])->name('index');
+    Route::post('/seed', [\App\Http\Controllers\ScenarioSetController::class, 'seed'])->name('seed');
+    Route::post('/{set}/propose', [\App\Http\Controllers\ScenarioSetController::class, 'propose'])->name('propose');
+    Route::post('/{set}/approve', [\App\Http\Controllers\ScenarioSetController::class, 'approve'])->name('approve');
+    Route::post('/{set}/lock', [\App\Http\Controllers\ScenarioSetController::class, 'lock'])->name('lock');
+    Route::post('/{set}/version', [\App\Http\Controllers\ScenarioSetController::class, 'version'])->name('version');
+});
