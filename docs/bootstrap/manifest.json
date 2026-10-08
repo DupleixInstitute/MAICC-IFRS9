@@ -26,7 +26,8 @@
     "GL 1050201 trial balance +400,000.00 and 1050202 -1,000,000.00 against the accounts: keyed GL opening balances, Finance to correct (spec v4 s.3.5)",
     "Account 000104450000015 Zaithwa Farms: balance-history rows wrong from May 2025 (duplicate 30 Apr 2025 row); ledger correct; vendor to rebuild (spec v4 s.3.5)",
     "P2_06 PLR master: use this (morning) export; the afternoon re-export lost the date on PLR id 2",
-    "P1_05 interest summary: latest month only (Aug 2026); the table holds no history"
+    "P1_05 interest summary: latest month only (Aug 2026); the table holds no history",
+    "P2_13 LOS requests of 8 Oct: REQUEST_STRING is the literal text CLOB; the file is kept for its response strings and keywords; the re-run replaces it"
   ],
   "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
   "files": [
@@ -629,6 +630,62 @@
       "rows": null,
       "sha256": "27bde049097ab6eb01231ae50afe3a7e9c4f7293ba61c630bd136c6d1a98396e",
       "bytes": 10709
+    },
+    {
+      "file": "ebanker-pack-2026-10-08/GL_03_diffint_batch_legs.csv",
+      "query_id": "GL_03",
+      "kind": "pack 2 result received 8 Oct 2026 17:16; dates m/d/yyyy (RUN 0 not applied): both legs of the year-end interest batches INTP 41 and 42: the contra is one net voucher per batch to income GL 4215 and 4216",
+      "rows": 30,
+      "sha256": "6c8ccb11c1a6d246cad9a67d18a6268c73871210b8a804ab2f6ff89ebeef4a96",
+      "bytes": 5679
+    },
+    {
+      "file": "ebanker-pack-2026-10-08/M09_01_ledger_since_august.csv",
+      "query_id": "M09_01",
+      "kind": "pack 2 result received 8 Oct 2026 17:16; dates m/d/yyyy (RUN 0 not applied): September 2026 feed: ledger since id 425764 with August re-pulled (identical to the first load)",
+      "rows": 238,
+      "sha256": "8af22410b0a094d6cdb8d277fdc27f7b0445918d67a4b4c501c8e7ca59ca88e6",
+      "bytes": 149714
+    },
+    {
+      "file": "ebanker-pack-2026-10-08/M09_02_balance_history_aug_sep.csv",
+      "query_id": "M09_02",
+      "kind": "pack 2 result received 8 Oct 2026 17:16; dates m/d/yyyy (RUN 0 not applied): September 2026 feed: month-end balances 31 Aug and 30 Sep (ties to the ledger on 105 of 105)",
+      "rows": 210,
+      "sha256": "525bc38ce7ff488fd6b8c7c43f222df382681f06c94d1cf0ecc3f3dc36acd89a",
+      "bytes": 65583
+    },
+    {
+      "file": "ebanker-pack-2026-10-08/P1_05b_interest_product.csv",
+      "query_id": "P1_05b",
+      "kind": "pack 2 result received 8 Oct 2026 17:16; dates m/d/yyyy (RUN 0 not applied): INTEREST_PRODUCT, Oct 2024 to Sep 2026: computed interest per account-month (the product column is the interest, not balance x days)",
+      "rows": 2223,
+      "sha256": "5a70aaf90ee040e0a56a4ff8c99a2dc7107be756b50729a5ef3da3b3b1b7f8d6",
+      "bytes": 656694
+    },
+    {
+      "file": "ebanker-pack-2026-10-08/P2_11_security_details.csv",
+      "query_id": "P2_11",
+      "kind": "pack 2 result received 8 Oct 2026 17:16; dates m/d/yyyy (RUN 0 not applied): customer security register; repeats a security across accounts, de-duplicate on CUST_SEC_DET_ID; Windows-1252",
+      "rows": 185,
+      "sha256": "d9820c95d6944c2fc806470df9d14f1364797264109f876286a86d5fcb67b2e9",
+      "bytes": 49532
+    },
+    {
+      "file": "ebanker-pack-2026-10-08/P2_12_guarantors.csv",
+      "query_id": "P2_12",
+      "kind": "pack 2 result received 8 Oct 2026 17:16; dates m/d/yyyy (RUN 0 not applied): guarantors per account; Windows-1252",
+      "rows": 71,
+      "sha256": "6ef73faef96f05cded5a4b5df14a273c19f25fdb3607ca03850e192ff4a56b2b",
+      "bytes": 10998
+    },
+    {
+      "file": "ebanker-pack-2026-10-08/P2_13_los_requests.csv",
+      "query_id": "P2_13",
+      "kind": "pack 2 result received 8 Oct 2026 17:16; dates m/d/yyyy (RUN 0 not applied): LOS request payloads; REQUEST_STRING exported as the literal CLOB on every row, re-run needed with DBMS_LOB.SUBSTR; Windows-1252",
+      "rows": 200,
+      "sha256": "c66276674da61e5ff38c69120d0175181f4f3e4735305b6468c53e147f64b902",
+      "bytes": 35588
     }
   ]
 }
