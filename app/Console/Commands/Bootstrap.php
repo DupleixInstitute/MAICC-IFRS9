@@ -190,6 +190,8 @@ class Bootstrap extends Command
         $gi = $inputs->glInterest($from, null);
         $this->note('5f interest posted (ledger)', "{$gi['rows']} account-months: {$gi['result']['loaded_rows']} loaded, {$gi['result']['restated_rows']} restated, total " . number_format($gi['result']['total_posted'], 2));
 
+        $tx = $inputs->actualTransactions();
+        $this->note('5f cash movements (ledger)', "{$tx['rows']} postings: " . ($tx['result']['actual_rows_loaded'] ?? json_encode(array_intersect_key($tx['result'], array_flip(['actual_rows_loaded', 'held', 'duplicate_source_rows'])))) . ' actual transactions loaded, ' . count($tx['result']['held'] ?? []) . ' accounts held (not in the loan book)');
         Artisan::call('eir:derive-spreads', ['--user' => $user]);
         $this->note('5g spreads', trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 200))));
 

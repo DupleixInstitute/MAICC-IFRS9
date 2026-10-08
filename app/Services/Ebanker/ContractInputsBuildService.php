@@ -3,6 +3,7 @@
 namespace App\Services\Ebanker;
 
 use App\Services\Eir\ContractMasterImportService;
+use App\Services\Eir\ContractTransactionImportService;
 use App\Services\Eir\FeeImportService;
 use App\Services\Eir\GlInterestImportService;
 use App\Services\Eir\ReferenceRateImportService;
@@ -25,6 +26,7 @@ class ContractInputsBuildService
         private ReferenceRateImportService $rates,
         private FeeImportService $fees,
         private GlInterestImportService $glInterest,
+        private ContractTransactionImportService $transactions,
     ) {
     }
 
@@ -148,6 +150,46 @@ class ContractInputsBuildService
         }
 
         return ['rows' => count($rows), 'result' => $this->glInterest->import($rows)];
+    }
+
+    /**
+     * The cash movements of the ledger as the actual transactions the revenue
+     * roll-forward prefers over the schedule (spec v4 section 7.1, which
+     * retires Extract B): receipts and their reversals as collections,
+     * disbursements as advances; the interest charges (303, 120) are accruals,
+     * not cash, and are not transactions here. The voucher id is the
+     * external id, so a re-run loads nothing twice.
+     *
+     * @return array{rows:int,result:array}
+     */
+    public function actualTransactions(?string $to = null): array
+    {
+        $rows = [];
+        foreach ($this->zone->ledgerByAccount($to) as $account => $posts) {
+            foreach ($posts as $p) {
+                $x = $p['payload'];
+                $type = (string) ($x['TRANTYPE'] ?? '');
+                $amt = $this->num($x['TRANSAMT'] ?? 0);
+                if ($p['row_date'] === null || $amt === 0.0) {
+                    continue;
+                }
+                if (in_array($type, LoanBookBuildService::TYPE_DISBURSEMENT, true)) {
+                    $kind = 'Disbursement'; $total = -$amt;           // a debit to the loan: cash advanced
+                } elseif (in_array($type, LoanBookBuildService::TYPE_RECEIPT, true)) {
+                    $kind = 'Principal+Interest'; $total = $amt;      // a credit: cash collected; a reversal arrives negative
+                } else {
+                    continue;
+                }
+                $rows[] = [
+                    'contract_id' => $account, 'transaction_date' => $p['row_date'], 'transaction_type' => $kind, 'total_amount' => round($total, 2),
+                    'principal_component' => 0, 'interest_component' => 0, 'fee_component' => 0, 'scheduled_actual_flag' => 'ACTUAL',
+                    'gl_posting_ref' => 'CUMVOUCH:' . (string) ($x['CUMVOUCH_DET_ID'] ?? $p['source_key']), 'balance_after_transaction' => '',
+                    'row_note' => 'type ' . $type . ' ' . trim((string) ($x['PARTICULARS'] ?? '')),
+                ];
+            }
+        }
+
+        return ['rows' => count($rows), 'result' => $rows === [] ? [] : $this->transactions->import($rows)];
     }
 
     private function num(mixed $v): float
