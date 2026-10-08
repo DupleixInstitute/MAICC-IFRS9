@@ -89,6 +89,15 @@ class GovernanceServiceTest extends TestCase
         $this->assertSame(48, GovernanceSetting::count());
     }
 
+    /** Audit finding H10: the generator resolves settings at origination, and MAIIC's earliest contract is March 2020. */
+    public function test_every_seeded_default_is_in_force_on_the_earliest_origination_date(): void
+    {
+        $service = $this->service();
+        foreach (array_keys(GovernanceService::catalogue()) as $key) {
+            $this->assertNotNull($service->get($key, CarbonImmutable::parse('2020-03-04')), "{$key} has no value in force at MAIIC's earliest origination date");
+        }
+    }
+
     public function test_the_value_in_force_is_resolved_by_effective_date(): void
     {
         $this->approvedChange('day_count', '30/360', '2026-03-01');
@@ -106,11 +115,11 @@ class GovernanceServiceTest extends TestCase
         $service = $this->service();
 
         try {
-            $service->get('day_count', CarbonImmutable::parse('2024-12-31'));
+            $service->get('day_count', CarbonImmutable::parse('1899-12-31'));
             $this->fail('A date before the first approved value must not resolve.');
         } catch (GovernanceSettingMissingException $e) {
             $this->assertStringContainsString('day_count', $e->getMessage());
-            $this->assertStringContainsString('2024-12-31', $e->getMessage());
+            $this->assertStringContainsString('1899-12-31', $e->getMessage());
         }
 
         $this->expectException(GovernanceSettingMissingException::class);
@@ -147,14 +156,14 @@ class GovernanceServiceTest extends TestCase
         }
 
         try {
-            $service->propose('day_count', '30/360', '2025-01-01', 'Same date as the seeded default.', 10);
+            $service->propose('day_count', '30/360', '1900-01-01', 'Same date as the seeded default.', 10);
             $this->fail('An effective date on or before the last approved change must be refused.');
         } catch (LogicException $e) {
-            $this->assertStringContainsString('later than 2025-01-01', $e->getMessage());
+            $this->assertStringContainsString('later than 1900-01-01', $e->getMessage());
         }
 
         try {
-            $service->propose('day_count', '30/360', '2024-06-01', 'Would restate a governed period.', 10);
+            $service->propose('day_count', '30/360', '1899-06-01', 'Would restate a governed period.', 10);
             $this->fail('An effective date before the last approved change must be refused.');
         } catch (LogicException $e) {
             $this->assertStringContainsString('never restates', $e->getMessage());

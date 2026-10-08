@@ -79,7 +79,7 @@ Severity: **Critical** = a wrong number in a financial statement or a regulatory
 | H7 | LGD cohort workout counts a written-off loan as fully recovered and double-counts a cured loan that also paid down; recoveries undiscounted; no collateral | `LgdEngineService.php:38,49-56,70` | Cohort of two 500s, one written off (absent from the end book): recovery 50 percent, LGD 0.5; the true recovery on the absent loan is 0 | Absent-from-book is a write-off unless the ledger shows settlement; cure and recovery are exclusive; discount at the EIR; collateral from the register |
 | H8 | 12-month PD from a short window is not annualised | `PdEngineService.php:36-38,65-67` | With books from October 2025 run for January 2026, the "12-month PD" is a three-month default rate | Annualise 1−(1−p)^(12/months) and record the window |
 | H9 | The `admin` role bypasses maker-checker on governance approvals and EIR locks | `EirGovernanceController.php:67-70` (`adminOverride()` = has role admin), used at ten call sites; `EirCalculationService.php:108-111` | An administrator can propose and approve a governed setting alone, and lock an EIR they calculated | The override is a governed setting with its own approval, or removed; schedule approval (`ScheduleWorkflowService.php:275`) should also require a different person from the editor |
-| H10 | Governance defaults are effective from 1 January 2025; 63 of 144 contracts originated before 2024 | `GovernanceSettingsSeeder.php:27` (`EFFECTIVE_FROM`); `GovernanceService::inForce()` resolves at the contract's origination date | 16 contracts on the clean install cannot generate a schedule because "no approved value is in force for day_count" at origination; the other 47 pre-2024 contracts fail earlier for other reasons and would hit this next | Seeded defaults effective from inception (the earliest origination, or 1900-01-01) with the same label; a test that every contract date resolves every setting |
+| H10 | Governance defaults were effective from 1 January 2025; 63 of 144 contracts originated before 2024 | `GovernanceSettingsSeeder.php` (`EFFECTIVE_FROM`); `GovernanceService::inForce()` resolves at the contract's origination date | 16 contracts on the clean install could not generate a schedule because "no approved value is in force for day_count" at origination | **Fixed (9 October, after the audit's first issue):** defaults seeded from inception; a migration backdates the untouched defaults on installed databases (49 rows on the demo copy, audit-logged); a test proves every catalogue setting resolves on MAIIC's earliest origination date (4 March 2020). On the clean install schedules rose from 31 to 47 and locked EIRs from 12 to 27; golden checks unchanged at 9 of 9 |
 | H11 | Staging thresholds are resolved at today's date, not the period end, and sit outside maker-checker | `StagingThreshold.php:36-46` uses `now()`; `StagingService.php:113` silently defaults to [31,181] | A re-run of a past period uses today's thresholds, against D21; a missing row is not an error | Resolve at the period end; thresholds proposed and approved like every other setting; no silent default |
 | H12 | Mega Farm ECL misreads decision D30 | `MegaFarmEclService.php:58,117-125`: `ecl_value = EAD × PD × LGD × 5%` | The loan allowance is booked at 5 percent of the programme loss. D30: the provision is the fund's; MAIIC's 5 percent is a share of interest, written down separately. Neither the fund-side provision nor the receivable write-down is produced; a later portfolio ECL run restores the loan to 100 percent (`ExpectedCreditLossController.php:375` has no GL exclusion) | Awaits Dr Thom's confirmation of D30 as stated in the After Build Report; until then the Mega Farm figure must not be quoted |
 | H13 | The audit's own `--verify` covers 9 checks against 13 section-9 ties and 6 golden numbers | `BaselineService.php` | No 2024 year-end GL tie, no monthly GL tie, no interest-income YTD tie, no 28-posting count, no feed re-pull test, no collateral or take-on counts; the ECL golden numbers await the first approved run | Add the missing ties as the data for each is confirmed; the After Build Report's "9 checks, 0 FAIL" is accurate about what runs and should say so |
@@ -127,12 +127,12 @@ The After Build Report quotes "31 schedules, 31 EIRs solved, 12 locked". The aud
 |---|---|---|
 | A moratorium is stated but its type is not, on the contract or its scheme | 51 | MAIIC (a decision on the default moratorium type, or the scheme data) |
 | Drawn amount not positive (with other reasons) | 39 | Data: undisbursed or held contracts; the readiness rule is right to refuse them |
-| No approved value for `day_count` at the origination date | 16 | Dupleix (finding H10) |
+| No approved value for `day_count` at the origination date | 16, now 0 | Dupleix (finding H10, fixed the same day; the 16 now generate) |
 | Part-drawn and neither contract nor scheme says whether interest is on the drawn amount | 5 | MAIIC (`partly_drawn_interest_basis` is a catalogue setting nothing reads yet; M12) |
 | Contractual rate missing or invalid | 2 | Data |
-| **EIR solved but not locked: fee lines not independently reviewed** | **19** | The 30 seeded fee rules are unapproved by design (Dr Thom's rulebook approval is owed); see M8 for the bootstrap's inconsistency |
+| **EIR solved but not locked: fee lines not independently reviewed** | **19, now 20** | The 30 seeded fee rules are unapproved by design (Dr Thom's rulebook approval is owed); see M8 for the bootstrap's inconsistency |
 
-So on today's clean install the revenue roll-forward, the as-at service and the GL reconciliation cover 12 of 135 loans; the ECL covers all 135. Both facts belong in the After Build Report's section 3 in those words.
+So on the clean install as first audited, the revenue roll-forward, the as-at service and the GL reconciliation covered 12 of 135 loans; after the H10 fix they cover 26 of 135 (27 locked EIRs), and the ECL covers all 135. The next two steps are MAIIC's: the moratorium type (51 contracts) and the fee rulebook (20 EIRs). These facts are now in the After Build Report's section 3 in those words.
 
 ## 6. Corrected during the audit
 
@@ -140,6 +140,7 @@ Each is committed with its evidence.
 
 | Commit | What |
 |---|---|
+| after `e176d1d` | Governance defaults from inception (H10): seeder, backdating migration, test; schedules 31 to 47 and locked EIRs 12 to 27 on the clean install |
 | `f5b08fc` | RBM bands to the Gazette (C4) in the return, the classification report, the provision comparison, the arrears ageing and the test; compliance PDF footer names MAIIC |
 | `f324814` (8 October, found by the dark-mode sweep's capture of every screen) | Six ECL-over-EAD ratios divided by the string "0.00" (the sector and product-group ECL reports threw on a sector with no exposure); the report smoke now covers all 30 report methods; the licence page on a fresh database; the cache prefix keyed by environment (a permission cache filled by one database was served to another) |
 | `742e7a7` (8 October) | The RBM Classification report put on one rule with the return (the rule itself then corrected at `f5b08fc`) |
@@ -165,7 +166,7 @@ The After Build Report of 8 October stands as a record of what runs and what tie
 |---|---|
 | ECL 8.94bn post-FLI (8.33bn pre-FLI) at August 2026 | C1 (12-month PD for Stage 2, undiscounted), C9 (a fit the bootstrap approved), H1 (300/401 as cash in the carrying amounts), H5 (stage split in the reports) |
 | Weighted sensitivity 10.24bn; stress severe 11.86bn | H3 (two weightings, two scenario sets) on top of the above |
-| Revenue roll-forward and Stage 3 net interest | C5, C6; and coverage of 12 of 135 loans (section 5) |
+| Revenue roll-forward and Stage 3 net interest | C5, C6; and coverage of 26 of 135 loans after the H10 fix (section 5) |
 | Mega Farm 23.5bn programme ECL (demo) | H12 (D30 misread); already marked as awaiting confirmation |
 | RBM return and classification | Now on the Gazette's bands (C4 fixed); the rates and sections were right; the prescribed form is still awaited |
 | The nine golden ties | Sound; they prove the ledger reproduction and the GL ties, which H1 does not disturb because the stored report makes the same classification |
@@ -179,7 +180,7 @@ What Dupleix should do, in this order, before the next figure goes to MAIIC. Eff
 3. **Stage 3 allowance into the revenue engine; revenue after ECL; schedule fallback bounded by the feed** (C5, C6): two days; the golden revenue-shift number is born here, so Dr Thom's first approved run follows this.
 4. **300 and 401 out of cash** (H1): a day plus the re-proof of the ties with the exceptions stated.
 5. **Bootstrap to the spec's rule on fits and approvals; one scenario weighting; the sensitivity from the per-scenario ECL** (C9, H3, M8): two days.
-6. **Governance defaults from inception; thresholds at the period end under maker-checker; the lock honoured by every writer; admin override governed** (H10, H11, H4, H9): two days.
+6. **Thresholds at the period end under maker-checker; the lock honoured by every writer; admin override governed** (H11, H4, H9; H10 is done): a day and a half.
 7. **Tranche drawdowns in the EIR vector; PD annualisation; post-stage splits; gross carrying in the note** (H2, H8, H5, H6): three days.
 8. **The remaining spec gaps** (M1 to M18): the overlay register, the set editor, the gates, the trial-balance landing, the legacy regression chain, section 16 once D30 is confirmed: two to three weeks, to be sequenced with MAIIC's decisions.
 9. **Hygiene** (L1 to L6): remove `corporate/` and the ICD file, strip other-client strings, update dependencies, retire the legacy suites, lift the execution limit: a day.

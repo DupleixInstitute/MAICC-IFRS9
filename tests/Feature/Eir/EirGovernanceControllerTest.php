@@ -102,9 +102,9 @@ class EirGovernanceControllerTest extends TestCase
 
     public function test_a_refused_proposal_comes_back_as_a_named_error_not_an_exception(): void
     {
-        $this->propose(10, ['effective_from' => '2025-01-01']);
+        $this->propose(10, ['effective_from' => '1900-01-01']);
 
-        $this->assertStringContainsString('later than 2025-01-01', session('errors')->first('governance'));
+        $this->assertStringContainsString('later than 1900-01-01', session('errors')->first('governance'));
         $this->assertSame(0, GovernanceSetting::where('status', 'PROPOSED')->count());
     }
 

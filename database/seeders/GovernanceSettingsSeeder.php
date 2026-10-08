@@ -9,16 +9,23 @@ use Illuminate\Database\Seeder;
 /**
  * Idempotent: writes Dupleix's recommended default for every governance
  * setting in the catalogue (the twelve conventions of spec v3 section 8 and
- * the open choices of section 4) as an APPROVED row effective 1 January 2025,
- * the first month of the loan books held. A key that already has any row is
- * left alone so an approved MAIIC change is never overwritten; re-running the
- * seeder on an installed system adds only the keys that are new.
+ * the open choices of section 4) as an APPROVED row effective from inception.
+ * The schedule generator and the EIR resolve a setting as at the contract's
+ * origination date, and MAIIC's earliest contract originated in March 2020
+ * (63 of the 144 in the master predate 2024), so a default dated from the
+ * first loan-book month (1 January 2025, as it was until the system audit of
+ * 9 October 2026 found 16 contracts refused for "no approved value in force")
+ * left every older contract with no day count, no rate basis and no fee
+ * treatment. A key that already has any row is left alone so an approved
+ * MAIIC change is never overwritten; re-running the seeder on an installed
+ * system adds only the keys that are new. Defaults already seeded at
+ * 2025-01-01 are backdated by the migration of 9 October 2026.
  *
  *   php artisan db:seed --class=GovernanceSettingsSeeder
  */
 class GovernanceSettingsSeeder extends Seeder
 {
-    public const EFFECTIVE_FROM = '2025-01-01';
+    public const EFFECTIVE_FROM = '1900-01-01';
     public const REASON = 'Dupleix recommended default (spec v3 section 8)';
 
     public function run(): void

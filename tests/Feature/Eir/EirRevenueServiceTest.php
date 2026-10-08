@@ -271,6 +271,8 @@ class EirRevenueServiceTest extends TestCase
 
     public function test_a_stage_three_run_is_blocked_when_no_basis_is_approved_for_the_period(): void
     {
+        // the setting is dated after the period, so June 2024 has no value in force (the seeded defaults are in force from inception)
+        \App\Models\GovernanceSetting::where('key', 'stage3_interest_basis')->update(['effective_from' => '2024-07-01']);
         $this->seedLocked();
         $this->loan('C-1', '2024-06', 3, 200);
 

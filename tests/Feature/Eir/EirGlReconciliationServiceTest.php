@@ -302,6 +302,8 @@ class EirGlReconciliationServiceTest extends TestCase
 
     public function test_reconciliation_stops_when_no_tolerance_is_approved_for_the_period(): void
     {
+        // the setting is dated after the period, so June 2024 has no value in force (the seeded defaults are in force from inception)
+        \App\Models\GovernanceSetting::where('key', 'recon_tolerance')->update(['effective_from' => '2024-07-01']);
         $this->contract('C-1', 1_000_000, 0.24);
         $this->posting('C-1', 2024, 6, 10_000);
         $this->accrual('C-1', '2024-06', 1_000_000, 10_000);
@@ -491,6 +493,8 @@ class EirGlReconciliationServiceTest extends TestCase
      */
     public function test_a_posting_in_an_ungoverned_month_is_listed_with_its_reason(): void
     {
+        // the setting is dated after the period, so June 2024 has no value in force (the seeded defaults are in force from inception)
+        \App\Models\GovernanceSetting::where('key', 'recon_tolerance')->update(['effective_from' => '2024-07-01']);
         $this->contract('C-1', 1_000_000, 0.24);
         $this->posting('C-1', 2024, 6, 10_000);
         $postings = \App\Models\GlInterestPosting::all();
@@ -533,6 +537,8 @@ class EirGlReconciliationServiceTest extends TestCase
     /** Rows in a period with no approved band are counted, never judged. */
     public function test_rows_in_an_ungoverned_period_are_counted_separately(): void
     {
+        // the setting is dated after the period, so June 2024 has no value in force (the seeded defaults are in force from inception)
+        \App\Models\GovernanceSetting::where('key', 'recon_tolerance')->update(['effective_from' => '2024-07-01']);
         $this->contract('C-1', 1_000_000, 0.24);
         $this->posting('C-1', 2024, 6, 10_000);
         $this->accrual('C-1', '2024-06', 1_000_000, 10_000);
