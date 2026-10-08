@@ -1331,3 +1331,7 @@ Route::get('/audit-trace', [\App\Http\Controllers\AuditTraceController::class, '
 // The Mega Farm programme (spec v4 section 16, D30).
 Route::get('/megafarm', [\App\Http\Controllers\MegaFarmController::class, 'index'])->name('megafarm.index');
 Route::post('/megafarm/run', [\App\Http\Controllers\MegaFarmController::class, 'run'])->name('megafarm.run');
+
+// The RBM classification and provisioning return, provisional layout (directive s.17).
+Route::get('/rbm-return', [\App\Http\Controllers\RbmReturnController::class, 'index'])->name('rbm-return.index');
+Route::get('/rbm-return/export', [\App\Http\Controllers\RbmReturnController::class, 'export'])->name('rbm-return.export');

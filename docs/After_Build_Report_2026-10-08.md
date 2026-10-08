@@ -40,6 +40,7 @@ What remains is set out in section 6: the forward-looking regression chain and t
 | 15 Scenario sets | The governed set: rules, shocks on the base, approval, lock, versions, back-test, sensitivity; the first set of 15.8 | Yes | `ScenarioSetService`, `scenario:sets`, Governance Centre / Scenario Sets, 3 tests |
 | 12 Audit workbooks | The engine, the five modules, the register, the trace, the pack | Yes: five workbooks (66 sections) in three formats with the Baselines sheet; the register with maker-checker sign-off; the per-contract trace; the auditor's pack with checksums | `tools/compliance/`, `docs/compliance/`, `ComplianceAuditService`, `AuditTraceController`, `compliance:audits --pack` |
 | 16 Mega Farm | The programme in the ECL module under D30 with the governed PD methods; its screen | Built and run on the November 2025 book; Financial Modelling / Mega Farm Programme shows the book by scheme and stage, the settings in force and each run with its basis or declined reason; the figure awaits Dr Thom's confirmation of D30 and the monthly books | `MegaFarmEclService`, `megafarm:ecl`, `Pages/MegaFarm/Index.vue` |
+| 12.2 / directive s.17 The RBM return | The classification and provisioning return to the Reserve Bank, mapped line for line to the prescribed form | Provisional layout built and filled from the system in the directive's own order: A the facilities by class and term under the directive's day bands (90/180/360 short-term; 180/360/720 medium and long), B the minimum provision per class against the IFRS 9 allowance with the higher of the two, C interest in suspense, D restructured facilities (awaiting the Reschedule Report), E the security on the register; on the screen and as CSV, every output marked provisional. On the August 2026 book: 135 facilities, K23.32bn, NPL 31.98 percent, minimum provision K3.41bn against the IFRS 9 allowance of K8.94bn, suspense K114.3m. The lines are re-ordered and re-worded to the prescribed form when MAIIC Risk supplies it; the figures stay | `RbmReturnService`, `RbmReturnController`, Risk & Regulatory / RBM Return (provisional), 2 tests; workbook 4 row 17 and findings F2, F3 |
 
 ## 3. What the system proved when it ran
 
@@ -122,6 +123,8 @@ Everything the specification asked for that can be built without MAIIC's input i
 | The Mega Farm figure | 16 | Dr Thom's confirmation of D30 and the monthly Mega Farm books (MF_01 to MF_08 from Barry); the mechanics run today on the November 2025 book |
 | The restructure history and the 10 percent test | 5.4.3, 3.3.2 | E-Banker's Reschedule Report from the vendor |
 | Contract Schedule 1's clause numbers | 12 | The signed schedule from Dr Thom |
+| The RBM return in the prescribed form | 12.2, directive s.17 | MAIIC Risk's current form (the Excel or PDF sent to the Bank). The provisional return fills every line in the directive's order; when the form arrives its lines are re-ordered and re-worded to it line for line, the figures unchanged (workbook 4, finding F2) |
+| The RBM Classification report's day bands | directive s.9 to 11 | The older report classifies on one ladder (90, 180, 365 days); the return applies the directive's bands by term. Align the report to the return or retire it (workbook 4, finding F3) |
 | The dark-mode page sweep | 11.9 | Ongoing: the shell and the shared classes carry the theme; pages that style elements directly are swept group by group as they are touched |
 
 ## 7. How to reproduce
@@ -137,13 +140,13 @@ python tools/compliance/build_audit.py --all --env=bootstrap
 php artisan --env=bootstrap fli:apply 2026-08 --fits
 php artisan --env=bootstrap compliance:audits --pack=2026-08
 php artisan --env=demo megafarm:ecl 2025-11
-php artisan test tests/Feature/Eir tests/Feature/Ebanker tests/Feature/FLI/TransmissionMethodCatalogueTest.php tests/Feature/NavigationTest.php
+php artisan test tests/Feature/Eir tests/Feature/Ebanker tests/Feature/FLI/TransmissionMethodCatalogueTest.php tests/Feature/Rbm tests/Feature/NavigationTest.php
 ```
 
 `.env.bootstrap` names the throwaway database and is git-ignored, like `.env.demo`. The test run above: 308 passed, 24 skipped. The 92 legacy medical tests and the five legacy FLI page tests fail on `master` before this work and are unrelated.
 
 ## 8. Files
 
-Code: `app/Services/Ebanker/{PackLandingService,LandingZoneReader,LoanBookBuildService,TakeonLandingService,ContractInputsBuildService}.php`, `app/Services/Eir/{StagingService,EirAsAtService}.php`, `app/Services/Macro/{WorldBankFetcherService,MacroImportService}.php`, `app/Services/Fli/TransmissionMethodCatalogue.php`, `app/Support/Fli/*`, `app/Console/Commands/{LandEbankerPack,BuildLoanBooks,LockReportingPeriod,StageLoanBooks,LandTakeonWorkbook,Bootstrap,EirAsAt,ImportWorldBankMacro,FliMethodCards}.php`, `app/Http/Controllers/{EirFeedController,EirTakeonController,EirAsAtController}.php`, the migrations of 8 October 2026, `config/menu.php`, `resources/js/{Layouts/AppLayout.vue,Jetstream/SidebarNav.vue,Jetstream/DropdownMenu.vue,navAccents.js,composables/useTheme.js,Pages/Eir/{Feed,Takeon,AsAt}/Index.vue}`.
+Code: `app/Services/Ebanker/{PackLandingService,LandingZoneReader,LoanBookBuildService,TakeonLandingService,ContractInputsBuildService}.php`, `app/Services/Eir/{StagingService,EirAsAtService}.php`, `app/Services/Macro/{WorldBankFetcherService,MacroImportService}.php`, `app/Services/Fli/TransmissionMethodCatalogue.php`, `app/Support/Fli/*`, `app/Services/Rbm/RbmReturnService.php`, `app/Http/Controllers/RbmReturnController.php`, `resources/js/Pages/Reports/RbmReturn.vue`, `app/Console/Commands/{LandEbankerPack,BuildLoanBooks,LockReportingPeriod,StageLoanBooks,LandTakeonWorkbook,Bootstrap,EirAsAt,ImportWorldBankMacro,FliMethodCards}.php`, `app/Http/Controllers/{EirFeedController,EirTakeonController,EirAsAtController}.php`, the migrations of 8 October 2026, `config/menu.php`, `resources/js/{Layouts/AppLayout.vue,Jetstream/SidebarNav.vue,Jetstream/DropdownMenu.vue,navAccents.js,composables/useTheme.js,Pages/Eir/{Feed,Takeon,AsAt}/Index.vue}`.
 
 Inputs: `docs/bootstrap/` (84 files in the manifest, including the original take-on workbook as received and the World Bank snapshot). Reference: `docs/reference/` (the suite's engines and, from today, their support classes). Manuals: `docs/manuals/installation/09-data-loading.md` section 9.8 rewritten.

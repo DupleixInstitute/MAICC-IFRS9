@@ -34,7 +34,7 @@ class FliAdjustmentsController extends Controller
             ->selectRaw('count(*) n, round(avg(pd_prefli), 6) pre, round(avg(pd_post_fli), 6) post, round(avg(fli_adj), 6) adj, max(fli_route) route, max(fli_method) method, max(fli_fit_id) fit, max(fli_set_id) set_id, sum(fli_adj <> 0) adjusted')->first();
         $last = DB::table('audit_logs')->where('action', 'FLI Route Applied')->where('reporting_period', $period)->orderByDesc('id')->first();
 
-        return Inertia::render('Fli/Adjustments', [
+        return Inertia::render('FLI/Adjustments', [
             'period' => $period, 'fits' => $fits, 'approved' => $route->approvedFit($period), 'cards' => $methods->cards($period), 'methodInForce' => $methods->inForce(),
             'loans' => $loans, 'lastRun' => $last ? json_decode($last->new_values, true) : null,
             'periods' => DB::table('fli_fits')->distinct()->orderByDesc('reporting_period')->pluck('reporting_period')->map(fn ($p) => substr($p, 0, 4) . '-' . substr($p, 4, 2)),

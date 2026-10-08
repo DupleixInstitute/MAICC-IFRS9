@@ -33,11 +33,11 @@ Source: docs/regulatory/RBM Financial Services (Credit Risk Management for DFIs)
 | **PART V - RESTRUCTURING** | | | | |
 | 15 | Restructured facilities | Evidence needed from MAIIC | rate_change_classification |  |
 | **PART VI - REPORTING** | | | | |
-| 17 | Returns to the Reserve Bank | Partially done |  | Tests\Feature\Eir\StagingServiceTest |
+| 17 | Returns to the Reserve Bank | Partially done | dpd_basis | Tests\Feature\Rbm\RbmReturnServiceTest |
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 21:18:15 from maiic_ifrs9_bootstrap.
+Generated 2026-10-08 21:50:42 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
@@ -60,12 +60,19 @@ Generated 2026-10-08 21:18:15 from maiic_ifrs9_bootstrap.
 - **Recommended action:** Barry obtains the Reschedule Report; the register is loaded by the feed and the classification holds it.
 - **Owner:** Barry Makumba
 
-### F2. The prescribed return form is not mapped (17) - Open
+### F2. The prescribed return form is not in the repository (17) - Open
 
-- **What was found:** The reports carry the figures; the Reserve Bank's form is not reproduced line for line.
-- **Impact:** The return is prepared outside the system.
-- **Recommended action:** MAIIC Risk supplies the current form; the mapping is added to the IFRS 9 vs RBM report.
+- **What was found:** The provisional return fills every line the directive asks for, in the directive's order; the Reserve Bank's own form (its schedule number, order and wording) has not been supplied.
+- **Impact:** The return is still transcribed into the Bank's form by hand.
+- **Recommended action:** MAIIC Risk supplies the current form (the Excel or PDF sent to the Bank); the provisional layout is re-ordered and re-worded to it line for line; the figures stay as they are.
 - **Owner:** MAIIC Risk / Dupleix
+
+### F3. The RBM Classification report's day bands differ from the directive's (9 to 11) - Open
+
+- **What was found:** The older RBM Classification report classifies every facility on one ladder (90, 180, 365 days); the directive classifies by term (90/180/360 for short-term, 180/360/720 for medium and long). The provisional return applies the directive's bands.
+- **Impact:** The two screens can show different classes for the same medium-term facility.
+- **Recommended action:** Align the RBM Classification report to the directive's bands by term (or retire it in favour of the return).
+- **Owner:** Dupleix
 
 ## Section-by-section audit
 
@@ -151,8 +158,9 @@ Generated 2026-10-08 21:18:15 from maiic_ifrs9_bootstrap.
 **17. Returns to the Reserve Bank** - *Partially done*
 
 - **What it requires:** Submit the classification and provisioning return in the prescribed form and frequency.
-- **What the engine does:** The RBM Classification and IFRS 9 vs RBM reports render and export; the prescribed return form is not reproduced line for line.
-- **Compliance comment:** Partially done: the figures exist; the form is to be mapped.
-- **Where to see it:** Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm
-- **Test that proves it:** `Tests\Feature\Eir\StagingServiceTest`
+- **What the engine does:** RbmReturnService fills the return in the directive's own order from the system: A the facilities by class and term under the directive's day bands, B the minimum provision per class against the IFRS 9 allowance with the higher of the two, C interest in suspense on non-performing facilities, D restructured facilities (awaiting the Reschedule Report), E the security on the register; on the screen with the CSV. The layout is provisional: the prescribed form is MAIIC Risk's and is not in the repository.
+- **Compliance comment:** Partially done: every line is filled; the form's own order and wording are applied when Risk supplies it.
+- **Where to see it:** Risk & Regulatory, RBM Return (provisional): /rbm-return; Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm
+- **Governance setting:** `dpd_basis`
+- **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest`
 - **Reviewer sign-off:** ____________________   Date: ____________

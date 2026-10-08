@@ -118,6 +118,7 @@ return [
             $leaf('IFRS 9 Disclosure', 'ifrs9-reports.fs-disclosure'),
             $leaf('RBM Classification', 'ifrs9-reports.rbm-classification'),
             $leaf('IFRS 9 vs RBM', 'ifrs9-reports.ifrs9-vs-rbm'),
+            $leaf('RBM Return (provisional)', 'rbm-return.index', 'file-invoice', false, '', 'The classification and provisioning return of the DFI directive, section 17, filled from the system; re-laid out line for line when the prescribed form arrives'),
             $leaf('Concentration', 'ifrs9-reports.concentration'),
         ], 4, 'indigo', 'The regulatory views'),
 

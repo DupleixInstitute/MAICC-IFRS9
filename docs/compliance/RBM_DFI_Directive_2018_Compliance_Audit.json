@@ -106,12 +106,12 @@
    "section_name": "Returns to the Reserve Bank",
    "requirement": "Submit the classification and provisioning return in the prescribed form and frequency.",
    "status": "Partially done",
-   "engine_comment": "The RBM Classification and IFRS 9 vs RBM reports render and export; the prescribed return form is not reproduced line for line.",
+   "engine_comment": "RbmReturnService fills the return in the directive's own order from the system: A the facilities by class and term under the directive's day bands, B the minimum provision per class against the IFRS 9 allowance with the higher of the two, C interest in suspense on non-performing facilities, D restructured facilities (awaiting the Reschedule Report), E the security on the register; on the screen with the CSV. The layout is provisional: the prescribed form is MAIIC Risk's and is not in the repository.",
    "general_comment": "",
-   "compliance_comment": "Partially done: the figures exist; the form is to be mapped.",
-   "where_to_see": "Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm",
-   "governance_setting": "",
-   "test": "Tests\\Feature\\Eir\\StagingServiceTest"
+   "compliance_comment": "Partially done: every line is filled; the form's own order and wording are applied when Risk supplies it.",
+   "where_to_see": "Risk & Regulatory, RBM Return (provisional): /rbm-return; Risk & Regulatory, RBM Classification: /ifrs9-reports/rbm-classification; IFRS 9 vs RBM: /ifrs9-reports/ifrs9-vs-rbm",
+   "governance_setting": "dpd_basis",
+   "test": "Tests\\Feature\\Rbm\\RbmReturnServiceTest"
   }
  ],
  "findings": [
@@ -128,11 +128,21 @@
   {
    "number": "F2",
    "reference": "17",
-   "finding": "The prescribed return form is not mapped",
-   "what_was_found": "The reports carry the figures; the Reserve Bank's form is not reproduced line for line.",
-   "impact": "The return is prepared outside the system.",
-   "recommended_action": "MAIIC Risk supplies the current form; the mapping is added to the IFRS 9 vs RBM report.",
+   "finding": "The prescribed return form is not in the repository",
+   "what_was_found": "The provisional return fills every line the directive asks for, in the directive's order; the Reserve Bank's own form (its schedule number, order and wording) has not been supplied.",
+   "impact": "The return is still transcribed into the Bank's form by hand.",
+   "recommended_action": "MAIIC Risk supplies the current form (the Excel or PDF sent to the Bank); the provisional layout is re-ordered and re-worded to it line for line; the figures stay as they are.",
    "owner": "MAIIC Risk / Dupleix",
+   "status": "Open"
+  },
+  {
+   "number": "F3",
+   "reference": "9 to 11",
+   "finding": "The RBM Classification report's day bands differ from the directive's",
+   "what_was_found": "The older RBM Classification report classifies every facility on one ladder (90, 180, 365 days); the directive classifies by term (90/180/360 for short-term, 180/360/720 for medium and long). The provisional return applies the directive's bands.",
+   "impact": "The two screens can show different classes for the same medium-term facility.",
+   "recommended_action": "Align the RBM Classification report to the directive's bands by term (or retire it in favour of the return).",
+   "owner": "Dupleix",
    "status": "Open"
   }
  ]
