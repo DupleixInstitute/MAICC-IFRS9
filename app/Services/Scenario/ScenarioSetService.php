@@ -135,7 +135,7 @@ class ScenarioSetService
         if ($set->status !== 'PROPOSED') {
             throw new RuntimeException('Only a proposed set can be approved.');
         }
-        if ($label === null && $approverId !== null && (int) $set->proposed_by === $approverId) {
+        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $set->proposed_by === $approverId) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         $v = $this->validate($setId);
@@ -248,23 +248,54 @@ class ScenarioSetService
     {
         $set = DB::table('governed_scenario_sets')->where('id', $setId)->first();
         $scenarios = DB::table('governed_scenarios')->where('set_id', $setId)->orderBy('order_position')->get();
+        // The ECL per scenario, from the per-scenario PD the route wrote on the
+        // loan (fli_by_scenario) when the chain has run for this set, else the
+        // typed multiplier on the pre-FLI PD; on the ECL engine's own basis:
+        // the stage the staging engine measured, lifetime PD for Stage 2 over
+        // the remaining months, Stage 3 at 1, EAD = carrying + commitments x
+        // utilisation. One weighting, the set's (spec 15.5; audit H3, M9).
         $loans = DB::table('loan_books')->where('reporting_period', $set->reporting_period)
-            ->selectRaw('ifrs9stage_post_qualitative, coalesce(pd_prefli, pd_value, `12m_pd`) as pd_prefli, lgd_value, ead, carrying_amount')
+            ->selectRaw('coalesce(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative) as stage, coalesce(pd_prefli, pd_value, `12m_pd`) as pd_prefli, pd_post_fli, ecl_value, lgd_value, remaining_tenor, carrying_amount, commitments, facility_utilisation_rate, fli_by_scenario, fli_set_id')
             ->whereRaw('coalesce(pd_prefli, pd_value, `12m_pd`) is not null')->get();
-        $eclUnder = function (float $mult) use ($loans): float {
+        $names = $scenarios->pluck('name')->all();
+        $fromChain = $loans->isNotEmpty() && $loans->every(function ($l) use ($setId, $names) {
+            $by = $l->fli_by_scenario !== null ? (json_decode((string) $l->fli_by_scenario, true) ?: []) : [];
+            return (int) $l->fli_set_id === $setId && ($by === [] ? (string) $l->stage === '3' : array_diff($names, array_keys($by)) === []);
+        });
+        $stagePd = function (object $l, float $pd12): float {
+            $pd12 = max(0.0, min(1.0, $pd12));
+            $months = $l->remaining_tenor === null || (float) $l->remaining_tenor < 1 ? 12.0 : (float) $l->remaining_tenor;
+            return match ((string) $l->stage) {
+                '3' => 1.0,
+                '2' => 1 - pow(1 - $pd12, $months / 12),
+                default => 1 - pow(1 - $pd12, min(12.0, $months) / 12),
+            };
+        };
+        // Each loan's booked ECL (ecl_value, whichever engine wrote it) scaled by
+        // the ratio of the scenario's stage PD to the booked PD's stage PD, so the
+        // base scenario reconciles to the allowance exactly and the others move
+        // with the PD alone; a loan with no booked ECL is measured directly.
+        $eclUnder = function (string $name, float $mult) use ($loans, $fromChain, $stagePd): float {
             $ecl = 0.0;
             foreach ($loans as $l) {
-                $ead = (float) ($l->ead ?? $l->carrying_amount);
+                $ead = (float) ($l->carrying_amount ?? 0) + (float) ($l->commitments ?? 0) * (float) ($l->facility_utilisation_rate ?? 1);
                 $lgd = $l->lgd_value !== null ? (float) $l->lgd_value : 0.45;
-                $pd = $l->ifrs9stage_post_qualitative === '3' ? 1.0 : max(0.0, min(1.0, (float) $l->pd_prefli * $mult));
-                $ecl += $ead * $pd * $lgd;
+                $by = $fromChain ? (json_decode((string) $l->fli_by_scenario, true) ?: []) : [];
+                $booked12 = (float) ($l->pd_post_fli ?? $l->pd_prefli);
+                $pd12 = isset($by[$name]['pd']) ? (float) $by[$name]['pd'] : (float) $l->pd_prefli * $mult;
+                $bookedStage = $stagePd($l, $booked12);
+                if ($l->ecl_value !== null && $bookedStage > 0) {
+                    $ecl += (float) $l->ecl_value * $stagePd($l, $pd12) / $bookedStage;
+                } else {
+                    $ecl += $ead * $stagePd($l, $pd12) * $lgd;
+                }
             }
 
             return round($ecl, 2);
         };
         $perScenario = [];
         foreach ($scenarios as $s) {
-            $perScenario[$s->name] = ['weight' => (float) $s->weight, 'pd_multiplier' => (float) ($s->pd_multiplier ?? 1), 'ecl' => $eclUnder((float) ($s->pd_multiplier ?? 1))];
+            $perScenario[$s->name] = ['weight' => (float) $s->weight, 'pd_multiplier' => (float) ($s->pd_multiplier ?? 1), 'ecl' => $eclUnder($s->name, (float) ($s->pd_multiplier ?? 1))];
         }
         $weighted = round(array_sum(array_map(fn ($p) => $p['ecl'] * $p['weight'] / 100, $perScenario)), 2);
         $base = $scenarios->firstWhere('is_base', 1);
@@ -280,7 +311,8 @@ class ScenarioSetService
             return round(array_sum(array_map(fn ($name, $p) => $p['ecl'] * $w[$name] / 100, array_keys($perScenario), $perScenario)), 2);
         };
         $result = ['period' => $set->reporting_period, 'loans' => $loans->count(), 'note' => $loans->isEmpty() ? 'no loan of the period carries a PD: run the PD engine, then the sensitivity' : null, 'per_scenario' => $perScenario, 'weighted_ecl' => $weighted,
-            'ten_points_to_downside' => $shift($down), 'ten_points_to_upside' => $shift($up), 'basis' => 'pre-FLI PD x the scenario multiplier, Stage 3 at 100 percent, LGD as held (0.45 where none); the chain per scenario replaces the multiplier once a fit per scenario is approved'];
+            'ten_points_to_downside' => $shift($down), 'ten_points_to_upside' => $shift($up),
+            'basis' => ($fromChain ? 'the per-scenario PD the route wrote on each loan' : 'the pre-FLI PD x the typed scenario multiplier (the route has not run for this set)') . ', applied to the booked ECL of each loan as the ratio of stage PDs (lifetime for Stage 2, 1 for Stage 3), so the base reconciles to the allowance; weighted once by the set'];
         DB::table('governed_scenario_sets')->where('id', $setId)->update(['sensitivity' => json_encode($result), 'updated_at' => now()]);
 
         return $result;

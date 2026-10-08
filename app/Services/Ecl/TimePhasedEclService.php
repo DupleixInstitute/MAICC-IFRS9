@@ -13,11 +13,16 @@ class TimePhasedEclService
     public function run(Collection $loans, string $reportingPeriod, string $lgdField='collection_lgd', ?int $userId=null): array
     {
         $asOf=CarbonImmutable::parse(substr($reportingPeriod,0,7).'-01')->endOfMonth();
-        $scenarios=DB::table('ecl_scenario_assumptions')->where('status','APPROVED')
+        // One weighting (spec 15.5; audit H3): the governed set's scenarios and
+        // weights, with the per-scenario PD the route wrote on each loan, when
+        // the chain has run; the legacy ecl_scenario_assumptions table only when
+        // no loan carries a per-scenario PD.
+        $legacyScenarios=DB::table('ecl_scenario_assumptions')->where('status','APPROVED')
             ->whereDate('effective_from','<=',$asOf)->where(fn($q)=>$q->whereNull('effective_to')->orWhereDate('effective_to','>=',$asOf))->get();
-        if($scenarios->isEmpty()) throw new RuntimeException('No approved ECL scenario assumptions cover the reporting period.');
-        $weight=(float)$scenarios->sum('weight');
-        if(abs($weight-1)>1e-8) throw new RuntimeException('Approved ECL scenario weights must sum to 1.');
+        $anyChain=$loans->contains(fn($l)=>isset($l->fli_by_scenario)&&$l->fli_by_scenario!==null&&$l->fli_by_scenario!=='[]');
+        if($legacyScenarios->isEmpty()&&!$anyChain) throw new RuntimeException('No approved scenario set covers the reporting period: neither a governed set written on the loans by the route nor the legacy assumptions.');
+        if($legacyScenarios->isNotEmpty()&&abs((float)$legacyScenarios->sum('weight')-1)>1e-8) throw new RuntimeException('Approved ECL scenario weights must sum to 1.');
+        $scenarios=$legacyScenarios;
 
         $runId=(string)Str::uuid();
         DB::table('ecl_projection_runs')->insert(['run_id'=>$runId,'reporting_period'=>$asOf->format('Y-m'),
@@ -60,6 +65,7 @@ class TimePhasedEclService
         $ead=(float)($loan->carrying_amount??0)+(float)($loan->commitments??0)*(float)($loan->facility_utilisation_rate??1);
         if($ead<=0)throw new RuntimeException('EAD is not positive.');
         $basePd=(float)($loan->pd_post_fli??$loan->pd_prefli??0);if($stage===3)$basePd=1.0;
+        $scenarios=$this->scenariosFor($loan,$basePd,$scenarios); // the legacy assumptions arrive as $scenarios; the loan's own set replaces them
         if($basePd<0||$basePd>1)throw new RuntimeException('PD must be between 0 and 1.');
         $baseLgd=$lgdField==='both'
             ? (float)($loan->customer_lgd??0)*(float)($loan->collection_lgd??0)
@@ -135,6 +141,26 @@ class TimePhasedEclService
             }
         }
         return ['undiscounted'=>$weightedUndisc,'discounted'=>$weightedDisc,'rate'=>$rate,'rate_source'=>$rateSource,'horizon'=>$maxExponent];
+    }
+
+    /**
+     * The scenarios a loan is measured under: the governed set written on the
+     * loan by the route (each scenario's PD becomes a multiplier on the base,
+     * so the loop below reproduces it exactly; LGD and EAD unshocked, weights
+     * from the set), else the legacy assumptions table.
+     */
+    private function scenariosFor(object $loan,float $basePd,Collection $legacy): Collection
+    {
+        $by=isset($loan->fli_by_scenario)&&$loan->fli_by_scenario!==null?(json_decode((string)$loan->fli_by_scenario,true)?:[]):[];
+        if($by===[]) return $legacy;
+        $out=collect();$sum=0.0;
+        foreach($by as $name=>$s){$sum+=(float)($s['weight']??0);}
+        if($sum<=0) return $legacy;
+        foreach($by as $name=>$s){
+            $pd=(float)($s['pd']??$basePd);
+            $out->push((object)['scenario_code'=>$name,'name'=>$name,'weight'=>(float)$s['weight']/$sum,'pd_multiplier'=>$basePd>0?$pd/$basePd:1.0,'lgd_multiplier'=>1.0,'ead_multiplier'=>1.0]);
+        }
+        return $out;
     }
 
     /**

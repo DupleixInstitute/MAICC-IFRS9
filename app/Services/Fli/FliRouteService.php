@@ -49,7 +49,7 @@ class FliRouteService
         if ($fit->approval_status !== 'PROPOSED') {
             throw new RuntimeException("Fit {$fitId} is not proposed.");
         }
-        if ($label === null && $approverId !== null && (int) $fit->proposed_by === $approverId) {
+        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $fit->proposed_by === $approverId) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         DB::transaction(function () use ($fit, $fitId, $approverId, $label) {

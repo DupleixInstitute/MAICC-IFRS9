@@ -31,7 +31,7 @@ class TimePhasedEclServiceTest extends TestCase
         DB::table('contract_cashflow_schedule')->insert(['contract_id'=>'C-1','schedule_version'=>1,'due_date'=>'2026-01-31','principal_due'=>100000]);
         DB::table('ecl_scenario_assumptions')->insert(['scenario_code'=>'BASE','name'=>'Base','weight'=>1,'pd_multiplier'=>1,'lgd_multiplier'=>1,'ead_multiplier'=>1,'effective_from'=>'2025-01-01','status'=>'APPROVED']);
         $loan=DB::table('loan_books')->first();$result=(new TimePhasedEclService())->run(collect([$loan]),'2025-01');
-        $this->assertSame(1,$result['calculated']);$this->assertSame(0,$result['unresolved']);
+        $this->assertSame(1,$result['calculated'],json_encode(DB::table('ecl_projection_runs')->value('exceptions')));$this->assertSame(0,$result['unresolved']);
         $this->assertSame(12,DB::table('ecl_cashflow_projections')->count());
         $this->assertEqualsWithDelta(.12,(float)DB::table('ecl_cashflow_projections')->sum('marginal_pd'),1e-8);
         $this->assertEqualsWithDelta(6000,$result['undiscounted'],.02);
@@ -52,7 +52,10 @@ class TimePhasedEclServiceTest extends TestCase
 
     private function project(): array
     {
-        return (new TimePhasedEclService())->run(collect(DB::table('loan_books')->get()),'2025-01');
+        $r=(new TimePhasedEclService())->run(collect(DB::table('loan_books')->get()),'2025-01');
+        if(getenv('TP_DEBUG')) fwrite(STDERR, json_encode($r)."
+");
+        return $r;
     }
 
     public function test_a_stage_two_lifetime_compounds_beyond_the_twelve_month_pd():void

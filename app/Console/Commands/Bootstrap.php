@@ -177,16 +177,13 @@ class Bootstrap extends Command
         $this->note('5e fees', "{$fe['rows']} rows: {$fe['result']['loaded_rows']} loaded, {$fe['result']['skipped_rows']} skipped; " . json_encode($fe['result']['totals_by_type'] ?? []));
         // the rulebook suggests each fee's treatment; the bootstrap applies the
         // rule and reviews under its label, leaving a line with no rule PENDING
+        // The rulebook suggests; it does not review. Fee Classification is a
+        // Governance Centre screen (spec 11.3) and the bootstrap gives no
+        // approval there (spec 6.10; audit M8): a suggestion stays a suggestion
+        // until a person reviews it, and the rulebook itself suggests nothing
+        // until MAIIC approves it.
         $sweep = app(FeeRuleMatcher::class)->sweepPending();
-        $classified = 0;
-        foreach (ContractFee::where('classification_status', 'PENDING')->whereNotNull('suggested_rule_id')->get() as $fee) {
-            $fee->update(['integral' => (bool) $fee->suggested_integral, 'classification_status' => 'REVIEWED',
-                'classification_reason' => LoanBookBuildService::BOOTSTRAP_LABEL . ' [applied by rule: ' . ($fee->suggestedRule?->name ?? 'unknown') . ']',
-                'classified_by' => $user, 'classified_at' => now(), 'reviewed_by' => $user, 'reviewed_at' => now()]);
-            EirFeeClassificationEvent::create(['contract_fee_id' => $fee->id, 'action' => 'REVIEWED', 'integral' => $fee->integral, 'reason' => $fee->classification_reason, 'performed_by' => $user]);
-            $classified++;
-        }
-        $this->note('5e fee rulebook', "{$sweep['examined']} examined, {$sweep['matched']} matched a rule, {$classified} classified and reviewed under the bootstrap label, " . ContractFee::where('classification_status', 'PENDING')->count() . ' left PENDING');
+        $this->note('5e fee rulebook', "{$sweep['examined']} examined, {$sweep['matched']} matched an approved rule (suggested, not reviewed: the review is a person's), " . ContractFee::where('classification_status', 'PENDING')->count() . ' PENDING');
         $gi = $inputs->glInterest($from, null);
         $this->note('5f interest posted (ledger)', "{$gi['rows']} account-months: {$gi['result']['loaded_rows']} loaded, {$gi['result']['restated_rows']} restated, total " . number_format($gi['result']['total_posted'], 2));
 
@@ -313,16 +310,13 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.6 forward-looking chain', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
-        // 6b the route: the best applied fit on a book-level proxy, approved under the bootstrap label, applied once per scenario
+        // 6b the route, applied once per scenario. Spec 6.10.1 step 6: on a clean
+        // install no fit is approved, so the overlay is zero and the post-FLI PD
+        // is marked "no adjustment: bootstrap"; the regression is used once two
+        // people approve a fit on the FLI Adjustments screen (audit C9: the
+        // bootstrap had proposed and approved the best fit itself).
         try {
-            $ym = str_replace('-', '', $to);
-            $best = DB::table('fli_fits as f')->join('fli_relationships as r', 'r.id', '=', 'f.fli_relationship_id')->where('f.reporting_period', $ym)->where('f.verdict', 'applied')
-                ->whereIn('r.proxy_code', ['NPL_RATIO', 'STAGE3_SHARE', 'DEFAULT_RATE_12M'])->orderByDesc('f.r_squared')->orderByDesc('f.n_obs')->first(['f.id', 'f.approval_status', 'r.statistic_code', 'r.proxy_code']);
             $routeSvc = app(\App\Services\Fli\FliRouteService::class);
-            if ($best !== null && $routeSvc->approvedFit($to) === null) {
-                $routeSvc->proposeFit((int) $best->id, $user, 'the best applied fit on a book-level proxy, for the bootstrap');
-                $routeSvc->approveFit((int) $best->id, null, LoanBookBuildService::BOOTSTRAP_LABEL);
-            }
             $fr = $routeSvc->apply($to, $user);
             $this->note('6.6 forward-looking route', "route '{$fr['route']}', method '{$fr['method']}'" . ($fr['fit'] ? ", fit {$fr['fit']} {$fr['fit_relationship']}" : '') . '; adjustments ' . json_encode(array_map(fn ($x) => $x['adjustment'], $fr['scenarios'])) . "; {$fr['adjusted']} loans adjusted, {$fr['held']} held" . ($fr['note'] ? '; ' . $fr['note'] : ''));
         } catch (Throwable $e) {
@@ -330,8 +324,10 @@ class Bootstrap extends Command
         }
         // 7 ECL on the post-FLI PDs, after the scenario set and the chain
         try {
-            Artisan::call('ifrs9:recalculate-ecl', ['period' => $to, '--level' => 'portfolio', '--portfolio' => $portfolio, '--pd' => DB::table('loan_books')->where('reporting_period', $to)->whereNotNull('pd_post_fli')->exists() ? 'pd_post_fli' : 'pd_prefli']);
-            $this->note('6.7 ECL', $to . ': ' . trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 240))));
+            Artisan::call('ifrs9:recalculate-ecl', ['period' => $to, '--level' => 'portfolio', '--portfolio' => $portfolio, '--discounting' => 'discounted',
+                '--pd' => DB::table('loan_books')->where('reporting_period', $to)->whereNotNull('pd_post_fli')->exists() ? 'pd_post_fli' : 'pd_prefli']);
+            $disc = DB::table('loan_books')->where('reporting_period', $to)->selectRaw('sum(ecl_value) ecl, sum(ecl_value_discounted) disc, sum(ecl_value_discounted is not null) n')->first();
+            $this->note('6.7 ECL', $to . ': ' . trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 160))) . ' | undiscounted ' . number_format((float) $disc->ecl, 0) . "; discounted through the time-phased engine on {$disc->n} loans with a locked EIR: " . number_format((float) $disc->disc, 0));
         } catch (Throwable $e) {
             $this->note('6.7 ECL', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
