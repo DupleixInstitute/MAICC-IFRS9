@@ -15,12 +15,12 @@ use Illuminate\Support\Facades\DB;
  */
 class MacroImportService
 {
-    /** @return array{batch_id:int,rows:int,new:int,updated:int,unchanged:int} */
+    /** @return array{batch_id:int,rows:int,new:int,updated:int,unchanged:int,kept_actual:int} */
     public function commit(array $preview, ?int $userId, string $sourceKey = 'world_bank', ?string $fileSha = null, ?string $note = null): array
     {
         $series = DB::table('macro_statistics')->where('statistic_code', $preview['series_code'])->first();
         if ($series === null || $preview['rows'] === []) {
-            return ['batch_id' => 0, 'rows' => 0, 'new' => 0, 'updated' => 0, 'unchanged' => 0];
+            return ['batch_id' => 0, 'rows' => 0, 'new' => 0, 'updated' => 0, 'unchanged' => 0, 'kept_actual' => 0];
         }
         [$profileId, $scenarioId] = $this->baseScenario($userId);
 
@@ -31,7 +31,7 @@ class MacroImportService
                 'series' => json_encode([['code' => $series->statistic_code, 'indicator' => $preview['indicator_code'] ?? null, 'rows' => count($preview['rows']), 'first' => $preview['rows'][0]['period'], 'last' => end($preview['rows'])['period']]]),
                 'note' => $note, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            $new = $updated = $unchanged = 0;
+            $new = $updated = $unchanged = $kept = 0;
             foreach ($preview['rows'] as $r) {
                 $existing = DB::table('macro_statistics_data')->where('macro_stat_definition_id', $series->id)->where('period', $r['period'])->where('scenario_id', $scenarioId)->first();
                 $values = ['value' => $r['value'], 'is_forecast' => $r['value_type'] === 'forecast' ? 1 : 0, 'actual_value' => $r['value_type'] === 'actual' ? $r['value'] : null,
@@ -39,6 +39,10 @@ class MacroImportService
                 if ($existing === null) {
                     DB::table('macro_statistics_data')->insert($values + ['macro_stat_definition_id' => $series->id, 'scenario_profile_id' => $profileId, 'scenario_id' => $scenarioId, 'period' => $r['period'], 'created_by' => $userId ?? 1, 'created_at' => now()]);
                     $new++;
+                } elseif ($r['value_type'] === 'forecast' && (int) $existing->is_forecast === 0 && $sourceKey !== 'manual') {
+                    // precedence (13.5): an actual already held is never overwritten by a forecast; the forecast is kept in the batch history
+                    $kept++;
+                    continue;
                 } elseif (abs((float) $existing->value - round((float) $r['value'], 4)) > 0.00005 || (int) $existing->is_forecast !== $values['is_forecast']) { // the column holds four decimals
                     DB::table('macro_statistics_data')->where('id', $existing->id)->update($values);
                     $updated++;
@@ -49,7 +53,7 @@ class MacroImportService
             }
             AuditLoggerService::log('Macro Series Imported', 'macro_source_import_batches', $batchId, ['new_values' => ['series' => $series->statistic_code, 'source' => $sourceKey, 'rows' => count($preview['rows']), 'new' => $new, 'updated' => $updated], 'meta' => ['user' => $userId, 'address' => $preview['address'] ?? null]]);
 
-            return ['batch_id' => $batchId, 'rows' => count($preview['rows']), 'new' => $new, 'updated' => $updated, 'unchanged' => $unchanged];
+            return ['batch_id' => $batchId, 'rows' => count($preview['rows']), 'new' => $new, 'updated' => $updated, 'unchanged' => $unchanged, 'kept_actual' => $kept];
         });
     }
 

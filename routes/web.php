@@ -983,7 +983,13 @@ Route::middleware(['auth', 'permission:settings'])->group(function () {
 
 // Foward Looking Information [ Macro Statistic ]
 
-Route::get('/macro-statistics', [MacroStatsController::class, 'index'])->name('macro-statistics.index');
+// The five-tab Macro Statistics screen of spec v4 section 13 replaces the old index; the old store/update/destroy stay for the Variables tab
+Route::get('/macro-statistics', [\App\Http\Controllers\MacroStatisticsController::class, 'index'])->name('macro-statistics.index');
+Route::get('/macro-statistics/legacy', [MacroStatsController::class, 'index'])->name('macro-statistics.legacy');
+Route::post('/macro-statistics/preview', [\App\Http\Controllers\MacroStatisticsController::class, 'preview'])->name('macro-statistics.preview');
+Route::post('/macro-statistics/commit', [\App\Http\Controllers\MacroStatisticsController::class, 'commit'])->name('macro-statistics.commit');
+Route::post('/macro-statistics/manual', [\App\Http\Controllers\MacroStatisticsController::class, 'manual'])->name('macro-statistics.manual');
+Route::get('/macro-statistics/export', [\App\Http\Controllers\MacroStatisticsController::class, 'export'])->name('macro-statistics.export');
 Route::post('/macro-statistics', [MacroStatsController::class, 'store'])->name('macro-statistics.store');
 Route::put('/macro-statistics/{id}', [MacroStatsController::class, 'update'])->name('macro-statistics.update');
 Route::delete('/macro-statistics/{id}', [MacroStatsController::class, 'destroy'])->name('macro-statistics.destroy');
