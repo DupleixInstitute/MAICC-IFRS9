@@ -78,22 +78,17 @@ class TransitionProfileOptionController extends Controller
         $startCategories = array_values(array_filter($categories, fn ($c) => $c['is_start_or_end'] === 'start'));
         $endCategories = array_values(array_filter($categories, fn ($c) => $c['is_start_or_end'] === 'end'));
     
-        $query = "UPDATE transition_profile_options SET ordering_index = CASE id ";
-        $ids = [];
-
-        foreach ($startCategories as $index => $category) {
-            $query .= "WHEN {$category['id']} THEN " . ($index + 1) . " ";
-            $ids[] = $category['id'];
-        }
-
-        foreach ($endCategories as $index => $category) {
-            $query .= "WHEN {$category['id']} THEN " . ($index + 1) . " ";
-            $ids[] = $category['id'];
-        }
-        
-        $query .= "END WHERE id IN (" . implode(',', $ids) . ")";
-    
-        DB::statement($query);
+        // One update per row with bound integers. The earlier CASE statement
+        // interpolated the request ids into raw SQL; the exists: rule did not
+        // stop it, because MySQL coerces "5 OR 1=1" to 5 (system audit of
+        // 9 October 2026, finding C8).
+        DB::transaction(function () use ($startCategories, $endCategories) {
+            foreach ([$startCategories, $endCategories] as $group) {
+                foreach ($group as $index => $category) {
+                    DB::table('transition_profile_options')->where('id', (int) $category['id'])->update(['ordering_index' => $index + 1]);
+                }
+            }
+        });
     
         return redirect()->route('transition-profiles.config', $profileId)->with('message', 'Categories sorted successfully');
     }

@@ -17,7 +17,7 @@ class CommunicationLogController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', '2fa']);
+        $this->middleware(['auth', 'permission:settings']); // '2fa' named a middleware alias that was never registered, so every request here threw (system audit 9 Oct 2026)
         $this->middleware(['permission:communication.logs.index'])->only(['index', 'show', 'get_logs']);
         $this->middleware(['permission:communication.logs.create'])->only(['create', 'store']);
         $this->middleware(['permission:communication.logs.edit'])->only(['edit', 'update']);
