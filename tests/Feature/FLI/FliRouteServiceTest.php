@@ -1,0 +1,125 @@
+<?php
+
+namespace Tests\Feature\FLI;
+
+use App\Services\Eir\GovernanceService;
+use App\Services\Fli\FliRouteService;
+use App\Services\Fli\TransmissionMethodCatalogue;
+use App\Services\Scenario\ScenarioSetService;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use RuntimeException;
+use Tests\TestCase;
+
+/**
+ * The forward-looking route (spec v4 sections 14.6 to 14.8): a fit is
+ * proposed and approved by a second person; the approved fit runs once
+ * per scenario of the approved set and the loan's post-FLI PD is the
+ * weighted PD across scenarios, Stage 3 at 100 percent, with the route,
+ * method, fit and set recorded on the loan; with no approved fit the PD
+ * holds and the loan says so.
+ */
+class FliRouteServiceTest extends TestCase
+{
+    protected $seed = false;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
+        DB::purge('sqlite'); DB::reconnect('sqlite');
+        Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->timestamps(); });
+        Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });
+        foreach (['2026_10_09_000000_create_fli_bridge_tables', '2026_10_09_100000_create_governed_scenario_sets'] as $m) {
+            (require base_path("database/migrations/{$m}.php"))->up();
+        }
+        Schema::table('fli_fits', function (Blueprint $t) { $t->string('approval_status', 12)->default('NONE'); $t->integer('proposed_by')->nullable(); $t->timestamp('proposed_at')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approver_label')->nullable(); $t->timestamp('approved_at')->nullable(); $t->string('approval_note')->nullable(); });
+        Schema::create('fli_adj', function (Blueprint $t) { $t->increments('id'); $t->string('reporting_period'); $t->decimal('fli_adj', 16, 8); });
+        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->decimal('pd_prefli', 16, 8)->nullable(); $t->decimal('pd_value', 16, 8)->nullable(); $t->decimal('12m_pd', 8, 2)->nullable(); $t->decimal('fli_adj', 16, 8)->nullable(); $t->decimal('pd_post_fli', 16, 8)->nullable(); $t->string('fli_route')->nullable(); $t->string('fli_method')->nullable(); $t->integer('fli_fit_id')->nullable(); $t->integer('fli_set_id')->nullable(); $t->text('fli_by_scenario')->nullable(); $t->decimal('lgd_value', 16, 8)->nullable(); $t->decimal('ead', 18, 2)->nullable(); $t->decimal('carrying_amount', 20, 2)->default(0); });
+        DB::table('users')->insert([['id' => 1, 'name' => 'Maker', 'created_at' => now(), 'updated_at' => now()], ['id' => 2, 'name' => 'Checker', 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('macro_series')->insert(['statistic_code' => 'PLR', 'observation_period' => '202608', 'value' => 20.0, 'value_type' => 'actual']);
+        DB::table('fli_relationships')->insert(['id' => 1, 'statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'r2_cutoff' => 0.3, 'lag_months' => 0, 'created_at' => now(), 'updated_at' => now()]);
+        // proxy = 0.01 x PLR + 0.1: at 20 the proxy is 0.3; a PLR five points higher gives 0.35, an adjustment of one sixth
+        DB::table('fli_fits')->insert(['id' => 10, 'fli_relationship_id' => 1, 'reporting_period' => '202608', 'slope' => 0.01, 'intercept' => 0.1, 'correlation_r' => 0.9, 'r_squared' => 0.81, 'n_obs' => 24, 'verdict' => 'applied']);
+        DB::table('fli_fits')->insert(['id' => 11, 'fli_relationship_id' => 1, 'reporting_period' => '202608', 'slope' => 0.01, 'intercept' => 0.1, 'correlation_r' => 0.2, 'r_squared' => 0.04, 'n_obs' => 24, 'verdict' => 'declined', 'declined_reason' => 'r2<cutoff']);
+        DB::table('loan_books')->insert([
+            ['contract_id' => 'A', 'reporting_period' => '2026-08', 'ifrs9stage_post_qualitative' => '1', 'pd_prefli' => 0.30],
+            ['contract_id' => 'B', 'reporting_period' => '2026-08', 'ifrs9stage_post_qualitative' => '3', 'pd_prefli' => 0.30],
+        ]);
+    }
+
+    private function service(): FliRouteService
+    {
+        $gov = new GovernanceService();
+
+        return new FliRouteService($gov, new TransmissionMethodCatalogue($gov), new ScenarioSetService($gov));
+    }
+
+    private function approvedSet(): int
+    {
+        $sets = new ScenarioSetService(new GovernanceService());
+        $id = $sets->create('2026-08', 'Test set', [
+            ['name' => 'Base', 'weight' => 50, 'is_base' => true, 'pd_multiplier' => 1, 'calibration_note' => 'base'],
+            ['name' => 'Up', 'weight' => 25, 'pd_multiplier' => 0.9, 'calibration_note' => 'up', 'shocks' => [['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => -5]]],
+            ['name' => 'Down', 'weight' => 25, 'pd_multiplier' => 1.2, 'calibration_note' => 'down', 'shocks' => [['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => 5]]],
+        ], 1);
+        $sets->propose($id, 1);
+        $sets->approve($id, 2);
+
+        return $id;
+    }
+
+    public function test_a_declined_fit_cannot_be_proposed_and_approval_needs_a_second_person(): void
+    {
+        try {
+            $this->service()->proposeFit(11, 1);
+            $this->fail('a declined fit was proposed');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('declined by the guardrail', $e->getMessage());
+        }
+        $this->service()->proposeFit(10, 1);
+        try {
+            $this->service()->approveFit(10, 1);
+            $this->fail('the proposer approved their own fit');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('different person', $e->getMessage());
+        }
+        $this->service()->approveFit(10, 2);
+        $this->assertSame('APPROVED', DB::table('fli_fits')->where('id', 10)->value('approval_status'));
+        $this->assertSame(10, (int) $this->service()->approvedFit('2026-08')->id);
+    }
+
+    public function test_the_approved_fit_runs_once_per_scenario_and_the_loan_carries_its_lineage(): void
+    {
+        $setId = $this->approvedSet();
+        $this->service()->proposeFit(10, 1);
+        $this->service()->approveFit(10, 2);
+        $r = $this->service()->apply('2026-08', 1);
+        $this->assertSame(10, $r['fit']);
+        $this->assertEqualsWithDelta(0.0, $r['scenarios']['Base']['adjustment'], 1e-6);
+        $this->assertEqualsWithDelta(0.35 / 0.30 - 1, $r['scenarios']['Down']['adjustment'], 1e-6);
+        $this->assertEqualsWithDelta(0.25 / 0.30 - 1, $r['scenarios']['Up']['adjustment'], 1e-6);
+        $a = DB::table('loan_books')->where('contract_id', 'A')->first();
+        $expected = 0.5 * 0.30 + 0.25 * 0.30 * (0.25 / 0.30) + 0.25 * 0.30 * (0.35 / 0.30);   // weighted PD across scenarios under the scalar
+        $this->assertEqualsWithDelta($expected, (float) $a->pd_post_fli, 1e-6);
+        $this->assertEqualsWithDelta($expected / 0.30 - 1, (float) $a->fli_adj, 1e-6);
+        $this->assertSame('Regression', $a->fli_route);
+        $this->assertSame(TransmissionMethodCatalogue::SCALAR, $a->fli_method);
+        $this->assertSame(10, (int) $a->fli_fit_id);
+        $this->assertSame($setId, (int) $a->fli_set_id);
+        $this->assertCount(3, json_decode($a->fli_by_scenario, true));
+        $this->assertEqualsWithDelta(1.0, (float) DB::table('loan_books')->where('contract_id', 'B')->value('pd_post_fli'), 1e-9); // Stage 3 at 100 percent
+        $this->assertSame(1, $r['adjusted']); // the scalar is linear: symmetric shocks weight back to the pre-FLI PD, so only the Stage 3 loan moved
+    }
+
+    public function test_with_no_approved_fit_the_pd_holds_and_the_loan_says_so(): void
+    {
+        $this->approvedSet();
+        $r = $this->service()->apply('2026-08', 1);
+        $this->assertNull($r['fit']);
+        $this->assertStringContainsString('manual overlay at zero', $r['note']);
+        $this->assertEqualsWithDelta(0.30, (float) DB::table('loan_books')->where('contract_id', 'A')->value('pd_post_fli'), 1e-9);
+        $this->assertEqualsWithDelta(0.0, (float) DB::table('loan_books')->where('contract_id', 'A')->value('fli_adj'), 1e-9);
+    }
+}

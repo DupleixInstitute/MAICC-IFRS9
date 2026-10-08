@@ -93,6 +93,7 @@ return [
                 $leaf('Cumulative LGD', 'lgd-cummulative.index'),
             ], 1, 'sky'),
             $group('Forward-Looking Model', 'circle', [
+                $leaf('FLI Adjustments', 'fli-adjustments.index', 'bolt', false, '', 'The fits, the approved one, the transmission methods and the route on every loan (spec v4 section 14.6)'),
                 $leaf('Regression Analysis', 'regression.index'),
                 $leaf('Weighted Forecast', 'macro-forecast-weighted.index'),
                 $leaf('Credit Loss Data', 'credit-loss-data.index'),

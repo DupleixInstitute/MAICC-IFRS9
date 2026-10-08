@@ -274,9 +274,24 @@ class Bootstrap extends Command
             $this->note('6.5 LGD cohort workout', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
 
-        // 7 ECL on the PDs, after the scenario set and the chain
+        // 6b the route: the best applied fit on a book-level proxy, approved under the bootstrap label, applied once per scenario
         try {
-            Artisan::call('ifrs9:recalculate-ecl', ['period' => $to, '--level' => 'portfolio', '--portfolio' => $portfolio, '--pd' => 'pd_prefli']);
+            $ym = str_replace('-', '', $to);
+            $best = DB::table('fli_fits as f')->join('fli_relationships as r', 'r.id', '=', 'f.fli_relationship_id')->where('f.reporting_period', $ym)->where('f.verdict', 'applied')
+                ->whereIn('r.proxy_code', ['NPL_RATIO', 'STAGE3_SHARE', 'DEFAULT_RATE_12M'])->orderByDesc('f.r_squared')->orderByDesc('f.n_obs')->first(['f.id', 'f.approval_status', 'r.statistic_code', 'r.proxy_code']);
+            $routeSvc = app(\App\Services\Fli\FliRouteService::class);
+            if ($best !== null && $routeSvc->approvedFit($to) === null) {
+                $routeSvc->proposeFit((int) $best->id, $user, 'the best applied fit on a book-level proxy, for the bootstrap');
+                $routeSvc->approveFit((int) $best->id, null, LoanBookBuildService::BOOTSTRAP_LABEL);
+            }
+            $fr = $routeSvc->apply($to, $user);
+            $this->note('6.6 forward-looking route', "route '{$fr['route']}', method '{$fr['method']}'" . ($fr['fit'] ? ", fit {$fr['fit']} {$fr['fit_relationship']}" : '') . '; adjustments ' . json_encode(array_map(fn ($x) => $x['adjustment'], $fr['scenarios'])) . "; {$fr['adjusted']} loans adjusted, {$fr['held']} held" . ($fr['note'] ? '; ' . $fr['note'] : ''));
+        } catch (Throwable $e) {
+            $this->note('6.6 forward-looking route', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
+        // 7 ECL on the post-FLI PDs, after the scenario set and the chain
+        try {
+            Artisan::call('ifrs9:recalculate-ecl', ['period' => $to, '--level' => 'portfolio', '--portfolio' => $portfolio, '--pd' => DB::table('loan_books')->where('reporting_period', $to)->whereNotNull('pd_post_fli')->exists() ? 'pd_post_fli' : 'pd_prefli']);
             $this->note('6.7 ECL', $to . ': ' . trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 240))));
         } catch (Throwable $e) {
             $this->note('6.7 ECL', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));

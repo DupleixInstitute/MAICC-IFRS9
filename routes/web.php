@@ -1281,3 +1281,11 @@ Route::group(['prefix' => 'scenario-sets', 'as' => 'scenario-sets.'], function (
     Route::post('/{set}/lock', [\App\Http\Controllers\ScenarioSetController::class, 'lock'])->name('lock');
     Route::post('/{set}/version', [\App\Http\Controllers\ScenarioSetController::class, 'version'])->name('version');
 });
+
+// FLI Adjustments: the fits, the approved one, the method cards, the route (spec v4 s.14.6 to 14.8).
+Route::group(['prefix' => 'fli-adjustments', 'as' => 'fli-adjustments.'], function () {
+    Route::get('/', [\App\Http\Controllers\FliAdjustmentsController::class, 'index'])->name('index');
+    Route::post('/apply', [\App\Http\Controllers\FliAdjustmentsController::class, 'apply'])->name('apply');
+    Route::post('/{fit}/propose', [\App\Http\Controllers\FliAdjustmentsController::class, 'propose'])->name('propose');
+    Route::post('/{fit}/approve', [\App\Http\Controllers\FliAdjustmentsController::class, 'approve'])->name('approve');
+});
