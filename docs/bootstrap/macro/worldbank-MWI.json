@@ -1,0 +1,1667 @@
+{
+    "AGRI_GROWTH": {
+        "series_code": "AGRI_GROWTH",
+        "indicator_code": "NV.AGR.TOTL.KD.ZG",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/NV.AGR.TOTL.KD.ZG?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:08",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 5.298878,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": -5.98268,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": 5.893616,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 3.30811,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 3.644149,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": -9.330252,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": -4.620557,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 11.172387,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 3.6,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 3.995698,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 6.8038,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 6.1,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": -1.2,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 6.2,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 5.88821,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": -2.01727,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": -2.33004,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 5.2,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 0.296213,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 5.898424,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 3.385092,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": 3.753954,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 0.938002,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 0.54304,
+                "value_type": "actual"
+            },
+            {
+                "period": "2024-12-31",
+                "year": 2024,
+                "value": -0.243043,
+                "value_type": "actual"
+            },
+            {
+                "period": "2025-12-31",
+                "year": 2025,
+                "value": 1.199983,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "BROAD_MONEY": {
+        "series_code": "BROAD_MONEY",
+        "indicator_code": "FM.LBL.BMNY.ZG",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/FM.LBL.BMNY.ZG?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:13",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 45.532179,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": 23.727856,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": 22.62713,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 27.475053,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 29.701472,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": 16.246341,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": 16.41753,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 36.591704,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 62.640218,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 24.626264,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 33.142407,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 35.656539,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 22.939185,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 35.071015,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 18.045498,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 28.016478,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 16.398727,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 17.332872,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 11.237109,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 10.193545,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 16.7275,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": 30.041531,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 38.799376,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 32.234091,
+                "value_type": "actual"
+            },
+            {
+                "period": "2024-12-31",
+                "year": 2024,
+                "value": 45.125792,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "CPI": {
+        "series_code": "CPI",
+        "indicator_code": "FP.CPI.TOTL.ZG",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/FP.CPI.TOTL.ZG?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:20",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 29.581488,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": 22.7,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": 14.744635,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 9.576798,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 11.429806,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": 15.410345,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": 13.974294,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 7.95221,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 8.712602,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 8.422044,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 7.411591,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 7.622823,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 21.271265,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 27.283333,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 23.792065,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 21.867348,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 21.711113,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 11.543394,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 12.420178,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 9.370836,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 8.625515,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": 9.330144,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 20.95397,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 28.789743,
+                "value_type": "actual"
+            },
+            {
+                "period": "2024-12-31",
+                "year": 2024,
+                "value": 32.17965,
+                "value_type": "actual"
+            },
+            {
+                "period": "2025-12-31",
+                "year": 2025,
+                "value": 28.370257,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "CURRENT_ACCOUNT": {
+        "series_code": "CURRENT_ACCOUNT",
+        "indicator_code": "BN.CAB.XOKA.GD.ZS",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/BN.CAB.XOKA.GD.ZS?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:21",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": -2.896624,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": -2.399948,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": -3.944948,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": -5.331747,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": -7.491807,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": -9.523893,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": -5.269114,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": -6.479833,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": -8.95429,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": -6.033742,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": -9.570079,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": -9.758721,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": -8.48798,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": -15.391592,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": -12.822351,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": -11.545376,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": -12.713401,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": -17.420871,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": -17.258708,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": -11.953218,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": -13.923323,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": -15.492261,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": -18.342633,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": -15.740916,
+                "value_type": "actual"
+            },
+            {
+                "period": "2024-12-31",
+                "year": 2024,
+                "value": -18.787893,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "DEBT_GDP": {
+        "series_code": "DEBT_GDP",
+        "indicator_code": "GC.DOD.TOTL.GD.ZS",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/GC.DOD.TOTL.GD.ZS?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:27",
+        "rows": [
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 20.115172,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 19.26083,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 18.845545,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 28.461993,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 24.913889,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 27.920757,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 27.334646,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 37.886208,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 34.294622,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 41.701107,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 44.785632,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 55.599212,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 61.812417,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "GDP_GROWTH": {
+        "series_code": "GDP_GROWTH",
+        "indicator_code": "NY.GDP.MKTP.KD.ZG",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/NY.GDP.MKTP.KD.ZG?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:27",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 1.576078,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": -4.974964,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": 1.7,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 5.705639,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 5.420498,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": 3.268726,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": 4.7,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 9.6,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 7.639736,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 8.32811,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 6.874066,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 4.93267,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 1.9,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 5.41035,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 5.62527,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 2.8,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 2.5,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 4,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 4.353565,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 5.716825,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 0.793596,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": 4.558292,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 0.921115,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 1.945753,
+                "value_type": "actual"
+            },
+            {
+                "period": "2024-12-31",
+                "year": 2024,
+                "value": 1.673434,
+                "value_type": "actual"
+            },
+            {
+                "period": "2025-12-31",
+                "year": 2025,
+                "value": 1.885187,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "LENDING_RATE": {
+        "series_code": "LENDING_RATE",
+        "indicator_code": "FR.INR.LEND",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/FR.INR.LEND?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:28",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 53.125,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": 56.166667,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": 50.541667,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 48.916667,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 36.833333,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": 33.083333,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": 32.25,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 27.715278,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 25.277778,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 25.25,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 24.625,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 23.75,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 32.329861,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 46.011174,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 44.289583,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 44.387216,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 44.112083,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 38.592917,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 32.29,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 25.674306,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 24.216296,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": 23.88125,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 25.351667,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 33.547708,
+                "value_type": "actual"
+            },
+            {
+                "period": "2024-12-31",
+                "year": 2024,
+                "value": 37.064167,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "MWK_USD": {
+        "series_code": "MWK_USD",
+        "indicator_code": "PA.NUS.FCRF",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/PA.NUS.FCRF?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:29",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 59.543808,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": 72.197333,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": 76.686608,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 97.432475,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 108.897508,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": 118.42,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": 136.0125,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 139.9575,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 140.521667,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 141.168333,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 150.485833,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 156.515833,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 249.106667,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 364.405833,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 424.896667,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 499.605833,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 718.005,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 730.2725,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 732.333333,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 745.540668,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 749.527494,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": 805.89965,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 949.039017,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 1161.094367,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "PRIVATE_CREDIT": {
+        "series_code": "PRIVATE_CREDIT",
+        "indicator_code": "FS.AST.PRVT.GD.ZS",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/FS.AST.PRVT.GD.ZS?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:30",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 3.850605,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": 3.578623,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": 1.887519,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 2.15559,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 2.527829,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": 2.777934,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": 3.506168,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 3.764338,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 6.262299,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 7.472584,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 9.502993,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 9.573614,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 10.014674,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 8.557086,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 7.835986,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 9.172404,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 8.009309,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 7.478351,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 6.817649,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 7.220742,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 7.853149,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": 8.239599,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 8.647049,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 7.747784,
+                "value_type": "actual"
+            },
+            {
+                "period": "2024-12-31",
+                "year": 2024,
+                "value": 7.910338,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "REAL_RATE": {
+        "series_code": "REAL_RATE",
+        "indicator_code": "FR.INR.RINR",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/FR.INR.RINR?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:31",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 17.306644,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": 24.314278,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": -29.221363,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 34.954177,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 19.144408,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": 20.175047,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": 10.23841,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 22.685509,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 11.890457,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 16.079894,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 11.146069,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 8.561928,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 12.487356,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 14.927538,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 19.277871,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 20.508796,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 19.801205,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 25.336201,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 24.622774,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 16.658303,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 16.944349,
+                "value_type": "actual"
+            },
+            {
+                "period": "2021-12-31",
+                "year": 2021,
+                "value": 14.542626,
+                "value_type": "actual"
+            },
+            {
+                "period": "2022-12-31",
+                "year": 2022,
+                "value": 6.985626,
+                "value_type": "actual"
+            },
+            {
+                "period": "2023-12-31",
+                "year": 2023,
+                "value": 3.498648,
+                "value_type": "actual"
+            },
+            {
+                "period": "2024-12-31",
+                "year": 2024,
+                "value": 9.964311,
+                "value_type": "actual"
+            }
+        ]
+    },
+    "RESERVES": {
+        "series_code": "RESERVES",
+        "indicator_code": "FI.RES.TOTL.MO",
+        "country": "MWI",
+        "address": "https://api.worldbank.org/v2/country/MWI/indicator/FI.RES.TOTL.MO?format=json&per_page=2000&date=2000:2026",
+        "fetched_at": "2026-10-08 19:46:32",
+        "rows": [
+            {
+                "period": "2000-12-31",
+                "year": 2000,
+                "value": 4.352471,
+                "value_type": "actual"
+            },
+            {
+                "period": "2001-12-31",
+                "year": 2001,
+                "value": 3.603387,
+                "value_type": "actual"
+            },
+            {
+                "period": "2002-12-31",
+                "year": 2002,
+                "value": 2.370611,
+                "value_type": "actual"
+            },
+            {
+                "period": "2003-12-31",
+                "year": 2003,
+                "value": 1.523939,
+                "value_type": "actual"
+            },
+            {
+                "period": "2004-12-31",
+                "year": 2004,
+                "value": 1.384803,
+                "value_type": "actual"
+            },
+            {
+                "period": "2005-12-31",
+                "year": 2005,
+                "value": 1.426504,
+                "value_type": "actual"
+            },
+            {
+                "period": "2006-12-31",
+                "year": 2006,
+                "value": 1.216396,
+                "value_type": "actual"
+            },
+            {
+                "period": "2007-12-31",
+                "year": 2007,
+                "value": 1.685162,
+                "value_type": "actual"
+            },
+            {
+                "period": "2008-12-31",
+                "year": 2008,
+                "value": 1.41273,
+                "value_type": "actual"
+            },
+            {
+                "period": "2009-12-31",
+                "year": 2009,
+                "value": 0.830209,
+                "value_type": "actual"
+            },
+            {
+                "period": "2010-12-31",
+                "year": 2010,
+                "value": 1.377241,
+                "value_type": "actual"
+            },
+            {
+                "period": "2011-12-31",
+                "year": 2011,
+                "value": 0.798481,
+                "value_type": "actual"
+            },
+            {
+                "period": "2012-12-31",
+                "year": 2012,
+                "value": 1.12923,
+                "value_type": "actual"
+            },
+            {
+                "period": "2013-12-31",
+                "year": 2013,
+                "value": 1.594095,
+                "value_type": "actual"
+            },
+            {
+                "period": "2014-12-31",
+                "year": 2014,
+                "value": 2.228916,
+                "value_type": "actual"
+            },
+            {
+                "period": "2015-12-31",
+                "year": 2015,
+                "value": 2.989535,
+                "value_type": "actual"
+            },
+            {
+                "period": "2016-12-31",
+                "year": 2016,
+                "value": 2.926432,
+                "value_type": "actual"
+            },
+            {
+                "period": "2017-12-31",
+                "year": 2017,
+                "value": 3.009306,
+                "value_type": "actual"
+            },
+            {
+                "period": "2018-12-31",
+                "year": 2018,
+                "value": 2.759554,
+                "value_type": "actual"
+            },
+            {
+                "period": "2019-12-31",
+                "year": 2019,
+                "value": 2.857848,
+                "value_type": "actual"
+            },
+            {
+                "period": "2020-12-31",
+                "year": 2020,
+                "value": 1.914822,
+                "value_type": "actual"
+            }
+        ]
+    }
+}

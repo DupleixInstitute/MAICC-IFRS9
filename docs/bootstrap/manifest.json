@@ -694,6 +694,13 @@
       "rows": null,
       "sha256": "525db5520d9dec9616b2d0cec6e550d039c47f3722b855d90a607dac865d732e",
       "note": "Tamanda's take-on workbook of 11 Sep 2026 exactly as received (Excel-saved, so every formula carries its value); the landing reads the figures here and the mapping, ticks and fees from the mapping workbook"
+    },
+    {
+      "file": "macro/worldbank-MWI.json",
+      "query_id": "MACRO_WB_SNAPSHOT",
+      "rows": null,
+      "sha256": "a757d1ab4022910b9b9a43b510281c4b632d4969bb14ef58becedb95de8cdf75",
+      "note": "World Bank Open Data snapshot for Malawi (11 series, 2000 onward) fetched 8 Oct 2026 by macro:import-worldbank --snapshot; the offline fallback of spec v4 section 13.3"
     }
   ]
 }

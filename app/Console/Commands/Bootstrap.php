@@ -102,7 +102,7 @@ class Bootstrap extends Command
     {
         Artisan::call('migrate', ['--force' => true]);
         $classes = ['PermissionsTableSeeder', 'RolesTableSeeder', 'MaiicAdminPermissionsSeeder', 'UsersTableSeeder', 'GovernanceSettingsSeeder', 'StagingThresholdSeeder',
-            'EbankerQuerySeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder', 'EclScenarioAssumptionSeeder',
+            'EbankerQuerySeeder', 'MacroSeriesSeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder', 'EclScenarioAssumptionSeeder',
             'IndustryTypeSeeder', 'CreditLossDefinitionSeeder', 'TransitionProfileDefinitionSeeder', 'TransitionProfileOptionSeeder'];
         $ran = [];
         foreach ($classes as $c) {
@@ -213,6 +213,11 @@ class Bootstrap extends Command
 
     private function stepEngines(int $user, ?string $to): void
     {
+        // 1 macro statistics: live from the World Bank, else the committed snapshot
+        Artisan::call('macro:import-worldbank', ['--user' => $user, '--from' => 2000]);
+        $out = Artisan::output();
+        $this->note('6.1 macro statistics', trim(preg_replace('/\s+/', ' ', (string) (preg_match('/(\d+ series fetched live.*?skipped\.)/s', $out, $m) ? $m[1] : substr($out, -200)))));
+
         $build = app(LoanBookBuildService::class);
         $from = (string) $this->option('from');
         $to ??= $this->option('to') ?? (string) DB::table('loan_books')->whereNotNull('build_method')->max('reporting_period');
