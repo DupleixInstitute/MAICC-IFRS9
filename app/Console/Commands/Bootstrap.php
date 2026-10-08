@@ -327,6 +327,17 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.2 scenario sensitivity', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
+        // 7b the Mega Farm programme, where its book is in the period (spec section 16, D30)
+        try {
+            if (app(\App\Services\MegaFarm\MegaFarmEclService::class)->loans($to)->exists()) {
+                $mf = app(\App\Services\MegaFarm\MegaFarmEclService::class)->run($to, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+                $this->note('6.7 Mega Farm', $mf['declined'] ? "declined: {$mf['declined']}" : "{$mf['loans']} loans, programme ECL " . number_format($mf['programme_ecl'], 0) . ', MAIIC share ' . ($mf['share'] * 100) . '% = ' . number_format($mf['maiic_ecl'], 0) . " (scalar {$mf['scalar']}, LGD " . round($mf['lgd'] * 100, 1) . '%)');
+            } else {
+                $this->note('6.7 Mega Farm', 'no Mega Farm loans in the book for ' . $to . ' (the MF_01 to MF_08 extracts are awaited from Barry)');
+            }
+        } catch (Throwable $e) {
+            $this->note('6.7 Mega Farm', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
         // 11 stress testing: the approved set's scenarios as saved stress runs
         try {
             $st = app(\App\Services\Stress\StressTestService::class)->runSet($to, $portfolio, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
