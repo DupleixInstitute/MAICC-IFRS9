@@ -57,9 +57,10 @@ class GovernanceServiceTest extends TestCase
     {
         $this->assertSame(count(GovernanceService::catalogue()), GovernanceSetting::count());
         // Twelve from spec v3 section 8, plus period_rate_basis (29 Sep 2026),
-        // plus the fifteen open choices of section 4 (7 Oct 2026).
-        $this->assertSame(28, GovernanceSetting::count());
-        $this->assertSame(28, GovernanceSetting::where('status', 'APPROVED')->count());
+        // plus the fifteen open choices of section 4 (7 Oct 2026), plus the
+        // twenty settings of spec v4 sections 6, 13, 14, 15, 16 and 3.6 (8 Oct 2026).
+        $this->assertSame(48, GovernanceSetting::count());
+        $this->assertSame(48, GovernanceSetting::where('status', 'APPROVED')->count());
 
         foreach (GovernanceService::catalogue() as $key => $definition) {
             $this->assertSame($definition['default'], $this->service()->get($key), $key);
@@ -72,17 +73,20 @@ class GovernanceServiceTest extends TestCase
         // Every open choice names the specification item it settles, so the
         // screen reads back to section 4 of the specification.
         foreach (['contractual_record' => 'O19', 'partly_drawn_interest_basis' => 'O6', 'expected_cashflow_basis' => 'O7',
-                  'history_before_dec_2025' => 'O8', 'loan_book_feed' => 'O9', 'trueup_gl_account' => 'O10',
+                  'history_before_dec_2025' => 'O8', 'trueup_gl_account' => 'O10',
                   'auditor_export_format' => 'O12', 'keyman_insurance_treatment' => 'O13', 'nascomex_preference_shares' => 'O13',
                   'staging_rebuttal' => 'O13', 'rate_change_classification' => 'O17', 'schedule_approval_control' => 'O18',
-                  'historic_materiality_assessment' => 'O20', 'fee_reclass_journal' => 'O21', 'mega_farms_scope' => 'O22'] as $key => $item) {
+                  'historic_materiality_assessment' => 'O20', 'fee_reclass_journal' => 'O21', 'mega_farms_scope' => 'O22',
+                  'ebanker_feed_route' => 'O9', 'loan_book_build_method' => 'O8', 'takeon_history_basis' => '6.9', 'megafarm_pd_method' => '16.8',
+                  'macro_source_precedence' => '13', 'fli_adjustment_route' => '14.6', 'fli_transmission_method' => '14.7', 'scenario_weighting_method' => '15.5',
+                  'dpd_basis' => 'D31', 'stage3_missed_instalments' => 'D31'] as $key => $item) {
             $this->assertStringContainsString($item, GovernanceService::catalogue()[$key]['description'], $key);
             $this->assertLessThanOrEqual(60, strlen($key), "{$key} does not fit the key column");
         }
 
         // Running it again changes nothing: an approved MAIIC change is never overwritten.
         $this->seedGovernanceDefaults();
-        $this->assertSame(28, GovernanceSetting::count());
+        $this->assertSame(48, GovernanceSetting::count());
     }
 
     public function test_the_value_in_force_is_resolved_by_effective_date(): void
