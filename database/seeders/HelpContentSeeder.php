@@ -22,7 +22,43 @@ class HelpContentSeeder extends Seeder
     public function run(): void
     {
         if (HelpCategory::manual(self::MANUAL)->exists()) {
-            $this->command?->info('Manual already has content; seeder skipped.');
+            // the shipped text is versioned: with HELP_SEED_REFRESH=1 the seeded articles' body and steps are
+            // brought up to date by chapter and title (an article a person authored in the system is left alone)
+            if (! filter_var(env('HELP_SEED_REFRESH', false), FILTER_VALIDATE_BOOL)) {
+                $this->command?->info('Manual already has content; seeder skipped (HELP_SEED_REFRESH=1 refreshes the shipped text).');
+
+                return;
+            }
+            $refreshed = 0;
+            foreach ($this->content() as $chapterTitle => $articles) {
+                $category = HelpCategory::manual(self::MANUAL)->where('title', $chapterTitle)->first();
+                if ($category === null) {
+                    continue;
+                }
+                foreach ($articles as $title => $spec) {
+                    $article = HelpArticle::where('help_category_id', $category->id)->where('title', $title)->first();
+                    if ($article === null || $article->updated_by !== 'System seed') {
+                        continue;
+                    }
+                    $article->update(['body' => $spec['body'] ?? '']);
+                    $article->steps()->delete();
+                    foreach (array_values($spec['steps'] ?? []) as $i => $text) {
+                        $article->steps()->create(['step_no' => $i + 1, 'text' => $text]);
+                    }
+                    $refreshed++;
+                }
+                // a new seeded article in an existing chapter
+                foreach ($articles as $title => $spec) {
+                    if (! HelpArticle::where('help_category_id', $category->id)->where('title', $title)->exists()) {
+                        $article = HelpArticle::create(['help_category_id' => $category->id, 'title' => $title, 'slug' => Str::slug($title) . '-' . $category->id, 'body' => $spec['body'] ?? '', 'order' => (int) HelpArticle::where('help_category_id', $category->id)->max('order') + 1, 'status' => 'published', 'updated_by' => 'System seed']);
+                        foreach (array_values($spec['steps'] ?? []) as $i => $text) {
+                            $article->steps()->create(['step_no' => $i + 1, 'text' => $text]);
+                        }
+                        $refreshed++;
+                    }
+                }
+            }
+            $this->command?->info('Manual: ' . $refreshed . ' shipped articles refreshed.');
 
             return;
         }

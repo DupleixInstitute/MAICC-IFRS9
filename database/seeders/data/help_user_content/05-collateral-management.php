@@ -12,7 +12,7 @@ return [
     'Collateral Management' => [
 
         'Collateral register' => [
-            'body' => '<p>The collateral register is the list of security items (property, vehicles, cash cover, guarantees and so on) held against customers, one row per item per reporting period. It is loaded from the core banking collateral file each month and is the source for collateral allocation, which in turn lowers the loss given default (LGD) of covered loans. Credit administration staff use this page to confirm the monthly register loaded correctly and to look up what a customer has pledged. To open it, open the sidebar, expand <b>Collateral Management</b> and choose <b>Collateral Register</b>.</p>'
+            'body' => '<p>The collateral register is the list of security items (property, vehicles, cash cover, guarantees and so on) held against customers, one row per item per reporting period. It is loaded from the core banking collateral file each month and is the source for collateral allocation, which in turn lowers the loss given default (LGD) of covered loans. Credit administration staff use this page to confirm the monthly register loaded correctly and to look up what a customer has pledged. To open it, open the sidebar, expand <b>Data Foundation</b> and choose <b>Collateral Register</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: <b>Collateral / Register</b> (the green <b>Collateral</b> link goes to the allocations page), with the subtitle <code>List of Collateral Register by Date</code>.</li>'
@@ -45,7 +45,7 @@ return [
                 . '<li>Execution Value shows 0.00: the file column was blank or contained only a dash. The item will contribute nothing at allocation until it is corrected and re-imported.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Collateral Management and choose Collateral Register.',
+                'Open the sidebar, expand Data Foundation and choose Collateral Register.',
                 'Set From Date (and To Date for a range) to the reporting month you want to see.',
                 'Optionally enter a Collateral Type code, Customer ID or Customer Name.',
                 'Click Apply Filters and review the Nominal, Market and Execution Value columns.',
@@ -58,7 +58,7 @@ return [
         ],
 
         'Importing collateral' => [
-            'body' => '<p>The collateral import loads one reporting month of the collateral register from a CSV file. It is done once a month by credit administration, after the collateral types have been set up and usually alongside the loan book import for the same month. To open the page, open the sidebar, expand <b>Collateral Management</b>, choose <b>Collateral Register</b> and click <b>Import Register</b>; the header reads <b>Collateral / Import</b> with the subtitle <code>Select the file with collaterals (registry of all the collateral)</code>.</p>'
+            'body' => '<p>The collateral import loads one reporting month of the collateral register from a CSV file. It is done once a month by credit administration, after the collateral types have been set up and usually alongside the loan book import for the same month. To open the page, open the sidebar, expand <b>Data Foundation</b>, choose <b>Collateral Register</b> and click <b>Import Register</b>; the header reads <b>Collateral / Import</b> with the subtitle <code>Select the file with collaterals (registry of all the collateral)</code>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Download Sample File</b> button (dark, top right): downloads <code>collateral_registry_sample.csv</code>, a header-only file with the expected column names.</li>'
@@ -82,13 +82,13 @@ return [
                 . '<li>The import completes but values are zero: the amount columns were not mapped, or contain text rather than numbers.</li>'
                 . '</ul>',
             'steps' => [
-                'Open Collateral Management, Collateral Register and click Import Register.',
+                'Open Data Foundation, Collateral Register and click Import Register.',
                 'Click Download Sample File or Download Legacy Template and lay your data out in those columns.',
                 'Leave Legacy Format selected, or choose Custom Mapping if your headings differ.',
                 'Set Period to the reporting month the register represents.',
                 'Click the dashed Upload File box and choose the CSV file; for Custom Mapping check the column drop-downs.',
                 'Click Start Import and wait for the confirmation message.',
-                'Open Customer & Loan Data, Imports to confirm the status is completed and check Exception Records.',
+                'Open Data Foundation, Imports to confirm the status is completed and check Exception Records.',
             ],
             'images' => [
                 'collateral-import' => 'Collateral / Import with the Legacy Format and Custom Mapping cards, the Period picker, the upload box and Download Legacy Template',
@@ -97,7 +97,7 @@ return [
         ],
 
         'Collateral types' => [
-            'body' => '<p>Collateral types are the categories of security the bank accepts (bank guarantee, bill of sale over motor vehicles, cash cover, charge over landed property and so on). Each type carries a code, a haircut and a realisation period, and these two numbers decide how much of a pledged item counts towards covering a loan when collateral is allocated. The types must exist, with the same codes used in the collateral file, before the register is imported. Risk administrators maintain this page. To open it, open the sidebar, expand <b>Collateral Management</b> and choose <b>Collateral Types</b>.</p>'
+            'body' => '<p>Collateral types are the categories of security the bank accepts (bank guarantee, bill of sale over motor vehicles, cash cover, charge over landed property and so on). Each type carries a code, a haircut and a realisation period, and these two numbers decide how much of a pledged item counts towards covering a loan when collateral is allocated. The types must exist, with the same codes used in the collateral file, before the register is imported. Risk administrators maintain this page. To open it, open the sidebar, expand <b>Data Foundation</b> and choose <b>Collateral Types</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Collateral Types, with the subtitle <code>Enter the collateral types that are to be used in allocation</code>.</li>'
@@ -137,7 +137,7 @@ return [
                 . '<li>Allocated cover is far lower than the execution value: check the haircut is a fraction such as <code>0.70</code>, not <code>70</code>, and that the realisation period is realistic.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Collateral Management and choose Collateral Types.',
+                'Open the sidebar, expand Data Foundation and choose Collateral Types.',
                 'Click + Add Type at the top right.',
                 'Enter the Type Code used in your collateral file and the Type Name.',
                 'Enter the Standard Haircut (%) on the same basis as the existing rows (for example 0.70 for 70 percent of value) and the Realisation Period (Months).',
@@ -150,7 +150,7 @@ return [
         ],
 
         'Allocating collateral to exposures' => [
-            'body' => '<p>Collateral allocation spreads each customer\'s pledged security across that customer\'s loans for a reporting month, discounts it for the type haircut and the time to realise it, and writes the resulting coverage into the loan book so that the loss given default (LGD) of a covered loan is reduced. It is run once per month after both the loan book and the collateral register for that month are on file, by the risk or credit administrator. Two pages are involved: the <b>Collateral Allocations</b> list and the <b>Auto Allocate Collateral</b> form. To open the list, open the sidebar, expand <b>Collateral Management</b> and choose <b>Collateral Allocation</b>.</p>'
+            'body' => '<p>Collateral allocation spreads each customer\'s pledged security across that customer\'s loans for a reporting month, discounts it for the type haircut and the time to realise it, and writes the resulting coverage into the loan book so that the loss given default (LGD) of a covered loan is reduced. It is run once per month after both the loan book and the collateral register for that month are on file, by the risk or credit administrator. Two pages are involved: the <b>Collateral Allocations</b> list and the <b>Auto Allocate Collateral</b> form. To open the list, open the sidebar, expand <b>Data Foundation</b> and choose <b>Collateral Allocation</b>.</p>'
                 . '<h4>What you see on the allocations page</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Collateral Allocations, subtitle <code>List of allocations by Customer ID</code>.</li>'
@@ -182,7 +182,7 @@ return [
                 . '</ul>',
             'steps' => [
                 'Confirm the loan book and the collateral register for the month are both imported and completed on the Imports page.',
-                'Open the sidebar, expand Collateral Management and choose Collateral Allocation.',
+                'Open the sidebar, expand Data Foundation and choose Collateral Allocation.',
                 'Click + Allocate at the top right.',
                 'Choose the Allocation Basis (Proportional is the default), the Loan Book Reporting Year and Month, and the Collateral Reporting Date.',
                 'Click Allocate and wait for Collateral allocated successfully.',

@@ -14,7 +14,7 @@ return [
     'IFRS 9 Model Setup' => [
 
         'Staging and SICR: quantitative thresholds' => [
-            'body' => '<p>IFRS 9 places every loan in one of three stages. Stage 1 is a performing loan that carries a 12-month expected credit loss (ECL, the loss the lender expects over the next twelve months). Stage 2 is a loan with a significant increase in credit risk (SICR) since it was granted and carries a lifetime ECL. Stage 3 is a credit-impaired loan, also on lifetime ECL. The quantitative rule that separates the stages is days past due (DPD, the number of days a repayment is overdue). This page holds the institution level DPD boundaries and is maintained by the risk administrator; it needs the <b>settings</b> permission. To reach it, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>Quantitative Thresholds</b>.</p>'
+            'body' => '<p>IFRS 9 places every loan in one of three stages. Stage 1 is a performing loan that carries a 12-month expected credit loss (ECL, the loss the lender expects over the next twelve months). Stage 2 is a loan with a significant increase in credit risk (SICR) since it was granted and carries a lifetime ECL. Stage 3 is a credit-impaired loan, also on lifetime ECL. The quantitative rule that separates the stages is days past due (DPD, the number of days a repayment is overdue). This page holds the institution level DPD boundaries and is maintained by the risk administrator; it needs the <b>settings</b> permission. To reach it, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>Quantitative Thresholds</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: IFRS 9 Staging Rules - Quantitative Thresholds, with the subtitle <code>Configure days past due thresholds for automatic stage classification</code> and a green <code>IFRS 9 Compliant</code> chip on the right.</li>'
@@ -56,7 +56,7 @@ return [
                 . '<li><b>A loan is in a different stage from what the page suggests</b>: the import uses the DPD ladder described above (Stage 2 from 31 DPD, Stage 3 from 181 DPD under DEFAULT), and a SICR trigger may have moved the post-qualitative stage. Check the loan in the Loan Book.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand IFRS 9 Model Setup, then Staging & SICR Rules, and choose Quantitative Thresholds.',
+                'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then Staging & SICR Rules, and choose Quantitative Thresholds.',
                 'Keep Institution Type as default.',
                 'Enter the Stage 1 Threshold in days (for example 30) and the Stage 3 Threshold in days (for example 90).',
                 'Read the Stage 2 (Calculated) card to confirm the middle band, for example Loans between 30+ and 89 days past due.',
@@ -69,7 +69,7 @@ return [
         ],
 
         'SICR groups' => [
-            'body' => '<p>A significant increase in credit risk (SICR) is the IFRS 9 test that moves a loan from Stage 1 to Stage 2. Besides the days past due rule, MAIIC records qualitative reasons: sector distress, restructuring, a watch list event and so on. SICR groups are the headings under which those reasons are organised (for example Financial Ratios, Sector Events or Account Conduct). Each group holds alert items, and an alert item is what a credit officer selects when raising a trigger. Groups are set up once by the risk administrator (permission <b>settings</b>). To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>SICR Groups Setup</b>.</p>'
+            'body' => '<p>A significant increase in credit risk (SICR) is the IFRS 9 test that moves a loan from Stage 1 to Stage 2. Besides the days past due rule, MAIIC records qualitative reasons: sector distress, restructuring, a watch list event and so on. SICR groups are the headings under which those reasons are organised (for example Financial Ratios, Sector Events or Account Conduct). Each group holds alert items, and an alert item is what a credit officer selects when raising a trigger. Groups are set up once by the risk administrator (permission <b>settings</b>). To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>SICR Groups Setup</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: SICR Groups, with the subtitle <code>Manage Significant Increase in Credit Risk groupings</code> and a green chip showing the count, for example <code>3 Groups</code>.</li>'
@@ -111,7 +111,7 @@ return [
                 . '<li><code>Please check your input and try again.</code>: the name exceeded 255 characters or was blank.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand IFRS 9 Model Setup, then Staging & SICR Rules, and choose SICR Groups Setup.',
+                'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then Staging & SICR Rules, and choose SICR Groups Setup.',
                 'Click Add New Group.',
                 'Type the Group Name, for example Sector Events.',
                 'Type a Description explaining what risk factors the group holds.',
@@ -124,7 +124,7 @@ return [
         ],
 
         'SICR alert items' => [
-            'body' => '<p>An alert item is one specific qualitative risk factor inside a SICR group, for example <code>Debt-to-Equity Ratio</code> under Financial Ratios or <code>Restructured in last 12 months</code> under Account Conduct. When a credit officer raises a SICR trigger alert they pick the item, so the list should read like a checklist of the reasons the credit committee accepts as a significant increase in credit risk. Items are maintained by the risk administrator (permission <b>settings</b>). To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>SICR Alert Items</b>.</p>'
+            'body' => '<p>An alert item is one specific qualitative risk factor inside a SICR group, for example <code>Debt-to-Equity Ratio</code> under Financial Ratios or <code>Restructured in last 12 months</code> under Account Conduct. When a credit officer raises a SICR trigger alert they pick the item, so the list should read like a checklist of the reasons the credit committee accepts as a significant increase in credit risk. Items are maintained by the risk administrator (permission <b>settings</b>). To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>SICR Alert Items</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: SICR Items, subtitle <code>Manage individual risk factors within SICR groups</code>, a green count chip such as <code>12 Items</code> and, when a filter is on, a gold chip <code>Filtered: (group name)</code>.</li>'
@@ -167,7 +167,7 @@ return [
                 . '<li><b>The item list is empty although items exist</b>: a group filter is on. Click <b>Clear</b> or choose <code>All Groups</code>.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand IFRS 9 Model Setup, then Staging & SICR Rules, and choose SICR Alert Items.',
+                'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then Staging & SICR Rules, and choose SICR Alert Items.',
                 'Click Add New Item.',
                 'Choose the SICR Group the factor belongs to.',
                 'Type the Item Name as officers should read it in the trigger form.',
@@ -180,7 +180,7 @@ return [
         ],
 
         'SICR trigger alerts' => [
-            'body' => '<p>A SICR trigger alert is the record a credit officer raises when a qualitative event (a restructure, a sector shock, a watch list decision) means a customer has suffered a significant increase in credit risk regardless of days past due. Raising the alert flags the loan and moves a Stage 1 loan into Stage 2 in the loan book, so lifetime ECL is provided. The alert stays on file with who raised it, why, and any supporting document, until it is removed. Officers with the <b>settings</b> permission use it. To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>SICR Trigger Alerts</b>.</p>'
+            'body' => '<p>A SICR trigger alert is the record a credit officer raises when a qualitative event (a restructure, a sector shock, a watch list decision) means a customer has suffered a significant increase in credit risk regardless of days past due. Raising the alert flags the loan and moves a Stage 1 loan into Stage 2 in the loan book, so lifetime ECL is provided. The alert stays on file with who raised it, why, and any supporting document, until it is removed. Officers with the <b>settings</b> permission use it. To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>SICR Trigger Alerts</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: SICR Trigger Alerts (warning triangle icon), subtitle <code>Report significant increases in credit risk events</code>, a gold count chip such as <code>4 Triggers</code> and a red <code>Alert System</code> chip.</li>'
@@ -230,7 +230,7 @@ return [
                 . '<li><code>Failed to update loan book. Please try again.</code>: the effective period was missing or the customer is no longer in the loan book.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand IFRS 9 Model Setup, then Staging & SICR Rules, and choose SICR Trigger Alerts.',
+                'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then Staging & SICR Rules, and choose SICR Trigger Alerts.',
                 'Click Trigger Alert.',
                 'Choose the SICR Group and the SICR Item that describe the event.',
                 'Type the first letters of the customer in Customer ID and pick the customer from the drop-down; tick Affect all accounts under customer if every loan is affected.',
@@ -244,7 +244,7 @@ return [
         ],
 
         'Transition profiles' => [
-            'body' => '<p>A transition matrix measures how loans move between stages from one month to the next, and a transition profile tells the platform where to look: which table and columns hold the stage at the start and at the end, how balances are aggregated, and what the stage categories are. Profiles are technical set-up done once by the risk administrator with help from Dupleix; monthly users only select a profile when they create a matrix. To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>PD Model Setup</b>, and choose <b>Transition Profiles</b>.</p>'
+            'body' => '<p>A transition matrix measures how loans move between stages from one month to the next, and a transition profile tells the platform where to look: which table and columns hold the stage at the start and at the end, how balances are aggregated, and what the stage categories are. Profiles are technical set-up done once by the risk administrator with help from Dupleix; monthly users only select a profile when they create a matrix. To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>PD Model Setup</b>, and choose <b>Transition Profiles</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Transition Profile, subtitle <code>List of Profiles</code>, and the dark <b>Create Profile</b> button at the top right.</li>'
@@ -288,7 +288,7 @@ return [
                 . '<li><b>Category form will not save</b>: Min Value, Max Value and Text Value are all required even for text grades.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand IFRS 9 Model Setup, then PD Model Setup, and choose Transition Profiles.',
+                'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then PD Model Setup, and choose Transition Profiles.',
                 'Click Create Profile.',
                 'Enter the Profile Code (for example T2025), the Short Name and a Description.',
                 'Choose loan_books as the Mapped Start Table and Mapped End Table, contract_id as the client columns and ifrs9stage_pre_qualitative as the grading columns.',
@@ -303,7 +303,7 @@ return [
         ],
 
         'Monthly transition matrix (PD)' => [
-            'body' => '<p>Probability of default (PD) is the chance that a loan defaults within a given horizon. MAIIC measures it from history: a monthly transition matrix takes every loan in a segment at a start month, finds the same loans at an end month, and sums the balances that moved from each start stage to each end stage. The share of a start stage that ended in the default category is the PD for that stage. Risk analysts create and lock matrices; the ECL team applies them to the loan book. To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>PD Model Setup</b>, and choose <b>Monthly Probability</b>.</p>'
+            'body' => '<p>Probability of default (PD) is the chance that a loan defaults within a given horizon. MAIIC measures it from history: a monthly transition matrix takes every loan in a segment at a start month, finds the same loans at an end month, and sums the balances that moved from each start stage to each end stage. The share of a start stage that ended in the default category is the PD for that stage. Risk analysts create and lock matrices; the ECL team applies them to the loan book. To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>PD Model Setup</b>, and choose <b>Monthly Probability</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Transition Matrix Monthly Probability, with the green <b>Get Report</b> button and the dark <b>Create New Matrix</b> button.</li>'
@@ -357,7 +357,7 @@ return [
                 . '<li><code>Start period cannot be later than end period</code>: swap the export dates.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand IFRS 9 Model Setup, then PD Model Setup, and choose Monthly Probability.',
+                'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then PD Model Setup, and choose Monthly Probability.',
                 'Click Create New Matrix.',
                 'Choose the Transition Profile (for example T2025 - MAIIC 2025), the Start Period and the End Period (for example 2024-06 and 2025-06).',
                 'Set PD Calculation Level to Portfolio and pick the Portfolio Group, leave Calculation Source as System, and click Proceed to Matrix Entry.',
@@ -380,7 +380,7 @@ return [
         ],
 
         'Cumulative transition matrix' => [
-            'body' => '<p>A single monthly matrix looks at one observation window. The cumulative matrix stacks every closed monthly matrix for a profile and segment across a range of months, adds the balances cell by cell, and works out the PD from the pooled totals. The result is a more stable, longer horizon PD (the basis of the 12-month and lifetime term structure) that is applied to the loan book by stage. Risk analysts build and lock it after the monthly matrices for the range are closed. To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>PD Model Setup</b>, and choose <b>Cumulative Probability</b>.</p>'
+            'body' => '<p>A single monthly matrix looks at one observation window. The cumulative matrix stacks every closed monthly matrix for a profile and segment across a range of months, adds the balances cell by cell, and works out the PD from the pooled totals. The result is a more stable, longer horizon PD (the basis of the 12-month and lifetime term structure) that is applied to the loan book by stage. Risk analysts build and lock it after the monthly matrices for the range are closed. To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>PD Model Setup</b>, and choose <b>Cumulative Probability</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Transition Matrices Cummulative Probability (the spelling is as shown on screen), with the green <b>Get Report</b> and dark <b>Create New Matrix</b> buttons.</li>'
@@ -427,7 +427,7 @@ return [
                 . '<li><code>No locked periods found for the selected date range</code>: nothing closed in the export range.</li>'
                 . '</ul>',
             'steps' => [
-                'Lock every monthly matrix for the range first, then open the sidebar, expand IFRS 9 Model Setup, then PD Model Setup, and choose Cumulative Probability.',
+                'Lock every monthly matrix for the range first, then open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then PD Model Setup, and choose Cumulative Probability.',
                 'Click Create New Matrix.',
                 'Choose the Transition Profile, the Start Period and the End Period of the range to pool.',
                 'Set PD Calculation Level and choose the PD Element (portfolio or sector), leave Calculation Source as System and click Proceed to Matrix Entry.',
@@ -447,7 +447,7 @@ return [
         ],
 
         'Internal grades' => [
-            'body' => '<p>An internal grade is a letter band that summarises a borrower risk, A for the best through to G for the worst, and each grade carries a PD term structure: the probability of default for year 1, year 2 and so on up to the maximum tenor. The loan book carries each loan grade in its <code>internal_grade_code</code> column (loaded from the extract, or derived from the 12-month PD: below 2 percent is A, below 5 percent B, below 10 percent C, below 20 percent D, below 40 percent E, below 100 percent F, otherwise G). A grading profile maps every grade to its PD curve, and once active it can write PDs to the loan book by stage and tenor as an alternative to the transition matrix. To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>PD Model Setup</b>, and choose <b>Internal Grades</b>.</p>'
+            'body' => '<p>An internal grade is a letter band that summarises a borrower risk, A for the best through to G for the worst, and each grade carries a PD term structure: the probability of default for year 1, year 2 and so on up to the maximum tenor. The loan book carries each loan grade in its <code>internal_grade_code</code> column (loaded from the extract, or derived from the 12-month PD: below 2 percent is A, below 5 percent B, below 10 percent C, below 20 percent D, below 40 percent E, below 100 percent F, otherwise G). A grading profile maps every grade to its PD curve, and once active it can write PDs to the loan book by stage and tenor as an alternative to the transition matrix. To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>PD Model Setup</b>, and choose <b>Internal Grades</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Internal Grading Profiles, subtitle <code>Configure internal grades and PD term structures</code>, and the green <b>+ New Profile</b> button.</li>'
@@ -492,7 +492,7 @@ return [
                 . '<li><b>+ Add Grade and the pencil are missing</b>: the profile is active. Deactivate it to change grades, then activate it again.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand IFRS 9 Model Setup, then PD Model Setup, and choose Internal Grades.',
+                'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then PD Model Setup, and choose Internal Grades.',
                 'Click + New Profile, enter the Profile Name, a Description and Max Tenor Years, and click Save.',
                 'Click the new profile card, then + Add Grade; enter Grade Code A, its Grade Name and the PD percentage for each year, and click Save Grade. Repeat through G.',
                 'Return to Internal Grading Profiles and click the eye View PD Matrix to check the term structure.',
@@ -509,7 +509,7 @@ return [
         ],
 
         'Monthly loss given default' => [
-            'body' => '<p>Loss given default (LGD) is the share of a defaulted balance the lender expects to lose after cures and recoveries. MAIIC measures it from the Stage 3 book: take every Stage 3 loan in a portfolio at a start month, follow it to an end month, and record what cured (returned to Stage 1 or 2), what was repaid in part or in full, and what was disbursed. Cure rate is cured balance over the opening Stage 3 balance; recovery rate is net recoveries over the same balance; and LGD is (1 minus cure rate) times (1 minus recovery rate). Recoveries may be discounted back to the reporting date. The risk team calculates and locks LGD each month and applies it to the loan book. To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>LGD Model Setup</b>, and choose <b>Monthly LGD</b>.</p>'
+            'body' => '<p>Loss given default (LGD) is the share of a defaulted balance the lender expects to lose after cures and recoveries. MAIIC measures it from the Stage 3 book: take every Stage 3 loan in a portfolio at a start month, follow it to an end month, and record what cured (returned to Stage 1 or 2), what was repaid in part or in full, and what was disbursed. Cure rate is cured balance over the opening Stage 3 balance; recovery rate is net recoveries over the same balance; and LGD is (1 minus cure rate) times (1 minus recovery rate). Recoveries may be discounted back to the reporting date. The risk team calculates and locks LGD each month and applies it to the loan book. To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>LGD Model Setup</b>, and choose <b>Monthly LGD</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Monthly Loss Given Default, with the round green help mark, and the green buttons <b>Calculate LGD</b> (calculator icon) and <b>Get Report</b> (archive icon).</li>'
@@ -565,7 +565,7 @@ return [
                 . '<li><b>Discounting enabled but recoveries are zero</b>: run a Payment Tracking Calculation for the portfolio and range first, and with <code>Original EIR (IFRS 9)</code> make sure the contracts have a locked EIR.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand IFRS 9 Model Setup, then LGD Model Setup, and choose Monthly LGD.',
+                'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then LGD Model Setup, and choose Monthly LGD.',
                 'Click Calculate LGD.',
                 'Choose the Start Period and End Period (for example 2024-06 and 2025-06) and the Portfolio Group.',
                 'Set Calculation Source to System; tick Enable Discounting and choose the Interest Rate Source if recoveries are to be discounted.',
@@ -586,7 +586,7 @@ return [
         ],
 
         'Cumulative loss given default' => [
-            'body' => '<p>One monthly LGD reflects one observation window. The cumulative LGD pools the closed monthly records for a portfolio or sector across a range of months, adds their opening balances, cures and recoveries, and works out cure rate, recovery rate and LGD from the pooled totals. The pooled figure is steadier and is the one normally applied to the loan book for the ECL run. It can also be entered manually with a supporting document. To reach the page, open the sidebar, expand <b>IFRS 9 Model Setup</b>, then <b>LGD Model Setup</b>, and choose <b>Cumulative LGD</b>.</p>'
+            'body' => '<p>One monthly LGD reflects one observation window. The cumulative LGD pools the closed monthly records for a portfolio or sector across a range of months, adds their opening balances, cures and recoveries, and works out cure rate, recovery rate and LGD from the pooled totals. The pooled figure is steadier and is the one normally applied to the loan book for the ECL run. It can also be entered manually with a supporting document. To reach the page, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>LGD Model Setup</b>, and choose <b>Cumulative LGD</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Cummulative Loss Given Default (spelling as on screen), the round green help mark, and the green buttons <b>Calculate LGD</b> and <b>Get Report</b>.</li>'
@@ -633,7 +633,7 @@ return [
                 . '<li><b>Get Report returns the monthly report</b>: in the current build the cumulative page report button downloads the monthly LGD report for the chosen range; the cumulative CSV is available from the administrator until this is corrected.</li>'
                 . '</ul>',
             'steps' => [
-                'Lock the monthly LGD records for the range, then open the sidebar, expand IFRS 9 Model Setup, then LGD Model Setup, and choose Cumulative LGD.',
+                'Lock the monthly LGD records for the range, then open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then LGD Model Setup, and choose Cumulative LGD.',
                 'Click Calculate LGD.',
                 'Choose the Start Period and End Period, set LGD Level to Portfolio and pick the Portfolio Group, set Calculation Source to System and click Calculate.',
                 'On the list, click the eye Show Periods to confirm which monthly windows were pooled.',

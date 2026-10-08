@@ -12,7 +12,7 @@ return [
     'Customer and Loan Data' => [
 
         'Clients' => [
-            'body' => '<p>The Clients page is the customer master: one record per borrower, keyed by the customer identifier (CIF) from the core banking system. Every loan book row, collateral record and allocation is tied to a client by that identifier, and loan book imports create or update clients automatically. Use it to look up a borrower, check the profile and correct a name. To open it, open the sidebar, expand <b>Customer &amp; Loan Data</b> and choose <b>Clients</b>.</p>'
+            'body' => '<p>The Clients page is the customer master: one record per borrower, keyed by the customer identifier (CIF) from the core banking system. Every loan book row, collateral record and allocation is tied to a client by that identifier, and loan book imports create or update clients automatically. Use it to look up a borrower, check the profile and correct a name. To open it, open the sidebar, expand <b>Data Foundation</b> and choose <b>Clients</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Clients.</li>'
@@ -64,7 +64,7 @@ return [
                 . '<li>A client is missing: it may be deleted; choose <b>With Trashed</b> in the Filter panel.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Customer & Loan Data and choose Clients.',
+                'Open the sidebar, expand Data Foundation and choose Clients.',
                 'Type part of the customer ID, name or phone in the Search box to find a client.',
                 'Click the green eye to open the profile, or the gold pencil to edit.',
                 'To add a client manually, click Create Client, fill in Customer ID (CIF), Name and Phone Number, then click Save.',
@@ -79,7 +79,7 @@ return [
         ],
 
         'Loan Book' => [
-            'body' => '<p>The Loan Book is the contract-level view of everything imported for a reporting month, with the IFRS 9 stage and the calculated risk figures for each contract. It is the page finance and risk staff use to check what was loaded, confirm staging and review the expected credit loss (ECL) result. When you open it without choosing a month it shows the latest reporting period on file. To open it, open the sidebar, expand <b>Customer &amp; Loan Data</b> and choose <b>Loan Book</b>.</p>'
+            'body' => '<p>The Loan Book is the contract-level view of everything imported for a reporting month, with the IFRS 9 stage and the calculated risk figures for each contract. It is the page finance and risk staff use to check what was loaded, confirm staging and review the expected credit loss (ECL) result. When you open it without choosing a month it shows the latest reporting period on file. To open it, open the sidebar, expand <b>Data Foundation</b> and choose <b>Loan Book</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Loan Book Management.</li>'
@@ -116,7 +116,7 @@ return [
                 . '<li>A customer shows as a number instead of a name: the client record has no name; edit it on the Clients page or re-import the names file.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Customer & Loan Data and choose Loan Book.',
+                'Open the sidebar, expand Data Foundation and choose Loan Book.',
                 'Pick the Year and Month you want to review; the tiles and table refresh.',
                 'Narrow the list with the IFRS 9 Stage drop-down or type a contract ID or customer name in Search.',
                 'Read the Stage badge (green Stage 1, gold Stage 2, red Stage 3) and the EAD, PD, LGD, ECL and Coverage columns for each contract.',
@@ -129,7 +129,7 @@ return [
         ],
 
         'Importing a loan book' => [
-            'body' => '<p>The loan book import loads one month of contracts into a portfolio. It is the first step of every month-end close, done once per portfolio per month. Before you start, the portfolio must exist under <b>Portfolio Setup</b> and you should know the reporting month the file represents. To open the page, open the Loan Book and click <b>Import Loan Book</b>; the header reads <b>Loan Books / Import</b>.</p>'
+            'body' => '<p>The loan book import loads one month of contracts into a portfolio. It is the first step of every month-end close, done once per portfolio per month. Before you start, the portfolio must exist under <b>Data Foundation</b> and you should know the reporting month the file represents. To open the page, open the Loan Book and click <b>Import Loan Book</b>; the header reads <b>Loan Books / Import</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Portfolio Group</b>: a searchable drop-down of your loan portfolios. Required.</li>'
@@ -147,7 +147,7 @@ return [
                 . '<h4>File format: E-Banker</h4>'
                 . '<p>Use the core banking export as it comes. Rows containing <code>Loan Type : code-name</code> set the product group and code for the rows beneath; header rows are skipped; each data row starts with a serial number. The importer reads the customer ID, contract number, name, dates, interest rate, principal, carrying amount and the four arrears buckets from fixed column positions, so do not add or remove columns.</p>'
                 . '<h4>Staging on import</h4>'
-                . '<p>Every row receives a pre-qualitative and post-qualitative IFRS 9 stage from its arrears buckets. Legacy and custom rows take the days past due as the lower bound of the oldest non-empty bucket and compare it with the quantitative thresholds (default: Stage 2 from 31 days, Stage 3 from 181 days; configurable under <b>IFRS 9 Model Setup</b>, <b>Staging &amp; SICR Rules</b>, <b>Quantitative Thresholds</b>). E-Banker rows use the bucket rule directly: any 181-270 balance is Stage 3, any 31-90 or 91-180 balance is Stage 2, otherwise Stage 1.</p>'
+                . '<p>Every row receives a pre-qualitative and post-qualitative IFRS 9 stage from its arrears buckets. Legacy and custom rows take the days past due as the lower bound of the oldest non-empty bucket and compare it with the quantitative thresholds (default: Stage 2 from 31 days, Stage 3 from 181 days; configurable under <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, <b>Staging &amp; SICR Rules</b>, <b>Quantitative Thresholds</b>). E-Banker rows use the bucket rule directly: any 181-270 balance is Stage 3, any 31-90 or 91-180 balance is Stage 2, otherwise Stage 1.</p>'
                 . '<h4>What happens next</h4>'
                 . '<p>For Legacy and Custom you return to the Loan Book with <code>Import started! You will be notified once it completes.</code>; for E-Banker the message is <code>Import job queued successfully. File: (name)</code>. The file is processed in the background. Rows for the same customer, portfolio, period and contract replace earlier values, so re-importing a corrected file for the same month is safe. Rejected rows go to an exceptions file counted on the <b>Imports</b> page. A remaining tenor in years is calculated from the maturity date and the reporting month end.</p>'
                 . '<h4>Common problems</h4>'
@@ -165,7 +165,7 @@ return [
                 'Click the dashed Upload File box and choose your CSV file.',
                 'For Custom Mapping, check each column drop-down under Map CSV Columns; customer_id and contract_id must be mapped.',
                 'Click Start Import and wait for the confirmation message.',
-                'Open Customer & Loan Data, Imports to confirm the status is completed and check the Exception Records count.',
+                'Open Data Foundation, Imports to confirm the status is completed and check the Exception Records count.',
             ],
             'images' => [
                 'loanbook-import' => 'Loan Books / Import with Portfolio Group, Reporting Period, the three import type cards, the upload box and the template buttons',
@@ -174,7 +174,7 @@ return [
         ],
 
         'Import history' => [
-            'body' => '<p>The Imports page is the log of every background file load: client names files, loan books and collateral registers. Use it after any import to confirm the job finished, see how many rows were inserted and download the rows that were rejected. To open it, open the sidebar, expand <b>Customer &amp; Loan Data</b> and choose <b>Imports</b>.</p>'
+            'body' => '<p>The Imports page is the log of every background file load: client names files, loan books and collateral registers. Use it after any import to confirm the job finished, see how many rows were inserted and download the rows that were rejected. To open it, open the sidebar, expand <b>Data Foundation</b> and choose <b>Imports</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Imports.</li>'
@@ -205,7 +205,7 @@ return [
                 . '<li>The same file appears twice: it was submitted twice. This is harmless because matching rows are updated rather than duplicated.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Customer & Loan Data and choose Imports.',
+                'Open the sidebar, expand Data Foundation and choose Imports.',
                 'Find your file by name (newest first) or type part of the name in Search.',
                 'Read the Status chip: pending, processing, completed or failed.',
                 'Compare Inserted with the rows in your file.',

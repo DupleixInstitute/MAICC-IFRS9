@@ -59,11 +59,11 @@ return [
             'routes' => ['settings.index', 'settings.organisation', 'settings.general', 'settings.system', 'settings.email'],
         ],
         'Reference data' => [
-            'body' => '<p>Reports and segmentation depend on reference data being complete before loan book snapshots are loaded.</p><ul><li><b>Currencies</b>: the organisation currency (MWK) labels every figure on the dashboard and reports.</li><li><b>Chart of Accounts</b> and <b>Branches</b>: organisation structure used for grouping.</li><li><b>Sector Types</b>: the economic sectors behind the RBM sector concentration reports.</li><li><b>Product Groups</b> and <b>Loan Portfolios</b> (under Portfolio Setup): the segments (MAIIC core, FInES, Mega Farm and derived agricultural portfolios) that every stage table and roll-forward is reported by.</li></ul>',
+            'body' => '<p>Reports and segmentation depend on reference data being complete before loan book snapshots are loaded.</p><ul><li><b>Currencies</b>: the organisation currency (MWK) labels every figure on the dashboard and reports.</li><li><b>Chart of Accounts</b> and <b>Branches</b>: organisation structure used for grouping.</li><li><b>Sector Types</b>: the economic sectors behind the RBM sector concentration reports.</li><li><b>Product Groups</b> and <b>Loan Portfolios</b> (under Data Foundation): the segments (MAIIC core, FInES, Mega Farm and derived agricultural portfolios) that every stage table and roll-forward is reported by.</li></ul>',
             'steps' => [
                 'Open Settings, Organisation and follow the Currencies link; confirm MWK exists and is the organisation currency.',
                 'Review Sector Types against the sectors in the annual report note on loans and advances.',
-                'Under Portfolio Setup, confirm the loan portfolios match the segments MAIIC reports on.',
+                'Under Data Foundation, confirm the loan portfolios match the segments MAIIC reports on.',
                 'Only then start loading loan book snapshots.',
             ],
             'images' => [

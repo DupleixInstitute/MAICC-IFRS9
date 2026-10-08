@@ -12,7 +12,7 @@ return [
     'Portfolio Setup' => [
 
         'Loan portfolios' => [
-            'body' => '<p>A loan portfolio is the top-level basket that every loan in the platform belongs to (for example Agricultural Loans, Industrial Loans or simply Loans). Every loan book you import must be assigned to a portfolio, so at least one portfolio has to exist before any loan data can be loaded. Portfolios are set up by the risk or finance administrator and are rarely changed afterwards. To open the page, open the sidebar, expand <b>Portfolio Setup</b> and choose <b>Loan Portfolios</b>.</p>'
+            'body' => '<p>A loan portfolio is the top-level basket that every loan in the platform belongs to (for example Agricultural Loans, Industrial Loans or simply Loans). Every loan book you import must be assigned to a portfolio, so at least one portfolio has to exist before any loan data can be loaded. Portfolios are set up by the risk or finance administrator and are rarely changed afterwards. To open the page, open the sidebar, expand <b>Data Foundation</b> and choose <b>Loan Portfolios</b>.</p>'
                 . '<p>Portfolios drive the rest of the system. The <b>Portfolio Group</b> box on the loan book import page lists them, the <b>Select Portfolio (Optional)</b> box on the loan book export and disbursement report lists them, the dashboard portfolio filter uses them, and portfolio-level ECL and coverage reports are grouped by them. If a portfolio is set to Inactive it is kept for history but should not be used for new imports.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
@@ -55,7 +55,7 @@ return [
                 . '<li>The portfolio you expect is missing from the import page: check that it is not filtered out as Inactive, and if it is, edit it and tick <b>Active</b>.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Portfolio Setup and choose Loan Portfolios.',
+                'Open the sidebar, expand Data Foundation and choose Loan Portfolios.',
                 'Click the green Create Portfolio button at the top right.',
                 'Type the portfolio Name (required) and an optional Description.',
                 'Leave the Active box ticked so the portfolio can be used for imports.',
@@ -70,7 +70,7 @@ return [
         ],
 
         'Sector types' => [
-            'body' => '<p>Sector types (the page itself is titled <b>Industry Types</b>) are the economic-sector classification used for sector concentration and sector ECL reporting, for example Agriculture, forestry and fishing; Mining; Manufacturing. Each sector has a short numeric <b>Code</b> and a <b>Name</b>. The loan book file carries a sector code or sector name for every contract (the importer recognises headings such as <code>Industry Code</code>, <code>Sector Code</code>, <code>Sector</code> or <code>Segmentation</code>), and the client profile shows the sector under <b>Industrial Sector</b>. The codes in your loan book must match the codes on this page, so set the sectors up before the first loan book is loaded. To open the page, open the sidebar, expand <b>Portfolio Setup</b> and choose <b>Sector Types</b>.</p>'
+            'body' => '<p>Sector types (the page itself is titled <b>Industry Types</b>) are the economic-sector classification used for sector concentration and sector ECL reporting, for example Agriculture, forestry and fishing; Mining; Manufacturing. Each sector has a short numeric <b>Code</b> and a <b>Name</b>. The loan book file carries a sector code or sector name for every contract (the importer recognises headings such as <code>Industry Code</code>, <code>Sector Code</code>, <code>Sector</code> or <code>Segmentation</code>), and the client profile shows the sector under <b>Industrial Sector</b>. The codes in your loan book must match the codes on this page, so set the sectors up before the first loan book is loaded. To open the page, open the sidebar, expand <b>Data Foundation</b> and choose <b>Sector Types</b>.</p>'
                 . '<p>Only users whose role includes the industry types permissions see the create, edit and delete controls. If you can see the list but not the buttons, ask your administrator to extend your role.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
@@ -113,7 +113,7 @@ return [
                 . '<li>Two sectors with the same code: the platform does not stop you, but reports will merge them. Keep codes unique.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Portfolio Setup and choose Sector Types.',
+                'Open the sidebar, expand Data Foundation and choose Sector Types.',
                 'Click Create Category at the top right.',
                 'Enter the sector Code exactly as it appears in your loan book file.',
                 'Enter the sector Name and, if helpful, a Description.',
@@ -128,7 +128,7 @@ return [
         ],
 
         'Product groups' => [
-            'body' => '<p>Product groups describe the lending product a contract belongs to (for example MAJIC Agricultural Loans or MAJIC Industrial Loans). They sit one level below portfolios: a portfolio is the reporting basket you choose at import time, while the product group is read from the loan data itself. When an E-Banker loan book is imported, each <code>Loan Type :</code> heading row in the file sets the product group and product code for the contracts beneath it, and the legacy and custom formats read a <code>type</code> or <code>loan_type</code> column. The product-group ECL report then breaks expected credit loss down by these names. Set the groups up here so the names on reports match the names in your files. To open the page, open the sidebar, expand <b>Portfolio Setup</b> and choose <b>Product Groups</b>.</p>'
+            'body' => '<p>Product groups describe the lending product a contract belongs to (for example MAJIC Agricultural Loans or MAJIC Industrial Loans). They sit one level below portfolios: a portfolio is the reporting basket you choose at import time, while the product group is read from the loan data itself. When an E-Banker loan book is imported, each <code>Loan Type :</code> heading row in the file sets the product group and product code for the contracts beneath it, and the legacy and custom formats read a <code>type</code> or <code>loan_type</code> column. The product-group ECL report then breaks expected credit loss down by these names. Set the groups up here so the names on reports match the names in your files. To open the page, open the sidebar, expand <b>Data Foundation</b> and choose <b>Product Groups</b>.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
                 . '<li><b>Page title</b>: Product Groups.</li>'
@@ -169,7 +169,7 @@ return [
                 . '<li><code>The name field is required.</code>: enter a name before saving.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Portfolio Setup and choose Product Groups.',
+                'Open the sidebar, expand Data Foundation and choose Product Groups.',
                 'Click Create Product Group at the top right.',
                 'Type the product Name exactly as it appears in your loan book file headings.',
                 'Add an optional Description.',
