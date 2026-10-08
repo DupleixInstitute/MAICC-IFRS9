@@ -246,6 +246,25 @@ class Bootstrap extends Command
             }
         }
         $this->note('6.9 EIR solved and locked', "{$solved} solved, {$locked} locked (administrator override under the bootstrap label); " . count($failed) . ' not solved' . ($failed !== [] ? ': ' . implode(' | ', array_slice($failed, 0, 3)) : ''));
+        // 4, 5, 7 for every period, pre-FLI: the PD, the LGD and the ECL of each
+        // month, so the revenue step that follows nets the opening allowance on
+        // Stage 3 (audit C6) and the chain runs from the first full month, not
+        // the last (spec 6.10, audit M17). A month without a twelve-month window
+        // or a Stage 3 cohort is noted and left without an allowance.
+        $portfolio = (int) DB::table('loan_portfolios')->orderBy('id')->value('id');
+        $eclPeriods = []; $eclSkipped = [];
+        foreach ($periods as $p) {
+            try {
+                app(\App\Services\Pd\PdEngineService::class)->run($p, $portfolio, 12, 'bootstrap', $user);
+                app(\App\Services\Lgd\LgdEngineService::class)->run($p, $portfolio, 12, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+                Artisan::call('ifrs9:recalculate-ecl', ['period' => $p, '--level' => 'portfolio', '--portfolio' => $portfolio, '--pd' => 'pd_prefli']);
+                $eclPeriods[] = $p;
+            } catch (Throwable $e) {
+                $eclSkipped[$p] = substr($e->getMessage(), 0, 60);
+            }
+        }
+        $this->note('6.7 ECL pre-FLI by period', count($eclPeriods) . ' periods with a PD, an LGD and an ECL' . ($eclPeriods !== [] ? " ({$eclPeriods[0]}..{$eclPeriods[count($eclPeriods) - 1]})" : '') . '; ' . count($eclSkipped) . ' without' . ($eclSkipped !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($eclSkipped), $eclSkipped), 0, 2)) : ''));
+
         $before = DB::table('eir_amortisation')->count();
         $errors = [];
         foreach ($periods as $p) {
@@ -258,7 +277,6 @@ class Bootstrap extends Command
         $this->note('6.9 revenue', count($periods) . " periods run {$from}..{$to}; " . ($rows - $before) . " roll-forward rows written, {$rows} in all" . ($errors !== [] ? '; failed: ' . implode(' | ', array_slice($errors, 0, 3)) : ''));
 
         // 4 PD: the transition matrix over the last twelve staged months, the Stage 3 probabilities to the loan book
-        $portfolio = (int) DB::table('loan_portfolios')->orderBy('id')->value('id');
         try {
             $pd = app(\App\Services\Pd\PdEngineService::class)->run($to, $portfolio, 12, 'bootstrap', $user);
             $this->note('6.4 PD transition matrix', "matrix {$pd['matrix_id']} over {$pd['window']}: {$pd['transitioned']} transitions; PD to Stage 3 by stage " . json_encode($pd['pds']) . "; {$pd['updated']} loans given a PD");

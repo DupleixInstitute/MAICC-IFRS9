@@ -67,7 +67,7 @@ class EirRevenueService
 
                 $stage = $this->stage($loan);
                 if (! in_array($stage, [1, 2, 3], true)) throw new RuntimeException("The IFRS 9 stage for {$period} is missing or invalid.");
-                $allowance = max(0.0, (float) ($loan->expected_loss_provision ?? 0));
+                $allowance = $this->openingAllowance($contractId, $period, $loan);
                 $monthlyRate = pow(1 + (float) $contract->eir_effective_annual, 1 / 12) - 1;
                 // Stage 3 accrues on the basis governed for this period
                 // (stage3_interest_basis, IFRS 9 5.4.1(b) by default); a
@@ -134,6 +134,29 @@ class EirRevenueService
         return max(0, $from->diffInDays($to) / 365);
     }
 
+    /**
+     * The loss allowance the net basis nets off (IFRS 9 5.4.1(b)): the
+     * allowance in the books at the start of the month, which is the ECL the
+     * engine wrote on the prior month's loan-book row. The current month's
+     * ECL stands in when the prior month has none; the legacy
+     * expected_loss_provision column, which only a legacy importer fills, is
+     * the last resort. System audit of 9 October 2026, finding C6: the engine
+     * read only that column, nothing in the governed chain wrote it, and
+     * Stage 3 interest accrued on gross while the setting said net.
+     */
+    private function openingAllowance(string $contractId, string $period, object $loan): float
+    {
+        $prior = CarbonImmutable::createFromFormat('Y-m-d', $period . '-01')->subMonth()->format('Y-m');
+        $previous = $this->loanSnapshot($contractId, $prior);
+        foreach ([$previous->ecl_value ?? null, $loan->ecl_value ?? null, $loan->expected_loss_provision ?? null] as $candidate) {
+            if ($candidate !== null) {
+                return max(0.0, (float) $candidate);
+            }
+        }
+
+        return 0.0;
+    }
+
     private function loanSnapshot(string $contractId, string $period): ?object
     {
         return DB::table('loan_books')->where('contract_id', $contractId)
@@ -168,11 +191,19 @@ class EirRevenueService
         $start = CarbonImmutable::createFromFormat('Y-m-d', $period . '-01')->startOfMonth();
         $end = $start->endOfMonth();
 
+        // The ledger covers a month when the feed's postings run past its
+        // start and the contract existed by its end; a covered month with no
+        // receipt is zero cash, not the schedule. System audit of 9 October
+        // 2026, finding C5: the window was the contract's own first and last
+        // posting, so every month after a borrower's last receipt fell back to
+        // the schedule and the roll-forward retired a loan nobody was paying.
+        $feedLast = (string) (DB::table('eir_actual_transactions')->max('transaction_date') ?? '');
         $window = DB::table('eir_actual_transactions')->where('contract_id', $contractId)
-            ->selectRaw('MIN(transaction_date) as first_txn, MAX(transaction_date) as last_txn')->first();
-        $covered = $window && $window->first_txn && $window->last_txn
-            && $start->toDateString() <= substr((string) $window->last_txn, 0, 10)
-            && $end->toDateString() >= substr((string) $window->first_txn, 0, 10);
+            ->selectRaw('MIN(transaction_date) as first_txn')->first();
+        $contractStart = $window && $window->first_txn ? substr((string) $window->first_txn, 0, 10) : null;
+        $covered = $feedLast !== '' && $contractStart !== null
+            && $start->toDateString() <= substr((string) $feedLast, 0, 10)
+            && $end->toDateString() >= $contractStart;
 
         if (! $covered) {
             return ['amount' => $this->scheduledCash($contractId, $start, $end), 'source' => 'DERIVED', 'unclassified' => 0.0];
