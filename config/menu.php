@@ -107,6 +107,7 @@ return [
                 $leaf('Calculation History', 'fli.external.list'),
             ], 3, 'sky'),
             $leaf('ECL Calculation', 'expected-credit-loss.index', 'calculator'),
+            $leaf('Mega Farm Programme', 'megafarm.index', 'seedling', false, '', 'The programme in the ECL module under D30: the book by scheme and stage, the governed method, each run with its basis (spec v4 section 16)'),
             $leaf('EIR Calculations', 'eir-calculations.index', 'percent', false, 'settings'),
             $leaf('Coverage & Blockers', 'eir-coverage.index', permission: 'eir.view'),
         ], 3, 'sky', 'The engines'),

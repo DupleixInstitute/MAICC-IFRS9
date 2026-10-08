@@ -43,6 +43,19 @@
                   <td class="td text-xs text-gray-600">
                     <div v-for="o in s.options" :key="o" :class="s.in_force && o === s.in_force.value ? 'font-semibold text-maiic-800' : ''">
                       {{ o }}<span v-if="o === s.default" class="text-gray-400"> (recommended)</span>
+                      <template v-if="s.key === 'fli_transmission_method' && cardFor(o)">
+                        <span class="ml-1 maiic-badge" :class="cardFor(o).available ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ cardFor(o).available ? 'preconditions met' : 'not yet available' }}</span>
+                        <button type="button" @click="openCard = openCard === o ? null : o" class="ml-1 text-xs text-sky-700 underline dark:text-sky-300">{{ openCard === o ? 'hide the card' : 'method card' }}</button>
+                        <div v-if="openCard === o" class="mt-1 mb-2 rounded border border-gray-200 bg-gray-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/60">
+                          <p class="text-gray-700 dark:text-slate-300">{{ cardFor(o).what }}</p>
+                          <p class="mt-1 font-mono">{{ cardFor(o).formula }}</p>
+                          <ul class="mt-1 text-gray-500"><li v-for="(v, k) in cardFor(o).symbols" :key="k">{{ k }}: {{ v }}</li></ul>
+                          <ul class="mt-1 list-disc pl-4"><li v-for="(i, n) in cardFor(o).implies" :key="n">{{ i }}</li></ul>
+                          <div class="mt-1 space-y-0.5"><div v-for="(pc, n) in cardFor(o).preconditions" :key="n"><span :class="pc.met ? 'text-maiic-700' : 'text-red-700'">{{ pc.met ? '✓' : '✗' }}</span> {{ pc.name }}: <span class="text-gray-500">{{ pc.figure }}</span></div></div>
+                          <p v-if="cardFor(o).example" class="mt-1 text-gray-600 dark:text-slate-400">Example on {{ cardFor(o).example.contract_id }} ({{ cardFor(o).example.customer_name }}): {{ cardFor(o).example.steps.join('; ') }}</p>
+                          <p v-if="!cardFor(o).available" class="mt-1 text-amber-700">This method cannot be selected until every precondition above is met.</p>
+                        </div>
+                      </template>
                     </div>
                   </td>
                   <td class="td text-xs">
@@ -159,10 +172,12 @@ export default {
     asOf: String,
     userId: Number,
     adminOverride: { type: Boolean, default: false },
+    methodCards: { type: Array, default: () => [] },
     errors: { type: Object, default: () => ({}) },
   },
   data() {
-    return { showModal: false, proposing: null, processing: false, expanded: null, form: blank(this.asOf) }
+    return {
+      openCard: null, showModal: false, proposing: null, processing: false, expanded: null, form: blank(this.asOf) }
   },
   computed: {
     flashSuccess() {
@@ -176,6 +191,7 @@ export default {
     },
   },
   methods: {
+    cardFor(option) { return this.methodCards.find(c => c.key === option) || null },
     pendingRows(s) {
       return s.rows.filter(r => r.state === 'PROPOSED' || r.state === 'UPCOMING')
     },

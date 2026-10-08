@@ -42,7 +42,7 @@ Source: IFRS 9 Financial Instruments as issued by the IASB, section 5.5 and B5.5
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-08 21:18:14 from maiic_ifrs9_bootstrap.
+Generated 2026-10-08 21:40:05 from maiic_ifrs9_bootstrap.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
@@ -175,7 +175,7 @@ Generated 2026-10-08 21:18:14 from maiic_ifrs9_bootstrap.
 - **What the engine does:** Five governed transmission methods, each with a card: what it does, the formula, what it implies, its preconditions checked live against the data with the deciding figure, and a worked example on one loan; a method whose preconditions are not met cannot be selected; the scalar is seeded because the history cannot yet support the richer methods.
 - **General comment:** Spec v4 section 14.7.
 - **Compliance comment:** Compliant.
-- **Where to see it:** Financial Modelling, Forward-Looking Model: /regression; fli:correlate; fli:method-cards (fli:method-cards; /fli/transmission-methods)
+- **Where to see it:** Financial Modelling, Forward-Looking Model: /regression; fli:correlate; fli:method-cards; Governance Centre, the cards inline on the setting: /eir-governance; fli:method-cards
 - **Governance setting:** `fli_transmission_method; fli_asset_correlation`
 - **Test that proves it:** `Tests\Feature\FLI\TransmissionMethodCatalogueTest`
 - **Reviewer sign-off:** ____________________   Date: ____________
@@ -225,6 +225,6 @@ Generated 2026-10-08 21:18:14 from maiic_ifrs9_bootstrap.
 - **What the engine does:** The system holds a November 2025 Mega Farm loan book of 3,490 loans across six GLs (K54.85 bn), found by the build, staged under the MEGA_FARM class (91 days); the programme's treatment (decision D30: out of the EIR engine, in the ECL module, 5 percent share on net) and the PD method (seeded: the agricultural-sector PD scaled to the programme) are governed settings awaiting the CFO's confirmation.
 - **General comment:** Spec v4 section 16; the O22 paper of 8 October.
 - **Compliance comment:** Evidence needed: the CFO's confirmation of D30; how the K39.76 bn provision of 2025 was arrived at; the monthly Mega Farm books.
-- **Where to see it:** Governance Centre: /eir-governance; Data Foundation, Loan Book (2025-11)
+- **Where to see it:** Financial Modelling, Mega Farm Programme: /megafarm; Governance Centre: /eir-governance
 - **Governance setting:** `mega_farms_scope; megafarm_pd_method; megafarm_scalar_ceiling`
 - **Reviewer sign-off:** ____________________   Date: ____________

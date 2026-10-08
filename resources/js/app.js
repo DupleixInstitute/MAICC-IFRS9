@@ -30,7 +30,7 @@ import {
     faPen, faPercent, faPlus, faPrint, faSearch, faShare, faSms, faSpinner,
     faStar, faStethoscope, faTable, faTasks, faTicketAlt, faTimesCircle,
     faTrash, faUser, faUserLock, faUsers, faWrench,
-    faBalanceScale, faBell, faCalendarDay, faCloudDownloadAlt, faFileInvoice, faGavel, faShieldAlt, faSun, faMoon, faAdjust, faBars, faChevronLeft, faClipboardCheck,
+    faBalanceScale, faBell, faCalendarDay, faSeedling, faCloudDownloadAlt, faFileInvoice, faGavel, faShieldAlt, faSun, faMoon, faAdjust, faBars, faChevronLeft, faClipboardCheck,
 } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import Multiselect from '@vueform/multiselect'
@@ -58,7 +58,7 @@ library.add(
     faPen, faPercent, faPlus, faPrint, faSearch, faShare, faSms, faSpinner,
     faStar, faStethoscope, faTable, faTasks, faTicketAlt, faTimesCircle,
     faTrash, faUser, faUserLock, faUsers, faWrench,
-    faBalanceScale, faBell, faCalendarDay, faCloudDownloadAlt, faFileInvoice, faGavel, faShieldAlt, faSun, faMoon, faAdjust, faBars, faChevronLeft, faClipboardCheck,
+    faBalanceScale, faBell, faCalendarDay, faSeedling, faCloudDownloadAlt, faFileInvoice, faGavel, faShieldAlt, faSun, faMoon, faAdjust, faBars, faChevronLeft, faClipboardCheck,
 )
 
 const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'YoPractice';

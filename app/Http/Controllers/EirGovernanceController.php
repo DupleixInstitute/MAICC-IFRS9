@@ -28,6 +28,9 @@ class EirGovernanceController extends Controller
             'asOf' => now()->toDateString(),
             'userId' => auth()->id(),
             'adminOverride' => $this->adminOverride(),
+            // the transmission-method cards beside their setting (spec v4 section 14.7): what each does, its
+            // formula, what it implies, its preconditions checked live, a worked example
+            'methodCards' => app(\App\Services\Fli\TransmissionMethodCatalogue::class)->cards(),
         ]);
     }
 

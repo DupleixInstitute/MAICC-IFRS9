@@ -1,6 +1,6 @@
 # MAIIC EIR and IFRS 9 system: after-build report, 8 October 2026
 
-**What this is.** On 8 October 2026 the build set out in *MAIIC EIR Engine Specification v4* (7 October 2026) was carried out against the specification, section by section, on the MAICC-IFRS9 repository (branch `eir_revenue_recognition`, commits `32e7d99` to `a86e88b` (three rounds on 8 and 9 October)). This report says what was built, what the system proved when it ran, what the build found in the data and in the system that the specification did not know, and what is still owed. It is the comparison the specification asked for in its own section 8 (the build plan): the original specification stands as written; this report is read beside it.
+**What this is.** On 8 October 2026 the build set out in *MAIIC EIR Engine Specification v4* (7 October 2026) was carried out against the specification, section by section, on the MAICC-IFRS9 repository (branch `eir_revenue_recognition`, commits `32e7d99` to the head of 9 October (three rounds on 8 and 9 October)). This report says what was built, what the system proved when it ran, what the build found in the data and in the system that the specification did not know, and what is still owed. It is the comparison the specification asked for in its own section 8 (the build plan): the original specification stands as written; this report is read beside it.
 
 The production database `maiic_ifrs9` was not opened. The build was proven twice: on the demo copy (`maiic_ifrs9_demo`, which also holds the data of the 8 October demo), and on a throwaway database (`maiic_ifrs9_bootstrap`) wiped and rebuilt from nothing by the bootstrap command, which is the test the specification set for the data foundation.
 
@@ -35,11 +35,11 @@ What remains is set out in section 6: the forward-looking regression chain and t
 | 7.2 to 7.4 | Rate history, contract master, fees from E-Banker's tables | Yes, through the importers that already exist | `ContractInputsBuildService` |
 | 11 Suite layout | Six groups with accents, rail, top bar, page header with breadcrumb, light and dark; the help texts | Shell, shared styles, the tree and the help centre (114 passages re-worded, a navigation article) built; the page-by-page dark sweep (11.9) remains | `config/menu.php`, `AppLayout.vue`, `useTheme.js`, `NavigationTest`, the help seeders |
 | 13 Macro statistics | Codes, the World Bank fetcher, the IMF WEO parser, the RBM file, preview then commit, batches, the five-tab screen, the precedence rule | Yes | `app/Services/Macro/*`, `MacroStatisticsController`, `Pages/Macro/Index.vue` |
-| 14.7 Transmission methods | Governed methods, each explained with live preconditions and a worked example | Yes | `TransmissionMethodCatalogue`, `fli:method-cards`, 4 tests |
+| 14.7 Transmission methods | Governed methods, each explained with live preconditions and a worked example, in the screen and beside the setting | Yes: the cards are on the FLI Adjustments screen and inline on the `fli_transmission_method` setting in the Governance Centre, with a badge saying whether each method can be selected | `TransmissionMethodCatalogue`, `fli:method-cards`, `Pages/Eir/Governance.vue`, 4 tests |
 | 14.3 to 14.8 Forward-looking chain and route | Guardrail, structural events, proxy deriver, profiler, correlation finder, regression; a fit approved under maker-checker; the route once per scenario; the lineage on every loan; the FLI Adjustments screen | Yes | `FliBridgeService`, `FliRouteService`, `app/Services/Fli/*`, `Pages/Fli/Adjustments.vue`, 4 tests |
 | 15 Scenario sets | The governed set: rules, shocks on the base, approval, lock, versions, back-test, sensitivity; the first set of 15.8 | Yes | `ScenarioSetService`, `scenario:sets`, Governance Centre / Scenario Sets, 3 tests |
 | 12 Audit workbooks | The engine, the five modules, the register, the trace, the pack | Yes: five workbooks (66 sections) in three formats with the Baselines sheet; the register with maker-checker sign-off; the per-contract trace; the auditor's pack with checksums | `tools/compliance/`, `docs/compliance/`, `ComplianceAuditService`, `AuditTraceController`, `compliance:audits --pack` |
-| 16 Mega Farm | The programme in the ECL module under D30 with the governed PD methods | Mechanics built and run on the November 2025 book; the figure awaits Dr Thom's confirmation of D30 and the monthly books | `MegaFarmEclService`, `megafarm:ecl` |
+| 16 Mega Farm | The programme in the ECL module under D30 with the governed PD methods; its screen | Built and run on the November 2025 book; Financial Modelling / Mega Farm Programme shows the book by scheme and stage, the settings in force and each run with its basis or declined reason; the figure awaits Dr Thom's confirmation of D30 and the monthly books | `MegaFarmEclService`, `megafarm:ecl`, `Pages/MegaFarm/Index.vue` |
 
 ## 3. What the system proved when it ran
 
@@ -123,7 +123,6 @@ Everything the specification asked for that can be built without MAIIC's input i
 | The restructure history and the 10 percent test | 5.4.3, 3.3.2 | E-Banker's Reschedule Report from the vendor |
 | Contract Schedule 1's clause numbers | 12 | The signed schedule from Dr Thom |
 | The dark-mode page sweep | 11.9 | Ongoing: the shell and the shared classes carry the theme; pages that style elements directly are swept group by group as they are touched |
-| The Mega Farm screen; the method cards beside the Governance Centre setting | 16, 14.7 | Small screen work; the cards are on the FLI Adjustments screen and the JSON route |
 
 ## 7. How to reproduce
 

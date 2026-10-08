@@ -1327,3 +1327,7 @@ Route::post('/api/ebanker-feed/pack', function (\Illuminate\Http\Request $reques
 
 // The per-record audit trace (spec v4 section 12.5).
 Route::get('/audit-trace', [\App\Http\Controllers\AuditTraceController::class, 'index'])->name('audit-trace.index');
+
+// The Mega Farm programme (spec v4 section 16, D30).
+Route::get('/megafarm', [\App\Http\Controllers\MegaFarmController::class, 'index'])->name('megafarm.index');
+Route::post('/megafarm/run', [\App\Http\Controllers\MegaFarmController::class, 'run'])->name('megafarm.run');
