@@ -621,6 +621,14 @@
       "rows": null,
       "sha256": "b87bb112f2354909680efdf5b8c0d55dbfaf4f4c610489a2479fb2624eac6a67",
       "bytes": 978
+    },
+    {
+      "file": "queries/FOLLOW-UP extracts for Barry - pack 2 - 8 Oct 2026.sql",
+      "query_id": "PACK2",
+      "kind": "follow-up pack 2 of 8 Oct 2026: the September month-end feed (M09_01..03), INTEREST_PRODUCT, collateral and guarantors, LOS requests, GL_03, and the Mega Farm schemes 96-103 (MF_01..08); results not yet received",
+      "rows": null,
+      "sha256": "27bde049097ab6eb01231ae50afe3a7e9c4f7293ba61c630bd136c6d1a98396e",
+      "bytes": 10709
     }
   ]
 }
