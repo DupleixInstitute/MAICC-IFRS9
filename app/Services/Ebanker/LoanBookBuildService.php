@@ -550,7 +550,8 @@ class LoanBookBuildService
         $carrying = (float) $v['carrying_amount'];
         $v += [
             'loan_portfolio_id' => $this->portfolioId(), 'reporting_year' => $end->year, 'reporting_month' => $end->month, 'reporting_period' => $end->format('Y-m'),
-            'remaining_tenor' => $remaining, 'facility_utilisation_rate' => $v['approved_amount'] > 0 ? round(min(999.99, $v['disbursed'] / $v['approved_amount'] * 100), 2) : null,
+            'remaining_tenor' => $remaining, // the ECL engines read this as the credit-conversion fraction on the undrawn commitment (null = 1), so it is a fraction, not a percentage
+            'facility_utilisation_rate' => $v['approved_amount'] > 0 ? round(min(1.0, max(0.0, $v['disbursed'] / $v['approved_amount'])), 2) : null,
             'ead' => round($carrying + (float) $v['commitments'], 2),
             'overdue_status' => $v['overdue_days'] > 0 ? 'OVERDUE' : 'CURRENT', 'is_month_end' => 1,
             'created_at' => now(), 'updated_at' => now(),

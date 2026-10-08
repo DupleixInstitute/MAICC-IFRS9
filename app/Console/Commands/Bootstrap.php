@@ -102,7 +102,7 @@ class Bootstrap extends Command
     {
         Artisan::call('migrate', ['--force' => true]);
         $classes = ['PermissionsTableSeeder', 'RolesTableSeeder', 'MaiicAdminPermissionsSeeder', 'UsersTableSeeder', 'GovernanceSettingsSeeder', 'StagingThresholdSeeder',
-            'EbankerQuerySeeder', 'MacroSeriesSeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder', 'EclScenarioAssumptionSeeder',
+            'EbankerQuerySeeder', 'MacroSeriesSeeder', 'MaiicTransitionProfileSeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder', 'EclScenarioAssumptionSeeder',
             'IndustryTypeSeeder', 'CreditLossDefinitionSeeder', 'TransitionProfileDefinitionSeeder', 'TransitionProfileOptionSeeder'];
         $ran = [];
         foreach ($classes as $c) {
@@ -257,8 +257,24 @@ class Bootstrap extends Command
         $rows = DB::table('eir_amortisation')->count();
         $this->note('6.9 revenue', count($periods) . " periods run {$from}..{$to}; " . ($rows - $before) . " roll-forward rows written, {$rows} in all" . ($errors !== [] ? '; failed: ' . implode(' | ', array_slice($errors, 0, 3)) : ''));
 
-        // 4-7 PD, LGD, FLI, ECL: the engines that exist run for the last period
+        // 4 PD: the transition matrix over the last twelve staged months, the Stage 3 probabilities to the loan book
         $portfolio = (int) DB::table('loan_portfolios')->orderBy('id')->value('id');
+        try {
+            $pd = app(\App\Services\Pd\PdEngineService::class)->run($to, $portfolio, 12, 'bootstrap', $user);
+            $this->note('6.4 PD transition matrix', "matrix {$pd['matrix_id']} over {$pd['window']}: {$pd['transitioned']} transitions; PD to Stage 3 by stage " . json_encode($pd['pds']) . "; {$pd['updated']} loans given a PD");
+        } catch (Throwable $e) {
+            $this->note('6.4 PD transition matrix', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
+        // 5-7 LGD, FLI, ECL
+        // 5 LGD: the Stage 3 cohort of twelve months earlier followed to the period
+        try {
+            $lgd = app(\App\Services\Lgd\LgdEngineService::class)->run($to, $portfolio, 12, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+            $this->note('6.5 LGD cohort workout', "lgd {$lgd['lgd_id']} over {$lgd['window']}: cohort {$lgd['cohort']} loans, " . number_format($lgd['start_balance'], 0) . "; cure " . round($lgd['cure_rate'] * 100, 2) . "%, recovery " . round($lgd['recovery_rate'] * 100, 2) . "%, LGD " . round($lgd['lgd'] * 100, 2) . "%; applied to {$lgd['updated']} loans");
+        } catch (Throwable $e) {
+            $this->note('6.5 LGD cohort workout', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
+
+        // 7 ECL on the PDs, after the scenario set and the chain
         try {
             Artisan::call('ifrs9:recalculate-ecl', ['period' => $to, '--level' => 'portfolio', '--portfolio' => $portfolio, '--pd' => 'pd_prefli']);
             $this->note('6.7 ECL', $to . ': ' . trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 240))));
@@ -286,8 +302,16 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.6 forward-looking chain', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
-        $this->note('6.4-6.5 PD, LGD', 'PD transition matrices and LGD run from their screens today; the bootstrap records them as pending until their services are callable without a request');
-
+        // the scenario sensitivity, now that the loans carry a PD and an LGD
+        try {
+            $setId = DB::table('governed_scenario_sets')->where('reporting_period', $to)->whereIn('status', ['APPROVED', 'LOCKED'])->orderByDesc('version')->value('id');
+            if ($setId) {
+                $sens = app(\App\Services\Scenario\ScenarioSetService::class)->sensitivity((int) $setId);
+                $this->note('6.2 scenario sensitivity', "set {$setId}: {$sens['loans']} loans; weighted ECL " . number_format($sens['weighted_ecl'], 0) . '; ' . collect($sens['per_scenario'])->map(fn ($p, $n) => "{$n} " . number_format($p['ecl'], 0))->implode(', '));
+            }
+        } catch (Throwable $e) {
+            $this->note('6.2 scenario sensitivity', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
         // 10 reconciliation
         try {
             $rec = app(EirGlReconciliationService::class)->forPeriod($to);
