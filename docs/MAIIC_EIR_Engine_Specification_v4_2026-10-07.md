@@ -1,7 +1,7 @@
 ---
 kicker: MAIIC | IFRS 9 EFFECTIVE INTEREST RATE ENGINE
 title: Specification, version 4
-subtitle: What the follow-up extracts proved, what has been decided, how E-Banker is ingested, the user interface, the audit workbooks, the macro statistics, the forward-looking adjustments and scenarios, and what is left to build
+subtitle: What the follow-up extracts proved, what has been decided, how E-Banker is ingested, the user interface, the audit workbooks, the macro statistics, the forward-looking adjustments and scenarios, the Mega Farm loans, and what is left to build
 date: 7 October 2026
 prepared: Prepared by Dupleix Institute for the Malawi Agricultural and Industrial Investment Corporation plc (MAIIC)
 people: Project sponsor Dr Thomson Kumwenda, CFO | Engagement lead Edward Mazibuko CA(SA) | Build lead Kundai Muriwo
@@ -115,6 +115,7 @@ On 31 December 2025 E-Banker posted 28 "Diff Int Credit by ROI" entries (type 12
 | D27 | **Macro statistics are ingested from the World Bank and the IMF the way the suite does it** (section 13): indicator codes on the series, a fetcher and a parser, preview before commit, a batch of provenance on every observation, a command for the bootstrap and the scheduler, the Reserve Bank series by file, and a governed rule for which source wins. The existing tables and the six forward-looking screens are kept. | Edward, 7 Oct 2026 | Forward-looking information with its source, address and time against every figure, which is what B5.5.49 to B5.5.54 and Deloitte ask for |
 | D28 | **The forward-looking adjustment gains a correlation finder, a repaired regression, a manual overlay route and lineage on the loan** (section 14); the arithmetic that applies the adjustment to PDs and feeds the ECL is unchanged. | Edward, 7 Oct 2026 | Which series explains MAIIC's losses is found, tested and approved by two people; judgement has a governed road; every post-FLI PD says where it came from |
 | D29 | **The scenario set is a governed object per period and the ECL is weighted across scenarios** (section 15): three or more scenarios with narratives, weights, source vintage, calibration to Malawi's own history, shocks on the base path, two approvals, a lock, back-tests and sensitivity; the weighting moves from the macro path to the loss. | Edward, 7 Oct 2026 | IFRS 9 B5.5.42 asks for the probability-weighted loss over a range of outcomes; IFRS 7.35G asks for the disclosure; the auditors ask for the governance |
+| D30 | **The Mega Farm programme loans are outside the EIR engine and inside the ECL module** (section 16): a Government fund that MAIIC administers at a contractual 15 percent split 5 to MAIIC and 10 to the fund, 95 percent credit-impaired, with the loss charged to the fund. The engine computes MAIIC's 5 percent share on the net carrying amount, the ECL module stages and provisions the loans against the fund, and the Report Hub produces the Mega Farms notes. | Dupleix, 8 Oct 2026, on the 2025 financial statements; Dr Thom to confirm (O22) | The statements present the programme ring-fenced on every page; an EIR on a programme split would restate nothing they report, and the revenue-shift number is about MAIIC's own lending |
 | D23 | **The three MAIIC extract scripts are retired.** The engine's importers read the tables directly, through CSVs produced with the session settings of the 6 October request (ISO dates, point decimal). | Dupleix, 7 Oct 2026 | Removes the three script faults of section 2.1 at source. |
 
 ### 4.2 Decided and seeded: every setting, its default, and where it stands
@@ -166,7 +167,7 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | Approving a version 1 schedule | Second person must approve | Recommendation | O18 |
 | The historic materiality assessment | Reproduce it beside the detailed figure | Recommendation; Finance supplies the threshold | O20 |
 | The year-end fee reclassification journal | Engine journal replaces the manual reclass | Recommendation; follows O10 | O21 |
-| Mega Farms facilities | In scope, stage and interest basis confirmed first | Recommendation; the largest swing in the number | O22 |
+| Mega Farms facilities | **Out of the EIR engine; in the ECL module; MAIIC's 5 percent share on the net carrying amount** | Decided D30 on the 2025 financial statements (section 16); Dr Thom to confirm | O22 |
 
 Seven of these need a genuine choice from Dr Thom rather than a confirmation: the true-up account (O10), the derecognition threshold (O16), reset or modification (O17), the three Phase 0 sign-offs (O13), the fee journal (O21) and Mega Farms (O22). The rest are what the data shows.
 
@@ -184,7 +185,7 @@ Nothing further is needed from the database to start building. These are the ans
 | Finance | Which 2024 figure agreed to the audited accounts for 1050201 and 1050202, then the GL opening adjustment | `Outcome - GL differences and Zaithwa Farms explained - 7 Oct 2026.pdf` | The ledger-to-accounts bridge |
 | Finance | The questions on the 28 year-end adjustments; the historic materiality threshold | `Note to Barry - the 28 interest adjustments of 31 Dec 2025.pdf`; O20 | December 2025 interest; the historic assessment |
 | Barry / vendor | The meaning of status code H; the Zaithwa Farms balance rows rebuilt; the restructured-loan register and the Reschedule Report | The notes of 7 Oct; version 3 phase P7 | Which accounts are live; restructures are version-1 scope |
-| Dr Thom | Mega Farms in or out (O22), the written confirmation of D20, and the seven choices of section 4.2 | This document | The headline number |
+| Dr Thom | Confirmation of the Mega Farm treatment (D30, section 16), the written confirmation of D20, and the remaining choices of section 4.2 | This document; the O22 paper of 8 Oct | The headline number |
 
 ## 6. Ingesting E-Banker: the landing zone and the feed
 
@@ -410,7 +411,7 @@ Phases P1 to P4 are built. The order from today, with what each one waits for:
 | **P6 Arrears** | Cash receipts from the ledger (exact); re-estimation under B5.4.6; IRR on actual expected flows | P5 |
 | **P7 Restructuring** | Version N+1 import; `contract_modifications`; the 10 percent test; lineage | The restructure register from MAIIC |
 | **P8 Month-end run and screens** | Pipeline, period lock, Contract Profile with the as-at date picker, Rate Resets, Restructures, Drawdowns, Month-end Run, the EIR-as-at-a-date report; help articles; the journal proposal reading the true-up account (O10) | P5 to P7; O10 |
-| **P9 Acceptance and UAT** | T1 to T8 on MAIIC's data; the revenue shift per year, 2024, 2025 and 2026 to date, which is the output Dr Thom asked for by name; UAT with Finance | The fee template; Mega Farms decided; the sign-offs |
+| **P9 Acceptance and UAT** | T1 to T8 on MAIIC's data; the revenue shift per year, 2024, 2025 and 2026 to date, which is the output Dr Thom asked for by name; UAT with Finance | The fee template; D30 confirmed; the sign-offs |
 | **P10 Deployment and training** | Install in MAIIC's environment; training; manuals; source code | P9 |
 
 P4b and P5 start now. Fees and the Mega Farms decision are the two items that gate the number; everything else is engineering.
@@ -938,7 +939,72 @@ Governance Centre › **Scenario Sets** (create, propose, approve, lock, version
 
 SC-1 the set, the scenarios, the shocks, the migration from the two old structures and the governance rules (two days); SC-2 the ECL per scenario and the weighting method (one day); SC-3 the overlay tie, the back-test, the sensitivity and the disclosure tables (one day); SC-4 the first set seeded as a proposal (half a day). SC-1 follows section 13; SC-2 follows FL-3.
 
-## 16. Glossary of the new terms
+## 16. The Mega Farm loans, seed loans included: a full treatment
+
+### 16.1 Background: what the Mega Farm programme is
+
+In 2024 the Government of Malawi set aside K20 billion under the Malawi 2063 Agenda to lend to farmers for inputs: fertilizer, seed, pesticides, working capital, equipment and irrigation. It asked MAIIC to run the programme. Under the agreement, MAIIC originates the loans, disburses them (in 2025 largely as farm-input vouchers rather than cash), services them and collects the repayments, which often arrive as maize delivered to ADMARC, NFRA or ACE rather than as money. The loans carry 15 percent a year, of which 5 percent is MAIIC's and 10 percent is credited to the Government's fund. MAIIC also earns a 5 percent management fee on the fund received and a commission. Losses on the loans are charged to the fund, not to MAIIC: in the 2025 financial statements the fund's own movement shows the expected credit losses of K37.4 billion and the maize write-down of K1.2 billion, and the fund closed the year at K16.0 billion.
+
+In E-Banker the programme lives in eight schemes (96 fertilizer, 97 irrigation, 98 seed, 99 CAPEX, 100 working capital, 101 pesticides, 102 and 103 equipment) with about 7,000 accounts, on their own general-ledger series: loans on 1050301 to 1050307, interest receivable on 1059 to 1067, income on 4214 to 4224 and 4260 to 4262, the fund on 2070 to 2072. None of these schemes was in the 18 of the 7 October extracts, and none of the ledger, balance-history or loan-book pulls covers a single Mega Farm account; pack 2 of 8 October fetches them.
+
+### 16.2 What the December 2025 financial statements say
+
+The statements keep the programme apart from MAIIC's own lending on every page. On the statement of financial position the loans, the cash, the maize inventory and the fund deposits each have their own "Mega Farms" line. Note 8 reports them as a separate table:
+
+| Mega Farms, 31 December 2025 (K thousand) | Stage 1 | Stage 2 | Stage 3 | Total |
+|---|---|---|---|---|
+| Gross loans | 2,799,359 | nil | 48,744,898 | 51,544,257 |
+| Expected credit losses | (1,162) | nil | (39,760,244) | (39,761,406) |
+| Net | 2,798,197 | nil | 8,984,654 | 11,782,851 |
+
+Ninety-five percent of the book is credit-impaired, with a loss allowance of 82 percent on the impaired part. The seed loans are K7.59 billion of the K51.54 billion gross (QuickBooks 1055; E-Banker 1050302), with their own interest receivable (1062, K0.79 billion after the audit journals) and their own income line (4217, K412 million).
+
+Three audit journals explain how the interest is treated. "Transfer of MAIIC interest to receivable" moved MAIIC's 5 percent share out of each Mega Farm interest-receivable account into other receivables, which note 9a reports as "interest income from Mega farms amounting to K2.8 billion, which carries expected credit losses of K2.1 billion"; for seed that journal was the whole of 4217, K412 million. The Government's 10 percent share is credited to the fund (2071, K6.4 billion). And "fair value adjustment on maize" wrote the ADMARC, NFRA and ACE receivables down to the net realisable value of the maize received in repayment. Note 19 charges "impairments on MAIIC Mega farm interest income" of K2.1 billion to MAIIC's own results: that is the only Mega Farm loss MAIIC bears.
+
+The trial balances show the same shape from the other side: the seed balance did not move at all from January to June 2025 and was repaid only in the harvest months; interest accrues to the receivable and never to the loan; the implied rate on seed income is 4.6 percent, which is MAIIC's 5 percent share and not the 15 percent the borrower pays; and K350 million left the seed receivable in June 2026 without passing through income, which is the same transfer-to-receivable pattern applied in-year.
+
+### 16.3 What kind of asset this is, explained
+
+The question a reviewer asks first is not "what is the EIR" but "whose loan is it". IFRS 9 recognises a financial asset when the entity becomes party to the contract, and derecognises it, or keeps it, according to who holds the risks and rewards and who controls it (3.2). IFRS 15 and IFRS 10 ask the related question of whether MAIIC acts as principal or as agent in the arrangement; the statements themselves note the IFRS 10 "de facto agent" assessment.
+
+Read against those tests, the Mega Farm loans have three features that set them apart from the MAIIC book:
+
+- **The credit risk is the fund's.** The expected credit losses reduce the Government's fund liability, not MAIIC's equity. MAIIC bears loss only on its own 5 percent interest share, which is why that share is moved to other receivables and impaired there.
+- **The return is a contractual split, not a yield.** The borrower pays 15 percent; MAIIC's part is 5 percent, fixed by the agreement, plus a management fee on the fund and a commission on the programme. There are no integral fees charged to the borrower that an EIR would spread, and the rate is a programme rate that does not move with the prime lending rate.
+- **MAIIC services and controls the loans.** It originates, disburses, collects and stages them, and the statements present them gross on MAIIC's balance sheet with the fund as a matching liability.
+
+The statements resolve this by presenting the loans on the balance sheet but ring-fenced: gross loans less a loss allowance, both belonging in substance to the programme, with MAIIC's own exposure limited to its interest share. The engine must respect that presentation, because the auditors signed it, and must not fold a programme book of K51.5 billion into an effective-interest calculation designed for MAIIC's own K14.7 billion of lending.
+
+### 16.4 The treatment, decision D30
+
+| Question | Treatment | Why |
+|---|---|---|
+| Are the Mega Farm loans in the EIR engine? | **No.** Out of the EIR engine's scope, disclosed as such in the engine's reports and in the audit workbooks | The rate is a contractual split on a programme fund, not a yield with integral fees; 95 percent of the book is credit-impaired; the loss belongs to the fund. An EIR on these loans would restate nothing that the statements report |
+| Is MAIIC's 5 percent share computed? | **Yes**, by the engine, as interest on the net carrying amount of each loan (5.4.1(b)) at MAIIC's share of the rate, posted to MAIIC's receivable; the fund's 10 percent share computed alongside and credited to the fund | That share is MAIIC's own income, it was the subject of a K2.1 billion impairment, and the auditors look at it; computing it on the net amount is what IFRS 9 requires for a credit-impaired asset |
+| Are the loans in the ECL module? | **Yes**, fully: staging, PD, LGD, ECL per scheme, with the loss charged to the fund liability and MAIIC's interest-share impairment charged to MAIIC | The staging and the K39.76 billion allowance are MAIIC's calculation and were audited; the module exists and holds the other book already |
+| Repayments in kind | Maize received is recorded as a receivable from the off-taker (ADMARC, NFRA, ACE) at the value credited to the loan, and written down to net realisable value with the write-down charged to the fund | Note 9c; the engine records the loan as repaid at the credited value and the inventory risk as the fund's |
+| Where the fund sits | A liability, 2070 to 2072, rolled forward each month: funds received, interest credited (10 percent share), loans created, repayments, write-downs, expected credit losses | Note 11(c) is the roll-forward the auditors want; the system produces it instead of Finance's spreadsheet |
+| Contract profile | Its own scheme settings read from E-Banker (DD_10): the 15 percent rate and its split, interest to the receivable not the balance, seasonal bullet repayment, the off-taker as payer | The MAIIC book's conventions (sanction-versus-balance basis, moratorium shapes, capitalised interest) do not describe these loans |
+
+### 16.5 How the seed loans flow through the system, step by step
+
+1. **Landing.** The pack 2 extracts for scheme 98 land in the same zone as everything else: masters, ledger, balance history, loan-book runs, status history, rate set-up, charges. The gates are the same.
+2. **Build.** The loan book for the seed accounts is built by the method in force, with two scheme-specific rules: the carrying amount is the loan balance plus the loan's share of the interest receivable, and the fund share of the receivable is a separate column.
+3. **Staging and ECL.** Each seed account is staged and provisioned by the ECL module like any other, under the Mega Farm scheme's parameters (its own PD curve from its own history, its LGD reflecting repayment in maize). The ECL is posted against the fund.
+4. **Interest.** The engine computes 15 percent on the net carrying amount for the month, splits it 5 to MAIIC's receivable and 10 to the fund, and compares the MAIIC share with what E-Banker posted to the receivable. The EIR engine proper (schedules, solver, revenue recognition) is not run.
+5. **Impairment of MAIIC's share.** The MAIIC receivable is itself provisioned, in MAIIC's own books, as note 9a does.
+6. **Reporting.** The Mega Farms table of note 8, the fund roll-forward of note 11(c), the receivable and its allowance of note 9a, and the maize inventory of note 9c come out of the Report Hub as a Mega Farms report, so the figures the auditors sign are produced rather than typed.
+7. **Audit.** The IFRS 9 impairment workbook carries the Mega Farm rows (staging, ECL, net-basis interest); the Contract Schedule 1 workbook records the scope decision.
+
+### 16.6 Two reconciliations that will come out of the pack 2 data
+
+The seed interest receivable rose by K700 million in 2025 while seed interest income was K379 million on the trial balance; the K320 million difference is the fund's 10 percent share being credited to the receivable and then to the fund, and the ledger will show it posting by posting. And the K350 million that left the receivable in June 2026 should be the in-year transfer of MAIIC's share to other receivables; if it is a write-off instead, that is a different conversation with Finance. Both are tests the engine runs once the extracts arrive, and both go on the Baselines sheet.
+
+### 16.7 What this does to the headline number
+
+Dr Thom asked for the revenue shift per year from moving to a real EIR. That number is about MAIIC's own lending: K1.4 billion of loan interest in 2024, K5.6 billion in 2025. The Mega Farm interest, 49 percent of 2025 loan interest on the trial balance, is a programme return of which two-thirds belongs to the fund and the rest is largely accrued and impaired; it does not move with the EIR and is left where the statements put it. Taking the programme out of the EIR scope makes the revenue-shift number smaller, cleaner and defensible, which is what Dr Thom needs it to be.
+
+## 17. Glossary of the new terms
 
 - **Narration**: the text E-Banker writes on each posting. On an interest posting it states the period and the rate, which is how section 3.1 was proven.
 - **Stored loan book**: the table behind the printed Loan Book Report, one row per account per run.
@@ -962,6 +1028,8 @@ SC-1 the set, the scenarios, the shocks, the migration from the two old structur
 - **Overlay**: a forward-looking adjustment applied by judgement rather than by a model, with its reason, owner, expiry and two approvals, shown as its own line.
 - **Scenario set**: the governed collection of economic scenarios for a reporting period, with their weights, paths, narratives, source vintage and approvals.
 - **Shock**: the recorded transformation that turns the base path into another scenario's path: a percentage change, an absolute change, a replacement or a multiplier, by series and year.
+- **Mega Farm programme**: the Government's K20 billion farm-input lending scheme that MAIIC administers; loans at 15 percent split 5 to MAIIC and 10 to the fund; losses charged to the fund; presented ring-fenced in the financial statements.
+- **Fund share**: the 10 percent of Mega Farm interest that belongs to the Government fund; MAIIC's share is the other 5 percent.
 - **Landing zone**: the raw tables that mirror E-Banker, loaded exactly as received and never edited; everything else is derived from them.
 - **Pack**: one month's set of extract files plus a manifest of what they are, which query version made them and their hashes; the one form in which data enters, whichever route delivers it.
 - **Watermark**: the last source key loaded for a table; the next pack starts after it.

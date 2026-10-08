@@ -1,0 +1,40 @@
+s.append(Paragraph("Open choice O22: the Mega Farm loans and the EIR engine", st["title"]))
+s.append(Paragraph("A recommendation for Dr Thomson Kumwenda, CFO, from Dupleix Institute  ·  8 October 2026  ·  for confirmation in the Governance Centre", st["meta"]))
+
+H("1. The question")
+P("Whether the Mega Farm programme loans (schemes 96 to 103 in E-Banker, about 7,000 accounts, K51.5 billion gross at 31 December 2025, seed loans K7.6 billion of that) are inside the effective-interest-rate engine. They are 49 percent of 2025 loan interest on the trial balance, so this is the largest single swing in the revenue figure the engine will produce.")
+
+H("2. What the December 2025 financial statements say")
+P("The statements keep the programme apart from MAIIC's own lending on every page: separate lines on the statement of financial position for the loans, the cash, the maize inventory and the fund deposits; a separate table in note 8; its own note 11(c) for the fund. Three facts from those notes decide the question.")
+TAB(["Fact", "Where", "What it says"], [
+    ["Whose money, whose loss", "Note 11(c)", "K20 billion set aside by Government; MAIIC 'agreed to manage and administer the said funds on behalf of Government'. The fund's roll-forward carries the expected credit losses of K37.4 billion and the maize write-down of K1.2 billion. The loss is the fund's"],
+    ["What MAIIC earns", "Note 11(c), 15a", "Loans at 15 percent, 'where 5 percent is payable to MAIIC and 10 percent is credited to Government Mega Farm funds account'; a 5 percent management fee on the fund; a K1 billion commission. A contractual split, not a yield with fees"],
+    ["The state of the book", "Note 8", "Stage 3: K48.7 billion of K51.5 billion gross; allowance K39.8 billion. MAIIC's own 5 percent interest share sits in other receivables (K2.8 billion) with its own allowance of K2.1 billion (notes 9a and 19)"],
+], [0.2, 0.14, 0.66])
+
+H("3. Why that puts the loans outside the EIR engine")
+P("The effective interest rate exists to spread fees and discounts over a loan's life so that the yield MAIIC reports is the yield it actually earns. On the Mega Farm loans there are no integral fees charged to the borrower, the rate is a programme rate fixed by agreement and split by contract, and the return MAIIC keeps is 5 percent whatever the loan does. An EIR calculation on these loans would restate nothing the statements report. What matters on this book is the impairment: 95 percent of it is credit-impaired, and IFRS 9 requires interest on a credit-impaired loan to be calculated on the net carrying amount (5.4.1(b)). That is an ECL question, and the ECL module already holds the other book.")
+
+H("4. The recommendation")
+TAB(["", "Recommendation"], [
+    ["EIR engine", "Out of scope, disclosed as such in the engine's reports and the audit workbooks"],
+    ["MAIIC's 5 percent share", "Computed by the engine on the net carrying amount of each loan and posted to MAIIC's receivable; the fund's 10 percent computed alongside and credited to the fund"],
+    ["ECL module", "In scope, fully: staging, PD, LGD and ECL per scheme, with the loss charged to the fund liability and MAIIC's interest-share impairment charged to MAIIC"],
+    ["Reporting", "The note 8 table, the note 11(c) fund roll-forward, the note 9a receivable and allowance, and the note 9c maize inventory produced by the system as a Mega Farms report"],
+    ["Data", "The pack 2 extracts of 8 October (MF_01 to MF_08) bring the eight schemes into the landing zone; nothing else is needed"],
+], [0.22, 0.78])
+P("Section 16 of the specification sets this out in full, with the step-by-step flow of a seed loan through the system. It is recorded there as decision D30, seeded in the Governance Centre against O22, and waits only for your confirmation.")
+
+H("5. What it does to your number")
+P("The revenue shift per year that you asked for becomes a figure about MAIIC's own lending: K1.4 billion of loan interest in 2024 and K5.6 billion in 2025, recomputed at the effective rate. The Mega Farm interest stays where the statements put it. The number gets smaller, cleaner and easier to defend to Deloitte, which is what it needs to be.")
+s.append(Spacer(1, 6))
+s.append(Paragraph("Edward Mazibuko and Wadzanai Rombe, Dupleix Institute. Sources: the signed 2025 financial statements (notes 8, 9a, 9c, 11(c), 15a, 19), the AFS bridge workbook of 10 September 2026, the monthly trial balances, the E-Banker data dictionary of 6 October 2026.", st["meta"]))
+
+def footer(c, d):
+    c.saveState(); c.setStrokeColor(LINE); c.setLineWidth(0.5); c.line(18 * mm, 14 * mm, A4[0] - 18 * mm, 14 * mm)
+    c.setFont("Seg", 8); c.setFillColor(GREY); c.drawString(18 * mm, 9.5 * mm, "Open choice O22: the Mega Farm loans and the EIR engine  ·  Dupleix Institute  ·  8 October 2026")
+    c.drawRightString(A4[0] - 18 * mm, 9.5 * mm, f"Page {d.page}"); c.restoreState()
+OUT = r"C:\Users\wadza\OneDrive\2026\Projects\MAIIC\3. Project Execution\specs\O22 recommendation - the Mega Farm loans and the EIR engine - 8 Oct 2026.pdf"
+doc = BaseDocTemplate(OUT, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=20 * mm, title="Open choice O22: the Mega Farm loans and the EIR engine", author="Dupleix Institute")
+doc.addPageTemplates([PageTemplate(id="p", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)], onPage=footer)])
+doc.build(s); print("written", OUT)
