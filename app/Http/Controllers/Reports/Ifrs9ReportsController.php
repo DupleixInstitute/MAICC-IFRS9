@@ -117,7 +117,7 @@ class Ifrs9ReportsController extends Controller
                 $this->num($r->pd_value_used, 6),
                 $this->num($r->lgd_value_used, 6),
                 $this->money($r->total_ecl),
-                $this->pct($r->total_ead ? $r->total_ecl / $r->total_ead : 0),
+                $this->pct((float) $r->total_ead != 0.0 ? $r->total_ecl / $r->total_ead : 0),
             ])->all();
 
         return $this->respond(['key' => 'ecl', 'period' => $period,
@@ -167,7 +167,7 @@ class Ifrs9ReportsController extends Controller
             ->map(fn ($r) => ['Stage ' . $r->stage, number_format($r->loans),
                 number_format($r->current_n), number_format($r->arrears_n),
                 $this->money($r->ead), $this->money($r->ecl),
-                $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+                $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         return $this->respond(['key' => 'stage-allocation', 'period' => $period,
             'kpis' => $this->totalsKpis($period),
@@ -570,7 +570,7 @@ class Ifrs9ReportsController extends Controller
             'kpis' => [
                 ['label' => 'NPL Exposure', 'value' => $this->money($npl->ead ?? 0), 'tone' => 'rose'],
                 ['label' => 'NPL Loans', 'value' => number_format($npl->n ?? 0), 'tone' => 'amber'],
-                ['label' => 'NPL Ratio', 'value' => $this->pct(($tot->ead ?? 0) ? ($npl->ead ?? 0) / $tot->ead : 0), 'tone' => 'rose'],
+                ['label' => 'NPL Ratio', 'value' => $this->pct((float) ($tot->ead ?? 0) != 0.0 ? ($npl->ead ?? 0) / $tot->ead : 0), 'tone' => 'rose'],
                 ['label' => 'Loans', 'value' => number_format($tot->loans ?? 0), 'tone' => 'emerald'],
             ],
             'sections' => [[
@@ -696,7 +696,7 @@ class Ifrs9ReportsController extends Controller
             ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n,
                 SUM($EAD) ead, SUM(COALESCE(ecl_value,0)) ecl")->get()
             ->map(fn ($r) => ['Stage ' . $r->s, number_format($r->n), $this->money($r->ead),
-                $this->money($r->ecl), $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+                $this->money($r->ecl), $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         $port = DB::table('loan_books as lb')->leftJoin('loan_portfolios as p', 'p.id', 'lb.loan_portfolio_id')
             ->where('reporting_period', $period)->groupBy('p.name')
@@ -704,7 +704,7 @@ class Ifrs9ReportsController extends Controller
                 SUM($EAD) ead, SUM(COALESCE(ecl_value,0)) ecl")
             ->orderByDesc(DB::raw('SUM(COALESCE(ecl_value,0))'))->get()
             ->map(fn ($r) => [$r->name, number_format($r->n), $this->money($r->ead),
-                $this->money($r->ecl), $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+                $this->money($r->ecl), $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         $top = DB::table('loan_books')->where('reporting_period', $period)
             ->selectRaw("contract_id, customer_name, ifrs9stage_pre_qualitative s,
@@ -803,7 +803,7 @@ class Ifrs9ReportsController extends Controller
             ->orderByDesc(DB::raw('SUM(COALESCE(ecl_value,0))'))->get()
             ->map(fn ($r) => [$r->sec, number_format($r->n), $this->money($r->ead),
                 $this->num($r->pd, 6), $this->num($r->lgd, 6), $this->money($r->ecl),
-                $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+                $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         return $this->respond(['key' => 'sector-ecl', 'period' => $period,
             'subtitle' => 'ECL by RBM economic sector for ' . $period,
@@ -827,7 +827,7 @@ class Ifrs9ReportsController extends Controller
                 SUM($EAD) ead, SUM(COALESCE(ecl_value,0)) ecl")
             ->orderByDesc(DB::raw('SUM(COALESCE(ecl_value,0))'))->get()
             ->map(fn ($r) => [$r->pg, number_format($r->n), $this->money($r->ead),
-                $this->money($r->ecl), $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+                $this->money($r->ecl), $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         return $this->respond(['key' => 'product-group-ecl', 'period' => $period,
             'subtitle' => 'ECL by lending product group for ' . $period,
@@ -903,7 +903,7 @@ class Ifrs9ReportsController extends Controller
             ->orderByDesc(DB::raw("SUM($EAD)"))->get()
             ->map(fn ($r) => [$r->ce, number_format($r->n), $this->money($r->ead),
                 $this->pct($r->lgd), $this->money($r->ecl),
-                $this->pct($r->ead ? $r->ecl / $r->ead : 0)])->all();
+                $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         return $this->respond(['key' => 'crm-agri', 'period' => $period,
             'subtitle' => 'How the book is actually secured, and the LGD each enhancement implies — ' . $period,

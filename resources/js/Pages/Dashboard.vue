@@ -262,7 +262,9 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { Chart, registerables } from 'chart.js';
 import HelpManual from '../Components/HelpManual.vue';
+import { useTheme } from '@/composables/useTheme';
 Chart.register(...registerables);
+const theme = useTheme();
 
 const props = defineProps({
     summary: Object,
@@ -327,6 +329,10 @@ let pieInstance = null;
 let trendInstance = null;
 
 const C = { maiic: '#16a34a', gold: '#f59e0b', red: '#dc2626' };
+// the chart's neutrals follow the theme: card surface, axis text, grid lines
+const N = () => theme.isDark.value
+    ? { surface: '#1e293b', text: '#94a3b8', grid: 'rgba(51, 65, 85, 0.8)' }
+    : { surface: '#ffffff', text: '#64748b', grid: 'rgba(226, 232, 240, 0.8)' };
 
 const pieView = ref('chart');
 const trendView = ref('chart');
@@ -463,6 +469,7 @@ const summaryRows = computed(() => {
 });
 
 function renderCharts() {
+    const n = N();
     if (pieInstance) { pieInstance.destroy(); pieInstance = null; }
     if (trendInstance) { trendInstance.destroy(); trendInstance = null; }
 
@@ -476,7 +483,7 @@ function renderCharts() {
                     data: [e[0], e[1], e[2]],
                     backgroundColor: [C.maiic, C.gold, C.red],
                     borderWidth: 3,
-                    borderColor: '#ffffff',
+                    borderColor: n.surface,
                     hoverOffset: 10,
                 }],
             },
@@ -486,7 +493,7 @@ function renderCharts() {
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: '#475569', font: { size: 12 } },
+                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: n.text, font: { size: 12 } },
                     },
                     tooltip: {
                         backgroundColor: '#0b2b1a',
@@ -533,11 +540,11 @@ function renderCharts() {
                     tension: 0.4,
                     pointRadius: (props.eclTrends || []).map(i => i.period === props.selectedPeriod ? 6 : 3.5),
                     pointHoverRadius: 7,
-                    pointBackgroundColor: (props.eclTrends || []).map(i => i.period === props.selectedPeriod ? C.gold : '#ffffff'),
+                    pointBackgroundColor: (props.eclTrends || []).map(i => i.period === props.selectedPeriod ? C.gold : n.surface),
                     pointBorderColor: (props.eclTrends || []).map(i => i.period === props.selectedPeriod ? C.gold : C.maiic),
                     pointBorderWidth: 2,
                     pointHoverBackgroundColor: C.gold,
-                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderColor: n.surface,
                 }],
             },
             options: {
@@ -548,9 +555,9 @@ function renderCharts() {
                         beginAtZero: true,
                         suggestedMax: peak > 0 ? Math.ceil(peak * 1.25) : 10,
                         border: { display: false },
-                        grid: { color: 'rgba(226, 232, 240, 0.8)' },
+                        grid: { color: n.grid },
                         ticks: {
-                            color: '#64748b',
+                            color: n.text,
                             font: { size: 11 },
                             callback: (v) => v + '%',
                         },
@@ -559,7 +566,7 @@ function renderCharts() {
                     x: {
                         border: { display: false },
                         grid: { display: false },
-                        ticks: { color: '#64748b', font: { size: 11 }, maxRotation: 40 },
+                        ticks: { color: n.text, font: { size: 11 }, maxRotation: 40 },
                         title: { display: false },
                     },
                 },
@@ -584,4 +591,5 @@ function renderCharts() {
 
 onMounted(renderCharts);
 watch(summary, renderCharts);
+watch(theme.isDark, renderCharts);
 </script>

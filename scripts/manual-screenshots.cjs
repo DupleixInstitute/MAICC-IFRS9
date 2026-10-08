@@ -74,6 +74,12 @@ function drawCallouts(callouts) {
     const page = await browser.newPage();
     await page.setViewport(viewport);
     fs.mkdirSync(cfg.outDir, { recursive: true });
+    // cfg.theme ('light' | 'dark' | 'system'): the suite reads `maiic.theme`
+    // from localStorage before the first paint, so setting it on every new
+    // document captures each page in that theme (the dark-mode page sweep).
+    if (cfg.theme) {
+      await page.evaluateOnNewDocument((t) => { try { localStorage.setItem('maiic.theme', t); } catch (e) {} }, cfg.theme);
+    }
 
     // ---- Log in (session auth) ----
     await page.goto(cfg.baseUrl + '/login', { waitUntil: 'domcontentloaded', timeout: 45000 });

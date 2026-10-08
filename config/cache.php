@@ -101,6 +101,9 @@ return [
     |
     */
 
-    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_cache'),
+    // Keyed by APP_ENV: the production, demo and bootstrap env files share one
+    // file store on a developer's machine, and without the environment in the
+    // prefix a permission cache filled by one database is served to another.
+    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_'.Str::slug(env('APP_ENV', 'production'), '_').'_cache'),
 
 ];

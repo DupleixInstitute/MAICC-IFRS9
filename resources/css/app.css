@@ -169,7 +169,7 @@
     .dark .maiic-empty { @apply text-slate-500; }
     .dark .maiic-filterbar { @apply bg-slate-800 border-slate-700; }
     .dark .maiic-flabel, .dark .maiic-kpi-label { @apply text-slate-400; }
-    .dark .maiic-input, .dark .maiic-select, .dark .form-control, .dark input[type="text"], .dark input[type="number"], .dark input[type="date"], .dark input[type="search"], .dark input[type="email"], .dark select, .dark textarea {
+    .dark .maiic-input, .dark .maiic-select, .dark .form-control, .dark input:not([type]), .dark input[type="text"], .dark input[type="number"], .dark input[type="date"], .dark input[type="month"], .dark input[type="time"], .dark input[type="datetime-local"], .dark input[type="search"], .dark input[type="email"], .dark input[type="tel"], .dark input[type="url"], .dark input[type="password"], .dark input[type="file"], .dark select, .dark textarea {
         @apply bg-slate-900 border-slate-600 text-slate-100 placeholder-slate-500;
     }
     .dark .maiic-action-neutral { @apply bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white; }
@@ -186,12 +186,77 @@
     .dark .label-blue-gray { @apply text-slate-200 bg-slate-700; }
     .dark .label-orange, .dark .label-warning { @apply text-amber-200 bg-amber-900/50; }
     .dark .label-red { @apply text-red-200 bg-red-900/50; }
-    /* the plain white cards most pages still draw by hand */
+    /* ----------------------------------------------------------------
+       The page sweep (spec v4 section 11.9). Some 230 of the 292 pages
+       predate the suite shell and colour their elements directly with the
+       light utilities. Rather than touch each in turn, the light utilities
+       are re-mapped here under .dark to the suite's dark palette, so every
+       page follows the theme at once. A page that carries its own dark:
+       variant keeps it: Tailwind emits the dark: utilities after this
+       layer, and at equal specificity the later rule wins. The map is
+       keyed to the utilities the pages actually use (counted 9 October
+       2026): surfaces, text, borders, dividers, rings, hover and focus
+       states, the pastel tints with the text they pair with, shadows.
+       ---------------------------------------------------------------- */
+    /* surfaces */
     .dark .bg-white { @apply bg-slate-800; }
-    .dark .bg-gray-50 { @apply bg-slate-800/70; }
+    .dark .bg-gray-50, .dark .bg-slate-50 { @apply bg-slate-800/70; }
     .dark .bg-gray-100 { @apply bg-slate-900; }
-    .dark .text-gray-900, .dark .text-gray-800 { @apply text-slate-100; }
+    .dark .bg-gray-200 { @apply bg-slate-700; }
+    .dark .bg-gray-300 { @apply bg-slate-600; }
+    .dark .hover\:bg-gray-50:hover, .dark .hover\:bg-gray-100:hover, .dark .hover\:bg-white:hover,
+    .dark .focus\:bg-gray-50:focus, .dark .focus\:bg-gray-100:focus { @apply bg-slate-700; }
+    .dark .hover\:bg-gray-200:hover { @apply bg-slate-600; }
+    /* text */
+    .dark .text-gray-900, .dark .text-gray-800, .dark .text-black { @apply text-slate-100; }
     .dark .text-gray-700, .dark .text-gray-600 { @apply text-slate-300; }
     .dark .text-gray-500 { @apply text-slate-400; }
-    .dark .border-gray-200, .dark .border-gray-100, .dark .divide-gray-200 > * { @apply border-slate-700; }
+    .dark .text-gray-400 { @apply text-slate-500; }
+    .dark .hover\:text-gray-900:hover, .dark .hover\:text-gray-800:hover, .dark .hover\:text-gray-700:hover { @apply text-slate-100; }
+    .dark .group:hover .group-hover\:text-gray-600 { @apply text-slate-200; }
+    .dark .placeholder-gray-400::placeholder, .dark .placeholder-gray-500::placeholder { @apply text-slate-500; }
+    /* borders, dividers, rings */
+    .dark .border-gray-200, .dark .border-gray-100, .dark .border-slate-200, .dark .border-white { @apply border-slate-700; }
+    .dark .border-gray-300, .dark .border-gray-400 { @apply border-slate-600; }
+    .dark .hover\:border-gray-300:hover, .dark .hover\:border-gray-400:hover, .dark .hover\:border-gray-500:hover { @apply border-slate-500; }
+    .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]), .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]), .dark .divide-gray-300 > :not([hidden]) ~ :not([hidden]) { @apply border-slate-700; }
+    .dark .ring-gray-300 { --tw-ring-color: theme('colors.slate.600'); }
+    .dark .ring-black { --tw-ring-color: theme('colors.slate.700'); }
+    /* the pastel tints and the text they pair with: a notice box on a dark card */
+    .dark .bg-maiic-50, .dark .bg-maiic-100 { @apply bg-maiic-900/30; }
+    .dark .text-maiic-800, .dark .text-maiic-700, .dark .text-maiic-600 { @apply text-maiic-200; }
+    .dark .border-maiic-200, .dark .border-maiic-300 { @apply border-maiic-700; }
+    .dark .bg-amber-50, .dark .bg-amber-100, .dark .bg-yellow-50, .dark .bg-yellow-100 { @apply bg-amber-900/30; }
+    .dark .text-amber-800, .dark .text-amber-700, .dark .text-yellow-800, .dark .text-yellow-700 { @apply text-amber-200; }
+    .dark .border-amber-200, .dark .border-yellow-200 { @apply border-amber-700; }
+    .dark .bg-red-50, .dark .bg-red-100, .dark .bg-rose-50, .dark .bg-rose-100 { @apply bg-red-900/30; }
+    .dark .text-red-800, .dark .text-red-700, .dark .text-rose-800, .dark .text-rose-700 { @apply text-red-200; }
+    .dark .border-red-200, .dark .border-rose-200 { @apply border-red-700; }
+    .dark .bg-blue-50, .dark .bg-blue-100, .dark .bg-sky-50, .dark .bg-sky-100, .dark .bg-indigo-50, .dark .bg-indigo-100 { @apply bg-sky-900/30; }
+    .dark .text-blue-800, .dark .text-blue-700, .dark .text-sky-800, .dark .text-sky-700, .dark .text-indigo-800, .dark .text-indigo-700 { @apply text-sky-200; }
+    .dark .border-blue-200, .dark .border-sky-200, .dark .border-indigo-200 { @apply border-sky-700; }
+    .dark .bg-emerald-50, .dark .bg-emerald-100, .dark .bg-green-50, .dark .bg-green-100 { @apply bg-emerald-900/30; }
+    .dark .text-emerald-800, .dark .text-emerald-700, .dark .text-green-800, .dark .text-green-700 { @apply text-emerald-200; }
+    .dark .border-emerald-200, .dark .border-green-200 { @apply border-emerald-700; }
+    .dark .bg-purple-50, .dark .bg-purple-100, .dark .bg-violet-50, .dark .bg-violet-100 { @apply bg-violet-900/30; }
+    .dark .text-purple-800, .dark .text-purple-700, .dark .text-violet-800, .dark .text-violet-700 { @apply text-violet-200; }
+    /* the translucent stripes and washes (opacity variants) */
+    .dark .bg-maiic-50\/40, .dark .bg-maiic-50\/60, .dark .bg-gray-50\/60, .dark .bg-white\/70 { @apply bg-slate-700/40; }
+    .dark .bg-maiic-300\/40, .dark .bg-maiic-300\/50 { @apply bg-maiic-800/40; }
+    /* pastel gradients (the dashboard's stage cards): the light stops become the card surface */
+    .dark .from-maiic-50 { --tw-gradient-from: rgb(20 83 45 / 0.35) var(--tw-gradient-from-position); --tw-gradient-to: rgb(20 83 45 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+    .dark .from-amber-50 { --tw-gradient-from: rgb(120 53 15 / 0.35) var(--tw-gradient-from-position); --tw-gradient-to: rgb(120 53 15 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+    .dark .from-red-50 { --tw-gradient-from: rgb(127 29 29 / 0.35) var(--tw-gradient-from-position); --tw-gradient-to: rgb(127 29 29 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+    .dark .to-white, .dark .to-maiic-100 { --tw-gradient-to: theme('colors.slate.800') var(--tw-gradient-to-position); }
+    /* shadows read as a darker halo, not a grey smear */
+    .dark .shadow, .dark .shadow-sm, .dark .shadow-md, .dark .shadow-lg, .dark .shadow-xl { --tw-shadow-color: rgb(2 6 23 / 0.6); --tw-shadow: var(--tw-shadow-colored); }
+    /* the legacy form classes (form.css) */
+    .dark .form-label { @apply text-slate-300; }
+    .dark .form-input, .dark .form-textarea, .dark .form-select { @apply bg-slate-900 border-slate-600 text-slate-100; }
+    .dark .form-input::placeholder, .dark .form-textarea::placeholder { @apply text-slate-500; }
+    .dark .form-error { @apply text-red-300; }
+    /* a bare `border` takes preflight's gray-200; :where keeps this at zero specificity so any border-* utility still wins */
+    .dark :where(*, ::before, ::after) { border-color: theme('colors.slate.700'); }
+    /* native controls and scrollbars take the dark scheme */
+    .dark { color-scheme: dark; }
 }

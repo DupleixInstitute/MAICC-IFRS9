@@ -26,7 +26,7 @@ class LicenseController extends Controller
 
     public function index()
     {
-        $purchaseCode = Setting::where('setting_key', 'purchase_code')->first()->setting_value;
+        $purchaseCode = Setting::where('setting_key', 'purchase_code')->first()?->setting_value;
         $decodedPurchaseCode =  config('app.decoded_purchase_code');
         return Inertia::render('License/Index', [
             'purchaseCode' => $purchaseCode,

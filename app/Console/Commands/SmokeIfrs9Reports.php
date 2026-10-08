@@ -23,7 +23,9 @@ class SmokeIfrs9Reports extends Command
                     'eclReconciliation', 'grossMovement', 'eclCharge', 'pdReport',
                     'lgdCollateral', 'eadReport', 'macroScenario', 'scenarioEcl',
                     'rbmClassification', 'ifrs9VsRbm', 'nplArrears', 'provisionComparison',
-                    'fsDisclosure', 'dataQuality', 'sensitivity', 'ews', 'aiNarrative'];
+                    'fsDisclosure', 'dataQuality', 'executiveSummary', 'portfolioTrend', 'sectorEcl',
+                    'productGroupEcl', 'gradeEcl', 'crmAgri', 'coopLinkage', 'concentration',
+                    'sensitivity', 'ews', 'aiNarrative']; // every report method on the controller
 
         $failures = 0;
 

@@ -25,7 +25,8 @@ class CaptureManualScreenshotsCommand extends Command
         {--password= : Login password (default MANUAL_SHOT_PASSWORD)}
         {--out= : Output directory (default public/manual/screenshots)}
         {--only= : Comma-separated file keys to limit capture to (default: all)}
-        {--edge= : Path to msedge.exe / chrome.exe (default: bundled puppeteer browser)}';
+        {--edge= : Path to msedge.exe / chrome.exe (default: bundled puppeteer browser)}
+        {--theme= : Capture in a theme: light, dark or system (default: the browser default, light)}';
 
     protected $description = 'Capture hi-res logged-in screenshots of the manual pages via headless Chromium.';
 
@@ -249,6 +250,7 @@ class CaptureManualScreenshotsCommand extends Command
             'captcha'  => $captcha,
             'outDir'   => $outDir,
             'viewport' => ['width' => 1440, 'height' => 900, 'deviceScaleFactor' => 2],
+            'theme'    => in_array($this->option('theme'), ['light', 'dark', 'system'], true) ? $this->option('theme') : null,
             'shots'    => $shots,
         ];
         $cfgPath = storage_path('app/manual-shots-' . bin2hex(random_bytes(4)) . '.json');
