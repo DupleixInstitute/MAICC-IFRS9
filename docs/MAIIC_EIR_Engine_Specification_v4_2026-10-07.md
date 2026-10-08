@@ -168,6 +168,7 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | The historic materiality assessment | Reproduce it beside the detailed figure | Recommendation; Finance supplies the threshold | O20 |
 | The year-end fee reclassification journal | Engine journal replaces the manual reclass | Recommendation; follows O10 | O21 |
 | Mega Farms facilities | **Out of the EIR engine; in the ECL module; MAIIC's 5 percent share on the net carrying amount** | Decided D30 on the 2025 financial statements (section 16); Dr Thom to confirm | O22 |
+| Probability of default for the Mega Farm schemes (`megafarm_pd_method`) | Seasonal cohort default rate with a benchmark prior | Recommendation (section 16.8); the transition matrix is declined until three seasons exist; the method used for the 2025 provision to be confirmed by Finance | new |
 
 Seven of these need a genuine choice from Dr Thom rather than a confirmation: the true-up account (O10), the derecognition threshold (O16), reset or modification (O17), the three Phase 0 sign-offs (O13), the fee journal (O21) and Mega Farms (O22). The rest are what the data shows.
 
@@ -183,7 +184,7 @@ Nothing further is needed from the database to start building. These are the ans
 | Tamanda | The fees of the take-on loans, in the yellow columns of the returned workbook (O14), and the explanation of the 2024 arrangement fee of MWK 1.34 billion (O23) | The workbook with fee columns of 7 Oct; the 2024 question in version 3 | Fees are the EIR; the 2024 figure decides how much of 2024 belongs in it |
 | Credit | The twelve offer letters: the ten samples and the two over-sanction accounts (Mchinji 50m against 100m drawn; VNC Bricks 20m against 200m) | `Request to Credit - the twelve offer letters - 7 Oct 2026.pdf` | Test evidence under D20; the two sanction checks are a control finding |
 | Finance | Which 2024 figure agreed to the audited accounts for 1050201 and 1050202, then the GL opening adjustment | `Outcome - GL differences and Zaithwa Farms explained - 7 Oct 2026.pdf` | The ledger-to-accounts bridge |
-| Finance | The questions on the 28 year-end adjustments; the historic materiality threshold | `Note to Barry - the 28 interest adjustments of 31 Dec 2025.pdf`; O20 | December 2025 interest; the historic assessment |
+| Finance | The questions on the 28 year-end adjustments; the historic materiality threshold; **how the 2025 Mega Farm provision of K39.76 billion was arrived at** (the staging rule, the probability and loss assumptions, the treatment of maize and the buyer receivables) | `Note to Barry - the 28 interest adjustments of 31 Dec 2025.pdf`; O20; section 16.8 | December 2025 interest; the historic assessment; the starting point for the Mega Farm provisioning method |
 | Barry / vendor | The meaning of status code H; the Zaithwa Farms balance rows rebuilt; the restructured-loan register and the Reschedule Report | The notes of 7 Oct; version 3 phase P7 | Which accounts are live; restructures are version-1 scope |
 | Dr Thom | Confirmation of the Mega Farm treatment (D30, section 16), the written confirmation of D20, and the remaining choices of section 4.2 | This document; the O22 paper of 8 Oct | The headline number |
 
@@ -1012,6 +1013,25 @@ The seed interest-owed account rose by K700 million in 2025 while seed income on
 
 Dr Thom asked for one number: how much revenue moves between years when MAIIC's interest is recalculated at the effective rate. That number is about MAIIC's own lending: K1.4 billion of loan interest in 2024 and K5.6 billion in 2025. The Mega Farm interest, half of all loan interest in 2025 on the trial balance, is a programme return of which two-thirds belongs to the Government and the rest is largely owed but not collected; it does not change with the effective rate and stays where the statements put it. Leaving the programme out of the EIR makes the number smaller, cleaner and easier to defend, which is what it needs to be.
 
+### 16.8 Probabilities of default for a book with little history
+
+**The difficulty.** MAIIC measures its probabilities of default with transition matrices: how often, over the years observed, a loan in one grade moved to another, and in particular to default. That needs years. The Mega Farm programme has two: the 2024 loans (K10.6 billion, a third in default by December 2024) and the 2025 loans (K44.4 billion of new lending, almost all in default by December 2025). What it does have is breadth: about 7,000 accounts and up to 21 monthly loan-book runs each, roughly 150,000 account-months. The problem is not too few observations; it is that every observation comes from one or two seasons, one of them catastrophic. A matrix fitted to that would say the probability of default is 95 percent for ever, which describes 2025 and forecasts nothing.
+
+**How the 2025 provision was actually arrived at is still to be confirmed.** The statements show the result (note 8: K39.76 billion against K51.54 billion gross) but not the method, and that method is the starting point for anything the system does. The question is with Finance (section 5); until it is answered, the treatment below is the proposal.
+
+**The method, in six steps.**
+
+1. **Measure by season, not by month.** A Mega Farm loan falls due once, after harvest, so "days past due" means nothing until the due date. The states are set at the due date plus a grace period (paid in full, partly paid, unpaid) and again at the next season's due date. A monthly matrix on a loan like this sees twelve months of "current" and then one jump, and learns nothing in between.
+2. **Segment by what drives repayment.** Seed against fertilizer against equipment; voucher against cash; which maize buyer (ADMARC, NFRA, ACE, none); district; the cohort year. With 7,000 accounts a segment's default rate is well measured even from one season, and the differences between segments are real information that a single overall rate hides.
+3. **Anchor the probability on cohort default rates, with a benchmark.** Each segment's observed season default rate is blended with a benchmark for a normal year (Malawi's farm-input programmes and their recovery record, microfinance agricultural lending, the 2024 cohort as the one ordinary season on record), weighted by how many seasons of own data exist. This is the standard treatment of a short-history book: the own experience gains weight each season, and the benchmark says what a normal year looks like until the book has seen one.
+4. **Put the probability second and recovery first.** For the 95 percent already in default the probability is 100 percent by definition; the provision depends entirely on how much comes back: the maize delivered, its value, how much the buyers pay and when. The loss given default is built from the 2025 collection experience (K14.8 billion repaid on the fund, the maize write-down, the buyer receivables) by segment and season. That is where the K39.8 billion of provision comes from, and it is the part the data supports.
+5. **Forward-looking by scenario, not by regression.** A regression on the economy needs years; two seasons give nothing. The scenario set of section 15 (a normal rainfall season, a drought season, a devaluation year) carries a default rate and a recovery rate per segment for the programme, weighted as section 15 describes, and the manual overlay route of 14.6 is used with the reason written down.
+6. **Keep it separate and label it.** The MAIIC book keeps its transition-matrix probabilities. The Mega Farm schemes get their own method card in the system (section 14.7's cards), their own back-test every season, and a rule that the method is reviewed once three seasons exist. The audit workbook then says exactly what was done for which book and why.
+
+**The governed setting**, `megafarm_pd_method`, with three options: *seasonal cohort default rate with a benchmark prior* (seeded); *transition matrix*, available once three seasons exist and declined until then; *expert judgement with overlay*, for a season the data cannot describe. The benchmark rate and the credibility weight are governed amounts beside it.
+
+**What the two seasons already say.** The 2024 cohort, the only ordinary season on record, lost a third in its first year. The 2025 cohort was four times larger, mostly vouchers, and almost wholly defaulted. Those two points already bracket the normal and the bad scenario of step 5, and the cohort split is the first segment to run once the pack 2 extracts arrive.
+
 ## 17. Glossary of the new terms
 
 - **Narration**: the text E-Banker writes on each posting. On an interest posting it states the period and the rate, which is how section 3.1 was proven.
@@ -1037,6 +1057,8 @@ Dr Thom asked for one number: how much revenue moves between years when MAIIC's 
 - **Scenario set**: the governed collection of economic scenarios for a reporting period, with their weights, paths, narratives, source vintage and approvals.
 - **Shock**: the recorded transformation that turns the base path into another scenario's path: a percentage change, an absolute change, a replacement or a multiplier, by series and year.
 - **Mega Farm programme**: the Government's K20 billion farm-input lending scheme that MAIIC administers; loans at 15 percent split 5 to MAIIC and 10 to the fund; losses charged to the fund; presented ring-fenced in the financial statements.
+- **Cohort default rate**: the share of the loans made in one season that had defaulted by a set point after their due date; the probability measure for a book too young for a transition matrix.
+- **Benchmark prior**: the default rate assumed for a normal year from outside evidence, blended with the book's own experience until the book has enough seasons of its own.
 - **Fund share**: the 10 percent of Mega Farm interest that belongs to the Government fund; MAIIC's share is the other 5 percent.
 - **Landing zone**: the raw tables that mirror E-Banker, loaded exactly as received and never edited; everything else is derived from them.
 - **Pack**: one month's set of extract files plus a manifest of what they are, which query version made them and their hashes; the one form in which data enters, whichever route delivers it.
