@@ -1,111 +1,80 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
-                </inertia-link>
-                <span class="text-maiic-500 font-medium">/</span> Edit
-            </h2>
+    <app-layout title="Edit Client" description="Change the customer ID, name, phone, type or status of this client">
+        <template #actions>
+            <Link :href="route('clients.index')" class="secondary-btn">Back to clients</Link>
         </template>
-        <div class=" mx-auto">
-            <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-4">
-                <form @submit.prevent="submit" enctype="multipart/form-data">
-                    <div class="mb-2">
-                        <jet-label for="external_id" value="CIF"/>
-                        <jet-input id="external_id" type="text" class="block w-full"
-                                   v-model="form.external_id"/>
-                        <jet-input-error :message="form.errors.external_id" class="mt-2"/>
+        <div class="maiic-panel max-w-3xl">
+            <form @submit.prevent="submit">
+                <div class="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
+                    <div>
+                        <label class="maiic-flabel" for="customer_id">Customer ID</label>
+                        <input id="customer_id" v-model="form.customer_id" type="text" class="maiic-input" required/>
+                        <p v-if="form.errors.customer_id" class="mt-1 text-xs text-red-600">{{ form.errors.customer_id }}</p>
+                        <p v-else class="mt-1 text-xs text-gray-500">The ID the loan book uses for this borrower.</p>
                     </div>
-                    <div class="mb-2">
-                        <jet-label for="name" value="Name"/>
-                        <jet-input id="name" type="text" class="block w-full"
-                                   v-model="form.name"
-                                   required
-                                   autofocus autocomplete="name"/>
-                        <jet-input-error :message="form.errors.name" class="mt-2"/>
+                    <div>
+                        <label class="maiic-flabel" for="name">Name</label>
+                        <input id="name" v-model="form.name" type="text" class="maiic-input" required autocomplete="name"/>
+                        <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
                     </div>
-                    <div class="mb-2">
-                        <jet-label for="mobile" value="Mobile"/>
-                        <jet-input id="mobile" type="text" class="block w-full" v-model="form.mobile"/>
-                        <jet-input-error :message="form.errors.mobile" class="mt-2"/>
+                    <div>
+                        <label class="maiic-flabel" for="mobile">Phone</label>
+                        <input id="mobile" v-model="form.mobile" type="text" class="maiic-input"/>
+                        <p v-if="form.errors.mobile" class="mt-1 text-xs text-red-600">{{ form.errors.mobile }}</p>
                     </div>
-                    <div class="mb-2">
-                        <jet-label for="type" value="Type"/>
-                        <select
-                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
-                            name="type" v-model="form.type" id="type" required>
+                    <div>
+                        <label class="maiic-flabel" for="type">Type</label>
+                        <select id="type" v-model="form.type" class="maiic-select" required>
                             <option value="individual">Individual</option>
                             <option value="corporate">Corporate</option>
                         </select>
-                        <jet-input-error :message="form.errors.type" class="mt-2"/>
+                        <p v-if="form.errors.type" class="mt-1 text-xs text-red-600">{{ form.errors.type }}</p>
                     </div>
-                    <div class="mb-2">
-                        <jet-label for="status" value="Status"/>
-                        <select
-                            class="border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm w-full"
-                            name="status" v-model="form.status" id="status" required>
+                    <div>
+                        <label class="maiic-flabel" for="status">Status</label>
+                        <select id="status" v-model="form.status" class="maiic-select" required>
+                            <option value="active">Active</option>
                             <option value="pending">Pending</option>
                             <option value="inactive">Inactive</option>
-                            <option value="active">Active</option>
                             <option value="archived">Archived</option>
                         </select>
-                        <jet-input-error :message="form.errors.status" class="mt-2"/>
+                        <p v-if="form.errors.status" class="mt-1 text-xs text-red-600">{{ form.errors.status }}</p>
                     </div>
-                    <div class="flex items-center justify-end mt-4">
-                        <jet-button class="ml-4" :class="{ 'opacity-25': form.processing }"
-                                    :disabled="form.processing">
-                            Save
-                        </jet-button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="flex items-center justify-end gap-2 border-t border-gray-200 bg-gray-50 px-6 py-4">
+                    <Link :href="route('clients.index')" class="secondary-btn">Cancel</Link>
+                    <button type="submit" class="primary-btn" :disabled="form.processing">{{ form.processing ? 'Saving...' : 'Save client' }}</button>
+                </div>
+            </form>
         </div>
-        <teleport to="head">
-            <title>{{ pageTitle }}</title>
-            <meta property="og:description" :content="pageDescription">
-        </teleport>
     </app-layout>
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import JetButton from "@/Jetstream/Button.vue";
-import JetInput from "@/Jetstream/Input.vue";
-import JetInputError from "@/Jetstream/InputError.vue";
-import JetLabel from "@/Jetstream/Label.vue";
+import { Link } from '@inertiajs/vue3'
 
 export default {
+    components: { AppLayout, Link },
     props: {
         client: Object,
-    },
-    components: {
-        AppLayout,
-        JetButton,
-        JetInput,
-        JetLabel,
-        JetInputError,
     },
     data() {
         return {
             form: this.$inertia.form({
-                '_method': 'PUT',
-                external_id: this.client.external_id,
+                _method: 'PUT',
+                customer_id: this.client.customer_id,
                 name: this.client.name,
                 mobile: this.client.mobile,
-                type: 'individual',
-                status: 'active',
+                type: this.client.type || 'individual',
+                status: this.client.status || 'active',
             }),
-            pageTitle: "Edit Client",
-            pageDescription: "Edit Client",
         }
     },
     methods: {
         submit() {
             this.form.post(this.route('clients.update', this.client.id))
         },
-    }
+    },
 }
 </script>
-<style scoped>
-
-</style>

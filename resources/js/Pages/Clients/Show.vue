@@ -1,334 +1,98 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('clients.index')">Clients
-                </inertia-link>
-                <span class="text-maiic-500 font-medium">/</span> {{ client.name }}
-            </h2>
+    <app-layout :title="client.name" :description="'Client ' + (client.customer_id || '') + (client.type ? ', ' + client.type : '')">
+        <template #actions>
+            <Link :href="route('clients.files.index', client.id)" class="secondary-btn">Files</Link>
+            <Link v-if="can('clients.update')" :href="route('clients.edit', client.id)" class="secondary-btn">Edit</Link>
+            <button v-if="can('clients.destroy')" type="button" class="danger-btn" @click="destroy">Delete</button>
+            <Link :href="route('clients.index')" class="secondary-btn">Back to clients</Link>
         </template>
-        <div class="mx-auto">
-            <div class="md:flex md:items-start">
-                <div class="bg-white relative shadow-xl mb-4 mt-20 w-full md:w-3/12">
-                    <div class="col-span-12 lg:col-span-4 xxl:col-span-3 flex lg:block flex-col-reverse">
-                        <div class="intro-y box mt-5 lg:mt-0">
-                            <client-menu :client="client"></client-menu>
-                        </div>
+
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div class="maiic-panel">
+                <div class="border-b border-gray-200 px-5 py-3 text-sm font-bold text-gray-900">Client</div>
+                <dl class="divide-y divide-gray-100 text-sm">
+                    <div v-for="row in identity" :key="row.label" class="grid grid-cols-5 gap-3 px-5 py-2.5">
+                        <dt class="col-span-2 text-gray-500">{{ row.label }}</dt>
+                        <dd class="col-span-3 font-medium text-gray-900">
+                            <span v-if="row.badge" class="maiic-badge capitalize" :class="row.badge">{{ row.value }}</span>
+                            <span v-else>{{ row.value || '-' }}</span>
+                        </dd>
                     </div>
-
-                </div>
-                <div class="w-full md:w-9/12 md:ml-4 bg-white sm:mt-4">
-                    <table class="border-collapse w-full border border-gray-400 bg-white text-sm shadow-sm">
-                        <tbody>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Type</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500 capitalize">{{ client.type }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Branch</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.branch?.name }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Status</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">
-                                 <span
-                                     class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-amber-600 bg-amber-200 uppercase"
-                                     v-if="client.status=='pending'">
-                                        Pending
-                                 </span>
-                                <span
-                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-amber-600 bg-amber-200 uppercase"
-                                    v-if="client.status=='inactive'">
-                                        Inactive
-                                </span>
-                                <span
-                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-maiic-600 bg-maiic-200 uppercase"
-                                    v-if="client.status=='archived'">
-                                        Archived
-                                </span>
-                                <span
-                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-maiic-600 bg-maiic-200 uppercase"
-                                    v-if="client.status=='active'">
-                                        Active
-                                    </span>
-                                <span
-                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase"
-                                    v-if="client.status=='deceased'">
-                                        Deceased
-                                </span>
-                                <span
-                                    class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded text-red-600 bg-red-200 uppercase"
-                                    v-if="client.status=='deceased'">
-                                        Deceased
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">CIF</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.external_id }}</td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Trading Name</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.trading_name }}</td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Customer Legal
-                                Type
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.legal_type?.name
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Certificate Of
-                                Registration No
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.registration_number
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Year Of Registration
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.registration_year
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Years In Business
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.years_in_business
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Country Of Registration
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.registration_country?.name
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Audit Status
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.audit_status
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Annual Inflation Rate - Real
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.real_annual_inflation_rate
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">
-                                Annual Inflation Rate - Norminal
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.nominal_annual_inflation_rate
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">
-                                Industrial Sector
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.industry_type?.name
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">
-                                Years At Present Address
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.years_at_present_address
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">
-                                Main Bank
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.main_bank?.name
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">
-                                Second Bank
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.second_bank?.name
-                                }}
-                            </td>
-                        </tr>
-                        <tr v-if="client.type==='corporate'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">
-                                Third Bank
-                            </td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{
-                                    client.third_bank?.name
-                                }}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Mobile</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.mobile }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Tel</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.tel }}</td>
-                        </tr>
-                        <tr v-if="client.type==='individual'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Date of Birth</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.dob }}</td>
-                        </tr>
-
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Email</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.email }}</td>
-                        </tr>
-                        <tr v-if="client.type==='individual'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Marital Status</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500 capitalize">
-                                {{ client.marital_status }}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">ID Number</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500 capitalize">
-                                {{ client.id_number }}
-                                <span v-if="client.id_number" class="capitalize">({{ client.id_number }})</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Zip</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.zip }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Country</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.country?.name }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Region</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.province?.name }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Inkhundla</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.district?.name }}</td>
-                        </tr>
-                        <tr class="hidden">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Ward</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.ward?.name }}</td>
-                        </tr>
-                        <tr class="hidden">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Village</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.village?.name }}</td>
-                        </tr>
-
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Address</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.address }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Postal Address</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ client.postal_address }}</td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
+                </dl>
+            </div>
+            <div class="maiic-panel">
+                <div class="border-b border-gray-200 px-5 py-3 text-sm font-bold text-gray-900">Contact</div>
+                <dl class="divide-y divide-gray-100 text-sm">
+                    <div v-for="row in contact" :key="row.label" class="grid grid-cols-5 gap-3 px-5 py-2.5">
+                        <dt class="col-span-2 text-gray-500">{{ row.label }}</dt>
+                        <dd class="col-span-3 font-medium text-gray-900">{{ row.value || '-' }}</dd>
+                    </div>
+                </dl>
             </div>
         </div>
-        <teleport to="head">
-            <title>{{ pageTitle }}</title>
-            <meta property="og:description" :content="pageDescription">
-        </teleport>
     </app-layout>
-
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Icon from '@/Jetstream/Icon.vue'
-import Pagination from '@/Jetstream/Pagination.vue'
-import FilterSearch from '@/Jetstream/FilterSearch.vue'
-import mapValues from 'lodash/mapValues'
-import pickBy from 'lodash/pickBy'
-import throttle from 'lodash/throttle'
-import JetLabel from '@/Jetstream/Label.vue'
-import SelectInput from '@/Jetstream/SelectInput.vue'
-import JetConfirmationModal from '@/Jetstream/ConfirmationModal.vue'
-import JetDangerButton from '@/Jetstream/DangerButton.vue'
-import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
-import ClientMenu from '@/Pages/Clients/ClientMenu.vue'
+import { Link } from '@inertiajs/vue3'
+import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
-    components: {
-        AppLayout,
-        Icon,
-        Pagination,
-        FilterSearch,
-        JetLabel,
-        SelectInput,
-        JetConfirmationModal,
-        JetDangerButton,
-        JetSecondaryButton,
-        ClientMenu,
-    },
+    components: { AppLayout, Link },
     props: {
         client: Object,
-        filters: Object,
-        roles: Object,
-
     },
-    data() {
-        return {
-
-            confirmingClientDeletion: false,
-            selectedRecord: null,
-            pageTitle: "Clients",
-            pageDescription: "Manage Clients",
-
-        }
-    },
-    watch: {
-        form: {
-            handler: _.debounce(function () {
-                let query = pickBy(this.form)
-                this.$inertia.get(this.route('clients.index', Object.keys(query).length ? query : {}))
-            }, 500),
-            deep: true,
+    computed: {
+        identity() {
+            const c = this.client
+            const statusBadge = { active: 'maiic-badge-green', pending: 'maiic-badge-gold', inactive: 'maiic-badge-grey', archived: 'maiic-badge-grey', deceased: 'maiic-badge-red' }[c.status] || 'maiic-badge-grey'
+            const rows = [
+                { label: 'Customer ID', value: c.customer_id },
+                { label: 'Name', value: c.name },
+                { label: 'Type', value: c.type },
+                { label: 'Status', value: c.status, badge: statusBadge },
+                { label: 'Sector', value: c.industry_type?.name || c.industry_code },
+                { label: 'Branch', value: c.branch?.name },
+            ]
+            if (c.type === 'corporate') {
+                rows.push(
+                    { label: 'Trading name', value: c.trading_name },
+                    { label: 'Legal type', value: c.legal_type?.name },
+                    { label: 'Registration number', value: c.registration_number },
+                    { label: 'Year of registration', value: c.registration_year },
+                    { label: 'Country of registration', value: c.registration_country?.name },
+                )
+            } else {
+                rows.push(
+                    { label: 'ID number', value: c.id_number },
+                    { label: 'Date of birth', value: c.dob },
+                )
+            }
+            return rows
+        },
+        contact() {
+            const c = this.client
+            return [
+                { label: 'Mobile', value: c.mobile },
+                { label: 'Telephone', value: c.tel },
+                { label: 'Email', value: c.email },
+                { label: 'Address', value: c.address },
+                { label: 'Postal address', value: c.postal_address },
+                { label: 'Country', value: c.country?.name },
+            ]
         },
     },
     methods: {
-        reset() {
-            this.form = mapValues(this.form, () => null)
-        },
-        deleteAction(id) {
-            this.confirmingClientDeletion = true
-            this.selectedRecord = id
-        },
-        destroy() {
-
-            this.$inertia.delete(this.route('clients.destroy', this.selectedRecord))
-            this.confirmingClientDeletion = false
+        async destroy() {
+            if (!(await confirmDialog({
+                title: 'Delete ' + this.client.name + '?',
+                message: 'The client is removed from the client list.',
+                confirmLabel: 'Delete',
+                tone: 'danger',
+            }))) return
+            this.$inertia.delete(this.route('clients.destroy', this.client.id))
         },
     },
 }
 </script>
-
-<style scoped>
-
-</style>

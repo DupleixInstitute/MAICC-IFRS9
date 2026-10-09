@@ -1,188 +1,85 @@
 <template>
-  <app-layout>
-    <template #header>
-      <div class="flex justify-between items-center">
-      <div>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('collateral.allocations.index')">
-          Collateral
-        </inertia-link>
-        <span class="text-maiic-500 font-medium">/</span> Import
-      </h2>
-       <p class="mt-1 text-sm text-gray-600">Select the file with collaterals (registry of all the collateral)</p>
-    </div>
-
-      <div class="flex space-x-4">
-          <button
-              @click="downloadSample()"
-             class="inline-flex items-center px-4 py-2 border border-gray-800 rounded-md shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-all duration-200"
-          >
-              <svg class="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-              </svg>
-              Download Sample File
-          </button>
-      </div>
-      </div>
+  <app-layout title="Import Collateral Register" description="Upload the collateral register for a month-end: one row per item of collateral with its values">
+    <template #actions>
+      <a :href="route('collateral.register.sample')" class="secondary-btn" title="A CSV with the exact column headers the standard collateral import reads">Download sample CSV</a>
+      <Link :href="route('collateral.register.index')" class="secondary-btn">Back to the register</Link>
     </template>
 
-    <div class="mx-auto">
-      <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-4">
-        <form @submit.prevent="submit" enctype="multipart/form-data">
-          <div class="space-y-6">
-               <!-- Import Type Selection -->
-                        <div class="mt-6">
-                            <h4 class="text-sm font-medium text-gray-900 mb-4">Select Import Type</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div 
-                                    class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'legacy' ? 'border-maiic-500 bg-maiic-50' : 'border-gray-300 hover:border-gray-400'"
-                                    @click="importType = 'legacy'"
-                                >
-                                    <div class="flex items-center space-x-3">
-                                        <div class="flex-shrink-0">
-                                            <input type="radio" v-model="importType" value="legacy" class="h-4 w-4 text-maiic-600 border-gray-300"/>
-                                        </div>
-                                        <div class="flex-1">
-                                            <h5 class="text-sm font-medium text-gray-900">Legacy Format</h5>
-                                            <p class="text-xs text-gray-500 mt-1">
-                                                Use traditional format with fields in sample file
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div 
-                                    class="border-2 rounded-lg p-4 cursor-pointer transition-all"
-                                    :class="importType === 'custom' ? 'border-maiic-500 bg-maiic-50' : 'border-gray-300 hover:border-gray-400'"
-                                    @click="importType = 'custom'"
-                                >
-                                    <div class="flex items-center space-x-3">
-                                        <div class="flex-shrink-0">
-                                            <input type="radio" v-model="importType" value="custom" class="h-4 w-4 text-maiic-600 border-gray-300"/>
-                                        </div>
-                                        <div class="flex-1">
-                                            <h5 class="text-sm font-medium text-gray-900">Custom Mapping</h5>
-                                            <p class="text-xs text-gray-500 mt-1">
-                                                Map your CSV columns to any database fields
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-               <div>
-                  <label class="block text-sm font-medium text-gray-700">Period</label>
-                  <input type="month" v-model="form.period" required
-                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500">
-                  <p class="mt-1 text-xs text-gray-500">Select the month and year for the collateral register</p>
+    <div class="space-y-5">
+      <form @submit.prevent="submit" class="maiic-panel grid gap-6 p-5 lg:grid-cols-3">
+        <div class="space-y-5 lg:col-span-2">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label class="maiic-flabel" for="period">Period</label>
+              <input id="period" type="month" v-model="form.period" required class="maiic-input">
+              <p v-if="form.errors.period" class="mt-1 text-xs text-red-600">{{ form.errors.period }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500">The month-end the register is for.</p>
+            </div>
+            <div>
+              <span class="maiic-flabel">File layout</span>
+              <div class="flex gap-2">
+                <label v-for="opt in layouts" :key="opt.key" class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition"
+                       :class="importType === opt.key ? 'border-maiic-500 bg-maiic-50 font-semibold text-maiic-800' : 'border-gray-200 text-gray-700 hover:border-gray-300'" :title="opt.help">
+                  <input type="radio" v-model="importType" :value="opt.key" class="h-4 w-4 border-gray-300 text-maiic-600"/> {{ opt.label }}
+                </label>
               </div>
-            <!-- File Upload -->
-                        <div class="mt-6 border-t border-gray-200 pt-6">
-                            <h4 class="text-sm font-medium text-gray-900 mb-4">Upload File</h4>
-                            <div class="flex items-center justify-center w-full">
-                                <label
-                                    class="flex flex-col w-full h-32 border-4 border-dashed hover:bg-gray-100 hover:border-gray-300 rounded-lg cursor-pointer">
-                                    <div class="relative flex flex-col items-center justify-center pt-7">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-gray-400 group-hover:text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
-                                        </svg>
-                                        <p class="pt-1 text-sm tracking-wider text-gray-400 group-hover:text-gray-600">
-                                            {{ fileName || 'Select a CSV file' }}
-                                        </p>
-                                    </div>
-                                    <input type="file" class="opacity-0" accept=".csv,.txt" @change="handleFileSelect"/>
-                                </label>
-                            </div>
-                        </div>
-
-            <!-- Custom Mapping -->
-                        <div v-if="importType === 'custom' && headers.length > 0" class="mt-6 border-t border-gray-200 pt-6">
-                            <h4 class="text-sm font-medium text-gray-900 mb-4">Map CSV Columns</h4>
-                            <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                                <h5 class="font-medium text-gray-700 mb-2">File Preview (first 3 rows):</h5>
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200 text-xs">
-                                        <thead class="bg-gray-100">
-                                            <tr>
-                                                <th v-for="(header, index) in headers" :key="index" class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-                                                    {{ header }}
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="bg-white divide-y divide-gray-200">
-                                            <tr v-for="(row, rowIndex) in sampleData.slice(1, 4)" :key="rowIndex">
-                                                <td v-for="(cell, cellIndex) in row" :key="cellIndex" class="px-3 py-2 text-gray-500 truncate max-w-xs">
-                                                    {{ cell }}
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 gap-4">
-                                <div v-for="(header, index) in headers" :key="index" class="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                                    <label class="block text-sm font-medium text-gray-700 w-32 truncate">{{ header }}</label>
-                                    <select v-model="mapping[header]" class="flex-1 py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm">
-                                        <option value="">-- Ignore this column --</option>
-                                        <option v-for="field in availableFields" :key="field" :value="field">{{ field }}</option>
-                                    </select>
-                                    <div class="w-20 text-xs text-gray-500 text-right">
-                                        <span v-if="mapping[header]" class="text-maiic-600">✓ Mapped</span>
-                                        <span v-else class="text-gray-400">Not mapped</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-
-                        <!-- Quick Actions -->
-                        <div class="mt-6 flex flex-col sm:flex-row gap-4">
-                            <button type="button" @click="downloadTemplate('legacy')" class="flex-1 justify-center inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500">
-                                Download Legacy Template
-                            </button>
-                        </div>
-
-          <!-- Submit Buttons -->
-          <div class="flex items-center justify-end pt-6 border-t border-gray-200">
-            <Link :href="route('collateral.allocations.index')" class="inline-flex items-center px-4 py-2 bg-gray-300 text-gray-700 rounded-md mr-3">
-                Cancel
-            </Link>
-            <button type="submit" :disabled="form.processing" class="ml-3 bg-maiic-600 hover:bg-maiic-500 text-white px-4 py-2 rounded-md">
-                Start Import
-            </button>
-          </div>
-        </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Processing Modal -->
-    <div v-if="form.processing || uploadProgress > 0" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
-      <div class="bg-white p-8 rounded-lg shadow-xl max-w-lg w-full">
-        <div class="space-y-6">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-4">
-              <svg v-if="form.processing" class="animate-spin h-5 w-5 text-maiic-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span class="text-gray-700 font-medium">{{ form.processing ? 'Processing file...' : 'Uploading file...' }}</span>
-            </div>
-            <div class="text-sm text-gray-500">{{ uploadProgress }}%</div>
-          </div>
-
-          <div class="relative pt-1">
-            <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
-              <div :style="{ width: uploadProgress + '%' }" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-maiic-500 transition-all duration-300"></div>
             </div>
           </div>
 
-          <div class="text-sm text-gray-600 text-center">
-            {{ form.processing ? 'Please wait while we process your file. This may take a few minutes for large files.' : 'Uploading your file...' }}
+          <div>
+            <span class="maiic-flabel">File</span>
+            <label class="flex h-28 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 transition hover:border-maiic-300 hover:bg-maiic-50">
+              <svg class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm3 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 4a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+              <span class="mt-2 text-sm font-semibold text-gray-600">{{ fileName || 'Choose a CSV file' }}</span>
+              <input type="file" class="hidden" accept=".csv,.txt" @change="handleFileSelect"/>
+            </label>
+            <p v-if="form.errors.file" class="mt-1 text-xs text-red-600">{{ form.errors.file }}</p>
+          </div>
+
+          <div v-if="importType === 'custom' && headers.length > 0" class="space-y-3">
+            <div class="maiic-section-title !mt-0">Match the columns of the file</div>
+            <div class="maiic-table-wrap rounded-lg border border-gray-200">
+              <table class="maiic-table">
+                <thead><tr><th v-for="(header, index) in headers" :key="index">{{ header }}</th></tr></thead>
+                <tbody>
+                  <tr v-for="(row, rowIndex) in sampleData.slice(1, 4)" :key="rowIndex">
+                    <td v-for="(cell, cellIndex) in row" :key="cellIndex" class="max-w-xs truncate text-xs">{{ cell }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <div v-for="(header, index) in headers" :key="index" class="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
+                <span class="w-40 truncate text-sm font-semibold text-gray-700" :title="header">{{ header }}</span>
+                <select v-model="mapping[header]" class="maiic-select flex-1">
+                  <option value="">Ignore this column</option>
+                  <option v-for="field in availableFields" :key="field" :value="field">{{ field }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 border-t border-gray-200 pt-4">
+            <Link :href="route('collateral.register.index')" class="secondary-btn">Cancel</Link>
+            <button type="submit" class="primary-btn" :disabled="form.processing || !selectedFile">{{ form.processing ? 'Uploading...' : 'Start import' }}</button>
           </div>
         </div>
+
+        <aside class="rounded-lg border border-maiic-100 bg-maiic-50/60 p-4 text-sm text-gray-700">
+          <div class="mb-2 font-semibold text-maiic-800">How to import the register</div>
+          <ol class="list-decimal space-y-1.5 pl-5">
+            <li>Choose the month-end the register is for.</li>
+            <li>For the standard layout, download the sample CSV (top right) and keep its column headers. To use another file as it is, pick Match columns.</li>
+            <li>collateral_type must be a code listed on the Collateral Types tab. Dates may be day/month/year or year-month-day.</li>
+            <li>A row without a customer_id or a known collateral type is set aside in the failed rows file.</li>
+            <li>After the import, run the allocation on the Collateral Allocation tab.</li>
+          </ol>
+        </aside>
+      </form>
+
+      <div class="maiic-panel">
+        <div class="border-b border-gray-200 px-5 py-3 text-sm font-bold text-gray-900">Recent imports</div>
+        <ImportHistoryTable :imports="recentImports"/>
       </div>
     </div>
   </app-layout>
@@ -190,14 +87,23 @@
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import ImportHistoryTable from '@/Components/Data/ImportHistoryTable.vue'
 import { Link } from '@inertiajs/vue3'
 
 export default {
-    components: { AppLayout, Link },
+    components: { AppLayout, Link, ImportHistoryTable },
+
+    props: {
+        recentImports: { type: Array, default: () => [] },
+    },
 
     data() {
         return {
             importType: 'legacy',
+            layouts: [
+                { key: 'legacy', label: 'Standard CSV', help: 'The columns of the sample CSV.' },
+                { key: 'custom', label: 'Match columns', help: 'Match each column of your file to a register field.' },
+            ],
             form: this.$inertia.form({
                 file: null,
                 period: '',
@@ -221,32 +127,18 @@ export default {
         // Sync local UI state with form object
         importType(newVal) {
             this.form.import_type = newVal;
-            if (newVal === 'legacy') {
-                this.headers = []; // Clear UI mapping for legacy type
-                this.form.mapping = {};
-            }
+            if (this.headers.length) this.setupMapping();
         },
     },
 
     methods: {
         submit() {
-            const formData = new FormData()
-            formData.append('file', this.selectedFile)
-            formData.append('period', this.form.period)
-            formData.append('import_type', this.importType)
-            formData.append('mapping', JSON.stringify(this.mapping))
-
            this.form.transform(() => ({
                 file: this.selectedFile,
                 period: this.form.period,
                 import_type: this.importType,
                 mapping: this.mapping,
-            })).post('/collateral/register/import', {
-                forceFormData: true,
-                onSuccess: () => {
-                    // optional success handling
-                },
-            });
+            })).post(route('collateral.register.import.store'), { forceFormData: true });
 
         },
 
@@ -326,36 +218,6 @@ export default {
             }
 
             this.mapping = newMapping;
-        },
-
-        downloadTemplate(type) {
-            let data = '', filename = ''
-
-            if (type === 'legacy') {
-                // Legacy collateral template with dummy data
-                data = `customer_id,customer_name,collateral_type,property_use,description,location,registration_date,expiry_date,valuation_date,nominal_value,market_value,execution_value,status
-CUST001,John Doe,Property,Residential,Residential House,123 Main St,01/01/2023,31/12/2033,01/01/2023,500000.00,550000.00,450000.00,ACTIVE
-CUST002,Jane Smith,Vehicle,Personal,Company Car,456 Oak Ave,15/02/2023,14/02/2028,15/02/2023,25000.00,28000.00,22000.00,ACTIVE
-CUST003,Bob Johnson,Equipment,Business,Office Equipment,789 Pine Rd,10/03/2023,09/03/2028,10/03/2023,75000.00,80000.00,65000.00,ACTIVE`;
-                        
-                filename = 'collateral_legacy_template_dummy.csv';
-            } else {
-                const fields = this.availableFields.join(',');
-                data = `${fields}\nCUST001,John Doe,Property,Residential,Residential House,123 Main St,01/01/2023,31/12/2033,01/01/2023,500000.00,550000.00,450000.00,ACTIVE`;
-                filename = 'collateral_custom_template_dummy.csv';
-            }
-
-            const blob = new Blob([data], { type: 'text/csv' })
-            const url = window.URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = filename
-            a.click()
-            window.URL.revokeObjectURL(url)
-        },
-
-        downloadSample() {
-            window.location.href = this.route('collateral.register.sample')
         }
     }
 }

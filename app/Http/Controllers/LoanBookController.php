@@ -90,6 +90,8 @@ class LoanBookController extends Controller
             'filters' => $request->only(['search', 'year', 'month', 'stage', 'portfolio']),
             'portfolios' => LoanPortfolio::all(),
             'summary'   => $this->summary($request),
+            // the month-ends that hold loans, newest first, for the period picker
+            'periods'   => LoanBook::query()->select('reporting_period')->distinct()->orderByDesc('reporting_period')->pluck('reporting_period'),
 
         ]);
     }
