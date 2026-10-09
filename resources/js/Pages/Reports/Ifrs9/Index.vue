@@ -32,7 +32,7 @@ const currentAccent = computed(() => accent(activeTab.value))
         </template>
 
         <div class="py-6">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="w-full">
 
                 <!-- compact header strip (same deep-green ramp as the sidebar) -->
                 <div class="rounded-xl shadow p-4 text-white mb-5 flex flex-wrap items-center justify-between gap-3"

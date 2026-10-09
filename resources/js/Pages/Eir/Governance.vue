@@ -7,7 +7,7 @@
       </div>
     </template>
 
-    <div class="max-w-7xl mx-auto space-y-6">
+    <div class="w-full space-y-6">
       <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 text-sm text-maiic-900">
         A change takes effect from its effective date forward only, and only once a second person approves it. A month already run keeps the settings it was run under. Nothing here is written in code: if a setting has no approved value, the calculation that needs it stops and says so.
       </div>

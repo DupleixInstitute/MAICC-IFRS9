@@ -120,7 +120,7 @@ async function deleteScenario(s) {
         </template>
 
         <div class="py-8">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <div class="w-full space-y-6">
 
                 <!-- Scenario builder -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

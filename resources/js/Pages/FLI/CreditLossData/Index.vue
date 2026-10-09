@@ -31,7 +31,7 @@
     </template>
 
     <div class="py-12">
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="w-full">
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div class="bg-white overflow-hidden shadow rounded-lg">

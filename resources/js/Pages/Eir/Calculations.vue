@@ -12,7 +12,7 @@
       </div>
     </template>
 
-    <div class="max-w-7xl mx-auto space-y-6">
+    <div class="w-full space-y-6">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div v-for="s in statuses" :key="s" class="bg-white border border-gray-200 shadow-sm rounded-lg p-4">
           <div class="text-2xl font-bold text-gray-800">{{ summary[s]?.contract_count || 0 }}</div>

@@ -1,6 +1,6 @@
 <template><app-layout>
   <template #header><div><h2 class="font-semibold text-xl text-gray-800">EIR Accounting Rules</h2><p class="mt-1 text-sm text-gray-600">Controlled defaults that suggest whether imported fees and costs are integral to EIR</p></div></template>
-  <div class="max-w-6xl mx-auto space-y-6">
+  <div class="w-full space-y-6">
     <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 text-sm text-maiic-900">Rules make suggestions only. Every imported line remains pending until classified and independently reviewed.</div>
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div class="p-6 border-b flex items-center justify-between"><h3 class="text-lg font-semibold">Rule register</h3><button @click="openCreate" class="primary-btn">Create rule</button></div>

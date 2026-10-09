@@ -23,7 +23,7 @@
             </div>
         </template>
         
-        <div class="max-w-7xl mx-auto space-y-6">
+        <div class="w-full space-y-6">
             <!-- Filter and Action Bar -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">

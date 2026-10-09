@@ -23,7 +23,7 @@
       </p>
     </div>
 
-    <div class="mt-6 mx-auto max-w-7xl">
+    <div class="w-full mt-6">
       <transition-profile-data-table />
     </div>
     

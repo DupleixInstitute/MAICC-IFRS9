@@ -31,7 +31,7 @@
                </template>
 
                <div class="py-12">
-                   <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                   <div class="w-full">
                        <!-- Measurement basis tabs and summary cards -->
                        <div class="mb-6" v-if="summary">
                            <div class="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm" role="tablist" aria-label="ECL measurement basis">

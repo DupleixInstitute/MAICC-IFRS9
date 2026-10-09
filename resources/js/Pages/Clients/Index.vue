@@ -7,7 +7,7 @@
     </template>
 
     <div class="py-12">
-      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+      <div class="w-full">
         <div class="flex items-center justify-between mb-6">
           <search-filter v-model="form.search" class="w-full max-w-md mr-4" @reset="reset">
             <label class="block text-sm font-medium text-gray-700">Status</label>

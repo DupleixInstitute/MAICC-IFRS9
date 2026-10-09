@@ -16,7 +16,7 @@
             </div>
         </template>
         
-        <div class="max-w-4xl mx-auto space-y-6">
+        <div class="w-full space-y-6">
             <!-- Configuration Form -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div class="bg-gradient-to-r from-gray-800 to-gray-600 px-6 py-4">

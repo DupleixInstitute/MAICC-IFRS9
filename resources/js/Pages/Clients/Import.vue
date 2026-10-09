@@ -9,7 +9,7 @@
             </h2>
         </template>
 
-        <div class="mx-auto max-w-7xl">
+        <div class="w-full">
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
                 <!-- Status Alerts -->
                 <div v-if="$page.props.flash.error" class="bg-red-50 p-4">

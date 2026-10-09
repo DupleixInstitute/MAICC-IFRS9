@@ -6,7 +6,7 @@
       </h2>
     </template>
 
-    <div class="py-6 max-w-5xl mx-auto">
+    <div class="w-full py-6">
       <div class="bg-white shadow rounded-xl p-6">
 
         <!-- Success/Error Messages -->

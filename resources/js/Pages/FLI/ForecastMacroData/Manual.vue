@@ -8,7 +8,7 @@
     </template>
 
     <div class="py-12">
-      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+      <div class="w-full">
         
         <!-- Debug Info (Optional - you can remove this later) -->
         <div class="mb-6 bg-amber-50 p-4 rounded-lg" v-if="showDebug">

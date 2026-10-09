@@ -67,7 +67,7 @@ function toggle(t) {
             </div>
         </template>
 
-        <div class="mx-auto max-w-6xl">
+        <div class="w-full">
 
             <!-- hero: who + progress ring + outstanding nag -->
             <div class="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-3">

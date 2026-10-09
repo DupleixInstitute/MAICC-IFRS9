@@ -119,7 +119,7 @@ function runControls() {
         </template>
 
         <div class="py-10">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="w-full">
 
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
                     <div class="flex flex-wrap items-start justify-between gap-4">

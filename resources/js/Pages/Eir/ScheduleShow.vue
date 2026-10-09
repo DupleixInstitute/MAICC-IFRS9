@@ -12,7 +12,7 @@
       </div>
     </template>
 
-    <div class="mx-auto max-w-7xl space-y-5">
+    <div class="w-full space-y-5">
       <div class="grid gap-3 md:grid-cols-4">
         <div class="card"><div class="metric">{{ label(contract.schedule_approval_status) }}</div><div class="caption">Approval status</div></div>
         <div class="card"><div class="metric">{{ label(comparison.status) }}</div><div class="caption">Comparison</div></div>

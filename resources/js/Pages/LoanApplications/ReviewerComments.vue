@@ -7,7 +7,7 @@
         </template>
 
         <!-- Add Comment Button -->
-        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 mb-4 flex justify-between">
+        <div class="w-full py-4 px-4 mb-4 flex justify-between">
             <button class="btn-primary px-4 py-2 bg-maiic-600 text-white rounded-md hover:bg-maiic-700"
                     @click="showAddCommentModal = true">
              Add New Comment +
@@ -19,7 +19,7 @@
         </div>
 
         <!-- Comments List -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="w-full px-4">
             <div class="bg-white rounded-lg shadow overflow-hidden">
                 <div class="divide-y divide-gray-200">
                     <div v-if="!comments.data.length" class="p-6 text-center text-gray-500">

@@ -7,7 +7,7 @@
         </template>
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="w-full">
 
                 <!-- Retired in favour of FLI Adjustments (system audit of 9 October 2026, finding M6) -->
                 <div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">

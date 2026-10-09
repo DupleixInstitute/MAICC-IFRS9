@@ -16,7 +16,7 @@
       </div>
     </template>
 
-    <div class="max-w-7xl mx-auto space-y-5">
+    <div class="w-full space-y-5">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div v-for="card in cards" :key="card.label" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div class="text-2xl font-bold text-gray-900">{{ number(card.value) }}</div>

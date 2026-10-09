@@ -17,7 +17,7 @@
       </div>
     </template>
 
-    <div class="py-10 max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="w-full py-10">
 
       <!-- INFO -->
       <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 mb-6">

@@ -20,7 +20,7 @@
             </div>
         </template>
 
-        <div class="py-12 max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="w-full py-12">
             <div v-if="profiles && profiles.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div
                     v-for="profile in profiles"

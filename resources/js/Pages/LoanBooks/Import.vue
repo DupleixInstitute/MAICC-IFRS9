@@ -9,7 +9,7 @@
             </h2>
         </template>
 
-        <div class="mx-auto max-w-7xl">
+        <div class="w-full">
             <!-- Error Alert with Template Hint -->
             <div v-if="$page.props.errors.error && $page.props.show_template_hint" class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
                 <div class="flex">

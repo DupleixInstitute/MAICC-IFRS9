@@ -38,7 +38,7 @@
         </template>
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="w-full">
                 <!-- Summary Cards -->
                 <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6" v-if="summary">
                     <div class="maiic-kpi" style="--accent: #15803d">

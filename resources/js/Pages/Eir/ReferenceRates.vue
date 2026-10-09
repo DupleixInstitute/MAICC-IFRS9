@@ -16,7 +16,7 @@
       </div>
     </template>
 
-    <div class="max-w-7xl mx-auto space-y-5">
+    <div class="w-full space-y-5">
       <div v-if="indexes.length > 1" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <form class="flex flex-col gap-3 md:flex-row md:items-end" @submit.prevent="apply">
           <div>

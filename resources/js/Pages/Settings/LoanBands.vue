@@ -11,7 +11,7 @@
             <meta property="og:description" :content="pageDescription">
         </teleport>
 
-        <div class="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8">
+        <div class="w-full py-10">
             <div v-if="viewMode === 'table'">
                 <div class="flex justify-end mb-4">
                     <button @click="switchToSetup" class="btn btn-primary flex items-center space-x-2">

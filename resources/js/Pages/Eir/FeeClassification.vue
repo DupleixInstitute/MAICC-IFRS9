@@ -1,7 +1,7 @@
 <template>
   <app-layout>
     <template #header><div><div class="mb-1 flex items-center gap-2 text-xs text-gray-500"><Link :href="route('eir-data.index')" class="hover:text-maiic-700">EIR Data</Link><span>/</span><span class="font-medium text-maiic-700">Fee Classification</span></div><h2 class="font-semibold text-xl text-gray-800">EIR Fee & Cost Classification</h2><p class="mt-1 text-sm text-gray-600">Classify imported lines, then independently review them before EIR calculation</p></div></template>
-    <div class="max-w-7xl mx-auto space-y-6">
+    <div class="w-full space-y-6">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4"><div v-for="s in statuses" :key="s" class="bg-white border border-gray-200 shadow-sm rounded-lg p-4"><div class="text-2xl font-bold text-gray-800">{{ summary[s]?.line_count || 0 }}</div><div class="text-xs text-gray-500">{{ s }} lines</div><div class="text-sm text-gray-700 mt-1">{{ money(summary[s]?.total_amount || 0) }}</div></div></div>
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"><div class="grid grid-cols-1 md:grid-cols-4 gap-3"><input v-model="filter.contract_id" class="form-input" placeholder="Contract/account"><select v-model="filter.status" class="form-input"><option value="">All statuses</option><option v-for="s in statuses" :key="s">{{ s }}</option></select><select v-model="filter.fee_type" class="form-input"><option value="">All types</option><option v-for="t in feeTypes" :key="t">{{ t }}</option></select><button @click="applyFilters" class="primary-btn justify-center">Apply filters</button></div></div>
       <div class="rounded-lg border border-gray-200 bg-white p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
