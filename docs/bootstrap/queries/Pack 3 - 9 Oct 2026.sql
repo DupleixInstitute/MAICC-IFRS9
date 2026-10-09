@@ -5,7 +5,7 @@
 -- it under. Nothing here writes to the database. Run RUN 0 once at the start
 -- of the session, before anything else; it lasts for the session only.
 --
--- Three groups:
+-- Two groups:
 --
 --   A. STILL OPEN FROM PACK 2 (8 October)
 --     M09_03_loan_book_runs_sep.csv         the Loan Book Report run(s) for 30 Sep 2026
@@ -18,9 +18,6 @@
 --     CT_01_table_counts.csv                row counts of the reschedule, write-off and charges tables
 --     CH_01_charges_term_loans.csv          charges on the term-loan schemes 140 to 145
 --     RS_01_reschedules.csv  WO_01_writeoffs.csv   only if CT_01 shows rows
---
---   C. THE OCTOBER MONTH-END (to run on 1 November; the ids are current)
---     M10_01_ledger_since_september.csv, M10_02_balance_history_sep_oct.csv, M10_03_loan_book_runs_oct.csv
 --==============================================================================
 
 -- RUN 0  |  session settings  |  run once, first
@@ -208,39 +205,6 @@ WHERE  w.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
                            WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
 ORDER  BY w.new_ac_number;
 
-
---==============================================================================
--- C. THE OCTOBER MONTH-END  (run on or after 1 November 2026)
---==============================================================================
--- The monthly routine. The ids below are the last ones we hold after landing
--- the 8 October files: ledger 439206, balance history 363004, loan-book runs
--- 808196 (or the id of the September run once RUN 1 arrives). Each query
--- takes what is new since then and re-pulls September, so a posting
--- back-dated into September after this pack is seen.
-
--- RUN 11  |  save as M10_01_ledger_since_september.csv
-SELECT cv.*
-FROM   cumvouch cv
-WHERE  cv.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
-                            WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
-AND   (cv.cumvouch_det_id > 439206 OR cv.transaction_date >= DATE '2026-09-01')
-ORDER  BY cv.new_ac_number, cv.transaction_date, cv.cumvouch_det_id;
-
--- RUN 12  |  save as M10_02_balance_history_sep_oct.csv
-SELECT b.*
-FROM   account_balance b
-WHERE  b.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
-                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
-AND    b.transaction_date IN (DATE '2026-09-30', DATE '2026-10-31')
-ORDER  BY b.new_ac_number, b.transaction_date, b.account_bal_mst_id;
-
--- RUN 13  |  save as M10_03_loan_book_runs_oct.csv
-SELECT l.*
-FROM   loan_book_details_all l
-WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
-                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
-AND   (l.asondate = DATE '2026-10-31' OR l.loan_book_det_id_a > 808196)
-ORDER  BY l.new_ac_number, l.asondate, l.loan_book_det_id_a;
 
 --==============================================================================
 -- End of pack 3. Thank you, Barry.
