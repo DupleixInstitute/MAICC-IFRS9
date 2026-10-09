@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, computed } from 'vue'
+import { reactive, computed, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import BackToReports from '../Partials/BackToReports.vue'
@@ -7,6 +7,7 @@ import DownloadButton from '../Partials/DownloadButton.vue'
 import KpiRow from '../Partials/KpiRow.vue'
 import ClientPager from '../Partials/ClientPager.vue'
 import ReportIcon from '../Partials/ReportIcon.vue'
+import TabBar from '../Partials/TabBar.vue'
 
 const props = defineProps({
     report: { type: Object, required: true },
@@ -57,6 +58,30 @@ function runControls() {
     )
 }
 
+// A consolidated report shows its parts as tabs (one tab row), opening on
+// ?part= when given.
+const parts = computed(() => props.report.parts || [])
+const partTabs = computed(() => parts.value.map((p, i) => ({ key: String(i), label: p.title, count: p.rows })))
+const activePart = ref((() => {
+    try {
+        const q = new URLSearchParams(window.location.search).get('part')
+        if (q !== null && parts.value[Number(q)]) return String(Number(q))
+    } catch (e) { /* ignore */ }
+    return '0'
+})())
+watch(activePart, (v) => {
+    try {
+        const url = new URL(window.location.href)
+        url.searchParams.set('part', v)
+        window.history.replaceState(window.history.state, '', url)
+    } catch (e) { /* ignore */ }
+})
+const currentPart = computed(() => parts.value[Number(activePart.value)] || null)
+const visibleSections = computed(() => (props.report.sections || [])
+    .map((sec, si) => ({ sec, si }))
+    .filter(({ sec }) => !currentPart.value || sec.part === currentPart.value.title))
+const showControls = computed(() => props.report.controls && (!props.report.controls.part || (currentPart.value && currentPart.value.title === props.report.controls.part)))
+
 const isNum = (sec, ci) => sec.align && sec.align[ci] === 'r'
 const isTotal = (row) => /^(total|totals|grand total|net|closing)/i.test(String(row?.[0] ?? '').trim())
 </script>
@@ -81,55 +106,57 @@ const isTotal = (row) => /^(total|totals|grand total|net|closing)/i.test(String(
             <DownloadButton format="PDF" label="Download PDF" :href="downloadUrl('pdf')" title="A branded A4 PDF"/>
         </template>
 
-        <div class="w-full space-y-5">
-            <p class="text-xs text-gray-400">{{ report.company }} &middot; prepared {{ report.generated_at }}</p>
-
-            <div v-if="report.controls" class="maiic-filterbar">
-                <div class="flex flex-wrap items-end gap-4">
-                    <div v-for="f in visibleControls" :key="f.name">
-                        <label class="maiic-flabel">{{ f.label }}</label>
-                        <select v-if="f.type === 'select'" v-model="controlValues[f.name]" class="maiic-select w-52">
-                            <option v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</option>
-                        </select>
-                        <input v-else v-model="controlValues[f.name]" type="text" class="maiic-input w-44" placeholder="e.g. 10,25,50"/>
-                    </div>
-                    <button type="button" @click="runControls"
-                            class="inline-flex items-center gap-1.5 rounded-lg bg-maiic-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-maiic-700">
-                        <ReportIcon name="play" class="h-4 w-4"/> Run
-                    </button>
-                </div>
-                <p class="mt-2 text-xs text-gray-400">Enter comma-separated percentages. Leave blank for the defaults.</p>
-            </div>
-
+        <div class="w-full space-y-4">
             <KpiRow :items="report.kpis || []"/>
 
-            <div v-for="(sec, si) in report.sections" :key="si" class="maiic-panel">
-                <div class="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3">
-                    <h3 class="font-semibold text-gray-900">{{ sec.heading }}</h3>
-                    <span v-if="sec.rows.length" class="maiic-badge maiic-badge-grey">{{ sec.rows.length.toLocaleString() }} rows</span>
+            <div v-if="showControls" class="maiic-filterbar !mb-0 flex flex-wrap items-end gap-4 !py-2.5">
+                <div v-for="f in visibleControls" :key="f.name">
+                    <label class="maiic-flabel">{{ f.label }}</label>
+                    <select v-if="f.type === 'select'" v-model="controlValues[f.name]" class="maiic-select w-52">
+                        <option v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</option>
+                    </select>
+                    <input v-else v-model="controlValues[f.name]" type="text" class="maiic-input w-44"/>
                 </div>
-                <p v-if="sec.note" class="border-b border-gray-100 px-4 py-2 text-xs text-gray-500">{{ sec.note }}</p>
-                <div v-if="sec.rows.length" class="maiic-table-wrap">
-                    <table class="maiic-table">
-                        <thead>
-                            <tr>
-                                <th v-for="(c, ci) in sec.columns" :key="ci" :class="{ num: isNum(sec, ci) }">{{ c }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(row, ri) in pagedRows(sec, si)" :key="ri" :class="{ total: isTotal(row) }">
-                                <td v-for="(cell, ci) in row" :key="ci" :class="isNum(sec, ci) ? 'num' : ''">{{ cell }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p v-else class="maiic-empty">No data for this section in {{ report.period || 'this period' }}.</p>
-                <ClientPager v-if="sec.rows.length > PAGE_SIZE" :total="sec.rows.length" :per-page="PAGE_SIZE"
-                             :model-value="pageOf(si)" @update:model-value="p => pages[si] = p"/>
+                <button type="button" @click="runControls"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-maiic-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-maiic-700">
+                    <ReportIcon name="play" class="h-4 w-4"/> Run
+                </button>
             </div>
 
-            <div v-if="!report.sections.length" class="maiic-panel maiic-empty">
-                This report has no content for the selected period. Choose another period, or run the ECL calculation for this one.
+            <div class="maiic-panel">
+                <template v-if="parts.length">
+                    <TabBar v-model="activePart" :tabs="partTabs"/>
+                    <p v-if="currentPart && currentPart.subtitle" class="border-b border-gray-100 px-5 py-2 text-xs text-gray-500">{{ currentPart.subtitle }}</p>
+                </template>
+
+                <div v-for="({ sec, si }, vi) in visibleSections" :key="si" :class="{ 'border-t border-gray-200': vi > 0 }">
+                    <div class="flex items-center justify-between gap-3 px-4 py-3">
+                        <h3 class="font-semibold text-gray-900">{{ sec.heading }}</h3>
+                        <span v-if="sec.rows.length" class="maiic-badge maiic-badge-grey">{{ sec.rows.length.toLocaleString() }} rows</span>
+                    </div>
+                    <p v-if="sec.note" class="px-4 pb-2 text-xs text-gray-500">{{ sec.note }}</p>
+                    <div v-if="sec.rows.length" class="maiic-table-wrap">
+                        <table class="maiic-table">
+                            <thead>
+                                <tr>
+                                    <th v-for="(c, ci) in sec.columns" :key="ci" :class="{ num: isNum(sec, ci) }">{{ c }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(row, ri) in pagedRows(sec, si)" :key="ri" :class="{ total: isTotal(row) }">
+                                    <td v-for="(cell, ci) in row" :key="ci" :class="isNum(sec, ci) ? 'num' : ''">{{ cell }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p v-else class="maiic-empty">No data for this section in {{ report.period || 'this period' }}.</p>
+                    <ClientPager v-if="sec.rows.length > PAGE_SIZE" :total="sec.rows.length" :per-page="PAGE_SIZE"
+                                 :model-value="pageOf(si)" @update:model-value="p => pages[si] = p"/>
+                </div>
+
+                <p v-if="!visibleSections.length" class="maiic-empty">
+                    This report has no content for the selected period. Choose another period, or run the ECL calculation for this one.
+                </p>
             </div>
         </div>
     </AppLayout>

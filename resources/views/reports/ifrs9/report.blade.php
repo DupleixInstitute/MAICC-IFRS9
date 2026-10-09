@@ -44,6 +44,9 @@
     .k-s { font-size: 6.5px; color: #9ca3af; margin-top: 1px; }
 
     .sec { margin-bottom: 12px; }
+    .part { margin: 2px 0 8px 0; padding: 5px 8px; background: #14532d; color: #ffffff; }
+    .part .pt { font-size: 11px; font-weight: bold; }
+    .part .pn { font-size: 7.5px; color: #d1fae5; margin-top: 1px; }
     .sec h3 { font-size: 10px; color: #14532d; margin: 0 0 4px 0; padding-left: 6px; border-left: 3px solid #15803d; }
     .sec .note { font-size: 7.5px; color: #6b7280; margin: 0 0 4px 0; }
 
@@ -102,7 +105,15 @@
         </tr></table>
     @endif
 
+    @php $part = null; @endphp
     @forelse($report['sections'] as $sec)
+        @if(!empty($sec['part']) && $sec['part'] !== $part)
+            @php $first = $part === null; $part = $sec['part']; @endphp
+            <div class="part">
+                <div class="pt">{{ $part }}</div>
+                @if(!empty($sec['part_note']))<div class="pn">{{ $sec['part_note'] }}</div>@endif
+            </div>
+        @endif
         <div class="sec">
             @if(!empty($sec['heading']))<h3>{{ $sec['heading'] }}</h3>@endif
             @if(!empty($sec['note']))<p class="note">{{ $sec['note'] }}</p>@endif

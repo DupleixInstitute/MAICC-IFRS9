@@ -96,7 +96,21 @@ class ReportDownload
 
     public static function excel(array $report, string $filename)
     {
-        return Excel::download(new Ifrs9ReportExport(self::normalise($report)), $filename . '.xlsx');
+        $report = self::normalise($report);
+        if (! empty($report['sheets'])) {
+            // A consolidated report: one sheet per part, each headed like the report.
+            $sheets = array_map(fn ($p) => self::normalise(array_merge($p, [
+                'company' => $report['company'],
+                'title' => $p['title'],
+                'subtitle' => $report['title'] . ': ' . ($p['subtitle'] ?? ''),
+                'generated_at' => $report['generated_at'],
+                'generated_by' => $report['generated_by'],
+            ])), $report['sheets']);
+
+            return Excel::download(new \App\Exports\Ifrs9MultiSheetExport($sheets), $filename . '.xlsx');
+        }
+
+        return Excel::download(new Ifrs9ReportExport($report), $filename . '.xlsx');
     }
 
     /** Plain data: a heading block, then each section as a header row and its rows. */
@@ -116,8 +130,13 @@ class ReportDownload
             foreach ($report['kpis'] as $k) {
                 fputcsv($out, [$k['label'] ?? '', self::plain($k['value'] ?? '')]);
             }
+            $part = null;
             foreach ($report['sections'] as $sec) {
                 fputcsv($out, []);
+                if (! empty($sec['part']) && $sec['part'] !== $part) {
+                    $part = $sec['part'];
+                    fputcsv($out, ['Part: ' . $part]);
+                }
                 fputcsv($out, [$sec['heading'] ?? '']);
                 fputcsv($out, $sec['columns'] ?? []);
                 foreach ($sec['rows'] ?? [] as $row) {
