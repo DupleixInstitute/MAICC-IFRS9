@@ -43,7 +43,7 @@ class MemberPortalCoursesController extends Controller
             ->where('status', 'publish')
             ->filter(\request()->only('search', 'tutor_id', 'course_category_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status', 'approval_status'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Courses/Index', [
             'filters' => \request()->all('search', 'tutor_id', 'course_category_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status', 'approval_status'),
             'courses' => $courses,
@@ -102,7 +102,7 @@ class MemberPortalCoursesController extends Controller
             ->where('course_id', $course->id)
             ->filter(\request()->only('search', 'tutor_id', 'course_id', 'member_id', 'course_category_id', 'status'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Courses/Registrations/Index', [
             'filters' => \request()->all('search', 'tutor_id', 'course_category_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status', 'approval_status'),
             'registrations' => $registrations,
@@ -124,7 +124,7 @@ class MemberPortalCoursesController extends Controller
             ->where('course_id', $course->id)
             ->where('status', 'publish')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Courses/Articles/Index', [
             'filters' => \request()->all('search', 'tutor_id', 'article_category_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status', 'approval_status'),
             'articles' => $articles,

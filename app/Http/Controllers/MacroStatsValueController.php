@@ -38,7 +38,7 @@ class MacroStatsValueController extends Controller
     }
 
     // Paginate 10 per page and preserve query string
-    $values = $query->paginate(10)->withQueryString();
+    $values = $query->paginate(15)->withQueryString();
 
     return Inertia::render('FLI/MacroStats/MacroValue', [
         'statistic' => $stat,

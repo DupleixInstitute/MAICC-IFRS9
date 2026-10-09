@@ -23,7 +23,7 @@ class SmsGatewaysController extends Controller
     public function index()
     {
         $smsGateways = SmsGateway::filter(\request()->only('search'))
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('SmsGateways/Index', [
             'filters' => \request()->all('search'),
             'smsGateways' => $smsGateways,

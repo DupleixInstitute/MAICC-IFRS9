@@ -92,6 +92,10 @@
             <div class="flex gap-2">
                 <button :disabled="pagination.current_page <= 1" @click="go(pagination.current_page - 1)"
                         class="rounded border border-gray-300 bg-white px-3 py-1.5 font-medium disabled:opacity-40 hover:bg-gray-50">Previous</button>
+                <template v-for="n in pageWindow" :key="n">
+                    <span v-if="n === '...'" class="px-1 py-1.5 text-gray-400">...</span>
+                    <button v-else @click="go(n)" class="rounded-lg border px-3 py-1.5 text-sm font-semibold" :class="n === pagination.current_page ? 'border-maiic-600 bg-maiic-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-maiic-300 hover:bg-maiic-50'">{{ n }}</button>
+                </template>
                 <button :disabled="pagination.current_page >= pagination.last_page" @click="go(pagination.current_page + 1)"
                         class="rounded border border-gray-300 bg-white px-3 py-1.5 font-medium disabled:opacity-40 hover:bg-gray-50">Next</button>
             </div>
@@ -132,6 +136,18 @@ export default {
                 this.go(1)
             }, 450),
             deep: true,
+        },
+    },
+    computed: {
+        // Page numbers around the current page, with the first and last.
+        pageWindow() {
+            const cur = this.pagination.current_page, last = this.pagination.last_page
+            const pages = []
+            for (let n = 1; n <= last; n++) {
+                if (n === 1 || n === last || Math.abs(n - cur) <= 2) pages.push(n)
+                else if (pages[pages.length - 1] !== '...') pages.push('...')
+            }
+            return pages
         },
     },
     methods: {

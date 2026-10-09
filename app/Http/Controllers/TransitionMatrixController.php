@@ -68,7 +68,7 @@ class TransitionMatrixController extends Controller
             });
 
         return Inertia::render('TransitionMatrix/Index', [
-            'matrices' => $query->latest()->paginate(10),
+            'matrices' => $query->latest()->paginate(15),
             'filters' => $request->only(['search', 'start_date', 'end_date'])
         ]);
     }

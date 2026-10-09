@@ -26,7 +26,7 @@ class MemberPortalCourseMaterialsController extends Controller
         $materials = CourseMaterial::with(['file'])
             ->where('course_id', $course->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Courses/Materials/Index', [
             'course' => $course,
             'materials' => $materials,

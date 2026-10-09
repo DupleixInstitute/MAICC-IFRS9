@@ -954,7 +954,7 @@ private function emptySummary(): array
 
     $assignedToMeCount = $query->count();
     $assignedToMeApplications = $query->orderBy('created_at', 'desc')
-        ->paginate(20);
+        ->paginate(15);
     $approvedByMeIds = LoanApplicationLinkedApprovalStage::where('approver_id', Auth::id())
     ->where('status', 'approved')
     ->pluck('loan_application_id')->toArray();
@@ -963,7 +963,7 @@ private function emptySummary(): array
     $approvedByMeApplications = LoanApplication::with(['staff', 'client', 'product', 'currentLinkedStage', 'currentLinkedStage.stage', 'currentLinkedStage.approver', 'currentLinkedStage.assignedBy','linkedStages', 'branch'])
         ->whereIn('id', $approvedByMeIds)
         ->orderBy('created_at', 'desc')
-        ->paginate(20);
+        ->paginate(15);
 
     $pendingToMeIds = LoanApplicationLinkedApprovalStage::where('approver_id', Auth::id())
     ->where('stage_finished_at', null)
@@ -974,10 +974,10 @@ private function emptySummary(): array
     $pendingToMeApplications = LoanApplication::with(['staff', 'client', 'product', 'currentLinkedStage', 'currentLinkedStage.stage', 'currentLinkedStage.approver', 'currentLinkedStage.assignedBy','linkedStages', 'branch'])
         ->whereIn('id', $pendingToMeIds)
         ->orderBy('created_at', 'desc')
-        ->paginate(20);
+        ->paginate(15);
 
         $query = LoanApplicationReminder::where('user_id', Auth::id()) ->orderBy('created_at', 'desc');
-        $myReminders = $query->paginate(20);
+        $myReminders = $query->paginate(15);
         // dd($myReminders);
         $myRemindersCount = $query->count();
 
@@ -989,7 +989,7 @@ private function emptySummary(): array
         $applications = LoanApplication::with(['staff', 'client', 'product', 'currentLinkedStage', 'currentLinkedStage.stage', 'currentLinkedStage.approver', 'currentLinkedStage.assignedBy','linkedStages', 'branch'])
             ->filter(\request()->only('search', 'client_id', 'loan_product_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         // dd($applications);
 
         return Inertia::render('Dashboard/MyWorkspace', [

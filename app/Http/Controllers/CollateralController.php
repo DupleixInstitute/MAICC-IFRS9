@@ -28,7 +28,7 @@ class CollateralController extends Controller
     public function collateralType()
     {
         return Inertia::render('Collateral/Types', [
-            'types' => CollateralType::paginate(10),
+            'types' => CollateralType::paginate(15),
         ]);
     }
     
@@ -96,7 +96,7 @@ class CollateralController extends Controller
             // --- SORT AND PAGINATE ---
             $allocations = $query
                 ->orderByRaw('CAST(reporting_period AS DATE) DESC')
-                ->paginate(10)
+                ->paginate(15)
                 ->appends($request->all()); 
 
             // --- SUMMARY METRICS USING FRESH QUERY ---
@@ -260,7 +260,7 @@ class CollateralController extends Controller
             // --- STRICT ORDERING AND LIMIT ---
             $collateralRegisters = $query
                 ->orderBy('period', 'desc')
-                ->paginate(10)
+                ->paginate(15)
                 ->appends($request->all());
 
             return Inertia::render('Collateral/Register', [

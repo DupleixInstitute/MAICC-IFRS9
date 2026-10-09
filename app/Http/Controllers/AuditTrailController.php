@@ -97,7 +97,7 @@ class AuditTrailController extends Controller
             $union = $activity->unionAll($module);
         }
 
-        $perPage = 25;
+        $perPage = 15;
         $page = max(1, (int) $request->input('page', 1));
 
         $rows = DB::query()->fromSub($union, 'trail')

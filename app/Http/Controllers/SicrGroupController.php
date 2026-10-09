@@ -17,7 +17,7 @@ class SicrGroupController extends Controller
 
     public function index()
     {
-        $groups = SicrGroup::orderByDesc('created_at')->paginate(20);
+        $groups = SicrGroup::orderByDesc('created_at')->paginate(15);
         return Inertia::render('StageingRules/Groups', [
             'groups' => $groups,
         ]);

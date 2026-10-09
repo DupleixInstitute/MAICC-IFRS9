@@ -54,7 +54,7 @@ class LGDCalculationController extends Controller
             $query->where('created_at', '<=', Carbon::parse($request->date_to)->endOfDay());
         }
 
-        $calculations = $query->paginate(20)->withQueryString();
+        $calculations = $query->paginate(15)->withQueryString();
 
         // Debug: Add recalculated status to each calculation
         $calculations->getCollection()->transform(function ($calculation) {

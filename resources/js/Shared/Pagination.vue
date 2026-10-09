@@ -1,22 +1,12 @@
 <template>
-  <div v-if="links && links.length > 0" class="flex flex-wrap -mb-1">
-    <template v-for="(link, key) in links" :key="key">
-      <div v-if="link.url === null" 
-           class="mr-1 mb-1 px-4 py-3 text-sm leading-4 text-gray-400 border rounded"
-           v-html="link.label" />
-      <inertia-link v-else
-                    class="mr-1 mb-1 px-4 py-3 text-sm leading-4 border rounded hover:bg-white focus:border-maiic-500 focus:text-maiic-500"
-                    :class="{ 'bg-white': link.active }"
-                    :href="link.url"
-                    v-html="link.label" />
-    </template>
-  </div>
+    <Pagination :links="links"/>
 </template>
 
-<script>
-export default {
-  props: {
+<script setup>
+// The one pager of the system lives in Components/Pagination.vue.
+import Pagination from '@/Components/Pagination.vue';
+
+defineProps({
     links: Array,
-  },
-}
+});
 </script>

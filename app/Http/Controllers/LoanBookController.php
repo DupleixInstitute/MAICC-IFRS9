@@ -83,7 +83,7 @@ class LoanBookController extends Controller
             $query->where('loan_portfolio_id', $request->input('portfolio'));
         }
 
-        $loanBooks = $query->paginate(10)->withQueryString();
+        $loanBooks = $query->paginate(15)->withQueryString();
 
         return Inertia::render('LoanBooks/Index', [
             'loanBooks' => $loanBooks,

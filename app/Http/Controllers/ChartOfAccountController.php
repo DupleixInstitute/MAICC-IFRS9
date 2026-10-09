@@ -25,7 +25,7 @@ class ChartOfAccountController extends Controller
     {
         $chartOfAccounts = ChartOfAccount::filter(\request()->only('search', 'account_type'))
             ->orderBy('account_type')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('ChartOfAccounts/Index', [
             'chartOfAccounts' => $chartOfAccounts,
             'filters' => \request()->all('search', 'account_type'),

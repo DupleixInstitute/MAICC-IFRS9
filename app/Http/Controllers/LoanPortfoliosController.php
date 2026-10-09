@@ -23,7 +23,7 @@ class LoanPortfoliosController extends Controller
         $portfolios = LoanPortfolio::filter(request()->only('search', 'status'))
             ->with(['createdBy'])
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
             // dd($portfolios);
 
         return Inertia::render('Portfolios/Index', [

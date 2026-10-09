@@ -25,7 +25,7 @@ class InkhundlaController extends Controller
     {
         $districts = District::filter(\request()->only('search'))
             ->with(['province'])
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Inkhundla/Index', [
             'filters' => \request()->all('search'),
             'districts' => $districts,

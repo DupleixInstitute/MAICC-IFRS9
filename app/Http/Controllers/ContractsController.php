@@ -35,7 +35,7 @@ class ContractsController extends Controller
             $query->where('opening_score_period', $request->input('period'));
         }
 
-        $contracts = $query->paginate(10)->withQueryString();
+        $contracts = $query->paginate(15)->withQueryString();
 
         return Inertia::render('Contracts/Index', [
             'contracts' => $contracts,

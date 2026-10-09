@@ -30,7 +30,7 @@ class LoanProductsController extends Controller
         $products = LoanProduct::filter(\request()->only('search', 'aggregation_criteria'))
             ->with(['createdBy', 'endTransitionProfile'])
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
 
         return Inertia::render('LoanProducts/Index', [
             'filters' => \request()->all('search', 'aggregation_criteria'),

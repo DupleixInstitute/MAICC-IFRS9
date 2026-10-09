@@ -56,7 +56,7 @@ class CreditLossDataController extends Controller
                     $query->where('portfolio_id', $request->input('portfolio_id'));
                 }
 
-                $portfolioData[$portfolio->id] = $query->paginate(5, ['*'], "portfolio_{$portfolio->id}_page")
+                $portfolioData[$portfolio->id] = $query->paginate(15, ['*'], "portfolio_{$portfolio->id}_page")
                                                     ->withQueryString();
             }
 

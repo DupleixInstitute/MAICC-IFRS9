@@ -25,7 +25,7 @@ class WardsController extends Controller
     {
         $wards = Ward::filter(\request()->only('search'))
             ->with(['district'])
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Wards/Index', [
             'filters' => \request()->all('search'),
             'wards' => $wards,

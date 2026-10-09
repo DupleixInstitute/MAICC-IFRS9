@@ -22,7 +22,7 @@ class SicrItemController extends Controller
         $items = SicrItem::with('group')
             ->when($request->group_id, fn($q) => $q->where('group_id', $request->group_id))
             ->orderByDesc('created_at')
-            ->paginate(20)
+            ->paginate(15)
             ->withQueryString();
 
         return Inertia::render('StageingRules/Items', [

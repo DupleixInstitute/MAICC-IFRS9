@@ -22,7 +22,7 @@ class MemberPortalEventsController extends Controller
 
         $events = Event::filter(\request()->only('search', 'status', 'type'))->with(['category', 'createdBy'])
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Events/Index', [
             'filters' => \request()->all('search', 'status', 'type'),
             'events' => $events,

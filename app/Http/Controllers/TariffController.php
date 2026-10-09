@@ -23,7 +23,7 @@ class TariffController extends Controller
     public function index()
     {
         $tariffs = Tariff::filter(\request()->only('search'))
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Tariffs/Index', [
             'filters' => \request()->all('search', 'role', 'gender'),
             'tariffs' => $tariffs,

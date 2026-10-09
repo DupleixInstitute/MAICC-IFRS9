@@ -37,7 +37,7 @@ class LossGivenDefaultCummulativeController extends Controller
                         });
 
             return inertia('LossGivenDefault/Cummulative', [
-                'lgdCummulatives' => $query->latest()->paginate(10)->withQueryString(),
+                'lgdCummulatives' => $query->latest()->paginate(15)->withQueryString(),
                 'filters' => $request->only(['lgd_calculation_level', 'start_date', 'end_date'])
             ]);
         }

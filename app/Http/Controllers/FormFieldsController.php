@@ -38,7 +38,7 @@ class FormFieldsController extends Controller
     {
         $forms = Course::with(['tariff'])
             ->filter(\request()->only('search', 'tariff_id', 'type'))
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Forms/Index', [
             'filters' => \request()->all('search', 'tariff_id', 'type'),
             'forms' => $forms,

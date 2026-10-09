@@ -93,7 +93,7 @@ class EirDataController extends Controller
                 'schedules as principal_payment_rows' => fn ($q) => $q->where('principal_due', '>', 0),
                 'schedules as interest_payment_rows' => fn ($q) => $q->where('interest_due', '>', 0),
             ])
-            ->orderBy('contract_id')->orderByDesc('terms_imported_at')->paginate(30)->withQueryString();
+            ->orderBy('contract_id')->orderByDesc('terms_imported_at')->paginate(15)->withQueryString();
         $page->getCollection()->transform(fn ($contract) => $this->withDisplayName($contract));
 
         return $page;
@@ -114,7 +114,7 @@ class EirDataController extends Controller
             ])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('contract_id', 'like', "%{$search}%")
                 ->orWhere('source_reference', 'like', "%{$search}%")))
-            ->orderBy('contract_id')->orderBy('due_date')->orderBy('id')->paginate(30)->withQueryString();
+            ->orderBy('contract_id')->orderBy('due_date')->orderBy('id')->paginate(15)->withQueryString();
         $page->getCollection()->transform(fn ($row) => $this->withDisplayName($row));
 
         return $page;
@@ -165,7 +165,7 @@ class EirDataController extends Controller
                 ->orWhere('source_reference', 'like', "%{$search}%")))
             ->orderByDesc('reporting_period')
             ->orderByDesc('id')
-            ->paginate(30)
+            ->paginate(15)
             ->withQueryString();
 
         $reconciled = $reconciliation->forPostings($page->getCollection());

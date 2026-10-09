@@ -32,7 +32,7 @@ class CommunicationTemplateController extends Controller
     {
         $templates = CommunicationTemplate::filter(\request()->only('search', 'type'))
             ->orderBy('id','desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('CommunicationTemplates/Index', [
             'filters' => \request()->all('search', 'type'),
             'templates' => $templates,

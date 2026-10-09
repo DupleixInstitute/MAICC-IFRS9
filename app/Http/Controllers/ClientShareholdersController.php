@@ -24,7 +24,7 @@ class ClientShareholdersController extends Controller
     {
         $shareholders = Shareholder::where('client_id', $client->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Clients/Shareholders/Index', [
             'client' => $client,
             'shareholders' => $shareholders,

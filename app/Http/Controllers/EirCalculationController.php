@@ -58,7 +58,7 @@ class EirCalculationController extends Controller
 
         return Inertia::render('Eir/Calculations', [
             'contracts' => $query->orderByRaw("CASE calculation_status WHEN 'BLOCKED' THEN 1 WHEN 'REOPENED' THEN 2 WHEN 'CALCULATED' THEN 3 WHEN 'PENDING' THEN 4 ELSE 5 END")
-                ->orderByDesc('updated_at')->paginate(30)->withQueryString(),
+                ->orderByDesc('updated_at')->paginate(15)->withQueryString(),
             'filters' => ['status' => $status, 'contract_id' => $search],
             'summary' => ContractEir::selectRaw('calculation_status, COUNT(*) as contract_count')->groupBy('calculation_status')->get()->keyBy('calculation_status'),
             'approvalSummary' => [

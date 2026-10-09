@@ -63,7 +63,7 @@ public function index(Request $request)
                         ->orWhere('mobile', 'like', "%{$search}%");
                 });
             })
-            ->paginate(10)
+            ->paginate(15)
             ->withQueryString()
             ->through(fn ($client) => [
                 'id' => $client->id,
@@ -188,7 +188,7 @@ public function index(Request $request)
             ->filter(\request()->only('search', 'client_id', 'loan_product_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'))
             ->where('client_id', $client->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
 
         return Inertia::render('Clients/LoanApplications/Index', [
             'client' => $client,
@@ -202,7 +202,7 @@ public function index(Request $request)
         $registrations = CourseRegistration::with(['tutor', 'course', 'client'])
             ->where('client_id', $client->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Clients/Courses/Index', [
             'client' => $client,
             'registrations' => $registrations,

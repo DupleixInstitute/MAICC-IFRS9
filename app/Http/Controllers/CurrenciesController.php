@@ -22,7 +22,7 @@ class CurrenciesController extends Controller
     public function index()
     {
         $currencies = Currency::filter(\request()->only('search'))
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Currencies/Index', [
             'filters' => \request()->all('search', 'active'),
             'currencies' => $currencies,

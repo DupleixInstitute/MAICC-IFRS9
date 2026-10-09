@@ -51,7 +51,7 @@ class CommunicationCampaignController extends Controller
             ->with('branch')
             ->with('createdBy')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('CommunicationCampaigns/Index', [
             'filters' => \request()->all('search', 'communication_campaign_business_rule_id', 'campaign_type', 'trigger_type', 'status'),
             'communicationCampaigns' => $communicationCampaigns,

@@ -35,7 +35,7 @@ class CommunicationLogController extends Controller
         $start_date = $request->start_date;
         $end_date = $request->end_date;
         $campaign_type = $request->campaign_type;
-        $perPage = $request->per_page ?: 20;
+        $perPage = $request->per_page ?: 15;
         $orderBy = $request->order_by;
         $orderByDir = $request->order_by_dir;
         $search = $request->s;
