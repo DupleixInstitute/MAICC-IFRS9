@@ -1,8 +1,11 @@
 <script setup>
-import { reactive, ref } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { reactive, ref, computed } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { confirmDialog } from '@/Components/confirmDialog'
+import BackToReports from './Partials/BackToReports.vue'
+import DownloadButton from './Partials/DownloadButton.vue'
 
 const props = defineProps({
     periods: { type: Array, default: () => [] },
@@ -23,7 +26,7 @@ const presets = {
     Baseline:        { s1_pd_mult: 1,   s2_pd_mult: 1,   s3_pd_mult: 1,   s1_lgd_add: 0,  s2_lgd_add: 0,  s3_lgd_add: 0 },
     'Mild drought':  { s1_pd_mult: 1.3, s2_pd_mult: 1.5, s3_pd_mult: 1,   s1_lgd_add: 3,  s2_lgd_add: 5,  s3_lgd_add: 5 },
     'Severe drought':{ s1_pd_mult: 2,   s2_pd_mult: 2.5, s3_pd_mult: 1,   s1_lgd_add: 8,  s2_lgd_add: 10, s3_lgd_add: 12 },
-    'MWK / input shock': { s1_pd_mult: 1.6, s2_pd_mult: 1.8, s3_pd_mult: 1, s1_lgd_add: 5, s2_lgd_add: 7, s3_lgd_add: 8 },
+    'Currency / input shock': { s1_pd_mult: 1.6, s2_pd_mult: 1.8, s3_pd_mult: 1, s1_lgd_add: 5, s2_lgd_add: 7, s3_lgd_add: 8 },
 }
 function applyPreset(name) {
     Object.assign(form, presets[name])
@@ -47,18 +50,31 @@ const saveName = ref('')
 const saveDesc = ref('')
 const savedList = ref([...props.scenarios])
 
+// The reporting currency from Settings (shared prop), never assumed.
+const currency = computed(() => usePage().props.currency?.code || '')
 const STAGE = { 1: 'Stage 1', 2: 'Stage 2', 3: 'Stage 3' }
 
 function money(v) {
-    return 'MWK ' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+    return (currency.value ? currency.value + ' ' : '') + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 function pct(v) {
     return (Number(v || 0) * 100).toFixed(2) + '%'
 }
 
+// The inputs of the run on screen; the downloads recompute that same run.
+const lastRun = ref(null)
+function downloadUrl(kind) {
+    if (!lastRun.value) return ''
+    const { macro, params } = lastRun.value
+    return route(macro ? 'stress-testing.run-macro' : 'stress-testing.run', { ...params, download: kind })
+}
+
 async function run() {
     running.value = true
     error.value = ''
+    const params = mode.value === 'macro'
+        ? { period: form.period, ...(form.loan_portfolio_id ? { loan_portfolio_id: form.loan_portfolio_id } : {}), ...macroForm }
+        : { ...form, ...(form.loan_portfolio_id ? {} : { loan_portfolio_id: undefined }) }
     try {
         const { data } = mode.value === 'macro'
             ? await axios.post(route('stress-testing.run-macro'), {
@@ -68,6 +84,7 @@ async function run() {
             })
             : await axios.post(route('stress-testing.run'), form)
         result.value = data
+        lastRun.value = { macro: mode.value === 'macro', params: JSON.parse(JSON.stringify(params)) }
     } catch (e) {
         error.value = e?.response?.data?.message || 'Run failed. Check the selected period has data.'
     } finally {
@@ -101,7 +118,7 @@ function loadScenario(s) {
 }
 
 async function deleteScenario(s) {
-    if (!confirm(`Delete scenario "${s.scenario_name}"?`)) return
+    if (!(await confirmDialog({ title: 'Delete this scenario?', message: `The saved scenario "${s.scenario_name}" is removed. This cannot be undone.`, confirmLabel: 'Delete', tone: 'danger' }))) return
     await axios.delete(route('stress-testing.destroy', s.id))
     savedList.value = savedList.value.filter(x => x.id !== s.id)
 }
@@ -111,26 +128,26 @@ async function deleteScenario(s) {
 <template>
     <AppLayout title="Stress Testing">
         <template #header>
-            <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Stress Testing</h2>
-                <Link :href="route('ifrs9-reports.index')" class="text-sm text-maiic-600 hover:underline">
-                    IFRS 9 Reports &rarr;
-                </Link>
-            </div>
+            <BackToReports tab="risk"/>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">Stress testing</h2>
+            <p class="mt-0.5 text-sm text-gray-500">How much ECL would rise under per-stage PD and LGD shocks or a macro scenario, recomputed loan by loan.</p>
         </template>
 
-        <div class="py-8">
-            <div class="w-full space-y-6">
+        <template #actions>
+            <DownloadButton format="CSV" :href="downloadUrl('csv')" :disabled="!lastRun"/>
+            <DownloadButton format="Excel" :href="downloadUrl('xlsx')" :disabled="!lastRun"/>
+            <DownloadButton format="PDF" label="Download PDF" :href="downloadUrl('pdf')" :disabled="!lastRun"/>
+        </template>
+
+        <div>
+            <div class="w-full space-y-5">
 
                 <!-- Scenario builder -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div class="maiic-panel p-5">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h1 class="text-2xl font-bold text-gray-900">ECL Stress Scenario</h1>
-                            <p class="text-gray-500 mt-1 text-sm">
-                                Apply per-stage PD multipliers and LGD add-ons (percentage points). ECL is
-                                recomputed loan-by-loan (EAD &times; PD &times; LGD, capped at 100%).
-                            </p>
+                            <h3 class="font-semibold text-gray-900">Scenario</h3>
+                            <p class="text-xs text-gray-500">PD multipliers and LGD add-ons (percentage points) per stage; ECL = EAD x PD x LGD per loan, capped at 100%.</p>
                         </div>
                         <div class="flex flex-col items-end gap-3">
                             <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
@@ -268,7 +285,7 @@ async function deleteScenario(s) {
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="maiic-panel">
                         <div class="px-6 py-4 border-l-4 border-maiic-600">
                             <h3 class="font-semibold text-gray-900">By IFRS 9 Stage</h3>
                         </div>
@@ -299,7 +316,7 @@ async function deleteScenario(s) {
                         </table>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="maiic-panel">
                         <div class="px-6 py-4 border-l-4 border-maiic-600">
                             <h3 class="font-semibold text-gray-900">By Portfolio</h3>
                         </div>
@@ -331,7 +348,7 @@ async function deleteScenario(s) {
                     </div>
 
                     <!-- Save scenario -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-maiic-200 p-6">
+                    <div class="maiic-panel p-5">
                         <h3 class="font-semibold text-gray-900 mb-3">Save this scenario</h3>
                         <div class="flex flex-wrap items-end gap-3">
                             <div>
@@ -353,7 +370,7 @@ async function deleteScenario(s) {
                 </template>
 
                 <!-- Saved scenarios -->
-                <div v-if="savedList.length" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div v-if="savedList.length" class="maiic-panel">
                     <div class="px-6 py-4 border-l-4 border-maiic-600">
                         <h3 class="font-semibold text-gray-900">Saved Scenarios</h3>
                     </div>

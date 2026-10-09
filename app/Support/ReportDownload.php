@@ -27,6 +27,18 @@ class ReportDownload
         }
     }
 
+    /** The reporting currency code from Settings (e.g. MWK), or '' when none is set. */
+    public static function currency(): string
+    {
+        try {
+            $id = optional(Setting::where('setting_key', 'currency')->first())->setting_value;
+
+            return (string) ($id ? (\App\Models\Currency::find($id)?->code ?? '') : '');
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
     /** Absolute path of the logo DomPDF can read: the uploaded company logo, else the MAIIC logo. */
     public static function logoPath(): ?string
     {
@@ -58,6 +70,7 @@ class ReportDownload
     {
         return array_merge([
             'company' => self::company(),
+            'currency' => self::currency(),
             'title' => 'Report',
             'subtitle' => '',
             'period' => null,
@@ -127,6 +140,9 @@ class ReportDownload
                 fputcsv($out, ['Reporting period', $report['period']]);
             }
             fputcsv($out, ['Prepared on', $report['generated_at']]);
+            if (! empty($report['currency'])) {
+                fputcsv($out, ['Amounts in', $report['currency']]);
+            }
             foreach ($report['kpis'] as $k) {
                 fputcsv($out, [$k['label'] ?? '', self::plain($k['value'] ?? '')]);
             }

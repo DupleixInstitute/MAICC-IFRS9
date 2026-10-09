@@ -1,10 +1,15 @@
 <script setup>
 import { reactive, computed } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import BackToReports from './Partials/BackToReports.vue';
+import DownloadButton from './Partials/DownloadButton.vue';
+import KpiRow from './Partials/KpiRow.vue';
+import ReportIcon from './Partials/ReportIcon.vue';
 
 const props = defineProps({
     report: { type: Object, default: null },
+    error: { type: String, default: null },
     portfolios: { type: Array, default: () => [] },
     periods: { type: Array, default: () => [] },
     selectedPortfolio: { default: '' },
@@ -13,126 +18,95 @@ const props = defineProps({
 });
 
 const form = reactive({
-    portfolio_id: props.selectedPortfolio || '',
+    portfolio_id: props.selectedPortfolio || (props.portfolios.length === 1 ? props.portfolios[0].value : ''),
     start_period: props.selectedStartPeriod || '',
     end_period: props.selectedEndPeriod || '',
 });
 
-const canRun = computed(() => form.portfolio_id && form.start_period && form.end_period);
+const canRun = computed(() => form.portfolio_id && form.start_period && form.end_period && form.start_period < form.end_period);
 
-const onPortfolioChange = () => {
-    router.get(route('reports.loan-book-reconciliation'), { portfolio_id: form.portfolio_id }, {
-        preserveState: true,
-        preserveScroll: true,
-    });
+const reload = (extra = {}) => router.get(route('reports.loan-book-reconciliation'), { ...form, ...extra }, { preserveScroll: true });
+const onPortfolioChange = () => { form.start_period = ''; form.end_period = ''; reload(); };
+
+const downloadUrl = (kind) => props.report
+    ? route('reports.loan-book-reconciliation', { portfolio_id: props.selectedPortfolio, start_period: props.selectedStartPeriod, end_period: props.selectedEndPeriod, download: kind })
+    : '';
+
+const money = (v) => {
+    const n = Number(v || 0);
+    const t = Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n < 0 ? '(' + t + ')' : t;
 };
-
-const generate = () => {
-    router.get(route('reports.loan-book-reconciliation'), { ...form, generate: 1 }, {
-        preserveState: true,
-        preserveScroll: true,
-    });
-};
-
-const downloadReport = () => {
-    window.open(route('reports.loan-book-reconciliation', { ...form, export: 1 }), '_blank');
-};
-
-const money = (v) => Number(v || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-});
+const line = (key) => (props.report?.lines || []).find(l => l.key === key) || { amount: 0, loans: 0 };
+const figures = computed(() => props.report ? [
+    { label: 'Opening loan book', value: money(line('opening').amount), sub: line('opening').loans + ' loans' },
+    { label: 'New loans', value: money(line('new').amount), sub: line('new').loans + ' loans' },
+    { label: 'Closing loan book', value: money(line('closing').amount), sub: line('closing').loans + ' loans' },
+    { label: 'Difference', value: money(line('variance').amount), tone: props.report.ties ? 'maiic' : 'rose' },
+] : []);
 </script>
 
 <template>
-    <Head title="Loan Book Reconciliation" />
-
-    <AppLayout>
+    <AppLayout title="Loan book reconciliation">
         <template #header>
-            <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Loan Book Reconciliation Report</h2>
-                <Link :href="route('reports.index')" class="inline-flex items-center rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
-                    Back to Reports
-                </Link>
-            </div>
+            <BackToReports tab="annual"/>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">Loan book reconciliation</h2>
+            <p class="mt-0.5 text-sm text-gray-500">Opening book plus new loans, less loans that left, plus the change on continuing loans, against the closing book.</p>
         </template>
 
-        <div class="p-6 bg-gray-100 min-h-screen">
-            <div class="bg-white rounded-lg shadow">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">Reconciliation Parameters</h3>
-                </div>
-                <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Portfolio</label>
-                        <select v-model="form.portfolio_id" @change="onPortfolioChange" class="mt-1 block w-full border-gray-300 rounded-md">
-                            <option value="">Select a portfolio</option>
-                            <option v-for="p in portfolios" :key="p.value" :value="p.value">{{ p.label }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Start Period</label>
-                        <select v-model="form.start_period" class="mt-1 block w-full border-gray-300 rounded-md">
-                            <option value="">Select period</option>
-                            <option v-for="period in periods" :key="'s' + period.value" :value="period.value">{{ period.label }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">End Period</label>
-                        <select v-model="form.end_period" class="mt-1 block w-full border-gray-300 rounded-md">
-                            <option value="">Select period</option>
-                            <option v-for="period in periods" :key="'e' + period.value" :value="period.value">{{ period.label }}</option>
-                        </select>
-                    </div>
-                </div>
+        <template #actions>
+            <select v-model="form.portfolio_id" @change="onPortfolioChange" class="maiic-select w-40" aria-label="Portfolio">
+                <option value="">Portfolio</option>
+                <option v-for="p in portfolios" :key="p.value" :value="p.value">{{ p.label }}</option>
+            </select>
+            <select v-model="form.start_period" class="maiic-select w-36" aria-label="Start period" :disabled="!periods.length">
+                <option value="">From</option>
+                <option v-for="p in periods" :key="'s' + p.value" :value="p.value">From {{ p.label }}</option>
+            </select>
+            <select v-model="form.end_period" class="maiic-select w-36" aria-label="End period" :disabled="!periods.length">
+                <option value="">To</option>
+                <option v-for="p in periods" :key="'e' + p.value" :value="p.value">To {{ p.label }}</option>
+            </select>
+            <button type="button" @click="reload({ generate: 1 })" :disabled="!canRun"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-maiic-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-maiic-700 disabled:opacity-50">
+                <ReportIcon name="play" class="h-4 w-4"/> Run
+            </button>
+            <DownloadButton format="CSV" :href="downloadUrl('csv')" :disabled="!report"/>
+            <DownloadButton format="Excel" :href="downloadUrl('xlsx')" :disabled="!report"/>
+            <DownloadButton format="PDF" label="Download PDF" :href="downloadUrl('pdf')" :disabled="!report"/>
+        </template>
 
-                <div class="px-6 pb-6 flex justify-end gap-3">
-                    <button @click="generate" :disabled="!canRun" class="px-4 py-2 bg-maiic-600 text-white rounded-md disabled:opacity-50">Generate</button>
-                    <button @click="downloadReport" :disabled="!canRun" class="px-4 py-2 bg-maiic-600 text-white rounded-md disabled:opacity-50">Download CSV</button>
-                </div>
+        <div class="w-full space-y-4">
+            <div v-if="error" class="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+                <ReportIcon name="alert" class="h-5 w-5"/> {{ error }}
             </div>
 
-            <div v-if="report" class="bg-white rounded-lg shadow mt-6">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">
-                        Reconciliation &mdash; {{ report.start_period }} to {{ report.end_period }}
-                    </h3>
+            <template v-if="report">
+                <KpiRow :items="figures"/>
+
+                <div class="maiic-panel">
+                    <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+                        <h3 class="font-semibold text-gray-900">{{ report.portfolio }}, {{ report.start_period }} to {{ report.end_period }}</h3>
+                        <span class="maiic-badge" :class="report.ties ? 'maiic-badge-green' : 'maiic-badge-red'">{{ report.ties ? 'Ties' : 'Does not tie' }}</span>
+                    </div>
+                    <div class="maiic-table-wrap">
+                        <table class="maiic-table">
+                            <thead><tr><th></th><th class="num">Loans</th><th class="num">Carrying amount</th></tr></thead>
+                            <tbody>
+                                <tr v-for="l in report.lines" :key="l.key" :class="{ total: ['expected', 'closing'].includes(l.key), 'font-semibold': l.key === 'opening' }">
+                                    <td>{{ l.label }}</td>
+                                    <td class="num">{{ Number(l.loans).toLocaleString() }}</td>
+                                    <td class="num" :class="l.key === 'variance' && !report.ties ? 'text-red-700 font-bold' : ''">{{ money(l.amount) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
+                        Write-offs: {{ report.write_offs.loans ? report.write_offs.loans + ' loans in the closing book carry a write-off status (' + money(report.write_offs.amount) + ').' : 'no loan carries a write-off status, so loans that leave the book are shown as repaid or derecognised.' }}
+                    </p>
                 </div>
-                <div class="p-6 overflow-x-auto">
-                    <table class="min-w-full text-sm border">
-                        <tbody>
-                            <tr>
-                                <td class="px-4 py-2 border">Opening Balance</td>
-                                <td class="px-4 py-2 border text-right">{{ money(report.opening_balance) }}</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-2 border">Add: New Disbursements</td>
-                                <td class="px-4 py-2 border text-right">{{ money(report.new_disbursements) }}</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-2 border">Less: Repayments</td>
-                                <td class="px-4 py-2 border text-right">{{ money(report.repayments) }}</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-2 border">Less: Write-offs</td>
-                                <td class="px-4 py-2 border text-right">{{ money(report.write_offs) }}</td>
-                            </tr>
-                            <tr class="bg-gray-50 font-medium">
-                                <td class="px-4 py-2 border">Expected Closing Balance</td>
-                                <td class="px-4 py-2 border text-right">{{ money(report.reconciliation.expected_closing_balance) }}</td>
-                            </tr>
-                            <tr class="bg-gray-50 font-medium">
-                                <td class="px-4 py-2 border">Actual Closing Balance</td>
-                                <td class="px-4 py-2 border text-right">{{ money(report.reconciliation.actual_closing_balance) }}</td>
-                            </tr>
-                            <tr class="font-semibold" :class="report.reconciliation.variance == 0 ? 'text-maiic-700' : 'text-red-700'">
-                                <td class="px-4 py-2 border">Variance</td>
-                                <td class="px-4 py-2 border text-right">{{ money(report.reconciliation.variance) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            </template>
+            <div v-else-if="!error" class="maiic-panel maiic-empty">Choose a portfolio and two periods at the top right, then Run.</div>
         </div>
     </AppLayout>
 </template>

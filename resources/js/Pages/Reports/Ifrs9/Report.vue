@@ -91,7 +91,7 @@ const isTotal = (row) => /^(total|totals|grand total|net|closing)/i.test(String(
         <template #header>
             <BackToReports :tab="report.tab || ''"/>
             <h2 class="text-xl font-semibold leading-tight text-gray-800">{{ report.title }}</h2>
-            <p class="mt-0.5 text-sm text-gray-500">{{ report.subtitle }}</p>
+            <p class="mt-0.5 text-sm text-gray-500">{{ report.subtitle }}<span v-if="report.currency"> &middot; amounts in {{ report.currency }}</span></p>
         </template>
 
         <template #actions>

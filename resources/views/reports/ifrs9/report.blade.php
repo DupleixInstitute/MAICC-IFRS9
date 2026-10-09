@@ -90,7 +90,7 @@
     </div>
 
     <div class="ftr">
-        {{ $report['company'] }} IFRS 9 ECL and EIR system &middot; {{ $report['title'] }}@if(!empty($report['period'])) &middot; {{ $periodLabel }}@endif &middot; Confidential, internal use only
+        {{ $report['company'] }} IFRS 9 ECL and EIR system &middot; {{ $report['title'] }}@if(!empty($report['period'])) &middot; {{ $periodLabel }}@endif @if(!empty($report['currency']))&middot; Amounts in {{ $report['currency'] }} @endif&middot; Confidential, internal use only
     </div>
 
     @if(!empty($report['kpis']))

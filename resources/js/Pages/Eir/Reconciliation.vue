@@ -3,15 +3,13 @@
     <template #header>
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-            <span>EIR &amp; Revenue Recognition</span><span>/</span><span class="font-medium text-maiic-700">GL Reconciliation</span>
-          </div>
-          <h2 class="text-xl font-semibold text-gray-800">EIR to GL Reconciliation</h2>
-          <p class="mt-1 text-sm text-gray-600">Why calculated interest income differs from what the ledger posted</p>
+          <BackToReports tab="eir"/>
+          <h2 class="text-xl font-semibold text-gray-800">GL reconciliation (EIR)</h2>
+          <p class="mt-0.5 text-sm text-gray-500">Why calculated interest income differs from what the ledger posted.</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <a v-if="period" :href="downloadUrl('xlsx')" class="secondary-btn">Download Excel</a>
-          <a v-if="period" :href="downloadUrl('pdf')" class="secondary-btn">Download PDF</a>
+        <div class="flex flex-wrap items-center gap-2">
+          <DownloadButton format="Excel" :href="period ? downloadUrl('xlsx') : ''" :disabled="!period"/>
+          <DownloadButton format="PDF" label="Download PDF" :href="period ? downloadUrl('pdf') : ''" :disabled="!period"/>
           <Link :href="route('eir-data.index', { tab: 'gl' })" class="secondary-btn">GL Postings</Link>
           <Link :href="route('eir-calculations.index')" class="primary-btn">EIR Calculations</Link>
         </div>
@@ -95,7 +93,7 @@
             <div v-if="Object.keys(revenueRun.blocked_contracts || {}).length" class="mt-2">
               <div class="font-semibold text-amber-900">Contracts that produced no row:</div>
               <div v-for="(reason, key) in revenueRun.blocked_contracts" :key="key" class="mt-0.5">
-                <span class="font-medium text-gray-900">{{ key }}</span> — {{ reason }}
+                <span class="font-medium text-gray-900">{{ key }}</span>: {{ reason }}
               </div>
               <div v-if="revenueRun.blocked_truncated" class="mt-1 text-gray-500">
                 and {{ revenueRun.blocked_truncated }} more.
@@ -110,17 +108,18 @@
       </div>
 
       <template v-else>
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div v-for="card in cards" :key="card.label" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <div class="text-2xl font-bold" :class="card.tone">{{ card.value }}</div>
-            <div class="mt-1 text-xs font-medium uppercase tracking-wide text-gray-500">{{ card.label }}</div>
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div v-for="card in cards" :key="card.label" class="maiic-kpi min-w-0 px-4 py-3">
+            <div class="maiic-kpi-label truncate">{{ card.label }}</div>
+            <div class="truncate text-xl font-extrabold tabular-nums" :class="card.tone || 'text-gray-900'">{{ card.value }}</div>
           </div>
         </div>
 
         <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
           <div class="border-b border-gray-200 p-4">
-            <h3 class="font-semibold text-gray-900">Variance bridge — {{ period }}</h3>
-            <p class="mt-1 text-xs text-gray-500">
+            <h3 class="font-semibold text-gray-900">Variance bridge, {{ period }}</h3>
+            <details class="mt-1 text-xs text-gray-500"><summary class="cursor-pointer select-none font-semibold text-maiic-700">How the four effects are worked out</summary>
+            <p class="mt-1">
               The difference resolves into four terms that sum to the variance exactly. The <strong>base effect</strong>
               is the ledger against the interest the contract charges: the prior month-end outstanding balance
               times the annual rate times the days in the month, on the governed day count. Every row's share of it
@@ -131,6 +130,7 @@
               effect</strong> is Stage&nbsp;3 accruing on the amortised cost net of the loss allowance, which is a
               correct measurement difference rather than an error.
             </p>
+            </details>
           </div>
           <table class="min-w-full">
             <tbody>
@@ -144,7 +144,7 @@
             </tbody>
           </table>
           <p v-if="Math.abs(bridge.unexplained) < 1" class="border-t border-gray-200 px-4 py-3 text-xs text-emerald-700">
-            The four effects account for the variance in full &mdash; no unexplained residual.
+            The four effects account for the variance in full: no unexplained residual.
           </p>
           <p v-else class="border-t border-gray-200 px-4 py-3 text-xs text-amber-700">
             {{ money(bridge.unexplained) }} is not explained by any of the four effects. For at least one facility the
@@ -202,7 +202,7 @@
                 <tr v-for="r in sortedRows" :key="r.contract_id">
                   <td class="td">
                     <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
-                    <div class="text-xs text-gray-500">{{ r.customer_name || r.portfolio || '—' }}{{ r.gl_account_code ? ' · ' + r.gl_account_code + (r.gl_account_name ? ' ' + r.gl_account_name : '') : '' }}</div>
+                    <div class="text-xs text-gray-500">{{ r.customer_name || r.portfolio || '-' }}{{ r.gl_account_code ? ' · ' + r.gl_account_code + (r.gl_account_name ? ' ' + r.gl_account_name : '') : '' }}</div>
                   </td>
                   <td class="td text-xs text-gray-600">
                     <div v-if="r.expected_opening_balance !== null">
@@ -215,23 +215,23 @@
                     <div v-if="r.first_disbursement_month" class="font-medium text-amber-700">Month of first disbursement</div>
                     <div v-if="r.capitalising_moratorium_month" class="font-medium text-amber-700">Capitalising moratorium</div>
                   </td>
-                  <td class="td text-right tabular-nums">{{ r.expected_interest === null ? '—' : money(r.expected_interest) }}</td>
+                  <td class="td text-right tabular-nums">{{ r.expected_interest === null ? '-' : money(r.expected_interest) }}</td>
                   <td class="td text-right tabular-nums">{{ r.has_posting ? money(r.gl_posted) : 'nothing posted' }}</td>
                   <td class="td text-right tabular-nums" :class="toneFor(r.expected_difference)">
-                    {{ r.expected_difference === null ? '—' : money(r.expected_difference) }}
+                    {{ r.expected_difference === null ? '-' : money(r.expected_difference) }}
                   </td>
                   <td class="td">
                     <span :class="causeClass(r.cause)">{{ causeLabel(r.cause) }}</span>
                     <div class="mt-1 max-w-sm text-xs text-gray-500">{{ r.cause_detail }}</div>
                   </td>
-                  <td class="td text-right tabular-nums">{{ r.eir_accrued === null ? '—' : money(r.eir_accrued) }}</td>
+                  <td class="td text-right tabular-nums">{{ r.eir_accrued === null ? '-' : money(r.eir_accrued) }}</td>
                   <td class="td text-right tabular-nums" :class="toneFor(r.variance)">
-                    {{ r.variance === null ? '—' : money(r.variance) }}
+                    {{ r.variance === null ? '-' : money(r.variance) }}
                     <div v-if="r.variance_percent !== null" class="text-xs text-gray-500">{{ r.variance_percent }}%</div>
                   </td>
-                  <td class="td text-right tabular-nums text-gray-600">{{ r.carrying_amount_effect === null ? '—' : money(r.carrying_amount_effect) }}</td>
-                  <td class="td text-right tabular-nums text-gray-600">{{ r.rate_effect === null ? '—' : money(r.rate_effect) }}</td>
-                  <td class="td text-right tabular-nums text-gray-600">{{ r.impairment_effect === null ? '—' : money(r.impairment_effect) }}</td>
+                  <td class="td text-right tabular-nums text-gray-600">{{ r.carrying_amount_effect === null ? '-' : money(r.carrying_amount_effect) }}</td>
+                  <td class="td text-right tabular-nums text-gray-600">{{ r.rate_effect === null ? '-' : money(r.rate_effect) }}</td>
+                  <td class="td text-right tabular-nums text-gray-600">{{ r.impairment_effect === null ? '-' : money(r.impairment_effect) }}</td>
                   <td class="td"><span :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td>
                 </tr>
                 <tr v-if="!rows.length">
@@ -250,6 +250,8 @@
 import { computed, reactive, ref } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import BackToReports from '@/Pages/Reports/Partials/BackToReports.vue'
+import DownloadButton from '@/Pages/Reports/Partials/DownloadButton.vue'
 
 const props = defineProps({
   period: { type: String, default: null },
@@ -290,7 +292,7 @@ const runRevenue = (mode) => {
 }
 
 const money = (v) => {
-  if (v === null || v === undefined) return '—'
+  if (v === null || v === undefined) return '-'
   const n = Number(v)
   return (n < 0 ? '(' : '') + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (n < 0 ? ')' : '')
 }

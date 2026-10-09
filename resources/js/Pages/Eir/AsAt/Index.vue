@@ -1,9 +1,14 @@
 <template>
-  <app-layout title="EIR as at a Date" description="The EIR computation for the book, and for any loan, as at any date you name: the amortised cost, the gross carrying amount, the EIR and contractual interest to the date and the difference, which is the revenue shift (spec v4 section 6.11)">
+  <app-layout title="EIR as at a date">
+    <template #header>
+      <BackToReports tab="eir"/>
+      <h2 class="text-xl font-semibold leading-tight text-gray-800">EIR as at a date</h2>
+      <p class="mt-0.5 text-sm text-gray-500">The EIR book at any date: amortised cost, gross carrying amount, EIR and contractual interest to the date and the difference (the revenue shift).</p>
+    </template>
     <template #actions>
-      <a v-if="book" :href="route('eir-as-at.export', { date, format: 'xlsx' })" class="primary-btn text-sm">Download Excel</a>
-      <a v-if="book" :href="route('eir-as-at.export', { date, format: 'pdf' })" class="secondary-btn text-sm">Download PDF</a>
-      <a v-if="book" :href="route('eir-as-at.export', { date, format: 'csv' })" class="secondary-btn text-sm">Download CSV</a>
+      <DownloadButton format="CSV" :href="book ? route('eir-as-at.export', { date, format: 'csv' }) : ''" :disabled="!book"/>
+      <DownloadButton format="Excel" :href="book ? route('eir-as-at.export', { date, format: 'xlsx' }) : ''" :disabled="!book"/>
+      <DownloadButton format="PDF" label="Download PDF" :href="book ? route('eir-as-at.export', { date, format: 'pdf' }) : ''" :disabled="!book"/>
     </template>
 
     <div class="space-y-6">
@@ -12,9 +17,9 @@
         <label class="text-xs"><span class="maiic-flabel">One contract (optional)</span>
           <select v-model="form.contract" class="maiic-select"><option value="">The whole book</option><option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.id }} {{ c.name }}</option></select>
         </label>
-        <button type="submit" class="primary-btn text-sm">View</button>
+        <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-maiic-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-maiic-700">View</button>
         <div class="flex items-center gap-1 text-xs text-gray-500">Year-ends:
-          <button v-for="d in yearEnds" :key="d" type="button" @click="form.date = d; view()" class="secondary-btn text-xs" :disabled="lastLedgerDate && d > lastLedgerDate">{{ d }}</button>
+          <button v-for="d in yearEnds" :key="d" type="button" @click="form.date = d; view()" class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" :disabled="lastLedgerDate && d > lastLedgerDate">{{ d }}</button>
         </div>
         <span class="ml-auto text-xs text-gray-500">Last posting loaded: {{ lastLedgerDate || '-' }}. A later date is refused, never estimated.</span>
       </form>
@@ -28,12 +33,12 @@
             <p class="text-sm text-gray-500">{{ one.product_type }} · GL {{ one.gl_account_code }} · account {{ one.account }} · EIR {{ pct(one.eir.effective_annual) }} solved {{ one.eir.solved_at }}, locked {{ one.eir.locked_at }} · contractual {{ pct(one.eir.contractual_rate) }} {{ one.eir.rate_type }}</p>
           </div>
           <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-4">
-            <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Amortised cost</div><div class="maiic-kpi-value">{{ fmt(one.amortised_cost) }}</div><div class="text-xs text-gray-500">{{ one.amortised_cost_basis }}</div>
+            <div class="maiic-kpi px-4 py-3"><div class="maiic-kpi-label">Amortised cost</div><div class="maiic-kpi-value">{{ fmt(one.amortised_cost) }}</div><div class="text-xs text-gray-500">{{ one.amortised_cost_basis }}</div>
               <div v-if="one.takeon" class="mt-1 text-xs text-gray-500">Take-on loan, basis {{ one.takeon.basis }}: take-on balance {{ fmt(one.takeon.takeon_balance) }}<span v-if="one.takeon.recomputed_amortised_cost != null">, recomputed amortised cost {{ fmt(one.takeon.recomputed_amortised_cost) }} at the EIR {{ pct(one.takeon.recomputed_eir) }} from origination {{ one.takeon.origination_date }}</span></div>
             </div>
-            <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Gross carrying amount</div><div class="maiic-kpi-value">{{ fmt(one.gross_carrying_amount) }}</div><div class="text-xs text-gray-500">{{ one.gross_basis }}</div></div>
-            <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Difference, year to date</div><div class="maiic-kpi-value">{{ fmt(one.interest.difference_year_to_date) }}</div><div class="text-xs text-gray-500">EIR {{ fmt(one.interest.eir_year_to_date) }} less contractual {{ fmt(one.interest.contractual_year_to_date) }}</div></div>
-            <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Difference, cumulative</div><div class="maiic-kpi-value">{{ fmt(one.interest.difference_cumulative) }}</div><div class="text-xs text-gray-500">from {{ one.interest.cumulative_from || '-' }}</div></div>
+            <div class="maiic-kpi px-4 py-3"><div class="maiic-kpi-label">Gross carrying amount</div><div class="maiic-kpi-value">{{ fmt(one.gross_carrying_amount) }}</div><div class="text-xs text-gray-500">{{ one.gross_basis }}</div></div>
+            <div class="maiic-kpi px-4 py-3"><div class="maiic-kpi-label">Difference, year to date</div><div class="maiic-kpi-value">{{ fmt(one.interest.difference_year_to_date) }}</div><div class="text-xs text-gray-500">EIR {{ fmt(one.interest.eir_year_to_date) }} less contractual {{ fmt(one.interest.contractual_year_to_date) }}</div></div>
+            <div class="maiic-kpi px-4 py-3"><div class="maiic-kpi-label">Difference, cumulative</div><div class="maiic-kpi-value">{{ fmt(one.interest.difference_cumulative) }}</div><div class="text-xs text-gray-500">from {{ one.interest.cumulative_from || '-' }}</div></div>
           </div>
           <div class="grid grid-cols-1 gap-6 p-5 pt-0 lg:grid-cols-2">
             <div>
@@ -55,12 +60,12 @@
       </template>
 
       <template v-if="book">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Contracts with a locked EIR</div><div class="maiic-kpi-value">{{ book.total.contracts }}</div></div>
-          <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">EIR interest, year to {{ book.as_at }}</div><div class="maiic-kpi-value">{{ fmt(book.total.eir_ytd) }}</div></div>
-          <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Contractual interest, year to date</div><div class="maiic-kpi-value">{{ fmt(book.total.contractual_ytd) }}</div></div>
-          <div class="maiic-kpi" :style="'--accent:' + (book.total.difference >= 0 ? '#16a34a' : '#dc2626')"><div class="maiic-kpi-label">The revenue shift</div><div class="maiic-kpi-value">{{ fmt(book.total.difference) }}</div></div>
-        </div>
+        <KpiRow :items="[
+          { label: 'Contracts with a locked EIR', value: book.total.contracts },
+          { label: 'EIR interest, year to ' + book.as_at, value: fmt(book.total.eir_ytd) },
+          { label: 'Contractual interest, year to date', value: fmt(book.total.contractual_ytd), tone: 'amber' },
+          { label: 'The revenue shift', value: fmt(book.total.difference), tone: book.total.difference >= 0 ? 'maiic' : 'rose' },
+        ]"/>
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div class="maiic-panel" v-for="(g, key) in { 'By product': book.by_product, 'By GL': book.by_gl }" :key="key">
             <div class="border-b border-gray-200 p-4 dark:border-slate-700"><h3 class="text-base font-bold">{{ key }}</h3></div>
@@ -82,9 +87,12 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { router } from '@inertiajs/vue3'
+import BackToReports from '@/Pages/Reports/Partials/BackToReports.vue'
+import DownloadButton from '@/Pages/Reports/Partials/DownloadButton.vue'
+import KpiRow from '@/Pages/Reports/Partials/KpiRow.vue'
 
 export default {
-  components: { AppLayout },
+  components: { AppLayout, BackToReports, DownloadButton, KpiRow },
   props: { date: String, contract: String, lastLedgerDate: String, book: Object, one: Object, error: String, contracts: Array, yearEnds: Array },
   data() {
     return { form: { date: this.date, contract: this.contract || '' } }

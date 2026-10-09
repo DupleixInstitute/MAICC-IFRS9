@@ -380,7 +380,7 @@ public function eclReportPdf(Request $request)
     ]);
 
     $trend = collect($state['eclTrends'])->values()->all();
-    $currency = optional(Currency::find(optional(\App\Models\Setting::where('setting_key', 'currency')->first())->setting_value ?? 1))->code ?: 'MWK';
+    $currency = \App\Support\ReportDownload::currency();
 
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.dashboard_ecl_pdf', [
         'company' => \App\Support\ReportDownload::company(),

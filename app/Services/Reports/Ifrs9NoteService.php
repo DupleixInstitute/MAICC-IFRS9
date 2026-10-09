@@ -387,6 +387,14 @@ class Ifrs9NoteService
                 if ($n !== 0) { $d[] = "Stage {$s} loans differ by " . number_format($n); }
                 if (abs($x) > 100) { $d[] = "Stage {$s} EAD differs by " . $money($x); }
             }
+            $bookRows = array_sum(array_column($month['stages'], 'contracts')) + $month['unstaged']['contracts'];
+            if ($bookRows === 0) {
+                // A saved run with no loan book behind it: the note would show
+                // a nil allowance that is not true. Never issue it.
+                $checks[] = ['key' => 'no_book_' . $side, 'label' => self::period($period) . ': no loan book', 'level' => 'fail',
+                    'detail' => 'An ECL run is saved for ' . self::period($period) . ' but the loan book for that month is not loaded, so the movement cannot be attributed contract by contract. Load the loan book for the month, or choose another month.'];
+                continue;
+            }
             $checks[] = $d
                 ? ['key' => 'saved_' . $side, 'label' => self::period($period) . ' agrees with the saved ECL run', 'level' => 'warn',
                     'detail' => implode('; ', $d) . '. The loan book changed after the ECL run was saved. The note uses the loan book; run the ECL calculation for this month again so both agree.']

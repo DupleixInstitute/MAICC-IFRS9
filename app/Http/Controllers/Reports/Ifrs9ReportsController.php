@@ -1255,7 +1255,7 @@ class Ifrs9ReportsController extends Controller
             'controls' => [
                 'action' => 'ifrs9-reports.concentration',
                 'fields' => [
-                    ['name' => 'threshold', 'label' => 'Large-exposure threshold (MWK)', 'value' => (string) $threshold],
+                    ['name' => 'threshold', 'label' => trim('Large-exposure threshold ' . (($c = ReportDownload::currency()) ? '(' . $c . ')' : '')), 'value' => (string) $threshold],
                 ],
             ],
             'kpis' => [
@@ -1593,6 +1593,7 @@ class Ifrs9ReportsController extends Controller
             'title'        => $title,
             'subtitle'     => $subtitle,
             'company'      => $this->company(),
+            'currency'     => ReportDownload::currency(),
             'generated_at' => now()->format('d M Y H:i'),
             'generated_by' => optional(auth()->user())->name,
             'periods'      => $this->periods(),
