@@ -316,6 +316,11 @@ class ExternalCalculationsController extends Controller
      */
     public function updateLoanBook(Request $request)
     {
+        // Retired 9 October 2026: this legacy one-slope route wrote fli_adj and
+        // pd_post_fli straight onto loan_books, bypassing the governed route
+        // (approved fit, scenario set, lineage) and overwriting what it wrote.
+        // The post-FLI PD is set only by Regression (FLI Adjustments).
+        return back()->with('error', 'This legacy tool can no longer write to the loan book. The forward-looking PD is set by the approved fit on Regression (FLI Adjustments) and the approved scenario set.');
         $validated = $request->validate([
             'reporting_period' => 'required|date_format:Y-m',
             'scenario_set_id' => 'required|exists:scenario_sets,id',

@@ -46,8 +46,10 @@
    ============================================================ */
 @layer components {
     /* Card panel that wraps tables and content blocks */
+    /* overflow-x-auto (not hidden): a wide table scrolls inside the panel
+       instead of being clipped at its edge. */
     .maiic-panel {
-        @apply bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden;
+        @apply bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto;
     }
 
     /* Data table: brand header band, zebra, hover, right-aligned numerics */
