@@ -444,6 +444,33 @@ class ExpectedCreditLossController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
+                | FAIL CLOSED ON MISSING INPUTS
+                |--------------------------------------------------------------------------
+                | The UPDATE below wraps PD and LGD in IFNULL(..., 0), so a loan with
+                | exposure but no PD (Stage 1 or 2) or no LGD would silently carry
+                | zero ECL. Refuse the run instead and name the gap.
+                */
+                $exposedSql = '(IFNULL(carrying_amount, 0) + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1)) > 0';
+                $lgdMissingSql = $validated['lgd_type'] === 'both'
+                    ? '(customer_lgd IS NULL OR collection_lgd IS NULL)'
+                    : "({$lgdExpr} IS NULL)";
+                $missing = DB::table('loan_books')->whereRaw($baseWhere, $bindings)->whereRaw($exposedSql)
+                    ->whereRaw("((({$pdExpr}) IS NULL AND {$stageExpr} NOT IN ('3', 3)) OR {$lgdMissingSql} OR {$stageExpr} IS NULL)")
+                    ->limit(5)->pluck('contract_id');
+                if ($missing->isNotEmpty()) {
+                    $count = DB::table('loan_books')->whereRaw($baseWhere, $bindings)->whereRaw($exposedSql)
+                        ->whereRaw("((({$pdExpr}) IS NULL AND {$stageExpr} NOT IN ('3', 3)) OR {$lgdMissingSql} OR {$stageExpr} IS NULL)")->count();
+                    $message = "ECL not calculated for {$period}: {$count} loan(s) with exposure have no stage, PD ({$validated['pd_type']}) or LGD, for example "
+                        . $missing->implode(', ') . '. Run staging, the PD and LGD engines (and the forward-looking route for pd_post_fli) first.';
+                    if (app()->runningInConsole()) {
+                        throw new \RuntimeException($message);
+                    }
+
+                    return redirect()->route('expected-credit-loss.index')->with('error', $message);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
                 | CONCURRENCY GUARD
                 |--------------------------------------------------------------------------
                 | One MySQL named lock per (period, level, scope). Two requests for the
