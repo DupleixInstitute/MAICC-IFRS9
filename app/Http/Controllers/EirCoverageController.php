@@ -40,6 +40,13 @@ class EirCoverageController extends Controller
         }
         usort($contracts, fn ($a, $b) => $b['exposure'] <=> $a['exposure']);
 
+        // The view comes from the section tab row (?tab=); a blocker filter
+        // always opens the facilities behind it.
+        $tab = (string) $request->input('tab', '');
+        if (! in_array($tab, ['blockers', 'portfolios', 'facilities'], true)) {
+            $tab = $issue !== '' ? 'facilities' : 'blockers';
+        }
+
         return Inertia::render('Eir/Coverage', [
             'period' => $profile['period'],
             'periods' => $periods,
@@ -53,6 +60,13 @@ class EirCoverageController extends Controller
             'contracts' => array_slice(array_values($contracts), 0, self::DRILLDOWN_LIMIT),
             'contractsTotal' => count($contracts),
             'drilldownLimit' => self::DRILLDOWN_LIMIT,
+            'activeTab' => $tab,
+            // Real counts for the layout's tab chips.
+            'tabCounts' => [
+                'blockers' => count($profile['issues']),
+                'portfolios' => count($profile['portfolios']),
+                'facilities' => count($contracts),
+            ],
         ]);
     }
 }

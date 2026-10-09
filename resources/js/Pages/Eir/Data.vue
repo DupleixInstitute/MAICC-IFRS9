@@ -4,10 +4,10 @@
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-            <span>EIR &amp; Revenue Recognition</span><span>/</span><span class="font-medium text-maiic-700">EIR Data</span>
+            <span>EIR &amp; Revenue Recognition</span><span>/</span><span>EIR Data</span><span>/</span><span class="font-medium text-maiic-700">{{ currentTab.label }}</span>
           </div>
-          <h2 class="text-xl font-semibold text-gray-800">EIR Data</h2>
-          <p class="mt-1 text-sm text-gray-600">Review source records, calculated interest, and the GL reconciliation</p>
+          <h2 class="text-xl font-semibold text-gray-800">{{ currentTab.label }}</h2>
+          <p class="mt-1 text-sm text-gray-600">{{ currentTab.description }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <Link :href="route('eir-intake.index')" class="secondary-btn">EIR Data Intake</Link>
@@ -17,33 +17,13 @@
     </template>
 
     <div class="w-full space-y-5">
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div v-for="card in cards" :key="card.label" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="text-2xl font-bold text-gray-900">{{ number(card.value) }}</div>
-          <div class="mt-1 text-xs font-medium uppercase tracking-wide text-gray-500">{{ card.label }}</div>
-        </div>
-      </div>
+      <KpiRow :cards="cards" />
 
-      <div class="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div class="border-b border-gray-200 px-5 pt-4">
-          <nav class="flex gap-6 overflow-x-auto">
-            <button
-              v-for="tab in tabs"
-              :key="tab.key"
-              class="whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold"
-              :class="activeTab === tab.key ? 'border-maiic-600 text-maiic-700' : 'border-transparent text-gray-500 hover:text-gray-800'"
-              @click="openTab(tab.key)"
-            >
-              {{ tab.label }}
-              <span class="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs">{{ number(tab.count) }}</span>
-            </button>
-          </nav>
-        </div>
-
+      <div class="maiic-panel">
         <div class="flex flex-col gap-3 border-b border-gray-200 p-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 class="font-semibold text-gray-900">{{ currentTab.label }}</h3>
-            <p class="text-xs text-gray-500">{{ currentTab.description }}</p>
+            <h3 class="font-semibold text-gray-900">{{ currentTab.listTitle }}</h3>
+            <p class="text-xs text-gray-500">{{ number(currentTab.count) }} record(s){{ search ? ' matching the search' : '' }}</p>
           </div>
           <form class="flex w-full flex-wrap gap-2 md:w-auto" @submit.prevent="applySearch">
             <select v-if="activeTab === 'schedules'" v-model="comparisonStatus" class="form-input md:w-56" @change="applySearch">
@@ -74,7 +54,7 @@
             </div>
           </div>
           <p class="mt-3 text-xs text-gray-600">
-            Variance is calculated EIR interest minus GL interest. Positive means additional income may be required; negative means the GL exceeds the EIR calculation. Tolerance is ±{{ reconciliation.tolerance_percent }}% of the GL amount, the band approved in the Governance Centre for each month.
+            Variance is calculated EIR interest minus GL interest. Positive means additional income may be required, negative means the GL exceeds the EIR calculation. Tolerance is ±{{ reconciliation.tolerance_percent }}% of the GL amount, the band approved in the Governance Centre for each month.
           </p>
           <p v-if="reconciliation.ungoverned_rows" class="mt-1 text-xs font-medium text-amber-700">
             {{ number(reconciliation.ungoverned_rows) }} posting(s) fall in a month with no approved band, so they are
@@ -91,7 +71,7 @@
                   <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
                   <div class="text-xs text-gray-500">{{ r.customer_name || 'Customer name unavailable' }}</div>
                 </td>
-                <td class="td"><div>{{ r.portfolio || '—' }}</div><div class="text-xs text-gray-500">{{ r.product_type || r.instrument_type }}</div></td>
+                <td class="td"><div>{{ r.portfolio || '-' }}</div><div class="text-xs text-gray-500">{{ r.product_type || r.instrument_type }}</div></td>
                 <td class="td"><div>{{ date(r.origination_date) }} → {{ date(r.maturity_date) }}</div><div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500"><span>{{ frequency(r.payments_per_year) }}</span><span class="inline-flex rounded-full bg-purple-100 px-2 py-0.5 font-semibold text-purple-800">{{ percent(r.contractual_rate) }}</span><span v-if="r.spread_over_prime !== null && r.spread_over_prime !== undefined" class="inline-flex rounded-full px-2 py-0.5 font-semibold" :class="Number(r.spread_drift_flag) ? 'bg-red-100 text-red-800' : 'bg-sky-100 text-sky-800'" :title="Number(r.spread_drift_flag) ? 'The spread moved across the loan books by more than the tolerance: held for review' : `Spread over the prime rate, ${String(r.spread_source || '').toLowerCase()} from the loan books`">PLR + {{ Number(r.spread_over_prime).toFixed(2) }}<template v-if="Number(r.spread_drift_flag)"> · drifts</template></span></div></td>
                 <td class="td"><div>{{ r.tenor_months ? `${r.tenor_months} months` : 'Tenor pending' }}</div><div class="mt-1"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" :class="repaymentTypeClass(r)">{{ repaymentType(r) }}</span></div><div class="mt-1 text-xs text-gray-500">Moratorium: {{ r.moratorium_months ? `${r.moratorium_months} months` : 'None' }}</div></td>
                 <td class="td"><div>{{ money(r.drawn_amount) }} {{ r.currency || '' }}</div><div class="text-xs text-gray-500">Approved {{ money(r.approved_amount) }}</div></td>
@@ -103,13 +83,13 @@
           </table>
 
           <table v-else-if="activeTab === 'cashflows'" class="min-w-full">
-            <thead><tr><th class="th">Contract</th><th class="th">Version</th><th class="th">Due date</th><th class="th">Principal</th><th class="th">Interest</th><th class="th">Fees</th><th class="th">Total due</th><th class="th">Source</th></tr></thead>
+            <thead><tr><th class="th">Contract</th><th class="th">Version</th><th class="th">Due date</th><th class="th text-right">Principal</th><th class="th text-right">Interest</th><th class="th text-right">Fees</th><th class="th text-right">Total due</th><th class="th">Source</th></tr></thead>
             <tbody>
               <tr v-for="r in data.data" :key="r.id">
                 <td class="td">
                   <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
                   <div class="text-xs font-normal text-gray-500">{{ r.customer_name || 'Customer name unavailable' }}</div>
-                </td><td class="td">v{{ r.schedule_version }}</td><td class="td">{{ date(r.due_date) }}</td><td class="td">{{ money(r.principal_due) }}</td><td class="td">{{ money(r.interest_due) }}</td><td class="td">{{ money(r.fee_due) }}</td><td class="td font-semibold">{{ money(r.total_due) }}</td><td class="td"><div>{{ r.schedule_source || r.source_system || '—' }}</div><div class="text-xs text-gray-500">{{ r.source_reference }}</div></td>
+                </td><td class="td">v{{ r.schedule_version }}</td><td class="td">{{ date(r.due_date) }}</td><td class="td text-right tabular-nums">{{ money(r.principal_due) }}</td><td class="td text-right tabular-nums">{{ money(r.interest_due) }}</td><td class="td text-right tabular-nums">{{ money(r.fee_due) }}</td><td class="td text-right tabular-nums font-semibold">{{ money(r.total_due) }}</td><td class="td"><div>{{ r.schedule_source || r.source_system || '-' }}</div><div class="text-xs text-gray-500">{{ r.source_reference }}</div></td>
               </tr>
               <tr v-if="!data.data.length"><td colspan="8" class="p-10 text-center text-sm text-gray-500">No records found. Use EIR Data Intake to load data.</td></tr>
             </tbody>
@@ -126,9 +106,9 @@
                 <td class="td"><div>{{ frequency(r.payments_per_year) }} · {{ percent(r.contractual_rate) }}</div><div class="text-xs text-gray-500">{{ date(r.origination_date) }} → {{ date(r.maturity_date) }}</div><div v-if="!r.generation_ready" class="mt-1 text-xs text-red-700">{{ (r.generation_issues || []).join('; ') }}</div></td>
                 <td class="td">{{ r.schedules_count }} rows</td>
                 <td class="td">{{ r.remaining_rows }} rows<div class="text-xs text-gray-500">from {{ date(r.comparison?.cutoff_date) }}</div></td>
-                <td class="td"><span :class="comparisonClass(r.comparison?.status)">{{ label(r.comparison?.status) }}</span><div v-if="r.comparison?.cash_variance !== null && r.comparison?.cash_variance !== undefined" class="mt-1 text-xs">Cash Δ {{ signedMoney(r.comparison.cash_variance) }} on {{ r.comparison.compared_rows }} instalment(s)</div><div v-if="r.comparison?.recalculated_rows" class="text-xs text-gray-500">{{ r.comparison.recalculated_rows }} after E-Banker recalculated from {{ date(r.comparison.recalculated_from) }}</div></td>
+                <td class="td"><span :class="comparisonClass(r.comparison?.status)">{{ label(r.comparison?.status) }}</span><div v-if="r.comparison?.cash_variance !== null && r.comparison?.cash_variance !== undefined" class="mt-1 text-xs">Cash variance {{ signedMoney(r.comparison.cash_variance) }} on {{ r.comparison.compared_rows }} instalment(s)</div><div v-if="r.comparison?.recalculated_rows" class="text-xs text-gray-500">{{ r.comparison.recalculated_rows }} after E-Banker recalculated from {{ date(r.comparison.recalculated_from) }}</div></td>
                 <td class="td"><span :class="approvalClass(r.schedule_approval_status)">{{ label(r.schedule_approval_status) }}</span></td>
-                <td class="td"><div class="flex flex-col gap-2"><Link :href="route('eir-schedules.show', { contractEir: r.id })" class="secondary-btn">View schedule</Link><button v-if="r.schedule_approval_status !== 'APPROVED'" class="secondary-btn" :disabled="!r.generation_ready" @click="post('eir-schedules.generate', r.id)">Generate draft</button><button v-if="r.schedule_approval_status === 'DRAFT'" class="primary-btn" @click="approve(r)">Approve v1</button></div></td>
+                <td class="td"><div class="flex items-center gap-1.5"><Link :href="route('eir-schedules.show', { contractEir: r.id })" class="maiic-action maiic-action-view" title="View schedule"><font-awesome-icon icon="eye" /></Link><button v-if="r.schedule_approval_status !== 'APPROVED'" type="button" class="maiic-action maiic-action-neutral disabled:cursor-not-allowed disabled:opacity-40" :disabled="!r.generation_ready" :title="r.generation_ready ? 'Generate a draft schedule' : 'Not ready to generate: see the issues in the terms column'" @click="post('eir-schedules.generate', r.id)"><font-awesome-icon icon="cogs" /></button><button v-if="r.schedule_approval_status === 'DRAFT'" type="button" class="maiic-action maiic-action-edit" title="Approve version 1" @click="approve(r)"><font-awesome-icon icon="check" /></button></div></td>
               </tr>
               <tr v-if="!data.data.length"><td colspan="7" class="p-10 text-center text-sm text-gray-500">No contracts found.</td></tr>
             </tbody>
@@ -136,17 +116,17 @@
 
           <table v-else class="min-w-full">
             <thead>
-              <tr><th class="th">Contract</th><th class="th">Period</th><th class="th">GL account</th><th class="th">GL interest</th><th class="th">EIR interest</th><th class="th">EIR − GL</th><th class="th">Variance %</th><th class="th">Status</th><th class="th">Source</th></tr>
+              <tr><th class="th">Contract</th><th class="th">Period</th><th class="th">GL account</th><th class="th text-right">GL interest</th><th class="th text-right">EIR interest</th><th class="th text-right">EIR minus GL</th><th class="th text-right">Variance %</th><th class="th">Status</th><th class="th">Source</th></tr>
             </thead>
             <tbody>
               <tr v-for="r in data.data" :key="r.id">
                 <td class="td font-semibold">{{ r.contract_id }}</td>
                 <td class="td">{{ date(r.reporting_period) }}</td>
-                <td class="td">{{ r.gl_account_code || '—' }}<span v-if="r.gl_account_name" class="block text-xs text-gray-500">{{ r.gl_account_name }}</span></td>
-                <td class="td font-semibold">{{ money(r.interest_income_posted) }}</td>
-                <td class="td font-semibold">{{ nullableMoney(r.eir_interest) }}</td>
-                <td class="td font-semibold" :class="varianceTextClass(r.variance)">{{ signedMoney(r.variance) }}</td>
-                <td class="td">{{ variancePercent(r) }}</td>
+                <td class="td">{{ r.gl_account_code || '-' }}<span v-if="r.gl_account_name" class="block text-xs text-gray-500">{{ r.gl_account_name }}</span></td>
+                <td class="td text-right tabular-nums font-semibold">{{ money(r.interest_income_posted) }}</td>
+                <td class="td text-right tabular-nums font-semibold">{{ nullableMoney(r.eir_interest) }}</td>
+                <td class="td text-right tabular-nums font-semibold" :class="varianceTextClass(r.variance)">{{ signedMoney(r.variance) }}</td>
+                <td class="td text-right tabular-nums">{{ variancePercent(r) }}</td>
                 <td class="td"><span :class="reconciliationClass(r.reconciliation_status)">{{ reconciliationLabel(r.reconciliation_status) }}</span></td>
                 <td class="td"><div>{{ r.source_system }}</div><div class="text-xs text-gray-500">{{ r.source_reference }}</div></td>
               </tr>
@@ -155,8 +135,9 @@
           </table>
         </div>
 
-        <div class="flex flex-wrap gap-2 border-t p-4">
-          <button v-for="link in data.links" :key="link.label" v-html="link.label" :disabled="!link.url" @click="go(link.url)" class="rounded border px-3 py-1 text-sm disabled:opacity-40" :class="link.active ? 'bg-maiic-600 text-white' : 'bg-white text-gray-700'"></button>
+        <div v-if="data.links && data.links.length > 3" class="flex flex-wrap items-center justify-between gap-2 border-t px-4 pb-4">
+          <span class="mt-4 text-xs text-gray-500">Showing {{ data.from || 0 }} to {{ data.to || 0 }} of {{ number(data.total) }}</span>
+          <Pagination :links="data.links" />
         </div>
       </div>
     </div>
@@ -210,16 +191,17 @@
       </div>
     </div>
 
-    <teleport to="head"><title>EIR Data</title></teleport>
+    <teleport to="head"><title>{{ currentTab.label }}</title></teleport>
   </app-layout>
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
+import KpiRow from '@/Components/Maiic/KpiRow.vue'
 
 export default {
-  components: { AppLayout, Link },
+  components: { AppLayout, Link, KpiRow },
   props: { activeTab: String, data: Object, filters: Object, summary: Object },
   data() {
     return {
@@ -235,14 +217,14 @@ export default {
     comparisonCounts() { return this.summary.schedule_comparisons || {} },
     tabs() {
       return [
-        { key: 'contracts', label: 'Contract Master', count: this.summary.contracts, description: 'Facility terms, source conventions, fee and schedule coverage.' },
-        { key: 'cashflows', label: 'Cash Flows', count: this.summary.cashflows, description: 'Contractual principal, interest and fee cash flows by due date.' },
-        { key: 'schedules', label: 'Schedule Review', count: this.summary.contracts, description: 'Generate original schedules from Extract A, compare to Extract B remaining rows, then approve.' },
-        { key: 'gl', label: 'GL Reconciliation', count: this.summary.gl_postings, description: 'Compare calculated effective-interest revenue with interest posted to the general ledger.' },
+        { key: 'contracts', label: 'Contract Master', listTitle: 'Contracts', count: this.summary.contracts, description: 'Facility terms, source conventions, fee and schedule coverage for every contract' },
+        { key: 'cashflows', label: 'Cash Flows', listTitle: 'Contractual cash flows', count: this.summary.cashflows, description: 'Contractual principal, interest and fee cash flows by due date' },
+        { key: 'schedules', label: 'Schedule Review', listTitle: 'Schedules by contract', count: this.summary.contracts, description: 'Generate the original schedule from Extract A, compare it with E-Banker\'s remaining rows (Extract B), then approve version 1' },
+        { key: 'gl', label: 'GL Reconciliation', listTitle: 'GL interest postings', count: this.summary.gl_postings, description: 'Compare calculated effective-interest revenue with interest posted to the general ledger' },
       ]
     },
     currentTab() {
-      return this.tabs.find(tab => tab.key === this.activeTab)
+      return this.tabs.find(tab => tab.key === this.activeTab) || this.tabs[0]
     },
     reviewNoteRequired() {
       return this.approvalModal.row?.comparison?.status !== 'WITHIN_TOLERANCE'
@@ -252,7 +234,7 @@ export default {
         { label: 'Contracts', value: this.summary.contracts },
         { label: 'Cash-flow rows', value: this.summary.cashflows },
         { label: 'GL postings', value: this.summary.gl_postings },
-        { label: 'Locked EIRs', value: this.summary.locked_eirs },
+        { label: 'Locked EIRs', value: this.summary.locked_eirs, accent: '#c69b2c' },
       ]
     },
     reconciliationCards() {
@@ -262,7 +244,7 @@ export default {
         { label: 'Exceptions', value: this.reconciliation.missing_rows },
         { label: 'Matched GL interest', value: this.reconciliation.matched_gl_total, money: true },
         { label: 'Calculated EIR interest', value: this.reconciliation.eir_total, money: true },
-        { label: 'Net EIR − GL', value: this.reconciliation.net_variance, money: true },
+        { label: 'Net EIR minus GL', value: this.reconciliation.net_variance, money: true },
       ]
     },
   },
@@ -274,22 +256,22 @@ export default {
       return Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     },
     nullableMoney(value) {
-      return value === null || value === undefined ? '—' : this.money(value)
+      return value === null || value === undefined ? '-' : this.money(value)
     },
     signedMoney(value) {
-      if (value === null || value === undefined) return '—'
+      if (value === null || value === undefined) return '-'
       const number = Number(value)
       return `${number > 0 ? '+' : ''}${this.money(number)}`
     },
     percent(value) {
-      return value === null || value === undefined ? '—' : `${(Number(value) * 100).toFixed(3)}%`
+      return value === null || value === undefined ? '-' : `${(Number(value) * 100).toFixed(3)}%`
     },
     variancePercent(row) {
-      if (row.variance === null || row.variance === undefined || !Number(row.interest_income_posted)) return '—'
+      if (row.variance === null || row.variance === undefined || !Number(row.interest_income_posted)) return '-'
       return `${(Number(row.variance) / Math.abs(Number(row.interest_income_posted)) * 100).toFixed(2)}%`
     },
     date(value) {
-      return value ? String(value).slice(0, 10) : '—'
+      return value ? String(value).slice(0, 10) : '-'
     },
     frequency(value) {
       return ({ 1: 'Annual', 2: 'Semi-annual', 4: 'Quarterly', 6: 'Bi-monthly', 12: 'Monthly' })[value] || 'Frequency pending'
@@ -371,5 +353,5 @@ export default {
 </script>
 
 <style scoped>
-.form-input{@apply block rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-maiic-500 focus:outline-none focus:ring-2 focus:ring-maiic-500}.primary-btn{@apply inline-flex items-center rounded-md bg-maiic-600 px-4 py-2 text-sm font-semibold text-white hover:bg-maiic-700}.secondary-btn{@apply inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50}.th{@apply whitespace-nowrap bg-maiic-700 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-white}.td{@apply border-t border-gray-100 px-4 py-3 align-top text-sm text-gray-700}tbody tr:nth-child(even){@apply bg-gray-50}.badge-green{@apply inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800}.badge-blue{@apply inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800}.badge-yellow{@apply inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800}.badge-red{@apply inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800}
+.form-input{@apply block rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-maiic-500 focus:outline-none focus:ring-2 focus:ring-maiic-500}
 </style>

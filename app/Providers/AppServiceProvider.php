@@ -90,9 +90,17 @@ class AppServiceProvider extends ServiceProvider
 
                 public function toArray()
                 {
+                    // from/to/total/current_page/last_page/per_page let a page
+                    // print "Showing 16 to 30 of 144" from the real paginator.
                     return [
                         'data' => $this->items->toArray(),
                         'links' => $this->links(),
+                        'current_page' => $this->currentPage(),
+                        'last_page' => $this->lastPage(),
+                        'per_page' => $this->perPage(),
+                        'from' => $this->firstItem(),
+                        'to' => $this->lastItem(),
+                        'total' => $this->total(),
                     ];
                 }
 

@@ -2,22 +2,31 @@
   <app-layout>
     <template #header>
       <div>
+        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+          <span>EIR &amp; Revenue Recognition</span><span>/</span><span class="font-medium text-maiic-700">Governance Centre</span>
+        </div>
         <h2 class="font-semibold text-xl text-gray-800">Governance Centre</h2>
-        <p class="mt-1 text-sm text-gray-600">Every calculation convention the EIR engine uses, as a setting with options, an effective date, a proposer and an approver</p>
+        <p class="mt-1 text-sm text-gray-600">Every calculation setting the engines use, with its options, effective date, proposer and approver</p>
       </div>
     </template>
 
     <div class="w-full space-y-6">
-      <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 text-sm text-maiic-900">
-        A change takes effect from its effective date forward only, and only once a second person approves it. A month already run keeps the settings it was run under. Nothing here is written in code: if a setting has no approved value, the calculation that needs it stops and says so.
+      <div v-if="errorMessage && !showModal" class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <font-awesome-icon icon="exclamation-circle" class="mt-0.5" />
+        <div><div class="font-semibold">The change was not saved</div><div>{{ errorMessage }}</div></div>
       </div>
-      <div v-if="flashSuccess" class="rounded-md bg-maiic-100 border border-maiic-200 px-4 py-3 text-sm text-maiic-900">{{ flashSuccess }}</div>
-      <div v-if="errorMessage && !showModal" class="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{{ errorMessage }}</div>
 
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="p-6 border-b">
-          <h3 class="text-lg font-semibold">Settings in force on {{ asOf }}</h3>
-          <p class="text-sm text-gray-500">{{ settings.length }} settings; {{ pendingCount }} awaiting approval</p>
+      <div>
+        <KpiRow :cards="cards" />
+        <p class="mt-2 text-xs text-gray-500">A change applies from its effective date forward, once a second person approves it. A month already run keeps its settings; a setting with no approved value stops the calculation that needs it.</p>
+      </div>
+
+      <div>
+      <PageTabs v-model="area" :tabs="areaTabs" flush />
+      <div class="bg-white rounded-b-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-5 py-4 border-b">
+          <h3 class="font-semibold text-gray-900">{{ currentArea.label }}<span class="font-normal text-gray-500">, in force on {{ asOf }}</span></h3>
+          <p class="text-xs text-gray-500">{{ currentArea.description }}</p>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
@@ -25,12 +34,12 @@
               <tr><th v-for="h in ['Setting', 'Value in force', 'Options', 'Proposed and upcoming', 'Actions']" :key="h" class="th">{{ h }}</th></tr>
             </thead>
             <tbody class="divide-y">
-              <template v-for="s in settings" :key="s.key">
+              <template v-for="s in visibleSettings" :key="s.key">
                 <tr class="hover:bg-maiic-50">
                   <td class="td max-w-md">
                     <div class="font-medium text-gray-900">{{ s.label }}</div>
                     <div class="text-[11px] font-mono text-gray-400">{{ s.key }}</div>
-                    <p class="mt-1 text-xs text-gray-500">{{ s.description }}</p>
+                    <p class="mt-1 text-xs text-gray-500">{{ plain(s.description) }}</p>
                   </td>
                   <td class="td">
                     <template v-if="s.in_force">
@@ -47,7 +56,7 @@
                         <span class="ml-1 maiic-badge" :class="cardFor(o).available ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ cardFor(o).available ? 'preconditions met' : 'not yet available' }}</span>
                         <button type="button" @click="openCard = openCard === o ? null : o" class="ml-1 text-xs text-sky-700 underline dark:text-sky-300">{{ openCard === o ? 'hide the card' : 'method card' }}</button>
                         <div v-if="openCard === o" class="mt-1 mb-2 rounded border border-gray-200 bg-gray-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/60">
-                          <p class="text-gray-700 dark:text-slate-300">{{ cardFor(o).what }}</p>
+                          <p class="text-gray-700 dark:text-slate-300">{{ plain(cardFor(o).what) }}</p>
                           <p class="mt-1 font-mono">{{ cardFor(o).formula }}</p>
                           <ul class="mt-1 text-gray-500"><li v-for="(v, k) in cardFor(o).symbols" :key="k">{{ k }}: {{ v }}</li></ul>
                           <ul class="mt-1 list-disc pl-4"><li v-for="(i, n) in cardFor(o).implies" :key="n">{{ i }}</li></ul>
@@ -68,15 +77,17 @@
                         v-if="r.state === 'PROPOSED'"
                         @click="approve(r)"
                         :disabled="!canApprove(r) || processing"
-                        class="action mt-1 disabled:text-gray-400 disabled:no-underline"
+                        class="mt-1 inline-flex items-center gap-1 rounded-md bg-maiic-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-maiic-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                         :title="canApprove(r) ? 'Approve this change' : 'The person who proposed a change cannot approve it'"
                       >Approve</button>
                     </div>
                     <span v-if="!pendingRows(s).length" class="text-gray-400">None</span>
                   </td>
                   <td class="td whitespace-nowrap">
-                    <button @click="openPropose(s)" class="action">Propose change</button>
-                    <button @click="toggleHistory(s.key)" class="action">{{ expanded === s.key ? 'Hide history' : 'History' }}</button>
+                    <div class="flex items-center gap-1.5">
+                      <button type="button" @click="openPropose(s)" class="maiic-action maiic-action-edit" title="Propose a change"><font-awesome-icon icon="pen" /></button>
+                      <button type="button" @click="toggleHistory(s.key)" class="maiic-action" :class="expanded === s.key ? 'maiic-action-view' : 'maiic-action-neutral'" :title="expanded === s.key ? 'Hide history' : 'Show every value and the audit copies'"><font-awesome-icon icon="history" /></button>
+                    </div>
                   </td>
                 </tr>
                 <tr v-if="expanded === s.key">
@@ -116,10 +127,11 @@
                   </td>
                 </tr>
               </template>
-              <tr v-if="!settings.length"><td colspan="5" class="p-8 text-center text-gray-500">No governance settings are defined.</td></tr>
+              <tr v-if="!visibleSettings.length"><td colspan="5" class="p-10 text-center text-sm text-gray-500">{{ area === 'pending' ? 'Nothing is awaiting approval.' : 'No settings in this area.' }}</td></tr>
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
 
@@ -127,7 +139,7 @@
       <template #title>
         <div>
           <div class="font-semibold text-gray-900">Propose a change: {{ proposing?.label }}</div>
-          <p class="mt-1 text-sm font-normal text-gray-500">{{ proposing?.description }}</p>
+          <p class="mt-1 text-sm font-normal text-gray-500">{{ plain(proposing?.description) }}</p>
         </div>
       </template>
       <template #content>
@@ -162,11 +174,32 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetDialogModal from '@/Jetstream/DialogModal.vue'
+import KpiRow from '@/Components/Maiic/KpiRow.vue'
+import PageTabs from '@/Components/Maiic/PageTabs.vue'
+
+// Setting areas for the tabs (display grouping only; the engine reads keys).
+const AREAS = [
+  { key: 'interest', label: 'Interest & rates', description: 'How rates, resets, moratoria and day counts feed the effective interest rate.',
+    keys: ['plr_mid_period', 'reset_trigger', 'moratorium_capitalisation', 'rate_source_precedence', 'margin_basis', 'stage3_interest_basis', 'day_count', 'period_rate_basis', 'rate_change_classification', 'modification_threshold', 'partly_drawn_interest_basis'] },
+  { key: 'cashflows', label: 'Cash flows', description: 'Which records and schedules count as the contractual and expected cash flows.',
+    keys: ['cash_source', 'manual_policy_handling', 'counter_reset_handling', 'contractual_record', 'expected_cashflow_basis', 'schedule_approval_control'] },
+  { key: 'data', label: 'Data sources', description: 'Where the loan book, history and macro data come from, and which source wins.',
+    keys: ['history_before_dec_2025', 'ebanker_feed_route', 'loan_book_build_method', 'takeon_history_basis', 'macro_source_precedence'] },
+  { key: 'accounting', label: 'Accounting & controls', description: 'Reconciliation tolerance, journals, exports, special balances and maker-checker.',
+    keys: ['recon_tolerance', 'trueup_gl_account', 'auditor_export_format', 'fee_reclass_journal', 'historic_materiality_assessment', 'keyman_insurance_treatment', 'nascomex_preference_shares', 'maker_checker_admin_override'] },
+  { key: 'staging', label: 'Staging', description: 'Days past due, Stage 3 triggers, rebuttals and cure periods.',
+    keys: ['staging_rebuttal', 'dpd_basis', 'stage3_missed_instalments', 'stage_cure_months'] },
+  { key: 'fli', label: 'Forward-looking', description: 'How the forward-looking adjustment is built and tested, and how scenarios are weighted.',
+    keys: ['fli_adjustment_route', 'fli_transmission_method', 'fli_asset_correlation', 'fli_expected_sign_test', 'fli_r2_cutoff', 'fli_min_observations', 'fli_alpha', 'fli_normality_limits', 'scenario_weighting_method', 'scenario_minimum_count', 'scenario_weight_bounds', 'scenario_calibration_note', 'overlay_requires_approved_set'] },
+  { key: 'megafarm', label: 'Mega Farm', description: 'Scope and probability of default for the Mega Farm programme.',
+    keys: ['mega_farms_scope', 'megafarm_pd_method', 'megafarm_scalar_ceiling'] },
+]
+const KNOWN = AREAS.flatMap(a => a.keys)
 
 const blank = (asOf) => ({ key: '', value: '', effective_from: asOf, reason: '' })
 
 export default {
-  components: { AppLayout, JetDialogModal },
+  components: { AppLayout, JetDialogModal, KpiRow, PageTabs },
   props: {
     settings: Array,
     asOf: String,
@@ -177,7 +210,7 @@ export default {
   },
   data() {
     return {
-      openCard: null, showModal: false, proposing: null, processing: false, expanded: null, form: blank(this.asOf) }
+      area: 'interest', openCard: null, showModal: false, proposing: null, processing: false, expanded: null, form: blank(this.asOf) }
   },
   computed: {
     flashSuccess() {
@@ -186,11 +219,48 @@ export default {
     errorMessage() {
       return this.errors.governance || Object.values(this.errors)[0] || null
     },
+    areas() {
+      const list = AREAS.map(a => ({ ...a, settings: this.settings.filter(s => a.keys.includes(s.key)) }))
+      const other = this.settings.filter(s => !KNOWN.includes(s.key))
+      if (other.length) list.push({ key: 'other', label: 'Other', description: 'Settings not yet placed in an area.', settings: other })
+      list.push({ key: 'pending', label: 'Awaiting approval', description: 'Every setting with a proposed change that a second person must approve.',
+        settings: this.settings.filter(s => s.rows.some(r => r.state === 'PROPOSED')) })
+      return list
+    },
+    areaTabs() {
+      return this.areas.map(a => ({ key: a.key, label: a.label, count: a.settings.length }))
+    },
+    currentArea() {
+      return this.areas.find(a => a.key === this.area) || this.areas[0]
+    },
+    visibleSettings() {
+      return this.currentArea.settings
+    },
+    cards() {
+      const noValue = this.settings.filter(s => !s.in_force).length
+      const upcoming = this.settings.reduce((n, s) => n + s.rows.filter(r => r.state === 'UPCOMING').length, 0)
+      return [
+        { label: 'Settings', value: this.settings.length, sub: 'in the catalogue' },
+        { label: 'In force', value: this.settings.length - noValue, sub: 'approved value today', accent: '#15803d' },
+        { label: 'Awaiting approval', value: this.pendingCount, sub: 'proposed changes', accent: this.pendingCount ? '#d97706' : null },
+        { label: 'Upcoming', value: upcoming, sub: 'approved, from a later date', accent: '#0284c7' },
+        { label: 'No approved value', value: noValue, sub: 'calculations would stop', accent: noValue ? '#dc2626' : null, valueClass: noValue ? 'text-red-700' : '' },
+      ]
+    },
     pendingCount() {
       return this.settings.reduce((n, s) => n + s.rows.filter(r => r.state === 'PROPOSED').length, 0)
     },
   },
   methods: {
+    // Specification references are for the build team, not the screen.
+    plain(text) {
+      return String(text || '')
+        .replace(/\s*\((?:spec v\d+ section [\d.]+[^)]*|O\d+|decision D\d+)\)/g, '')
+        .replace(/\s*Agreed as decision D\d+\./g, '')
+        .replace(/\s*Open choice O\d+[^.]*\./g, '')
+        .replace(/\s*Decided ([^(]*?) \(O\d+\):/g, ' Decided $1:')
+        .trim()
+    },
     cardFor(option) { return this.methodCards.find(c => c.key === option) || null },
     pendingRows(s) {
       return s.rows.filter(r => r.state === 'PROPOSED' || r.state === 'UPCOMING')
@@ -244,18 +314,7 @@ export default {
 <style scoped>
 .field{@apply block text-sm font-medium text-gray-700}
 .form-input{@apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-maiic-500}
-.primary-btn{@apply inline-flex px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-maiic-600 to-maiic-600 disabled:opacity-50}
-.secondary-btn{@apply inline-flex px-4 py-2 rounded-md text-sm font-medium bg-white border border-gray-300 text-gray-700}
-.th{@apply px-4 py-3 bg-maiic-700 text-left text-[11px] font-bold text-white uppercase tracking-wider whitespace-nowrap}
-.td{@apply px-4 py-2.5 align-top border-t border-gray-100}
 .sub-th{@apply px-2 py-1 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap}
 .sub-td{@apply px-2 py-1 align-top border-t border-gray-200}
-tbody tr:nth-child(even){@apply bg-gray-50}
-tbody tr:hover{@apply bg-maiic-50/60}
-.badge-green{@apply inline-flex px-2 py-0.5 rounded-full text-xs bg-maiic-100 text-maiic-800}
-.badge-blue{@apply inline-flex px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800}
-.badge-yellow{@apply inline-flex px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800}
-.badge-red{@apply inline-flex px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800}
-.badge-gray{@apply inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700}
 .action{@apply mr-3 text-sm text-maiic-700 hover:underline}
 </style>

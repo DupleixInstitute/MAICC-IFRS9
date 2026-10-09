@@ -25,7 +25,7 @@
             <td class="td">{{ i+1 }}</td>
             <td class="td whitespace-nowrap">{{ date(r.due_date) }}</td>
             <td class="td text-right">{{ money(r.opening) }}</td>
-            <td class="td text-right" :class="r.capitalised>0.5?'text-amber-700':'text-gray-400'">{{ r.capitalised===null ? '—' : money(r.capitalised) }}</td>
+            <td class="td text-right" :class="r.capitalised>0.5?'text-amber-700':'text-gray-400'">{{ r.capitalised===null ? '-' : money(r.capitalised) }}</td>
             <td class="td text-right">{{ money(r.principal_due) }}</td>
             <td class="td text-right">{{ money(r.interest_due) }}</td>
             <td class="td text-right">{{ money(r.fee_due) }}</td>
@@ -97,8 +97,8 @@ export default {
     },
   },
   methods: {
-    money(v){ return v===null||v===undefined?'—':Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) },
-    date(v){ return v?String(v).slice(0,10):'—' },
+    money(v){ return v===null||v===undefined?'-':Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) },
+    date(v){ return v?String(v).slice(0,10):'-' },
   },
 }
 </script>
