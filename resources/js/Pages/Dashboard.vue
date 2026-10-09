@@ -121,6 +121,93 @@
                 </div>
             </div>
 
+            <!-- ============================ ECL BUILD-UP AND WHERE IT SITS ============================ -->
+            <div v-if="eclBuildUp" class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div class="maiic-panel lg:col-span-1">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-slate-100">ECL build-up</h3>
+                            <p class="text-xs text-gray-400">From the PD before FLI to the booked ECL, {{ periodLabel(selectedPeriod) }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span></p>
+                        </div>
+                        <span :class="['maiic-badge', eclBuildUp.ties_to_runs ? 'maiic-badge-green' : 'maiic-badge-gold']"
+                              :title="'Saved ECL runs: ' + fullMoney(eclBuildUp.runs_total)">
+                            {{ eclBuildUp.ties_to_runs ? 'Ties to the total ECL' : 'Differs from the saved runs' }}
+                        </span>
+                    </div>
+                    <div class="space-y-2.5 p-4">
+                        <div v-for="step in buildSteps" :key="step.label">
+                            <div class="flex items-baseline justify-between gap-3 text-sm">
+                                <span :class="step.total ? 'font-bold text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-300'">{{ step.label }}</span>
+                                <span :class="['num', step.total ? 'font-bold text-gray-900 dark:text-slate-100' : 'font-semibold text-gray-800 dark:text-slate-200']">
+                                    {{ step.sign }}{{ formatAmount(step.value) }}
+                                    <span v-if="step.pct !== null" class="ml-1 text-xs font-normal text-gray-400" title="Against the ECL before FLI">({{ step.pct }})</span>
+                                </span>
+                            </div>
+                            <div class="relative mt-1 h-2.5 rounded bg-gray-100 dark:bg-slate-700">
+                                <div class="absolute inset-y-0 rounded" :class="step.bar" :style="{ left: step.left + '%', width: Math.max(step.width, step.value ? 0.6 : 0) + '%' }"></div>
+                            </div>
+                            <p v-if="step.note" class="mt-0.5 text-[11px] text-gray-400">{{ step.note }}</p>
+                        </div>
+                        <p v-if="!eclBuildUp.available" class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            <svg class="mt-0.5 h-3.5 w-3.5 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+                            <span>The split before and after FLI is not shown: {{ eclBuildUp.reason }}</span>
+                        </p>
+                        <p v-else-if="eclBuildUp.basis === 'pre_fli'" class="text-xs text-amber-700">{{ eclBuildUp.reason }}</p>
+                        <p v-if="ranUnder" class="border-t border-gray-100 pt-2 text-[11px] text-gray-500 dark:border-slate-700">Ran under {{ ranUnder }}</p>
+                    </div>
+                </div>
+
+                <div class="maiic-panel lg:col-span-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-slate-100">Where the ECL sits</h3>
+                            <p class="text-xs text-gray-400">{{ breakdownCaption }}</p>
+                        </div>
+                        <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                            <button v-for="o in breakdownViews" :key="o.key" @click="breakdownView = o.key"
+                                    :class="breakdownView === o.key ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">{{ o.label }}</button>
+                        </div>
+                    </div>
+                    <div class="maiic-table-wrap">
+                        <table class="maiic-table text-[13px] [&_td]:!py-2 [&_td]:!px-2.5 [&_th]:!px-2.5">
+                            <thead>
+                                <tr>
+                                    <th>{{ breakdownViews.find(o => o.key === breakdownView).label }}</th>
+                                    <th class="num">Loans</th>
+                                    <th class="num">EAD ({{ currencyCode }})</th>
+                                    <th class="num">ECL ({{ currencyCode }})</th>
+                                    <th class="num">Coverage</th>
+                                    <th v-if="breakdownView === 'rbm'" class="num" title="The RBM directive's minimum provision for the class">RBM min.</th>
+                                    <th class="num" title="Share of the total ECL">Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="r in breakdown.rows" :key="r.label">
+                                    <td class="max-w-[16rem] truncate" :class="r.other ? 'italic text-gray-500' : ''" :title="r.label">{{ r.label }}</td>
+                                    <td class="num">{{ formatCount(r.loans) }}</td>
+                                    <td class="num">{{ formatAmount(r.ead) }}</td>
+                                    <td class="num font-semibold">{{ formatAmount(r.ecl) }}</td>
+                                    <td class="num">{{ r.coverage === null ? '-' : formatPct(r.coverage) }}</td>
+                                    <td v-if="breakdownView === 'rbm'" class="num">{{ r.minimum === null || r.minimum === undefined ? '-' : formatPct(r.minimum * 100) }}</td>
+                                    <td class="num">
+                                        <span class="mr-1.5 inline-block h-2 w-10 rounded bg-gray-100 align-middle dark:bg-slate-700"><span class="block h-2 rounded bg-maiic-600" :style="{ width: (r.share || 0) + '%' }"></span></span>{{ r.share === null ? '-' : r.share.toFixed(1) + '%' }}
+                                    </td>
+                                </tr>
+                                <tr class="total">
+                                    <td>Total</td>
+                                    <td class="num">{{ formatCount(breakdown.total.loans) }}</td>
+                                    <td class="num">{{ formatAmount(breakdown.total.ead) }}</td>
+                                    <td class="num">{{ formatAmount(breakdown.total.ecl) }}</td>
+                                    <td class="num">{{ breakdown.total.ead ? formatPct(breakdown.total.ecl / breakdown.total.ead * 100) : '-' }}</td>
+                                    <td v-if="breakdownView === 'rbm'"></td>
+                                    <td class="num text-xs" :class="breakdownTies ? 'text-maiic-700' : 'text-amber-700'" :title="breakdownTies ? 'The total ties to the total ECL on the tiles' : 'The total differs from the total ECL on the tiles'">{{ breakdownTies ? '100%, ties' : 'Differs' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- ============================ CHARTS ============================ -->
             <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
                 <div class="maiic-panel p-6 lg:col-span-2">
@@ -343,6 +430,8 @@ const props = defineProps({
     monthEnd: Object,
     loanBookSnapshot: Object,
     recentImports: { type: Array, default: () => [] },
+    eclBuildUp: Object,
+    eclBreakdown: Object,
     error: String,
 })
 
@@ -549,6 +638,53 @@ const summaryRows = computed(() => {
         row('Net carrying amount', 'net_carrying_amount', 'money', true),
     ]
 })
+
+// ECL build-up: before FLI, the forward-looking effect of the model, the
+// overlays the route applied, the booked ECL. Bars are a waterfall on one
+// scale (the largest running total).
+const buildSteps = computed(() => {
+    const b = props.eclBuildUp
+    if (!b) return []
+    const final = Number(b.final || 0)
+    if (!b.available) {
+        return [{ label: 'ECL booked', value: final, sign: '', pct: null, left: 0, width: 100, bar: 'bg-maiic-600', total: true, note: null }]
+    }
+    const pre = Number(b.pre_fli || 0), model = Number(b.fli_model || 0), ov = Number(b.overlays || 0)
+    const max = Math.max(pre, pre + model, final, 1)
+    const seg = (from, delta) => ({ left: (Math.min(from, from + delta) / max) * 100, width: (Math.abs(delta) / max) * 100 })
+    const pct = (v) => pre ? ((v > 0 ? '+' : '') + (v / pre * 100).toFixed(2) + '%') : null
+    const overlayNote = (b.overlay_lines || []).length
+        ? (b.overlay_lines.length + ' approved overlay' + (b.overlay_lines.length === 1 ? '' : 's') + ' from the register')
+        : 'No approved overlay applied to these loans'
+    return [
+        { label: 'ECL before FLI', value: pre, sign: '', pct: null, ...seg(0, pre), bar: 'bg-slate-400', total: false, note: 'EAD x PD before FLI over the horizon x LGD' },
+        { label: 'Forward-looking effect', value: model, sign: model > 0 ? '+' : '', pct: pct(model), ...seg(pre, model), bar: model >= 0 ? 'bg-amber-500' : 'bg-maiic-400', total: false, note: 'The macro adjustment to the PD, weighted across the scenario set' },
+        { label: 'Manual overlays', value: ov, sign: ov > 0 ? '+' : '', pct: ov ? pct(ov) : null, ...seg(pre + model, ov), bar: 'bg-maiicgold-500', total: false, note: overlayNote },
+        { label: 'ECL booked', value: final, sign: '', pct: null, ...seg(0, final), bar: 'bg-maiic-600', total: true, note: null },
+    ]
+})
+const ranUnder = computed(() => {
+    const l = (props.eclBuildUp?.lineage || [])[0]
+    if (!l || !l.route) return null
+    const parts = ['the ' + l.route.toLowerCase() + ' route' + (l.method ? ' (' + l.method.toLowerCase() + ')' : '')]
+    if (l.fit) parts.push('fit ' + l.fit.id + (l.fit.relationship ? ', ' + l.fit.relationship : '') + (l.fit.status ? ', ' + l.fit.status.toLowerCase() : ''))
+    if (l.set) parts.push('scenario set ' + l.set.id + (l.set.name ? ', ' + l.set.name : '') + (l.set.status ? ', ' + l.set.status.toLowerCase() : ''))
+    const more = (props.eclBuildUp.lineage || []).length - 1
+    return parts.join('; ') + (more > 0 ? '; and ' + more + ' other combination' + (more === 1 ? '' : 's') : '') + '.'
+})
+
+const breakdownViews = [
+    { key: 'product', label: 'Product group' },
+    { key: 'sector', label: 'Sector' },
+    { key: 'rbm', label: 'RBM class' },
+]
+const breakdownView = ref('product')
+const breakdown = computed(() => (props.eclBreakdown || {})[breakdownView.value] || { rows: [], total: { loans: 0, ead: 0, ecl: 0 } })
+const breakdownCaption = computed(() => breakdownView.value === 'rbm'
+    ? 'By the Reserve Bank of Malawi classes (days past due by term)'
+    : 'The six largest by ECL, the rest as one line')
+// the breakdown and the tiles must agree: the same loans, the same total
+const breakdownTies = computed(() => Math.abs(Number(breakdown.value.total.ecl || 0) - Number(summary.value.total_ecl || 0)) <= Math.max(1, 0.01 * Number(breakdown.value.total.loans || 0)))
 
 const monthEndSteps = computed(() => {
     const m = props.monthEnd

@@ -318,8 +318,26 @@ private function dashboardState(Request $request): array
         'reporting_period' => $selectedPeriod,
     ];
 
+    // --- ECL build-up and breakdowns, from the saved loan book ------------
+    // ECL before FLI, the forward-looking effect, the overlays the route
+    // applied and the booked ECL; then ECL by product group, sector and RBM
+    // class. All read loan_books for the same period and portfolio, and the
+    // totals are checked against the saved runs the tiles show.
+    $buildUpService = app(\App\Services\Reports\EclBuildUpService::class);
+    $bookLoans = $buildUpService->loans($selectedPeriod, $portfolioId);
+    $eclBuildUp = $buildUpService->buildUp($bookLoans, $selectedPeriod);
+    $eclBuildUp['runs_total'] = round($totalECLAllowance, 2);
+    $eclBuildUp['ties_to_runs'] = abs($eclBuildUp['final'] - $totalECLAllowance) <= max(1.0, 0.01 * $eclBuildUp['loans']);
+    $eclBreakdown = [
+        'product' => $buildUpService->breakdown($bookLoans, 'product'),
+        'sector' => $buildUpService->breakdown($bookLoans, 'sector'),
+        'rbm' => $buildUpService->breakdown($bookLoans, 'rbm'),
+    ];
+
     return [
         'summary' => $summary,
+        'eclBuildUp' => $eclBuildUp,
+        'eclBreakdown' => $eclBreakdown,
         'compareSummary' => $compareSummary,
         'periods' => $periods,
         'portfolios' => $portfolios,
@@ -399,6 +417,8 @@ public function eclReportPdf(Request $request)
         'trendChart' => count($trend) ? \App\Support\PdfCharts::trend($trend, $period) : null,
         'mixChart' => \App\Support\PdfCharts::stageMix($s['total_eads'], $s['ecl_totals']),
         'monthEnd' => $state['monthEnd'],
+        'eclBuildUp' => $state['eclBuildUp'],
+        'eclBreakdown' => $state['eclBreakdown'],
     ])->setPaper('a4', 'portrait')->setOption('enable_font_subsetting', true);
 
     \App\Support\ReportDownload::stampPageNumbers($pdf);
