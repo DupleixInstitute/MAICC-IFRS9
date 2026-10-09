@@ -69,6 +69,17 @@ class ContractInputsBuildService
                 'contractual_rate' => $rate > 1 ? $rate / 100 : $rate, 'rate_type' => $policy === 'P' ? 'FLOATING' : 'FIXED',
                 'repayment_frequency' => match (strtoupper(trim((string) ($l['INST_FREQ'] ?? 'M')))) { 'M' => 'MONTHLY', 'Q' => 'QUARTERLY', 'H' => 'HALF-YEARLY', 'Y', 'A' => 'ANNUAL', default => 'MONTHLY' },
                 'tenor_months' => $months, 'moratorium_months' => (int) $this->num($l['PMOROTORIUM_PERIOD'] ?? 0),
+                // The loan master states the moratorium in two numbers, not a word:
+                // PMOROTORIUM_PERIOD (months without principal) and IMOROTORIUM_PERIOD
+                // (months without interest). Interest deferred as well as principal is
+                // E-Banker's "Both (Interest + Principle)", capitalising; principal
+                // deferred and interest paid is "Principle Only". 51 contracts had
+                // been refused a schedule for "a moratorium with no type stated"
+                // (system audit of 9 October 2026, section 5); the three signed offer
+                // letters that state a moratorium all read "principal and interest",
+                // which is what their P and I months say here. Barry asked to confirm.
+                'moratorium_type' => (int) $this->num($l['PMOROTORIUM_PERIOD'] ?? 0) <= 0 ? null
+                    : ((int) $this->num($l['IMOROTORIUM_PERIOD'] ?? 0) > 0 ? 'Both (Interest + Principle)' : 'Principle Only'),
                 'scheme_code' => $a['SCHEME_MST_ID'] ?? null, 'interest_policy' => $policy ?: null, 'floating_flag' => $a['FLOATING_FLAG'] ?? null,
                 'interest_start_date' => $this->date($b['VALUE_DATE'] ?? ''), 'account_status_code' => $a['STATUS_CODE'] ?? null,
                 'sub_account_no' => $a['SUB_AC_NUMBER'] ?? null,
