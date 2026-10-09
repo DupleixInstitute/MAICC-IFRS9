@@ -55,6 +55,16 @@ class DashboardController extends Controller
  */
 public function index(Request $request)
 {
+    return Inertia::render('Dashboard', $this->dashboardState($request));
+}
+
+/**
+ * The figures the dashboard shows for a period / portfolio / compare-to
+ * choice. The page and its PDF (eclReportPdf) both read them from here, so
+ * the download always matches the screen.
+ */
+private function dashboardState(Request $request): array
+{
     // Available periods (Y-m, newest first) - only those with ECL calculated.
     $periods = ReportingPeriods::where('ecl_calculated', true)
         ->orderBy('period', 'desc')
@@ -72,7 +82,7 @@ public function index(Request $request)
         ->get(['id', 'name', 'status', 'records', 'created_at', 'completed_at']);
 
     if ($periods->isEmpty()) {
-        return Inertia::render('Dashboard', [
+        return [
             'summary' => $this->emptySummary(),
             'periods' => [],
             'portfolios' => $portfolios,
@@ -84,7 +94,7 @@ public function index(Request $request)
             'loanBookSnapshot' => $latestLoanBookPeriod ? $this->loanBookSnapshot($latestLoanBookPeriod, null) : null,
             'recentImports' => $recentImports,
             'error' => 'No ECL has been calculated yet. Load the loan book, apply PD and LGD, then run the ECL calculation.',
-        ]);
+        ];
     }
 
     // --- Global filters (whitelisted against DB values, never trusted raw) ---
@@ -124,7 +134,7 @@ public function index(Request $request)
 
     // --- Loan book: EAD and loan count by stage in ONE grouped query ------
     $bookByStage = $loanBookScope()
-        ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount, COUNT(*) as loans')
+        ->selectRaw('ifrs9stage_post_qualitative as stage, SUM((COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1))) as amount, SUM(carrying_amount) as gross, COUNT(*) as loans')
         ->groupBy('ifrs9stage_post_qualitative')
         ->get()
         ->keyBy('stage');
@@ -134,7 +144,12 @@ public function index(Request $request)
     $stage1Amount = (float) ($eadByStage[1] ?? 0);
     $stage2Amount = (float) ($eadByStage[2] ?? 0);
     $stage3Amount = (float) ($eadByStage[3] ?? 0);
+    // The exposure is the EAD the ECL engine measured (carrying amount plus
+    // the drawn share of undrawn commitments), so the tiles tie to the saved
+    // ECL runs and to the reports; the net carrying amount stays on the
+    // gross carrying amount of the book.
     $grossCarryingAmount = (float) $eadByStage->sum();
+    $bookGross = (float) $bookByStage->sum('gross');
 
     // --- ECL: totals, PD and LGD by stage in ONE grouped query ------------
     $eclByStage = $eclScope($selectedPeriod)
@@ -171,11 +186,12 @@ public function index(Request $request)
             LoanBook::where('reporting_period', $comparePeriod),
             fn ($q) => $portfolioId ? $q->where('loan_portfolio_id', $portfolioId) : null
         )
-            ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount, COUNT(*) as loans')
+            ->selectRaw('ifrs9stage_post_qualitative as stage, SUM((COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1))) as amount, SUM(carrying_amount) as gross, COUNT(*) as loans')
             ->groupBy('ifrs9stage_post_qualitative')
             ->get()
             ->keyBy('stage');
         $cLoans = (int) $compareEad->sum('loans');
+        $cBookGross = (float) $compareEad->sum('gross');
         $compareEad = $compareEad->map(fn ($r) => (float) $r->amount);
 
         $cS1 = (float) ($compareEad[1] ?? 0);
@@ -187,7 +203,7 @@ public function index(Request $request)
         $cPd1 = round((float) ($compareEclRows[1]->avg_pd ?? 0) * 100, 2);
         $cPd2 = round((float) ($compareEclRows[2]->avg_pd ?? 0) * 100, 2);
         $cPd3 = round((float) ($compareEclRows[3]->avg_pd ?? 0) * 100, 2);
-        $cLgd = round((float) ($compareEclRows[3]->avg_lgd ?? 0) * 100, 2);
+        $cLgd = array_map(fn ($st) => round((float) ($compareEclRows[$st]->avg_lgd ?? 0) * 100, 2), [1 => 1, 2 => 2, 3 => 3]);
 
         $compareSummary = [
             'carrying_amount' => $cGross,
@@ -195,11 +211,11 @@ public function index(Request $request)
             'ecl_percentage' => $cGross > 0 ? round(($cEcl / $cGross) * 100, 2) : 0,
             'stage_3_amount' => $cS3,
             'stage_3_percentage' => $cGross > 0 ? round(($cS3 / $cGross) * 100, 2) : 0,
-            'paid_amount' => $cGross - $cEcl,
-            'net_carrying_amount' => $cGross - $cEcl,
+            'paid_amount' => $cBookGross - $cEcl,
+            'net_carrying_amount' => $cBookGross - $cEcl,
             'total_loans' => $cLoans,
             'weighted_pd' => $cSumEad > 0 ? ($cPd1 * $cS1 + $cPd2 * $cS2 + $cPd3 * $cS3) / $cSumEad : 0,
-            'weighted_lgd' => $cSumEad > 0 ? ($cLgd * $cS3) / $cSumEad : 0,
+            'weighted_lgd' => $cSumEad > 0 ? ($cLgd[1] * $cS1 + $cLgd[2] * $cS2 + $cLgd[3] * $cS3) / $cSumEad : 0,
         ];
     }
 
@@ -220,15 +236,17 @@ public function index(Request $request)
         ? round(($stage3Amount / $grossCarryingAmount) * 100, 2)
         : 0;
 
-    $paidAmount = $grossCarryingAmount - $totalECLAllowance;
-    $paidPercentage = $grossCarryingAmount > 0
-        ? round(($paidAmount / $grossCarryingAmount) * 100, 2)
+    $paidAmount = $bookGross - $totalECLAllowance;
+    $paidPercentage = $bookGross > 0
+        ? round(($paidAmount / $bookGross) * 100, 2)
         : 0;
 
     $pdPercentages = [$stage1PD, $stage2PD, $stage3PD];
 
     $weightedPD = $sumEad > 0 ? ($stage1PD * $stage1Amount + $stage2PD * $stage2Amount + $stage3PD * $stage3Amount) / $sumEad : 0;
-    $weightedLGD = $sumEad > 0 ? ($lgdPercentage * $stage3Amount) / $sumEad : 0;
+    // LGD weighted by exposure across all three stages, as PD is (it used
+    // to weight the Stage 3 LGD alone over the whole book).
+    $weightedLGD = $sumEad > 0 ? ($lgdPercentages[0] * $stage1Amount + $lgdPercentages[1] * $stage2Amount + $lgdPercentages[2] * $stage3Amount) / $sumEad : 0;
 
     // --- ECL and coverage trend: ONE grouped query, optional from/to range -
     // Default range: the 12 months up to the selected period. 'all' shows
@@ -300,7 +318,7 @@ public function index(Request $request)
         'reporting_period' => $selectedPeriod,
     ];
 
-    return Inertia::render('Dashboard', [
+    return [
         'summary' => $summary,
         'compareSummary' => $compareSummary,
         'periods' => $periods,
@@ -314,7 +332,115 @@ public function index(Request $request)
         'monthEnd' => $this->monthEndStatus($selectedPeriod),
         'loanBookSnapshot' => $latestLoanBookPeriod ? $this->loanBookSnapshot($latestLoanBookPeriod, $portfolioId) : null,
         'recentImports' => $recentImports,
+    ];
+}
+
+/**
+ * The dashboard as a branded A4 PDF: the same figures the screen shows for
+ * the chosen period, portfolio and compare-to period (dashboardState), with
+ * the stage mix and the ECL trend drawn server side, the portfolio summary
+ * against the compare-to period and the month-end status.
+ */
+public function eclReportPdf(Request $request)
+{
+    $state = $this->dashboardState($request);
+    if (! empty($state['error'])) {
+        return redirect()->route('dashboard')->with('error', $state['error']);
+    }
+
+    $period = $state['selectedPeriod'];
+    $compare = $state['comparePeriod'];
+    $s = $state['summary'];
+    $c = $state['compareSummary'] ?? null;
+    $portfolioName = $state['selectedPortfolioId']
+        ? optional($state['portfolios']->firstWhere('id', $state['selectedPortfolioId']))->name
+        : null;
+
+    // Tiles and rows as the screen lists them (Dashboard.vue kpis / summaryRows).
+    $kpis = array_map(fn ($k) => ['label' => $k[0], 'value' => $k[1], 'kind' => $k[3], 'sub' => $k[5] ?? null]
+        + $this->pdfChange($k[1], $k[2], $k[3], $k[4], true), [
+        ['Total exposure (EAD)', $s['carrying_amount'], $c['carrying_amount'] ?? null, 'money', true],
+        ['Total ECL', $s['total_ecl'], $c['total_ecl'] ?? null, 'money', false],
+        ['ECL coverage', $s['ecl_percentage'], $c['ecl_percentage'] ?? null, 'pts', false],
+        ['Stage 3 exposure', $s['stage_3_amount'], $c['stage_3_amount'] ?? null, 'money', false, number_format($s['stage_3_percentage'], 2) . '% of book'],
+        ['Weighted PD', $s['weighted_pd'], $c['weighted_pd'] ?? null, 'pts', false],
+        ['Weighted LGD', $s['weighted_lgd'], $c['weighted_lgd'] ?? null, 'pts', false],
     ]);
+
+    $summaryRows = array_map(fn ($r) => ['label' => $r[0], 'kind' => $r[2], 'bold' => $r[4] ?? false,
+        'value' => $s[$r[1]], 'compare' => $c[$r[1]] ?? null] + $this->pdfChange($s[$r[1]], $c[$r[1]] ?? null, $r[2], $r[3]), [
+        ['Number of loans', 'total_loans', 'count', true],
+        ['Total EAD', 'carrying_amount', 'money', true, true],
+        ['Stage 3 share of book', 'stage_3_percentage', 'pts', false],
+        ['Weighted PD', 'weighted_pd', 'pts', false],
+        ['Weighted LGD', 'weighted_lgd', 'pts', false],
+        ['ECL coverage', 'ecl_percentage', 'pts', false],
+        ['Total ECL', 'total_ecl', 'money', false, true],
+        ['Net carrying amount', 'net_carrying_amount', 'money', true],
+    ]);
+
+    $trend = collect($state['eclTrends'])->values()->all();
+    $currency = optional(Currency::find(optional(\App\Models\Setting::where('setting_key', 'currency')->first())->setting_value ?? 1))->code ?: 'MWK';
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.dashboard_ecl_pdf', [
+        'company' => \App\Support\ReportDownload::company(),
+        'logo' => \App\Support\ReportDownload::logoPath(),
+        'preparedOn' => now()->format('d M Y H:i'),
+        'preparedBy' => optional($request->user())->name,
+        'currency' => $currency,
+        'period' => $period,
+        'compare' => $compare,
+        'portfolioName' => $portfolioName,
+        'summary' => $s,
+        'compareSummary' => $c,
+        'kpis' => $kpis,
+        'summaryRows' => $summaryRows,
+        'trend' => $trend,
+        'trendChart' => count($trend) ? \App\Support\PdfCharts::trend($trend, $period) : null,
+        'mixChart' => \App\Support\PdfCharts::stageMix($s['total_eads'], $s['ecl_totals']),
+        'monthEnd' => $state['monthEnd'],
+    ])->setPaper('a4', 'portrait')->setOption('enable_font_subsetting', true);
+
+    \App\Support\ReportDownload::stampPageNumbers($pdf);
+
+    return $pdf->download('MAIIC-IFRS9-dashboard-' . $period . ($compare ? '-vs-' . $compare : '')
+        . ($portfolioName ? '-' . \Illuminate\Support\Str::slug($portfolioName) : '') . '.pdf');
+}
+
+/**
+ * Change against the compare-to period, with the screen's status rules
+ * (Dashboard.vue deltaInfo / summaryRows): money and counts in %, rates in
+ * points; tiles are neutral only under 0.005 and have no "Watch".
+ */
+private function pdfChange($now, $then, string $kind, bool $goodWhenUp, bool $tile = false): array
+{
+    if ($then === null) {
+        return ['change' => null, 'status' => null, 'up' => null];
+    }
+    $now = (float) $now;
+    $then = (float) $then;
+    if ($kind === 'money' || $kind === 'count') {
+        if ($then == 0.0) {
+            return ['change' => null, 'status' => null, 'up' => null];
+        }
+        $d = ($now - $then) / abs($then) * 100;
+        $text = ($d > 0 ? '+' : '') . number_format($d, 1) . '%';
+        $neutral = abs($d) < 1;
+        $watch = abs($d) < 10;
+    } else {
+        $d = $now - $then;
+        $text = ($d > 0 ? '+' : '') . number_format($d, 2) . ' pts';
+        $neutral = abs($d) < 0.05;
+        $watch = abs($d) < 1;
+    }
+    $good = $goodWhenUp ? $d > 0 : $d < 0;
+    if ($tile) {
+        $neutral = abs($d) < 0.005;
+        $watch = false;
+    }
+    $status = $neutral ? 'Stable' : ($good ? 'Favourable' : ($watch ? 'Watch' : 'Adverse'));
+
+    return ['change' => $text, 'status' => $status, 'up' => $neutral ? null : $d > 0];
 }
 
 /**

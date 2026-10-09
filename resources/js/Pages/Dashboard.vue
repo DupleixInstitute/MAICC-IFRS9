@@ -45,6 +45,13 @@
                     </select>
                 </div>
             </div>
+            <!-- The same figures as this screen, for the chosen period,
+                 portfolio and compare-to month, as a branded PDF. -->
+            <a :href="reportPdfUrl" title="Download the dashboard for the chosen period, portfolio and compare-to month as a PDF"
+               class="inline-flex items-center gap-1.5 self-stretch rounded-xl border border-maiic-600 bg-white px-4 text-sm font-bold text-maiic-700 shadow-sm hover:bg-maiic-50">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+                Download dashboard (PDF)
+            </a>
         </template>
 
         <!-- ============================ NO ECL YET ============================ -->
@@ -65,8 +72,8 @@
 
         <template v-if="!error">
             <!-- ============================ KPI TILES ============================ -->
-            <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-                <div v-for="k in kpis" :key="k.label" class="maiic-kpi" :style="{ '--accent': k.accent }" :title="k.full || k.value">
+            <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                <div v-for="k in kpis" :key="k.label" class="maiic-kpi min-w-0 px-4 py-3" :style="{ '--accent': k.accent }" :title="k.full || k.value">
                     <div class="flex items-center gap-2">
                         <span class="flex h-7 w-7 flex-none items-center justify-center rounded-lg"
                               :style="{ backgroundColor: k.accent + '1f', color: k.accent }">
@@ -75,7 +82,7 @@
                         </span>
                         <p class="maiic-kpi-label !mb-0 truncate">{{ k.label }}</p>
                     </div>
-                    <p class="maiic-kpi-value mt-2 break-words text-xl xl:text-2xl">{{ k.value }}</p>
+                    <p class="mt-1.5 truncate text-xl font-extrabold leading-tight tabular-nums text-gray-900 dark:text-slate-100">{{ k.value }}</p>
                     <p v-if="k.full" class="mt-0.5 truncate text-[11px] tabular-nums text-gray-400">{{ k.full }}</p>
                     <p v-if="k.delta" class="mt-1.5">
                         <span :class="['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
@@ -361,6 +368,17 @@ const filterForm = ref({
 
 // Only months before the reporting month can be compared with it.
 const comparablePeriods = computed(() => (props.periods || []).filter(p => p < filterForm.value.period))
+
+// The PDF reads the period, portfolio and compare-to month the page shows.
+const reportPdfUrl = computed(() => {
+    const q = {}
+    if (props.selectedPeriod) q.period = props.selectedPeriod
+    if (props.selectedPortfolioId) q.portfolio_id = props.selectedPortfolioId
+    if (props.comparePeriod) q.compare = props.comparePeriod
+    if (props.trendFrom) q.trend_from = props.trendFrom
+    if (props.trendTo) q.trend_to = props.trendTo
+    return route('dashboard.ecl-report-pdf', q)
+})
 
 const selectedPortfolioName = computed(() => {
     const p = (props.portfolios || []).find(p => p.id === props.selectedPortfolioId)
