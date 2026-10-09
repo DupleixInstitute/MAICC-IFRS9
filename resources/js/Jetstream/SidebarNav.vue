@@ -29,18 +29,19 @@
                 <a v-else-if="item.download && item.route" :href="route(item.route)" rel="noopener"
                    class="group relative mx-2 my-[2px] flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium text-maiic-100/60 transition-all duration-150 hover:bg-white/[0.05] hover:text-white">
                     <font-awesome-icon v-if="item.icon" :icon="item.icon" aria-hidden="true"
-                                       class="h-4 w-4 flex-shrink-0 text-maiic-300/70 group-hover:text-maiic-200"/>
+                                       class="h-4 w-4 flex-shrink-0" :style="item.color ? { color: item.color } : null"/>
                     <span class="truncate leading-snug">{{ item.name }}</span>
                 </a>
 
                 <Link v-else-if="item.route" :href="route(item.route)"
                       class="group relative mx-2 my-[2px] flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-all duration-150"
-                      :class="isCurrent(item) ? 'bg-maiic-500/20 text-white shadow-sm' : 'text-maiic-100/60 hover:bg-white/[0.05] hover:text-white'">
+                      :class="isCurrent(item) ? 'bg-maiic-500/20 text-white shadow-sm' : 'text-maiic-100/70 hover:bg-white/[0.05] hover:text-white'">
                     <span v-if="isCurrent(item)"
                           class="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-maiicgold-400"/>
                     <font-awesome-icon v-if="item.icon" :icon="item.icon" aria-hidden="true"
                                        class="h-4 w-4 flex-shrink-0 transition-colors duration-150"
-                                       :class="isCurrent(item) ? 'text-maiicgold-400' : 'text-maiic-300/70 group-hover:text-maiic-200'"/>
+                                       :class="item.color ? '' : (isCurrent(item) ? 'text-maiicgold-400' : 'text-maiic-300/70 group-hover:text-maiic-200')"
+                                       :style="item.color ? { color: item.color } : null"/>
                     <span class="truncate leading-snug">{{ item.name }}</span>
                 </Link>
 
@@ -57,18 +58,14 @@
 <script>
 import { Link } from '@inertiajs/vue3'
 import DropdownMenu from '@/Jetstream/DropdownMenu.vue'
+import { isCurrent } from '@/Jetstream/menuMatch'
 
 export default {
     name: 'SidebarNav',
     components: { Link, DropdownMenu },
     methods: {
         isCurrent(item) {
-            try {
-                return route().current(item.route) ||
-                    (item.route_check && route().current(item.route_check))
-            } catch (e) {
-                return false
-            }
+            return isCurrent(item)
         },
     },
 }

@@ -2,44 +2,46 @@
 
 /*
 |--------------------------------------------------------------------------
-| MAIIC IFRS 9 - contract-aligned navigation
+| MAIIC IFRS 9 - contract-aligned navigation, with tabbed sections
 |--------------------------------------------------------------------------
 | Groups mirror the Schedule 1 solution components of the MAIIC-Dupleix
 | implementation agreement (data onboarding, collateral, EIR, IFRS 9 model
 | setup, ECL engine, reports, audit trail, dashboard, administration).
 |
-| Duplication rules applied (nav audit, Aug 2026):
-|  - The four report/export screens that lived under "Customer & Loan Data"
-|    (Disbursements, Loan Book Reconciliation, Loan Book Export, ECL Export)
-|    are reports - they live under Reports, next to the hub.
-|  - ECL Reconciliation (the richest reconciliation page) is surfaced; it was
-|    previously reachable only through the hidden legacy /report hub.
-|  - The EIR trio (Accounting Rules -> Schedule Intake -> Fee Classification)
-|    is one pipeline and sits together in one group.
-|  - Early Warning System & AI Executive Commentary are tiles INSIDE the
-|    IFRS 9 Reports hub - they are not duplicated as menu items.
-|  - Regression Analysis is forward-looking model fitting; it lives under
-|    the Forward-Looking Model group, not a separate Analytics group.
-|  - The IFRS 9 Reports hub contains the full 30-report catalogue (incl. the
-|    Sensitivity/stress tile); the standalone Stress Testing page is the
-|    loan-level engine and is kept as a separate Reports entry.
+| Rules (nav audit, Aug 2026, and the consolidation of 9 October 2026):
+|  - Reports is one entry: the hub. Every report, reconciliation and export
+|    is reached from the hub, never listed beside it.
+|  - Screens that do one job together are one menu entry with tabs (a
+|    $section). The tab bar is drawn by the layout from 'tabs'; each tab is
+|    the screen's own route, so links and bookmarks keep working.
+|  - The report-hub tiles (Early Warning, AI Commentary, Executive Summary,
+|    the ifrs9-reports.* views) are never menu items.
+|  - The legacy /report (reports.index) and the legacy one-click regression
+|    screen (system audit of 9 October 2026, finding M6) are not linked.
 |
-| The sidebar renderer (Jetstream/DropdownMenu.vue) is recursive with
-| accordion behaviour, so groups may nest. Every leaf points to a real
-| registered route. The legacy /report (reports.index) is intentionally
-| NOT linked.
+| 'color' on a top-level item tints its sidebar icon (bright on the dark
+| green). 'match' lists further route patterns that light the entry up.
+| Every route named here must be registered (tests/Feature/NavigationTest).
 */
 
 // $download=true => the route returns a file (e.g. PDF). The sidebar must
 // render it as a plain <a>, not an Inertia <Link>, or the SPA hangs trying
 // to parse the binary as an Inertia response.
-// $permission hides the leaf from users who lack it (HandleInertiaRequests
+// $permission hides the entry from users who lack it (HandleInertiaRequests
 // filters the menu); it must match the permission the route's controller
 // enforces, or a user sees a link that answers 403.
 $leaf = fn ($name, $route, $icon = 'circle', $download = false, $permission = '') => [
     'name' => $name, 'icon' => $icon, 'route' => $route, 'route_check' => $route,
     'permissions' => $permission, 'dropdown' => false, 'children' => [], 'order' => 0,
     'download' => $download,
+];
+// One tab of a section: [name, route, permission].
+$tab = fn ($name, $route, $permission = '') => ['name' => $name, 'route' => $route, 'permissions' => $permission];
+// A menu entry whose screens are tabs. It opens the first tab the user may see.
+$section = fn ($name, $tabs, $icon = 'circle') => [
+    'name' => $name, 'icon' => $icon, 'route' => $tabs[0]['route'], 'route_check' => $tabs[0]['route'],
+    'permissions' => '', 'dropdown' => false, 'children' => [], 'order' => 0,
+    'download' => false, 'tabs' => $tabs,
 ];
 $group = fn ($name, $icon, $children, $order) => [
     'name' => $name, 'icon' => $icon, 'route' => '', 'permissions' => '',
@@ -49,123 +51,121 @@ $group = fn ($name, $icon, $children, $order) => [
 return [
     'admin' => [
 
-        [
-            'name' => 'Dashboard', 'icon' => 'home', 'route' => 'dashboard',
-            'route_check' => 'dashboard', 'permissions' => '', 'dropdown' => false,
-            'children' => [], 'order' => 0,
-        ],
+        ['color' => '#FBBF24'] + $leaf('Dashboard', 'dashboard', 'home'),
 
-        $leaf('Workspace', 'workspace.index', 'tasks'),
+        ['color' => '#86EFAC'] + $leaf('Workspace', 'workspace.index', 'tasks'),
 
-        // Contract Schedule 1 "Reports". The hub carries the full 30-report
-        // catalogue; only distinct operational pages sit beside it. The two
-        // CSV export screens are NOT listed: Loan Book and ECL Calculation
-        // pages already carry their own export buttons.
-        $group('Reports', 'chart-bar', [
-            $leaf('IFRS 9 Reports', 'ifrs9-reports.index'),
-            $leaf('ECL Reconciliation', 'reports.ecl-reconciliation'),
-            $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
-            $leaf('Disbursements (Vintage)', 'reports.disbursement-report'),
-            $leaf('Stress Testing', 'stress-testing.index'),
-            $leaf('RBM Return (provisional)', 'rbm-return.index', 'file-invoice'),
-            $leaf('Auditor Pack', 'auditor-pack.index', 'file-archive', permission: 'eir.export'),
-        ], 1),
+        // The hub lists every report, reconciliation and export; the screens
+        // it opens light this entry up.
+        ['color' => '#F6B131', 'match' => [
+            'ifrs9-reports.*', 'reports.*', 'stress-testing.*', 'rbm-return.*', 'auditor-pack.*',
+        ]] + $leaf('Reports', 'ifrs9-reports.index', 'chart-bar'),
 
-        $group('Portfolio Setup', 'database', [
-            $leaf('Loan Portfolios', 'portfolios.index'),
-            $leaf('Sector Types', 'industry_types.index'),
-            $leaf('Product Groups', 'groups.index'),
-        ], 1),
+        ['color' => '#38BDF8'] + $section('Portfolio Setup', [
+            $tab('Loan Portfolios', 'portfolios.index'),
+            $tab('Product Groups', 'groups.index'),
+            $tab('Sector Types', 'industry_types.index'),
+        ], 'database'),
 
-        $group('Customer & Loan Data', 'users', [
+        ['color' => '#5EEAD4'] + $group('Customer & Loan Data', 'users', [
             $leaf('Clients', 'clients.index'),
             $leaf('Loan Book', 'loan_applications.loan-book'),
-            $leaf('Imports', 'imports.index'),
-            $leaf('E-Banker Feed', 'eir-feed.index', 'cloud-download-alt', permission: 'eir.view'),
-            $leaf('Take-on Schedules', 'eir-takeon.index', 'file-invoice', permission: 'eir.view'),
+            $section('Imports & Feeds', [
+                $tab('Imports', 'imports.index'),
+                $tab('E-Banker Feed', 'eir-feed.index', 'eir.view'),
+                $tab('Take-on Schedules', 'eir-takeon.index', 'eir.view'),
+            ]),
         ], 2),
 
-        $group('Collateral Management', 'building', [
-            $leaf('Collateral Register', 'collateral.register.index'),
-            $leaf('Collateral Types', 'collateral.types.index'),
-            $leaf('Collateral Allocation', 'collateral.allocations.index'),
-        ], 3),
+        ['color' => '#FDBA74'] + $section('Collateral Management', [
+            $tab('Collateral Register', 'collateral.register.index'),
+            $tab('Collateral Allocation', 'collateral.allocations.index'),
+            $tab('Collateral Types', 'collateral.types.index'),
+        ], 'building'),
 
         // One pipeline: rules suggest -> intake imports -> classification applies
         // maker/checker. Kept together (contract: EIR module).
-        $group('EIR & Revenue Recognition', 'percent', [
-            $leaf('Accounting Rules', 'eir-accounting-rules.index', permission: 'settings'),
-            $leaf('EIR Data', 'eir-data.index', permission: 'eir.view'),
-            $leaf('Reference Rates', 'eir-reference-rates.index', permission: 'eir.view'),
-            $leaf('Drawdowns', 'eir-drawdowns.index', permission: 'eir.view'),
-            $leaf('Fee Classification', 'eir-fee-classification.index', permission: 'settings'),
-            $leaf('EIR Calculations', 'eir-calculations.index', permission: 'settings'),
-            $leaf('EIR as at a Date', 'eir-as-at.index', 'calendar-day', permission: 'eir.view'),
-            $leaf('GL Reconciliation', 'eir-reconciliation.index', permission: 'eir.view'),
-            $leaf('Coverage & Blockers', 'eir-coverage.index', permission: 'eir.view'),
+        ['color' => '#A3E635'] + $group('EIR & Revenue Recognition', 'percent', [
+            $section('EIR Data', [
+                $tab('EIR Data', 'eir-data.index', 'eir.view'),
+                $tab('Drawdowns', 'eir-drawdowns.index', 'eir.view'),
+                $tab('Reference Rates', 'eir-reference-rates.index', 'eir.view'),
+            ]),
+            $section('EIR Rules', [
+                $tab('Accounting Rules', 'eir-accounting-rules.index', 'settings'),
+                $tab('Fee Classification', 'eir-fee-classification.index', 'settings'),
+            ]),
+            $section('EIR Calculations', [
+                $tab('Calculations', 'eir-calculations.index', 'settings'),
+                $tab('Coverage & Blockers', 'eir-coverage.index', 'eir.view'),
+                $tab('EIR as at a Date', 'eir-as-at.index', 'eir.view'),
+                $tab('GL Reconciliation', 'eir-reconciliation.index', 'eir.view'),
+            ]),
             $leaf('Governance Centre', 'eir-governance.index', permission: 'eir.govern'),
         ], 4),
 
-        $group('IFRS 9 Model Setup', 'chart-line', [
-            $group('Staging & SICR Rules', 'circle', [
-                $leaf('Quantitative Thresholds', 'stageing-rules.index'),
-                $leaf('SICR Groups Setup', 'sicr-groups.index'),
-                $leaf('SICR Alert Items', 'sicr-items.index'),
-                $leaf('SICR Trigger Alerts', 'sicr-triggers.index'),
-            ], 0),
-            $group('PD Model Setup', 'circle', [
-                $leaf('Transition Profiles', 'transition-profiles.index'),
-                $leaf('Monthly Probability', 'transition-matrices.index'),
-                $leaf('Cumulative Probability', 'transition-matrix-cummulative.index'),
-                $leaf('Internal Grades', 'internal-grading.profiles'),
-            ], 1),
-            $group('LGD Model Setup', 'circle', [
-                $leaf('Monthly LGD', 'loss-given-default.index'),
-                $leaf('Cumulative LGD', 'lgd-cummulative.index'),
-            ], 2),
-            $group('Forward-Looking Model', 'circle', [
-                $leaf('Macro Elements', 'macro-statistics.index', permission: 'macro.view'),
-                $leaf('Scenario Profiles', 'scenarios.profiles'),
-                $leaf('Scenario Sets', 'scenario-sets.index'),
-                $leaf('Weighted Forecast', 'macro-forecast-weighted.index'),
-                $leaf('Credit Loss Data', 'credit-loss-data.index'),
-                $leaf('Adjusted Forecast', 'forecasting.manual'),
-                $leaf('Correlation Finder', 'fli-correlation.index'),
-                // The legacy one-click regression screen is retired (system
-                // audit of 9 October 2026, finding M6); the regression runs on
-                // FLI Adjustments under maker-checker.
-                $leaf('Regression Analysis', 'fli-adjustments.index'),
-            ], 3),
-            $group('Management Overlays', 'circle', [
-                $leaf('Economic Scenarios', 'fli.scenarios.index'),
-                $leaf('Manual Overlays', 'fli-overlays.index'),
-                $leaf('External Calculations', 'fli.external.index', permission: 'reports.ifrs9'),
-                $leaf('Calculation History', 'fli.external.list', permission: 'reports.ifrs9'),
-            ], 4),
+        ['color' => '#C084FC'] + $group('IFRS 9 Model Setup', 'chart-line', [
+            $section('Staging & SICR Rules', [
+                $tab('Quantitative Thresholds', 'stageing-rules.index'),
+                $tab('SICR Groups', 'sicr-groups.index'),
+                $tab('SICR Alert Items', 'sicr-items.index'),
+                $tab('SICR Trigger Alerts', 'sicr-triggers.index'),
+            ]),
+            $section('PD Model', [
+                $tab('Transition Profiles', 'transition-profiles.index'),
+                $tab('Monthly Probability', 'transition-matrices.index'),
+                $tab('Cumulative Probability', 'transition-matrix-cummulative.index'),
+                $tab('Internal Grades', 'internal-grading.profiles'),
+            ]),
+            $section('LGD Model', [
+                $tab('Monthly LGD', 'loss-given-default.index'),
+                $tab('Cumulative LGD', 'lgd-cummulative.index'),
+            ]),
+            $section('Forward-Looking Model', [
+                $tab('Macro Elements', 'macro-statistics.index', 'macro.view'),
+                $tab('Weighted Forecast', 'macro-forecast-weighted.index'),
+                $tab('Credit Loss Data', 'credit-loss-data.index'),
+                $tab('Adjusted Forecast', 'forecasting.manual'),
+                $tab('Correlation Finder', 'fli-correlation.index'),
+                // The regression runs on FLI Adjustments under maker-checker.
+                $tab('Regression (FLI Adjustments)', 'fli-adjustments.index'),
+            ]),
+            $section('Scenarios & Overlays', [
+                $tab('Scenario Sets', 'scenario-sets.index'),
+                $tab('Scenario Profiles', 'scenarios.profiles'),
+                $tab('Manual Overlays', 'fli-overlays.index'),
+                $tab('Economic Scenarios', 'fli.scenarios.index'),
+                $tab('External Calculations', 'fli.external.index', 'reports.ifrs9'),
+                $tab('Calculation History', 'fli.external.list', 'reports.ifrs9'),
+            ]),
         ], 5),
 
-        $group('ECL Processing', 'check', [
+        ['color' => '#F87171'] + $group('ECL Processing', 'calculator', [
             $leaf('ECL Calculation', 'expected-credit-loss.index'),
-            $leaf('Mega Farm Programme', 'megafarm.index', 'seedling'),
+            $leaf('Mega Farm Programme', 'megafarm.index'),
         ], 6),
 
         // Contract Schedule 1 deliverables 5, 6 and 7. The two manuals are
         // database content (help centre); the technical manual and the
         // installation guide are repository Markdown under docs/manuals.
-        $group('System Documentation', 'book-open', [
+        ['color' => '#67E8F9'] + $group('System Documentation', 'book-open', [
             $leaf('User Manual', 'help.index'),
             $leaf('Administrator Manual', 'help.admin'),
             $leaf('Technical Manual', 'docs.technical'),
             $leaf('Installation Guide', 'docs.installation'),
         ], 7),
 
-        $group('Administration', 'cog', [
-            $leaf('User Management', 'users.index'),
-            $leaf('Roles & Permissions', 'users.roles.index'),
+        ['color' => '#C4B5FD'] + $group('Administration', 'cog', [
+            $section('Users & Roles', [
+                $tab('Users', 'users.index'),
+                $tab('Roles & Permissions', 'users.roles.index'),
+            ]),
             $leaf('Financial Periods', 'accounting.financial_periods.index'),
-            $leaf('Audit Trail', 'audit-trail.index'),
-            $leaf('Audit Trace', 'audit-trace.index', 'history'),
-            $leaf('Compliance Audits', 'compliance-audits.index', 'clipboard-check'),
+            $section('Audit', [
+                $tab('Audit Trail', 'audit-trail.index'),
+                $tab('Audit Trace', 'audit-trace.index'),
+                $tab('Compliance Audits', 'compliance-audits.index'),
+            ]),
             $leaf('Support Tickets', 'tickets.index'),
             $leaf('Settings', 'settings.index'),
         ], 8),

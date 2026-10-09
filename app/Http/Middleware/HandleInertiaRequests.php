@@ -127,6 +127,14 @@ class HandleInertiaRequests extends Middleware
                     continue;
                 }
             }
+            // A tabbed section keeps the tabs the user may open, and opens the first.
+            if (! empty($item['tabs'])) {
+                $item['tabs'] = array_values(array_filter($item['tabs'], fn ($t) => ($t['permissions'] ?? '') === '' || ($user && $user->can($t['permissions']))));
+                if ($item['tabs'] === []) {
+                    continue;
+                }
+                $item['route'] = $item['route_check'] = $item['tabs'][0]['route'];
+            }
             $visible[] = $item;
         }
 

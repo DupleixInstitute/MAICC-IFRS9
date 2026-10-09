@@ -122,6 +122,19 @@
             <main>
                 <div class="py-6">
                     <div class="mx-auto px-4 sm:px-6 md:px-4">
+                        <!-- Section tabs: screens that do one job together share one
+                             menu entry; each tab is that screen's own route. -->
+                        <nav v-if="section && section.tabs.length > 1" class="mb-5 flex gap-1 overflow-x-auto border-b border-gray-200" aria-label="Section">
+                            <Link v-for="tab in section.tabs" :key="tab.route" :href="route(tab.route)"
+                                  class="-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors duration-150"
+                                  :class="activeTab && activeTab.route === tab.route
+                                      ? 'border-maiic-600 text-maiic-800'
+                                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-maiic-700'"
+                                  :aria-current="activeTab && activeTab.route === tab.route ? 'page' : null">
+                                {{ tab.name }}
+                            </Link>
+                        </nav>
+
                         <!-- Page Heading -->
                         <header class="" v-if="$slots.header || $slots.actions || description">
                             <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -218,6 +231,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import {MagnifyingGlassIcon} from '@heroicons/vue/20/solid'
 import SidebarNav from "@/Jetstream/SidebarNav.vue"
+import { currentSection, activeTab } from "@/Jetstream/menuMatch"
 import NotificationBell from "@/Jetstream/NotificationBell.vue"
 import FlashMessages from '@/Jetstream/FlashMessages.vue'
 import ApplicationMark from '@/Jetstream/ApplicationMark.vue'
@@ -248,6 +262,14 @@ export default {
         title: String,
         description: String,
         menu: [Object, Array]
+    },
+    computed: {
+        section() {
+            return currentSection(this.$page.props.menu)
+        },
+        activeTab() {
+            return this.section ? activeTab(this.section) : null
+        },
     },
     data() {
         return {
