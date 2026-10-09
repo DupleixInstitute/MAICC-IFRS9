@@ -52,7 +52,7 @@
           <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h3 class="text-lg font-bold text-gray-900">Contract {{ facts?.contract_id || contract }}</h3>
             <span v-if="facts?.customer_name" class="text-sm text-gray-600">{{ facts.customer_name }}</span>
-            <span v-if="facts?.schedule_status" class="maiic-badge" :class="facts.schedule_status === 'approved' ? 'maiic-badge-green' : 'maiic-badge-gold'">Schedule {{ humanise(facts.schedule_status) }}</span>
+            <span v-if="facts?.schedule_status" class="maiic-badge" :class="facts.schedule_status === 'approved' ? 'maiic-badge-green' : 'maiic-badge-gold'">Schedule {{ humanise(facts.schedule_status).toLowerCase() }}</span>
             <span v-if="facts?.locked_at" class="maiic-badge maiic-badge-grey">Locked {{ facts.locked_at }}</span>
           </div>
           <dl v-if="facts && facts.customer_name !== undefined" class="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3 lg:grid-cols-6">

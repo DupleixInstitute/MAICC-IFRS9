@@ -13,14 +13,15 @@
       </div>
 
       <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div class="border-b border-gray-200 px-5 pt-4">
-          <nav class="flex gap-6 overflow-x-auto">
-            <button v-for="t in tabs" :key="t.key" type="button" class="whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold"
-                    :class="tab === t.key ? 'border-maiic-600 text-maiic-700' : 'border-transparent text-gray-500 hover:text-gray-800'" @click="tab = t.key">
+        <!-- One view switch: the Audit section row above stays the page's only tab row -->
+        <div class="border-b border-gray-200 px-4 py-3">
+          <div class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1" role="group" aria-label="View">
+            <button v-for="t in tabs" :key="t.key" type="button" class="rounded-md px-3 py-1.5 text-sm font-semibold transition"
+                    :class="tab === t.key ? 'bg-white text-maiic-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'" :aria-pressed="tab === t.key" @click="tab = t.key">
               {{ t.label }}
               <span class="ml-1 rounded-full px-2 py-0.5 text-xs" :class="tab === t.key ? 'bg-maiic-100 text-maiic-800' : 'bg-gray-100 text-gray-600'">{{ t.count }}</span>
             </button>
-          </nav>
+          </div>
         </div>
 
         <div v-if="tab === 'sections'">

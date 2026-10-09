@@ -82,10 +82,10 @@
                 <thead><tr><th class="num">Run</th><th>Period</th><th>Scope</th><th>Method</th><th class="num">Loans</th><th class="num">Gross (MWK)</th><th class="num">Programme ECL</th><th class="num">Share</th><th class="num">MAIIC ECL</th><th>Basis</th><th>Run by</th></tr></thead>
                 <tbody>
                   <tr v-for="r in pagedRuns" :key="r.id" class="align-top">
-                    <td class="num">{{ r.id }}</td><td class="whitespace-nowrap">{{ r.reporting_period }}</td><td class="text-xs">{{ r.scope }}</td><td class="text-xs">{{ r.method }}</td>
+                    <td class="num">{{ r.id }}</td><td class="whitespace-nowrap">{{ r.reporting_period }}</td><td class="min-w-[9rem] text-xs">{{ r.scope }}</td><td class="min-w-[9rem] text-xs">{{ r.method }}</td>
                     <td class="num">{{ count(r.loans) }}</td><td class="num">{{ fmt(r.gross) }}</td><td class="num">{{ fmt(r.programme_ecl) }}</td>
                     <td class="num">{{ (Number(r.share) * 100).toFixed(0) }}%</td><td class="num font-semibold">{{ fmt(r.maiic_ecl) }}</td>
-                    <td class="text-xs">
+                    <td class="min-w-[18rem] text-xs">
                       <span v-if="r.declined" class="maiic-badge maiic-badge-red">Declined</span>
                       <span v-if="r.declined" class="ml-1 text-red-700">{{ r.declined }}</span>
                       <template v-else>
