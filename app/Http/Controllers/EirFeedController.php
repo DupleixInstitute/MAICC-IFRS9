@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Ebanker\FeedZip;
 use App\Services\Ebanker\LoanBookBuildService;
 use App\Services\Ebanker\PackLandingService;
 use App\Services\Eir\GovernanceService;
@@ -78,19 +79,21 @@ class EirFeedController extends Controller
         if ($zip->open($request->file('pack')->getRealPath()) !== true) {
             return back()->with('error', 'The file is not a readable zip.');
         }
-        $zip->extractTo($dir);
+        // an entry whose name climbs out of the pack folder is left out and logged (system audit of 9 October 2026, finding M14)
+        $extracted = FeedZip::extract($zip, $dir, 'upload');
         $zip->close();
         $packDir = is_file($dir . '/manifest.json') ? $dir : (glob($dir . '/*/manifest.json') ? dirname(glob($dir . '/*/manifest.json')[0]) : null);
         if ($packDir === null) {
-            return back()->with('error', 'The zip holds no manifest.json.');
+            return back()->with('error', 'The zip holds no manifest.json.' . ($extracted['skipped'] !== [] ? ' ' . count($extracted['skipped']) . ' entry name(s) were refused: ' . implode(', ', $extracted['skipped']) : ''));
         }
         try {
             $r = $service->land($packDir, $request->user()->id, PackLandingService::ROUTE_MANUAL);
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
+        $note = $extracted['skipped'] !== [] ? ' ' . count($extracted['skipped']) . ' entry name(s) were refused and left out: ' . implode(', ', $extracted['skipped']) . '.' : '';
 
-        return back()->with($r['status'] === 'QUARANTINED' ? 'error' : 'success', "Pack {$r['status']} (load {$r['load_id']}).");
+        return back()->with($r['status'] === 'QUARANTINED' ? 'error' : 'success', "Pack {$r['status']} (load {$r['load_id']}).{$note}");
     }
 
     /** Propose a build; a second person approves it. */

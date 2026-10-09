@@ -2,11 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Ebanker\FeedZip;
 use App\Services\Ebanker\PackLandingService;
 use App\Services\Eir\GovernanceService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
+use ZipArchive;
 
 /**
  * Route 2 of the E-Banker feed (spec v4 section 6.5): a scheduled export at
@@ -14,9 +17,12 @@ use Throwable;
  * the folder and lands every pack it has not yet landed through the same
  * door and gates as route 1. The folder is EBANKER_FEED_FOLDER in the
  * environment; a pack is a sub-folder (or the folder itself) holding
- * manifest.json. A pack already landed (same hash) is skipped; a pack that
- * fails its gates is quarantined and reported, and the folder is left as it
- * is so that nothing is lost.
+ * manifest.json, or a zip of one, which is unpacked beside itself with every
+ * entry name checked first: an entry that climbs out of the pack folder is
+ * skipped and logged (system audit of 9 October 2026, finding M14). A pack
+ * already landed (same hash) is skipped; a pack that fails its gates is
+ * quarantined and reported, and the folder is left as it is so that nothing
+ * is lost.
  *
  *   php artisan eir:poll-feed-folder                 the configured folder
  *   php artisan eir:poll-feed-folder "D:\feeds\ebanker" --user=1
@@ -39,6 +45,7 @@ class PollFeedFolder extends Command
         } catch (Throwable) {
             $inForce = 'Route 1';
         }
+        $this->unpackZips($folder);
         $candidates = [];
         if (is_file($folder . DIRECTORY_SEPARATOR . 'manifest.json')) {
             $candidates[] = $folder;
@@ -78,5 +85,34 @@ class PollFeedFolder extends Command
         }
 
         return in_array('ERROR', array_column($rows, 1), true) ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * A zip in the feed folder is unpacked into a folder named after it (so
+     * a zip already unpacked is not unpacked again), through the entry-name
+     * guard: an unsafe entry is skipped with a log line and a warning here,
+     * and the rest of the pack goes on to the gates.
+     */
+    private function unpackZips(string $folder): void
+    {
+        foreach (glob($folder . DIRECTORY_SEPARATOR . '*.zip') ?: [] as $path) {
+            $dir = $folder . DIRECTORY_SEPARATOR . pathinfo($path, PATHINFO_FILENAME) . '-' . substr((string) hash_file('sha256', $path), 0, 8);
+            if (is_dir($dir)) {
+                continue;
+            }
+            $zip = new ZipArchive();
+            if ($zip->open($path) !== true) {
+                $this->warn('Not a readable zip, left as it is: ' . basename($path));
+                Log::warning('E-Banker feed folder: not a readable zip, left as it is: ' . $path);
+                continue;
+            }
+            mkdir($dir, 0775, true);
+            $r = FeedZip::extract($zip, $dir, 'feed folder');
+            $zip->close();
+            foreach ($r['skipped'] as $name) {
+                $this->warn(sprintf('%s: entry "%s" skipped, its name climbs out of the pack folder (audit finding M14)', basename($path), $name));
+            }
+            $this->line(sprintf('Unpacked %s: %d entries%s.', basename($path), $r['extracted'], $r['skipped'] !== [] ? ', ' . count($r['skipped']) . ' skipped' : ''));
+        }
     }
 }
