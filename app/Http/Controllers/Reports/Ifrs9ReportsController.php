@@ -191,6 +191,8 @@ class Ifrs9ReportsController extends Controller
     {
         return $this->merged('sector-ecl', $request, [
             ['sectorEclPart', 'By sector'],
+            ['pdByPortfolio', 'PD by portfolio'],
+            ['pdBySector', 'PD by sector'],
             ['productGroupEcl', 'By product group'],
             ['gradeEcl', 'By internal grade'],
             ['concentration', 'Concentration and large exposures'],
@@ -229,6 +231,7 @@ class Ifrs9ReportsController extends Controller
             ['rbmClassificationPart', 'RBM classification'],
             ['ifrs9VsRbm', 'IFRS 9 stage against RBM class'],
             ['provisionComparison', 'Provision comparison'],
+            ['pdByRbmClass', 'PD by RBM class'],
             ['nplArrears', 'NPL and arrears'],
         ]);
     }
@@ -728,7 +731,7 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         return $this->respond(array_merge(['key' => 'rbm-classification', 'period' => $period],
-            $this->rbmBuild($period)));
+            $this->rbmBuild((string) $period))); // an empty book has no period: an empty classification, not an error
     }
 
     public function ifrs9VsRbm(Request $request)
@@ -1057,6 +1060,96 @@ class Ifrs9ReportsController extends Controller
                 'align' => ['l', 'r', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $rows,
             ]]]);
+    }
+
+    /* ---- PD by segment (9 October 2026): reports; the ECL keeps the governed basis ---- */
+
+    /** The observed one-year PD of each portfolio, the governed minimum, and the PD and ECL the period carries. */
+    public function pdByPortfolio(Request $request)
+    {
+        return $this->pdSegmentPart($request, 'portfolio', 'portfolio');
+    }
+
+    /** The observed one-year PD of each RBM sector; a held-apart E-Banker code is its own line. */
+    public function pdBySector(Request $request)
+    {
+        return $this->pdSegmentPart($request, 'sector', 'RBM sector');
+    }
+
+    private function pdSegmentName(string $key): string
+    {
+        return app(\App\Services\Pd\PdSegmentationService::class)->label($key);
+    }
+
+    private function pdSegmentPart(Request $request, string $basis, string $what)
+    {
+        $period = $this->period($request);
+        $svc = app(\App\Services\Pd\SegmentPdReport::class);
+        $r = $period ? $svc->bySegment($period, $basis) : ['ok' => false, 'error' => 'No period with a calculated ECL.', 'rows' => []];
+        $sections = [];
+        if (! $r['ok']) {
+            $sections[] = ['heading' => "PD by {$what}", 'columns' => ['Note'], 'align' => ['l'], 'rows' => [['Not measured: ' . $r['error']]]];
+        } else {
+            $cfg = $r['settings'];
+            $rows = array_map(fn ($x) => [
+                $basis === 'sector' ? preg_replace('/,.*$/', '', $x['label']) : $x['label'], $x['stage'], number_format($x['cohort']), number_format($x['defaults']),
+                $x['stage'] === '3' ? 'in default' : ($x['observed'] === null ? '-' : $this->pct($x['observed']) . ($x['meets'] ? '' : ' (thin)')),
+                $x['applied'] === null ? '-' : $this->pct($x['applied']),
+                $x['sources'] === [] ? '-' : implode(', ', array_map(fn ($k) => $k === $x['key'] ? 'own' : ($k === 'book' ? 'pooled book' : $this->pdSegmentName($k)), $x['sources'])),
+                number_format($x['loans']), $this->money($x['ead']), $this->money($x['ecl']), $x['ead'] > 0 ? $this->pct($x['ecl'] / $x['ead']) : '-',
+            ], $r['rows']);
+            if ($r['book']) {
+                foreach (['1', '2'] as $st) {
+                    $rows[] = ['Pooled book (the parent)', $st, '', '', $r['book'][$st] === null ? '-' : $this->pct($r['book'][$st]), '', '', '', '', '', ''];
+                }
+            }
+            // on a cut the ECL does not use, the loans' PDs come from several segments: the source column says nothing
+            if ($cfg['basis'] !== $basis) {
+                $rows = array_map(fn ($row) => array_values(array_diff_key($row, [6 => true])), $rows);
+            }
+            $governed = $cfg['basis'] === $basis ? 'This is the governed basis: the ECL uses these PDs.' : "The governed basis is '{$cfg['basis_option']}'; this cut is a report only and the ECL does not use it.";
+            $sections[] = ['heading' => "Observed one-year PD by {$what} ({$r['window']})",
+                'note' => "{$governed} Observed PD: the share of the balance in the stage at the window start that was in Stage 3 at its end, or left the book unpaid; (thin) marks a stage below the minimum for its own PD ({$cfg['minimum_option']}), which follows the rule: {$cfg['thin_option']}. PD applied: the average pre-FLI twelve-month PD the loans carry this month, and the segment it came from.",
+                'columns' => array_values(array_diff_key([ucfirst($what), 'Stage', 'Loans at start', 'Defaults', 'Observed PD', 'PD applied', 'PD from', 'Loans now', 'EAD', 'ECL', 'Coverage'], $cfg['basis'] === $basis ? [] : [6 => true])),
+                'align' => array_values(array_diff_key(['l', 'l', 'r', 'r', 'r', 'r', 'l', 'r', 'r', 'r', 'r'], $cfg['basis'] === $basis ? [] : [6 => true])),
+                'rows' => $rows];
+            if ($basis === 'sector') {
+                $codes = $cfg['unverified'];
+                $held = $svc->unverifiedCodes($period, $codes);
+                $sections[] = ['heading' => 'Loans on an E-Banker sector code held apart',
+                    'note' => $codes === [] ? 'No E-Banker code is held apart under the governed setting.' : 'E-Banker gives code ' . implode(', ', $codes) . ' (other civil engineering) to a loan whose sector was never captured; these loans are not read as construction risk. Their codes are not changed here: the fix is to capture the right sector in E-Banker.',
+                    'columns' => ['Code', 'Product group', 'Loans', 'EAD', 'ECL'], 'align' => ['l', 'l', 'r', 'r', 'r'],
+                    'rows' => array_map(fn ($h) => [$h['industry_code'], $h['product_group'] ?? '-', number_format($h['n']), $this->money($h['ead']), $this->money($h['ecl'])], $held)];
+            }
+        }
+
+        return $this->respond(['key' => 'sector-ecl', 'period' => $period,
+            'subtitle' => "Observed one-year probability of default by {$what}, against the governed minimum, with the PD and ECL of the period",
+            'kpis' => $this->totalsKpis($period), 'sections' => $sections]);
+    }
+
+    /** The observed one-year PD by RBM class, the directive's minimum provision and the IFRS 9 coverage per class. */
+    public function pdByRbmClass(Request $request)
+    {
+        $period = $this->period($request);
+        $r = $period ? app(\App\Services\Pd\SegmentPdReport::class)->byRbmClass($period) : ['ok' => false, 'error' => 'No period with a calculated ECL.', 'rows' => []];
+        $sections = [];
+        if (! $r['ok']) {
+            $sections[] = ['heading' => 'PD by RBM class', 'columns' => ['Note'], 'align' => ['l'], 'rows' => [['Not measured: ' . $r['error']]]];
+        } else {
+            $sections[] = ['heading' => "Observed one-year PD by RBM class ({$r['window']})",
+                'note' => 'The class is the one a loan was in at the start of the window (days past due and term, as the directive bands them). Observed PD: the performing loans (Stage 1 or 2) of the class that were in Stage 3 at the end of the window, or had left the book unpaid. Stage 3 and Performing count the loans of the class at the start; loans already in Stage 3 are not in the PD. Loans now, EAD now, Coverage (IFRS 9 ECL over EAD) and PD now (the average pre-FLI twelve-month PD applied) are this month\'s, by the class the loans are in now. A report: the ECL does not use the RBM class.',
+                'columns' => ['RBM class', 'Stage 3', 'Performing', 'Defaulted', 'PD count', 'PD balance', 'RBM min', 'Loans now', 'EAD now', 'Coverage', 'PD now'],
+                'align' => ['l', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r'],
+                'rows' => array_map(fn ($x) => [$x['class'], number_format($x['start_stage3']), number_format($x['performing']), number_format($x['defaults']),
+                    $x['pd_count'] === null ? '-' : $this->pct($x['pd_count']), $x['pd_balance'] === null ? '-' : $this->pct($x['pd_balance']), $this->pct($x['minimum']),
+                    number_format($x['loans']), $this->money($x['ead']), $x['coverage'] === null ? '-' : $this->pct($x['coverage']),
+                    $x['applied_pd'] === null ? '-' : $this->pct($x['applied_pd'])], $r['rows'])];
+        }
+
+        return $this->respond(['key' => 'rbm-classification', 'period' => $period,
+            'subtitle' => 'Observed one-year probability of default by RBM class, beside the minimum provision and the IFRS 9 coverage',
+            'kpis' => [], 'sections' => $sections]);
     }
 
     public function productGroupEcl(Request $request)
