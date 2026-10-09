@@ -1,47 +1,36 @@
-"""Make PDF and TXT copies of the follow-up SQL file for the email."""
-import shutil
+"""Render a .sql run sheet to a monospace A4 PDF with a title band and page numbers."""
+import sys, textwrap
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib import colors
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Preformatted, Paragraph, Spacer
+from reportlab.pdfgen import canvas
 
-D = r"C:\Users\wadza\OneDrive\2026\Projects\MAIIC\2. Documents from clients\Raw Query Scripts\Query Requests to MAIIC"
-BASE = D + r"\FOLLOW-UP extracts for Barry - 6 Oct 2026"
-text = open(BASE + ".sql", encoding="utf-8").read().replace("\r\n", "\n")
-shutil.copyfile(BASE + ".sql", BASE + ".txt")
+src, out, title, sub = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+lines = open(src, encoding="utf-8").read().splitlines()
+W, H = A4
+left, top, bottom = 16 * mm, H - 22 * mm, 16 * mm
+font, size, lead = "Courier", 8.2, 10.2
+maxw = 108  # characters per line at this size
 
-F = r"C:\Windows\Fonts"
-pdfmetrics.registerFont(TTFont("Mono", F + r"\consola.ttf"))
-pdfmetrics.registerFont(TTFont("Seg", F + r"\segoeui.ttf"))
-pdfmetrics.registerFont(TTFont("Seg-B", F + r"\segoeuib.ttf"))
-GREY = colors.HexColor("#5B6470"); LINE = colors.HexColor("#C9D1DB"); NAVY = colors.HexColor("#1B2A41")
-st_title = ParagraphStyle("t", fontName="Seg-B", fontSize=16, leading=20, textColor=NAVY, spaceAfter=4)
-st_p = ParagraphStyle("p", fontName="Seg", fontSize=9.5, leading=13, textColor=GREY, spaceAfter=8)
-st_mono = ParagraphStyle("m", fontName="Mono", fontSize=8, leading=10.2)
+def header(c, page):
+    c.setFillColor(colors.HexColor("#0b2b1a")); c.rect(0, H - 14 * mm, W, 14 * mm, fill=1, stroke=0)
+    c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(left, H - 9 * mm, title)
+    c.setFont("Helvetica", 7.5); c.drawRightString(W - left, H - 9 * mm, sub)
+    c.setFillColor(colors.HexColor("#666666")); c.setFont("Helvetica", 7.5)
+    c.drawString(left, 9 * mm, "Read-only queries. Run RUN 0 first. One CSV per query, named as shown.")
+    c.drawRightString(W - left, 9 * mm, "Page %d" % page)
+    c.setFillColor(colors.black); c.setFont(font, size)
 
-story = [Paragraph("MAIIC E-Banker: follow-up extracts, 6 October 2026", st_title),
-         Paragraph("PDF copy of the file FOLLOW-UP extracts for Barry - 6 Oct 2026.sql, for reading. Please run the queries "
-                   "from the .sql or .txt attachment, which carry the same text. Eighteen read-only queries, numbered in run order.", st_p),
-         Spacer(1, 4)]
-lines = text.split("\n")
-for i in range(0, len(lines), 60):
-    story.append(Preformatted("\n".join(lines[i:i + 60]), st_mono, maxLineLength=104, splitChars=" ,", newLineChars=""))
-
-
-def footer(canvas, doc):
-    canvas.saveState(); canvas.setStrokeColor(LINE); canvas.setLineWidth(0.5)
-    canvas.line(16 * mm, 12 * mm, A4[0] - 16 * mm, 12 * mm)
-    canvas.setFont("Seg", 8); canvas.setFillColor(GREY)
-    canvas.drawString(16 * mm, 8 * mm, "FOLLOW-UP extracts for Barry, 6 October 2026  ·  Dupleix Institute  ·  read-only queries")
-    canvas.drawRightString(A4[0] - 16 * mm, 8 * mm, f"Page {doc.page}"); canvas.restoreState()
-
-
-doc = BaseDocTemplate(BASE + ".pdf", pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=14 * mm, bottomMargin=18 * mm,
-                      title="MAIIC E-Banker: follow-up extracts, 6 October 2026", author="Dupleix Institute")
-doc.addPageTemplates([PageTemplate(id="p", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f",
-                                                         leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)], onPage=footer)])
-doc.build(story)
-print("written .pdf and .txt")
+c = canvas.Canvas(out, pagesize=A4); page = 1; header(c, page); y = top
+for raw in lines:
+    pieces = textwrap.wrap(raw, maxw, subsequent_indent="       ", drop_whitespace=False) or [""]
+    for piece in pieces:
+        if y < bottom + lead:
+            c.showPage(); page += 1; header(c, page); y = top
+        if raw.lstrip().startswith("-- RUN") or raw.startswith("--====") or raw.lstrip().startswith("-- "):
+            c.setFillColor(colors.HexColor("#1f5f3f") if raw.lstrip().startswith("-- RUN") else colors.HexColor("#555555"))
+            if raw.lstrip().startswith("-- RUN"): c.setFont("Courier-Bold", size)
+        else:
+            c.setFillColor(colors.black)
+        c.drawString(left, y, piece); c.setFont(font, size); y -= lead
+c.save(); print("written", out, "pages", page)
