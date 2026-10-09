@@ -12,19 +12,19 @@
         </template>
 
         <div class="w-full space-y-5">
-            <!-- At a glance: values read from the saved settings and the governed staging basis -->
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div class="maiic-kpi">
+            <!-- One strip of figures: the saved settings and the governed staging basis -->
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div class="maiic-kpi px-4 py-3">
                     <div class="maiic-kpi-label">Organisation</div>
-                    <div class="truncate text-lg font-extrabold text-gray-900">{{ organisation.company_name || 'Not set' }}</div>
+                    <div class="truncate text-xl font-extrabold text-gray-900" :title="organisation.company_name">{{ organisation.company_name || 'Not set' }}</div>
                 </div>
-                <div class="maiic-kpi" style="--accent:#d4a017">
+                <div class="maiic-kpi px-4 py-3" style="--accent:#d4a017">
                     <div class="maiic-kpi-label">Reporting currency</div>
-                    <div class="truncate text-lg font-extrabold text-gray-900">{{ currentCurrency ? currentCurrency.label : 'Not set' }}</div>
+                    <div class="truncate text-xl font-extrabold text-gray-900" :title="currentCurrency ? currentCurrency.label : ''">{{ currentCurrency ? currentCurrency.label : 'Not set' }}</div>
                 </div>
-                <div class="maiic-kpi" style="--accent:#0f766e">
+                <div class="maiic-kpi px-4 py-3" style="--accent:#0f766e">
                     <div class="maiic-kpi-label">Days past due counted from</div>
-                    <div class="text-base font-extrabold leading-snug text-gray-900">{{ dpdBasis || 'Not set' }}</div>
+                    <div class="truncate text-xl font-extrabold text-gray-900" :title="dpdBasis">{{ dpdBasis ? dpdBasis.replace(/\s*\(.*\)\s*$/, '') : 'Not set' }}</div>
                 </div>
             </div>
 
@@ -43,15 +43,12 @@
                             {{ t.label }}
                             <span v-if="t.count !== null"
                                   class="ml-1 rounded-full px-2 py-0.5 text-xs"
-                                  :class="active === t.key ? 'bg-maiic-100 text-maiic-700' : 'bg-gray-100 text-gray-600'">{{ t.count }}</span>
+                                  :class="active === t.key ? 'bg-maiic-100 text-maiic-800' : 'bg-gray-100 text-gray-600'">{{ t.count }}</span>
                         </button>
                     </nav>
                 </div>
 
-                <div class="border-b border-gray-200 p-4">
-                    <h3 class="font-semibold text-gray-900">{{ currentTab.label }}</h3>
-                    <p class="text-xs text-gray-500">{{ currentTab.description }}</p>
-                </div>
+                <p class="px-5 pt-4 text-xs text-gray-500">{{ currentTab.description }}</p>
 
                 <!-- Organisation -->
                 <form v-if="active === 'organisation'" class="p-5" @submit.prevent="saveOrganisation">
@@ -132,23 +129,17 @@
                             <p class="mt-1 text-xs text-gray-500">The currency code shown beside amounts on the dashboard and in the accounting reports. It labels figures; it does not convert them.</p>
                             <jet-input-error :message="reportingForm.errors.currency" class="mt-1"/>
                         </div>
-                        <div class="space-y-3">
-                            <div v-if="currentCurrency && !currentCurrency.active" class="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                                <svg class="mt-0.5 h-5 w-5 flex-none text-amber-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M8.26 2.6c.77-1.33 2.7-1.33 3.47 0l6.03 10.45c.77 1.33-.19 3-1.73 3H3.97c-1.54 0-2.5-1.67-1.73-3L8.26 2.6zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                <div>
-                                    <p class="font-semibold">The chosen currency is not marked active</p>
-                                    <p class="mt-0.5">Check it is the currency the loan book is held in. If the right currency is missing, add it under Currencies, then choose it here.</p>
-                                </div>
-                            </div>
-                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-                                <p class="font-semibold text-gray-800">Financial year and periods</p>
-                                <p class="mt-0.5">Reporting periods are kept on their own screen.</p>
-                                <Link :href="route('accounting.financial_periods.index')" class="mt-2 inline-flex items-center gap-1 font-semibold text-maiic-700 hover:text-maiic-900">
-                                    Open Financial Periods <font-awesome-icon icon="chevron-right" class="h-3 w-3"/>
-                                </Link>
-                            </div>
+                        <div>
+                            <span class="maiic-flabel">Financial year and periods</span>
+                            <Link :href="route('accounting.financial_periods.index')" class="inline-flex items-center gap-1 text-sm font-semibold text-maiic-700 hover:text-maiic-900">
+                                Open Financial Periods <font-awesome-icon icon="chevron-right" class="h-3 w-3"/>
+                            </Link>
+                            <p class="mt-1 text-xs text-gray-500">Reporting periods are kept on their own screen.</p>
                         </div>
                     </div>
+                    <p v-if="currentCurrency && !currentCurrency.active" class="mt-3 text-xs font-semibold text-amber-700">
+                        The chosen currency is not marked active: check it is the currency the loan book is held in, or add the right one under Currencies.
+                    </p>
                     <div class="mt-6 flex justify-end border-t border-gray-100 pt-4">
                         <button type="submit" class="inline-flex items-center gap-2 rounded-md bg-maiic-600 px-4 py-2 text-sm font-semibold text-white hover:bg-maiic-700 disabled:opacity-50" :disabled="reportingForm.processing">
                             <font-awesome-icon icon="check"/> Save reporting currency
@@ -229,14 +220,13 @@
 
                 <!-- Staging basis (read only; the Governance Centre is the one place to change it) -->
                 <div v-else-if="active === 'staging'" class="space-y-5 p-5">
-                    <div class="flex gap-3 rounded-lg border border-maiic-200 bg-maiic-50 p-4 text-sm text-maiic-900">
-                        <svg class="mt-0.5 h-5 w-5 flex-none text-maiic-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                        <div class="space-y-1">
-                            <p class="font-semibold">How loans are staged</p>
+                    <details class="text-xs text-gray-500">
+                        <summary class="cursor-pointer select-none font-semibold text-maiic-700 hover:text-maiic-900">How this works</summary>
+                        <div class="mt-2 space-y-1 leading-relaxed">
                             <p>Each month-end, days past due are counted on the basis below and compared with the thresholds for the loan's facility class, under the Reserve Bank of Malawi directive for development finance institutions. The missed-instalment trigger and the cure period then apply.</p>
-                            <p>These values are governed. They are changed only in the Governance Centre, by a proposal that a second person approves, from an effective date. A month is always staged on the values in force at its month-end, so re-running an earlier month keeps the basis it was staged on.</p>
+                            <p>These values are governed: they change only in the Governance Centre, by a proposal a second person approves, from an effective date. A month is always staged on the values in force at its month-end, so re-running an earlier month keeps the basis it was staged on.</p>
                         </div>
-                    </div>
+                    </details>
 
                     <div>
                         <h4 class="maiic-section-title mt-0">Governed staging settings in force today</h4>
@@ -417,7 +407,12 @@ export default {
             return LINKS.filter((item) => !item.permission || this.can(item.permission))
         },
         tabs() {
+            // Real counts: the settings each form holds, the staging rules shown,
+            // the screens linked.
             const counts = {
+                organisation: Object.keys(this.orgForm.data()).length,
+                reporting: Object.keys(this.reportingForm.data()).length,
+                email: Object.keys(this.emailForm.data()).length,
                 staging: this.staging.governed.length + this.staging.thresholds.length,
                 more: this.visibleLinks.length,
             }
