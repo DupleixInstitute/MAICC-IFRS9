@@ -319,6 +319,7 @@ Route::group(['prefix' => 'loan_application', 'as' => 'loan_applications.'], fun
     Route::post('/loan-books/import', [LoanBookController::class, 'import'])->name('loan-book.import.store');
     Route::post('/loan-books/import-group', [LoanBookController::class, 'importGroup'])->name('loan-book.import.group');
     Route::get('/loan-books/download-ebanker-template', [LoanBookController::class, 'downloadEbanker'])->name('loan-book.download-ebanker-template');
+    Route::get('/loan-books/sample', [LoanBookController::class, 'downloadSample'])->name('loan-book.sample');
 
     //TABLE COLUMNS
 

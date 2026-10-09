@@ -72,10 +72,18 @@ return [
         ['color' => '#5EEAD4'] + $group('Customer & Loan Data', 'users', [
             $leaf('Clients', 'clients.index'),
             $leaf('Loan Book', 'loan_applications.loan-book'),
+            // In the order the data comes in: the file imports, the E-Banker
+            // packs and the loan book built from them, then the take-on
+            // workbook. The feed and take-on screens open on the view named
+            // by tab=; seven tabs is the most one row carries.
             $section('Imports & Feeds', [
                 $tab('Imports', 'imports.index'),
-                $tab('E-Banker Feed', 'eir-feed.index', 'eir.view'),
-                $tab('Take-on Schedules', 'eir-takeon.index', 'eir.view'),
+                $tab('E-Banker Loads', 'eir-feed.index', 'eir.view', ['tab' => 'loads']),
+                $tab('Loan Book Builds', 'eir-feed.index', 'eir.view', ['tab' => 'builds']),
+                $tab('Periods Built', 'eir-feed.index', 'eir.view', ['tab' => 'periods']),
+                $tab('Query Register', 'eir-feed.index', 'eir.view', ['tab' => 'queries']),
+                $tab('Take-on Blocks', 'eir-takeon.index', 'eir.view', ['tab' => 'blocks']),
+                $tab('Take-on Population', 'eir-takeon.index', 'eir.view', ['tab' => 'population']),
             ]),
         ], 2),
 
