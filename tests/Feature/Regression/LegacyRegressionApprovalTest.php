@@ -80,11 +80,18 @@ class LegacyRegressionApprovalTest extends TestCase
         $leaf = null;
         $walk = function (array $items) use (&$walk, &$leaf) {
             foreach ($items as $item) {
-                if (($item['name'] ?? '') === 'Regression Analysis') {
+                // the entry may be a leaf or a section tab, and its label has changed with the layout; what matters is where it goes
+                if (stripos((string) ($item['name'] ?? ''), 'Regression') !== false && ! str_contains(strtolower((string) ($item['route'] ?? '')), 'regression.')) {
                     $leaf = $item;
+                }
+                if (($item['route'] ?? '') === 'regression.index') {
+                    $this->fail('The menu still sends a user to the legacy regression screen (' . ($item['name'] ?? '') . ')');
                 }
                 if (! empty($item['children'])) {
                     $walk($item['children']);
+                }
+                if (! empty($item['tabs'])) { // the layout of 9 October draws a section's screens as tabs
+                    $walk($item['tabs']);
                 }
             }
         };
