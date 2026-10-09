@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AuditLoggerService;
+use App\Support\Fli\FliPlainLanguage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,14 @@ class FliCorrelationController extends Controller
             ->map(fn ($r) => ['id' => $r->id, 'period' => substr($r->reporting_period, 0, 4) . '-' . substr($r->reporting_period, 4, 2), 'inputs_hash' => $r->inputs_hash, 'status' => $r->status, 'run_at' => $r->run_at, 'run_by' => $r->run_by_name,
                 'suggestions' => DB::table('fli_suggestions')->where('run_id', $r->id)->count()]);
         $byVerdict = $suggestions->groupBy('verdict')->map->count();
+        // the codes and the finder's technical reason in plain words; the reason stays as the detail
+        $plain = new FliPlainLanguage();
+        $suggestions = $suggestions->map(function ($s) use ($plain) {
+            $proxy = $plain->proxy($s->proxy_code);
+
+            return (array) $s + ['driver_name' => $plain->driver($s->statistic_code), 'proxy_name' => $proxy['name'], 'proxy_definition' => $proxy['definition'], 'plain' => $plain->suggestion((array) $s)];
+        })->values();
+        $fits = $fits->map(fn ($f) => (array) $f + ['driver_name' => $plain->driver($f->statistic_code), 'proxy_name' => $plain->proxy($f->proxy_code)['name'], 'declined_plain' => $plain->declined($f->declined_reason)])->values();
         $lastRun = DB::table('audit_logs')->where('action', 'Correlation Finder Run')->where('reporting_period', $period)->orderByDesc('id')->first();
 
         return Inertia::render('FLI/Correlation', [
