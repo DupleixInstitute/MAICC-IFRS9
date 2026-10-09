@@ -351,6 +351,37 @@ class GovernanceService
                 'options' => ['0 months (no probation)', '3 months', '6 months', '12 months'],
                 'default' => '3 months',
             ],
+            // PD and LGD by segment (9 October 2026): the book split into its real programmes
+            'pd_segmentation_basis' => [
+                'label' => 'How the PD is segmented',
+                'description' => 'The probability of default is measured on groups of loans that share their credit risk (IFRS 9 B5.5.5): a segment. By portfolio measures each lending programme (MAIIC Industrial, MAIIC Agricultural, MAIIC Term, FInES Industrial, FInES Agricultural) on its own transition matrix. Pooled book measures the whole book as one. By RBM sector measures each economic sector of the directive across the programmes. By portfolio and RBM sector measures each sector inside each programme. Every segment uses the same twelve-month window. A segment with too little history follows the thin-segment rule. The ECL is still reported by portfolio; the loan carries the segment its PD came from.',
+                'options' => ['By portfolio', 'Pooled book', 'By RBM sector', 'By portfolio and RBM sector'],
+                'default' => 'By portfolio',
+            ],
+            'pd_segment_min_observations' => [
+                'label' => 'Minimum history for a segment\'s own PD',
+                'description' => 'A segment\'s PD from Stage 1, or from Stage 2, is its own only when at least this many loans started the twelve-month window in that stage and at least this many of them were in Stage 3 at its end (or had left the book unpaid, which counts as a default). Below that the stage is thin: a rate measured on two or three loans is noise, and a stage with no default at all would give a PD of nil. A thin stage follows the thin-segment rule.',
+                'options' => ['10 loans and 1 default per stage', '5 loans and 1 default per stage', '20 loans and 2 defaults per stage', '10 loans per stage, defaults not counted'],
+                'default' => '10 loans and 1 default per stage',
+            ],
+            'pd_segment_thin_rule' => [
+                'label' => 'A segment too thin for its own PD or LGD',
+                'description' => 'Under the first option a thin stage takes the PD of the segment above it for that stage: a sector inside a portfolio takes its portfolio\'s, a portfolio or a sector takes the pooled book\'s. A portfolio with too small a Stage 3 cohort takes the pooled book\'s LGD. The parent must meet the minimum itself, or the run stops. Every substitution is recorded on the loan and shown in the ECL by segment report. Under the second option any thin segment stops the run, names the segment and the reason, and nothing is written.',
+                'options' => ['Take the parent: portfolio, then the pooled book', 'Fail closed: stop the run and name the segment'],
+                'default' => 'Take the parent: portfolio, then the pooled book',
+            ],
+            'pd_sector_unverified_codes' => [
+                'label' => 'Industry codes held apart in a sector PD',
+                'description' => 'E-Banker gives industry code 4290 (other civil engineering) to a loan whose sector was never captured: in the August 2026 book 58 of the 135 loans carry it (57 with a balance), among them an eye clinic, a lodge, transport firms and a farmers\' cooperative. Held apart, those loans form their own "unverified sector" segment in a sector PD, and the sector reports show them separately, instead of being read as construction risk. Their codes are never changed by the system; the fix is to capture the right code in E-Banker.',
+                'options' => ['4290 (E-Banker default civil engineering code)', 'None held apart'],
+                'default' => '4290 (E-Banker default civil engineering code)',
+            ],
+            'lgd_segment_min_cohort' => [
+                'label' => 'Minimum Stage 3 cohort for a portfolio\'s own LGD',
+                'description' => 'The LGD is measured per portfolio on the loans that were in Stage 3 twelve months before the period, followed to the period (cure and recovery). A portfolio with fewer such loans than this follows the thin-segment rule.',
+                'options' => ['5 Stage 3 loans at the window start', '3 Stage 3 loans at the window start', '10 Stage 3 loans at the window start'],
+                'default' => '5 Stage 3 loans at the window start',
+            ],
         ];
     }
 

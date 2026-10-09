@@ -83,6 +83,11 @@ class PdEngineService
                     DB::table('loan_books')->where('id', $loan->id)->update(['lifetime_pd' => round(min(1.0, 1 - (1 - $pd) ** $years), 8)]);
                 }
             }
+            // the lineage the PD by segment reads: one portfolio matrix, no segment run
+            if (\Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'pd_segment_key')) {
+                DB::table('loan_books')->where('reporting_period', $period)->where('loan_portfolio_id', $portfolioId)->whereIn(DB::raw($stageExpr), array_map('strval', array_keys($applied)))
+                    ->update(['pd_segment_key' => "portfolio:{$portfolioId}", 'pd_applied_segment_key' => "portfolio:{$portfolioId}", 'pd_segment_run_id' => null, 'pd_matrix_id' => $pds->first()->calculation_header_id]);
+            }
             DB::table('transition_matrices')->where('id', $pds->first()->calculation_header_id)->update(['records_count_updated' => $updated, 'book_updated_at' => now(), 'status' => 'closed']);
         });
         AuditLoggerService::log('PD Engine Run', 'transition_matrices', $matrix->id, ['reporting_period' => $period, 'rows_affected' => $updated, 'new_values' => ['window' => $start->format('Y-m') . ' to ' . $end->format('Y-m'), 'pds' => $applied], 'meta' => ['user' => $userId]]);

@@ -189,6 +189,8 @@ const AREAS = [
     keys: ['recon_tolerance', 'trueup_gl_account', 'auditor_export_format', 'fee_reclass_journal', 'historic_materiality_assessment', 'keyman_insurance_treatment', 'nascomex_preference_shares', 'maker_checker_admin_override'] },
   { key: 'staging', label: 'Staging', description: 'Days past due, Stage 3 triggers, rebuttals and cure periods.',
     keys: ['staging_rebuttal', 'dpd_basis', 'stage3_missed_instalments', 'stage_cure_months'] },
+  { key: 'segments', label: 'PD & LGD segments', description: 'How the book is split for the PD and LGD, the history a segment needs for its own rate, and what a thin segment does.',
+    keys: ['pd_segmentation_basis', 'pd_segment_min_observations', 'pd_segment_thin_rule', 'pd_sector_unverified_codes', 'lgd_segment_min_cohort'] },
   { key: 'fli', label: 'Forward-looking', description: 'How the forward-looking adjustment is built and tested, and how scenarios are weighted.',
     keys: ['fli_adjustment_route', 'fli_transmission_method', 'fli_asset_correlation', 'fli_expected_sign_test', 'fli_r2_cutoff', 'fli_min_observations', 'fli_alpha', 'fli_normality_limits', 'scenario_weighting_method', 'scenario_minimum_count', 'scenario_weight_bounds', 'scenario_calibration_note', 'overlay_requires_approved_set'] },
   { key: 'megafarm', label: 'Mega Farm', description: 'Scope and probability of default for the Mega Farm programme.',
