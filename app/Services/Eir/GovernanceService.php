@@ -345,6 +345,12 @@ class GovernanceService
                 'options' => ['4 consecutive', '3 consecutive', '6 consecutive', 'Not applied'],
                 'default' => '4 consecutive',
             ],
+            'stage_cure_months' => [
+                'label' => 'Months a loan stays in its stage after it cures',
+                'description' => 'A loan whose days past due fall back below a stage threshold is held at its prior stage until it has been below that threshold for this many consecutive month-ends, the current one included; it moves down on the month that completes the count. A move up is immediate. The directive classifies by how long instalments are overdue and expects a cured facility to prove itself before it is upgraded (spec v4 section 3.6; the directive\'s section 15; system audit of 9 October 2026, finding M11).',
+                'options' => ['0 months (no probation)', '3 months', '6 months', '12 months'],
+                'default' => '3 months',
+            ],
         ];
     }
 
