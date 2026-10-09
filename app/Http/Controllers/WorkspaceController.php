@@ -62,7 +62,9 @@ class WorkspaceController extends Controller
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('SUM(CASE WHEN loan_portfolio_id IS NOT NULL THEN 1 ELSE 0 END) as with_portfolio')
             ->selectRaw('SUM(CASE WHEN ifrs9stage_post_qualitative IS NOT NULL THEN 1 ELSE 0 END) as with_stage')
-            ->selectRaw('SUM(CASE WHEN pd_value IS NOT NULL THEN 1 ELSE 0 END) as with_pd')
+            // The PD engine writes pd_prefli; pd_value is set later on the
+            // forward-looking route. Either one means the PD model was applied.
+            ->selectRaw('SUM(CASE WHEN pd_prefli IS NOT NULL OR pd_value IS NOT NULL THEN 1 ELSE 0 END) as with_pd')
             ->selectRaw('SUM(CASE WHEN lgd_value IS NOT NULL THEN 1 ELSE 0 END) as with_lgd')
             ->selectRaw('SUM(CASE WHEN pd_post_fli IS NOT NULL THEN 1 ELSE 0 END) as with_fli')
             ->first();
