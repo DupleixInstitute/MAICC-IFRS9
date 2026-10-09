@@ -11,7 +11,13 @@
 
     <div class="py-12">
       <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        
+
+        <!-- Retired in favour of FLI Adjustments (system audit of 9 October 2026, finding M6) -->
+        <div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+          <p class="font-semibold">This screen is retired in favour of FLI Adjustments.</p>
+          <p class="mt-1">Approval here needs a second person (the trainer cannot approve their own model) and is audit-logged; new fits are proposed and approved on <inertia-link :href="route('fli-adjustments.index')" class="font-semibold underline">FLI Adjustments</inertia-link>.</p>
+        </div>
+
         <!-- Model Overview Cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div class="bg-white overflow-hidden shadow rounded-lg">

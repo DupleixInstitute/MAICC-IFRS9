@@ -63,7 +63,7 @@ return [
             $leaf('EIR Data', 'eir-data.index', permission: 'eir.view'),
             $leaf('Drawdowns', 'eir-drawdowns.index', permission: 'eir.view'),
             $leaf('Reference Rates', 'eir-reference-rates.index', permission: 'eir.view'),
-            $leaf('Macro Statistics', 'macro-statistics.index', description: 'The macroeconomic series and their sources (spec v4 section 13)'),
+            $leaf('Macro Statistics', 'macro-statistics.index', 'chart-area', false, 'macro.view', 'The macroeconomic series and their sources (spec v4 section 13)'),
         ], 1, 'teal', 'What comes in'),
 
         $group('Governance Centre', 'shield-alt', [
@@ -95,16 +95,20 @@ return [
                 $leaf('Cumulative LGD', 'lgd-cummulative.index'),
             ], 1, 'sky'),
             $group('Forward-Looking Model', 'circle', [
+                $leaf('Correlation Finder', 'fli-correlation.index', 'search', false, '', 'Which economic series, at what lag, explains the credit losses, ranked, with the guardrail\'s verdict on each pair (spec v4 section 14.4)'),
+                // The regression of spec 14.5 runs on FLI Adjustments under maker-checker; the
+                // legacy one-click screen is retired and reachable only by its route
+                // (system audit of 9 October 2026, finding M6).
+                $leaf('Regression Analysis', 'fli-adjustments.index', 'chart-line', false, '', 'The regression, repaired: the fits of the period under the guardrail, proposed by one person and approved by another (spec v4 section 14.5)'),
                 $leaf('FLI Adjustments', 'fli-adjustments.index', 'bolt', false, '', 'The fits, the approved one, the transmission methods and the route on every loan (spec v4 section 14.6)'),
-                $leaf('Regression Analysis', 'regression.index'),
                 $leaf('Weighted Forecast', 'macro-forecast-weighted.index'),
                 $leaf('Credit Loss Data', 'credit-loss-data.index'),
                 $leaf('Adjusted Forecast', 'forecasting.manual'),
             ], 2, 'sky'),
             $group('Management Overlays', 'circle', [
                 $leaf('Economic Scenarios', 'fli.scenarios.index'),
-                $leaf('External Calculations', 'fli.external.index'),
-                $leaf('Calculation History', 'fli.external.list'),
+                $leaf('External Calculations', 'fli.external.index', permission: 'reports.ifrs9'),
+                $leaf('Calculation History', 'fli.external.list', permission: 'reports.ifrs9'),
             ], 3, 'sky'),
             $leaf('ECL Calculation', 'expected-credit-loss.index', 'calculator'),
             $leaf('Mega Farm Programme', 'megafarm.index', 'seedling', false, '', 'The programme in the ECL module under D30: the book by scheme and stage, the governed method, each run with its basis (spec v4 section 16)'),
@@ -138,6 +142,7 @@ return [
             $leaf('GL Reconciliation (EIR)', 'eir-reconciliation.index', permission: 'eir.view'),
             $leaf('Loan Book Reconciliation', 'reports.loan-book-reconciliation'),
             $leaf('Disbursements (Vintage)', 'reports.disbursement-report'),
+            $leaf('Auditor Pack', 'auditor-pack.index', 'file-archive', false, 'eir.export', 'The auditor\'s pack for a period: the compliance workbooks, the EIR as at the period end, the baselines and the ECL by stage, zipped with a manifest and a checksum per file (spec v4 section 12.5)'),
         ], 6, 'violet', 'What goes out'),
 
         $group('System Documentation', 'book-open', [

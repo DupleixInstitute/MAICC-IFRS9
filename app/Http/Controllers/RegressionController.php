@@ -9,6 +9,7 @@ use App\Models\MacroStatsDefinition;
 use App\Models\MacroStatsValue;
 use App\Models\LoanPortfolio;
 use App\Models\ScenarioProfiles;
+use App\Services\AuditLoggerService;
 use App\Services\RegressionService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -223,11 +224,28 @@ class RegressionController extends Controller
 
     /**
      * Approve a regression model for use in ECL/FLI.
+     *
+     * The legacy screen approved a model with one click by anyone, the
+     * trainer included, and wrote nothing to the audit log (system audit of
+     * 9 October 2026, finding M6). Approval is now maker-checker, as the FLI
+     * Adjustments screen's is (spec v4 section 14.5): the person who trained
+     * the model cannot approve it, and the approval is audit-logged.
      */
     public function approve(RegressionModel $model)
     {
+        if ($model->is_approved) {
+            return back()->with('error', 'This model is already approved.');
+        }
+        if ((int) $model->created_by === (int) auth()->id()) {
+            return back()->with('error', 'The person who trained a model cannot approve it; a second person must. The regression now runs on FLI Adjustments under maker-checker.');
+        }
         $model->is_approved = true;
         $model->save();
+        AuditLoggerService::log('Regression Model Approved', 'regression_models', $model->id, [
+            'old_values' => ['is_approved' => false],
+            'new_values' => ['is_approved' => true, 'name' => $model->name, 'type' => $model->type, 'trained_by' => $model->created_by, 'approved_by' => auth()->id()],
+            'meta' => ['screen' => 'legacy regression (retired in favour of FLI Adjustments, audit finding M6)'],
+        ]);
 
         return back()->with('success', 'Model approved.');
     }

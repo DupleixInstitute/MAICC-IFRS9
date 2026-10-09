@@ -1034,16 +1034,20 @@ Route::put('/credit-loss-data/{creditLossData}', [CreditLossDataController::clas
 Route::delete('/credit-loss-data/{creditLossData}', [CreditLossDataController::class, 'destroy'])->name('credit-loss-data.destroy');
 Route::get('/credit-loss-data/period/{period}', [CreditLossDataController::class, 'period'])->name('credit-loss-data.period');
 
-// Regression Routes
-Route::get('/regression',[RegressionController::class, 'index'])->name('regression.index');
-Route::get('/regression/create',[RegressionController::class,'create'])->name('regression.create');
-Route::get('/regression/{model}', [RegressionController::class, 'show'])->name('regression.view');
-Route::post('/regression/store',[RegressionController::class,'store'])->name('regression.store');
-Route::patch('/regression/{model}/toggle-active', [RegressionController::class, 'toggleActive'])->name('regression.toggle-active');
-Route::patch('/regression/{model}/approve', [RegressionController::class, 'approve'])->name('regression.approve');
-Route::get('/regression/{model}/predict', [RegressionController::class, 'predictForm'])->name('regression.predict');
-Route::post('/regression/{model}/predict', [RegressionController::class, 'predict'])->name('regression.predict.store');
-Route::get('/regression/{model}/forecast-data', [RegressionController::class, 'fetchMacroForecast'])->name('regression.forecast.data');
+// The legacy regression chain, retired in favour of FLI Adjustments (spec v4
+// section 14.5; system audit of 9 October 2026, finding M6): kept for the
+// models already trained, behind the reports permission and off the menu.
+Route::middleware(['auth', 'permission:reports.ifrs9'])->group(function () {
+    Route::get('/regression',[RegressionController::class, 'index'])->name('regression.index');
+    Route::get('/regression/create',[RegressionController::class,'create'])->name('regression.create');
+    Route::get('/regression/{model}', [RegressionController::class, 'show'])->name('regression.view');
+    Route::post('/regression/store',[RegressionController::class,'store'])->name('regression.store');
+    Route::patch('/regression/{model}/toggle-active', [RegressionController::class, 'toggleActive'])->name('regression.toggle-active');
+    Route::patch('/regression/{model}/approve', [RegressionController::class, 'approve'])->name('regression.approve');
+    Route::get('/regression/{model}/predict', [RegressionController::class, 'predictForm'])->name('regression.predict');
+    Route::post('/regression/{model}/predict', [RegressionController::class, 'predict'])->name('regression.predict.store');
+    Route::get('/regression/{model}/forecast-data', [RegressionController::class, 'fetchMacroForecast'])->name('regression.forecast.data');
+});
 
 
 // Collateral Routes
@@ -1091,8 +1095,9 @@ Route::prefix('fli-adj')->middleware(['auth'])->group(function () {
         Route::delete('/{scenarioSet}', [ScenarioSetController::class, 'destroy'])->name('destroy');
     });
 
-    // External Calculations
-    Route::prefix('external')->name('fli.external.')->group(function () {
+    // External Calculations: the legacy one-slope chain, retired in favour of FLI
+    // Adjustments and kept behind the reports permission (audit finding M6)
+    Route::prefix('external')->name('fli.external.')->middleware('permission:reports.ifrs9')->group(function () {
         Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
         Route::get('/list', [ExternalCalculationsController::class, 'list'])->name('list');
         Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
@@ -1101,8 +1106,8 @@ Route::prefix('fli-adj')->middleware(['auth'])->group(function () {
         Route::post('/update-loanbook', [ExternalCalculationsController::class, 'updateLoanBook'])->name('update-loanbook');
     });
 
-    // System Calculations (Regression Analysis) - Reuses ExternalCalculationsController
-    Route::prefix('regression')->name('fli.regression.')->group(function () {
+    // System Calculations (Regression Analysis) - Reuses ExternalCalculationsController (legacy, finding M6)
+    Route::prefix('regression')->name('fli.regression.')->middleware('permission:reports.ifrs9')->group(function () {
         Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
         Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
         Route::post('/generate-forecasts', [ExternalCalculationsController::class, 'generateForecasts'])->name('generate');
@@ -1294,6 +1299,19 @@ Route::group(['prefix' => 'fli-adjustments', 'as' => 'fli-adjustments.'], functi
     Route::post('/apply', [\App\Http\Controllers\FliAdjustmentsController::class, 'apply'])->name('apply');
     Route::post('/{fit}/propose', [\App\Http\Controllers\FliAdjustmentsController::class, 'propose'])->name('propose');
     Route::post('/{fit}/approve', [\App\Http\Controllers\FliAdjustmentsController::class, 'approve'])->name('approve');
+});
+
+// The Correlation Finder on a screen (spec v4 section 14.4; audit finding M16).
+Route::group(['prefix' => 'fli-correlation', 'as' => 'fli-correlation.'], function () {
+    Route::get('/', [\App\Http\Controllers\FliCorrelationController::class, 'index'])->name('index');
+    Route::post('/run', [\App\Http\Controllers\FliCorrelationController::class, 'run'])->name('run');
+});
+
+// The auditor's pack on a screen (spec v4 section 12.5; audit finding M16).
+Route::group(['prefix' => 'auditor-pack', 'as' => 'auditor-pack.'], function () {
+    Route::get('/', [\App\Http\Controllers\AuditorPackController::class, 'index'])->name('index');
+    Route::post('/build', [\App\Http\Controllers\AuditorPackController::class, 'build'])->name('build');
+    Route::get('/download/{file}', [\App\Http\Controllers\AuditorPackController::class, 'download'])->name('download')->where('file', '.+');
 });
 
 // Compliance audits: the register (spec v4 section 12.5).
