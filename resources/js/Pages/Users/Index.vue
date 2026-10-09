@@ -1,214 +1,102 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Users
-            </h2>
-        </template>
-        <div class=" mx-auto mb-4 flex justify-between items-center">
-            <filter-search v-model="form.search" class="w-full max-w-md mr-4" @reset="reset">
-                <div class="w-80 mt-2 px-4 py-6 shadow-xl bg-white rounded">
-                    <div class="mb-2">
-                        <jet-label for="gender" value="Gender"/>
-                        <select v-model="form.gender"
-                                class="mt-1 w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
-                            <option :value="null"/>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                        </select>
-                    </div>
-                    <div class="mb-2">
-                        <jet-label for="role" value="Role"/>
-                        <select v-model="form.role"
-                                class="mt-1 w-full border-gray-300 focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50 rounded-md shadow-sm">
-                            <option :value="null"/>
-                            <option v-for="role in roles" :value="role.id">{{ role.display_name }}</option>
-                        </select>
-                    </div>
-                </div>
-            </filter-search>
-            <inertia-link v-if="can('users.create')" class="btn btn-blue" :href="route('users.create')">
-                <span>Create </span>
-                <span class="hidden md:inline">User</span>
+    <app-layout title="Users" description="Who can sign in to the system, and the role that sets what each person can do">
+        <template #actions>
+            <inertia-link v-if="can('users.create')" :href="route('users.create')"
+                          class="inline-flex items-center gap-2 rounded-lg bg-maiic-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-maiic-700">
+                <font-awesome-icon icon="plus"/> Add user
             </inertia-link>
-        </div>
-        <div class=" mx-auto">
-            <div class="maiic-panel maiic-table-wrap">
+        </template>
+
+        <div class="maiic-panel">
+            <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3">
+                <input v-model="form.search" type="search" aria-label="Search" placeholder="Search name or email" class="maiic-input w-64 py-1.5"/>
+                <select v-model="form.role" aria-label="Role" title="Role" class="maiic-select w-48 py-1.5">
+                    <option :value="null">All roles</option>
+                    <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.display_name }}</option>
+                </select>
+                <button v-if="form.search || form.role" type="button" class="text-xs font-bold text-gray-500 hover:text-maiic-700" @click="reset">Clear</button>
+                <span class="ml-auto text-xs text-gray-500"><b class="text-sm text-gray-900">{{ users.total ?? users.data.length }}</b> users</span>
+            </div>
+            <div class="maiic-table-wrap">
                 <table class="maiic-table">
                     <thead>
                     <tr>
                         <th>Name</th>
                         <th>Email</th>
                         <th>Mobile</th>
-                        <th>Gender</th>
                         <th>Role</th>
-                        <th class="text-right">Actions</th>
+                        <th class="num">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr v-for="user in users.data" :key="user.id">
-                        <td class="!p-0">
-                            <inertia-link class="px-4 py-2.5 flex items-center focus:text-maiic-500"
-                                          :href="route('users.show', user.id)">
-                                <img v-if="user.profile_photo_url" class="block w-5 h-5 rounded-full mr-2 -my-2"
-                                     :src="user.profile_photo_url">
+                        <td>
+                            <inertia-link :href="route('users.show', user.id)" class="flex items-center gap-2 font-semibold text-gray-900 hover:text-maiic-700">
+                                <img v-if="user.profile_photo_url" class="h-7 w-7 rounded-full object-cover" :src="user.profile_photo_url" alt="">
                                 {{ user.name }}
-                                <icon v-if="user.deleted_at" name="trash"
-                                      class="flex-shrink-0 w-3 h-3 fill-gray-400 ml-2"/>
+                                <span v-if="user.deleted_at" class="maiic-badge maiic-badge-grey">Removed</span>
                             </inertia-link>
                         </td>
-                        <td class="!p-0">
-                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('users.show', user.id)"
-                                          tabindex="-1">
-                                {{ user.email }}
-                            </inertia-link>
-                        </td>
-                        <td class="!p-0">
-                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('users.show', user.id)"
-                                          tabindex="-1">
-                                {{ user.mobile }}
-                            </inertia-link>
-                        </td>
-                        <td class="!p-0">
-                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('users.show', user.id)"
-                                          tabindex="-1">
-                                {{ user.gender }}
-                            </inertia-link>
-                        </td>
-                        <td class="!p-0">
-                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('users.show', user.id)"
-                                          tabindex="-1">
-                                <span v-for="role in user.roles"
-                                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800">
-                                     {{ role.display_name }}
-                                </span>
-                            </inertia-link>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.mobile || '-' }}</td>
+                        <td>
+                            <span v-for="role in user.roles" :key="role.id" class="maiic-badge maiic-badge-green mr-1">{{ role.display_name }}</span>
+                            <span v-if="!user.roles || !user.roles.length" class="maiic-badge maiic-badge-grey">No role</span>
                         </td>
                         <td class="w-px">
                             <row-actions :view-href="route('users.show', user.id)"
                                          :edit-href="can('users.update') ? route('users.edit', user.id) : null"
                                          :deletable="can('users.destroy')"
-                                         @delete="deleteAction(user.id)"/>
+                                         @delete="destroy(user)"/>
                         </td>
                     </tr>
                     <tr v-if="users.data.length === 0">
-                        <td class="maiic-empty" colspan="6">No users found.</td>
+                        <td class="maiic-empty" colspan="5">No users match. Clear the search, or add a user.</td>
                     </tr>
                     </tbody>
                 </table>
-
             </div>
-            <pagination :links="users.links"/>
+            <div v-if="users.links && users.links.length > 3" class="border-t border-gray-100 px-4 pb-4"><pagination :links="users.links"/></div>
         </div>
-        <jet-confirmation-modal :show="confirmingUserDeletion" @close="confirmingUserDeletion = false">
-            <template #title>
-                Delete User
-            </template>
-
-            <template #content>
-                Are you sure you want to delete this user? Their access is removed immediately
-                and this action cannot be undone.
-            </template>
-
-            <template #footer>
-                <jet-secondary-button @click.native="confirmingUserDeletion = false">
-                    Nevermind
-                </jet-secondary-button>
-
-                <jet-danger-button class="ml-2" @click.native="destroy" :class="{ 'opacity-25': form.processing }"
-                                   :disabled="form.processing">
-                    Delete User
-                </jet-danger-button>
-            </template>
-        </jet-confirmation-modal>
-        <teleport to="head">
-            <title>{{ pageTitle }}</title>
-            <meta property="og:description" :content="pageDescription">
-        </teleport>
-        <HelpManual />
+        <HelpManual/>
     </app-layout>
-
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Icon from '@/Jetstream/Icon.vue'
-import Pagination from '@/Jetstream/Pagination.vue'
-import SearchFilter from '@/Jetstream/SearchFilter.vue'
-import FilterSearch from '@/Jetstream/FilterSearch.vue'
-import mapValues from 'lodash/mapValues'
-import pickBy from 'lodash/pickBy'
-import throttle from 'lodash/throttle'
-import JetLabel from '@/Jetstream/Label.vue'
-import SelectInput from '@/Jetstream/SelectInput.vue'
-import JetConfirmationModal from '@/Jetstream/ConfirmationModal.vue'
-import JetDangerButton from '@/Jetstream/DangerButton.vue'
-import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
-import HelpManual from '../../Components/HelpManual.vue';
+import Pagination from '@/Components/Pagination.vue'
 import RowActions from '@/Shared/RowActions.vue'
+import HelpManual from '@/Components/HelpManual.vue'
+import { confirmDialog } from '@/Components/confirmDialog'
+import pickBy from 'lodash/pickBy'
 
 export default {
-    components: {
-        AppLayout,
-        Icon,
-        Pagination,
-        SearchFilter,
-        FilterSearch,
-        JetLabel,
-        SelectInput,
-        JetConfirmationModal,
-        JetDangerButton,
-        JetSecondaryButton,
-        RowActions,
-        HelpManual,
-    },
-    props: {
-        users: Object,
-        filters: Object,
-        roles: Object,
-
-    },
+    components: { AppLayout, Pagination, RowActions, HelpManual },
+    props: { users: Object, filters: Object, roles: [Object, Array] },
     data() {
-        return {
-            form: {
-                search: this.filters.search,
-                role: this.filters.role,
-                gender: this.filters.gender,
-                processing: false
-            },
-            confirmingUserDeletion: false,
-            selectedRecord: null,
-            pageTitle: "Users",
-            pageDescription: "Manage Users",
-
-        }
+        return { form: { search: this.filters.search, role: this.filters.role } }
     },
     watch: {
         form: {
             handler: _.debounce(function () {
-                let query = pickBy(this.form)
-                this.$inertia.get(this.route('users.index', Object.keys(query).length ? query : {}))
-            }, 500),
+                this.$inertia.get(this.route('users.index'), pickBy(this.form), { preserveState: true, replace: true })
+            }, 450),
             deep: true,
         },
     },
     methods: {
         reset() {
-            this.form = mapValues(this.form, () => null)
+            this.form = { search: null, role: null }
         },
-        deleteAction(id) {
-            this.confirmingUserDeletion = true
-            this.selectedRecord = id
-        },
-        destroy() {
-
-            this.$inertia.delete(this.route('users.destroy', this.selectedRecord))
-            this.confirmingUserDeletion = false
+        async destroy(user) {
+            if (!(await confirmDialog({
+                title: 'Delete ' + user.name + '?',
+                message: 'Their access is removed straight away. This cannot be undone.',
+                confirmLabel: 'Delete user',
+                tone: 'danger',
+            }))) return
+            this.$inertia.delete(this.route('users.destroy', user.id))
         },
     },
 }
 </script>
-
-<style scoped>
-
-</style>
