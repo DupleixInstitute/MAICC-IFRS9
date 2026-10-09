@@ -53,7 +53,7 @@ class DocumentFrontMatter
                 ],
                 'roles' => [
                     ['New user', 'Read Getting Started (especially The screen layout and Common controls and icons) and Dashboard and Workspace end to end before anything else.'],
-                    ['Credit or risk analyst', 'Portfolio Setup, Customer and Loan Data, Collateral Management, IFRS 9 Model Setup and ECL Processing: load, stage, calculate and reconcile.'],
+                    ['Credit or risk analyst', 'Portfolio Setup, Customer and Loan Data, Collateral Management, Financial Modelling and Financial Modelling: the ECL: load, stage, calculate and reconcile.'],
                     ['Finance preparer', 'EIR and Revenue Recognition and Reports: prepare the figures a reviewer approves.'],
                     ['Reviewer or CFO', 'Dashboard, Workspace and the IFRS 9 Reports hub: review, approve and sign off the period.'],
                     ['Auditor', 'Reports (account-level ECL trail and reconciliations), the EIR coverage and reconciliation screens, and the Reference chapter for the icon legend and glossary.'],

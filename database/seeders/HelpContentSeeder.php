@@ -19,9 +19,24 @@ class HelpContentSeeder extends Seeder
     /** This seeder owns the User Manual only; the Administrator Manual has its own seeder. */
     public const MANUAL = 'user';
 
+    /**
+     * Chapters renamed to the suite's group names (spec v4 section 11.3;
+     * system audit of 9 October 2026, finding M16). An installed manual
+     * still carrying the old title is renamed, articles and all.
+     */
+    public const RENAMED_CHAPTERS = ['IFRS 9 Model Setup' => 'Financial Modelling', 'ECL Processing' => 'Financial Modelling: the ECL'];
+
     public function run(): void
     {
         if (HelpCategory::manual(self::MANUAL)->exists()) {
+            foreach (self::RENAMED_CHAPTERS as $old => $new) {
+                $category = HelpCategory::manual(self::MANUAL)->where('title', $old)->first();
+                if ($category !== null && ! HelpCategory::manual(self::MANUAL)->where('title', $new)->exists()) {
+                    $slug = Str::slug($new);
+                    $category->update(['title' => $new, 'slug' => HelpCategory::where('slug', $slug)->where('id', '!=', $category->id)->exists() ? $slug . '-' . $category->id : $slug]);
+                    $this->command?->info("Manual: chapter '{$old}' renamed '{$new}'.");
+                }
+            }
             // the shipped text is versioned: with HELP_SEED_REFRESH=1 the seeded articles' body and steps are
             // brought up to date by chapter and title (an article a person authored in the system is left alone)
             if (! filter_var(env('HELP_SEED_REFRESH', false), FILTER_VALIDATE_BOOL)) {
@@ -230,7 +245,8 @@ class HelpContentSeeder extends Seeder
                 ],
             ],
 
-            'IFRS 9 Model Setup' => [
+            // the suite's group name (audit finding M16); 'IFRS 9 Model Setup' until 9 October 2026
+            'Financial Modelling' => [
                 'Staging & SICR Rules' => [
                     'body' => '<p>Quantitative thresholds set the days-past-due boundaries for Stages 1, 2 and 3. Qualitative SICR groups and alert items capture judgement-based triggers (sector distress, restructuring, watchlist events); raising a trigger pushes the affected contracts to the target stage in the loan book, with the pre- and post-qualitative stages kept separately for transparency.</p>',
                     'images' => ['staging' => 'Staging and SICR thresholds'],

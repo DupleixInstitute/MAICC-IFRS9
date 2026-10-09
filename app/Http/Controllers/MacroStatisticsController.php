@@ -23,7 +23,11 @@ class MacroStatisticsController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('permission:eir.govern')->only(['commit', 'manual']);
+        // macro.view and macro.manage are the screen's own permissions (spec v4 section 13;
+        // system audit of 9 October 2026, finding M16); the EIR pair still opens the door
+        // for a user who holds it, so nobody is locked out by the rename
+        $this->middleware('permission:macro.view|eir.view')->only(['index', 'preview', 'export']);
+        $this->middleware('permission:macro.manage|eir.govern')->only(['commit', 'manual']);
     }
 
     public function index(Request $request)
@@ -43,7 +47,7 @@ class MacroStatisticsController extends Controller
 
         return Inertia::render('Macro/Index', [
             'series' => $series, 'selected' => $selected, 'observations' => $observations, 'batches' => $batches, 'sets' => $sets,
-            'canManage' => (bool) (auth()->user()?->can('eir.govern') ?? false), 'defaultCountry' => config('services.worldbank.country', 'MWI'),
+            'canManage' => (bool) (auth()->user()?->canAny(['macro.manage', 'eir.govern']) ?? false), 'defaultCountry' => config('services.worldbank.country', 'MWI'),
         ]);
     }
 

@@ -2,7 +2,9 @@
 
 /*
 |--------------------------------------------------------------------------
-| User Manual chapter: IFRS 9 Model Setup (part one)
+| User Manual chapter: Financial Modelling (part one)
+| (the suite's group name; it was 'IFRS 9 Model Setup' until the system
+| audit of 9 October 2026, finding M16)
 |--------------------------------------------------------------------------
 | Loaded by HelpContentSeeder. Chapter title => [article title => spec].
 | Spec keys: body (HTML), steps (array), images (key => caption), routes.
@@ -11,7 +13,7 @@
 */
 
 return [
-    'IFRS 9 Model Setup' => [
+    'Financial Modelling' => [
 
         'Staging and SICR: quantitative thresholds' => [
             'body' => '<p>IFRS 9 places every loan in one of three stages. Stage 1 is a performing loan that carries a 12-month expected credit loss (ECL, the loss the lender expects over the next twelve months). Stage 2 is a loan with a significant increase in credit risk (SICR) since it was granted and carries a lifetime ECL. Stage 3 is a credit-impaired loan, also on lifetime ECL. The quantitative rule that separates the stages is days past due (DPD, the number of days a repayment is overdue). This page holds the institution level DPD boundaries and is maintained by the risk administrator; it needs the <b>settings</b> permission. To reach it, open the sidebar, expand <b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>, then <b>Staging &amp; SICR Rules</b>, and choose <b>Quantitative Thresholds</b>.</p>'
