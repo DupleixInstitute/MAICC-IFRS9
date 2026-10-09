@@ -3,7 +3,7 @@
         <template #header>
             <div>
                 <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                    <span>IFRS 9 Model Setup</span><span>/</span><span>Scenarios &amp; Overlays</span><span>/</span><span class="font-medium text-maiic-700">Calculation History</span>
+                    <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">Calculation History</span>
                 </div>
                 <h2 class="text-xl font-semibold text-gray-800">Calculation History</h2>
                 <p class="mt-1 text-sm text-gray-600">Every external forward-looking calculation saved, with its scenarios and parameters</p>
@@ -13,6 +13,7 @@
             <Link :href="route('fli.external.index')" class="primary-btn">New calculation</Link>
         </template>
 
+        <LegacyNotice class="mb-4" />
         <div class="w-full space-y-4">
             <div>
                 <KpiRow :cards="[
@@ -242,6 +243,7 @@
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
 import { Link } from '@inertiajs/vue3'
 

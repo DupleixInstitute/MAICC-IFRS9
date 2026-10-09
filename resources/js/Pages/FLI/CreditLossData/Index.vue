@@ -3,7 +3,7 @@
     <template #header>
       <div>
         <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-          <span>IFRS 9 Model Setup</span><span>/</span><span>Forward-Looking Model</span><span>/</span><span class="font-medium text-maiic-700">Credit Loss Data</span>
+          <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">Credit Loss Data</span>
         </div>
         <h2 class="text-xl font-semibold text-gray-800">Credit Loss Data</h2>
         <p class="mt-1 text-sm text-gray-600">The historical loss measures (default rates, losses and similar) the forward-looking model is fitted to</p>
@@ -14,6 +14,7 @@
       <Link :href="route('credit-loss-data.create')" class="primary-btn">Add record</Link>
     </template>
 
+    <LegacyNotice class="mb-4" />
     <div class="w-full space-y-4">
         <KpiRow :cards="[
             { label: 'Records', value: Number(totalRecords || 0) },
@@ -98,12 +99,13 @@
 <script>
 import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
 import { Inertia } from '@inertiajs/inertia'
 import { Link } from '@inertiajs/vue3'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
 
 export default {
-  components: { AppLayout, Link, KpiRow },
+  components: { AppLayout, LegacyNotice, Link, KpiRow },
   props: {
     totalRecords: Number,
     portfolios: Array,

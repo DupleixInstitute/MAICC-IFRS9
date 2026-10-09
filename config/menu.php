@@ -203,7 +203,7 @@ return [
                 $tab('Scenario Profiles', 'scenarios.profiles'),
                 $tab('Economic Scenarios', 'fli.scenarios.index'),
                 $tab('External Calculations', 'fli.external.index', 'reports.ifrs9'),
-                $tab('Calculation History', 'fli.external.list', 'reports.ifrs9'),
+                $tab('History', 'fli.external.list', 'reports.ifrs9'),
             ]),
         ], 8),
 

@@ -3,7 +3,7 @@
         <template #header>
             <div>
                 <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                    <span>IFRS 9 Model Setup</span><span>/</span><span>Scenarios &amp; Overlays</span><span>/</span><span class="font-medium text-maiic-700">Economic Scenarios</span>
+                    <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">Economic Scenarios</span>
                 </div>
                 <h2 class="text-xl font-semibold text-gray-800">Economic Scenarios</h2>
                 <p class="mt-1 text-sm text-gray-600">Sets of economic scenarios and their macro paths, used by the external calculation</p>
@@ -13,6 +13,7 @@
             <Link :href="route('fli.scenarios.create')" class="primary-btn">Create scenario set</Link>
         </template>
 
+        <LegacyNotice class="mb-4" />
         <div class="w-full space-y-4">
             <div class="maiic-panel">
                 <div class="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 md:flex-row md:items-end md:justify-between">
@@ -84,6 +85,7 @@
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
 import { Link } from '@inertiajs/vue3'
 import Icon from '@/Jetstream/Icon.vue'
 import Pagination from '@/Jetstream/Pagination.vue'
@@ -99,6 +101,7 @@ import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
 export default {
     components: {
         AppLayout,
+        LegacyNotice,
         Link,
         Icon,
         Pagination,

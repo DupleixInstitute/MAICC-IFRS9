@@ -4,7 +4,7 @@
     <template #header>
       <div>
         <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-          <span>IFRS 9 Model Setup</span><span>/</span><span>Scenarios &amp; Overlays</span><span>/</span><span class="font-medium text-maiic-700">Scenario Profiles</span>
+          <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">Scenario Profiles</span>
         </div>
         <h2 class="text-xl font-semibold text-gray-800">Scenario Profiles</h2>
         <p class="mt-1 text-sm text-gray-600">Named groups of economic scenarios (for example base, upside and downside) used by the weighted forecast</p>
@@ -15,6 +15,7 @@
       <button type="button" class="primary-btn" @click="openProfileForm()">Create profile</button>
     </template>
 
+    <LegacyNotice class="mb-4" />
     <div class="w-full space-y-4">
       <div class="maiic-panel">
         <div class="border-b border-gray-200 px-5 py-4">
@@ -79,6 +80,7 @@ import { ref, computed } from 'vue'
 import RowPager from '@/Components/Maiic/RowPager.vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
 import ProfileForm from './Components/ProfileForm.vue'
 import ScenarioForm from './ScenarioForm.vue'
 

@@ -3,7 +3,7 @@
       <template #header>
         <div>
           <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-            <span>IFRS 9 Model Setup</span><span>/</span><span>Forward-Looking Model</span><span>/</span><span class="font-medium text-maiic-700">Weighted Forecast</span>
+            <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">Weighted Forecast</span>
           </div>
           <h2 class="text-xl font-semibold text-gray-800">Weighted Forecast</h2>
           <p class="mt-1 text-sm text-gray-600">Each macro variable's forecast weighted across the scenarios of a profile</p>
@@ -13,6 +13,7 @@
         <button type="button" class="primary-btn" @click="showForecastForm = true">Calculate forecast</button>
       </template>
 
+      <LegacyNotice class="mb-4" />
       <div class="w-full space-y-4">
         <div class="maiic-panel">
           <div class="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
@@ -83,6 +84,7 @@ import { notice } from '@/Components/Maiic/notice'
 import { router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
 import Pagination from '@/Components/Pagination.vue';
 import CreateForecast from './CreateForecast.vue'
 

@@ -3,21 +3,17 @@
         <template #header>
             <div>
                 <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                    <span>IFRS 9 Model Setup</span><span>/</span><span>Scenarios &amp; Overlays</span><span>/</span><span class="font-medium text-maiic-700">External Calculations</span>
+                    <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">External Calculations</span>
                 </div>
                 <h2 class="text-xl font-semibold text-gray-800">External Calculations</h2>
                 <p class="mt-1 text-sm text-gray-600">The older one-slope forward-looking calculation, kept for reference</p>
             </div>
         </template>
 
+        <LegacyNotice class="mb-4" />
         <div>
             <div class="w-full">
 
-                <!-- Retired in favour of FLI Adjustments -->
-                <div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
-                    <p class="font-semibold">This screen is retired in favour of FLI Adjustments.</p>
-                    <p class="mt-1">The one-slope external calculation is the legacy route to the post-FLI PD. The governed route of the forward-looking model (the approved fit, the transmission method and the scenario set, with the lineage on every loan) runs on <inertia-link :href="route('fli-adjustments.index')" class="font-semibold underline">FLI Adjustments</inertia-link>.</p>
-                </div>
 
                 <!-- Step 1: Configuration & Parameters -->
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 mb-6">
@@ -273,6 +269,7 @@
 <script>
 import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
 import JetButton from "@/Jetstream/Button.vue"
 import JetInput from "@/Jetstream/Input.vue"
 import JetInputError from "@/Jetstream/InputError.vue"
@@ -287,6 +284,7 @@ export default {
     },
     components: {
         AppLayout,
+        LegacyNotice,
         JetButton,
         JetInput,
         JetLabel,

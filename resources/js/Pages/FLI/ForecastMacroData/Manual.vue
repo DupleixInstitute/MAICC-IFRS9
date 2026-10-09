@@ -4,13 +4,14 @@
     <template #header>
       <div>
         <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-          <span>IFRS 9 Model Setup</span><span>/</span><span>Forward-Looking Model</span><span>/</span><span class="font-medium text-maiic-700">Adjusted Forecast</span>
+          <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">Adjusted Forecast</span>
         </div>
         <h2 class="text-xl font-semibold text-gray-800">Adjusted Forecast</h2>
         <p class="mt-1 text-sm text-gray-600">Enter a regression and scenario forecasts by hand to see the weighted credit-loss forecast</p>
       </div>
     </template>
 
+    <LegacyNotice class="mb-4" />
     <div>
       <div class="w-full">
 
@@ -437,6 +438,7 @@
 import { ref, computed, reactive } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
 
 const processing = ref(false)
 const calculationExpanded = ref(true) // Start with calculation expanded
