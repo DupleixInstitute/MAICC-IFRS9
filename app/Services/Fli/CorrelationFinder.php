@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Fli;
 
+use App\Support\Fli\AsAtSeries;
 use App\Support\Fli\ExpectedSignPolicy;
 use App\Support\Fli\GovernedValues;
 use App\Support\Fli\SeriesAligner;
@@ -71,8 +72,13 @@ final class CorrelationFinder
      */
     public function run(string $asOfPeriod, ?callable $progress = null): array
     {
-        $xSeries = $this->loadSeries('macro_series', 'statistic_code', "value_type = 'actual'");
-        $ySeries = $this->loadSeries('credit_loss_series', 'proxy_code', null);
+        // As at the reporting date (IFRS 9 5.5.17(c), B5.5.49 to B5.5.51): the
+        // sweep for period P reads only the actuals and proxies knowable by the
+        // end of P, so a later observation can never change an earlier period's
+        // suggestions (see AsAtSeries for when a row becomes knowable).
+        $asOf = AsAtSeries::ym($asOfPeriod);
+        $xSeries = AsAtSeries::macro($this->connection, $asOf, ['actual']);
+        $ySeries = AsAtSeries::proxies($this->connection, $asOf);
 
         // Governed historical horizon: bivariate search runs over MATCHING data
         // capped to the most recent N years (fli.max_history_years). Lags then
@@ -102,7 +108,7 @@ final class CorrelationFinder
         }
 
         $inputsHash = hash('sha256', json_encode([
-            'x' => $this->vintage($xSeries), 'y' => $this->vintage($ySeries), 'lags' => $lagGrid,
+            'as_of' => $asOf, 'x' => $this->vintage($xSeries), 'y' => $this->vintage($ySeries), 'lags' => $lagGrid,
         ]));
 
         $runId = (int) $this->db()->table('analysis_runs')->insertGetId([
@@ -309,29 +315,9 @@ final class CorrelationFinder
     }
 
     /**
-     * Load a period-keyed value series per group code from a table.
-     *
-     * @return array<string,array<string,float>>
-     */
-    private function loadSeries(string $table, string $codeCol, ?string $whereRaw): array
-    {
-        $q = $this->db()->table($table);
-        if ($whereRaw !== null) {
-            $q->whereRaw($whereRaw);
-        }
-        $rows = $q->orderBy($codeCol)->orderBy('observation_period')
-            ->get([$codeCol, 'observation_period', 'value']);
-        $out = [];
-        foreach ($rows as $r) {
-            $out[(string) $r->$codeCol][(string) $r->observation_period] = (float) $r->value;
-        }
-
-        return $out;
-    }
-
-    /**
      * Cap every X and Y series to the most recent N years of MATCHING data: the
-     * cutoff is the latest observed period across all series minus N years;
+     * cutoff is the latest observed period across all series (as at the
+     * reporting date, so never later than it) minus N years;
      * earlier points are dropped so a correlation only spans the governed
      * historical horizon (FLI_AND_PD_METHODOLOGY.md 12.5). YYYYMM strings compare
      * lexically, so a plain string comparison is the period comparison.

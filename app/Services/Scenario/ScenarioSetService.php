@@ -4,6 +4,7 @@ namespace App\Services\Scenario;
 
 use App\Services\AuditLoggerService;
 use App\Services\Eir\GovernanceService;
+use App\Support\Fli\AsAtSeries;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -386,22 +387,49 @@ class ScenarioSetService
 
     // ----- the paths, the back-test and the sensitivity ----------------------
 
-    /** The base path per series (annual, from macro_series) and each scenario's shocked path. */
+    /**
+     * The base path per series (annual, from macro_series) and each scenario's
+     * shocked path, as at the set's reporting period.
+     *
+     * Only what was knowable by the end of the period is read (IFRS 9
+     * 5.5.17(c), B5.5.49 to B5.5.51; AsAtSeries says when a row becomes
+     * knowable): an actual dated on or before the period, a forecast whose
+     * vintage is dated on or before it. Year offset o is the calendar year of
+     * the period plus o, valued at the latest knowable observation in that
+     * year. Where no value of that year is knowable (no published forecast
+     * held), the latest knowable value is carried forward and the path says
+     * so in base_source, so the no-change assumption is visible on the set and
+     * in the route's result, never silent.
+     */
     public function paths(int $setId): array
     {
         $set = DB::table('governed_scenario_sets')->where('id', $setId)->first();
         $year = (int) substr($set->reporting_period, 0, 4);
+        $asOf = AsAtSeries::ym((string) $set->reporting_period);
         $codes = DB::table('scenario_shocks')->join('governed_scenarios', 'governed_scenarios.id', '=', 'scenario_shocks.scenario_id')->where('set_id', $setId)->distinct()->pluck('statistic_code')->all();
         $codes = array_values(array_unique(array_merge(['GDP_GROWTH', 'CPI', 'MWK_USD', 'LENDING_RATE', 'PLR', 'AGRI_GROWTH'], $codes)));
+        $known = DB::getSchemaBuilder()->hasTable('macro_series') ? AsAtSeries::macroRows(null, $asOf, ['actual', 'estimate', 'forecast'], $codes) : [];
         $base = [];
+        $baseSource = [];
         foreach ($codes as $code) {
+            $rows = $known[$code] ?? [];
+            $latest = $rows === [] ? null : max(array_keys($rows));
             for ($o = 0; $o <= 2; $o++) {
-                $v = DB::getSchemaBuilder()->hasTable('macro_series') ? DB::table('macro_series')->where('statistic_code', $code)->where('observation_period', 'like', ($year + $o) . '%')->orderByDesc('observation_period')->value('value') : null;
-                $v ??= DB::getSchemaBuilder()->hasTable('macro_series') ? DB::table('macro_series')->where('statistic_code', $code)->orderByDesc('observation_period')->value('value') : null;
-                $base[$code][$o] = $v !== null ? (float) $v : null;
+                $inYear = array_filter(array_keys($rows), fn ($p) => str_starts_with((string) $p, (string) ($year + $o)));
+                if ($inYear !== []) {
+                    $p = max($inYear);
+                    $base[$code][$o] = $rows[$p]['value'];
+                    $baseSource[$code][$o] = $rows[$p]['type'] . ' ' . $p;
+                } elseif ($latest !== null) {
+                    $base[$code][$o] = $rows[$latest]['value'];
+                    $baseSource[$code][$o] = 'carried forward from ' . $rows[$latest]['type'] . ' ' . $latest . ': no value for ' . ($year + $o) . ' known at ' . $asOf;
+                } else {
+                    $base[$code][$o] = null;
+                    $baseSource[$code][$o] = 'no value known at ' . $asOf;
+                }
             }
         }
-        $out = ['base' => $base, 'scenarios' => []];
+        $out = ['base' => $base, 'base_source' => $baseSource, 'as_of' => $asOf, 'scenarios' => []];
         foreach (DB::table('governed_scenarios')->where('set_id', $setId)->orderBy('order_position')->get() as $s) {
             $path = $base;
             foreach (DB::table('scenario_shocks')->where('scenario_id', $s->id)->get() as $sh) {
@@ -429,9 +457,13 @@ class ScenarioSetService
         if ($prev !== null) {
             $prevPaths = $this->paths((int) $prev->id);
             $year = (int) substr($set->reporting_period, 0, 4);
+            $known = AsAtSeries::macro(null, (string) $set->reporting_period, ['actual'], array_keys($prevPaths['base']));
             foreach ($prevPaths['base'] as $code => $offsets) {
                 $predicted = $offsets[0] ?? null;
-                $actual = DB::table('macro_series')->where('statistic_code', $code)->where('value_type', 'actual')->where('observation_period', 'like', $year . '%')->orderByDesc('observation_period')->value('value');
+                // the actual known at this set's period, never a later one
+                $actuals = $known[$code] ?? [];
+                $inYear = array_filter(array_keys($actuals), fn ($p) => str_starts_with((string) $p, (string) $year));
+                $actual = $inYear === [] ? null : $actuals[max($inYear)];
                 if ($predicted === null || $actual === null) {
                     continue;
                 }
@@ -467,6 +499,24 @@ class ScenarioSetService
     }
 
     /**
+     * The inverse of stagePd: the twelve-month PD whose stage PD is $stagePd
+     * for this loan's stage and remaining life. Null for Stage 3, whose stage
+     * PD is 1 whatever the twelve-month PD (no inverse exists, and none is
+     * needed: the ECL of a Stage 3 loan does not move with the PD).
+     */
+    public static function pd12ForStagePd(object $l, float $stagePd): ?float
+    {
+        if ((string) $l->stage === '3') {
+            return null;
+        }
+        $stagePd = max(0.0, min(1.0, $stagePd));
+        $months = $l->remaining_tenor === null || (float) $l->remaining_tenor < 1 ? 12.0 : (float) $l->remaining_tenor;
+        $years = ((string) $l->stage === '2' ? $months : min(12.0, $months)) / 12;
+
+        return max(0.0, min(1.0, 1 - pow(1 - $stagePd, 1 / $years)));
+    }
+
+    /**
      * The ECL under each scenario, with 100 percent weight on each, and with ten
      * points moved from the base to the downside and to the upside. Until the
      * chain runs per scenario, each scenario's PD is the pre-FLI PD times its
@@ -492,9 +542,11 @@ class ScenarioSetService
         });
         $stagePd = fn (object $l, float $pd12): float => self::stagePd($l, $pd12);
         // Each loan's booked ECL (ecl_value, whichever engine wrote it) scaled by
-        // the ratio of the scenario's stage PD to the booked PD's stage PD, so the
-        // base scenario reconciles to the allowance exactly and the others move
-        // with the PD alone; a loan with no booked ECL is measured directly.
+        // the ratio of the scenario's stage PD to the booked PD's stage PD, so each
+        // scenario moves with the PD alone. The route books the PD whose stage PD
+        // is the weighted stage PD across the scenarios, so the weighted figure
+        // below reconciles to the allowance (to the rounding of the stored PDs);
+        // a loan with no booked ECL is measured directly.
         $eclUnder = function (string $name, float $mult) use ($loans, $fromChain, $stagePd): float {
             $ecl = 0.0;
             foreach ($loans as $l) {
@@ -532,7 +584,7 @@ class ScenarioSetService
         };
         $result = ['period' => $set->reporting_period, 'loans' => $loans->count(), 'note' => $loans->isEmpty() ? 'no loan of the period carries a PD: run the PD engine, then the sensitivity' : null, 'per_scenario' => $perScenario, 'weighted_ecl' => $weighted,
             'ten_points_to_downside' => $shift($down), 'ten_points_to_upside' => $shift($up),
-            'basis' => ($fromChain ? 'the per-scenario PD the route wrote on each loan' : 'the pre-FLI PD x the typed scenario multiplier (the route has not run for this set)') . ', applied to the booked ECL of each loan as the ratio of stage PDs (lifetime for Stage 2, 1 for Stage 3), so the base reconciles to the allowance; weighted once by the set'];
+            'basis' => ($fromChain ? 'the per-scenario PD the route wrote on each loan' : 'the pre-FLI PD x the typed scenario multiplier (the route has not run for this set)') . ', applied to the booked ECL of each loan as the ratio of stage PDs (lifetime for Stage 2, 1 for Stage 3), so the probability-weighted ECL reconciles to the allowance booked on the post-FLI PD; weighted once by the set'];
         DB::table('governed_scenario_sets')->where('id', $setId)->update(['sensitivity' => json_encode($result), 'updated_at' => now()]);
 
         return $result;

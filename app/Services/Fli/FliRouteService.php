@@ -5,6 +5,8 @@ namespace App\Services\Fli;
 use App\Services\AuditLoggerService;
 use App\Services\Eir\GovernanceService;
 use App\Services\Scenario\ScenarioSetService;
+use App\Support\Fli\AsAtSeries;
+use App\Support\Fli\SeriesAligner;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -14,14 +16,18 @@ use Throwable;
  * The forward-looking route (spec v4 sections 14.6 to 14.8, 15.5): how an
  * approved fit, or an overlay, reaches every loan's PD for a period.
  *
- * Under the regression route the approved fit (proxy = slope x driver +
- * intercept) is evaluated once per scenario of the approved set: the
- * driver takes the scenario's shocked path for the first forecast year,
- * the base takes the latest actual, and the adjustment is the ratio of
- * the predicted proxies less one. The transmission method in force moves
+ * Under the regression route the approved fit (proxy(t) = slope x
+ * driver(t - lag) + intercept) is evaluated once per scenario of the
+ * approved set, as at the end of the period and under the fitted lag (see
+ * regressionAdjustments): the base window takes the actual driver lag
+ * months before the period, the twelve-month window takes the driver lag
+ * months before its end (an actual when that is on or before the period,
+ * else the scenario's path), and the adjustment is the ratio of the
+ * predicted proxies less one. The transmission method in force moves
  * each loan's pre-FLI PD under each scenario; the reported post-FLI PD is
- * the probability-weighted PD across scenarios (the weighting method of
- * 15.5), floored and capped, Stage 3 at 100 percent. Under the manual
+ * the twelve-month PD whose stage PD is the probability-weighted stage PD
+ * across scenarios, so the booked ECL is the weighted ECL (the weighting
+ * method of 15.5), floored and capped, Stage 3 at 100 percent. Under the manual
  * overlay route the approved, unexpired overlays of the register are
  * applied the same way, each loan taking the sum of the adjustments whose
  * scope covers it (the book, its product group, its contract); under
@@ -98,22 +104,9 @@ class FliRouteService
         // the adjustment per scenario
         $scenarios = [];
         $note = null;
+        $baseDriver = null;
         if ($fit !== null && $set !== null) {
-            $paths = $this->sets->paths((int) $set->id);
-            $base = $paths['base'][$fit->statistic_code][0] ?? null;
-            $baseActual = DB::table('macro_series')->where('statistic_code', $fit->statistic_code)->where('value_type', 'actual')->orderByDesc('observation_period')->value('value');
-            $base = $baseActual !== null ? (float) $baseActual : $base;
-            if ($base === null) {
-                $note = "no base value for {$fit->statistic_code}: the PD holds";
-            } else {
-                $predBase = (float) $fit->slope * $base + (float) $fit->intercept;
-                foreach ($paths['scenarios'] as $name => $sc) {
-                    $driver = $sc['path'][$fit->statistic_code][0] ?? $base;
-                    $pred = (float) $fit->slope * $driver + (float) $fit->intercept;
-                    $adj = abs($predBase) > 1e-12 ? $pred / $predBase - 1 : 0.0;
-                    $scenarios[$name] = ['weight' => $sc['weight'], 'driver' => round($driver, 6), 'predicted_proxy' => round($pred, 6), 'adjustment' => round($adj, 6)];
-                }
-            }
+            [$baseDriver, $scenarios] = $this->regressionAdjustments($period, $fit, $this->sets->paths((int) $set->id));
         } elseif ($fit === null && ! str_contains($route, 'overlay')) {
             // the regression route with nothing approved: the PD holds
             $scenarios = ['Overlay' => ['weight' => 100.0, 'driver' => null, 'predicted_proxy' => null, 'adjustment' => 0.0]];
@@ -152,7 +145,7 @@ class FliRouteService
         }
 
         // every loan
-        $loans = DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('pd_prefli')->get(['id', 'contract_id', 'pd_prefli', 'ifrs9stage_post_qualitative', 'product_group']);
+        $loans = DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('pd_prefli')->get(['id', 'contract_id', 'pd_prefli', 'ifrs9stage_post_qualitative', 'calculated_ifrs9_stage', 'ifrs9stage_pre_qualitative', 'remaining_tenor', 'product_group']);
         $hasOverlayIds = DB::getSchemaBuilder()->hasColumn('loan_books', 'fli_overlay_ids');
         $adjusted = 0; $held = 0;
         DB::transaction(function () use ($loans, $scenarios, $overlays, $method, $route, $fit, $set, $hasOverlayIds, &$adjusted, &$held) {
@@ -164,17 +157,39 @@ class FliRouteService
                 if ($loan->ifrs9stage_post_qualitative === '3') {
                     $post = 1.0; $by = [];
                 } else {
-                    $post = 0.0; $by = []; $weightSum = 0.0;
+                    // Weighting the loss, not the PD (spec 15.5; IFRS 9 5.5.17(a),
+                    // B5.5.42): the ECL engine measures a loan as EAD x LGD x its
+                    // stage PD, so the probability-weighted ECL across scenarios is
+                    // EAD x LGD x the weighted STAGE PD. The post-FLI PD is the
+                    // twelve-month PD whose stage PD is that weighted stage PD, so
+                    // the allowance the ECL engine books on it equals the weighted
+                    // ECL the scenario sensitivity reports. Averaging the twelve-
+                    // month PDs instead overstated the allowance wherever the stage
+                    // PD is concave in the twelve-month PD (Stage 2 lifetime over
+                    // more than a year; Jensen's inequality, the 0.17 percent gap
+                    // of August 2026). Each scenario's PD is capped at 100 percent
+                    // before it is weighted, as its own ECL would be.
+                    $stageRow = (object) ['stage' => $loan->ifrs9stage_post_qualitative ?? $loan->calculated_ifrs9_stage ?? $loan->ifrs9stage_pre_qualitative, 'remaining_tenor' => $loan->remaining_tenor];
+                    $pdSum = 0.0; $stageSum = 0.0; $by = []; $weightSum = 0.0;
                     foreach ($scenarios as $name => $s) {
                         $a = $s['adjustment'] + $loanAdj;
                         $p = $this->methods->apply($method, $pre, ['adjustment' => $a, 'segment_adjustment' => $a]);
                         if ($p === null) {
                             continue;
                         }
-                        $by[$name] = ['weight' => $s['weight'], 'pd' => round($p, 8)];
-                        $post += $p * $s['weight'] / 100; $weightSum += $s['weight'];
+                        $p = round($p, 8);
+                        $by[$name] = ['weight' => $s['weight'], 'pd' => $p];
+                        $pdSum += max(0.0, min(1.0, $p)) * $s['weight'] / 100;
+                        $stageSum += ScenarioSetService::stagePd($stageRow, $p) * $s['weight'] / 100;
+                        $weightSum += $s['weight'];
                     }
-                    $post = $weightSum > 0 ? max(0.0, min(1.0, $post / ($weightSum / 100))) : $pre;
+                    if ($weightSum > 0) {
+                        $norm = $weightSum / 100;
+                        // a loan whose stage resolves to 3 has no inverse; its ECL does not move with the PD, so the weighted PD is recorded
+                        $post = ScenarioSetService::pd12ForStagePd($stageRow, $stageSum / $norm) ?? max(0.0, min(1.0, $pdSum / $norm));
+                    } else {
+                        $post = $pre;
+                    }
                 }
                 $changed = abs($post - $pre) > 1e-9;
                 $changed ? $adjusted++ : $held++;
@@ -186,12 +201,87 @@ class FliRouteService
                 DB::table('loan_books')->where('id', $loan->id)->update($row);
             }
         });
-        $result = ['period' => $period, 'route' => $route, 'method' => $method, 'weighting' => $weighting, 'fit' => $fit?->id, 'fit_relationship' => $fit ? "{$fit->statistic_code} -> {$fit->proxy_code} (lag {$fit->lag_months})" : null,
+        $result = ['period' => $period, 'route' => $route, 'method' => $method, 'weighting' => $weighting, 'fit' => $fit?->id, 'fit_relationship' => $fit ? "{$fit->statistic_code} -> {$fit->proxy_code} (lag {$fit->lag_months})" : null, 'base_driver' => $baseDriver,
             'set' => $set?->id, 'scenarios' => $scenarios, 'overlays' => $overlays->map(fn ($o) => ['id' => (int) $o->id, 'scope' => $o->scope, 'scope_value' => $o->scope_value, 'adjustment' => (float) $o->adjustment])->values()->all(),
             'loans' => $loans->count(), 'adjusted' => $adjusted, 'held' => $held, 'note' => $note];
         AuditLoggerService::log('FLI Route Applied', 'loan_books', null, ['reporting_period' => $period, 'rows_affected' => $loans->count(), 'new_values' => array_diff_key($result, ['scenarios' => 1]) + ['scenarios' => array_map(fn ($s) => $s['adjustment'], $scenarios)], 'meta' => ['user' => $userId]]);
 
         return $result;
+    }
+
+    /**
+     * The regression adjustment per scenario for period P, under the fitted lag.
+     *
+     * The approved fit is proxy(t) = slope x driver(t - L) + intercept: the
+     * proxy at month t responds to the driver L months earlier (the lag the
+     * finder and the regression chose, SeriesAligner). The route follows spec
+     * 14.3 step 3 and 14.7: the adjustment is the predicted proxy of the
+     * twelve-month window over the predicted proxy of the base window, less
+     * one. Applied with the lag:
+     *
+     *  - base window, t = P: driver(P - L), the actual known at P. With no
+     *    such actual the route fails closed for the period.
+     *  - twelve-month window, t = P + 12: driver(P + 12 - L).
+     *      L >= 12: that month is on or before P, so the driver is an actual
+     *      already known at P and every scenario takes it (the lag means the
+     *      next year's proxy is already determined by observed data; the
+     *      scenarios cannot differ there).
+     *      L < 12: the month is P + (12 - L) ahead, inside forecast year
+     *      floor((12 - L - 1) / 12) of the scenario path (year 0 for every lag
+     *      on the grid), and each scenario takes its own path value for that
+     *      year. With no path value the route fails closed.
+     *
+     * Every value is read as at P (AsAtSeries): nothing after the end of P
+     * enters, which is what B5.5.49 to B5.5.54 allow (information reasonably
+     * available at the reporting date, forecasts included only as published by
+     * then). One adjustment per scenario is applied to the twelve-month PD,
+     * from which the ECL engine takes the Stage 2 lifetime PD.
+     *
+     * @return array{0:array<string,mixed>,1:array<string,array<string,mixed>>}
+     */
+    private function regressionAdjustments(string $period, object $fit, array $paths): array
+    {
+        $p = AsAtSeries::ym($period);
+        $code = (string) $fit->statistic_code;
+        $lag = (int) $fit->lag_months;
+        $actuals = AsAtSeries::macro(null, $p, ['actual'], [$code])[$code] ?? [];
+
+        $basePeriod = SeriesAligner::shiftPeriod($p, $lag);
+        if (! array_key_exists($basePeriod, $actuals)) {
+            throw new RuntimeException("The forward-looking route cannot run for {$period}: fit {$fit->id} ({$code}, lag {$lag} months) needs the {$code} actual for {$basePeriod}, and none is known at the end of {$period}. The PD is not adjusted; load the series or approve a fit the data supports.");
+        }
+        $base = (float) $actuals[$basePeriod];
+
+        $windowPeriod = SeriesAligner::shiftPeriod($p, $lag - 12);
+        $ahead = AsAtSeries::monthsBetween($p, $windowPeriod);
+        $observed = null;
+        $offset = null;
+        if ($ahead <= 0) {
+            if (! array_key_exists($windowPeriod, $actuals)) {
+                throw new RuntimeException("The forward-looking route cannot run for {$period}: with a lag of {$lag} months the twelve-month window reads the {$code} actual for {$windowPeriod}, and none is known at the end of {$period}.");
+            }
+            $observed = (float) $actuals[$windowPeriod];
+            $source = "actual {$windowPeriod}, known at {$p} (with a lag of {$lag} months the window's driver is on or before the reporting date)";
+        } else {
+            $offset = intdiv($ahead - 1, 12);
+            $source = "scenario path, forecast year {$offset}: " . ($paths['base_source'][$code][$offset] ?? 'no base value');
+        }
+
+        $predBase = (float) $fit->slope * $base + (float) $fit->intercept;
+        if (abs($predBase) <= 1e-12) {
+            throw new RuntimeException("The forward-looking route cannot run for {$period}: fit {$fit->id} predicts a base proxy of zero at {$code} = {$base}, so no ratio to the base exists.");
+        }
+        $scenarios = [];
+        foreach ($paths['scenarios'] as $name => $sc) {
+            $driver = $observed ?? ($sc['path'][$code][$offset] ?? null);
+            if ($driver === null) {
+                throw new RuntimeException("The forward-looking route cannot run for {$period}: scenario '{$name}' has no {$code} value for forecast year {$offset} known at the end of {$period}.");
+            }
+            $pred = (float) $fit->slope * (float) $driver + (float) $fit->intercept;
+            $scenarios[$name] = ['weight' => $sc['weight'], 'driver' => round((float) $driver, 6), 'driver_period' => $windowPeriod, 'predicted_proxy' => round($pred, 6), 'adjustment' => round($pred / $predBase - 1, 6)];
+        }
+
+        return [['statistic_code' => $code, 'lag_months' => $lag, 'base_period' => $basePeriod, 'base_value' => round($base, 6), 'predicted_base_proxy' => round($predBase, 6), 'window_period' => $windowPeriod, 'window_driver_source' => $source], $scenarios];
     }
 
     private function setting(string $key, string $default, CarbonImmutable $asOf): string
