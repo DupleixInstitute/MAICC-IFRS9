@@ -79,6 +79,7 @@
 </template>
 
 <script setup>
+import { notice } from '@/Components/Maiic/notice'
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
@@ -121,7 +122,7 @@ onMounted(async () => {
     grandTotal.value = res.data.grandTotal
   } catch (error) {
     console.error('Failed to load matrix data:', error)
-    alert('Failed to load matrix data. Check console for details.')
+    notice('Failed to load matrix data. Check console for details.')
   }
 })
 
@@ -150,11 +151,10 @@ const updateUrl =
   axios
     .post(updateUrl, { matrix: flattened })
     .then(() => {
-      alert('Matrix updated successfully.')
     })
     .catch((error) => {
       console.error('Submission failed:', error.response?.data || error.message)
-      alert('Failed to update matrix. See console for details.')
+      notice('Failed to update matrix. See console for details.')
     })
 }
 </script>
@@ -274,7 +274,7 @@ onMounted(async () => {
     grandTotal.value = res.data.grandTotal
   } catch (error) {
     console.error('Failed to load matrix data:', error)
-    alert('Failed to load matrix data. Check console for details.')
+    notice('Failed to load matrix data. Check console for details.')
   }
 })
 
@@ -305,11 +305,10 @@ function submit() {
       matrix: flattened,
     })
     .then(() => {
-      alert('Matrix updated successfully.')
     })
     .catch((error) => {
       console.error('Submission failed:', error.response?.data || error.message)
-      alert('Failed to update matrix. See console for details.')
+      notice('Failed to update matrix. See console for details.')
     })
 }
 </script> -->

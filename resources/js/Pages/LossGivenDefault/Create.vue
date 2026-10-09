@@ -138,6 +138,7 @@
     </app-layout>
 </template>
 <script>
+import { confirmDialog } from '@/Components/confirmDialog'
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -231,8 +232,8 @@ const openEditModal = () => {
             }
         };
 
-const deleteLGD = (id) => {
-    if (confirm('Are you sure you want to delete this Loss Given Default?')) {
+const deleteLGD = async (id) => {
+    if (await confirmDialog({ title: 'Are you sure you want to delete this Loss Given Default?', confirmLabel: 'Delete', tone: 'danger' })) {
         router.delete(route('loss-given-default.delete', id));
     }
 };

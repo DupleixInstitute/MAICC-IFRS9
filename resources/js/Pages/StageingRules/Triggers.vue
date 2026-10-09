@@ -1,70 +1,31 @@
 <template>
     <app-layout>
         <template #header>
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        SICR Trigger Alerts
-                    </h2>
-                    <p class="mt-1 text-sm text-gray-600">Report significant increases in credit risk events</p>
+            <div>
+                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                    <span>IFRS 9 Model Setup</span><span>/</span><span>Staging &amp; SICR Rules</span><span>/</span><span class="font-medium text-maiic-700">SICR Trigger Alerts</span>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <div class="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
-                        {{ triggers?.data?.length || 0 }} Triggers
-                    </div>
-                    <div class="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
-                        Alert System
-                    </div>
-                </div>
+                <h2 class="text-xl font-semibold text-gray-800">SICR Trigger Alerts</h2>
+                <p class="mt-1 text-sm text-gray-600">Raise an alert when a loan shows a significant increase in credit risk, and track it until it is removed</p>
             </div>
         </template>
-        
-        <div class="w-full space-y-6">
-            <!-- Action Bar -->
-            <div class="flex justify-between items-center">
-                <div>
-                    <h3 class="text-lg font-medium text-gray-900">SICR Alert Management</h3>
-                    <p class="mt-1 text-sm text-gray-500">Monitor and trigger alerts for significant credit risk changes</p>
-                </div>
-                <div class="flex space-x-3">
-                    <button
-                        @click="openModal"
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-700 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
-                    >
-                        <svg class="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        Trigger Alert
-                    </button>
-                </div>
-            </div>
-            
+        <template #actions>
+            <button type="button" class="primary-btn" @click="openModal">Trigger alert</button>
+        </template>
+
+        <div class="w-full space-y-4">
             <!-- Triggers History Table -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        Trigger History
-                    </h3>
+            <div class="maiic-panel">
+                <div class="border-b border-gray-200 px-5 py-4">
+                    <h3 class="font-semibold text-gray-900">Trigger history</h3>
+                    <p class="text-xs text-gray-500">{{ triggers.total ?? triggers.data.length }} alert(s), newest first</p>
                 </div>
-                
+
                 <div class="overflow-x-auto">
                     <table class="maiic-table">
                         <thead>
                             <tr>
-                                <th>
-                                    <div class="flex items-center space-x-1">
-                                        <span>Timestamp</span>
-                                        <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-                                        </svg>
-                                    </div>
-                                </th>
+                                <th>Raised</th>
                                 <th>
                                     SICR Details
                                 </th>
@@ -86,18 +47,11 @@
                                 <th class="text-center">
                                     Status
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-900 uppercase tracking-wider bg-gray-100">
-                                    <div class="flex items-center justify-center">
-                                        <svg class="w-4 h-4 mr-1 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        Actions
-                                    </div>
-                                </th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(trigger, index) in triggers.data" :key="trigger.id" 
+                            <tr v-for="(trigger, index) in triggers.data" :key="trigger.id"
                                 :class="index % 2 === 0 ? 'bg-white' : 'bg-gray-50'"
                                 class="hover:bg-amber-50 transition-colors duration-150"
                             >
@@ -176,44 +130,11 @@
                                         Removed
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center justify-center space-x-2">
-                                        <!-- Update Loan Book Button -->
-                                        <button
-                                            v-if="!trigger.removal_date"
-                                            @click="openUpdateModal(trigger)"
-                                            class="inline-flex items-center px-4 py-2 border-2 border-maiic-200 rounded-lg text-sm font-semibold text-maiic-800 bg-maiic-100 hover:bg-maiic-200 hover:border-maiic-300 hover:shadow-md focus:outline-none focus:ring-3 focus:ring-maiic-300 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105"
-                                            title="Update Loan Book for this trigger"
-                                        >
-                                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2V4a2 2 0 012-2h11a2 2 0 00-2-2H4zm3 6a2 2 0 012-2h5a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V8zm2-2a1 1 0 000 2h5a1 1 0 100-2H9z" clip-rule="evenodd"></path>
-                                            </svg>
-                                            Update Book
-                                        </button>
-                                        
-                                        <!-- Remove Alert Button -->
-                                        <button
-                                            v-if="!trigger.removal_date"
-                                            @click="removeAlert(trigger)"
-                                            class="inline-flex items-center px-4 py-2 border-2 border-red-200 rounded-lg text-sm font-semibold text-red-800 bg-red-100 hover:bg-red-200 hover:border-red-300 hover:shadow-md focus:outline-none focus:ring-3 focus:ring-red-300 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105"
-                                            title="Remove this alert permanently"
-                                        >
-                                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"></path>
-                                                <path fill-rule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-                                            </svg>
-                                            Remove
-                                        </button>
-                                        
-                                        <!-- Placeholder for removed alerts -->
-                                        <div v-if="trigger.removal_date" class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-200 border-2 border-gray-300">
-                                            <svg class="w-4 h-4 mr-2 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd"></path>
-                                            </svg>
-                                            <span class="text-sm font-medium text-gray-600">
-                                                Removed {{ formatDate(trigger.removal_date) }}
-                                            </span>
-                                        </div>
+                                        <button v-if="!trigger.removal_date" type="button" class="maiic-action maiic-action-edit" title="Update the loan book for this alert" @click="openUpdateModal(trigger)"><font-awesome-icon icon="book" /></button>
+                                        <button v-if="!trigger.removal_date" type="button" class="maiic-action maiic-action-delete" title="Remove this alert" @click="removeAlert(trigger)"><font-awesome-icon icon="times-circle" /></button>
+                                        <span v-if="trigger.removal_date" class="text-xs text-gray-500">Removed {{ formatDate(trigger.removal_date) }}</span>
                                     </div>
                                 </td>
                             </tr>
@@ -240,13 +161,13 @@
                         </tbody>
                     </table>
                 </div>
-                
+
                 <div v-if="triggers.links" class="bg-white px-6 py-3 border-t border-gray-200">
                     <pagination :links="triggers.links"/>
                 </div>
             </div>
         </div>
-        
+
         <!-- Trigger Alert Modal -->
         <jet-modal :show="showModal" @close="closeModal" max-width="2xl">
             <div class="bg-white rounded-lg overflow-hidden">
@@ -259,7 +180,7 @@
                     </h3>
                     <p class="mt-1 text-amber-100 text-sm">Report a significant increase in credit risk event</p>
                 </div>
-                
+
                 <form @submit.prevent="submit" class="p-6">
                     <div class="space-y-6">
                         <!-- Alert Information Panel -->
@@ -278,7 +199,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Form Fields -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- SICR Group -->
@@ -289,8 +210,8 @@
                                     </jet-label>
                                     <p class="text-xs text-gray-500 mt-1">Select the risk factor group</p>
                                     <div class="mt-3 relative">
-                                        <select 
-                                            v-model.number="form.group_id" 
+                                        <select
+                                            v-model.number="form.group_id"
                                             @change="filterItems"
                                             class="form-input"
                                             required
@@ -306,7 +227,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- SICR Item -->
                             <div>
                                 <div class="bg-gray-50 rounded-lg p-4">
@@ -315,8 +236,8 @@
                                     </jet-label>
                                     <p class="text-xs text-gray-500 mt-1">Specific risk factor triggered</p>
                                     <div class="mt-3 relative">
-                                        <select 
-                                            v-model.number="form.item_id" 
+                                        <select
+                                            v-model.number="form.item_id"
                                             class="form-input"
                                             required
                                             :disabled="processing"
@@ -332,7 +253,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Customer Search -->
                         <div>
                             <div class="bg-gray-50 rounded-lg p-4">
@@ -341,8 +262,8 @@
                                 </jet-label>
                                 <p class="text-xs text-gray-500 mt-1">Search and select customer by ID</p>
                                 <div class="mt-3 relative customer-search-container">
-                                    <input 
-                                        v-model="customerSearch" 
+                                    <input
+                                        v-model="customerSearch"
                                         @input="searchCustomers"
                                         @focus="showCustomerDropdown = true"
                                         class="form-input"
@@ -356,12 +277,12 @@
                                             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
                                         </svg>
                                     </div>
-                                    
+
                                     <!-- Customer Dropdown -->
-                                    <div v-if="showCustomerDropdown && customerResults.length > 0" 
+                                    <div v-if="showCustomerDropdown && customerResults.length > 0"
                                          class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                                        <div v-for="customer in customerResults" 
-                                             :key="customer.id" 
+                                        <div v-for="customer in customerResults"
+                                             :key="customer.id"
                                              @click="selectCustomer(customer)"
                                              class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-amber-50">
                                             <span class="font-medium block truncate">{{ customer.external_identity_id }}</span>
@@ -369,7 +290,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Customer Error Message -->
                                 <div v-if="$page.props.errors?.customer_id" class="mt-2">
                                     <p class="text-sm text-red-600 flex items-center">
@@ -381,15 +302,15 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Customer Options -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Affect All Checkbox -->
                             <div>
                                 <div class="bg-gray-50 rounded-lg p-4">
                                     <label class="flex items-center">
-                                        <input 
-                                            v-model="form.affect_all" 
+                                        <input
+                                            v-model="form.affect_all"
                                             type="checkbox"
                                             class="rounded border-gray-300 text-amber-600 shadow-sm focus:border-amber-300 focus:ring focus:ring-amber-200 focus:ring-opacity-50"
                                             :disabled="processing || !form.customer_id"
@@ -399,7 +320,7 @@
                                     <p class="text-xs text-gray-500 mt-1">Apply trigger to all loans for this customer</p>
                                 </div>
                             </div>
-                            
+
                             <!-- Effective Period -->
                             <div>
                                 <div class="bg-gray-50 rounded-lg p-4">
@@ -408,9 +329,9 @@
                                     </jet-label>
                                     <p class="text-xs text-gray-500 mt-1">Date when trigger becomes effective</p>
                                     <div class="mt-3 relative">
-                                        <input 
-                                            v-model="form.effective_period" 
-                                            class="form-input" 
+                                        <input
+                                            v-model="form.effective_period"
+                                            class="form-input"
                                             type="date"
                                             :disabled="processing"
                                         />
@@ -423,7 +344,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Account Number -->
                         <div>
                             <div class="bg-gray-50 rounded-lg p-4">
@@ -432,9 +353,9 @@
                                 </jet-label>
                                 <p class="text-xs text-gray-500 mt-1">Customer account reference</p>
                                 <div class="mt-3 relative">
-                                    <input 
-                                        v-model="form.account_number" 
-                                        class="form-input" 
+                                    <input
+                                        v-model="form.account_number"
+                                        class="form-input"
                                         type="text"
                                         placeholder="e.g., ACC-123456789"
                                         required
@@ -448,7 +369,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Reason -->
                         <div>
                             <div class="bg-gray-50 rounded-lg p-4">
@@ -457,9 +378,9 @@
                                 </jet-label>
                                 <p class="text-xs text-gray-500 mt-1">Detailed explanation of the credit risk increase</p>
                                 <div class="mt-3">
-                                    <textarea 
-                                        v-model="form.reason" 
-                                        class="form-input" 
+                                    <textarea
+                                        v-model="form.reason"
+                                        class="form-input"
                                         rows="4"
                                         placeholder="Provide detailed information about why this SICR alert is being triggered..."
                                         required
@@ -468,13 +389,13 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Update Loan Book Option -->
                         <div>
                             <div class="bg-gray-50 rounded-lg p-4">
                                 <label class="flex items-center">
-                                    <input 
-                                        v-model="form.update_loan_book_now" 
+                                    <input
+                                        v-model="form.update_loan_book_now"
                                         type="checkbox"
                                         class="rounded border-gray-300 text-amber-600 shadow-sm focus:border-amber-300 focus:ring focus:ring-amber-200 focus:ring-opacity-50"
                                         :disabled="processing"
@@ -484,7 +405,7 @@
                                 <p class="text-xs text-gray-500 mt-1">Immediately apply this trigger to update the loan book</p>
                             </div>
                         </div>
-                        
+
                         <!-- File Attachment -->
                         <div>
                             <div class="bg-gray-50 rounded-lg p-4">
@@ -493,9 +414,9 @@
                                 </jet-label>
                                 <p class="text-xs text-gray-500 mt-1">Upload supporting files or evidence</p>
                                 <div class="mt-3">
-                                    <input 
-                                        @change="onFile" 
-                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 file:cursor-pointer border border-gray-300 rounded-md" 
+                                    <input
+                                        @change="onFile"
+                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 file:cursor-pointer border border-gray-300 rounded-md"
                                         type="file"
                                         :disabled="processing"
                                     />
@@ -503,7 +424,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="flex justify-end pt-6 border-t border-gray-200 mt-6 space-x-3">
                         <button
                             type="button"
@@ -531,7 +452,7 @@
                 </form>
             </div>
         </jet-modal>
-        
+
         <!-- Update Loan Book Modal -->
         <jet-modal :show="showUpdateModal" @close="closeUpdateModal" max-width="lg">
             <div class="bg-white rounded-lg overflow-hidden">
@@ -544,7 +465,7 @@
                     </h3>
                     <p class="mt-1 text-maiic-100 text-sm">Apply trigger changes to the loan book</p>
                 </div>
-                
+
                 <form @submit.prevent="submitUpdateLoanBook" class="p-6">
                     <div class="space-y-6">
                         <!-- Error Display -->
@@ -563,7 +484,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Trigger Information -->
                         <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4">
                             <div class="flex">
@@ -582,7 +503,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Effective Period -->
                         <div>
                             <div class="bg-gray-50 rounded-lg p-4">
@@ -591,9 +512,9 @@
                                 </jet-label>
                                 <p class="text-xs text-gray-500 mt-1">Select the period for which to update the loan book</p>
                                 <div class="mt-3 relative">
-                                    <input 
-                                        v-model="updateForm.effective_period" 
-                                        class="form-input" 
+                                    <input
+                                        v-model="updateForm.effective_period"
+                                        class="form-input"
                                         type="date"
                                         required
                                         :disabled="updateProcessing"
@@ -607,7 +528,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="flex justify-end pt-6 border-t border-gray-200 mt-6 space-x-3">
                         <button
                             type="button"
@@ -635,7 +556,7 @@
                 </form>
             </div>
         </jet-modal>
-        
+
         <teleport to="head">
             <title>SICR Trigger Alerts - IFRS 9 Staging Rules</title>
         </teleport>
@@ -648,32 +569,33 @@ import JetButton from '@/Jetstream/Button.vue'
 import JetLabel from '@/Jetstream/Label.vue'
 import JetModal from '@/Jetstream/Modal.vue'
 import Pagination from '@/Jetstream/Pagination.vue'
+import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
     props: { groups: Array, items: Array, triggers: Object },
     components: { AppLayout, JetButton, JetLabel, JetModal, Pagination },
     data(){
-        return { 
-            form: { 
-                group_id: this.groups[0]?.id||null, 
-                item_id: null, 
-                account_number: '', 
-                reason: '', 
+        return {
+            form: {
+                group_id: this.groups[0]?.id||null,
+                item_id: null,
+                account_number: '',
+                reason: '',
                 attachment: null,
                 customer_id: '',
                 affect_all: false,
                 effective_period: '',
                 update_loan_book_now: false
-            }, 
+            },
             processing: false,
             showModal: false,
-            
+
             // Customer search
             customerSearch: '',
             customerResults: [],
             showCustomerDropdown: false,
             searchTimeout: null,
-            
+
             // Update loan book modal
             showUpdateModal: false,
             selectedTrigger: null,
@@ -684,13 +606,13 @@ export default {
         }
     },
     computed:{
-        filteredItems() { 
-            return this.items.filter(i => i.group_id === this.form.group_id) 
+        filteredItems() {
+            return this.items.filter(i => i.group_id === this.form.group_id)
         },
         isValid() {
-            return this.form.group_id && 
-                   this.form.item_id && 
-                   this.form.account_number && 
+            return this.form.group_id &&
+                   this.form.item_id &&
+                   this.form.account_number &&
                    this.form.reason
         }
     },
@@ -738,29 +660,29 @@ export default {
             this.showCustomerDropdown = false
             this.filterItems()
         },
-        
+
         // Data Management
-        filterItems() { 
+        filterItems() {
             if (!this.filteredItems.find(i => i.id === this.form.item_id)) {
                 this.form.item_id = this.filteredItems[0]?.id || null
             }
         },
-        onFile(e) { 
-            this.form.attachment = e.target.files[0] 
+        onFile(e) {
+            this.form.attachment = e.target.files[0]
         },
-        
+
         // Customer Search
         searchCustomers() {
             if (this.searchTimeout) {
                 clearTimeout(this.searchTimeout)
             }
-            
+
             this.searchTimeout = setTimeout(() => {
                 if (this.customerSearch.length < 2) {
                     this.customerResults = []
                     return
                 }
-                
+
                 fetch(`${this.route('sicr-triggers.customers')}?search=${encodeURIComponent(this.customerSearch)}`)
                     .then(response => response.json())
                     .then(data => {
@@ -772,14 +694,14 @@ export default {
                     })
             }, 300)
         },
-        
+
         selectCustomer(customer) {
             this.form.customer_id = customer.external_identity_id
             this.customerSearch = customer.external_identity_id
             this.showCustomerDropdown = false
             this.customerResults = []
         },
-        
+
         // Update Loan Book Modal
         openUpdateModal(trigger) {
             this.selectedTrigger = trigger
@@ -788,7 +710,7 @@ export default {
             }
             this.showUpdateModal = true
         },
-        
+
         closeUpdateModal() {
             this.showUpdateModal = false
             this.selectedTrigger = null
@@ -796,12 +718,12 @@ export default {
                 effective_period: ''
             }
         },
-        
+
         submitUpdateLoanBook() {
             if (!this.updateForm.effective_period) return
-            
+
             this.updateProcessing = true
-            
+
             this.$inertia.post(this.route('sicr-triggers.update-loan-book', this.selectedTrigger.id), {
                 effective_period: this.updateForm.effective_period
             }, {
@@ -818,13 +740,13 @@ export default {
                 }
             })
         },
-        
+
         // Remove Alert
-        removeAlert(trigger) {
-            if (!confirm('Are you sure you want to remove this alert? This action cannot be undone.')) {
+        async removeAlert(trigger) {
+            if (!(await confirmDialog({ title: 'Remove this alert?', message: 'The SICR alert is closed from today. This cannot be undone.', confirmLabel: 'Remove alert', tone: 'danger' }))) {
                 return
             }
-            
+
             this.$inertia.post(this.route('sicr-triggers.remove-alert', trigger.id), {}, {
                 onSuccess: () => {
                     this.$toast?.success('Alert removed successfully!')
@@ -835,14 +757,14 @@ export default {
                 }
             })
         },
-        
+
         // Form Submission
         submit() {
             if (!this.isValid) return
-            
+
             this.processing = true
             const data = new FormData()
-            
+
             Object.keys(this.form).forEach(key => {
                 if (key === 'affect_all' || key === 'update_loan_book_now') {
                     // Handle boolean values
@@ -851,10 +773,10 @@ export default {
                     data.append(key, this.form[key])
                 }
             })
-            
-            this.$inertia.post(this.route('sicr-triggers.store'), data, { 
-                onFinish: () => { 
-                    this.processing = false 
+
+            this.$inertia.post(this.route('sicr-triggers.store'), data, {
+                onFinish: () => {
+                    this.processing = false
                 },
                 onSuccess: () => {
                     this.closeModal()
@@ -866,21 +788,21 @@ export default {
                 }
             })
         },
-        
+
         // Date Formatting
         formatDate(dateString) {
             const date = new Date(dateString)
-            return date.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
             })
         },
         formatTime(dateString) {
             const date = new Date(dateString)
-            return date.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            return date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
             })
         }
     }

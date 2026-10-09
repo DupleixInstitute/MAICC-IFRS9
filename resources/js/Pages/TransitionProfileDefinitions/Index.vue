@@ -1,57 +1,41 @@
 <template>
   <app-layout>
     <template #header>
-            <div class="flex justify-between items-center">
-              <div>
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Transition Profile
-                </h2>
-                <p class="mt-1 text-sm text-gray-600">List of Profiles </p>
-                
-                </div>
-                
-        <Link :href="route('transition-profiles.create')" 
-                class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition">
-              Create Profile
-          </Link>
-          </div>
+      <div>
+        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+          <span>IFRS 9 Model Setup</span><span>/</span><span>PD Model</span><span>/</span><span class="font-medium text-maiic-700">Transition Profiles</span>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800">Transition Profiles</h2>
+        <p class="mt-1 text-sm text-gray-600">Where the grades come from when the monthly transition matrices are built</p>
+      </div>
+    </template>
+    <template #actions>
+      <Link :href="route('transition-profiles.create')" class="primary-btn">Create profile</Link>
     </template>
 
-    <div>
-      <p v-if="message" class="bg-maiic-500 text-white p-4 rounded">
-        {{ message }}
-      </p>
+    <div class="w-full space-y-4">
+      <transition-profile-data-table :profiles="profiles" />
     </div>
 
-    <div class="w-full mt-6">
-      <transition-profile-data-table />
-    </div>
-    
     <HelpManual />
   </app-layout>
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { Link } from '@inertiajs/vue3';
 import TransitionProfileDataTable from './Components/TransitionProfileDataTable.vue';
 import HelpManual from '../../Components/HelpManual.vue';
 
 export default {
   components: {
     AppLayout,
+    Link,
     TransitionProfileDataTable,
     HelpManual,
   },
   props: {
-    message: String,
-  },
-  methods: {
-    navigateToConfig(id) {
-      this.$inertia.get(`/transition-profiles/${id}/config`);
-    },
-    handleDelete(id) {
-      // Your delete logic here
-    },
+    profiles: { type: Object, default: () => ({ data: [], links: [] }) },
   },
 };
 </script>
