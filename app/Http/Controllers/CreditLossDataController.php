@@ -133,6 +133,9 @@ class CreditLossDataController extends Controller
         return Inertia::render('FLI/CreditLossData/Import', [
             'portfolios' => LoanPortfolio::all(),
             'definitions' => CreditLossDefinition::all(),
+            // The column names the importer recognises per definition, so the
+            // screen can say which of the file's columns will be read.
+            'aliases' => ImportSampleController::creditLossAliases(),
         ]);
     }
 
