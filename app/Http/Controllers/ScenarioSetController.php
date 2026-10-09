@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Scenario\ScenarioSetService;
+use App\Support\Fli\FliPlainLanguage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -57,10 +58,24 @@ class ScenarioSetController extends Controller
             ? DB::table('fli_overlays')->where('reporting_period', $period)->whereIn('status', ['PROPOSED', 'APPROVED'])->orderBy('id')->get(['id', 'scope', 'scope_value', 'adjustment', 'reason', 'status', 'expiry_period'])
             : collect();
 
+        // the series' full names for the screen (cards, paths, back-test), from the macro definitions
+        $plain = new FliPlainLanguage();
+        $codes = [];
+        foreach ($sets as $s) {
+            $codes = array_merge($codes, array_keys($s['paths']['base'] ?? []), array_column($s['backtest']['rows'] ?? [], 'series'));
+            foreach ($s['scenarios'] as $x) {
+                $codes = array_merge($codes, array_column($x['shocks'] ?? [], 'statistic_code'));
+            }
+        }
+        $seriesNames = [];
+        foreach (array_unique(array_filter($codes, 'is_string')) as $code) {
+            $seriesNames[$code] = $plain->driver($code);
+        }
+
         return Inertia::render('Governance/ScenarioSets', [
             'period' => $period, 'sets' => $sets, 'rules' => $service->rules($period), 'overlays' => $overlays,
             'periods' => DB::table('governed_scenario_sets')->distinct()->orderByDesc('reporting_period')->pluck('reporting_period'),
-            'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
+            'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false), 'seriesNames' => (object) $seriesNames,
         ]);
     }
 

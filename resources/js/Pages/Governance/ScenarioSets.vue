@@ -13,7 +13,7 @@
         <span class="font-semibold text-gray-700">Rules in force (Governance Centre):</span> at least {{ rules.min_count }} scenarios; base at least {{ rules.base_floor }}%; no weight above {{ rules.single_ceiling }}%; calibration note on every downside {{ rules.note_required ? 'required' : 'optional' }}; weighting: {{ rules.weighting }}.
       </p>
 
-      <div v-if="overlays && overlays.length" class="maiic-panel p-4 text-sm">
+      <div v-if="overlays && overlays.length" class="-mt-2 text-xs text-gray-600">
         <span class="font-semibold">Overlays against {{ period }}:</span>
         <span v-for="o in overlays" :key="o.id" class="mr-3">#{{ o.id }} {{ o.scope }}{{ o.scope_value ? ' ' + o.scope_value : '' }} {{ pct(o.adjustment) }} <span class="maiic-badge" :class="o.status === 'APPROVED' ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ o.status }}</span></span>
         <a :href="route('fli-overlays.index', { period })" class="text-maiic-700 underline dark:text-maiic-300">open the register</a>
@@ -25,7 +25,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 p-5 dark:border-slate-700">
           <div>
             <h3 class="text-base font-bold">{{ s.name }} <span class="text-gray-400">v{{ s.version }}</span> <span class="maiic-badge ml-2" :class="badge(s.status)">{{ s.status }}</span></h3>
-            <p class="text-sm text-gray-500">{{ s.narrative }}</p>
+            <p class="text-sm text-gray-500">{{ plain(s.narrative) }}</p>
             <p class="text-xs text-gray-500">Sources: {{ s.source_vintage || '-' }} · proposed {{ s.proposer || '-' }} {{ s.proposed_at || '' }} · approved {{ s.approver || '-' }} {{ s.approved_at || '' }} · locked {{ s.locked_at || '-' }}<span v-if="s.supersedes_id"> · supersedes set {{ s.supersedes_id }}: {{ s.version_reason }}</span></p>
             <p v-if="s.validation && !s.validation.ok" class="mt-1 text-xs text-red-700 dark:text-red-300">{{ s.validation.problems.join('; ') }}</p>
             <p v-if="s.validation && s.validation.overlays_pending && s.validation.overlays_pending.length" class="mt-1 text-xs text-amber-700 dark:text-amber-300">Overlay{{ s.validation.overlays_pending.length === 1 ? '' : 's' }} {{ s.validation.overlays_pending.join(', ') }} still proposed: the set cannot lock until each is approved or rejected.</p>
@@ -82,32 +82,53 @@
             <button type="button" @click="editing = null; draft = null" class="secondary-btn text-xs">Cancel</button>
           </div>
         </div>
-        <div class="grid grid-cols-1 gap-6 p-5 lg:grid-cols-2">
+        <div class="space-y-5 p-5">
           <div>
             <h4 class="maiic-section-title mt-0">Scenarios and weights</h4>
-            <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Scenario</th><th class="num">Weight %</th><th class="num">PD ×</th><th>Anchored to</th><th>Shocks on the base</th></tr></thead>
-              <tbody><tr v-for="x in s.scenarios" :key="x.id"><td>{{ x.name }}<span v-if="x.is_base" class="maiic-badge maiic-badge-grey ml-1">base</span><div class="text-xs text-gray-500">{{ x.calibration_note }}</div></td><td class="num">{{ Number(x.weight).toFixed(0) }}</td><td class="num">{{ x.pd_multiplier }}</td><td class="text-xs">{{ x.anchored_to }}</td><td class="text-xs"><div v-for="sh in x.shocks" :key="sh.id">{{ sh.statistic_code }} {{ sh.kind === 'pct' ? '+' + sh.value + '%' : (sh.kind === 'abs' ? (sh.value > 0 ? '+' : '') + sh.value + ' points' : sh.kind + ' ' + sh.value) }}</div></td></tr></tbody></table></div>
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div v-for="x in s.scenarios" :key="x.id" class="flex flex-col rounded-lg border p-4 text-sm" :class="x.is_base ? 'border-maiic-300 bg-maiic-50/60' : 'border-gray-200 bg-white'">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="font-semibold text-gray-900">{{ x.name }} <span v-if="x.is_base && String(x.name).toLowerCase() !== 'base'" class="maiic-badge maiic-badge-grey ml-1">base</span></div>
+                  <div class="text-right"><div class="text-2xl font-bold leading-none text-maiic-800">{{ Number(x.weight).toFixed(0) }}%</div><div class="mt-0.5 text-[11px] uppercase tracking-wider text-gray-500">weight</div></div>
+                </div>
+                <div class="mt-1 text-xs text-gray-500">PD multiplier <strong class="text-gray-800">{{ x.pd_multiplier == null ? '-' : Number(x.pd_multiplier).toFixed(2) }}</strong></div>
+                <div v-if="x.anchored_to" class="mt-2 text-xs"><span class="font-semibold text-gray-700">Anchored to:</span> <span class="text-gray-600">{{ plain(x.anchored_to) }}</span></div>
+                <div v-if="x.calibration_note" class="mt-1 text-xs"><span class="font-semibold text-gray-700">Calibration:</span> <span class="text-gray-600">{{ plain(x.calibration_note) }}</span></div>
+                <div v-if="x.shocks && x.shocks.length" class="mt-2 border-t border-gray-100 pt-2">
+                  <div class="text-[11px] uppercase tracking-wider text-gray-500">Shocks on the base path</div>
+                  <ul class="mt-1 space-y-0.5 text-xs">
+                    <li v-for="sh in x.shocks" :key="sh.id" class="flex justify-between gap-3" :title="sh.note || sh.statistic_code"><span class="text-gray-700">{{ seriesName(sh.statistic_code) }}</span><span class="whitespace-nowrap font-semibold text-gray-900">{{ shock(sh) }}</span></li>
+                  </ul>
+                </div>
+                <div v-else-if="x.is_base" class="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500">No shocks: the base path as the sources stand.</div>
+              </div>
+            </div>
           </div>
+
           <div>
             <h4 class="maiic-section-title mt-0">The paths, first forecast year</h4>
-            <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Series</th><th class="num">Base</th><th v-for="(sc, name) in s.paths.scenarios" :key="name" class="num">{{ name }}</th></tr></thead>
-              <tbody><tr v-for="(o, code) in s.paths.base" :key="code"><td>{{ code }}</td><td class="num">{{ fmt(o[0]) }}</td><td v-for="(sc, name) in s.paths.scenarios" :key="name" class="num">{{ fmt(sc.path[code] ? sc.path[code][0] : null) }}</td></tr></tbody></table></div>
-            <template v-if="s.sensitivity">
-              <h4 class="maiic-section-title">Sensitivity ({{ s.sensitivity.loans }} loans)</h4>
+            <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Series</th><th class="num">Base</th><th v-for="name in otherScenarios(s)" :key="name" class="num whitespace-nowrap">{{ name }} <span class="font-normal opacity-80">{{ weightOf(s, name) }}</span></th></tr></thead>
+              <tbody><tr v-for="(o, code) in s.paths.base" :key="code"><td :title="code">{{ seriesName(code) }}</td><td class="num">{{ fmt(o[0]) }}</td><td v-for="name in otherScenarios(s)" :key="name" class="num">{{ fmt(s.paths.scenarios[name].path[code] ? s.paths.scenarios[name].path[code][0] : null) }}</td></tr>
+              <tr v-if="!Object.keys(s.paths.base || {}).length"><td :colspan="2 + otherScenarios(s).length" class="maiic-empty">No base path for this period yet: load the macro statistics first.</td></tr></tbody></table></div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div v-if="s.sensitivity">
+              <h4 class="maiic-section-title mt-0">Sensitivity ({{ s.sensitivity.loans }} loans)</h4>
               <p v-if="s.sensitivity.note" class="text-xs text-amber-700">{{ s.sensitivity.note }}</p>
               <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>ECL under</th><th class="num">Amount</th></tr></thead>
                 <tbody><tr v-for="(p, name) in s.sensitivity.per_scenario" :key="name"><td>{{ name }} at 100 percent</td><td class="num">{{ fmt(p.ecl) }}</td></tr>
                 <tr class="total"><td>Weighted</td><td class="num">{{ fmt(s.sensitivity.weighted_ecl) }}</td></tr>
                 <tr><td>Ten points from the base to the downside</td><td class="num">{{ fmt(s.sensitivity.ten_points_to_downside) }}</td></tr>
                 <tr><td>Ten points from the base to the upside</td><td class="num">{{ fmt(s.sensitivity.ten_points_to_upside) }}</td></tr></tbody></table></div>
-              <p class="text-xs text-gray-500">{{ s.sensitivity.basis }}</p>
-            </template>
-            <template v-if="s.backtest">
-              <h4 class="maiic-section-title">Back-test</h4>
+              <p class="mt-1 text-xs text-gray-500">{{ s.sensitivity.basis }}</p>
+            </div>
+            <div v-if="s.backtest">
+              <h4 class="maiic-section-title mt-0">Back-test</h4>
               <p class="text-xs" :class="s.backtest.review_weights ? 'text-red-700' : 'text-gray-600'">{{ s.backtest.note }}</p>
               <div v-if="s.backtest.rows && s.backtest.rows.length" class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Series</th><th class="num">Predicted base</th><th class="num">Actual</th><th class="num">Miss</th><th>Within range</th></tr></thead>
-                <tbody><tr v-for="r in s.backtest.rows" :key="r.series"><td>{{ r.series }}</td><td class="num">{{ fmt(r.predicted_base) }}</td><td class="num">{{ fmt(r.actual) }}</td><td class="num">{{ fmt(r.miss) }}</td><td>{{ r.within_range ? 'yes' : 'NO' }}</td></tr></tbody></table></div>
-            </template>
+                <tbody><tr v-for="r in s.backtest.rows" :key="r.series"><td :title="r.series">{{ seriesName(r.series) }}</td><td class="num">{{ fmt(r.predicted_base) }}</td><td class="num">{{ fmt(r.actual) }}</td><td class="num">{{ fmt(r.miss) }}</td><td>{{ r.within_range ? 'yes' : 'NO' }}</td></tr></tbody></table></div>
+            </div>
           </div>
         </div>
       </div>
@@ -122,12 +143,23 @@ import { promptReason } from '@/Components/Maiic/promptReason'
 
 export default {
   components: { AppLayout },
-  props: { period: String, sets: Array, rules: Object, periods: Array, overlays: Array, canGovern: Boolean },
+  props: { period: String, sets: Array, rules: Object, periods: Array, overlays: Array, canGovern: Boolean, seriesNames: { type: Object, default: () => ({}) } },
   data() { return { form: { period: this.period }, editing: null, draft: null } },
   computed: {
     weightsSum() { return this.draft ? this.draft.scenarios.reduce((a, x) => a + (Number(x.weight) || 0), 0) : 0 },
   },
   methods: {
+    seriesName(code) { return this.seriesNames[code] || code },
+    // the scenarios other than the base: the base column is the base path itself
+    otherScenarios(s) { const base = (s.scenarios || []).filter(x => x.is_base).map(x => x.name); return Object.keys((s.paths && s.paths.scenarios) || {}).filter(n => !base.includes(n)) },
+    weightOf(s, name) { const x = (s.scenarios || []).find(y => y.name === name); return x ? Number(x.weight).toFixed(0) + '%' : '' },
+    shock(sh) {
+      const v = Number(sh.value); const sign = v > 0 ? '+' : ''; const num = v.toLocaleString('en-GB', { maximumFractionDigits: 4 })
+      const t = sh.kind === 'pct' ? sign + num + '%' : (sh.kind === 'abs' ? sign + num + ' points' : (sh.kind === 'replace' ? 'set to ' + num : (sh.kind === 'mult' ? 'times ' + num : sh.kind + ' ' + num)))
+      return Number(sh.year_offset || 0) > 0 ? t + ' (year ' + (Number(sh.year_offset) + 1) + ')' : t
+    },
+    // specification references are for the build team, not the screen
+    plain(t) { return String(t || '').replace(/\s*\((?:spec(?:ification)? v\d+ section [\d.]*\d[^)]*|O\d+|decision D\d+)\)/gi, '').replace(/\s+(?:of\s+)?(?:the\s+)?spec(?:ification)? v\d+ section [\d.]*\d/gi, '').replace(/\s+of section [\d.]*\d/g, '') },
     fmt(v) { return v == null ? '-' : Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     pct(v) { const p = Number(v) * 100; return (p > 0 ? '+' : '') + p.toFixed(2) + '%' },
     // the editor works on a copy of the set; nothing reaches the server until Save
