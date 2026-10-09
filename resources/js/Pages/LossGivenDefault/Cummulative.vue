@@ -215,7 +215,7 @@
     <div class="mt-3 text-xs text-gray-500">
       <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
       <br />
-      <strong>Max Size:</strong> 5 MB
+      <strong>Max Size:</strong> 50 MB
     </div>
 
     <!-- Buttons -->
