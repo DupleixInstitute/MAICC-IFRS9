@@ -140,8 +140,15 @@ return [
                 $tab('Monthly LGD', 'loss-given-default.index'),
                 $tab('Cumulative LGD', 'lgd-cummulative.index'),
             ]),
+            // The macro inputs first, then the model that uses them.
+            $section('Macro Statistics', [
+                $tab('Dashboard', 'macro-statistics.index', 'macro.view', ['tab' => 'dashboard']),
+                $tab('Variables', 'macro-statistics.index', 'macro.view', ['tab' => 'variables']),
+                $tab('Data Entry', 'macro-statistics.index', 'macro.view', ['tab' => 'entry']),
+                $tab('Scenario Assumptions', 'macro-statistics.index', 'macro.view', ['tab' => 'scenarios']),
+                $tab('Import / Export', 'macro-statistics.index', 'macro.view', ['tab' => 'import']),
+            ]),
             $section('Forward-Looking Model', [
-                $tab('Macro Elements', 'macro-statistics.index', 'macro.view'),
                 $tab('Weighted Forecast', 'macro-forecast-weighted.index'),
                 $tab('Credit Loss Data', 'credit-loss-data.index'),
                 $tab('Adjusted Forecast', 'forecasting.manual'),

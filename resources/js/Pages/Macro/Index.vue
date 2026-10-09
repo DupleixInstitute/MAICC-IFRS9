@@ -2,7 +2,7 @@
   <app-layout title="Macro Statistics" description="The economic series the forward-looking model reads, and where each came from (World Bank, IMF, Reserve Bank, the loan books)">
     <template #actions><a :href="route('macro-statistics.export')" class="secondary-btn text-sm">Export CSV</a></template>
     <div class="space-y-4">
-      <PageTabs v-model="tab" :tabs="tabItems" />
+      <!-- The five views are tabs of the Macro Statistics section row (config/menu.php, ?tab=). -->
 
       <!-- Dashboard -->
       <div v-if="tab === 'Dashboard'" class="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -83,13 +83,17 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
-import PageTabs from '@/Components/Maiic/PageTabs.vue'
+
+// ?tab= of the section row -> the view shown (first view when none is given).
+const VIEWS = { dashboard: 'Dashboard', variables: 'Variables', entry: 'Data Entry', scenarios: 'Scenario Assumptions', import: 'Import / Export' }
+const KEYS = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [v, k]))
+const viewFromUrl = () => VIEWS[new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('tab')] || 'Dashboard'
 
 export default {
-  components: { AppLayout, Link, PageTabs },
+  components: { AppLayout, Link },
   props: { series: Array, selected: Number, observations: Array, batches: Array, sets: Array, canManage: Boolean, defaultCountry: String },
   data() {
-    return { tabs: ['Dashboard', 'Variables', 'Data Entry', 'Scenario Assumptions', 'Import / Export'], tab: 'Dashboard', sel: this.selected,
+    return { tabs: ['Dashboard', 'Variables', 'Data Entry', 'Scenario Assumptions', 'Import / Export'], tab: viewFromUrl(), sel: this.selected,
       wb: { series_code: '', country: this.defaultCountry, from: 2000, to: new Date().getFullYear() }, imf: { series_code: '', file: null }, rbm: { file: null },
       m: { period: '', value: '', is_forecast: false, reason: '' }, previewData: null, previewError: null, previewSource: null }
   },
@@ -106,7 +110,7 @@ export default {
   },
   methods: {
     select(s) { this.sel = s.id; this.tab = 'Data Entry'; this.go() },
-    go() { router.get(route('macro-statistics.index'), { series: this.sel }, { preserveState: true, preserveScroll: true, only: ['observations', 'selected'] }) },
+    go() { router.get(route('macro-statistics.index'), { series: this.sel, tab: KEYS[this.tab] }, { preserveState: true, preserveScroll: true, only: ['observations', 'selected', 'tabCounts', 'menu'] }) },
     manual() {
       const code = (this.series.find(s => s.id === this.sel) || {}).code
       router.post(route('macro-statistics.manual'), { series_code: code, ...this.m }, { preserveScroll: true, onSuccess: () => { this.m = { period: '', value: '', is_forecast: false, reason: '' }; this.go() } })

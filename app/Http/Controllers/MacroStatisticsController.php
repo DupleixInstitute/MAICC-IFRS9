@@ -48,6 +48,8 @@ class MacroStatisticsController extends Controller
         return Inertia::render('Macro/Index', [
             'series' => $series, 'selected' => $selected, 'observations' => $observations, 'batches' => $batches, 'sets' => $sets,
             'canManage' => (bool) (auth()->user()?->canAny(['macro.manage', 'eir.govern']) ?? false), 'defaultCountry' => config('services.worldbank.country', 'MWI'),
+            // Real counts for the section row's chips (config/menu.php, Macro Statistics).
+            'tabCounts' => ['dashboard' => $series->count(), 'variables' => $series->count(), 'entry' => $observations ? count($observations) : 0, 'scenarios' => $sets->count(), 'import' => $batches->count()],
         ]);
     }
 
