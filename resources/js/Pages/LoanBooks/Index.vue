@@ -1,5 +1,5 @@
 <template>
-    <AppLayout title="Loan Book" description="Every loan in a month-end loan book, with its stage, exposure, PD, LGD and ECL">
+    <AppLayout title="Loan Book" description="Each loan's exposure, stage, arrears, locked EIR and ECL. Open a row to see how its ECL was built.">
         <template #actions>
             <button @click="openExportModal" class="secondary-btn" title="Balances by stage for a range of periods">Export summary</button>
             <button @click="openDisbursementModal" class="secondary-btn" title="Loans disbursed within a range of periods">Disbursements</button>
@@ -7,59 +7,95 @@
         </template>
 
         <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" v-if="summary">
-                <div class="maiic-kpi" style="--accent: #15803d"><div class="maiic-kpi-label">Loans</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ Number(summary.total_loans || 0).toLocaleString() }}</div></div>
-                <div class="maiic-kpi" style="--accent: #15803d"><div class="maiic-kpi-label">Total EAD (MWK)</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ formatMoney(summary.total_balance) }}</div></div>
-                <div class="maiic-kpi" style="--accent: #dc2626" :title="Number(summary.stage_3_count || 0).toLocaleString() + ' loans in stage 3'"><div class="maiic-kpi-label">Stage 3 exposure (MWK)</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ formatMoney(summary.stage_3_exposure) }}</div></div>
-                <div class="maiic-kpi" style="--accent: #d97706"><div class="maiic-kpi-label">ECL coverage</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ Number(summary.ecl_coverage || 0).toFixed(2) }}%</div></div>
-                <div class="maiic-kpi" style="--accent: #dc2626"><div class="maiic-kpi-label">Total ECL (MWK)</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ formatMoney(summary.total_provision) }}</div></div>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" v-if="summary">
+                <div class="maiic-kpi !py-3" style="--accent: #15803d"><div class="maiic-kpi-label">Loans</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ Number(summary.total_loans || 0).toLocaleString() }}</div></div>
+                <div class="maiic-kpi !py-3" style="--accent: #0e7490" :title="formatMoney(summary.total_carrying)"><div class="maiic-kpi-label">Carrying (MWK)</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ compact(summary.total_carrying) }}</div></div>
+                <div class="maiic-kpi !py-3" style="--accent: #15803d" :title="formatMoney(summary.total_ead) + ' = carrying amount plus undrawn commitments times utilisation'"><div class="maiic-kpi-label">EAD (MWK)</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ compact(summary.total_ead) }}</div></div>
+                <div class="maiic-kpi !py-3" style="--accent: #dc2626" :title="formatMoney(summary.stage_3_exposure) + ', ' + Number(summary.stage_3_count || 0).toLocaleString() + ' loans in stage 3'"><div class="maiic-kpi-label">Stage 3 EAD (MWK)</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ compact(summary.stage_3_exposure) }}</div></div>
+                <div class="maiic-kpi !py-3" style="--accent: #dc2626" :title="formatMoney(summary.total_provision)"><div class="maiic-kpi-label">ECL (MWK)</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ compact(summary.total_provision) }}</div></div>
+                <div class="maiic-kpi !py-3" style="--accent: #d97706"><div class="maiic-kpi-label">Coverage (ECL / EAD)</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ Number(summary.ecl_coverage || 0).toFixed(2) }}%</div></div>
             </div>
 
             <div class="maiic-filterbar !mb-0 flex flex-wrap items-center gap-3 !py-2.5">
-                <select v-model="period" @change="fetchData" class="maiic-select w-40" aria-label="Reporting period">
+                <select v-model="period" @change="fetchData" class="maiic-select w-36" aria-label="Reporting period" title="Reporting period">
                     <option v-for="p in periods" :key="p" :value="p">{{ periodLabel(p) }}</option>
                 </select>
-                <select v-model="filters.stage" @change="fetchData" class="maiic-select w-32" aria-label="Stage">
+                <select v-model="filters.stage" @change="fetchData" class="maiic-select w-32" aria-label="Stage" title="Stage">
                     <option value="">All stages</option>
                     <option value="1">Stage 1</option>
                     <option value="2">Stage 2</option>
                     <option value="3">Stage 3</option>
                 </select>
+                <select v-model="filters.product_group" @change="fetchData" class="maiic-select w-52" aria-label="Product group" title="Product group">
+                    <option value="">All product groups</option>
+                    <option v-for="g in productGroups" :key="g" :value="g">{{ g }}</option>
+                </select>
+                <select v-model="filters.sector" @change="fetchData" class="maiic-select w-56" aria-label="Sector" title="Sector">
+                    <option value="">All sectors</option>
+                    <option v-for="s in sectors" :key="s.value" :value="s.value">{{ s.label }}</option>
+                </select>
                 <input type="text" v-model="filters.search" @input="fetchDataDebounced" placeholder="Search contract or customer" class="maiic-input w-56" aria-label="Search"/>
+                <span class="ml-auto text-xs text-gray-500">EAD = carrying amount + undrawn x utilisation. Coverage = ECL / EAD.</span>
             </div>
 
             <div class="maiic-panel">
                 <div class="maiic-table-wrap">
-                    <table class="maiic-table">
+                    <table class="maiic-table text-[13px] [&_td]:!px-2.5 [&_th]:!px-2.5">
                         <thead>
                             <tr>
-                                <th>Contract ID</th>
-                                <th>Customer</th>
-                                <th>Stage</th>
+                                <th class="w-8"><span class="sr-only">Open</span></th>
+                                <th>Contract</th>
+                                <th>Product group / sector</th>
+                                <th title="IFRS 9 stage, and the Reserve Bank of Malawi class by days past due and term">Stage / RBM</th>
+                                <th class="num" title="Days past due">DPD</th>
+                                <th class="num" title="Carrying amount, with any undrawn commitment below it">Carrying (MWK)</th>
                                 <th class="num">EAD (MWK)</th>
-                                <th class="num">PD</th>
-                                <th class="num">LGD</th>
+                                <th class="num" title="The locked original effective interest rate (effective annual)">EIR</th>
                                 <th class="num">ECL (MWK)</th>
                                 <th class="num">Coverage</th>
-                                <th class="num">Days overdue</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="loan in loanBooks.data" :key="loan.id">
-                                <td class="whitespace-nowrap font-mono text-xs">{{ loan.contract_id }}</td>
-                                <td class="font-semibold text-gray-900">{{ loan.client?.name || loan.customer_name || loan.external_identity_id }}</td>
-                                <td class="whitespace-nowrap">
-                                    <span :class="['maiic-badge', stageOf(loan) === 3 ? 'maiic-badge-red' : stageOf(loan) === 2 ? 'maiic-badge-gold' : 'maiic-badge-green']">Stage {{ stageOf(loan) }}</span>
-                                </td>
-                                <td class="num">{{ formatMoney(loan.ead ?? loan.carrying_amount) }}</td>
-                                <td class="num">{{ formatRate(loan.pd_post_fli ?? loan.pd_value ?? loan.pd_prefli) }}</td>
-                                <td class="num">{{ formatRate(loan.lgd_value) }}</td>
-                                <td class="num">{{ formatMoney(loan.ecl_value) }}</td>
-                                <td class="num">{{ coverageOf(loan) }}</td>
-                                <td class="num"><span :class="getOverdueClass(loan.overdue_days)">{{ loan.overdue_days }}</span></td>
-                            </tr>
+                            <template v-for="loan in loanBooks.data" :key="loan.id">
+                                <tr class="cursor-pointer" @click="toggle(loan.id)">
+                                    <td class="!pr-0">
+                                        <button type="button" class="maiic-action maiic-action-neutral !h-6 !w-6" :title="open[loan.id] ? 'Hide how the ECL was built' : 'Show how the ECL was built'" @click.stop="toggle(loan.id)">
+                                            <font-awesome-icon :icon="open[loan.id] ? 'chevron-down' : 'chevron-right'" class="text-[10px]"/>
+                                        </button>
+                                    </td>
+                                    <td class="whitespace-nowrap">
+                                        <div class="font-mono text-xs font-semibold text-gray-900">{{ loan.contract_id }}</div>
+                                        <div class="max-w-[11rem] truncate text-xs text-gray-500" :title="customerOf(loan)">{{ customerOf(loan) }}</div>
+                                    </td>
+                                    <td class="max-w-[11rem]">
+                                        <div class="truncate text-xs text-gray-800" :title="loan.product_group">{{ loan.product_group || '-' }}</div>
+                                        <div class="truncate text-xs text-gray-500" :title="loan.sector">{{ loan.sector }}</div>
+                                    </td>
+                                    <td class="whitespace-nowrap">
+                                        <span :class="['maiic-badge', stageBadge(stageOf(loan))]">Stage {{ stageOf(loan) }}</span>
+                                        <div class="mt-0.5 text-[11px] font-semibold" :class="rbmText(loan.lineage.rbm_class)">{{ loan.lineage.rbm_class }}</div>
+                                    </td>
+                                    <td class="num"><span :class="getOverdueClass(loan.overdue_days)">{{ Number(loan.overdue_days || 0).toLocaleString() }}</span></td>
+                                    <td class="num">
+                                        <div>{{ formatMoney(loan.lineage.carrying) }}</div>
+                                        <div v-if="loan.lineage.undrawn" class="text-[11px] text-gray-500" title="Undrawn commitment">+ {{ formatMoney(loan.lineage.undrawn) }}</div>
+                                    </td>
+                                    <td class="num font-semibold">{{ formatMoney(loan.lineage.ead) }}</td>
+                                    <td class="num">
+                                        <span v-if="loan.eir.locked" :title="'Locked ' + (loan.eir.rate_type === 'FLOATING' ? '(floating)' : '(fixed)')">{{ formatRate(loan.eir.rate) }}</span>
+                                        <span v-else class="maiic-badge maiic-badge-grey" :title="'No locked EIR yet: ' + loan.eir.status">{{ loan.eir.status }}</span>
+                                    </td>
+                                    <td class="num font-semibold">{{ loan.ecl_value === null ? '-' : formatMoney(loan.ecl_value) }}</td>
+                                    <td class="num">{{ loan.lineage.coverage === null ? '-' : loan.lineage.coverage.toFixed(2) + '%' }}</td>
+                                </tr>
+                                <tr v-if="open[loan.id]" class="!bg-maiic-50/40">
+                                    <td colspan="10" class="!px-4 !py-3">
+                                        <div class="w-0 min-w-full"><LoanLineage :loan="loan"/></div>
+                                    </td>
+                                </tr>
+                            </template>
                             <tr v-if="!loanBooks.data.length">
-                                <td colspan="9" class="maiic-empty">{{ periods.length ? 'No loan matches these filters.' : 'No loan book has been imported yet. Use Import loan book (top right).' }}</td>
+                                <td colspan="10" class="maiic-empty">{{ periods.length ? 'No loan matches these filters.' : 'No loan book has been imported yet. Use Import loan book (top right).' }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -135,11 +171,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import HelpManual from '@/Components/HelpManual.vue';
+import LoanLineage from '@/Components/Ifrs9/LoanLineage.vue';
 import debounce from 'lodash/debounce';
 
 const props = defineProps({
@@ -148,13 +185,21 @@ const props = defineProps({
     portfolios: Array,
     summary: Object,
     periods: { type: Array, default: () => [] },
+    productGroups: { type: Array, default: () => [] },
+    sectors: { type: Array, default: () => [] },
 });
+
+// Rows opened to show how their ECL was built.
+const open = reactive({});
+const toggle = (id) => { open[id] = !open[id]; };
 
 // The tiles come with the page (the server's summary for the same filters).
 const summary = ref(props.summary || null);
 const filters = ref({
     stage: '',
     search: '',
+    product_group: '',
+    sector: '',
     ...props.filters
 });
 // The month shown: the one asked for, else the latest the server opened on.
@@ -298,7 +343,9 @@ const fetchData = async () => {
             search: filters.value.search || undefined,
             year: year || undefined,
             month: month ? Number(month) : undefined,
-            stage: filters.value.stage || undefined
+            stage: filters.value.stage || undefined,
+            product_group: filters.value.product_group || undefined,
+            sector: filters.value.sector || undefined,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -318,7 +365,9 @@ const fetchSummary = async () => {
             search: filters.value.search || undefined,
             year: year || undefined,
             month: month ? Number(month) : undefined,
-            stage: filters.value.stage || undefined
+            stage: filters.value.stage || undefined,
+            product_group: filters.value.product_group || undefined,
+            sector: filters.value.sector || undefined,
         }));
         if (!response.ok) {
             throw new Error('Network response was not ok');
@@ -327,10 +376,6 @@ const fetchSummary = async () => {
     } catch (error) {
         console.error('Error fetching summary:', error);
     }
-};
-
-const formatCurrency = (value) => {
-    return formatMoney(value);
 };
 
 // Accounting format: thousands separators, 2dp, negatives in parentheses.
@@ -352,35 +397,23 @@ const formatRate = (value) => {
 const stageOf = (loan) => {
     return Number(loan.ifrs9stage_post_qualitative ?? loan.calculated_ifrs9_stage ?? loan.ifrs9_stage ?? 1);
 };
+const stageBadge = (s) => s === 3 ? 'maiic-badge-red' : s === 2 ? 'maiic-badge-gold' : 'maiic-badge-green';
+// RBM classes: performing green, special mention gold, non-performing red.
+const rbmText = (c) => c === 'Pass' ? 'text-maiic-700' : c === 'Special mention' ? 'text-amber-700' : 'text-red-600';
+const customerOf = (loan) => loan.client?.name || loan.customer_name || loan.external_identity_id || '-';
 
-// Per-loan ECL coverage: ECL over the exposure at default shown beside it
-// (an undrawn facility has no carrying amount but does have an EAD).
-const coverageOf = (loan) => {
-    const ead = Number(loan.ead ?? loan.carrying_amount ?? 0);
-    const ecl = Number(loan.ecl_value ?? 0);
-    if (!ead) return '0.00%';
-    return ((ecl / ead) * 100).toFixed(2) + '%';
-};
-
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+// Large amounts on the figure strip in millions / billions; the full figure is the tooltip.
+const compact = (value) => {
+    const v = Number(value || 0), a = Math.abs(v);
+    if (a >= 1e9) return (v / 1e9).toFixed(2) + ' bn';
+    if (a >= 1e6) return (v / 1e6).toFixed(2) + ' m';
+    return formatMoney(v);
 };
 
 const getOverdueClass = (days) => {
-    if (days === 0) return 'text-maiic-600';
+    if (!days) return 'text-maiic-600';
     if (days <= 30) return 'text-amber-600';
-    return 'text-red-600';
-};
-
-const getStatusClass = (status) => {
-    const classes = {
-        'Current': 'bg-maiic-100 text-maiic-800',
-        'Watch': 'bg-amber-100 text-amber-800',
-        'Substandard': 'bg-amber-100 text-amber-800',
-        'Doubtful': 'bg-red-100 text-red-800',
-        'Loss': 'bg-red-200 text-red-900'
-    };
-    return classes[status] || 'bg-gray-100 text-gray-800';
+    return 'text-red-600 font-semibold';
 };
 
 </script>
