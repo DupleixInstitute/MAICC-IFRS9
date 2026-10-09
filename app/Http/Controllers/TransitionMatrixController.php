@@ -700,6 +700,7 @@ class TransitionMatrixController extends Controller
             'pdPercentages' => $pdPercentages,
             'endStageTotals' => $endStageTotals,
             'grandTotal' => $grandTotal,
+            'meta' => \App\Support\MatrixPopupMeta::for($matrix),
         ]);
     }
 

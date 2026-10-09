@@ -220,6 +220,7 @@
             :transitionMatrix="selectedMatrix"
             :mode="mode"
             type="cumulative"
+            @close="modalVisible = false"
             />
         </Modal>
 

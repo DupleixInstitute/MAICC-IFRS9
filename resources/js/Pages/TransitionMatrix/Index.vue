@@ -196,7 +196,8 @@
                 :transitionMatrix="selectedMatrix"
                 :mode="mode"
                 type="normal"
-                />
+                @close="modalVisible = false"
+            />
         </Modal>
 
         <ExportModal :show="showReportModal" @close="showReportModal = false" />
