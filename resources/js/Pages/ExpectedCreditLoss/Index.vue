@@ -1,5 +1,5 @@
 <template>
-    <app-layout title="ECL Calculation" description="Loan-level expected credit loss (PD x LGD x exposure) for every period that has been calculated">
+    <app-layout title="ECL Calculation" description="How each loan's ECL was built: EAD x PD over the horizon x LGD, with the PD before and after the forward-looking adjustment">
         <template #actions>
             <Link :href="route('expected-credit-loss.create')" :class="btn.primary">
                 <font-awesome-icon icon="calculator"/> Run ECL calculation
@@ -16,27 +16,31 @@
         </template>
 
         <div class="space-y-5">
-            <!-- KPI row: the filtered population in view -->
-            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                <div class="maiic-kpi" style="--accent:#15803d">
-                    <div class="maiic-kpi-label">Loans in view</div>
-                    <div class="maiic-kpi-value text-xl">{{ formatNumber(summary?.total_loans) }}</div>
+            <!-- One line of figures: the filtered population in view, in MWK -->
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div class="maiic-kpi !py-3" style="--accent:#0e7490" :title="'MWK ' + formatMoney(totals.ead) + ', carrying amount plus undrawn commitments times utilisation, ' + formatNumber(totals.loans) + ' loans'">
+                    <div class="maiic-kpi-label">EAD (MWK)</div>
+                    <div class="text-xl font-bold tabular-nums text-gray-900">{{ compact(totals.ead) }}</div>
                 </div>
-                <div class="maiic-kpi" style="--accent:#0e7490">
-                    <div class="maiic-kpi-label">Carrying amount (MWK)</div>
-                    <div class="maiic-kpi-value text-xl" :title="formatMoney(summary?.total_exposure)">{{ compact(summary?.total_exposure) }}</div>
+                <div class="maiic-kpi !py-3" style="--accent:#64748b" :title="buildUp.pre_fli !== null ? 'MWK ' + formatMoney(buildUp.pre_fli) : (buildUp.reason || '')">
+                    <div class="maiic-kpi-label">ECL before FLI</div>
+                    <div class="text-xl font-bold tabular-nums text-gray-900">{{ buildUp.pre_fli !== null ? compact(buildUp.pre_fli) : '-' }}</div>
                 </div>
-                <div class="maiic-kpi" style="--accent:#d97706">
-                    <div class="maiic-kpi-label">Undiscounted ECL (MWK)</div>
-                    <div class="maiic-kpi-value text-xl" :title="formatMoney(summary?.total_loss)">{{ summary?.calculated_loans ? compact(summary.total_loss) : '-' }}</div>
+                <div class="maiic-kpi !py-3" style="--accent:#d97706" :title="buildUp.fli_total !== null ? 'MWK ' + formatMoney(buildUp.fli_total) + (buildUp.overlays ? ', of which overlays ' + formatMoney(buildUp.overlays) : '') : (buildUp.reason || '')">
+                    <div class="maiic-kpi-label">FLI effect</div>
+                    <div class="text-xl font-bold tabular-nums text-gray-900">{{ buildUp.fli_total !== null ? signedCompact(buildUp.fli_total) : '-' }}</div>
                 </div>
-                <div class="maiic-kpi" style="--accent:#b45309">
-                    <div class="maiic-kpi-label">Discounted ECL (MWK)</div>
-                    <div class="maiic-kpi-value text-xl" :title="formatMoney(summary?.total_discounted_loss)">{{ summary?.discounted_loans ? compact(summary.total_discounted_loss) : '-' }}</div>
+                <div class="maiic-kpi !py-3" style="--accent:#dc2626" :title="'MWK ' + formatMoney(totals.ecl)">
+                    <div class="maiic-kpi-label">ECL undiscounted</div>
+                    <div class="text-xl font-bold tabular-nums text-gray-900">{{ buildUp.calculated ? compact(totals.ecl) : '-' }}</div>
                 </div>
-                <div class="maiic-kpi" style="--accent:#dc2626">
-                    <div class="maiic-kpi-label">Coverage (ECL / carrying)</div>
-                    <div class="maiic-kpi-value text-xl">{{ summary?.calculated_loans && summary?.total_exposure ? formatPercent(coverageRate) : '-' }}</div>
+                <div class="maiic-kpi !py-3" style="--accent:#b45309" :title="totals.ecl_discounted !== null ? 'MWK ' + formatMoney(totals.ecl_discounted) : 'The run in view was undiscounted'">
+                    <div class="maiic-kpi-label">ECL discounted</div>
+                    <div class="text-xl font-bold tabular-nums text-gray-900">{{ totals.ecl_discounted !== null ? compact(totals.ecl_discounted) : '-' }}</div>
+                </div>
+                <div class="maiic-kpi !py-3" style="--accent:#15803d">
+                    <div class="maiic-kpi-label">Coverage (ECL / EAD)</div>
+                    <div class="text-xl font-bold tabular-nums text-gray-900">{{ buildUp.calculated && totals.ead ? formatPercent(coverageRate) : '-' }}</div>
                 </div>
             </div>
 
@@ -72,13 +76,21 @@
                         <option value="2">Stage 2</option>
                         <option value="3">Stage 3</option>
                     </select>
+                    <select v-model="filters.product_group" aria-label="Product group" title="Product group" class="maiic-select w-48 py-1.5" @change="fetchData">
+                        <option value="">All product groups</option>
+                        <option v-for="g in productGroups" :key="g" :value="g">{{ g }}</option>
+                    </select>
+                    <select v-model="filters.sector" aria-label="Sector" title="Sector" class="maiic-select w-52 py-1.5" @change="fetchData">
+                        <option value="">All sectors</option>
+                        <option v-for="o in bookSectors" :key="o.value" :value="o.value">{{ o.label }}</option>
+                    </select>
                     <input v-model="filters.search" type="search" aria-label="Search" class="maiic-input w-56 py-1.5"
                            placeholder="Search contract or customer" @keyup.enter="fetchData">
                     <button type="button" class="maiic-action maiic-action-view" title="Search" @click="fetchData"><font-awesome-icon icon="search"/></button>
                     <button type="button" class="text-xs font-bold text-gray-500 hover:text-maiic-700" @click="resetFilters">Clear</button>
                 </div>
                 <p class="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-gray-200 px-4 py-2 text-xs text-gray-500">
-                    <span>{{ currentTab.description }}</span>
+                    <span>{{ currentTab.description }} Amounts in MWK.</span>
                     <template v-if="runInfo?.period">
                         <span class="text-gray-300">|</span>
                         <template v-if="runScopes.length">
@@ -91,6 +103,14 @@
                         </template>
                         <span v-else class="maiic-badge maiic-badge-gold">No ECL run saved for {{ periodLabel(runInfo.period) }}</span>
                     </template>
+                    <template v-if="activeTab === 'undiscounted' && !buildUp.available && buildUp.reason">
+                        <span class="text-gray-300">|</span>
+                        <span class="font-semibold text-amber-700"><font-awesome-icon icon="exclamation-triangle"/> ECL before FLI not shown: {{ buildUp.reason }}</span>
+                    </template>
+                    <template v-if="buildUp.basis === 'pre_fli' && buildUp.reason">
+                        <span class="text-gray-300">|</span>
+                        <span class="font-semibold text-amber-700">{{ buildUp.reason }}</span>
+                    </template>
                     <template v-if="summary?.discount_unresolved_loans > 0">
                         <span class="text-gray-300">|</span>
                         <span class="font-semibold text-amber-700"><font-awesome-icon icon="exclamation-triangle"/> {{ formatNumber(summary.discount_unresolved_loans) }} loan(s) could not be discounted: check their approved EIR and remaining term.</span>
@@ -100,56 +120,82 @@
                 <!-- Loan results -->
                 <div v-if="activeTab !== 'run'">
                     <div class="maiic-table-wrap">
-                        <table class="maiic-table">
+                        <table class="maiic-table text-[13px] [&_td]:!px-2 [&_th]:!px-2">
                             <thead>
                                 <tr>
-                                    <th>Contract</th>
-                                    <th>Customer</th>
-                                    <th>Period</th>
-                                    <th>Stage</th>
-                                    <th class="num">EAD (MWK)</th>
-                                    <th class="num">PD before FLI</th>
-                                    <th class="num">PD after FLI</th>
-                                    <th class="num">LGD</th>
-                                    <th class="num">Undiscounted ECL (MWK)</th>
+                                    <th>Contract / stage</th>
+                                    <th class="num" title="Carrying amount plus undrawn commitment times utilisation, MWK">EAD</th>
                                     <template v-if="activeTab === 'undiscounted'">
+                                        <th class="num" title="12-month PD from the PD engine">PD before FLI</th>
+                                        <th class="num" title="PD after FLI over PD before FLI, less one">FLI adj.</th>
+                                        <th class="num" title="12-month PD after the forward-looking adjustment">PD after FLI</th>
+                                        <th class="num" title="The PD over the measurement horizon: 12 months in Stage 1, the remaining life in Stage 2, 100% in Stage 3">PD used</th>
+                                        <th class="num">LGD</th>
+                                        <th class="num" title="EAD x PD used, on the PD before FLI, x LGD, MWK">ECL before FLI</th>
+                                        <th class="num" title="The booked ECL, MWK">ECL</th>
                                         <th class="num">Coverage</th>
                                     </template>
                                     <template v-else>
+                                        <th class="num">PD after FLI</th>
+                                        <th class="num">LGD</th>
+                                        <th class="num">Undiscounted ECL</th>
                                         <th class="num">EIR</th>
                                         <th class="num">Horizon</th>
-                                        <th class="num">Discounted ECL (MWK)</th>
-                                        <th class="num">Discounting effect (MWK)</th>
+                                        <th class="num">Discounted ECL</th>
+                                        <th class="num">Discounting effect</th>
                                         <th>Discount status</th>
                                     </template>
-                                    <th>Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="loan in loanBooks.data" :key="loan.id">
-                                    <td class="whitespace-nowrap font-semibold text-gray-900">{{ loan.contract_id }}</td>
-                                    <td class="max-w-[16rem] truncate" :title="loan.client?.name || loan.customer_name">{{ loan.client?.name || loan.customer_name || '-' }}</td>
-                                    <td class="whitespace-nowrap">{{ loan.reporting_period }}</td>
-                                    <td><span class="maiic-badge" :class="stageBadge(stageOf(loan))">Stage {{ stageOf(loan) }}</span></td>
-                                    <td class="num">{{ formatMoney(eadValue(loan)) }}</td>
-                                    <td class="num">{{ formatRate(loan.pd_prefli) }}</td>
-                                    <td class="num">{{ formatRate(loan.pd_post_fli) }}</td>
-                                    <td class="num">{{ formatRate(loan.lgd_value) }}</td>
-                                    <td class="num font-semibold">{{ formatMoney(loan.ecl_value, true) }}</td>
+                                    <td class="whitespace-nowrap">
+                                        <div class="flex items-center gap-2"><span class="font-mono text-xs font-semibold text-gray-900">{{ loan.contract_id }}</span><span class="maiic-badge !px-2 !text-[10px]" :class="stageBadge(stageOf(loan))">Stage {{ stageOf(loan) }}</span></div>
+                                        <div class="max-w-[12rem] truncate text-xs text-gray-500" :title="loan.client?.name || loan.customer_name">{{ loan.client?.name || loan.customer_name || '-' }}</div>
+                                    </td>
+                                    <td class="num">{{ formatMoney(loan.lineage.ead) }}</td>
                                     <template v-if="activeTab === 'undiscounted'">
+                                        <td class="num">{{ formatRate(loan.pd_prefli) }}</td>
+                                        <td class="num" :class="adjClass(loan)">{{ stageOf(loan) === 3 ? '-' : signedRate(loan.fli_adj) }}</td>
+                                        <td class="num">{{ formatRate(loan.pd_post_fli) }}</td>
+                                        <td class="num font-semibold" :title="horizonTitle(loan)">{{ formatRate(loan.lineage.horizon_pd_post) }}</td>
+                                        <td class="num">{{ formatRate(loan.lgd_value) }}</td>
+                                        <td class="num text-gray-600">{{ formatMoney(loan.lineage.ecl_pre, true) }}</td>
+                                        <td class="num font-semibold" :class="loan.ecl_value !== null && !loan.lineage.ties ? 'text-amber-700' : ''"
+                                            :title="loan.ecl_value !== null && !loan.lineage.ties ? 'EAD x PD used x LGD gives ' + formatMoney(loan.lineage.ecl_recalc) + ': run the ECL again' : ''">{{ formatMoney(loan.ecl_value, true) }}</td>
                                         <td class="num">{{ formatPercent(loanCoverage(loan)) }}</td>
                                     </template>
                                     <template v-else>
+                                        <td class="num">{{ formatRate(loan.pd_post_fli) }}</td>
+                                        <td class="num">{{ formatRate(loan.lgd_value) }}</td>
+                                        <td class="num">{{ formatMoney(loan.ecl_value, true) }}</td>
                                         <td class="num" :title="eirBasis(loan)">{{ eirRate(loan) }}</td>
                                         <td class="num">{{ formatHorizon(loan.ecl_discount_horizon_years) }}</td>
                                         <td class="num font-semibold">{{ formatMoney(loan.ecl_value_discounted, true) }}</td>
                                         <td class="num">{{ formatMoney(loan.ecl_discounting_effect, true) }}</td>
                                         <td><span class="maiic-badge" :class="discountStatusClass(loan.ecl_discount_status)">{{ discountStatusLabel(loan.ecl_discount_status) }}</span></td>
                                     </template>
-                                    <td class="whitespace-nowrap text-xs text-gray-500">{{ loan.updated_at ? $filters.time(loan.updated_at) : '' }}</td>
+                                </tr>
+                                <tr v-if="loanBooks.data && loanBooks.data.length" class="total">
+                                    <td>Total, {{ formatNumber(totals.loans) }} loans</td>
+                                    <td class="num">{{ formatMoney(totals.ead) }}</td>
+                                    <template v-if="activeTab === 'undiscounted'">
+                                        <td colspan="5"></td>
+                                        <td class="num">{{ formatMoney(totals.ecl_pre, true) }}</td>
+                                        <td class="num">{{ formatMoney(totals.ecl) }}</td>
+                                        <td class="num">{{ totals.ead ? formatPercent(totals.ecl / totals.ead * 100) : '-' }}</td>
+                                    </template>
+                                    <template v-else>
+                                        <td colspan="2"></td>
+                                        <td class="num">{{ formatMoney(totals.ecl) }}</td>
+                                        <td colspan="2"></td>
+                                        <td class="num">{{ formatMoney(totals.ecl_discounted, true) }}</td>
+                                        <td class="num">{{ totals.ecl_discounted === null ? '-' : formatMoney(totals.ecl - totals.ecl_discounted) }}</td>
+                                        <td></td>
+                                    </template>
                                 </tr>
                                 <tr v-if="!loanBooks.data || loanBooks.data.length === 0">
-                                    <td :colspan="activeTab === 'discounted' ? 15 : 11" class="maiic-empty">
+                                    <td :colspan="activeTab === 'discounted' ? 10 : 10" class="maiic-empty">
                                         No ECL results for this period and these filters. Pick another month, clear the filters, or run the ECL calculation.
                                     </td>
                                 </tr>
@@ -341,6 +387,10 @@ const props = defineProps({
     summary: Object,
     latestPeriod: String,
     runInfo: { type: Object, default: () => ({ period: null, rows: [] }) },
+    buildUp: { type: Object, default: () => ({ available: false, pre_fli: null, fli_total: null }) },
+    totals: { type: Object, default: () => ({ loans: 0, ead: 0, ecl: 0, ecl_pre: null, ecl_discounted: null }) },
+    productGroups: { type: Array, default: () => [] },
+    bookSectors: { type: Array, default: () => [] },
 });
 
 const btn = {
@@ -356,13 +406,13 @@ const defaultYear = Number(latestPeriodParts[0]) || new Date().getFullYear();
 const defaultMonth = Number(latestPeriodParts[1]) || new Date().getMonth() + 1;
 
 const coverageRate = computed(() => {
-    const exposure = Number(props.summary?.total_exposure || 0);
-    return exposure > 0 ? (Number(props.summary?.total_loss || 0) / exposure) * 100 : 0;
+    const exposure = Number(props.totals?.ead || 0);
+    return exposure > 0 ? (Number(props.totals?.ecl || 0) / exposure) * 100 : 0;
 });
 
 const tabs = computed(() => [
     { key: 'undiscounted', label: 'Undiscounted ECL', count: props.summary?.calculated_loans || 0,
-      description: 'PD x LGD x exposure for each loan, no present-value adjustment.' },
+      description: 'EAD x PD used x LGD for each loan, no present-value adjustment. PD used is the 12-month PD after FLI carried over the horizon.' },
     { key: 'discounted', label: 'Discounted ECL', count: props.summary?.discounted_loans || 0,
       description: 'The same loss discounted at the locked EIR; blank where the run was undiscounted.' },
     { key: 'run', label: 'Run summary by stage', count: props.runInfo?.rows?.length || 0,
@@ -394,24 +444,29 @@ const filters = ref({
     stage: '',
     portfolio: '',
     search: '',
+    product_group: '',
+    sector: '',
     ...props.filters,
 });
 
 const years = [2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const columnOptions = [
-    { value: 'external_identity_id', label: 'External ID' },
     { value: 'contract_id', label: 'Contract ID' },
-    { value: 'principal_balance', label: 'Principal balance' },
-    { value: 'pd_value', label: 'PD' },
+    { value: 'customer_name', label: 'Customer' },
+    { value: 'reporting_period', label: 'Reporting period' },
+    { value: 'ifrs9stage_post_qualitative', label: 'Stage' },
+    { value: 'carrying_amount', label: 'Carrying amount' },
+    { value: 'commitments', label: 'Undrawn commitment' },
+    { value: 'pd_prefli', label: 'PD before FLI' },
+    { value: 'fli_adj', label: 'FLI adjustment' },
+    { value: 'pd_post_fli', label: 'PD after FLI' },
     { value: 'lgd_value', label: 'LGD' },
     { value: 'ecl_value', label: 'ECL' },
-    { value: 'calculated_ifrs9_stage', label: 'Stage' },
-    { value: 'reporting_period', label: 'Reporting period' },
+    { value: 'remaining_tenor', label: 'Remaining term (months)' },
+    { value: 'industry_code', label: 'Sector code' },
     { value: 'create_date', label: 'Create date' },
     { value: 'due_date', label: 'Due date' },
-    { value: 'contract_status', label: 'Contract status' },
-    { value: 'overdue_days', label: 'Overdue days' },
 ];
 const allColumns = columnOptions.map(c => c.value);
 
@@ -504,11 +559,13 @@ const fetchData = () => {
         month: filters.value.month,
         stage: filters.value.stage,
         portfolio: filters.value.portfolio,
+        product_group: filters.value.product_group || undefined,
+        sector: filters.value.sector || undefined,
     }, { preserveState: true, preserveScroll: true, replace: true });
 };
 
 const resetFilters = () => {
-    filters.value = { year: defaultYear, month: defaultMonth, stage: '', portfolio: '', search: '' };
+    filters.value = { year: defaultYear, month: defaultMonth, stage: '', portfolio: '', search: '', product_group: '', sector: '' };
     router.get(route('expected-credit-loss.index'), {}, { preserveScroll: true, replace: true });
 };
 
@@ -526,19 +583,27 @@ const compact = (value) => {
 const formatNumber = (value) => new Intl.NumberFormat('en-GB').format(Number(value || 0));
 const formatPercent = (value) => Number(value || 0).toFixed(2) + '%';
 const formatRate = (value) => (value === null || value === undefined || value === '') ? '-' : (Number(value) * 100).toFixed(2) + '%';
+const signedRate = (value) => (value === null || value === undefined || value === '') ? '-' : (Number(value) > 0 ? '+' : '') + (Number(value) * 100).toFixed(2) + '%';
+const signedCompact = (value) => (Number(value) > 0 ? '+' : '') + compact(value);
+const adjClass = (loan) => {
+    const a = Number(loan.fli_adj || 0);
+    if (stageOf(loan) === 3 || !a) return 'text-gray-500';
+    return a > 0 ? 'text-red-600' : 'text-maiic-700';
+};
+const horizonTitle = (loan) => {
+    const x = loan.lineage || {};
+    if (x.horizon === 'defaulted') return 'Stage 3: defaulted, PD 100%';
+    if (x.horizon === 'lifetime') return 'Stage 2: lifetime PD over ' + Math.round(x.horizon_months) + ' months';
+    return 'Stage 1: PD over ' + Math.round(x.horizon_months || 12) + ' months';
+};
 const formatHorizon = (value) => (value === null || value === undefined || value === '') ? '-' : Math.round(Number(value) * 12) + ' months';
 function periodLabel(p) {
     const [y, m] = String(p || '').split('-');
     return m ? months[Number(m) - 1] + ' ' + y : p;
 }
 
-const eadValue = (loan) => {
-    const utilisation = loan.facility_utilisation_rate === null || loan.facility_utilisation_rate === undefined
-        ? 1 : Number(loan.facility_utilisation_rate);
-    return Number(loan.carrying_amount || 0) + (Number(loan.commitments || 0) * utilisation);
-};
 const loanCoverage = (loan) => {
-    const ead = eadValue(loan);
+    const ead = Number(loan.lineage?.ead || 0);
     return ead > 0 ? (Number(loan.ecl_value || 0) / ead) * 100 : 0;
 };
 // Same final-stage precedence and badge convention as Loan Books.

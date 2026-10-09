@@ -8,6 +8,7 @@ use App\Models\ReportingPeriods;
 use App\Models\ExpectedCreditLoss;
 use App\Services\Ecl\EclDiscountingService;
 use App\Services\Ecl\TimePhasedEclService;
+use App\Services\Reports\EclBuildUpService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -94,8 +95,28 @@ class ExpectedCreditLossController extends Controller
             if ($request->filled('stage')) {
                 $query->where('ifrs9stage_post_qualitative', $request->input('stage'));
             }
+            $this->applyBookFilters($query, $request);
+
+            // The whole filtered population on the engine's basis: totals
+            // for the total row and the build-up (ECL before FLI, the
+            // forward-looking effect, overlays, booked ECL).
+            $buildUpService = app(EclBuildUpService::class);
+            $population = (clone $query)->toBase()->get(array_map(fn ($c) => 'loan_books.' . $c, EclBuildUpService::COLUMNS));
+            $viewPeriod = ($request->filled('year') && $request->filled('month'))
+                ? sprintf('%04d-%02d', (int) $request->input('year'), (int) $request->input('month'))
+                : $latestPeriod;
+            $buildUp = $buildUpService->buildUp($population, (string) $viewPeriod);
+            $totals = ['loans' => $population->count(), 'ead' => $buildUp['ead'], 'ecl' => $buildUp['final'], 'ecl_pre' => $buildUp['pre_fli'],
+                'ecl_discounted' => $population->whereNotNull('ecl_value_discounted')->isNotEmpty() ? round((float) $population->sum('ecl_value_discounted'), 2) : null];
 
             $loanBooks = $query->paginate(15)->withQueryString();
+            $loanBooks->setCollection($loanBooks->getCollection()->map(function ($loan) {
+                $loan->setAttribute('lineage', EclBuildUpService::lineage((object) $loan->getAttributes()));
+                $loan->makeHidden(['build_basis', 'fli_by_scenario']);
+
+                return $loan;
+            }));
+            $optionPeriod = $viewPeriod ?: LoanBook::max('reporting_period');
 
             return Inertia::render('ExpectedCreditLoss/Index', [
                 'loanBooks'   => $loanBooks,
@@ -106,12 +127,31 @@ class ExpectedCreditLossController extends Controller
                     'year',
                     'month',
                     'stage',
-                    'portfolio'
+                    'portfolio',
+                    'product_group',
+                    'sector',
                 ]),
                 'portfolios'  => LoanPortfolio::all(),
                 'sectors'     => IndustryType::all(),
                 'runInfo'     => $this->runInfo($request, $latestPeriod),
+                'buildUp'     => $buildUp,
+                'totals'      => $totals,
+                // the product groups and sectors present in the month shown, for the filters
+                'productGroups' => LoanBook::where('reporting_period', $optionPeriod)->whereNotNull('product_group')->distinct()->orderBy('product_group')->pluck('product_group'),
+                'bookSectors' => LoanBook::where('reporting_period', $optionPeriod)->whereNotNull('industry_type')->distinct()->orderBy('industry_type')->pluck('industry_type')
+                    ->map(fn ($t) => ['value' => $t, 'label' => EclBuildUpService::sectorLabel($t)])->values(),
             ]);
+        }
+
+        /** Product group and sector filters, shared by the list and its summary. */
+        private function applyBookFilters($query, Request $request): void
+        {
+            if ($request->filled('product_group')) {
+                $query->where('product_group', $request->input('product_group'));
+            }
+            if ($request->filled('sector')) {
+                $query->where('industry_type', $request->input('sector'));
+            }
         }
 
         /**
@@ -195,12 +235,14 @@ class ExpectedCreditLossController extends Controller
             if ($request->filled('stage')) {
                 $query->where('ifrs9stage_post_qualitative', $request->input('stage'));
             }
+            $this->applyBookFilters($query, $request);
 
             // Current summary + stage split in ONE aggregate pass (was 6
             // separate full scans).
             $agg = $query->clone()->selectRaw(
                 'COUNT(*) as total_loans,
                  COALESCE(SUM(carrying_amount),0) as exposure,
+                 COALESCE(SUM(' . EclBuildUpService::EAD_SQL . '),0) as ead,
                  COALESCE(SUM(ecl_value),0) as loss,
                  COALESCE(SUM(ecl_value_discounted),0) as discounted_loss,
                  COALESCE(SUM(ecl_discounting_effect),0) as discounting_effect,
@@ -266,6 +308,7 @@ class ExpectedCreditLossController extends Controller
                 'current_period' => $latestPeriod,
                 'previous_period' => $previousPeriod,
                 'total_exposure' => $currentExposure,
+                'total_ead' => (float) $agg->ead,
                 'total_loss' => $currentLoss,
                 'total_loans' => $currentLoans,
                 'calculated_loans' => (int) $agg->calculated_loans,
