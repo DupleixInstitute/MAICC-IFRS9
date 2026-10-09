@@ -10,6 +10,8 @@ module.exports = {
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
         './resources/js/**/*.vue',
+        // navAccents.js carries the group colours (sidebar tiles, page header tile)
+        './resources/js/**/*.js',
     ],
 
     theme: {
