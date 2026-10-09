@@ -71,6 +71,7 @@ import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue'
 import '@fortawesome/fontawesome-free/css/all.css';
 import ViewManualModal from './ViewManualModal.vue'
+import { confirmDialog } from '@/Components/confirmDialog'
 
 
 const props = defineProps({
@@ -92,8 +93,8 @@ const closeModal = () => {
   selectedManual.value = null
 }
 
-const deleteManual = (manual) => {
-  if (confirm('Are you sure you want to delete this manual?')) {
+const deleteManual = async (manual) => {
+  if (await confirmDialog({ title: 'Delete this manual?', message: 'The manual is removed for everyone. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' })) {
     router.delete(route('manuals.delete', manual));
   }
 }

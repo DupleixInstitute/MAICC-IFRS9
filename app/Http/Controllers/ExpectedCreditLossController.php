@@ -110,7 +110,47 @@ class ExpectedCreditLossController extends Controller
                 ]),
                 'portfolios'  => LoanPortfolio::all(),
                 'sectors'     => IndustryType::all(),
+                'runInfo'     => $this->runInfo($request, $latestPeriod),
             ]);
+        }
+
+        /**
+         * What the saved ECL run(s) for the period in view recorded, read-only:
+         * the stage totals in expected_credit_loss and the calculation level,
+         * scope and measurement basis each was run on. The PD and LGD types
+         * chosen on the run form are not stored, so they are not shown.
+         */
+        private function runInfo(Request $request, ?string $latestPeriod): array
+        {
+            $period = ($request->filled('year') && $request->filled('month'))
+                ? sprintf('%04d-%02d', (int) $request->input('year'), (int) $request->input('month'))
+                : $latestPeriod;
+            if (! $period) {
+                return ['period' => null, 'rows' => []];
+            }
+            $portfolios = LoanPortfolio::pluck('name', 'id');
+            $sectors = IndustryType::pluck('name', 'code');
+            $rows = ExpectedCreditLoss::where('reporting_period', $period)
+                ->orderBy('ecl_calculation_level')->orderBy('ecl_calculation_id')->orderBy('ecl_calculation_code')->orderBy('ifrs9_stage')
+                ->get()
+                ->map(fn ($r) => [
+                    'stage' => $r->ifrs9_stage,
+                    'level' => $r->ecl_calculation_level,
+                    'scope' => $r->ecl_calculation_level === 'sector'
+                        ? ($sectors[$r->ecl_calculation_code] ?? $r->ecl_calculation_code)
+                        : ($portfolios[$r->ecl_calculation_id] ?? null),
+                    'loans' => (int) $r->total_loans,
+                    'ead' => $r->total_ead !== null ? (float) $r->total_ead : null,
+                    'ecl' => $r->total_ecl !== null ? (float) $r->total_ecl : null,
+                    'ecl_discounted' => $r->total_ecl_discounted !== null ? (float) $r->total_ecl_discounted : null,
+                    'discount_status' => $r->discount_status,
+                    'pd_used' => $r->pd_value_used !== null ? (float) $r->pd_value_used : null,
+                    'lgd_used' => $r->lgd_value_used !== null ? (float) $r->lgd_value_used : null,
+                    'run_id' => $r->ecl_calculation_run_id,
+                    'run_at' => optional($r->updated_at)->toDateTimeString(),
+                ])->values()->all();
+
+            return ['period' => $period, 'rows' => $rows];
         }
 
         public function summary(Request $request)
