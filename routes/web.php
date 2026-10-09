@@ -1026,6 +1026,8 @@ Route::delete('/macro-forecast-weighted/{id}', [MacroForecastWeightedController:
 // Credit Loss Data Routes
 Route::get('/credit-loss-data', [CreditLossDataController::class, 'index'])->name('credit-loss-data.index');
 Route::get('/credit-loss-data/import', [CreditLossDataController::class, 'importView'])->name('credit-loss-data.importView');
+// Blank sample CSVs (header row from each importer) for the import screens that had none.
+Route::get('/import-samples/{kind}', [\App\Http\Controllers\ImportSampleController::class, 'show'])->name('import-samples.show');
 Route::post('/credit-loss-data/import', [CreditLossDataController::class, 'import'])->name('credit-loss-data.import');
 Route::get('/credit-loss-data/definition', [CreditLossDataController::class, 'createDefinition'])->name('credit-loss-data.definition');
 Route::post('/credit-loss-data/definition/store', [CreditLossDataController::class, 'storeDefinition'])->name('credit-loss-data.definition.store');
@@ -1197,12 +1199,17 @@ Route::middleware(['auth', 'permission:settings'])->prefix('help/manage')->name(
     Route::delete('/articles/{article}/images/{imageId}', [$h, 'destroyImage'])->name('images.destroy');
 });
 
+// The Reports hub is the one Reports menu entry: anyone who may open any
+// report reaches it, and the hub shows only the tiles their permissions allow.
+Route::middleware(['auth', 'permission:reports.ifrs9|reports|eir.view'])
+    ->get('ifrs9-reports', [\App\Http\Controllers\Reports\Ifrs9ReportsController::class, 'index'])
+    ->name('ifrs9-reports.index');
+
 Route::middleware(['auth', 'permission:reports.ifrs9'])
     ->prefix('ifrs9-reports')
     ->name('ifrs9-reports.')
     ->group(function () {
         $c = \App\Http\Controllers\Reports\Ifrs9ReportsController::class;
-        Route::get('/', [$c, 'index'])->name('index');
         Route::get('/executive', [$c, 'executiveSummary'])->name('executive');
         Route::get('/portfolio-trend', [$c, 'portfolioTrend'])->name('portfolio-trend');
         Route::get('/sector-ecl', [$c, 'sectorEcl'])->name('sector-ecl');
