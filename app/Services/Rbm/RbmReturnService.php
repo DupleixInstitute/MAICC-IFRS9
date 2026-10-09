@@ -128,7 +128,7 @@ class RbmReturnService
         // D. restructured facilities: awaiting the Reschedule Report
         $sectionD = ['accounts' => null, 'balance' => null, 'note' => 'The restructured-loan register (E-Banker\'s Reschedule Report) is awaited from the vendor; the line is filled when it lands.'];
         // E. security held against classified facilities
-        $security = DB::table('ebanker_raw_rows')->where('query_id', 'P2_11')->whereNull('superseded_at')->get(['account', 'payload']);
+        $security = (new LandingZoneReader())->current()->where('query_id', 'P2_11')->get(['account', 'payload']);
         $secured = 0.0; $securedAccounts = 0;
         foreach ($security as $s) {
             $cid = ltrim((string) $s->account, '0');

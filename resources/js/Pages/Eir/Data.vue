@@ -142,7 +142,7 @@
               <tr v-for="r in data.data" :key="r.id">
                 <td class="td font-semibold">{{ r.contract_id }}</td>
                 <td class="td">{{ date(r.reporting_period) }}</td>
-                <td class="td">{{ r.gl_account_code || '—' }}</td>
+                <td class="td">{{ r.gl_account_code || '—' }}<span v-if="r.gl_account_name" class="block text-xs text-gray-500">{{ r.gl_account_name }}</span></td>
                 <td class="td font-semibold">{{ money(r.interest_income_posted) }}</td>
                 <td class="td font-semibold">{{ nullableMoney(r.eir_interest) }}</td>
                 <td class="td font-semibold" :class="varianceTextClass(r.variance)">{{ signedMoney(r.variance) }}</td>

@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\DB;
  * queries over one physical table; this class knows which query ids make
  * up each family and returns the current version of every row, de-duplicated
  * on the source key with the latest load winning.
+ *
+ * Only rows of loads whose status is LANDED are read. A quarantined load
+ * keeps its rows against itself so the refused file can be opened (spec 6.4;
+ * system audit of 9 October 2026, finding M2), and they must never reach a
+ * build.
  */
 class LandingZoneReader
 {
@@ -22,6 +27,9 @@ class LandingZoneReader
     public const RATE_SETUP = ['P1_04', 'MF_07'];
     public const STATUS_HISTORY = ['P3_13', 'MF_06'];
     public const CHARGES = ['P2_07', 'MF_08'];
+    /** The keyed GL master rows (GL_02) and the trial balance lines from Finance (TB_01): the GL side of the zone. */
+    public const GL_MASTER = ['GL_02'];
+    public const TRIAL_BALANCE = ['TB_01'];
 
     /** Loan GL codes in scope, with the product group and funding source each carries. */
     public const LOAN_GLS = [
@@ -43,7 +51,7 @@ class LandingZoneReader
      */
     public function family(array $queryIds, ?string $toDate = null, ?string $onDate = null): array
     {
-        $q = DB::table('ebanker_raw_rows')->whereIn('query_id', $queryIds)->whereNull('superseded_at')
+        $q = $this->current()->whereIn('query_id', $queryIds)
             ->orderBy('load_id')->orderBy('id');
         if ($toDate !== null) {
             $q->where('row_date', '<=', $toDate);
@@ -60,6 +68,18 @@ class LandingZoneReader
         }
 
         return $out;
+    }
+
+    /** The current rows of landed loads: the one query every reader of the zone starts from. */
+    public function current(): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('ebanker_raw_rows')->whereNull('superseded_at')->whereIn('load_id', self::landedLoadIds());
+    }
+
+    /** A sub-query of the loads whose rows may be read, for callers that query the raw rows themselves. */
+    public static function landedLoadIds(): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('ebanker_loads')->select('id')->where('status', 'LANDED');
     }
 
     /** Ledger postings dated on or before the date, grouped by account, each in date then key order. */
@@ -160,22 +180,72 @@ class LandingZoneReader
     /** The month-ends the stored report was run for. */
     public function runMonthEnds(): array
     {
-        return DB::table('ebanker_raw_rows')->whereIn('query_id', self::LOAN_BOOK_RUNS)->whereNull('superseded_at')
+        return $this->current()->whereIn('query_id', self::LOAN_BOOK_RUNS)
             ->whereNotNull('row_date')->distinct()->orderBy('row_date')->pluck('row_date')->all();
     }
 
     /** The last date any ledger posting carries: the date after which a build is refused, never estimated. */
     public function lastLedgerDate(): ?string
     {
-        return DB::table('ebanker_raw_rows')->whereIn('query_id', self::LEDGER)->whereNull('superseded_at')->max('row_date');
+        return $this->current()->whereIn('query_id', self::LEDGER)->max('row_date');
     }
 
     /** Loads read by a family, for the build's audit trail. */
     public function loadsOf(array $queryIds): array
     {
         return DB::table('ebanker_raw_rows')->join('ebanker_loads', 'ebanker_loads.id', '=', 'ebanker_raw_rows.load_id')
-            ->whereIn('query_id', $queryIds)->whereNull('superseded_at')->distinct()
+            ->whereIn('query_id', $queryIds)->whereNull('superseded_at')->where('ebanker_loads.status', 'LANDED')->distinct()
             ->get(['ebanker_loads.id', 'ebanker_loads.pack_hash', 'ebanker_loads.pack_name'])
             ->map(fn ($l) => ['load_id' => (int) $l->id, 'pack_hash' => $l->pack_hash, 'pack' => $l->pack_name])->values()->all();
+    }
+
+    /**
+     * The trial balance lines landed from Finance's files (TB_01), the
+     * current version of each, keyed by period, basis and GL code.
+     *
+     * @return array<string, array{load_id:int,source_key:string,payload:array}>
+     */
+    public function trialBalanceLines(): array
+    {
+        return $this->family(self::TRIAL_BALANCE);
+    }
+
+    /**
+     * GL account names by GL code, from the landing zone: the keyed GL
+     * master rows (GL_02) where they carry a name, and otherwise the title
+     * printed on the trial balance line for that code (TB_01), the latest
+     * period winning. Used where a screen would otherwise show a bare code
+     * (system audit of 9 October 2026, finding M1). Empty when the zone has
+     * not been created, so a caller outside the feed never fails on it.
+     *
+     * @return array<string, string>
+     */
+    public function glNames(): array
+    {
+        if (! DB::getSchemaBuilder()->hasTable('ebanker_raw_rows')) {
+            return [];
+        }
+        $names = [];
+        $byPeriod = [];
+        foreach ($this->family(self::TRIAL_BALANCE) as $row) {
+            $p = $row['payload'];
+            $code = trim((string) ($p['GL_CODE'] ?? ''));
+            $title = trim((string) ($p['GL_TITLE'] ?? ''));
+            $period = (string) ($p['PERIOD'] ?? '');
+            if ($code !== '' && $title !== '' && ($byPeriod[$code] ?? '') <= $period) {
+                $byPeriod[$code] = $period;
+                $names[$code] = $title;
+            }
+        }
+        foreach ($this->family(self::GL_MASTER) as $row) {
+            $p = $row['payload'];
+            $code = trim((string) ($p['GLCODE'] ?? ''));
+            $title = trim((string) ($p['GLNAME'] ?? ($p['GL_NAME'] ?? ($p['GLDESC'] ?? ($p['GL_DESCRIPTION'] ?? '')))));
+            if ($code !== '' && $title !== '') {
+                $names[$code] = $title;
+            }
+        }
+
+        return $names;
     }
 }

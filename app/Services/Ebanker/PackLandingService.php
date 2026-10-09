@@ -13,17 +13,21 @@ use RuntimeException;
  *
  * A pack is a folder of extract files plus manifest.json. Whatever route
  * delivered it, this service: reads the manifest; runs the gates (every file
- * named exists, its SHA-256 matches, its row count matches, its query id is one
- * the register knows, every date in it parses in the format the manifest
- * states, and the manifest's accepted exceptions are recorded against the
- * load); then lands every row of every file verbatim as JSON in
+ * named exists, its SHA-256 matches, its row count matches, its query id and
+ * version are ones the register knows, every date in it parses in the format
+ * the manifest states, every amount parses, the key is unique, and, across
+ * the files, every ledger account is in the master, the balance history ties
+ * to the ledger and every in-scope account has its month-end row; see
+ * PackGates); then lands every row of every file verbatim as JSON in
  * ebanker_raw_rows, keyed by the query id and the source table's own key, as a
  * new version where the content differs from the version already held and
  * never as an overwrite; and records the load with its gate results and the
  * watermark (highest source key) per query.
  *
  * A gate failure quarantines the pack: the load row is written with the
- * failures named, no raw row is written, nothing downstream moves.
+ * failures named, the raw rows are kept against the load so the refused file
+ * can be opened (system audit of 9 October 2026, finding M2), readers ignore
+ * them because the load is not LANDED, and nothing downstream moves.
  */
 class PackLandingService
 {
@@ -60,13 +64,14 @@ class PackLandingService
         }
 
         $known = DB::table('ebanker_queries')->get()->keyBy('query_id');
+        $checks = new PackGates(new LandingZoneReader(), $this);
         $gates = ['pack' => [], 'files' => []];
-        $plans = [];
+        $parsed = [];
         foreach ($manifest['files'] as $entry) {
             $file = (string) ($entry['file'] ?? '');
             $path = rtrim($packDir, '/\\') . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file);
             $queryId = (string) ($entry['query_id'] ?? '');
-            $f = ['file' => $file, 'query_id' => $queryId, 'failures' => []];
+            $f = ['file' => $file, 'query_id' => $queryId, 'failures' => [], 'gates' => []];
             if (! str_ends_with(strtolower($file), '.csv')) {
                 $f['skipped'] = 'not a CSV: kept in the pack, not landed';
                 $gates['files'][$file] = $f;
@@ -92,7 +97,15 @@ class PackLandingService
             foreach ($rowErrors as $e) {
                 $f['failures'][] = $e;
             }
+            // every amount, balance and rate parses once commas are stripped (M2 d)
+            $f['gates']['numeric'] = $checks->numeric($file, $headers, $rows);
+            array_push($f['failures'], ...$f['gates']['numeric']['failures']);
+            $version = isset($entry['query_version']) ? (string) $entry['query_version'] : null;
             if ($query !== null) {
+                // the version the manifest states is the version the register holds (M2 e)
+                $f['gates']['query_version'] = $checks->queryVersion($file, $version, $query);
+                array_push($f['failures'], ...$f['gates']['query_version']['failures']);
+                $version = $f['gates']['query_version']['register'];
                 $dateCol = $query->date_column;
                 if ($dateCol !== null && in_array($dateCol, $headers, true)) {
                     foreach ($rows as $i => $r) {
@@ -103,6 +116,8 @@ class PackLandingService
                         }
                     }
                 }
+                // whether the dates are ISO is recorded; the declared format is still accepted (M2 g, D23)
+                $f['gates']['dates_iso'] = $checks->datesIso($file, $headers, $rows, $dateCol);
                 $missing = array_diff($this->keyColumns($query), $headers);
                 if ($missing !== []) {
                     $f['failures'][] = 'key column ' . implode(',', $missing) . ' is not in the file';
@@ -119,40 +134,54 @@ class PackLandingService
                         $seen[$k] = $i;
                     }
                 }
+                $parsed[$file] = ['file' => $file, 'query' => $query, 'headers' => $headers, 'rows' => $rows, 'sha256' => $sha, 'version' => $version, 'declared' => $entry['rows'] ?? null];
             }
             $f['sha256'] = $sha;
             $f['rows'] = count($rows);
             $gates['files'][$file] = $f;
-            if ($f['failures'] === []) {
-                $plans[] = ['file' => $file, 'query' => $query, 'headers' => $headers, 'rows' => $rows, 'sha256' => $sha, 'version' => (string) ($entry['query_version'] ?? '1'), 'declared' => $entry['rows'] ?? null];
-            }
         }
+        // the gates that look across the files and at what earlier loads hold (M2 a, b, c)
+        $gates['pack'] = $checks->acrossPack(array_values($parsed), $dateFormat);
+        $gates['pack']['dates_iso'] = $this->datesIsoSummary($gates['files']);
         $gates['pack']['accepted_exceptions'] = $manifest['accepted_exceptions'] ?? [];
         $failed = array_filter($gates['files'], fn ($f) => ($f['failures'] ?? []) !== []);
-        $status = $failed === [] ? 'LANDED' : 'QUARANTINED';
+        $packFailed = array_filter($gates['pack'], fn ($g) => is_array($g) && ($g['level'] ?? null) === PackGates::LEVEL_ERROR && ($g['result'] ?? null) === 'FAIL');
+        $status = $failed === [] && $packFailed === [] ? 'LANDED' : 'QUARANTINED';
+        $plans = $status === 'LANDED' ? array_values($parsed) : [];
 
         if ($dryRun) {
             return ['load_id' => 0, 'status' => 'DRY_RUN_' . $status, 'gates' => $gates, 'files' => $gates['files'], 'watermarks' => []];
         }
 
-        return DB::transaction(function () use ($existing, $packHash, $manifest, $route, $dateFormat, $gates, $status, $plans, $userId, $failed) {
+        return DB::transaction(function () use ($existing, $packHash, $manifest, $route, $dateFormat, $gates, $status, $plans, $parsed, $userId, $failed, $packFailed) {
             $loadId = $existing ? (int) $existing->id : (int) DB::table('ebanker_loads')->insertGetId([
                 'pack_hash' => $packHash, 'pack_name' => (string) ($manifest['pack'] ?? basename(dirname($packHash))), 'route' => $route,
                 'period' => $manifest['period'] ?? null, 'run_at' => isset($manifest['assembled']) ? substr((string) $manifest['assembled'], 0, 10) : null,
                 'date_format' => $dateFormat, 'manifest' => json_encode($manifest), 'status' => 'PENDING', 'loaded_by' => $userId,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
+            if ($existing) {
+                // a pack refused before and offered again: its quarantined rows go, the new attempt is recorded whole
+                DB::table('ebanker_raw_rows')->where('load_id', $loadId)->delete();
+                DB::table('ebanker_pack_files')->where('load_id', $loadId)->delete();
+            }
             if ($status === 'QUARANTINED') {
+                $kept = 0;
+                foreach ($parsed as $plan) {
+                    $kept += $this->quarantineFile($loadId, $plan, $dateFormat, $gates['files'][$plan['file']]['failures'] ?? []);
+                }
                 DB::table('ebanker_loads')->where('id', $loadId)->update(['status' => 'QUARANTINED', 'gates' => json_encode($gates), 'updated_at' => now()]);
-                AuditLoggerService::log('E-Banker Pack Quarantined', 'ebanker_loads', $loadId, ['new_values' => ['failures' => array_map(fn ($f) => $f['failures'], $failed)], 'meta' => ['route' => $route, 'loaded_by' => $userId]]);
-                return ['load_id' => $loadId, 'status' => 'QUARANTINED', 'gates' => $gates, 'files' => $gates['files'], 'watermarks' => []];
+                $named = array_map(fn ($f) => $f['failures'], $failed) + array_map(fn ($g) => $g['failures'], $packFailed);
+                AuditLoggerService::log('E-Banker Pack Quarantined', 'ebanker_loads', $loadId, ['new_values' => ['failures' => $named, 'rows_kept' => $kept], 'meta' => ['route' => $route, 'loaded_by' => $userId]]);
+                return ['load_id' => $loadId, 'status' => 'QUARANTINED', 'gates' => $gates, 'files' => $gates['files'], 'watermarks' => [], 'rows_kept' => $kept];
             }
             $watermarks = [];
             $fileResults = [];
             foreach ($plans as $plan) {
                 $res = $this->landFile($loadId, $plan, $dateFormat);
                 $fileResults[$plan['file']] = $res;
-                if ($plan['query']->key_column !== null && $res['max_key'] !== null) {
+                // a watermark is the last key loaded of an incremental table (spec 6.4); the masters come whole
+                if ($plan['query']->incremental && $plan['query']->key_column !== null && $res['max_key'] !== null) {
                     $watermarks[$plan['query']->query_id] = max($watermarks[$plan['query']->query_id] ?? 0, $res['max_key']);
                 }
                 DB::table('ebanker_pack_files')->updateOrInsert(['load_id' => $loadId, 'file' => $plan['file']], [
@@ -177,7 +206,10 @@ class PackLandingService
         $keyCol = $q->key_column; $accCol = $q->account_column; $dateCol = $q->date_column;
         $current = [];
         if ($keyCol !== null) {
-            foreach (DB::table('ebanker_raw_rows')->where('query_id', $q->query_id)->whereNull('superseded_at')->get(['id', 'source_key', 'row_hash', 'version']) as $r) {
+            // only rows of landed loads are a lineage to version against; a quarantined load's rows are not
+            foreach (DB::table('ebanker_raw_rows')->where('query_id', $q->query_id)->whereNull('superseded_at')
+                ->whereIn('load_id', DB::table('ebanker_loads')->select('id')->where('status', 'LANDED'))
+                ->get(['id', 'source_key', 'row_hash', 'version']) as $r) {
                 $current[$r->source_key] = $r;
             }
         }
@@ -218,6 +250,72 @@ class PackLandingService
         }
 
         return ['loaded' => $new + $versioned, 'new' => $new, 'versioned' => $versioned, 'unchanged' => $unchanged, 'max_key' => $maxKey];
+    }
+
+    /**
+     * The rows of a file in a refused pack, kept verbatim against the
+     * quarantined load (spec 6.4). They are not a version of anything: no
+     * current row is superseded, and every reader leaves them out because the
+     * load is not LANDED. A key that repeats inside the file (one of the
+     * reasons a pack is refused) is kept with its row number appended so
+     * that both rows survive.
+     */
+    private function quarantineFile(int $loadId, array $plan, string $dateFormat, array $failures): int
+    {
+        $q = $plan['query'];
+        $accCol = $q->account_column; $dateCol = $q->date_column;
+        $now = now(); $batch = []; $seen = []; $kept = 0;
+        foreach ($plan['rows'] as $i => $row) {
+            $key = $this->sourceKey($q, $row, $i);
+            if (isset($seen[$key])) {
+                $key .= '#' . ($i + 2);
+            }
+            $seen[$key] = true;
+            $payload = json_encode($row, JSON_UNESCAPED_UNICODE);
+            $batch[] = [
+                'load_id' => $loadId, 'query_id' => $q->query_id, 'source_key' => $key,
+                'account' => $accCol !== null ? (trim((string) ($row[$accCol] ?? '')) ?: null) : null,
+                'row_date' => $dateCol !== null ? $this->parseDate(trim((string) ($row[$dateCol] ?? '')), $dateFormat) : null,
+                'payload' => $payload, 'row_hash' => hash('sha256', $payload), 'version' => 1,
+                'created_at' => $now, 'updated_at' => $now,
+            ];
+            $kept++;
+            if (count($batch) >= self::BATCH) {
+                DB::table('ebanker_raw_rows')->insert($batch); $batch = [];
+            }
+        }
+        if ($batch !== []) {
+            DB::table('ebanker_raw_rows')->insert($batch);
+        }
+        DB::table('ebanker_pack_files')->updateOrInsert(['load_id' => $loadId, 'file' => $plan['file']], [
+            'query_id' => $q->query_id, 'query_version' => $plan['version'], 'sha256' => $plan['sha256'],
+            'rows_declared' => $plan['declared'], 'rows_loaded' => $kept, 'rows_new' => 0, 'rows_versioned' => 0, 'rows_unchanged' => 0,
+            'status' => 'QUARANTINED', 'note' => $failures === [] ? null : implode('; ', $failures), 'created_at' => $now, 'updated_at' => $now,
+        ]);
+
+        return $kept;
+    }
+
+    /** One row for the pack: whether every date column of every file was ISO, and the first that was not. */
+    private function datesIsoSummary(array $files): array
+    {
+        $checked = 0; $iso = 0; $first = null;
+        foreach ($files as $f) {
+            $g = $f['gates']['dates_iso'] ?? null;
+            if ($g === null || $g['iso'] === null) {
+                continue;
+            }
+            $checked++;
+            if ($g['iso']) {
+                $iso++;
+            } else {
+                $first ??= $g['first_non_iso'];
+            }
+        }
+
+        return ['level' => PackGates::LEVEL_WARNING, 'result' => $checked === 0 ? 'SKIPPED' : ($iso === $checked ? 'PASS' : 'WARN'), 'checked' => $checked, 'iso' => $iso,
+            'detail' => $checked === 0 ? 'no dated file in the pack' : "{$iso} of {$checked} dated files are ISO throughout" . ($iso === $checked ? '' : '; the format the manifest declares is accepted (D23)'),
+            'failures' => $first === null ? [] : [$first]];
     }
 
     /**

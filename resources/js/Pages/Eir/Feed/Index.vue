@@ -32,6 +32,11 @@
                 <td class="font-mono text-xs">{{ l.id }} <span class="text-gray-400">{{ l.hash }}</span></td>
                 <td>{{ l.pack }}
                   <ul v-if="l.failed" class="mt-1 space-y-0.5 text-xs text-red-700 dark:text-red-300"><li v-for="f in l.failures" :key="f.file"><span class="font-semibold">{{ f.file }}</span>: {{ f.failures.join('; ') }}</li></ul>
+                  <ul v-if="l.gates && l.gates.length" class="mt-1 space-y-0.5 text-xs">
+                    <li v-for="g in l.gates" :key="g.gate" :class="g.result === 'FAIL' ? 'text-red-700 dark:text-red-300' : (g.result === 'WARN' ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500')">
+                      <span class="font-mono">{{ g.gate }}</span> {{ g.result }}<span v-if="g.detail">: {{ g.detail }}</span><span v-if="g.failures.length"> — {{ g.failures.join('; ') }}</span>
+                    </li>
+                  </ul>
                   <ul v-if="l.accepted_exceptions.length" class="mt-1 space-y-0.5 text-xs text-amber-700 dark:text-amber-300"><li v-for="(e, i) in l.accepted_exceptions" :key="i">Accepted exception: {{ e }}</li></ul>
                 </td>
                 <td class="text-xs">{{ l.route }}</td>

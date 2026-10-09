@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Ebanker;
 
+use App\Services\Ebanker\LandingZoneReader;
 use App\Services\Ebanker\PackLandingService;
 use Database\Seeders\EbankerQuerySeeder;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,10 +13,12 @@ use Tests\TestCase;
 /**
  * The landing zone's one door (spec v4 sections 6.3 and 6.4): a pack passes
  * its gates and is landed verbatim with watermarks; a hash that differs, a
- * date in the wrong format or an unknown query quarantines the pack and
- * writes no row; a row that arrives again with different content becomes a
- * new version and the earlier one is kept; the same pack landed twice is a
- * no-op.
+ * date in the wrong format or an unknown query quarantines the pack, whose
+ * rows are kept against the load and read by nothing (system audit of
+ * 9 October 2026, finding M2); a row that arrives again with different
+ * content becomes a new version and the earlier one is kept; the same pack
+ * landed twice is a no-op. Every pack here carries its account master,
+ * because a ledger account outside the master is itself a refusal.
  */
 class PackLandingServiceTest extends TestCase
 {
@@ -29,8 +32,10 @@ class PackLandingServiceTest extends TestCase
         DB::purge('sqlite'); DB::reconnect('sqlite');
         Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->timestamps(); });
         Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });
-        $migration = require base_path('database/migrations/2026_10_08_000000_create_ebanker_landing_zone.php');
-        $migration->up();
+        foreach (['2026_10_08_000000_create_ebanker_landing_zone.php', '2026_10_09_000000_keep_quarantined_rows_in_landing_zone.php'] as $m) {
+            $migration = require base_path('database/migrations/' . $m);
+            $migration->up();
+        }
         (new EbankerQuerySeeder())->run();
         DB::table('users')->insert(['id' => 1, 'name' => 'Loader', 'created_at' => now(), 'updated_at' => now()]);
         $this->dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'pack_' . uniqid();
@@ -44,9 +49,13 @@ class PackLandingServiceTest extends TestCase
         parent::tearDown();
     }
 
+    /** The pack's files plus, unless one is given, the account master the ledger accounts of these tests belong to. */
     private function writePack(array $files, array $extra = []): void
     {
         $manifest = ['pack' => 'test pack', 'source' => 'dates exported as m/d/yyyy', 'files' => []] + $extra;
+        if (! array_key_exists('P1_02_master.csv', $files)) {
+            $files['P1_02_master.csv'] = ['P1_02', $this->masterCsv(), []];
+        }
         foreach ($files as $name => [$queryId, $csv, $override]) {
             file_put_contents($this->dir . DIRECTORY_SEPARATOR . $name, $csv);
             $rows = max(substr_count(trim($csv), "\n"), 0);
@@ -64,13 +73,22 @@ class PackLandingServiceTest extends TestCase
         return $out;
     }
 
+    private function masterCsv(array $accounts = ['000104420000005']): string
+    {
+        $out = "\"   \",\"NEW_AC_NUMBER\",\"GLCODE\",\"ACCOUNT_NAME\",\"ACCOUNT_OPEN_DATE\"\n";
+        foreach ($accounts as $i => $ac) {
+            $out .= "\"" . ($i + 1) . "\",\"{$ac}\",\"1050101\",\"Customer {$ac}\",\"7/1/2024\"\n";
+        }
+        return $out;
+    }
+
     public function test_a_good_pack_is_landed_verbatim_with_watermarks(): void
     {
         $this->writePack(['P1_01_ledger.csv' => ['P1_01', $this->ledgerCsv([[100, '000104420000005', '12/31/2025', '-1000.50', '303'], [101, '000104420000005', '1/31/2026', '2000.00', '305']]), []]]);
         $r = (new PackLandingService())->land($this->dir, 1);
         $this->assertSame('LANDED', $r['status']);
         $this->assertSame(['P1_01' => 101], $r['watermarks']);
-        $this->assertSame(2, DB::table('ebanker_raw_rows')->count());
+        $this->assertSame(2, DB::table('ebanker_raw_rows')->where('query_id', 'P1_01')->count());
         $row = DB::table('ebanker_raw_rows')->where('source_key', '100')->first();
         $this->assertSame('000104420000005', $row->account);
         $this->assertSame('2025-12-31', $row->row_date);
@@ -79,14 +97,20 @@ class PackLandingServiceTest extends TestCase
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'E-Banker Pack Landed')->count());
     }
 
-    public function test_a_tampered_hash_quarantines_the_pack_and_writes_no_row(): void
+    public function test_a_tampered_hash_quarantines_the_pack_and_keeps_its_rows_where_no_reader_sees_them(): void
     {
         $this->writePack(['P1_01_ledger.csv' => ['P1_01', $this->ledgerCsv([[100, '000104420000005', '12/31/2025', '-1', '303']]), ['sha256' => str_repeat('0', 64)]]]);
         $r = (new PackLandingService())->land($this->dir, 1);
         $this->assertSame('QUARANTINED', $r['status']);
         $this->assertStringContainsString('SHA-256 differs', $r['gates']['files']['P1_01_ledger.csv']['failures'][0]);
-        $this->assertSame(0, DB::table('ebanker_raw_rows')->count());
         $this->assertSame('QUARANTINED', DB::table('ebanker_loads')->first()->status);
+        // the rows are kept against the load so the refused file can be opened (spec 6.4), and the build never sees them
+        $this->assertSame(2, $r['rows_kept']);
+        $this->assertSame(1, DB::table('ebanker_raw_rows')->where('query_id', 'P1_01')->where('load_id', $r['load_id'])->count());
+        $this->assertSame('QUARANTINED', DB::table('ebanker_pack_files')->where('file', 'P1_01_ledger.csv')->value('status'));
+        $this->assertSame([], (new LandingZoneReader())->family(['P1_01']));
+        $this->assertSame([], (new LandingZoneReader())->accountMaster());
+        $this->assertNull((new LandingZoneReader())->lastLedgerDate());
     }
 
     public function test_a_date_in_the_wrong_format_names_the_row(): void
@@ -123,7 +147,7 @@ class PackLandingServiceTest extends TestCase
         $r = (new PackLandingService())->land($this->dir, 1);
         $this->assertSame('LANDED', $r['status']);
         $this->assertSame(2, DB::table('ebanker_raw_rows')->where('query_id', 'P2_11')->count());
-        $this->assertSame(['16|000104420000063', '16|000104420000064'], DB::table('ebanker_raw_rows')->orderBy('id')->pluck('source_key')->all());
+        $this->assertSame(['16|000104420000063', '16|000104420000064'], DB::table('ebanker_raw_rows')->where('query_id', 'P2_11')->orderBy('id')->pluck('source_key')->all());
         $this->assertSame([], $r['watermarks']);
     }
 
@@ -160,7 +184,7 @@ class PackLandingServiceTest extends TestCase
         $second = (new PackLandingService())->land($this->dir, 1);
         $this->assertSame('ALREADY_LANDED', $second['status']);
         $this->assertSame($first['load_id'], $second['load_id']);
-        $this->assertSame(1, DB::table('ebanker_raw_rows')->count());
+        $this->assertSame(1, DB::table('ebanker_raw_rows')->where('query_id', 'P1_01')->count());
     }
 
     public function test_dry_run_runs_the_gates_and_writes_nothing(): void

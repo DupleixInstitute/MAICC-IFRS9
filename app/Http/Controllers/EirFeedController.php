@@ -34,17 +34,23 @@ class EirFeedController extends Controller
                 $gates = json_decode($l->gates ?? '', true) ?? [];
                 $files = $gates['files'] ?? [];
                 $failed = array_filter($files, fn ($f) => ($f['failures'] ?? []) !== []);
+                // the named gates of a pack (accounts in the master, the balance history tie, the month-end rows, ISO dates),
+                // and for a single-file load (a trial balance, the take-on workbook) the gates recorded at its top level
+                $named = array_filter($gates['pack'] ?? $gates, fn ($g) => is_array($g) && isset($g['result']));
                 return [
                     'id' => $l->id, 'pack' => $l->pack_name, 'route' => $l->route, 'period' => $l->period, 'status' => $l->status,
                     'loaded_at' => $l->loaded_at ?? $l->created_at, 'loaded_by' => $l->loaded_by, 'hash' => substr($l->pack_hash, 0, 12),
                     'files' => count($files), 'failed' => count($failed),
                     'failures' => array_map(fn ($name, $f) => ['file' => $name, 'failures' => $f['failures']], array_keys($failed), $failed),
+                    'gates' => array_map(fn ($name, $g) => ['gate' => $name, 'level' => $g['level'] ?? null, 'result' => $g['result'], 'detail' => $g['detail'] ?? null, 'failures' => $g['failures'] ?? []], array_keys($named), $named),
                     'accepted_exceptions' => $gates['pack']['accepted_exceptions'] ?? [],
                     'watermarks' => json_decode($l->watermarks ?? '', true) ?? [],
                 ];
             });
         $queries = DB::table('ebanker_queries')->orderBy('query_id')->get(['query_id', 'title', 'source_table', 'key_column', 'date_column', 'version', 'incremental']);
-        $rowsByQuery = DB::table('ebanker_raw_rows')->whereNull('superseded_at')->selectRaw('query_id, count(*) n, max(row_date) last_date')->groupBy('query_id')->get()->keyBy('query_id');
+        // only rows of landed loads count: a quarantined load keeps its rows but no reader sees them
+        $rowsByQuery = DB::table('ebanker_raw_rows')->whereNull('superseded_at')->whereIn('load_id', \App\Services\Ebanker\LandingZoneReader::landedLoadIds())
+            ->selectRaw('query_id, count(*) n, max(row_date) last_date')->groupBy('query_id')->get()->keyBy('query_id');
         $builds = DB::table('loan_book_builds as b')->leftJoin('users as r', 'r.id', '=', 'b.requested_by')->leftJoin('users as a', 'a.id', '=', 'b.approved_by')
             ->orderByDesc('b.id')->limit(20)
             ->get(['b.id', 'b.method', 'b.period_from', 'b.period_to', 'b.status', 'b.approver_label', 'b.result', 'b.created_at', 'b.built_at', 'r.name as requested_by', 'a.name as approved_by'])
@@ -63,7 +69,7 @@ class EirFeedController extends Controller
             'loads' => $loads, 'queries' => $queries->map(fn ($q) => (array) $q + ['rows' => (int) ($rowsByQuery[$q->query_id]->n ?? 0), 'last_date' => $rowsByQuery[$q->query_id]->last_date ?? null]),
             'builds' => $builds, 'periods' => $periods, 'routeInForce' => $route, 'methodInForce' => $method,
             'locks' => DB::table('reporting_period_locks')->orderBy('reporting_period')->pluck('reporting_period'),
-            'lastLedgerDate' => DB::table('ebanker_raw_rows')->whereIn('query_id', \App\Services\Ebanker\LandingZoneReader::LEDGER)->max('row_date'),
+            'lastLedgerDate' => (new \App\Services\Ebanker\LandingZoneReader())->lastLedgerDate(),
             'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
         ]);
     }

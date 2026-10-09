@@ -2,13 +2,16 @@
 
 namespace App\Console\Commands;
 
-use App\Models\GlTrialBalanceLine;
-use App\Services\Eir\TrialBalanceImportService;
+use App\Services\Ebanker\TrialBalanceLandingService;
 use Illuminate\Console\Command;
-use Throwable;
 
 /**
- * Ingests the monthly trial-balance corpus (spec §3.4, Phase 2.8).
+ * Ingests the monthly trial-balance corpus (spec §3.4, Phase 2.8) through the
+ * landing zone (spec v4 section 6.3; system audit of 9 October 2026,
+ * finding M1): every file becomes a load with its hash and gate results, its
+ * GL lines are landed as raw rows under TB_01, and gl_trial_balance_lines is
+ * derived from the landed rows. The output shape is what the direct importer
+ * produced, so the December 2025 ties read the same table.
  *
  * The files live outside the repo — client data, unanonymised (open item #15) —
  * so the directory is a parameter rather than a fixture path.
@@ -27,11 +30,12 @@ class ImportTrialBalances extends Command
                             {directory : Folder holding the Trial Balance_*.xls files}
                             {--afs= : AFS bridge workbook, for the pre-closing December sheet}
                             {--sheet=Final E-Banker TB Dec 2025 : Sheet name inside the AFS workbook}
-                            {--period=2025-12-01 : Period the AFS sheet belongs to}';
+                            {--period=2025-12-01 : Period the AFS sheet belongs to}
+                            {--user= : The user the loads are recorded against}';
 
-    protected $description = 'Import MAIIC monthly trial balances into the GL side of the EIR reconciliation';
+    protected $description = 'Land MAIIC monthly trial balances in the landing zone and derive the GL side of the EIR reconciliation';
 
-    public function handle(TrialBalanceImportService $importer): int
+    public function handle(TrialBalanceLandingService $landing): int
     {
         $directory = rtrim((string) $this->argument('directory'), '/\\');
         if (! is_dir($directory)) {
@@ -39,72 +43,51 @@ class ImportTrialBalances extends Command
 
             return self::FAILURE;
         }
-
-        $files = glob($directory . '/*.xls') ?: [];
-        sort($files);
-
-        if ($files === []) {
+        if ((glob($directory . '/*.xls') ?: []) === []) {
             $this->error("No .xls trial balances found in {$directory}");
 
             return self::FAILURE;
         }
 
+        $user = $this->option('user') !== null ? (int) $this->option('user') : null;
+        $afs = $this->option('afs') ? (string) $this->option('afs') : null;
+        $r = $landing->landDirectory($directory, $user, $afs, (string) $this->option('sheet'), (string) $this->option('period'));
+
         $rows = [];
-        $failures = [];
-
-        foreach ($files as $file) {
-            try {
-                $result = $importer->import($file);
-                $rows[] = [
-                    $result['period'],
-                    basename($file),
-                    $result['lines'],
-                    number_format($result['debit'], 2),
-                    $result['imported'] . ' new / ' . $result['updated'] . ' updated',
-                ];
-            } catch (Throwable $e) {
-                $failures[] = basename($file) . ' — ' . $e->getMessage();
+        foreach ($r['files'] as $f) {
+            if ($f['status'] === 'QUARANTINED') {
+                continue;
             }
+            $rows[] = [
+                $f['period'] . ($f['basis'] === 'PRECLOSING' ? ' (pre-closing)' : ''),
+                $f['file'],
+                $f['lines'],
+                number_format($f['debit'], 2),
+                $f['status'] === 'ALREADY_LANDED' ? 'already landed (load ' . $f['load_id'] . ')' : $f['new'] . ' new / ' . $f['versioned'] . ' versioned / ' . $f['unchanged'] . ' unchanged (load ' . $f['load_id'] . ')',
+            ];
         }
+        $this->table(['Period', 'File', 'GL lines', 'Total (Dr = Cr)', 'Landed'], $rows);
 
-        if ($afs = $this->option('afs')) {
-            try {
-                $result = $importer->import(
-                    (string) $afs,
-                    GlTrialBalanceLine::BASIS_PRECLOSING,
-                    (string) $this->option('period'),
-                    (string) $this->option('sheet')
-                );
-                $rows[] = [
-                    $result['period'] . ' (pre-closing)',
-                    basename((string) $afs),
-                    $result['lines'],
-                    number_format($result['debit'], 2),
-                    $result['imported'] . ' new / ' . $result['updated'] . ' updated',
-                ];
-            } catch (Throwable $e) {
-                $failures[] = basename((string) $afs) . ' — ' . $e->getMessage();
-            }
-        }
-
-        $this->table(['Period', 'File', 'GL lines', 'Total (Dr = Cr)', 'Written'], $rows);
-
-        foreach ($failures as $failure) {
+        foreach ($r['failures'] as $failure) {
             // A file that does not tie is refused, not imported with a warning:
             // a partially-correct ledger reconciles to something, so nobody
-            // goes looking for what is wrong with it.
-            $this->error('REJECTED  ' . $failure);
+            // goes looking for what is wrong with it. Its rows sit in
+            // quarantine against the load so the file can be opened.
+            $this->error('QUARANTINED  ' . $failure);
         }
 
-        if (! $this->option('afs')) {
+        $d = $r['derived'];
+        $this->info(sprintf('gl_trial_balance_lines derived from the landing zone: %d lines over %d periods (%d new, %d updated, %d removed).', $d['lines'], count($d['periods']), $d['imported'], $d['updated'], $d['removed']));
+
+        if (! $afs) {
             $this->warn(
-                'December 2025 was imported post-closing and carries no income statement (§3.4.2). '
-                . 'Re-run with --afs=… to load the pre-closing sheet, or December income reads as zero.'
+                'December 2025 was landed post-closing and carries no income statement (§3.4.2). '
+                . 'Re-run with --afs=… to land the pre-closing sheet, or December income reads as zero.'
             );
         }
 
-        $this->info(sprintf('%d file(s) imported, %d rejected.', count($rows), count($failures)));
+        $this->info(sprintf('%d file(s) landed, %d quarantined.', count($rows), count($r['failures'])));
 
-        return $failures === [] ? self::SUCCESS : self::FAILURE;
+        return $r['failures'] === [] ? self::SUCCESS : self::FAILURE;
     }
 }

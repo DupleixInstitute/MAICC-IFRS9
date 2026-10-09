@@ -174,7 +174,7 @@ class EirDataController extends Controller
             foreach (['eir_interest' => 'eir_accrued', 'interest_basis' => 'interest_basis',
                 'opening_gross' => 'opening_gross', 'closing_gross' => 'closing_gross',
                 'variance' => 'variance', 'expected_interest' => 'expected_interest',
-                'cause' => 'cause', 'cause_detail' => 'cause_detail'] as $attribute => $key) {
+                'cause' => 'cause', 'cause_detail' => 'cause_detail', 'gl_account_name' => 'gl_account_name'] as $attribute => $key) {
                 $posting->setAttribute($attribute, $row[$key] ?? null);
             }
             $posting->setAttribute('reconciliation_status', $row['status'] ?? 'NOT_CALCULATED');

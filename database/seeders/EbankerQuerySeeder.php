@@ -59,6 +59,8 @@ class EbankerQuerySeeder extends Seeder
             ['MF_07',  'Mega Farm: rate set-up',                'INTEREST_SLAB_DETAILS',   'INTEREST_RATE_DET_ID','NEW_AC_NUMBER', 'APPLICABLE_FROM_DATE', false],
             ['MF_08',  'Mega Farm: charges',                    'LOS_DISB_CHARGES_POST',   'LO_DISB_CHARG_DET_ID','NEW_AC_NUMBER', null,                   false],
             ['TB',     'Monthly trial balance (Finance)',       null,                      null,                  null,            null,                   false],
+            // one row per GL line of a trial balance file, landed by TrialBalanceLandingService (system audit of 9 October 2026, finding M1)
+            ['TB_01',  'Trial balance lines (Finance)',         'TRIAL_BALANCE_FILE',      'PERIOD,BASIS,GL_CODE', null,           'PERIOD',               false],
             ['DD_01', 'Data dictionary: schema', null, null, null, null, false],
             ['DD_02', 'Data dictionary: tables', null, null, null, null, false],
             ['DD_03', 'Data dictionary: columns', null, null, null, null, false],

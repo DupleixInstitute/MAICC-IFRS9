@@ -551,6 +551,39 @@ class EirGlReconciliationServiceTest extends TestCase
     }
 
     /**
+     * A row names the GL account rather than showing a bare code, from the
+     * landing zone's trial balance lines (system audit of 9 October 2026,
+     * finding M1); without the zone the row carries the code alone.
+     */
+    public function test_a_row_names_the_gl_account_from_the_landing_zone(): void
+    {
+        $this->contract('C-1', 1_000_000, 0.24);
+        $this->loanBook('C-1', '2025-09', 1_000_000, 24.00);
+        $this->loanBook('C-1', '2025-10', 1_000_000, 24.00);
+        DB::table('gl_interest_postings')->insert(['contract_id' => 'C-1', 'gl_account_code' => '4215', 'period_year' => 2025, 'period_month' => 10, 'interest_income_posted' => 20_383.56, 'created_at' => now(), 'updated_at' => now()]);
+        $this->accrual('C-1', '2025-10', 1_000_000, 20_383.56);
+
+        $row = (new EirGlReconciliationService())->forPeriod('2025-10')['rows'][0];
+        $this->assertSame('4215', $row['gl_account_code']);
+        $this->assertNull($row['gl_account_name']);
+
+        foreach (['2026_10_08_000000_create_ebanker_landing_zone', '2026_10_09_000000_keep_quarantined_rows_in_landing_zone'] as $m) {
+            (require base_path("database/migrations/{$m}.php"))->up();
+        }
+        Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->timestamps(); });
+        DB::table('ebanker_loads')->insert([
+            ['id' => 1, 'pack_hash' => str_repeat('a', 64), 'pack_name' => 'Trial balance January', 'manifest' => '{}', 'status' => 'LANDED', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'pack_hash' => str_repeat('b', 64), 'pack_name' => 'Trial balance refused', 'manifest' => '{}', 'status' => 'QUARANTINED', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $tb = fn (int $load, string $code, string $title, string $period) => ['load_id' => $load, 'query_id' => 'TB_01', 'source_key' => "{$period}|POSTCLOSING|{$code}", 'row_date' => $period,
+            'payload' => json_encode(['GL_CODE' => $code, 'GL_TITLE' => $title, 'PERIOD' => $period, 'BASIS' => 'POSTCLOSING']), 'row_hash' => md5($load . $code), 'version' => 1, 'created_at' => now(), 'updated_at' => now()];
+        DB::table('ebanker_raw_rows')->insert([$tb(1, '4215', 'Interest on MAIIC Agricultural Loans', '2025-01-01'), $tb(2, '4215', 'A name from a quarantined file', '2025-02-01')]);
+
+        $row = (new EirGlReconciliationService())->forPeriod('2025-10')['rows'][0];
+        $this->assertSame('Interest on MAIIC Agricultural Loans', $row['gl_account_name']);
+    }
+
+    /**
      * JVD Agro as the reconstruction found it: fixed 10 percent, and each
      * month's balance is the month before plus the interest charged.
      */

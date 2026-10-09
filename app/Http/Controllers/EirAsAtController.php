@@ -26,7 +26,7 @@ class EirAsAtController extends Controller
     {
         $date = (string) $request->query('date', '');
         $contract = (string) $request->query('contract', '');
-        $last = DB::table('ebanker_raw_rows')->whereIn('query_id', \App\Services\Ebanker\LandingZoneReader::LEDGER)->max('row_date');
+        $last = (new \App\Services\Ebanker\LandingZoneReader())->lastLedgerDate();
         if ($date === '' && $last !== null) {
             $date = $last;
         }

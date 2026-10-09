@@ -10,6 +10,7 @@ use App\Services\Ebanker\LandingZoneReader;
 use App\Services\Ebanker\LoanBookBuildService;
 use App\Services\Ebanker\PackLandingService;
 use App\Services\Ebanker\TakeonLandingService;
+use App\Services\Ebanker\TrialBalanceLandingService;
 use App\Services\Eir\EirCalculationService;
 use App\Services\Eir\EirGlReconciliationService;
 use App\Services\Eir\FeeRuleMatcher;
@@ -126,7 +127,9 @@ class Bootstrap extends Command
     {
         $r = app(PackLandingService::class)->land($inputs, $user, PackLandingService::ROUTE_MANUAL);
         $files = count(array_filter($r['files'] ?? [], fn ($f) => is_array($f) && isset($f['new'])));
-        $this->note('3 land pack', "{$r['status']} (load {$r['load_id']}): {$files} files" . ($r['status'] === 'QUARANTINED' ? ' QUARANTINED: ' . json_encode(array_map(fn ($f) => $f['failures'] ?? [], array_filter($r['gates']['files'] ?? [], fn ($f) => ($f['failures'] ?? []) !== []))) : ''));
+        $packGates = array_filter($r['gates']['pack'] ?? [], fn ($g) => is_array($g) && isset($g['result']));
+        $this->note('3 land pack', "{$r['status']} (load {$r['load_id']}): {$files} files; gates " . implode(', ', array_map(fn ($name, $g) => "{$name} {$g['result']}" . (isset($g['detail']) ? " ({$g['detail']})" : ''), array_keys($packGates), $packGates))
+            . ($r['status'] === 'QUARANTINED' ? ' QUARANTINED: ' . json_encode(array_map(fn ($f) => $f['failures'] ?? [], array_filter($r['gates']['files'] ?? [], fn ($f) => ($f['failures'] ?? []) !== [])) + array_map(fn ($g) => $g['failures'], array_filter($packGates, fn ($g) => $g['result'] === 'FAIL'))) : ''));
         if ($r['status'] === 'QUARANTINED') {
             throw new \RuntimeException('The committed pack did not pass its gates.');
         }
@@ -139,11 +142,18 @@ class Bootstrap extends Command
         } else {
             $this->note('4 land take-on', 'SKIPPED: workbooks not found under ' . $takeon);
         }
+        // the trial balances enter by the same door (spec 6.3; system audit of 9 October 2026, finding M1):
+        // one load per file with its hash and gates, the GL lines as raw rows, gl_trial_balance_lines derived
         $tb = $inputs . DIRECTORY_SEPARATOR . 'trial-balances' . DIRECTORY_SEPARATOR . 'monthly';
         if (is_dir($tb)) {
             $afs = glob($inputs . '/trial-balances/afs-bridge-2025-12/2026-09-10/*.xlsx') ?: [];
-            Artisan::call('eir:import-trial-balances', ['directory' => $tb] + ($afs !== [] ? ['--afs' => $afs[0]] : []));
-            $this->note('3b trial balances', trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 300))));
+            $t = app(TrialBalanceLandingService::class)->landDirectory($tb, $user, $afs[0] ?? null);
+            $landed = count(array_filter($t['files'], fn ($f) => $f['status'] !== 'QUARANTINED'));
+            $this->note('3b trial balances', "{$landed} files landed, " . count($t['failures']) . ' quarantined; ' . $t['derived']['lines'] . ' GL lines derived over ' . count($t['derived']['periods']) . ' periods'
+                . ($t['failures'] !== [] ? ' QUARANTINED: ' . json_encode($t['failures']) : ''));
+            if ($t['failures'] !== []) {
+                throw new \RuntimeException('A committed trial balance did not pass its gates.');
+            }
         }
     }
 

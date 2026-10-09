@@ -202,7 +202,7 @@
                 <tr v-for="r in sortedRows" :key="r.contract_id">
                   <td class="td">
                     <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
-                    <div class="text-xs text-gray-500">{{ r.customer_name || r.portfolio || '—' }}{{ r.gl_account_code ? ' · ' + r.gl_account_code : '' }}</div>
+                    <div class="text-xs text-gray-500">{{ r.customer_name || r.portfolio || '—' }}{{ r.gl_account_code ? ' · ' + r.gl_account_code + (r.gl_account_name ? ' ' + r.gl_account_name : '') : '' }}</div>
                   </td>
                   <td class="td text-xs text-gray-600">
                     <div v-if="r.expected_opening_balance !== null">

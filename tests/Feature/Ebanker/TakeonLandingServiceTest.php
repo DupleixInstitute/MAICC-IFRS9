@@ -31,7 +31,7 @@ class TakeonLandingServiceTest extends TestCase
         DB::purge('sqlite'); DB::reconnect('sqlite');
         Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->timestamps(); });
         Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });
-        foreach (['2026_10_08_000000_create_ebanker_landing_zone', '2026_10_08_200000_create_takeon_tables'] as $m) {
+        foreach (['2026_10_08_000000_create_ebanker_landing_zone', '2026_10_09_000000_keep_quarantined_rows_in_landing_zone', '2026_10_08_200000_create_takeon_tables'] as $m) {
             (require base_path("database/migrations/{$m}.php"))->up();
         }
         DB::table('users')->insert(['id' => 1, 'name' => 'Loader', 'created_at' => now(), 'updated_at' => now()]);

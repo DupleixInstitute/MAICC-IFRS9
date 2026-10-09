@@ -102,6 +102,31 @@ class TrialBalanceImportService
      */
     public function parse(string $path, ?string $period = null, ?string $sheetName = null): array
     {
+        $read = $this->read($path, $period, $sheetName);
+        if ($read['period'] === null) {
+            throw new RuntimeException(
+                'No period stamp in ' . basename($path) . ' and none supplied. The AFS pre-closing '
+                . 'sheet carries no stamp, so its period must be passed explicitly.'
+            );
+        }
+        $this->assertTies($path, $read['rows'], $read['debit'], $read['credit'], $read['grand_total']);
+
+        return $read;
+    }
+
+    /**
+     * The file as read, before any rule is applied: every data row with the
+     * sheet row it came from, and the totals. The landing zone keeps these
+     * rows against a quarantined load when a rule then refuses the file
+     * (system audit of 9 October 2026, finding M1), which parse() cannot do
+     * because it throws. The period is null when neither the stamp nor the
+     * caller supplies one.
+     *
+     * @return array{period:?string,source_period_stamp:?string,sheet:string,rows:list<array>,
+     *               debit:float,credit:float,grand_total:?float}
+     */
+    public function read(string $path, ?string $period = null, ?string $sheetName = null): array
+    {
         if (! is_file($path)) {
             throw new RuntimeException("Trial balance file not found: {$path}");
         }
@@ -121,19 +146,12 @@ class TrialBalanceImportService
             ? Carbon::parse($period)->startOfMonth()->toDateString()
             : $stamp;
 
-        if ($resolvedPeriod === null) {
-            throw new RuntimeException(
-                'No period stamp in ' . basename($path) . ' and none supplied. The AFS pre-closing '
-                . 'sheet carries no stamp, so its period must be passed explicitly.'
-            );
-        }
-
         $rows = [];
         $debit = 0.0;
         $credit = 0.0;
         $grandTotal = null;
 
-        foreach ($grid as $line) {
+        foreach ($grid as $n => $line) {
             $title = (string) ($line[1] ?? '');
             if (trim($title) === '') {
                 continue;
@@ -143,10 +161,13 @@ class TrialBalanceImportService
                 $rowDebit = $this->amount($line[2] ?? null);
                 $rowCredit = $this->amount($line[3] ?? null);
                 $rows[] = [
+                    'row' => $n + 1,
                     'gl_code' => $match[1],
                     'gl_title' => trim(preg_replace('/\s+/', ' ', $match[2])),
                     'debit' => $rowDebit,
                     'credit' => $rowCredit,
+                    'debit_text' => trim((string) ($line[2] ?? '')),
+                    'credit_text' => trim((string) ($line[3] ?? '')),
                 ];
                 $debit += $rowDebit;
                 $credit += $rowCredit;
@@ -158,8 +179,6 @@ class TrialBalanceImportService
                 $grandTotal = $this->amount($line[2] ?? null);
             }
         }
-
-        $this->assertTies($path, $rows, $debit, $credit, $grandTotal);
 
         return [
             'period' => $resolvedPeriod,
@@ -211,7 +230,8 @@ class TrialBalanceImportService
         return $negative ? -(float) $text : (float) $text;
     }
 
-    private function assertTies(string $path, array $rows, float $debit, float $credit, ?float $grandTotal): void
+    /** The three rules of the class comment, as one check the landing zone also runs as a gate. */
+    public function assertTies(string $path, array $rows, float $debit, float $credit, ?float $grandTotal): void
     {
         $name = basename($path);
 

@@ -6,6 +6,7 @@ use App\Exceptions\GovernanceSettingMissingException;
 use App\Models\ContractEir;
 use App\Models\EirAmortisation;
 use App\Models\GlInterestPosting;
+use App\Services\Ebanker\LandingZoneReader;
 use App\Support\ReportingPeriod;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +99,15 @@ class EirGlReconciliationService
 
     /** Months that carry a ledger posting, by contract id, for the catch-up test. */
     private array $postedMonths = [];
+
+    /**
+     * GL account names by code from the landing zone's GL master and trial
+     * balance lines, so a row names the income account rather than showing a
+     * bare code (system audit of 9 October 2026, finding M1). Read once.
+     *
+     * @var array<string, string>|null
+     */
+    private ?array $glNames = null;
 
     public function __construct(?GovernanceService $governance = null, ?ContractualInterestService $contractual = null)
     {
@@ -232,6 +242,7 @@ class EirGlReconciliationService
             'reporting_period' => $period,
             'portfolio' => null,
             'gl_account_code' => $posting->gl_account_code,
+            'gl_account_name' => $this->glAccountName($posting->gl_account_code),
             'gl_posted' => round((float) $posting->interest_income_posted, 2),
             'has_posting' => true,
             'drawn_amount' => null, 'contractual_rate' => null, 'eir_effective_annual' => null,
@@ -392,6 +403,17 @@ class EirGlReconciliationService
         return array_keys($ids);
     }
 
+    /** The name the GL master or the trial balance gives the code; null when neither holds it or no code is on the posting. */
+    private function glAccountName(?string $code): ?string
+    {
+        if ($code === null || trim($code) === '') {
+            return null;
+        }
+        $this->glNames ??= (new LandingZoneReader())->glNames();
+
+        return $this->glNames[trim($code)] ?? null;
+    }
+
     /** @param list<string> $contractIds */
     private function loadPostedMonths(array $contractIds): void
     {
@@ -427,6 +449,7 @@ class EirGlReconciliationService
             'reporting_period' => $period,
             'portfolio' => $contract->portfolio ?? null,
             'gl_account_code' => $posting->gl_account_code ?? null,
+            'gl_account_name' => $this->glAccountName($posting->gl_account_code ?? null),
             'gl_posted' => round($posted, 2),
             'has_posting' => $posting !== null,
             'drawn_amount' => $contract ? (float) $contract->drawn_amount : null,
