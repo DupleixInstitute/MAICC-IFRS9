@@ -10,6 +10,7 @@
           <p class="mt-1 text-sm text-gray-600">Every tranche paid out on a facility, and the commitment still undrawn</p>
         </div>
         <div class="flex flex-wrap gap-2">
+          <a :href="route('eir-intake.sample', { type: 'disbursements' })" class="secondary-btn" title="The import's columns with worked example rows">Download sample CSV</a>
           <Link :href="route('eir-intake.index', { type: 'disbursements' })" class="primary-btn">Import drawdowns</Link>
         </div>
       </div>

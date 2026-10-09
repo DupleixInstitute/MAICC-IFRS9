@@ -1,102 +1,67 @@
 <template>
     <app-layout>
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
                         <Link :href="route('eir-data.index')" class="hover:text-maiic-700">EIR Data</Link><span>/</span><span class="font-medium text-maiic-700">Data Intake</span>
                     </div>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-maiic-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-                        </svg>
-                        EIR Data Intake
-                    </h2>
-                    <p class="mt-1 text-sm text-gray-600">Load contract terms, transactions, fees and loan-level interest evidence</p>
+                    <h2 class="text-xl font-semibold text-gray-800">EIR Data Intake</h2>
+                    <p class="mt-1 text-sm text-gray-600">Load contract terms, transactions, fees, drawdowns, reference rates and the interest the ledger posted</p>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <div class="px-3 py-1 bg-maiic-100 text-maiic-800 text-xs font-medium rounded-full">
-                        Coverage: {{ coverage.covered }}/{{ coverage.total }} contracts
-                    </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="maiic-badge maiic-badge-green" title="Contracts on the latest loan tape that have a repayment schedule">Schedules: {{ coverage.covered }}/{{ coverage.total }} contracts</span>
+                    <a :href="sampleUrl" class="secondary-btn" :title="'The ' + typeLabel + ' columns with worked example rows'">Download sample CSV</a>
                 </div>
             </div>
         </template>
 
         <div class="w-full space-y-6">
 
-            <!-- Import card -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Import EIR data</h3>
-                <div v-if="autoDetectedType" class="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                    {{ autoDetectedType }} was detected from the file headers and selected automatically.
-                </div>
-                <p class="text-sm text-gray-500 mb-4">Choose the source type and upload the corresponding CSV or Excel file. The system detects and validates the expected columns automatically.</p>
-                <div v-if="importType === 'contract_transactions'" class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                    <div class="font-semibold">Extract B remaining-schedule evidence</div>
-                    <p class="mt-1">
-                        Rows marked <strong>Scheduled</strong> are staged as the remaining schedule for comparison. They never replace the original version-1 schedule used by EIR.
-                    </p>
-                    <p class="mt-1">
-                        Rows marked <strong>Actual</strong> are retained as transaction evidence and do not appear in the contractual Cash Flows tab. Fee component is optional; a blank fee does not block principal and interest.
-                    </p>
-                </div>
-                <div v-if="importType === 'reference_rates'" class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                    <p class="font-semibold">Reference rates: dates must be written year first (yyyy-mm-dd).</p>
-                    <p class="mt-1">
-                        A file with any other date shape is refused as a whole, naming the column and the first bad row. The importer never guesses day against month.
-                        Dates must rise strictly down the file; a row that repeats the previous rate is loaded but is not counted as a rate change.
-                        Rates are percentages, such as 25.30.
-                    </p>
-                </div>
-                <div v-if="importType === 'disbursements'" class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                    <p class="font-semibold">Drawdowns: one row per tranche, dates written year first (yyyy-mm-dd).</p>
-                    <p class="mt-1">
-                        A file with any other date shape is refused as a whole, naming the column and the first bad row. Every amount must be above zero: a drawdown is money paid
-                        out, and a reversal is a correction to make at source. The same file loaded twice adds nothing, because each row is matched on the facility, the date, the
-                        amount, the tranche and the reference.
-                    </p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <jet-label class="text-sm font-medium text-gray-900">Import type</jet-label>
-                        <select v-model="importType" class="form-input mt-2" :disabled="processing" @change="resetAnalysis">
-                            <option value="contract_master">Contract master (Extract A) — facility terms, monthly</option>
-                            <option value="schedule">Repayment schedule (per contract, once)</option>
-                            <option value="fees">Fees and transaction costs</option>
-                            <option value="contract_transactions">Contract transactions (Extract B) — scheduled and actual cash flows</option>
-                            <option value="gl_interest">GL interest postings (Extract C) — what the ledger posted</option>
-                            <option value="reference_rates">Reference rates (File C) - the prime lending rate by effective date</option>
-                            <option value="disbursements">Drawdowns - one row per tranche paid out</option>
-                        </select>
-                        <a :href="sampleUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-medium text-maiic-700 hover:text-maiic-900">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-                            </svg>
-                            <span class="underline">Download {{ sampleFileName }}</span>
-                        </a>
-                        <p class="mt-1 text-xs text-gray-500">
-                            This type's columns with worked example rows. Its headers map automatically, so a file built from it needs no column mapping.
-                        </p>
+            <!-- Import: Upload / History -->
+            <div>
+                <InPageTabs v-model="tab" :tabs="tabs" flush/>
+                <div class="maiic-panel rounded-t-none">
+
+                    <div v-if="tab === 'upload'" class="grid gap-6 p-5 lg:grid-cols-3">
+                        <div class="space-y-5 lg:col-span-2">
+                            <div v-if="autoDetectedType" class="flex items-start gap-2 rounded-lg border border-maiic-200 bg-maiic-50 px-4 py-3 text-sm text-maiic-800">
+                                <svg class="mt-0.5 h-4 w-4 flex-none" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                                <span>{{ autoDetectedType }} was recognised from the file's headers and selected for you.</span>
+                            </div>
+
+                            <div>
+                                <label class="maiic-flabel" for="eir-import-type">Import type</label>
+                                <select id="eir-import-type" v-model="importType" class="maiic-select" :disabled="processing" @change="resetAnalysis">
+                                    <option v-for="t in importTypes" :key="t.key" :value="t.key">{{ t.label }}</option>
+                                </select>
+                            </div>
+
+                            <FileDrop label="File" accept=".csv,.txt,.xlsx,.xls,.ods" placeholder="Choose a CSV or Excel file"
+                                      hint="CSV, XLSX, XLS or ODS, up to 20 MB" :disabled="processing" @file="onFile"/>
+
+                            <div class="flex items-center justify-end gap-2 border-t border-gray-200 pt-4">
+                                <button type="button" class="primary-btn" :disabled="processing || !file" @click="analyze(true)">
+                                    {{ processing ? 'Importing...' : 'Import file' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <ImportHowTo :title="'How to import ' + typeShort" :sample-url="sampleUrl" :sample-label="'Download ' + sampleFileName"
+                                     sample-title="This type's columns with worked example rows. Its headers map automatically.">
+                            <li>Pick the import type, then download its sample CSV. A file with the same headers needs no column matching.</li>
+                            <li v-for="(step, i) in typeSteps" :key="i">{{ step }}</li>
+                            <li>Choose the file and press Import file. It runs in the background and this page shows the progress.</li>
+                            <li>Contracts that cannot be loaded are listed with a reason and can be downloaded as an exception report. Every upload is kept on the History tab.</li>
+                        </ImportHowTo>
                     </div>
-                    <div class="md:col-span-2">
-                        <jet-label class="text-sm font-medium text-gray-900">File (CSV / XLSX)</jet-label>
-                        <input
-                            type="file"
-                            @change="onFile"
-                            accept=".csv,.txt,.xlsx,.xls,.ods"
-                            class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-maiic-50 file:text-maiic-700 hover:file:bg-maiic-100 file:cursor-pointer border border-gray-300 rounded-md"
-                            :disabled="processing"
-                        />
+
+                    <div v-else>
+                        <ImportHistoryTable :imports="pagedHistory"
+                                            :caption="historyCaption"
+                                            :empty-text="'No ' + typeShort + ' file has been imported yet. Use the Upload tab to import the first one.'"/>
+                        <LocalPager v-model="historyPage" :total="typeHistory.length" class="border-t border-gray-100"/>
                     </div>
-                </div>
-                <div class="mt-4 flex justify-end">
-                    <button
-                        @click="analyze(true)"
-                        :disabled="processing || !file"
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-maiic-600 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                    >
-                        {{ processing ? 'Importing…' : 'Import file' }}
-                    </button>
                 </div>
             </div>
 
@@ -289,8 +254,12 @@
                 </div>
             </div>
 
-            <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
-                {{ error }}
+            <div v-if="error" class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                <svg class="mt-0.5 h-5 w-5 flex-none text-red-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                <div>
+                    <div class="font-semibold">The file was not imported</div>
+                    <p class="mt-1">{{ error }}</p>
+                </div>
             </div>
         </div>
 
@@ -302,7 +271,11 @@
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import JetLabel from '@/Jetstream/Label.vue'
+import InPageTabs from '@/Components/Data/InPageTabs.vue'
+import ImportHistoryTable from '@/Components/Data/ImportHistoryTable.vue'
+import ImportHowTo from '@/Components/Data/ImportHowTo.vue'
+import FileDrop from '@/Components/Data/FileDrop.vue'
+import LocalPager from '@/Components/Data/LocalPager.vue'
 import { Link } from '@inertiajs/vue3'
 import { markRaw } from 'vue'
 import axios from 'axios'
@@ -313,11 +286,23 @@ export default {
         templates: Object,
         fieldSpec: Object,
         initialType: { type: String, default: 'contract_master' },
+        recentImports: { type: Array, default: () => [] },
     },
-    components: { AppLayout, JetLabel, Link },
+    components: { AppLayout, Link, InPageTabs, ImportHistoryTable, ImportHowTo, FileDrop, LocalPager },
     data() {
         return {
             importType: this.initialType || 'contract_master',
+            tab: 'upload',
+            historyPage: 1,
+            importTypes: [
+                { key: 'contract_master', short: 'contract master', label: 'Contract master (Extract A), facility terms, monthly' },
+                { key: 'schedule', short: 'repayment schedules', label: 'Repayment schedule (per contract, once)' },
+                { key: 'fees', short: 'fees', label: 'Fees and transaction costs' },
+                { key: 'contract_transactions', short: 'contract transactions', label: 'Contract transactions (Extract B), scheduled and actual cash flows' },
+                { key: 'gl_interest', short: 'GL interest postings', label: 'GL interest postings (Extract C), what the ledger posted' },
+                { key: 'reference_rates', short: 'reference rates', label: 'Reference rates (File C), the prime lending rate by effective date' },
+                { key: 'disbursements', short: 'drawdowns', label: 'Drawdowns, one row per tranche paid out' },
+            ],
             file: null,
             analysis: null,
             mapping: {},      // header -> target field
@@ -337,7 +322,50 @@ export default {
             autoDetectedType: null,
         }
     },
+    watch: {
+        importType() { this.historyPage = 1 },
+    },
     computed: {
+        typeLabel() {
+            return (this.importTypes.find(t => t.key === this.importType) || {}).label || this.importType
+        },
+        typeShort() {
+            return (this.importTypes.find(t => t.key === this.importType) || {}).short || this.importType
+        },
+        /** What is particular to the chosen type, from the importer's own rules. */
+        typeSteps() {
+            return {
+                contract_transactions: [
+                    'Rows marked Scheduled are kept as the remaining schedule for comparison. They never replace the original schedule the EIR uses.',
+                    'Rows marked Actual are kept as transaction evidence and do not appear in Cash Flows. The fee column is optional.',
+                ],
+                reference_rates: [
+                    'Write dates year first (yyyy-mm-dd). A file with any other date shape is refused as a whole, naming the column and the first bad row.',
+                    'Dates must rise down the file. Rates are percentages, such as 25.30. A row that repeats the previous rate is loaded but is not a rate change.',
+                ],
+                disbursements: [
+                    'One row per tranche, dates written year first (yyyy-mm-dd). Any other date shape refuses the whole file.',
+                    'Every amount must be above zero. Loading the same file twice adds nothing: rows are matched on facility, date, amount, tranche and reference.',
+                ],
+            }[this.importType] || []
+        },
+        tabs() {
+            return [
+                { key: 'upload', label: 'Upload' },
+                { key: 'history', label: 'History', count: this.typeHistory.length },
+            ]
+        },
+        /** The imports log rows of the chosen type, named "EIR <type>: <file>". */
+        typeHistory() {
+            const prefix = 'EIR ' + this.importType + ':'
+            return this.recentImports.filter(r => String(r.name || '').startsWith(prefix))
+        },
+        pagedHistory() {
+            return this.typeHistory.slice((this.historyPage - 1) * 15, this.historyPage * 15)
+        },
+        historyCaption() {
+            return this.typeHistory.length.toLocaleString() + ' uploads of ' + this.typeShort + '. The Imports screen logs every kind.'
+        },
         /** Named for the type so a folder of downloads stays readable. */
         sampleFileName() {
             return `${this.importType}_sample.csv`
@@ -398,8 +426,8 @@ export default {
         this.stopImportPolling()
     },
     methods: {
-        onFile(e) {
-            this.file = e.target.files[0]
+        onFile(file) {
+            this.file = file
             this.resetAnalysis()
         },
         resetAnalysis() {

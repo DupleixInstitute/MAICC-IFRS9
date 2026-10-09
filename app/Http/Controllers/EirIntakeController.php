@@ -61,6 +61,11 @@ class EirIntakeController extends Controller
                 'required' => MappedFileReader::REQUIRED_FIELDS[$type],
                 'optional' => MappedFileReader::OPTIONAL_FIELDS[$type],
             ]])->all(),
+            // The History tab: every EIR upload is logged in imports with the
+            // name "EIR <type>: <file>" (see import() below), so the log can
+            // be filtered to this screen's uploads by that prefix.
+            'recentImports' => Import::where('name', 'like', 'EIR %')->orderByDesc('id')->limit(300)
+                ->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
         ]);
     }
 
