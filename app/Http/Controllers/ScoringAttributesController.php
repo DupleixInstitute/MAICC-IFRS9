@@ -34,7 +34,7 @@ class ScoringAttributesController extends Controller
 
         return Inertia::render('ScoringAttributeGroups/Index', [
             'filters' => $request->all('search'),
-            'attributes' => $query->paginate(10)
+            'attributes' => $query->paginate(15)
                 ->through(function ($attribute) {
                     return [
                         'id' => $attribute->id,

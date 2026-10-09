@@ -1,7 +1,8 @@
 <script setup>
-import { reactive } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { reactive, computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import BackToReports from './Partials/BackToReports.vue';
+import DownloadButton from './Partials/DownloadButton.vue';
 
 const props = defineProps({
     portfolios: Array,
@@ -18,57 +19,46 @@ const form = reactive({
     mode: props.selectedMode || 'summary',
 });
 
-const downloadReport = () => {
-    window.open(route('reports.disbursement-report', { ...form, export: 1 }), '_blank');
-};
+const ready = computed(() => form.start_period && form.end_period && form.start_period <= form.end_period);
+const csvUrl = computed(() => ready.value ? route('reports.disbursement-report', { ...form, export: 1 }) : '');
 </script>
 
 <template>
-    <Head title="Disbursement Report" />
-
-    <AppLayout>
+    <AppLayout title="Disbursements (vintage)">
         <template #header>
-            <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Disbursement Report</h2>
-                <Link :href="route('reports.index')" class="inline-flex items-center rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
-                    Back to Reports
-                </Link>
-            </div>
+            <BackToReports tab="exports"/>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">Disbursements (vintage)</h2>
+            <p class="mt-0.5 text-sm text-gray-500">Loans disbursed each month between two months, with the balances still outstanding one, two and three months later, as CSV data.</p>
+        </template>
+        <template #actions>
+            <DownloadButton format="CSV" label="Download CSV" :href="csvUrl" :disabled="!ready" title="Choose the start and end months first"/>
         </template>
 
-        <div class="p-6 bg-gray-100 min-h-screen">
-            <div class="bg-white rounded-lg shadow">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">Export Parameters</h3>
-                </div>
-                <div class="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Portfolio</label>
-                        <select v-model="form.portfolio_id" class="mt-1 block w-full border-gray-300 rounded-md">
-                            <option value="">All portfolios</option>
-                            <option v-for="portfolio in portfolios" :key="portfolio.value" :value="portfolio.value">{{ portfolio.label }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Start Period</label>
-                        <input v-model="form.start_period" type="month" class="mt-1 block w-full border-gray-300 rounded-md">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">End Period</label>
-                        <input v-model="form.end_period" type="month" class="mt-1 block w-full border-gray-300 rounded-md">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Mode</label>
-                        <select v-model="form.mode" class="mt-1 block w-full border-gray-300 rounded-md">
-                            <option value="summary">Summary</option>
-                            <option value="detailed">Detailed</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="px-6 pb-6 flex justify-end">
-                    <button @click="downloadReport" :disabled="!form.portfolio_id || !form.start_period || !form.end_period" class="px-4 py-2 bg-maiic-600 text-white rounded-md disabled:opacity-50">Download CSV</button>
-                </div>
+        <div class="maiic-filterbar grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+                <label class="maiic-flabel" for="disb-portfolio">Portfolio</label>
+                <select id="disb-portfolio" v-model="form.portfolio_id" class="maiic-select">
+                    <option value="">All portfolios</option>
+                    <option v-for="portfolio in portfolios" :key="portfolio.value" :value="portfolio.value">{{ portfolio.label }}</option>
+                </select>
+            </div>
+            <div>
+                <label class="maiic-flabel" for="disb-start">Start month</label>
+                <input id="disb-start" v-model="form.start_period" type="month" class="maiic-input">
+            </div>
+            <div>
+                <label class="maiic-flabel" for="disb-end">End month</label>
+                <input id="disb-end" v-model="form.end_period" type="month" class="maiic-input">
+                <p v-if="form.start_period && form.end_period && form.start_period > form.end_period" class="mt-1 text-xs text-red-600">The end month must not be before the start month.</p>
+            </div>
+            <div>
+                <label class="maiic-flabel" for="disb-mode">Detail</label>
+                <select id="disb-mode" v-model="form.mode" class="maiic-select">
+                    <option value="summary">Summary by month</option>
+                    <option value="detailed">Loan by loan</option>
+                </select>
             </div>
         </div>
+        <p class="text-xs text-gray-500">Choose the months, then Download CSV at the top right. The file opens in Excel.</p>
     </AppLayout>
 </template>

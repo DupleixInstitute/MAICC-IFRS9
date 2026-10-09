@@ -39,7 +39,7 @@ class TransitionMatrixCummulativeController extends Controller
             ->orderBy('start_period', 'desc')
             ->orderBy('end_period', 'desc');
 
-        $cumMatrix = $query->paginate(10);
+        $cumMatrix = $query->paginate(15);
 
         return Inertia::render('TransitionMatrix/Cummulative', [
             'cumMatrix' => $cumMatrix,

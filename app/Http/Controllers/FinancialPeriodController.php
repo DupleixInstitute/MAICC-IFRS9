@@ -28,7 +28,7 @@ class FinancialPeriodController extends Controller
         $financialPeriods = FinancialPeriod::with(['closedBy'])
             ->filter(\request()->only('search'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('FinancialPeriods/Index', [
             'financialPeriods' => $financialPeriods,
             'filters' => \request()->all('search'),

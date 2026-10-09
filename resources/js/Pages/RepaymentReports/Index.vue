@@ -225,6 +225,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import HelpManual from '@/Components/HelpManual.vue';
 import Pagination from '@/Components/Pagination.vue';
 import ReportModal from './Partials/ReportModal.vue';
+import { confirmDialog } from '@/Components/confirmDialog';
 
 export default {
     components: {
@@ -365,12 +366,12 @@ export default {
             });
         };
 
-        const recalculate = (id) => {
-            if (confirm('Create a new recalculation based on this one?')) {
+        const recalculate = async (id) => {
+            if (await confirmDialog({ title: 'Recalculate?', message: 'A new LGD calculation is created from this one, for the same portfolio and periods.', confirmLabel: 'Recalculate', tone: 'warning' })) {
                 // Find the calculation data to get required fields
                 const calc = props.calculations.data.find(c => c.id === id);
                 if (!calc) {
-                    alert('Calculation not found');
+                    await confirmDialog({ title: 'Calculation not found', message: 'Refresh the page and try again.', confirmLabel: 'OK', cancelLabel: 'Close', tone: 'warning' });
                     return;
                 }
 
@@ -389,8 +390,8 @@ export default {
             }
         };
 
-        const cancelCalculation = (id) => {
-            if (confirm('Are you sure you want to cancel this calculation?')) {
+        const cancelCalculation = async (id) => {
+            if (await confirmDialog({ title: 'Cancel this calculation?', message: 'The calculation stops and is marked as cancelled.', confirmLabel: 'Cancel calculation', cancelLabel: 'Keep running', tone: 'warning' })) {
                 router.post(route('lgd-calculations.cancel', id), {}, {
                     preserveScroll: true,
                     onSuccess: () => refreshData()
@@ -398,8 +399,8 @@ export default {
             }
         };
 
-        const deleteCalculation = (id) => {
-            if (confirm('Are you sure you want to delete this calculation and all its records?')) {
+        const deleteCalculation = async (id) => {
+            if (await confirmDialog({ title: 'Delete this calculation?', message: 'The calculation and all its records are removed. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' })) {
                 router.delete(route('lgd-calculations.destroy', id), {
                     preserveScroll: true,
                     onSuccess: () => refreshData()
@@ -407,14 +408,14 @@ export default {
             }
         };
 
-        const selectForComparison = (calc) => {
+        const selectForComparison = async (calc) => {
             const index = comparisonItems.value.findIndex(c => c.id === calc.id);
             if (index >= 0) {
                 comparisonItems.value.splice(index, 1);
             } else if (comparisonItems.value.length < 2) {
                 comparisonItems.value.push(calc);
             } else {
-                alert('You can only compare 2 calculations at a time');
+                await confirmDialog({ title: 'Two calculations at a time', message: 'You can compare two calculations at a time. Clear one first.', confirmLabel: 'OK', cancelLabel: 'Close', tone: 'warning' });
             }
         };
 

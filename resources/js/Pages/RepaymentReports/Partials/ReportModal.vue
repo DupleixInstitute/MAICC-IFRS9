@@ -89,6 +89,7 @@
 <script>
 import { ref, reactive, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { confirmDialog } from '@/Components/confirmDialog';
 
 export default {
     props: {
@@ -142,14 +143,14 @@ export default {
             exclude_zero_payments: false
         });
 
-        const generate = () => {
+        const generate = async () => {
             if (!form.portfolio_id || !form.start_period || !form.end_period) {
-                alert('Please select portfolio and period range');
+                await confirmDialog({ title: 'Choose the report settings', message: 'Select a portfolio and the period range first.', confirmLabel: 'OK', cancelLabel: 'Close', tone: 'warning' });
                 return;
             }
 
             if (form.start_period > form.end_period) {
-                alert('Start period cannot be after end period');
+                await confirmDialog({ title: 'Check the periods', message: 'The start period cannot be after the end period.', confirmLabel: 'OK', cancelLabel: 'Close', tone: 'warning' });
                 return;
             }
 

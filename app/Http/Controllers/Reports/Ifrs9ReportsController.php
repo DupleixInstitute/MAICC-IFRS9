@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Support\ReportDownload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -27,69 +27,128 @@ class Ifrs9ReportsController extends Controller
     // measured and the ECL was provided on (audit H5); the DPD-only stage is ifrs9stage_pre_qualitative.
     private const EAD_SQL = 'COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1)';
 
-    // key => [title, subtitle, category]. Full catalogue: 30 reports covering
-    // the contract Schedule 1 families (ECL/staging, movement, sector,
-    // collateral, EIR revenue, RBM prudential, disclosure, governance) plus
-    // interactive Sensitivity; EWS & AI under Analytics.
+    // key => [title, subtitle]. The title and subtitle head the report page,
+    // its PDF and its workbook. Where each report sits in the hub, and the
+    // question its tile answers, is set in hub() below.
     private array $catalogue = [
-        // Core ECL
-        'executive'            => ['Executive Summary',             'One-page ECL position: KPIs, stage split, portfolios, exposures & data quality', 'Core ECL'],
-        'ecl'                  => ['ECL Summary by Stage',          'Total exposure, PD, LGD & ECL by Stage 1/2/3', 'Core ECL'],
-        'portfolio-trend'      => ['Portfolio ECL Trend',           'ECL & coverage over time, split by portfolio', 'Core ECL'],
-        'sector-ecl'           => ['ECL by Sector',                 'Exposure, PD, LGD & ECL by RBM economic sector', 'Core ECL'],
-        'product-group-ecl'    => ['ECL by Product Group',          'Exposure & ECL by lending product group', 'Core ECL'],
-        'grade-ecl'            => ['ECL by Internal Grade',          'DFI internal risk-grade scale: exposure, PD, LGD & ECL by grade', 'Core ECL'],
-        'account-ecl'          => ['Account-Level ECL Calculation', 'Loan-by-loan EAD x PD x LGD calculation trail', 'Core ECL'],
-        'stage-allocation'     => ['Stage Allocation',              'How every exposure is classified into Stage 1/2/3', 'Core ECL'],
-        // Staging & Movement
-        'sicr-trigger'         => ['SICR Trigger',                  'Significant Increase in Credit Risk triggers', 'Staging & Movement'],
-        'stage-migration'      => ['Stage Migration',               'Stage movement vs the prior reporting period', 'Staging & Movement'],
-        'ecl-reconciliation'   => ['Opening to Closing ECL Reconciliation', 'Opening to closing ECL bridge', 'Staging & Movement'],
-        'gross-movement'       => ['Gross Carrying Amount Movement', 'Opening, disbursements, repayments, closing', 'Staging & Movement'],
-        'ecl-charge'           => ['ECL Charge / Release',          'Impairment charge or release to profit or loss', 'Staging & Movement'],
-        // Model Components
-        'pd-report'            => ['PD Report',                     '12-month and lifetime probability of default', 'Model Components'],
-        'lgd-collateral'       => ['LGD & Collateral',              'Recovery, collateral cover and net unsecured exposure', 'Model Components'],
-        'crm-agri'             => ['Credit Risk Mitigation (Agri)',  'Off-take, warehouse-receipt, group-guarantee & AIP cover vs LGD', 'Model Components'],
-        'ead-report'           => ['EAD & Off-Balance Sheet',       'Exposure at default incl. undrawn commitments / CCF', 'Model Components'],
-        // Forward-Looking
-        'macro-scenario'       => ['Macro Scenario & Forward-Looking', 'Macro assumptions and economic scenarios', 'Forward-Looking'],
-        'scenario-ecl'         => ['Scenario-Weighted ECL',         'Probability-weighted ECL across scenarios', 'Forward-Looking'],
-        // RBM Prudential
-        'rbm-classification'   => ['RBM Asset Classification',      'Prudential classification (RBM Directive 2018)', 'RBM Prudential'],
-        'ifrs9-vs-rbm'         => ['IFRS 9 Stage vs RBM Mapping',   'Reconciliation of IFRS 9 stages to RBM classes', 'RBM Prudential'],
-        'npl-arrears'          => ['NPL & Arrears',                 'Non-performing loans and arrears ageing', 'RBM Prudential'],
-        'provision-comparison' => ['Provision Comparison',          'IFRS 9 ECL vs RBM prudential provision & shortfall', 'RBM Prudential'],
-        'concentration'        => ['Concentration & Large Exposures', 'Single-name & portfolio concentration (HHI) and large exposures', 'RBM Prudential'],
-        'coop-linkage'         => ['Cooperative & Anchor Linkage',   'Correlated (contagion) exposure by cooperative / anchor buyer', 'RBM Prudential'],
-        // Disclosure & Audit
-        'fs-disclosure'        => ['Financial Statement Disclosure', 'IFRS 9 note tables for the annual report', 'Disclosure & Audit'],
+        'executive'            => ['Executive summary',               'The ECL position on one page: headline figures, stage split, portfolios, largest exposures and data quality'],
+        'ecl'                  => ['ECL by stage',                    'ECL, PD and LGD by stage, how every exposure is staged, and the PD applied'],
+        'portfolio-trend'      => ['Portfolio ECL trend',             'ECL and coverage over time, by portfolio'],
+        'sector-ecl'           => ['ECL by segment',                  'Exposure and ECL by sector, product group and internal grade, with concentration and cooperative links'],
+        'product-group-ecl'    => ['ECL by product group',            'Exposure and ECL by lending product group'],
+        'grade-ecl'            => ['ECL by internal grade',           'Exposure, PD, LGD and ECL on the internal risk-grade scale'],
+        'account-ecl'          => ['Account-level ECL calculation',   'Loan-by-loan EAD x PD x LGD calculation trail'],
+        'stage-allocation'     => ['Stage allocation',                'How every exposure is classified into Stage 1, 2 and 3'],
+        'sicr-trigger'         => ['SICR triggers',                   'What moved loans into Stage 2 (significant increase in credit risk)'],
+        'stage-migration'      => ['Stage movement and SICR',         'Stage movement against the prior month, and the triggers that moved loans into Stage 2'],
+        'ecl-reconciliation'   => ['Opening to closing ECL',          'The ECL bridge from the prior period to this one, by stage'],
+        'gross-movement'       => ['Gross carrying amount movement',  'Opening balance, disbursements, repayments and closing balance'],
+        'ecl-charge'           => ['ECL charge or release',           'The impairment charge or release to profit or loss'],
+        'pd-report'            => ['PD report',                       '12-month and lifetime probability of default'],
+        'lgd-collateral'       => ['Model inputs',                    'LGD and collateral, agricultural risk cover, and EAD including undrawn commitments'],
+        'crm-agri'             => ['Credit risk mitigation (agri)',   'Off-take, warehouse-receipt, group-guarantee and AIP cover against LGD'],
+        'ead-report'           => ['EAD and off-balance sheet',       'Exposure at default including undrawn commitments'],
+        'macro-scenario'       => ['Forward-looking and scenarios',   'Macro-economic scenarios and the probability-weighted ECL'],
+        'scenario-ecl'         => ['Scenario-weighted ECL',           'Probability-weighted ECL across the scenarios'],
+        'rbm-classification'   => ['RBM classification and provisioning', 'RBM classes, IFRS 9 stage against class, provision comparison, NPLs and arrears'],
+        'ifrs9-vs-rbm'         => ['IFRS 9 stage against RBM class',  'How the IFRS 9 stages map to the RBM classes'],
+        'npl-arrears'          => ['NPL and arrears',                 'Non-performing loans and arrears ageing'],
+        'provision-comparison' => ['Provision comparison',            'IFRS 9 ECL against the RBM prudential provision, and any shortfall'],
+        'concentration'        => ['Concentration and large exposures', 'Single-name and portfolio concentration (HHI) and large exposures'],
+        'coop-linkage'         => ['Cooperative and anchor linkage',  'Correlated exposure by cooperative or anchor buyer'],
+        'fs-disclosure'        => ['IFRS 9 note (annual financial statements)', 'Loss allowance and gross carrying amount reconciliations by stage, position, charge and basis'],
         // The user-action audit trail lives at Administration > Audit Trail;
         // this report is the data-integrity view.
-        'data-quality'         => ['Data Quality & Exceptions',     'Data integrity, overrides and exception checks', 'Disclosure & Audit'],
-        // Stress testing (interactive)
-        // Analytics (separate from the 19 reports)
-        'ews'                  => ['Early Warning System',          'Forward risk signals & watchlist before default', 'Analytics'],
-        'ai-narrative'         => ['AI Executive Commentary',       'Auto-generated narrative on the ECL position', 'Analytics'],
+        'data-quality'         => ['Data quality and exceptions',     'Data integrity, overrides and exception checks'],
+        'ews'                  => ['Early warning signals',           'Forward risk signals and the watchlist, before default'],
+        'ai-narrative'         => ['Executive commentary',            'A written commentary on the ECL position, generated from the calculated figures'],
     ];
 
     /* ===================================================================== */
     /*  Hub                                                                  */
     /* ===================================================================== */
 
+    /**
+     * Every report screen of the system, grouped as the hub shows it. A tile
+     * names its route, the permission that route enforces (the hub hides a
+     * tile the user cannot open), whether it takes the hub's period, the
+     * question it answers and the downloads it offers.
+     */
+    private function hub(): array
+    {
+        $std = ['PDF', 'Excel', 'CSV'];
+        $r = fn (string $key, string $icon, string $question, array $absorbs = []) => [
+            'key' => $key, 'title' => $this->catalogue[$key][0], 'description' => $question, 'icon' => $icon,
+            'route' => 'ifrs9-reports.' . $key, 'period' => true, 'permission' => 'reports.ifrs9', 'formats' => $std,
+            'absorbs' => $absorbs,
+        ];
+        $screen = fn (string $key, string $title, string $route, string $permission, string $icon, string $question, array $formats, bool $period = false, array $absorbs = []) => [
+            'key' => $key, 'title' => $title, 'description' => $question, 'icon' => $icon,
+            'route' => $route, 'period' => $period, 'permission' => $permission, 'formats' => $formats,
+            'absorbs' => $absorbs,
+        ];
+
+        return [
+            ['key' => 'month-end', 'name' => 'Month-end ECL', 'description' => 'The ECL position for a month: where it stands, where it sits, how it moved and the inputs behind it.', 'reports' => [
+                $r('executive', 'star', 'Where does the ECL stand this month? Headline figures, stages, portfolios, largest exposures, data quality and a written commentary.', ['ai-narrative']),
+                $r('ecl', 'layers', 'How much ECL is held in each stage, how the book is staged, and on what PD and LGD?', ['stage-allocation', 'pd-report']),
+                $r('sector-ecl', 'pie', 'Where do exposure and ECL sit: by sector, product group and internal grade, with concentration and cooperative links?', ['product-group-ecl', 'grade-ecl', 'concentration', 'coop-linkage']),
+                $r('portfolio-trend', 'trend', 'How have ECL and coverage moved month by month, by portfolio?'),
+                $r('account-ecl', 'list', 'How was the ECL worked out for each loan (EAD x PD x LGD)? Top 200 by exposure.'),
+                $r('stage-migration', 'arrows', 'Which loans changed stage since the prior month, and which triggers put loans into Stage 2?', ['sicr-trigger']),
+                $r('lgd-collateral', 'shield', 'What LGD, collateral cover, agricultural risk cover and EAD sit behind the ECL?', ['crm-agri', 'ead-report']),
+                $r('macro-scenario', 'globe', 'Which macro-economic scenarios feed the ECL, and what is the probability-weighted result?', ['scenario-ecl']),
+            ]],
+            ['key' => 'annual', 'name' => 'Annual report and audit', 'description' => 'The IFRS 9 note for the financial statements and the reconciliations the auditors ask for.', 'reports' => [
+                $screen('fs-disclosure', 'IFRS 9 note (annual financial statements)', 'ifrs9-reports.fs-disclosure', 'reports.ifrs9', 'document',
+                    'The loss allowance and gross carrying amount reconciliations by stage, the position with the comparative, the charge and the basis of measurement, between any two months.',
+                    ['PDF', 'Word', 'Excel', 'CSV'], false, ['ecl-reconciliation', 'gross-movement', 'ecl-charge', 'ecl-stage-reconciliation']),
+                $screen('loan-book-reconciliation', 'Loan book reconciliation', 'reports.loan-book-reconciliation', 'reports', 'book',
+                    'Does opening balance plus disbursements less repayments and write-offs agree to the closing book?', ['PDF', 'Excel', 'CSV']),
+                $r('data-quality', 'check', 'Which records are missing data, overridden or out of line?'),
+            ]],
+            ['key' => 'regulatory', 'name' => 'Regulatory (RBM)', 'description' => 'The Reserve Bank of Malawi return and the classification and provisioning views behind it.', 'reports' => [
+                $screen('rbm-return', 'RBM return (provisional)', 'rbm-return.index', 'reports.ifrs9', 'bank',
+                    "The classification and provisioning return in the directive's order: classes, minimum provisions, interest in suspense and security.", ['PDF', 'Excel', 'CSV'], true),
+                $r('rbm-classification', 'bank', 'How is the book classified under the RBM directive, how do stages map to classes, is the ECL above the minimum provision, and how large are NPLs and arrears?',
+                    ['ifrs9-vs-rbm', 'provision-comparison', 'npl-arrears']),
+            ]],
+            ['key' => 'eir', 'name' => 'EIR', 'description' => 'Effective interest rate revenue and its reconciliation to the ledger.', 'reports' => [
+                $screen('eir-as-at', 'EIR as at a date', 'eir-as-at.index', 'eir.view', 'calendar',
+                    'What were the EIR interest, the contractual interest and the amortised cost at any date, by product, GL and contract?', ['PDF', 'Excel', 'CSV']),
+                $screen('eir-reconciliation', 'GL reconciliation (EIR)', 'eir-reconciliation.index', 'eir.view', 'scale',
+                    'Does the interest posted in the ledger agree with what each contract charges, and why not?', ['PDF', 'Excel']),
+            ]],
+            ['key' => 'risk', 'name' => 'Risk and analytics', 'description' => 'What if, and what next: stress scenarios and early warnings.', 'reports' => [
+                $screen('stress-testing', 'Stress testing', 'stress-testing.index', 'reports.ifrs9', 'bolt',
+                    'How much would ECL rise under a drought, a currency shock or a macro scenario?', ['PDF', 'Excel', 'CSV']),
+                $r('ews', 'alert', 'Which loans show warning signs before they default?'),
+            ]],
+            ['key' => 'exports', 'name' => 'Exports', 'description' => "Data exports and the auditor's pack.", 'reports' => [
+                $screen('loan-book-export', 'Loan book export', 'reports.loan-book-export', 'reports', 'download',
+                    'The loan book between two periods, as a summary or loan by loan.', ['CSV']),
+                $screen('ecl-export', 'ECL export', 'reports.ecl-export', 'reports', 'download',
+                    'ECL by stage, or the full loan book with PD, LGD and ECL, for one period.', ['CSV']),
+                $screen('disbursement-report', 'Disbursements (vintage)', 'reports.disbursement-report', 'reports', 'cash',
+                    'How much was disbursed each month, and how much of it was still outstanding one, two and three months later?', ['CSV']),
+                $screen('auditor-pack', 'Auditor pack', 'auditor-pack.index', 'eir.export', 'archive',
+                    'One zip per period with the compliance workbooks, the EIR book, the baselines and the ECL by stage, each file with its SHA-256.', ['ZIP']),
+            ]],
+        ];
+    }
+
     public function index()
     {
-        $order = ['Core ECL', 'Staging & Movement', 'Model Components', 'Forward-Looking',
-                  'RBM Prudential', 'Disclosure & Audit', 'Analytics'];
+        $user = auth()->user();
+        $categories = collect($this->hub())
+            ->map(function ($cat) use ($user) {
+                $cat['reports'] = collect($cat['reports'])
+                    ->filter(fn ($t) => $user && $user->can($t['permission']))
+                    ->values()->all();
 
-        $grouped = collect($this->catalogue)
-            ->map(fn ($v, $k) => ['key' => $k, 'title' => $v[0], 'subtitle' => $v[1], 'category' => $v[2] ?? 'Other'])
-            ->groupBy('category')
-            ->map(fn ($items) => $items->values());
-
-        $categories = collect($order)
-            ->filter(fn ($c) => $grouped->has($c))
-            ->map(fn ($c) => ['name' => $c, 'reports' => $grouped[$c]])
+                return $cat;
+            })
+            ->filter(fn ($cat) => count($cat['reports']) > 0)
             ->values();
 
         return Inertia::render('Reports/Ifrs9/Index', [
@@ -100,10 +159,137 @@ class Ifrs9ReportsController extends Controller
     }
 
     /* ===================================================================== */
+    /*  Consolidated reports: one report, several parts                      */
+    /* ===================================================================== */
+    //
+    // A consolidated report runs each part's own builder for the same period
+    // (so every figure is exactly what that report showed on its own) and
+    // shows the parts one after the other: as tabs on screen, as headed
+    // parts in the PDF and as separate sheets in the Excel workbook. The old
+    // routes of the parts still answer on their own.
+
+    private bool $collecting = false;
+
+    public function executiveSummary(Request $request)
+    {
+        return $this->merged('executive', $request, [
+            ['executivePart', 'Executive summary'],
+            ['aiNarrative', 'Executive commentary'],
+        ]);
+    }
+
+    public function ecl(Request $request)
+    {
+        return $this->merged('ecl', $request, [
+            ['eclPart', 'ECL summary by stage'],
+            ['stageAllocation', 'Stage allocation'],
+            ['pdReport', 'PD by stage'],
+        ]);
+    }
+
+    public function sectorEcl(Request $request)
+    {
+        return $this->merged('sector-ecl', $request, [
+            ['sectorEclPart', 'By sector'],
+            ['productGroupEcl', 'By product group'],
+            ['gradeEcl', 'By internal grade'],
+            ['concentration', 'Concentration and large exposures'],
+            ['coopLinkage', 'Cooperative and anchor links'],
+        ]);
+    }
+
+    public function stageMigration(Request $request)
+    {
+        return $this->merged('stage-migration', $request, [
+            ['stageMigrationPart', 'Stage migration'],
+            ['sicrTrigger', 'SICR triggers'],
+        ]);
+    }
+
+    public function lgdCollateral(Request $request)
+    {
+        return $this->merged('lgd-collateral', $request, [
+            ['lgdCollateralPart', 'LGD and collateral'],
+            ['crmAgri', 'Agricultural risk cover'],
+            ['eadReport', 'EAD and off-balance sheet'],
+        ]);
+    }
+
+    public function macroScenario(Request $request)
+    {
+        return $this->merged('macro-scenario', $request, [
+            ['macroScenarioPart', 'Macro scenarios'],
+            ['scenarioEcl', 'Scenario-weighted ECL'],
+        ]);
+    }
+
+    public function rbmClassification(Request $request)
+    {
+        return $this->merged('rbm-classification', $request, [
+            ['rbmClassificationPart', 'RBM classification'],
+            ['ifrs9VsRbm', 'IFRS 9 stage against RBM class'],
+            ['provisionComparison', 'Provision comparison'],
+            ['nplArrears', 'NPL and arrears'],
+        ]);
+    }
+
+    /** One part: the report's own payload, built without responding. */
+    private function part(string $method, Request $request, string $title): array
+    {
+        $this->collecting = true;
+        try {
+            $report = $this->{$method}($request);
+        } finally {
+            $this->collecting = false;
+        }
+        $report['title'] = $title;
+
+        return $report;
+    }
+
+    private function merged(string $key, Request $request, array $parts)
+    {
+        $built = array_map(fn ($p) => $this->part($p[0], $request, $p[1]), $parts);
+        $first = $built[0];
+        $sections = [];
+        $controls = null;
+        foreach ($built as $i => $p) {
+            $own = [];
+            // A part whose headline figures differ from the report's keeps them as a small table.
+            if ($i > 0 && ! empty($p['kpis']) && $p['kpis'] != $first['kpis']) {
+                $own[] = ['heading' => 'Key figures', 'columns' => ['Figure', 'Value', 'Note'], 'align' => ['l', 'r', 'l'],
+                    'rows' => array_map(fn ($k) => [$k['label'], (string) $k['value'], (string) ($k['sub'] ?? '')], $p['kpis'])];
+            }
+            foreach (array_merge($own, $p['sections']) as $s) {
+                $s['part'] = $p['title'];
+                $s['part_note'] = $p['subtitle'] ?? '';
+                $sections[] = $s;
+            }
+            if (! empty($p['controls'])) {
+                $controls = array_merge($p['controls'], ['action' => 'ifrs9-reports.' . $key, 'part' => $p['title']]);
+            }
+        }
+
+        return $this->respond([
+            'key' => $key,
+            'period' => $first['period'] ?? $this->period($request),
+            'kpis' => $first['kpis'],
+            'sections' => $sections,
+            'controls' => $controls,
+            'parts' => array_map(fn ($p) => [
+                'title' => $p['title'],
+                'subtitle' => $p['subtitle'] ?? '',
+                'rows' => array_sum(array_map(fn ($s) => count($s['rows'] ?? []), $p['sections'] ?? [])),
+            ], $built),
+            'sheets' => $built,
+        ]);
+    }
+
+    /* ===================================================================== */
     /*  Core ECL                                                             */
     /* ===================================================================== */
 
-    public function ecl(Request $request)
+    public function eclPart(Request $request)
     {
         $period = $this->period($request);
 
@@ -112,7 +298,7 @@ class Ifrs9ReportsController extends Controller
             ->orderBy('ecl_calculation_level')->orderBy('ifrs9_stage')
             ->get()
             ->map(fn ($r) => [
-                ucfirst($r->ecl_calculation_level ?? '—'),
+                ucfirst($r->ecl_calculation_level ?? '-'),
                 'Stage ' . $r->ifrs9_stage,
                 number_format($r->total_loans),
                 $this->money($r->total_ead),
@@ -217,7 +403,7 @@ class Ifrs9ReportsController extends Controller
             ]]]);
     }
 
-    public function stageMigration(Request $request)
+    public function stageMigrationPart(Request $request)
     {
         $period = $this->period($request);
         $prev = $this->previousPeriod($period);
@@ -271,7 +457,7 @@ class Ifrs9ReportsController extends Controller
             ->where('reporting_period', $period)->groupBy('ifrs9stage_post_qualitative')->pluck('ecl', 's');
 
         return $this->respond(['key' => 'ecl-reconciliation', 'period' => $period,
-            'subtitle' => $prev ? "Opening {$prev} -> Closing {$period}" : 'No prior period — closing only',
+            'subtitle' => $prev ? "Opening {$prev} -> Closing {$period}" : 'No prior period, closing only',
             'kpis' => [
                 ['label' => 'Opening ECL', 'value' => $this->money($opening), 'tone' => 'maiic'],
                 ['label' => 'Net Movement', 'value' => $this->money($movement), 'tone' => $movement >= 0 ? 'rose' : 'emerald'],
@@ -385,17 +571,37 @@ class Ifrs9ReportsController extends Controller
             ]]]);
     }
 
-    public function lgdCollateral(Request $request)
+    public function lgdCollateralPart(Request $request)
     {
         $period = $this->period($request);
-        $rows = DB::table('loan_books')
-            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n,
-                SUM(" . self::EAD_SQL . ") ead,
-                SUM(COALESCE(allocated_gross_value,0)) coll_gross,
-                SUM(COALESCE(allocated_discounted_value,0)) coll_disc,
-                AVG(COALESCE(customer_lgd,0)) clgd, AVG(COALESCE(collection_lgd,0)) collgd")
-            ->where('reporting_period', $period)
-            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
+
+        // Collateral comes from the collateral allocations of the period
+        // (collateral management). Older databases carried the allocated
+        // values on loan_books; use those only where the columns exist.
+        if (Schema::hasColumn('loan_books', 'allocated_gross_value')) {
+            $query = DB::table('loan_books as lb')
+                ->selectRaw('lb.ifrs9stage_post_qualitative s, COUNT(*) n,
+                    SUM(' . self::EAD_SQL . ') ead,
+                    SUM(COALESCE(lb.allocated_gross_value,0)) coll_gross,
+                    SUM(COALESCE(lb.allocated_discounted_value,0)) coll_disc,
+                    AVG(COALESCE(lb.customer_lgd,0)) clgd, AVG(COALESCE(lb.collection_lgd,0)) collgd');
+        } else {
+            [$y, $m] = array_map('intval', explode('-', (string) $period) + [0, 0]);
+            $alloc = DB::table('collateral_allocations')
+                ->selectRaw('contract_id, SUM(allocated_collateral) gross, SUM(discounted_collateral) disc')
+                ->where('reporting_year', $y)->where('reporting_month', $m)
+                ->groupBy('contract_id');
+            $query = DB::table('loan_books as lb')
+                ->leftJoinSub($alloc, 'ca', 'ca.contract_id', '=', 'lb.contract_id')
+                ->selectRaw('lb.ifrs9stage_post_qualitative s, COUNT(*) n,
+                    SUM(' . self::EAD_SQL . ') ead,
+                    SUM(COALESCE(ca.gross,0)) coll_gross,
+                    SUM(COALESCE(ca.disc,0)) coll_disc,
+                    AVG(COALESCE(lb.customer_lgd,0)) clgd, AVG(COALESCE(lb.collection_lgd,0)) collgd');
+        }
+
+        $rows = $query->where('lb.reporting_period', $period)
+            ->groupBy('lb.ifrs9stage_post_qualitative')->orderBy('lb.ifrs9stage_post_qualitative')->get()
             ->map(function ($r) {
                 $netUnsec = max(0, $r->ead - $r->coll_disc);
                 return ['Stage ' . $r->s, number_format($r->n), $this->money($r->ead),
@@ -407,8 +613,8 @@ class Ifrs9ReportsController extends Controller
             'subtitle' => 'Collateral cover, net unsecured exposure and LGD (both methods)',
             'kpis' => $this->totalsKpis($period),
             'sections' => [[
-                'heading' => 'LGD & Collateral by Stage',
-                'columns' => ['Stage', 'Loans', 'EAD', 'Collateral (gross)', 'Collateral (discounted)', 'Net Unsecured', 'Avg Customer LGD', 'Avg Collection LGD'],
+                'heading' => 'LGD and collateral by stage',
+                'columns' => ['Stage', 'Loans', 'EAD', 'Collateral (gross)', 'Collateral (discounted)', 'Net unsecured', 'Avg customer LGD', 'Avg collection LGD'],
                 'align' => ['l', 'r', 'r', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $rows,
             ]]]);
@@ -441,7 +647,7 @@ class Ifrs9ReportsController extends Controller
     /*  Forward-Looking                                                      */
     /* ===================================================================== */
 
-    public function macroScenario(Request $request)
+    public function macroScenarioPart(Request $request)
     {
         $period = $this->period($request);
 
@@ -450,9 +656,9 @@ class Ifrs9ReportsController extends Controller
             if (Schema::hasTable($tbl)) {
                 try {
                     $macro = DB::table($tbl)->orderByDesc('id')->limit(40)->get()
-                        ->map(fn ($r) => [$r->name ?? $r->variable ?? '—',
-                            $r->period ?? $r->reporting_period ?? '—',
-                            isset($r->value) ? $this->num($r->value, 4) : '—'])->all();
+                        ->map(fn ($r) => [$r->name ?? $r->variable ?? '-',
+                            $r->period ?? $r->reporting_period ?? '-',
+                            isset($r->value) ? $this->num($r->value, 4) : '-'])->all();
                 } catch (\Throwable $e) {
                     $macro = [];
                 }
@@ -460,7 +666,7 @@ class Ifrs9ReportsController extends Controller
             }
         }
         if (empty($macro)) {
-            $macro = [['No macro-economic variables table found for this install', '—', '—']];
+            $macro = [['No macro-economic variables table found for this install', '-', '-']];
         }
 
         $scenarios = [];
@@ -469,7 +675,7 @@ class Ifrs9ReportsController extends Controller
                 ->leftJoin('scenario_probabilities as sp', 'sp.scenario_set_id', '=', 'scenario_sets.id')
                 ->selectRaw('scenario_sets.name set_name, sp.scenario_name, sp.probability')
                 ->orderBy('scenario_sets.id')->get()
-                ->map(fn ($r) => [$r->set_name, $r->scenario_name ?? '—',
+                ->map(fn ($r) => [$r->set_name, $r->scenario_name ?? '-',
                     $this->pct(($r->probability ?? 0) / 100)])->all();
         }
 
@@ -481,7 +687,7 @@ class Ifrs9ReportsController extends Controller
                  'columns' => ['Variable', 'Period', 'Value'], 'align' => ['l', 'l', 'r'], 'rows' => $macro],
                 ['heading' => 'Economic Scenarios & Weights',
                  'columns' => ['Scenario Set', 'Scenario', 'Probability'], 'align' => ['l', 'l', 'r'],
-                 'rows' => $scenarios ?: [['No scenario sets defined', '—', '—']]],
+                 'rows' => $scenarios ?: [['No scenario sets defined', '-', '-']]],
             ]]);
     }
 
@@ -494,7 +700,7 @@ class Ifrs9ReportsController extends Controller
                 ->leftJoin('scenario_probabilities as sp', 'sp.scenario_set_id', '=', 'scenario_sets.id')
                 ->selectRaw('scenario_sets.name, sp.scenario_name, sp.probability')
                 ->orderBy('scenario_sets.id')->get()
-                ->map(fn ($r) => [$r->name, $r->scenario_name ?? '—', $this->pct(($r->probability ?? 0) / 100)])->all();
+                ->map(fn ($r) => [$r->name, $r->scenario_name ?? '-', $this->pct(($r->probability ?? 0) / 100)])->all();
         }
 
         $fli = DB::table('loan_books')->where('reporting_period', $period)
@@ -510,7 +716,7 @@ class Ifrs9ReportsController extends Controller
                 'heading' => 'Scenario Sets & Weights',
                 'columns' => ['Scenario Set', 'Scenario', 'Probability'],
                 'align' => ['l', 'l', 'r'],
-                'rows' => $sets ?: [['No scenario sets defined', '—', '—']],
+                'rows' => $sets ?: [['No scenario sets defined', '-', '-']],
             ]]]);
     }
 
@@ -518,7 +724,7 @@ class Ifrs9ReportsController extends Controller
     /*  RBM Prudential                                                       */
     /* ===================================================================== */
 
-    public function rbmClassification(Request $request)
+    public function rbmClassificationPart(Request $request)
     {
         $period = $this->period($request);
         return $this->respond(array_merge(['key' => 'rbm-classification', 'period' => $period],
@@ -623,27 +829,61 @@ class Ifrs9ReportsController extends Controller
     /*  Disclosure & Audit                                                   */
     /* ===================================================================== */
 
+    /**
+     * The IFRS 9 note for the annual financial statements (IFRS 7.35H, 35I,
+     * 35M) between two months with a calculated ECL. It absorbs the former
+     * note tables; downloads as PDF, Word, Excel or CSV only when every
+     * column ties.
+     */
     public function fsDisclosure(Request $request)
     {
-        $period = $this->period($request);
-        $stage = DB::table('loan_books')->where('reporting_period', $period)
-            // the note carries the gross carrying amount, not the EAD (which adds the undrawn commitment at the credit-conversion factor); audit H6
-            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n, SUM(COALESCE(carrying_amount,0)) gross, SUM(" . self::EAD_SQL . ") ead,
-                SUM(COALESCE(ecl_value,0)) ecl")
-            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
-            ->map(fn ($r) => ['Stage ' . $r->s . ' — ' . $this->rbmClass((string) $r->s),
-                number_format($r->n), $this->money($r->gross), $this->money($r->ead), $this->money($r->ecl),
-                $this->money($r->gross - $r->ecl)])->all();
+        $months = \App\Services\Reports\Ifrs9NoteService::eclMonths();
+        [$defOpen, $defClose] = \App\Services\Reports\Ifrs9NoteService::defaultPeriods($months);
+        $opening = in_array($request->query('opening'), $months, true) ? $request->query('opening') : $defOpen;
+        $closing = in_array($request->query('closing'), $months, true) ? $request->query('closing') : $defClose;
+        $portfolioId = $request->integer('portfolio_id') ?: null;
+        $unit = \App\Services\Reports\Ifrs9NoteDocuments::unitKey($request->query('unit'));
 
-        return $this->respond(['key' => 'fs-disclosure', 'period' => $period,
-            'subtitle' => 'IFRS 9 financial statement note tables',
-            'kpis' => $this->totalsKpis($period),
-            'sections' => [[
-                'heading' => 'Note: Loans & Advances by ECL Stage',
-                'columns' => ['Stage / Class', 'Accounts', 'Gross Carrying Amount', 'Exposure at Default', 'Loss Allowance (ECL)', 'Net Carrying Amount'],
-                'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
-                'rows' => $stage,
-            ]]]);
+        $note = null;
+        $error = null;
+        if ($opening && $closing) {
+            try {
+                $report = \App\Services\Reports\Ifrs9NoteService::build($opening, $closing, $portfolioId);
+                $note = \App\Services\Reports\Ifrs9NoteDocuments::build($report, $unit);
+            } catch (\InvalidArgumentException $e) {
+                $error = $e->getMessage();
+            }
+        } else {
+            $error = count($months) < 2
+                ? 'The note compares two months with a calculated ECL, and fewer than two months have one. Run the ECL calculation for another month first.'
+                : 'Choose the opening and closing months.';
+        }
+
+        $format = $request->query('download');
+        if (in_array($format, ['pdf', 'docx', 'xlsx', 'csv'], true)) {
+            abort_if($note === null, 422, $error ?: 'The note is not available for these months.');
+            \App\Services\Reports\Ifrs9NoteDocuments::assertUsable($note);
+
+            return match ($format) {
+                'pdf' => \App\Services\Reports\Ifrs9NoteDocuments::pdf($note),
+                'docx' => \App\Services\Reports\Ifrs9NoteDocuments::docx($note),
+                'xlsx' => \App\Services\Reports\Ifrs9NoteDocuments::excel($note),
+                default => ReportDownload::csv(\App\Services\Reports\Ifrs9NoteDocuments::payload($note), basename(\App\Services\Reports\Ifrs9NoteDocuments::filename($note, 'csv'), '.csv')),
+            };
+        }
+
+        return Inertia::render('Reports/Ifrs9/Note', [
+            'note' => $note,
+            'error' => $error,
+            'months' => $months,
+            'opening' => $opening,
+            'closing' => $closing,
+            'unit' => $unit,
+            'units' => collect(\App\Services\Reports\Ifrs9NoteDocuments::units(\App\Services\Reports\Ifrs9NoteService::currency()))->map(fn ($u, $k) => ['value' => $k, 'label' => $u['label']])->values(),
+            'portfolios' => DB::table('loan_portfolios')->orderBy('name')->get(['id', 'name']),
+            'portfolioId' => $portfolioId,
+            'tab' => collect($this->hub())->first(fn ($cat) => collect($cat['reports'])->contains('key', 'fs-disclosure'))['key'] ?? null,
+        ]);
     }
 
     public function dataQuality(Request $request)
@@ -686,10 +926,10 @@ class Ifrs9ReportsController extends Controller
     }
 
     /* ===================================================================== */
-    /*  Executive Summary — one-page composite                               */
+    /*  Executive Summary, one-page composite                               */
     /* ===================================================================== */
 
-    public function executiveSummary(Request $request)
+    public function executivePart(Request $request)
     {
         $period = $this->period($request);
         $EAD    = '(' . self::EAD_SQL . ')';
@@ -793,7 +1033,7 @@ class Ifrs9ReportsController extends Controller
     /*  ECL by Sector / Product Group                                        */
     /* ===================================================================== */
 
-    public function sectorEcl(Request $request)
+    public function sectorEclPart(Request $request)
     {
         $period = $this->period($request);
         $EAD    = '(' . self::EAD_SQL . ')';
@@ -845,7 +1085,7 @@ class Ifrs9ReportsController extends Controller
 
     /**
      * ECL by MAIIC internal risk grade. As a DFI, MAIIC reports on its own
-     * A–G master scale (mapped from the 12-month PD). Grades are shown in
+     * A-G master scale (mapped from the 12-month PD). Grades are shown in
      * scale order with their PD band so the report doubles as the rating
      * scale definition.
      */
@@ -855,8 +1095,8 @@ class Ifrs9ReportsController extends Controller
         $EAD    = '(' . self::EAD_SQL . ')';
 
         $bands = [
-            'A' => '0 – 2%', 'B' => '2 – 5%', 'C' => '5 – 10%', 'D' => '10 – 20%',
-            'E' => '20 – 40%', 'F' => '40 – 100%', 'G' => 'Default (100%)',
+            'A' => '0 - 2%', 'B' => '2 - 5%', 'C' => '5 - 10%', 'D' => '10 - 20%',
+            'E' => '20 - 40%', 'F' => '40 - 100%', 'G' => 'Default (100%)',
         ];
 
         $raw = DB::table('loan_books')->where('reporting_period', $period)
@@ -890,7 +1130,7 @@ class Ifrs9ReportsController extends Controller
     /**
      * Credit Risk Mitigation for agri lending. Smallholder input loans are
      * secured by off-take/contract-farming, warehouse receipts, group/
-     * cooperative guarantees or AIP backing — not real estate — and LGD
+     * cooperative guarantees or AIP backing, not real estate, and LGD
      * follows the enhancement's typical recovery.
      */
     public function crmAgri(Request $request)
@@ -909,7 +1149,7 @@ class Ifrs9ReportsController extends Controller
                 $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         return $this->respond(['key' => 'crm-agri', 'period' => $period,
-            'subtitle' => 'How the book is actually secured, and the LGD each enhancement implies — ' . $period,
+            'subtitle' => 'How the book is actually secured, and the LGD each enhancement implies, ' . $period,
             'kpis' => $this->totalsKpis($period),
             'sections' => [[
                 'heading' => 'Exposure & LGD by Credit Enhancement',
@@ -923,7 +1163,7 @@ class Ifrs9ReportsController extends Controller
      * Cooperative / anchor linkage. Individual smallholder loans tied to the
      * same cooperative or anchor buyer default together. This shows exposure
      * by linkage and an indicative contagion loss if the largest linkage
-     * group migrated wholesale to default (simplified — full asset-
+     * group migrated wholesale to default (simplified, full asset-
      * correlation modelling is a separate workstream).
      */
     public function coopLinkage(Request $request)
@@ -949,10 +1189,10 @@ class Ifrs9ReportsController extends Controller
         $contagion = $top ? ($top->ead * $top->lgd - $top->ecl) : 0;
 
         return $this->respond(['key' => 'coop-linkage', 'period' => $period,
-            'subtitle' => 'Correlated exposure by cooperative / anchor buyer — ' . $period,
+            'subtitle' => 'Correlated exposure by cooperative / anchor buyer, ' . $period,
             'kpis' => [
                 ['label' => 'Cooperative/Anchor Groups', 'value' => number_format($linked->count()), 'tone' => 'maiic'],
-                ['label' => 'Largest Linked Group', 'value' => $top ? $top->coop : '—', 'tone' => 'amber'],
+                ['label' => 'Largest Linked Group', 'value' => $top ? $top->coop : '-', 'tone' => 'amber'],
                 ['label' => 'Largest Group Exposure', 'value' => $this->money($top->ead ?? 0), 'tone' => 'rose'],
                 ['label' => 'Contagion Loss (top group defaults)', 'value' => $this->money(max(0, $contagion)), 'tone' => 'rose'],
             ],
@@ -1015,7 +1255,7 @@ class Ifrs9ReportsController extends Controller
             'controls' => [
                 'action' => 'ifrs9-reports.concentration',
                 'fields' => [
-                    ['name' => 'threshold', 'label' => 'Large-exposure threshold (MWK)', 'value' => (string) $threshold],
+                    ['name' => 'threshold', 'label' => trim('Large-exposure threshold ' . (($c = ReportDownload::currency()) ? '(' . $c . ')' : '')), 'value' => (string) $threshold],
                 ],
             ],
             'kpis' => [
@@ -1036,7 +1276,7 @@ class Ifrs9ReportsController extends Controller
     }
 
     /* ===================================================================== */
-    /*  Stress Testing — interactive                                         */
+    /*  Stress Testing, interactive                                         */
     /* ===================================================================== */
 
     /**
@@ -1137,7 +1377,7 @@ class Ifrs9ReportsController extends Controller
         $story[] = $cov > 0.15
             ? "Overall coverage is conservative relative to the book's risk profile."
             : "Management should confirm coverage adequately reflects forward-looking risk and any required overlays.";
-        $story[] = "This commentary is auto-generated from the calculated ECL data and supports — not replaces — "
+        $story[] = "This commentary is auto-generated from the calculated ECL data and supports, not replaces, "
             . "management and audit judgement.";
 
         return $this->respond(['key' => 'ai-narrative', 'period' => $period,
@@ -1353,6 +1593,7 @@ class Ifrs9ReportsController extends Controller
             'title'        => $title,
             'subtitle'     => $subtitle,
             'company'      => $this->company(),
+            'currency'     => ReportDownload::currency(),
             'generated_at' => now()->format('d M Y H:i'),
             'generated_by' => optional(auth()->user())->name,
             'periods'      => $this->periods(),
@@ -1364,20 +1605,22 @@ class Ifrs9ReportsController extends Controller
             $report['subtitle'] = $subtitle;
         }
 
-        $filename = 'IFRS9-' . $report['key'] . '-' . ($report['period'] ?? 'all');
-
-        if (request()->query('download') === 'pdf') {
-            return Pdf::loadView('reports.ifrs9.report', ['report' => $report])
-                ->setPaper('a4', 'landscape')
-                ->download($filename . '.pdf');
+        if ($this->collecting) {
+            return $report;
         }
 
-        if (request()->query('download') === 'xlsx') {
-            return \Maatwebsite\Excel\Facades\Excel::download(
-                new \App\Exports\Ifrs9ReportExport($report),
-                $filename . '.xlsx'
-            );
+        // The hub group the report sits in, so "Back to reports" reopens it.
+        $report['tab'] = collect($this->hub())
+            ->first(fn ($cat) => collect($cat['reports'])->contains(fn ($t) => $t['key'] === $report['key'] || in_array($report['key'], $t['absorbs'] ?? [], true)))['key'] ?? null;
+
+        $filename = 'MAIIC-' . $report['key'] . '-' . ($report['period'] ?? 'all');
+
+        $format = request()->query('download');
+        if (in_array($format, ['pdf', 'xlsx', 'csv'], true)) {
+            return ReportDownload::respond($report, $filename, $format);
         }
+
+        unset($report['sheets']);
 
         return Inertia::render('Reports/Ifrs9/Report', ['report' => $report]);
     }

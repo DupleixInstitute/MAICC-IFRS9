@@ -1,269 +1,103 @@
 <template>
     <app-layout>
-            <template #header>
-            <div class="flex justify-between items-center">
-                  <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                      Cummulative Loss Given Default
-                      <HelpManual />
-                  </h2>
-
-                  <div class="flex space-x-2 mt-2">
-                      <!-- Calculate -->
-                      <Link
-                          :href="route('lgd-cummulative.create')"
-                          class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
-                      >
-                         <i class="fa fa-calculator mr-2" aria-hidden="true"></i>
-                          Calculate LGD
-                  </Link>
-
-                      <!-- Get Report -->
-                      <button
-                          @click="openReportModal"
-                          class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
-                      >
-                          <i class="fas fa-file-archive mr-2"></i>
-                          Get Report
-                      </button>
-                  </div>
-              </div>
+        <template #header>
+            <div>
+                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                    <span>IFRS 9 Model Setup</span><span>/</span><span>LGD Model</span><span>/</span><span class="font-medium text-maiic-700">Cumulative LGD</span>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800">Cumulative LGD</h2>
+                <p class="mt-1 text-sm text-gray-600">Monthly LGD runs combined over many windows, by portfolio or sector</p>
+            </div>
+        </template>
+        <template #actions>
+            <button type="button" class="secondary-btn" @click="openReportModal">Get report</button>
+            <Link :href="route('lgd-cummulative.create')" class="primary-btn">Calculate LGD</Link>
         </template>
 
-          
-    <form @submit.prevent="applyFilters" class="grid grid-cols-6 gap-4">
-        <!-- Search -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Calculation Level</label>
-              <select
-                  v-model="filters.lgd_calculation_level"
-                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
-              >
-                  <option value="">All</option>
-                  <option value="portfolio">Portfolio</option>
-                  <option value="sector">Sector</option>
+    <div class="w-full space-y-4">
+      <div class="maiic-panel">
+        <div class="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900">Cumulative LGD runs</h3>
+            <p class="text-xs text-gray-500">{{ lgdCummulatives.total ?? lgdCummulatives.data.length }} run(s). A closed run is locked for use in the ECL; amounts in MWK.</p>
+          </div>
+          <form class="flex flex-wrap items-end gap-2" @submit.prevent="applyFilters">
+            <label class="block"><span class="maiic-flabel">Level</span>
+              <select v-model="filters.lgd_calculation_level" class="maiic-select !w-36">
+                <option value="">All</option>
+                <option value="portfolio">Portfolio</option>
+                <option value="sector">Sector</option>
               </select>
+            </label>
+            <label class="block"><span class="maiic-flabel">From</span><input v-model="startDate" type="month" class="maiic-input !w-40" /></label>
+            <label class="block"><span class="maiic-flabel">To</span><input v-model="endDate" type="month" class="maiic-input !w-40" /></label>
+            <button type="submit" class="secondary-btn">Apply</button>
+            <button type="button" class="secondary-btn" @click="resetFilters">Reset</button>
+          </form>
         </div>
-
-        <!-- Start Date -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-            <input
-                  v-model="startDate"
-                  type="month"
-                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
-              />
+        <div class="maiic-table-wrap overflow-x-auto">
+          <table class="maiic-table">
+            <thead>
+              <tr>
+                <th>Window</th>
+                <th>Segment</th>
+                <th class="num">LGD %</th>
+                <th class="num">Cure rate %</th>
+                <th class="num">Recovery rate %</th>
+                <th class="num">Stage 3 balance, start / end</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="lgdC in lgdCummulatives.data" :key="lgdC.id">
+                <td class="whitespace-nowrap" :title="'Created ' + formatDate(lgdC.created_at) + (lgdC.created_by ? ' by ' + lgdC.created_by : '')">{{ formatDate(lgdC.start_period) }} to {{ formatDate(lgdC.reporting_period) }}</td>
+                <td>
+                  <span class="maiic-badge maiic-badge-grey">{{ lgdC.lgd_calculation_level ? lgdC.lgd_calculation_level.charAt(0).toUpperCase() + lgdC.lgd_calculation_level.slice(1) : '-' }}</span>
+                  <div class="mt-0.5 text-sm">
+                    <template v-if="lgdC.lgd_calculation_level === 'portfolio'">{{ lgdC.portfolio_group ? lgdC.portfolio_group.name : 'Portfolio ' + lgdC.lgd_calculation_id }}</template>
+                    <template v-else-if="lgdC.lgd_calculation_level === 'sector'">{{ lgdC.sector ? lgdC.sector.code + ' - ' + lgdC.sector.name : 'Sector ' + lgdC.lgd_calculation_code }}</template>
+                  </div>
+                </td>
+                <td class="num font-bold">{{ round(lgdC.lgd_cummulative * 100, 2) }}</td>
+                <td class="num">{{ round(lgdC.cure_rate_cummulative * 100, 2) }}</td>
+                <td class="num">{{ round(lgdC.recovery_rate_cummulative * 100, 2) }}</td>
+                <td class="num whitespace-nowrap">{{ formatCurrency(lgdC.start_total_stage3) }}<div class="text-xs text-gray-500">{{ formatCurrency(lgdC.end_total_stage3) }}</div></td>
+                <td class="whitespace-nowrap">{{ lgdC.calculation_source === 'manual' ? 'Manual' : 'System' }}</td>
+                <td><span class="maiic-badge" :class="lgdC.is_active_or_closed === 'closed' ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ lgdC.is_active_or_closed === 'closed' ? 'Closed' : 'Active' }}</span></td>
+                <td>
+                  <div class="flex flex-nowrap justify-end gap-1.5">
+                    <button v-if="lgdC.calculation_source === 'system'" type="button" class="maiic-action maiic-action-view" title="Show the periods combined" @click="showPeriods(lgdC.periods_list)"><font-awesome-icon icon="calendar" /></button>
+                    <button v-if="lgdC.calculation_source === 'manual'" type="button" class="maiic-action maiic-action-neutral" title="Attach a supporting document" @click="openUploadModal(lgdC.id)"><font-awesome-icon icon="paperclip" /></button>
+                    <button v-if="lgdC.calculation_source === 'manual'" type="button" class="maiic-action maiic-action-neutral" :title="lgdC.has_supporting_document ? 'Download the supporting document' : 'No supporting document attached yet'" @click="downloadFile(lgdC.id)"><font-awesome-icon :icon="lgdC.has_supporting_document ? 'check-circle' : 'file-download'" /></button>
+                    <button type="button" class="maiic-action" :class="lgdC.is_active_or_closed === 'closed' ? 'maiic-action-edit' : 'maiic-action-view'" :disabled="loading === lgdC.id" :title="lgdC.is_active_or_closed === 'closed' ? 'Unlock this LGD' : 'Lock this LGD'" @click="lockLGD(lgdC.id)"><font-awesome-icon :icon="loading === lgdC.id ? 'spinner' : (lgdC.is_active_or_closed === 'closed' ? 'lock-open' : 'lock')" :spin="loading === lgdC.id" /></button>
+                    <button v-if="lgdC.is_active_or_closed === 'closed'" type="button" class="maiic-action maiic-action-neutral" :disabled="loading === lgdC.id" title="Update the loan book" @click="openUpdateModal(lgdC)"><font-awesome-icon icon="book" /></button>
+                    <button v-if="lgdC.is_active_or_closed === 'active'" type="button" class="maiic-action maiic-action-delete" :disabled="loading === lgdC.id" title="Delete this LGD run" @click="deleteLGD(lgdC.id)"><font-awesome-icon icon="trash" /></button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!lgdCummulatives.data.length">
+                <td colspan="9" class="maiic-empty">No cumulative LGD runs yet. Use <strong>Calculate LGD</strong> at the top right to build one from the monthly runs.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-
-        <!-- End Date -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-            <input
-                v-model="endDate"
-                type="month"
-                class="w-full border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500"
-            />
+        <div v-if="lgdCummulatives.links && lgdCummulatives.links.length > 3" class="border-t border-gray-100 px-4 pb-4">
+          <Pagination :links="lgdCummulatives.links" />
         </div>
-
-        <!-- Buttons -->
-        <div class="flex items-end space-x-2">
-            <button
-                type="submit"
-                class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700"
-            >
-                Apply Filters
-            </button>
-            <button
-                type="button"
-                @click="resetFilters"
-                class="bg-gray-800 text-gray-100 px-4 py-2 rounded hover:bg-gray-500"
-            >
-                Reset
-            </button>
-        </div>
-    </form>
-
-  <div class="overflow-y-auto mt-6">
-    <div class="bg-white shadow-md rounded-lg">
-      <table class="maiic-table">
-        <thead class="bg-gray-200">
-        <tr>
-            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Reporting Period</th>
-            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">LGD Level</th>
-            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Segmentation</th>
-            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">LGD %</th>
-            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Cure Rate %</th>
-            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Recovery Rate %</th>
-            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Calculated</th>
-            <th scope="col" class="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-            <th scope="col" class="px-3 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Balance-Start</th>
-            <th scope="col" class="px-3 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Balance-End</th>
-            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Created By</th>
-            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Created On</th>
-            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading">
-            <td colspan="15" class="px-6 py-4 text-center text-gray-500">Loading data...</td>
-          </tr>
-          <tr v-else-if="lgdCummulatives.data.length === 0">
-            <td colspan="15" class="px-6 py-4 text-center text-gray-500">No Cummulative Loss-Given-Default found.</td>
-          </tr>
-           <tr v-for="lgdC in lgdCummulatives.data" :key="lgdC.id">
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{formatDate(lgdC.start_period)}} - {{formatDate(lgdC.reporting_period)}}</td>
-            <td class="whitespace-nowrap">
-                <span class="px-2 py-1 text-xs font-semibold rounded-full"
-                        :class="{
-                            'bg-maiic-100 text-maiic-800': lgdC.lgd_calculation_level === 'portfolio',
-                            'bg-amber-100 text-amber-800': lgdC.lgd_calculation_level === 'sector'
-                        }">
-                    {{ lgdC.lgd_calculation_level ? lgdC.lgd_calculation_level.toUpperCase() : '-' }}
-                </span>
-            </td>       
-
-            <!-- Portfolio/Sector Name -->
-            <td class="whitespace-nowrap">
-                <div v-if="lgdC.lgd_calculation_level === 'portfolio'">
-                    <span v-if="lgdC.portfolio_group">
-                        {{ lgdC.portfolio_group.name }}
-                    </span>
-                    <span v-else class="text-gray-400">
-                        Portfolio ID: {{lgdC.lgd_calculation_id }}
-                    </span>
-                </div>
-                <div v-else-if="lgdC.lgd_calculation_level === 'sector'">
-                    <span v-if="lgdC.sector">
-                        {{ lgdC.sector.code }} - {{ lgdC.sector.name }}
-                    </span>
-                    <span v-else class="text-gray-400">
-                        Sector Code: {{ lgdC.lgd_calculation_code }}
-                    </span>
-                </div>
-                <span v-else class="text-gray-400">-</span>
-            </td>
-            
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{round((lgdC.lgd_cummulative * 100),2)}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{round((lgdC.cure_rate_cummulative * 100),2)}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{round((lgdC.recovery_rate_cummulative * 100),2)}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{lgdC.calculation_source}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-                 <span
-                    class="px-2 py-1 rounded-full text-xs font-semibold"
-                    :class="{
-                      'bg-red-100 text-red-700': lgdC.is_active_or_closed === 'closed',
-                      'bg-maiic-100 text-maiic-700': lgdC.is_active_or_closed === 'active'
-                    }"
-                  >
-                    {{ lgdC.is_active_or_closed === 'closed' ? 'Closed' : 'Active' }}
-                  </span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-600">{{formatCurrency(lgdC.start_total_stage3)}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-gray-600">{{formatCurrency(lgdC.end_total_stage3)}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{lgdC.created_by}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{formatDate(lgdC.created_at)}}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600 flex space-x-2">
-            <!-- <button
-            v-if="lgd.calculation_source === 'manual'"
-            @click="editLGD(lgd.id)"
-            class="text-maiic-600 hover:text-maiic-800 transition-colors"
-            aria-label="Edit LGD"
-          >
-            <i class="fas fa-pencil"></i>
-          </button> -->
-            <button  
-            v-if="lgdC.calculation_source === 'system'"
-            @click="showPeriods(lgdC.periods_list)"  class="text-brown-600 hover:text-brown-800" title="Show Periods">
-            <i class="fas fa-eye"></i>
-            </button>
-
-              <button 
-                v-if="lgdC.calculation_source === 'manual'"
-                @click="openUploadModal(lgdC.id)" 
-                class="text-gray-700 hover:text-amber-900 transition-colors"
-                aria-label="Attach File"
-                title="Attach File"
-              >
-                <i class="fas fa-paperclip"></i>
-              </button>
-
-             <button 
-                v-if="lgdC.calculation_source === 'manual'"
-                @click="lgdC.has_supporting_document ? downloadFile(lgdC.id) : downloadFile(lgdC.id)"
-                :class="[
-                  lgdC.has_supporting_document 
-                    ? 'text-maiic-600 hover:text-maiic-800' 
-                    : 'text-amber-600 hover:text-amber-800'
-                ]"
-                :title="lgdC.has_supporting_document ? 'Download Support Doc' : 'Attach Support Doc First'"
-              >
-                <i v-if="lgdC.has_supporting_document" class="fas fa-check-circle"></i>
-                <i v-else class="fas fa-file-download"></i>
-              </button>
-
-          <!-- Locked State (Closed) -->
-          <button
-            v-if="lgdC.is_active_or_closed === 'closed'"
-            @click="lockLGD(lgdC.id)"
-            :disabled="loading === lgdC.id"
-            class="text-red-600 hover:text-red-800"
-            title="Unlock LGD"
-          >
-            <i v-if="loading !== lgdC.id" class="fas fa-lock"></i>
-            <svg v-else class="animate-spin h-5 w-5 text-red-600" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-            </svg>
-          </button>
-
-          <!-- Active State -->
-          <button
-            v-else
-            @click="lockLGD(lgdC.id)"
-            :disabled="loading === lgdC.id"
-            class="text-maiic-600 hover:text-maiic-800"
-            title="Lock LGD"
-          >
-            <i v-if="loading !== lgdC.id" class="fas fa-lock-open"></i>
-            <svg v-else class="animate-spin h-5 w-5 text-maiic-600" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-            </svg>
-          </button>
-
-            <button v-if="lgdC.is_active_or_closed === 'closed'"
-            @click="openUpdateModal(lgdC)" 
-            :disabled="loading === lgdC.id"  
-                class="text-maiic-600 hover:text-maiic-800" 
-                title="Update Loan Book"
-            >
-                <i v-if="loading !==lgdC.id" class="fas fa-book"></i>
-            </button>
-
-              <button v-if="lgdC.is_active_or_closed === 'active'"
-               @click="deleteLGD(lgdC.id)" 
-               :disabled="loading === lgdC.id"
-               title="Delete LGD"
-               class="text-red-600 hover:text-red-800">
-                <i class="fas fa-trash"></i>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      </div>
     </div>
-  </div>
 
-  <!-- Pagination -->
-  <Pagination :links="lgdCummulatives.links" />
 
-       <div 
-          v-if="periodsModalVisible" 
+       <div
+          v-if="periodsModalVisible"
           class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
           >
               <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-                  <h2 class="text-lg font-bold mb-4">Periods List</h2> 
-                  <button 
-                  @click="periodsModalVisible = false" 
+                  <h2 class="text-lg font-bold mb-4">Periods List</h2>
+                  <button
+                  @click="periodsModalVisible = false"
                   class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
                   >
                   Close
@@ -290,24 +124,24 @@
             <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
                 <h2 class="text-lg font-bold mb-4">Update Loan Book Period</h2>
                 <p class="mb-4">
-                Select the reporting period to update loan books for 
+                Select the reporting period to update loan books for
                 </p>
 
                 <!-- Reporting Period -->
                 <label for="period" class="block mb-2 text-sm font-medium text-gray-700">Reporting Period</label>
-                <input 
-                type="month" 
-                v-model="selectedPeriod" 
-                id="period" 
+                <input
+                type="month"
+                v-model="selectedPeriod"
+                id="period"
                 class="border-gray-300 rounded-md shadow-sm w-full mb-4"
                 >
 
 
                 <!--  Customer LGD Toggle -->
                 <div class="flex items-center mb-6">
-                <input 
-                    id="include_customer_lgd" 
-                    type="checkbox" 
+                <input
+                    id="include_customer_lgd"
+                    type="checkbox"
                     v-model="includeCustomerLGD"
                     class="h-4 w-4 text-maiic-600 border-gray-300 rounded focus:ring-maiic-500"
                 >
@@ -316,15 +150,15 @@
                 </label>
                 </div>
                 <div class="flex justify-end space-x-2">
-                <button 
-                    @click="showModal = false" 
+                <button
+                    @click="showModal = false"
                     class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
                 >
                     Cancel
                 </button>
 
-                <button 
-                    @click="submitUpdate" 
+                <button
+                    @click="submitUpdate"
                     class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                     :disabled="loading === selectedLGD?.id"
                 >
@@ -345,7 +179,7 @@
     </h2>
 
     <p class="text-sm text-gray-600 mb-4 leading-relaxed">
-      Upload a supporting document for this manual calculation.  
+      Upload a supporting document for this manual calculation.
       This may include PDF reports, Excel models, or images validating the manual calcultion.
     </p>
 
@@ -371,7 +205,7 @@
       v-if="uploadFile"
       class="mt-4 p-3 bg-maiic-50 border border-maiic-200 rounded-lg text-sm text-maiic-800"
     >
-      <strong>Selected File:</strong> {{ uploadFile.name }}  
+      <strong>Selected File:</strong> {{ uploadFile.name }}
       <div class="text-xs mt-1 text-maiic-600">
         Size: {{ Math.round(uploadFile.size / 1024) }} KB
       </div>
@@ -379,7 +213,7 @@
 
     <!-- Max Size & Accepted Formats Note -->
     <div class="mt-3 text-xs text-gray-500">
-      <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG  
+      <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
       <br />
       <strong>Max Size:</strong> 5 MB
     </div>
@@ -405,7 +239,7 @@
   </div>
 </div>
 
-        
+
 <div
     v-if="showReportModal"
     class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
@@ -458,10 +292,13 @@
     </div>
 </div>
 
+    <HelpManual />
     </app-layout>
 </template>
 
 <script>
+import { confirmDialog } from '@/Components/confirmDialog'
+import { notice } from '@/Components/Maiic/notice'
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -524,7 +361,7 @@ export default {
                 filters.value.end_date = '';
                 applyFilters();
             };
-        
+
         const round = (value, decimals = 2) => {
             if (value === null || value === undefined) return '-';
             return Number(Math.round(parseFloat(value + 'e' + decimals)) + 'e-' + decimals).toFixed(decimals);
@@ -538,14 +375,14 @@ export default {
             });
         };
 
-        const lockLGD = (id) => {
-            if (confirm('Are you sure you want to change the lock status of this LGD?')) {
+        const lockLGD = async (id) => {
+            if (await confirmDialog({ title: 'Change the lock on this LGD?', message: 'A closed (locked) LGD is the one the ECL uses; an active run can still change.', confirmLabel: 'Change lock' })) {
                 loading.value = id;
                 router.post(`/loss-given-default/cummulative/${id}/lock`, {}, {
                     preserveScroll: true,
                     onFinish: () => { loading.value = null; },
                     onSuccess: () => { router.reload({ only: ['lgdCummulatives'] }); },
-                    onError: () => { alert('Something went wrong. Please try again.'); },
+                    onError: () => { notice('Something went wrong. Please try again.'); },
                 });
             }
         };
@@ -562,7 +399,7 @@ export default {
 
         const submitUpload = () => {
             if (!uploadFile.value) {
-                alert('Please select a file first.');
+                notice('Please select a file first.');
                 return;
             }
 
@@ -576,14 +413,13 @@ export default {
                 preserveScroll: true,
 
                 onSuccess: () => {
-                    alert(' File attached successfully');
                     showUploadModal.value = false;
                     router.reload({ only: ['lossGivenDefaults'] });
                 },
 
                 onError: (errors) => {
                     console.error(errors);
-                    alert(' Upload failed');
+                    notice('Upload failed', 'The file could not be attached.', 'danger');
                 },
 
                 onFinish: () => {
@@ -605,7 +441,7 @@ export default {
 
         const submitUpdate = () => {
             if (!selectedPeriod.value) {
-                alert('Please select a period.');
+                notice('Please select a period.');
                 return;
             }
 
@@ -625,12 +461,12 @@ export default {
                     router.reload({ only: ['lgdCummulatives'] });
                 },
                 onError: () => {
-                    alert('Something went wrong. Please try again.');
+                    notice('Something went wrong. Please try again.');
                 },
             });
         };
 
-      
+
 
         const showPeriods = (periods) => {
         console.log('Periods list data:', JSON.parse(JSON.stringify(periods)));
@@ -642,19 +478,19 @@ export default {
             try {
             parsedPeriods = JSON.parse(periods)
             } catch (e) {
-            alert('Could not parse periods JSON.')
+            notice('Could not parse periods JSON.')
             return
             }
         }
 
         // Check for null or not array
         if (!Array.isArray(parsedPeriods)) {
-            alert('Periods data is not an array.')
+            notice('Periods data is not an array.')
             return
         }
 
         // parsedPeriods is an array
-            const monthNames = ["January", "February", "March", "April", "May", "June", 
+            const monthNames = ["January", "February", "March", "April", "May", "June",
                             "July", "August", "September", "October", "November", "December"];
 
             currentPeriods.value = parsedPeriods.map(p => {
@@ -674,15 +510,15 @@ export default {
         //     router.get(`/loss-given-default/${id}/edit`);
         // };
 
-        const deleteLGD = (id) => {
-            if (confirm('Are you sure?')) {
+        const deleteLGD = async (id) => {
+            if (await confirmDialog({ title: 'Delete this LGD run?', message: 'The run and its figures are removed. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' })) {
                 router.delete(`/loss-given-default/cummulative/${id}/delete`, {
                     preserveScroll: true,
                     onSuccess: () => {
                         router.reload({ only: ['lgdCummulatives'] });
                     },
                     onError: () => {
-                        alert('Something went wrong. Please try again.');
+                        notice('Something went wrong. Please try again.');
                     },
                 });
             }
@@ -701,13 +537,13 @@ export default {
 
       const downloadReport = () => {
         if (!reportStartPeriod.value || !reportEndPeriod.value) {
-            alert('Please select both start and end periods.');
+            notice('Please select both start and end periods.');
             return;
         }
 
         // Optional: check that start <= end
         if (reportStartPeriod.value > reportEndPeriod.value) {
-            alert('Start period cannot be after end period.');
+            notice('Start period cannot be after end period.');
             return;
         }
 

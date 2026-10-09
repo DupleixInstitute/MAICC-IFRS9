@@ -23,7 +23,7 @@ class RegressionController extends Controller
     {
         $models = RegressionModel::with(['portfolio', 'dependentVariable', 'creator'])
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
 
         return Inertia::render('Regression/Index', [
             'models' => $models,

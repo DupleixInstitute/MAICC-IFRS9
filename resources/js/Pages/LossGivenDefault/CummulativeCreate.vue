@@ -7,7 +7,7 @@
         </template>
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="w-full">
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
                     <form @submit.prevent="submitForm">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -99,6 +99,7 @@
     </app-layout>
 </template>
 <script>
+import { confirmDialog } from '@/Components/confirmDialog'
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -144,9 +145,9 @@ const toggleModal = () => {
     if (form.calculation_source === 'manual') {
         // Pre-fill modal with current form values
         defaultManualValues.value = { ...form };
-        selectedLGD.value = { 
+        selectedLGD.value = {
             ...form,
-            mode: form.mode || 'amount'  
+            mode: form.mode || 'amount'
         };
         isUpdateMode.value = true;
         showModal.value = true;
@@ -164,8 +165,8 @@ const submitForm = () => {
 
 
 
-const deleteLGD = (id) => {
-    if (confirm('Are you sure you want to delete this Loss Given Default?')) {
+const deleteLGD = async (id) => {
+    if (await confirmDialog({ title: 'Are you sure you want to delete this Loss Given Default?', confirmLabel: 'Delete', tone: 'danger' })) {
         router.delete(route('lgd-cummulative.delete', id));
     }
 };

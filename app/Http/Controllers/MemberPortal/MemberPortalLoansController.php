@@ -37,7 +37,7 @@ class MemberPortalLoansController extends Controller
             ->filter(\request()->only('search', 'member_id', 'loan_category_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'))
             ->where('member_id', session('member_id'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Loans/Index', [
             'filters' => \request()->all('search', 'member_id', 'loan_category_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'),
             'loans' => $loans,

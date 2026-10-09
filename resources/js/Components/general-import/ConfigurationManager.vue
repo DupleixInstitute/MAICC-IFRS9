@@ -281,6 +281,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
+import { confirmDialog } from '@/Components/confirmDialog'
 import $ from 'jquery'
 
 export default {
@@ -380,7 +381,7 @@ export default {
     }
 
     const deleteConfiguration = async (config) => {
-      if (!confirm('Are you sure you want to delete this configuration?')) return
+      if (!(await confirmDialog({ title: 'Delete this configuration?', message: 'The column mapping is removed from the template. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' }))) return
 
       try {
         await axios.delete(

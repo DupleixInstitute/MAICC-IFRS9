@@ -1,108 +1,87 @@
 <template>
-  <div class="overflow-x-auto mt-6">
-    <div class="bg-white shadow-md rounded-lg">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-200">
+  <div class="maiic-panel">
+    <div class="border-b border-gray-200 px-5 py-4">
+      <h3 class="font-semibold text-gray-900">Transition profiles</h3>
+      <p class="text-xs text-gray-500">{{ total }} profile(s). A profile says which table and column hold the grade at the start and end of each period.</p>
+    </div>
+    <div class="maiic-table-wrap overflow-x-auto">
+      <table class="maiic-table">
+        <thead>
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Id</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profile Code</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Short Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Table</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Column</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Col Type</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Table</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Column</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Col Type</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created On</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th>Profile code</th>
+            <th>Short name</th>
+            <th>Start of period</th>
+            <th>End of period</th>
+            <th>Customer key</th>
+            <th>Weighted by</th>
+            <th>Created</th>
+            <th class="text-right">Actions</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr
-            v-for="profile in profiles"
-            :key="profile.id"
-            class="hover:bg-gray-50 transition duration-200"
-          >
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.id }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.profile_code }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.short_name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.start_table }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.start_grading_col }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.start_value_type }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.end_table }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.end_grading_col }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ profile.end_value_type }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ formatDate(profile.created_at) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600 flex space-x-2">
-              <button @click="editProfile(profile.id)" class="text-maiic-600 hover:text-maiic-800">
-                <i class="fas fa-pencil"></i>
-              </button>
-              <button @click="configProfile(profile.id)" class="text-maiic-600 hover:text-maiic-800">
-                <i class="fas fa-cog"></i>
-              </button>
-              <button @click="deleteProfile(profile.id)" class="text-red-600 hover:text-red-800">
-                <i class="fas fa-trash"></i>
-              </button>
+        <tbody>
+          <tr v-for="profile in rows" :key="profile.id">
+            <td class="font-semibold text-gray-900">{{ profile.profile_code }}</td>
+            <td>{{ profile.short_name }}<div v-if="profile.description && profile.description !== profile.short_name" class="text-xs text-gray-500">{{ profile.description }}</div></td>
+            <td><span class="font-mono text-xs">{{ profile.start_table }}.{{ profile.start_grading_col }}</span><div class="text-xs text-gray-500">{{ profile.start_value_type }}</div></td>
+            <td><span class="font-mono text-xs">{{ profile.end_table }}.{{ profile.end_grading_col }}</span><div class="text-xs text-gray-500">{{ profile.end_value_type }}</div></td>
+            <td class="font-mono text-xs">{{ profile.start_client_id_col || '-' }}</td>
+            <td>{{ profile.aggregation_criteria || '-' }}</td>
+            <td class="whitespace-nowrap">{{ formatDate(profile.created_at) }}</td>
+            <td>
+              <div class="flex justify-end gap-1.5">
+                <button type="button" class="maiic-action maiic-action-edit" title="Edit profile" @click="editProfile(profile.id)"><font-awesome-icon icon="pen" /></button>
+                <button type="button" class="maiic-action maiic-action-view" title="Configure the grade mapping" @click="configProfile(profile.id)"><font-awesome-icon icon="cog" /></button>
+                <button type="button" class="maiic-action maiic-action-delete" title="Delete profile" @click="deleteProfile(profile)"><font-awesome-icon icon="trash" /></button>
+              </div>
             </td>
+          </tr>
+          <tr v-if="!rows.length">
+            <td colspan="8" class="maiic-empty">No transition profiles yet. Use <strong>Create profile</strong> at the top right to add one.</td>
           </tr>
         </tbody>
       </table>
+    </div>
+    <div v-if="profiles && profiles.links && profiles.links.length > 3" class="border-t border-gray-100 px-4 pb-4">
+      <Pagination :links="profiles.links" />
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
-import '@fortawesome/fontawesome-free/css/all.css';
-
+import { confirmDialog } from '@/Components/confirmDialog';
 
 export default {
-  setup() {
-    const profiles = ref([]);
-
-    const fetchProfiles = async () => {
-      try {
-        const response = await axios.get('/api/transition-profiles');
-        profiles.value = response.data.data || response.data; // adjust depending on your API
-      } catch (error) {
-        console.error('Failed to fetch profiles:', error);
-      }
-    };
-
-    const formatDate = (dateStr) => {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
-    };
-
-    const editProfile = (id) => {
+  props: {
+    // Paginated profiles from the page (15 a page).
+    profiles: { type: Object, default: () => ({ data: [], links: [] }) },
+  },
+  computed: {
+    rows() { return (this.profiles && this.profiles.data) || [] },
+    total() { return this.profiles?.total ?? this.rows.length },
+  },
+  methods: {
+    formatDate(dateStr) {
+      return dateStr ? String(dateStr).slice(0, 10) : '-';
+    },
+    editProfile(id) {
       router.get(`/transition-profiles/${id}/edit`);
-    };
-
-    const configProfile = (id) => {
+    },
+    configProfile(id) {
       router.get(`/transition-profiles/${id}/config`);
-    };
-
-    const deleteProfile = (id) => {
-      if (confirm('Are you sure you want to delete this profile?')) {
-        router.delete(`/transition-profiles/delete/${id}`);
-      }
-    };
-
-    onMounted(fetchProfiles);
-
-    return {
-      profiles,
-      formatDate,
-      editProfile,
-      configProfile,
-      deleteProfile,
-    };
+    },
+    async deleteProfile(profile) {
+      if (!(await confirmDialog({
+        title: `Delete profile ${profile.profile_code}?`,
+        message: 'The transition profile is removed. Matrices already built from it are kept. This cannot be undone.',
+        confirmLabel: 'Delete',
+        tone: 'danger',
+      }))) return;
+      // The endpoint answers JSON, so call it directly and reload the list.
+      await axios.delete(`/transition-profiles/delete/${profile.id}`);
+      router.reload({ only: ['profiles'] });
+    },
   },
 };
 </script>

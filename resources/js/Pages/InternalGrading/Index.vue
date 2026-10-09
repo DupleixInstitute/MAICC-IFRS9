@@ -1,26 +1,19 @@
 <template>
     <app-layout>
         <template #header>
-            <div class="flex justify-between items-center">
-                <div>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                        Internal Grading Profiles
-                    </h2>
-                    <p class="text-sm text-gray-500">
-                        Configure internal grades and PD term structures
-                    </p>
+            <div>
+                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                    <span>IFRS 9 Model Setup</span><span>/</span><span>PD Model</span><span>/</span><span class="font-medium text-maiic-700">Internal Grades</span>
                 </div>
-
-                <button
-                    @click="showModal = true"
-                    class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow transition"
-                >
-                    + New Profile
-                </button>
+                <h2 class="text-xl font-semibold text-gray-800">Internal Grades</h2>
+                <p class="mt-1 text-sm text-gray-600">Internal grading profiles: the grades and the PD term structure for each</p>
             </div>
         </template>
+        <template #actions>
+            <button type="button" class="primary-btn" @click="showModal = true">New profile</button>
+        </template>
 
-        <div class="py-12 max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="w-full">
             <div v-if="profiles && profiles.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div
                     v-for="profile in profiles"
@@ -94,7 +87,7 @@
                             >
                                 +{{ profile.mappings.length - 5 }}
                             </span>
-                            
+
                         </div>
 
                         <!-- Footer -->
@@ -131,7 +124,7 @@
                         d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m4 0h-2a2 2 0 01-2-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 01-2 2H5m14 0v1a2 2 0 01-2 2H7a2 2 0 01-2-2v-1m14 0H5" />
                 </svg>
                 <p class="text-lg font-semibold">No grading profiles yet</p>
-                <p class="text-sm text-gray-500">Click the button above to create your first profile</p>
+                <p class="text-sm text-gray-500">Use New profile at the top right to create the first one.</p>
             </div>
         </div>
 
@@ -318,7 +311,7 @@ import '@fortawesome/fontawesome-free/css/all.css';
 defineProps(
     { profiles: Array,
         portfolios: Array,
-        sectors: Array  
+        sectors: Array
     }
      )
 

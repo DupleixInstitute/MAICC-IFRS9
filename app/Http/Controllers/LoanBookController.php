@@ -83,13 +83,15 @@ class LoanBookController extends Controller
             $query->where('loan_portfolio_id', $request->input('portfolio'));
         }
 
-        $loanBooks = $query->paginate(10)->withQueryString();
+        $loanBooks = $query->paginate(15)->withQueryString();
 
         return Inertia::render('LoanBooks/Index', [
             'loanBooks' => $loanBooks,
             'filters' => $request->only(['search', 'year', 'month', 'stage', 'portfolio']),
             'portfolios' => LoanPortfolio::all(),
             'summary'   => $this->summary($request),
+            // the month-ends that hold loans, newest first, for the period picker
+            'periods'   => LoanBook::query()->select('reporting_period')->distinct()->orderByDesc('reporting_period')->pluck('reporting_period'),
 
         ]);
     }
@@ -222,7 +224,12 @@ class LoanBookController extends Controller
     public function downloadSample()
     {
         $headers = ['Content-Type' => 'text/csv'];
-        $columns = ['contract_id', 'external_identity_id', 'reporting_year', 'reporting_month', 'due_date', 'principal_balance'];
+        // The headers LoanBooksImport reads (its direct field mapping, after
+        // normalising: lower case, spaces and dashes to underscores). The
+        // portfolio and the reporting period are chosen on the screen.
+        $columns = ['customer_id', 'contract_id', 'name', 'type', 'industry_code', 'industry_type', 'internal_grade',
+            'value_date', 'maturity_date', 'tenor', 'interest_rate', 'approved_amount', 'disbursed', 'principal',
+            'carrying_amount', 'repayments', '1-30 Days', '31-90 Days', '91-180 Days', '181-270 Days'];
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
@@ -230,7 +237,7 @@ class LoanBookController extends Controller
             fclose($file);
         };
 
-        return response()->stream($callback, 200, $headers)->header('Content-Disposition', 'attachment; filename="loan_book_sample.csv"');
+        return response()->streamDownload($callback, 'loan_book_sample.csv', $headers);
     }
 
     public function store(Request $request)
@@ -519,6 +526,8 @@ class LoanBookController extends Controller
 
         return Inertia::render('LoanBooks/Import', [
             'portfolios' => LoanPortfolio::all(),
+            'recentImports' => Import::orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
+            'importCount' => Import::count(),
             'availableFields'   => array_keys($fields),
             'fieldDescriptions' => $fields,
         ]);

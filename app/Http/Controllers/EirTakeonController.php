@@ -62,6 +62,9 @@ class EirTakeonController extends Controller
             'load' => $load ? ['id' => $load->id, 'pack' => $load->pack_name, 'status' => $load->status, 'loaded_at' => $load->loaded_at, 'manifest' => json_decode($load->manifest, true), 'summary' => (json_decode($load->gates, true) ?? [])['summary'] ?? []] : null,
             'blocks' => $blocks, 'population' => $population, 'basisInForce' => $basis,
             'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
+            // the view the section tab opened (config/menu.php) and the count on each tab
+            'tab' => request('tab') === 'population' ? 'population' : 'blocks',
+            'tabCounts' => ['blocks' => $blocks->count(), 'population' => $population->count()],
         ]);
     }
 

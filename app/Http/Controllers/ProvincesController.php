@@ -25,7 +25,7 @@ class ProvincesController extends Controller
     {
         $provinces = Province::filter(\request()->only('search'))
             ->with(['country'])
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Provinces/Index', [
             'filters' => \request()->all('search'),
             'provinces' => $provinces,

@@ -27,7 +27,7 @@ class EirFeeClassificationController extends Controller
 
         return Inertia::render('Eir/FeeClassification', [
             'fees' => $query->orderByRaw("CASE classification_status WHEN 'PENDING' THEN 1 WHEN 'CLASSIFIED' THEN 2 ELSE 3 END")
-                ->orderByDesc('id')->paginate(30)->withQueryString(),
+                ->orderByDesc('id')->paginate(15)->withQueryString(),
             'rules' => EirAccountingRule::where('active', true)->whereNotNull('approved_at')->orderBy('priority')->get(['id', 'name', 'proposed_integral']),
             'filters' => $request->only(['status', 'fee_type', 'contract_id']),
             'summary' => ContractFee::select('classification_status', DB::raw('COUNT(*) as line_count'), DB::raw('SUM(amount) as total_amount'))

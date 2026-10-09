@@ -149,6 +149,7 @@
 </template>
 
 <script>
+import { notice } from '@/Components/Maiic/notice'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetButton from '@/Jetstream/Button.vue'
 import JetInput from '@/Jetstream/Input.vue'
@@ -207,7 +208,7 @@ export default {
     methods: {
         submit() {
             if (!this.form.portfolio_id || !this.form.period || !this.form.definition_id) {
-                alert('Please fill in all required fields.');
+                notice('Please fill in all required fields.');
                 return;
             }
 
@@ -228,10 +229,10 @@ export default {
             }
         },
 
-        
+
         updateInputConfig() {
             const metricCode = this.selectedMetricCode;
-            
+
             const configs = {
                 'PD': {
                     type: 'number',

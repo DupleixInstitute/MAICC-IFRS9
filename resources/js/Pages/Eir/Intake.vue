@@ -22,7 +22,7 @@
             </div>
         </template>
 
-        <div class="max-w-6xl mx-auto space-y-6">
+        <div class="w-full space-y-6">
 
             <!-- Import card -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

@@ -39,7 +39,13 @@ class RolesController extends Controller
             'roles' => Role::when($search, fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
                     ->orWhere('display_name', 'like', '%' . $search . '%');
-            }))->paginate()->withQueryString(),
+            }))
+                // How many permissions and users each role has, for the list (read-only).
+                ->withCount('permissions')
+                ->addSelect(['users_count' => \Illuminate\Support\Facades\DB::table('model_has_roles')
+                    ->selectRaw('count(*)')->whereColumn('model_has_roles.role_id', 'roles.id')])
+                ->orderBy('display_name')
+                ->paginate(15)->withQueryString(),
         ]);
     }
 

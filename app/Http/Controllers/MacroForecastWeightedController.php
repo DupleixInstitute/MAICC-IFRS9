@@ -15,7 +15,7 @@ class MacroForecastWeightedController extends Controller
     public function index()
     {
         $forecasts = MacroForecastWeighted::with(['scenarioProfile', 'macroStatistic', 'reportingPeriod'])
-        ->paginate(10);
+        ->paginate(15);
         $profiles = ScenarioProfiles::all();
         $macroVariable = MacroStatsDefinition::all();
 

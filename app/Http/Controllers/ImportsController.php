@@ -22,10 +22,12 @@ class ImportsController extends Controller
     public function index()
     {
         $results = Import::filter(\request()->only('search'))
+            ->when(\request('status'), fn ($q, $status) => $q->where('status', $status))
             ->orderBy('id', 'desc')
-            ->paginate();
+            ->paginate(15)
+            ->withQueryString();
         return Inertia::render('Imports/Imports', [
-            'filters' => \request()->all('search', 'active'),
+            'filters' => \request()->all('search', 'status'),
             'results' => $results,
         ]);
     }

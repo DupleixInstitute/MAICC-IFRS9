@@ -25,7 +25,7 @@ class MemberPortalArticlesController extends Controller
 
         $articles = Article::filter(\request()->only('search', 'status'))->with(['category', 'createdBy', 'course'])
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Articles/Index', [
             'filters' => \request()->all('search', 'status', 'type'),
             'articles' => $articles,

@@ -3,6 +3,7 @@ import { ref, reactive } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import RichTextEditor from '@/Components/RichTextEditor.vue'
+import { confirmDialog } from '@/Components/confirmDialog'
 
 const props = defineProps({
     manual: { type: String, default: 'user' },
@@ -57,8 +58,8 @@ function save() {
     }
 }
 
-function removeArticle(article) {
-    if (!confirm(`Delete article "${article.title}"?`)) return
+async function removeArticle(article) {
+    if (!(await confirmDialog({ title: 'Delete this article?', message: `"${article.title}" is removed from the manual. This cannot be undone.`, confirmLabel: 'Delete', tone: 'danger' }))) return
     router.delete(route('help.manage.articles.destroy', article.id), { preserveScroll: true })
 }
 
@@ -69,8 +70,8 @@ function addChapter() {
     })
 }
 
-function removeChapter(category) {
-    if (!confirm(`Delete chapter "${category.title}" AND all its articles?`)) return
+async function removeChapter(category) {
+    if (!(await confirmDialog({ title: 'Delete this chapter?', message: `"${category.title}" and all of its articles are removed from the manual. This cannot be undone.`, confirmLabel: 'Delete chapter', tone: 'danger' }))) return
     router.delete(route('help.manage.categories.destroy', category.id), { preserveScroll: true })
 }
 
@@ -119,7 +120,7 @@ function currentImages() {
         </template>
 
         <div class="py-8">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="w-full px-4">
                 <div class="flex flex-col gap-6 lg:flex-row">
 
                     <!-- Chapters + articles tree -->

@@ -2,14 +2,18 @@
 <template>
   <app-layout>
     <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Manual Forecast Input
-      </h2>
+      <div>
+        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+          <span>IFRS 9 Model Setup</span><span>/</span><span>Forward-Looking Model</span><span>/</span><span class="font-medium text-maiic-700">Adjusted Forecast</span>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800">Adjusted Forecast</h2>
+        <p class="mt-1 text-sm text-gray-600">Enter a regression and scenario forecasts by hand to see the weighted credit-loss forecast</p>
+      </div>
     </template>
 
-    <div class="py-12">
-      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        
+    <div>
+      <div class="w-full">
+
         <!-- Debug Info (Optional - you can remove this later) -->
         <div class="mb-6 bg-amber-50 p-4 rounded-lg" v-if="showDebug">
           <h3 class="text-lg font-medium text-amber-800">Debug Info</h3>
@@ -29,7 +33,7 @@
               </div>
               <div class="ml-3">
                 <h3 class="text-sm font-medium text-red-800">
-                  There were errors with your submission
+                  The forecast could not be calculated
                 </h3>
                 <div class="mt-2 text-sm text-red-700">
                   <ul class="list-disc pl-5 space-y-1">
@@ -142,7 +146,7 @@
                 <div class="md:col-span-2">
                   <div class="bg-maiic-50 p-4 rounded-md">
                     <p class="text-sm font-medium text-maiic-800">
-                      <strong>Regression Equation:</strong> 
+                      <strong>Regression Equation:</strong>
                       {{ equationPreview }}
                     </p>
                   </div>
@@ -319,7 +323,7 @@
             <div class="mb-6">
               <div class="bg-maiic-50 p-4 rounded-md">
                 <p class="text-sm font-medium text-maiic-800">
-                  <strong>Regression Equation Used:</strong> 
+                  <strong>Regression Equation Used:</strong>
                   {{ $page.props.forecastResults.regression_equation }}
                 </p>
               </div>
@@ -479,7 +483,7 @@ function removeScenario(index) {
 function generateForecast() {
   console.log('Form data being sent:', JSON.stringify(form, null, 2))
   processing.value = true
-  
+
   router.post(route('forecasting.manual.process'), form, {
     onStart: () => {
       console.log('Request started')

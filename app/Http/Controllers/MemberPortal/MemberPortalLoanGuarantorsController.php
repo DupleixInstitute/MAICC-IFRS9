@@ -26,7 +26,7 @@ class MemberPortalLoanGuarantorsController extends Controller
         $guarantors = LoanProductScoringAttribute::with(['member'])
             ->where('loan_id', $loan->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Loans/Guarantors/Index', [
             'loan' => $loan,
             'guarantors' => $guarantors,

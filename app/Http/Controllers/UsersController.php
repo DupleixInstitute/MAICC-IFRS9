@@ -113,7 +113,7 @@ class UsersController extends Controller
         $users = User::with('roles')
             ->filter(\request()->only('search', 'role', 'gender'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Users/Index', [
             'filters' => \request()->all('search', 'role', 'gender'),
             'users' => $users,

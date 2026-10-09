@@ -16,7 +16,7 @@ class EclProjectionController extends Controller
         $rows=DB::table('ecl_cashflow_projections')->when($runId,fn($q)=>$q->where('run_id',$runId))
             ->when($search!=='',fn($q)=>$q->where('contract_id','like',"%{$search}%"))
             ->when($scenario!=='',fn($q)=>$q->where('scenario_code',$scenario))
-            ->orderBy('contract_id')->orderBy('scenario_code')->orderBy('period_index')->paginate(30)->withQueryString();
+            ->orderBy('contract_id')->orderBy('scenario_code')->orderBy('period_index')->paginate(15)->withQueryString();
         $contracts=$runId?DB::table('ecl_cashflow_projections')->where('run_id',$runId)->select('contract_id','ifrs9_stage')
             ->selectRaw('SUM(weighted_discounted_shortfall) weighted_ecl, SUM(undiscounted_shortfall * scenario_weight) undiscounted_ecl, MAX(discount_exponent) horizon')
             ->groupBy('contract_id','ifrs9_stage')->orderBy('contract_id')->get():collect();

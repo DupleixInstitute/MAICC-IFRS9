@@ -70,7 +70,7 @@ class ECLExportService
 
         fclose($handle);
 
-        return response()->download($filePath)->deleteFileAfterSend(true);
+        return response()->download($filePath, null, ['Content-Type' => 'text/csv'])->deleteFileAfterSend(true);
     }
 
     /**
@@ -78,38 +78,42 @@ class ECLExportService
      */
     private static function generateSummaryData($portfolioId, $reportingPeriod, $columns): array
     {
+        // By the stage the ECL was provided on (after the qualitative
+        // triggers), with the EAD the engine measured (carrying amount plus
+        // the drawn share of undrawn commitments) and the PD after the
+        // forward-looking adjustment, so the totals tie to the saved ECL run.
+        $ead = 'COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1)';
         $data = DB::table('loan_books')
-            ->selectRaw('
-                calculated_ifrs9_stage as stage,
-                SUM(carrying_amount) as total_ead,
-                AVG(pd_value) as pd,
-                AVG(lgd_value) as lgd,
-                SUM(ecl_value) as total_ecl
-            ')
+            ->selectRaw("
+                ifrs9stage_post_qualitative as stage,
+                COUNT(*) as loans,
+                SUM(COALESCE(carrying_amount,0)) as gross,
+                SUM({$ead}) as total_ead,
+                SUM(COALESCE(pd_post_fli, pd_prefli, 0) * ({$ead})) as pd_x_ead,
+                SUM(COALESCE(lgd_value, 0) * ({$ead})) as lgd_x_ead,
+                SUM(COALESCE(ecl_value,0)) as total_ecl
+            ")
             ->where('loan_portfolio_id', $portfolioId)
             ->where('reporting_period', $reportingPeriod)
-            ->groupBy('calculated_ifrs9_stage')
-            ->get()
-            ->toArray();
+            ->groupBy('ifrs9stage_post_qualitative')
+            ->orderBy('ifrs9stage_post_qualitative')
+            ->get();
 
-        $rows = collect($data)->map(function ($row) {
-            return [
-                'Stage' => $row->stage,
-                'Total EAD' => $row->total_ead,
-                'PD' => $row->pd,
-                'LGD' => $row->lgd,
-                'Total ECL' => $row->total_ecl,
-            ];
-        })->values();
+        $row = fn ($stage, $loans, $gross, $ead, $pdx, $lgdx, $ecl) => [
+            'Stage' => $stage,
+            'Loans' => (int) $loans,
+            'Gross carrying amount' => round((float) $gross, 2),
+            'EAD' => round((float) $ead, 2),
+            'PD (EAD-weighted)' => $ead != 0 ? round($pdx / $ead, 6) : null,
+            'LGD (EAD-weighted)' => $ead != 0 ? round($lgdx / $ead, 6) : null,
+            'ECL' => round((float) $ecl, 2),
+            'Coverage of EAD' => $ead != 0 ? round($ecl / $ead, 6) : null,
+        ];
 
+        $rows = $data->map(fn ($r) => $row($r->stage, $r->loans, $r->gross, (float) $r->total_ead, (float) $r->pd_x_ead, (float) $r->lgd_x_ead, (float) $r->total_ecl))->values();
         if ($rows->isNotEmpty()) {
-            $rows->push([
-                'Stage' => 'Total',
-                'Total EAD' => $rows->sum('Total EAD'),
-                'PD' => $rows->avg('PD'),
-                'LGD' => $rows->avg('LGD'),
-                'Total ECL' => $rows->sum('Total ECL'),
-            ]);
+            $rows->push($row('Total', $data->sum('loans'), $data->sum('gross'), (float) $data->sum('total_ead'),
+                (float) $data->sum('pd_x_ead'), (float) $data->sum('lgd_x_ead'), (float) $data->sum('total_ecl')));
         }
 
         return $rows->toArray();

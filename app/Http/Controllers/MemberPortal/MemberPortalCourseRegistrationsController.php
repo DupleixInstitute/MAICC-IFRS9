@@ -45,7 +45,7 @@ class MemberPortalCourseRegistrationsController extends Controller
             ->where('member_id',session('member_id'))
             ->filter(\request()->only('search', 'tutor_id', 'course_id', 'member_id', 'course_category_id', 'status'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/CourseRegistrations/Index', [
             'filters' => \request()->all('search', 'tutor_id', 'course_id', 'member_id', 'course_category_id', 'status'),
             'registrations' => $registrations,

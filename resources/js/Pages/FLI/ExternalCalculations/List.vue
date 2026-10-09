@@ -1,65 +1,47 @@
 <template>
     <AppLayout title="FLI Calculation History">
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                FLI Calculation History
-            </h2>
+            <div>
+                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                    <span>IFRS 9 Model Setup</span><span>/</span><span>Scenarios &amp; Overlays</span><span>/</span><span class="font-medium text-maiic-700">Calculation History</span>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800">Calculation History</h2>
+                <p class="mt-1 text-sm text-gray-600">Every external forward-looking calculation saved, with its scenarios and parameters</p>
+            </div>
+        </template>
+        <template #actions>
+            <Link :href="route('fli.external.index')" class="primary-btn">New calculation</Link>
         </template>
 
-        <div class="py-12">
-            <div class="max-w-full mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                    <div class="p-6">
-                        <!-- Header with Action Button -->
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-lg font-semibold text-gray-900">
-                                External Calculation Records
-                            </h3>
-                            <a
-                                :href="route('fli.external.index')"
-                                class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2 transition ease-in-out duration-150"
-                            >
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                </svg>
-                                New Calculation
-                            </a>
-                        </div>
-
-                        <!-- Summary Cards -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <div class="bg-gradient-to-br from-maiic-50 to-maiic-100 rounded-lg p-4 border border-maiic-200">
-                                <div class="text-sm font-medium text-maiic-600">Total Calculations</div>
-                                <div class="text-2xl font-bold text-maiic-900">{{ parameters.length }}</div>
-                            </div>
-                            <div class="bg-gradient-to-br from-maiic-50 to-maiic-100 rounded-lg p-4 border border-maiic-200">
-                                <div class="text-sm font-medium text-maiic-600">Reporting Periods</div>
-                                <div class="text-2xl font-bold text-maiic-900">{{ uniqueReportingPeriods }}</div>
-                            </div>
-                            <div class="bg-gradient-to-br from-maiic-50 to-maiic-100 rounded-lg p-4 border border-maiic-200">
-                                <div class="text-sm font-medium text-maiic-600">Total Adjustments</div>
-                                <div class="text-2xl font-bold text-maiic-900">{{ totalAdjustments }}</div>
-                            </div>
-                        </div>
-
+        <div class="w-full space-y-4">
+            <div>
+                <KpiRow :cards="[
+                    { label: 'Calculations', value: parameters.length },
+                    { label: 'Reporting periods', value: Number(uniqueReportingPeriods || 0) },
+                    { label: 'Adjustments', value: Number(totalAdjustments || 0) },
+                ]" />
+            </div>
+            <div>
+                <div class="maiic-panel">
+                    <div class="px-5 py-4">
                         <!-- Filters -->
-                        <div class="mb-4 flex flex-wrap gap-4">
+                        <div class="mb-4 flex flex-wrap items-end gap-3">
                             <div class="flex-1 min-w-[200px]">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                                <label class="maiic-flabel">Search</label>
                                 <input
                                     v-model="searchQuery"
                                     type="text"
                                     placeholder="Search by period, statistic, creator..."
-                                    class="w-full border-gray-300 focus:border-maiic-500 focus:ring-maiic-500 rounded-md shadow-sm"
+                                    class="maiic-input w-full"
                                 />
                             </div>
                             <div class="min-w-[200px]">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Statistic</label>
+                                <label class="maiic-flabel">Filter by Statistic</label>
                                 <select
                                     v-model="filterStatistic"
-                                    class="w-full border-gray-300 focus:border-maiic-500 focus:ring-maiic-500 rounded-md shadow-sm"
+                                    class="maiic-input w-full"
                                 >
-                                    <option value="">All Statistics</option>
+                                    <option value="">All statistics</option>
                                     <option value="inflation">Inflation</option>
                                     <option value="exchange_rates">Exchange Rates</option>
                                     <option value="credit_index">Credit Index</option>
@@ -71,39 +53,39 @@
 
                         <!-- Calculations Table -->
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
+                            <table class="maiic-table">
+                                <thead>
                                     <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             Reporting Period
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             Scenario Set
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             Economic Statistic
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             PD Proxy
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             Forecasting
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             Regression
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             Created By
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             Created At
                                         </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th>
                                             Actions
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
+                                <tbody>
                                     <template v-for="param in filteredParameters" :key="param.id">
                                         <tr class="hover:bg-gray-50 transition-colors">
                                             <td class="px-4 py-4 whitespace-nowrap">
@@ -245,7 +227,7 @@
                                 </svg>
                                 <h3 class="mt-2 text-sm font-medium text-gray-900">No calculations found</h3>
                                 <p class="mt-1 text-sm text-gray-500">
-                                    {{ searchQuery || filterStatistic ? 'Try adjusting your filters' : 'Get started by creating a new calculation' }}
+                                    {{ searchQuery || filterStatistic ? 'Try adjusting your filters' : 'Use New calculation at the top right to run one.' }}
                                 </p>
                             </div>
                         </div>
@@ -260,6 +242,8 @@
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import KpiRow from '@/Components/Maiic/KpiRow.vue'
+import { Link } from '@inertiajs/vue3'
 
 const props = defineProps({
     parameters: Array,

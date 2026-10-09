@@ -25,7 +25,7 @@ class ScenarioSetController extends Controller
                     ->orWhere('description', 'like', "%{$search}%");
             })
             ->orderBy('created_at', 'desc')
-            ->paginate(20)
+            ->paginate(15)
             ->withQueryString();
 
         return Inertia::render('FLI/ScenarioSet/Index', [

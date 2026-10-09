@@ -1,227 +1,126 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Imports
-            </h2>
+    <app-layout title="Imports" description="Every file uploaded (loan book, clients, collateral, credit loss data and EIR data), with its progress, record counts and the rows that failed">
+        <template #actions>
+            <Link :href="route('loan_applications.loan-book.import.create')" class="primary-btn" title="Upload a monthly loan book file">Import loan book</Link>
+            <Link :href="route('clients.import.create')" class="secondary-btn" title="Upload a client file">Import clients</Link>
+            <Link :href="route('collateral.register.import')" class="secondary-btn" title="Upload a collateral register file">Import collateral</Link>
         </template>
-        <div class=" mx-auto mb-4 flex justify-between items-center">
-            <filter-search v-model="form.search" class="w-full max-w-md mr-4" @reset="reset">
-                <div class="w-80 mt-2 px-4 py-6 shadow-xl bg-white rounded">
+
+        <div class="maiic-filterbar">
+            <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="sm:col-span-2">
+                    <label class="maiic-flabel" for="imp-search">File name</label>
+                    <input id="imp-search" v-model="form.search" type="text" class="maiic-input" placeholder="Search by file name">
                 </div>
-            </filter-search>
+                <div>
+                    <label class="maiic-flabel" for="imp-status">Status</label>
+                    <select id="imp-status" v-model="form.status" class="maiic-select">
+                        <option :value="null">All statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="button" class="secondary-btn" @click="reset">Clear</button>
+                </div>
+            </div>
         </div>
-        <div class=" mx-auto">
-            <div class="maiic-panel maiic-table-wrap">
+
+        <div class="maiic-panel">
+            <div class="maiic-table-wrap">
                 <table class="maiic-table">
                     <thead>
                     <tr>
-                        <th>Name</th>
+                        <th>File name</th>
                         <th>Status</th>
-                        <th>Date</th>
-                        <th>Inserted</th>
-                        <th>Exception Records</th>
-                        <th>Start</th>
+                        <th>Uploaded</th>
+                        <th class="num">Records inserted</th>
+                        <th class="num">Failed rows</th>
+                        <th>Started</th>
                         <th>Completed</th>
-                        <th>Duration</th>
+                        <th class="num">Duration</th>
+                        <th class="text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
-                    <tr v-for="result in results.data" :key="result.id"
-                        class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="!p-0">
-                             <span class="px-4 py-2.5 flex items-center">
-                                {{ result.name }}
-                            </span>
-                        </td>
-                        <td class="!p-0">
-                            <span v-if="result.status=='pending'"
-                                  class="px-2 rounded-full bg-amber-100 text-amber-800">
-                                        pending
-                                    </span>
-                            <span v-if="result.status=='processing'"
-                                  class="px-2 rounded-full bg-maiic-100 text-maiic-800">
-                                        processing
-                                    </span>
-
-                            <span v-if="result.status=='completed'"
-                                  class="px-2 rounded-full bg-maiic-100 text-maiic-800">
-                                        completed
-                                    </span>
-                            <span v-if="result.status=='failed'"
-                                  class="px-2 rounded-full bg-red-100 text-red-800">
-                                        failed
-                                    </span>
-                        </td>
-                        <td class="!p-0">
-                             <span class="px-4 py-2.5 flex items-center" v-if="result.status">
-                                {{ $filters.time(result.created_at) }}
-                            </span>
-                        </td>
-                        <td class="!p-0">
-                             <span class="px-4 py-2.5 flex items-center">
-                                {{ result.records }}
-                            </span>
-                        </td>
-                        <td class="border-t px-6 py-10 flex items-center">
-                            {{ result.failed_records }}
-                            <button
-                                v-if="result.failed_records > 0 && result.failed_file_path"
-                                @click="downloadFailedFile(result.id)"
-                                class="text-maiic-600 hover:underline"
-                            >
-                                <font-awesome-icon icon="download" class="ml-2" />
-                            </button>
-                        </td>
-                        <td class="!p-0">
-                             <span class="px-4 py-2.5 flex items-center" v-if="result.status">
-                                {{ result.started_at ? $filters.time(result.started_at) : '' }}
-                            </span>
-                        </td>
-                        <td class="!p-0">
-                             <span class="px-4 py-2.5 flex items-center" v-if="result.status">
-                                {{ result.completed_at ? $filters.time(result.completed_at) : '' }}
-                            </span>
-                        </td>
-                        <td class="!p-0">
-                            <span class="px-4 py-2.5 flex items-center" v-if="result.started_at && result.completed_at">
-                                {{ calculateDuration(result.started_at, result.completed_at) }}
-                            </span>
+                    <tr v-for="result in results.data" :key="result.id">
+                        <td class="min-w-[16rem] font-semibold text-gray-900">{{ result.name }}</td>
+                        <td><span class="maiic-badge capitalize" :class="statusBadge(result.status)">{{ result.status }}</span></td>
+                        <td class="whitespace-nowrap">{{ result.created_at ? $filters.time(result.created_at) : '' }}</td>
+                        <td class="num">{{ formatCount(result.records) }}</td>
+                        <td class="num"><span :class="result.failed_records > 0 ? 'font-semibold text-red-600' : ''">{{ formatCount(result.failed_records) }}</span></td>
+                        <td class="whitespace-nowrap">{{ result.started_at ? $filters.time(result.started_at) : '' }}</td>
+                        <td class="whitespace-nowrap">{{ result.completed_at ? $filters.time(result.completed_at) : '' }}</td>
+                        <td class="num">{{ result.started_at && result.completed_at ? calculateDuration(result.started_at, result.completed_at) : '' }}</td>
+                        <td class="text-right">
+                            <a v-if="result.failed_records > 0 && result.failed_file_path"
+                               :href="route('imports.failed-download', result.id)" target="_blank"
+                               class="maiic-action maiic-action-neutral" title="Download the failed rows">
+                                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+                            </a>
                         </td>
                     </tr>
                     <tr v-if="results.data.length === 0">
-                        <td class="border-t px-6 py-4 text-center" colspan="3">No records found.</td>
+                        <td class="maiic-empty" colspan="9">{{ form.search || form.status ? 'No import matches these filters.' : 'No file has been imported yet. Use Import loan book (top right) to upload the first one.' }}</td>
                     </tr>
                     </tbody>
                 </table>
-
             </div>
-            <pagination :links="results.links"/>
         </div>
-        <jet-confirmation-modal :show="confirmingDeletion" @close="confirmingDeletion = false">
-            <template #title>
-                Delete Record
-            </template>
-
-            <template #content>
-                Are you sure you want to delete record?
-            </template>
-
-            <template #footer>
-                <jet-secondary-button @click.native="confirmingDeletion = false">
-                    Nevermind
-                </jet-secondary-button>
-
-                <jet-danger-button class="ml-2" @click.native="destroy" :class="{ 'opacity-25': form.processing }"
-                                   :disabled="form.processing">
-                    Delete Record
-                </jet-danger-button>
-            </template>
-        </jet-confirmation-modal>
-        <teleport to="head">
-            <title>{{ pageTitle }}</title>
-            <meta property="og:description" :content="pageDescription">
-        </teleport>
+        <pagination :links="results.links"/>
         <HelpManual />
     </app-layout>
-
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Pagination from '@/Jetstream/Pagination.vue'
-import FilterSearch from '@/Jetstream/FilterSearch.vue'
-import mapValues from 'lodash/mapValues'
+import Pagination from '@/Components/Pagination.vue'
+import HelpManual from '@/Components/HelpManual.vue'
+import { Link } from '@inertiajs/vue3'
 import pickBy from 'lodash/pickBy'
-import throttle from 'lodash/throttle'
-import JetLabel from '@/Jetstream/Label.vue'
-import SelectInput from '@/Jetstream/SelectInput.vue'
-import JetConfirmationModal from '@/Jetstream/ConfirmationModal.vue'
-import JetDangerButton from '@/Jetstream/DangerButton.vue'
-import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
-import HelpManual from '../../Components/HelpManual.vue';
+import debounce from 'lodash/debounce'
 
 export default {
-    components: {
-        AppLayout,
-        Pagination,
-        FilterSearch,
-        JetLabel,
-        SelectInput,
-        JetConfirmationModal,
-        JetDangerButton,
-        JetSecondaryButton,
-        HelpManual
-    },
+    components: { AppLayout, Pagination, HelpManual, Link },
     props: {
         results: Object,
         filters: Object,
-
     },
     data() {
         return {
             form: {
-                search: this.filters.search,
-                processing: false
+                search: this.filters.search || null,
+                status: this.filters.status || null,
             },
-            confirmingDeletion: false,
-            selectedRecord: null,
-            pageTitle: "Imports",
-            pageDescription: "Manage Imports",
-
         }
     },
     watch: {
         form: {
-            handler: _.debounce(function () {
-                let query = pickBy(this.form)
-                this.$inertia.get(this.route('imports.index', Object.keys(query).length ? query : {}))
-            }, 500),
+            handler: debounce(function () {
+                this.$inertia.get(this.route('imports.index'), pickBy(this.form), { preserveState: true, replace: true })
+            }, 400),
             deep: true,
         },
     },
     methods: {
         reset() {
-            this.form = mapValues(this.form, () => null)
+            this.form = { search: null, status: null }
         },
-        deleteAction(id) {
-            this.confirmingDeletion = true
-            this.selectedRecord = id
+        statusBadge(status) {
+            return { completed: 'maiic-badge-green', processing: 'maiic-badge-gold', pending: 'maiic-badge-grey', failed: 'maiic-badge-red' }[status] || 'maiic-badge-grey'
         },
-        destroy() {
-
-            this.$inertia.delete(this.route('imports.destroy', this.selectedRecord))
-            this.confirmingDeletion = false
-        },
-        downloadFailedFile(importId) {
-            const url = this.route('imports.failed-download', importId);
-            window.open(url, '_blank');
+        formatCount(n) {
+            return n === null || n === undefined ? '' : Number(n).toLocaleString()
         },
         calculateDuration(start, end) {
-            const startTime = new Date(start);
-            const endTime = new Date(end);
-            const diffMs = endTime - startTime;
-
-            const totalSeconds = Math.floor(diffMs / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
-
-            let duration = '';
-            if (hours > 0) {
-                duration += `${hours}h `;
-            }
-            if (minutes > 0 || hours > 0) {
-                duration += `${minutes}m `;
-            }
-            duration += `${seconds}s`;
-
-            return duration.trim();
+            const totalSeconds = Math.max(0, Math.floor((new Date(end) - new Date(start)) / 1000))
+            const hours = Math.floor(totalSeconds / 3600)
+            const minutes = Math.floor((totalSeconds % 3600) / 60)
+            const seconds = totalSeconds % 60
+            return ((hours ? hours + 'h ' : '') + (hours || minutes ? minutes + 'm ' : '') + seconds + 's').trim()
         },
     },
 }
 </script>
-
-<style scoped>
-
-</style>

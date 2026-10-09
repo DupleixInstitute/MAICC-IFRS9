@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ExpectedCreditLoss;
+use App\Models\Import;
 use App\Models\LoanBook;
 use Carbon\Carbon;
 use Inertia\Inertia;
@@ -54,6 +55,16 @@ class DashboardController extends Controller
  */
 public function index(Request $request)
 {
+    return Inertia::render('Dashboard', $this->dashboardState($request));
+}
+
+/**
+ * The figures the dashboard shows for a period / portfolio / compare-to
+ * choice. The page and its PDF (eclReportPdf) both read them from here, so
+ * the download always matches the screen.
+ */
+private function dashboardState(Request $request): array
+{
     // Available periods (Y-m, newest first) - only those with ECL calculated.
     $periods = ReportingPeriods::where('ecl_calculated', true)
         ->orderBy('period', 'desc')
@@ -64,8 +75,14 @@ public function index(Request $request)
 
     $portfolios = LoanPortfolio::orderBy('name')->get(['id', 'name']);
 
+    // The operations row (month-end status, latest loan book, recent
+    // imports) shows even before any ECL has been calculated.
+    $latestLoanBookPeriod = LoanBook::max('reporting_period');
+    $recentImports = Import::orderByDesc('id')->limit(5)
+        ->get(['id', 'name', 'status', 'records', 'created_at', 'completed_at']);
+
     if ($periods->isEmpty()) {
-        return Inertia::render('Dashboard', [
+        return [
             'summary' => $this->emptySummary(),
             'periods' => [],
             'portfolios' => $portfolios,
@@ -73,8 +90,11 @@ public function index(Request $request)
             'selectedPortfolioId' => null,
             'comparePeriod' => null,
             'eclTrends' => [],
-            'error' => 'No data available. Please upload or calculate ECL first.',
-        ]);
+            'monthEnd' => $latestLoanBookPeriod ? $this->monthEndStatus($latestLoanBookPeriod) : null,
+            'loanBookSnapshot' => $latestLoanBookPeriod ? $this->loanBookSnapshot($latestLoanBookPeriod, null) : null,
+            'recentImports' => $recentImports,
+            'error' => 'No ECL has been calculated yet. Load the loan book, apply PD and LGD, then run the ECL calculation.',
+        ];
     }
 
     // --- Global filters (whitelisted against DB values, never trusted raw) ---
@@ -112,16 +132,24 @@ public function index(Request $request)
         return $q;
     };
 
-    // --- Loan book: EAD by stage in ONE grouped query --------------------
-    $eadByStage = $loanBookScope()
-        ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount')
+    // --- Loan book: EAD and loan count by stage in ONE grouped query ------
+    $bookByStage = $loanBookScope()
+        ->selectRaw('ifrs9stage_post_qualitative as stage, SUM((COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1))) as amount, SUM(carrying_amount) as gross, COUNT(*) as loans')
         ->groupBy('ifrs9stage_post_qualitative')
-        ->pluck('amount', 'stage');
+        ->get()
+        ->keyBy('stage');
+    $eadByStage = $bookByStage->map(fn ($r) => (float) $r->amount);
+    $loansByStage = [(int) ($bookByStage[1]->loans ?? 0), (int) ($bookByStage[2]->loans ?? 0), (int) ($bookByStage[3]->loans ?? 0)];
 
     $stage1Amount = (float) ($eadByStage[1] ?? 0);
     $stage2Amount = (float) ($eadByStage[2] ?? 0);
     $stage3Amount = (float) ($eadByStage[3] ?? 0);
+    // The exposure is the EAD the ECL engine measured (carrying amount plus
+    // the drawn share of undrawn commitments), so the tiles tie to the saved
+    // ECL runs and to the reports; the net carrying amount stays on the
+    // gross carrying amount of the book.
     $grossCarryingAmount = (float) $eadByStage->sum();
+    $bookGross = (float) $bookByStage->sum('gross');
 
     // --- ECL: totals, PD and LGD by stage in ONE grouped query ------------
     $eclByStage = $eclScope($selectedPeriod)
@@ -138,6 +166,7 @@ public function index(Request $request)
     $stage2PD = round((float) ($eclByStage[2]->avg_pd ?? 0) * 100, 2);
     $stage3PD = round((float) ($eclByStage[3]->avg_pd ?? 0) * 100, 2);
     $lgdPercentage = round((float) ($eclByStage[3]->avg_lgd ?? 0) * 100, 2);
+    $lgdPercentages = array_map(fn ($st) => round((float) ($eclByStage[$st]->avg_lgd ?? 0) * 100, 2), [1, 2, 3]);
 
     // --- Compare-to period: same formulas as the selected period ----------
     $lastTotalECLAllowance = collect([1 => 0, 2 => 0, 3 => 0]);
@@ -157,9 +186,13 @@ public function index(Request $request)
             LoanBook::where('reporting_period', $comparePeriod),
             fn ($q) => $portfolioId ? $q->where('loan_portfolio_id', $portfolioId) : null
         )
-            ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount')
+            ->selectRaw('ifrs9stage_post_qualitative as stage, SUM((COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1))) as amount, SUM(carrying_amount) as gross, COUNT(*) as loans')
             ->groupBy('ifrs9stage_post_qualitative')
-            ->pluck('amount', 'stage');
+            ->get()
+            ->keyBy('stage');
+        $cLoans = (int) $compareEad->sum('loans');
+        $cBookGross = (float) $compareEad->sum('gross');
+        $compareEad = $compareEad->map(fn ($r) => (float) $r->amount);
 
         $cS1 = (float) ($compareEad[1] ?? 0);
         $cS2 = (float) ($compareEad[2] ?? 0);
@@ -170,7 +203,7 @@ public function index(Request $request)
         $cPd1 = round((float) ($compareEclRows[1]->avg_pd ?? 0) * 100, 2);
         $cPd2 = round((float) ($compareEclRows[2]->avg_pd ?? 0) * 100, 2);
         $cPd3 = round((float) ($compareEclRows[3]->avg_pd ?? 0) * 100, 2);
-        $cLgd = round((float) ($compareEclRows[3]->avg_lgd ?? 0) * 100, 2);
+        $cLgd = array_map(fn ($st) => round((float) ($compareEclRows[$st]->avg_lgd ?? 0) * 100, 2), [1 => 1, 2 => 2, 3 => 3]);
 
         $compareSummary = [
             'carrying_amount' => $cGross,
@@ -178,9 +211,11 @@ public function index(Request $request)
             'ecl_percentage' => $cGross > 0 ? round(($cEcl / $cGross) * 100, 2) : 0,
             'stage_3_amount' => $cS3,
             'stage_3_percentage' => $cGross > 0 ? round(($cS3 / $cGross) * 100, 2) : 0,
-            'paid_amount' => $cGross - $cEcl,
+            'paid_amount' => $cBookGross - $cEcl,
+            'net_carrying_amount' => $cBookGross - $cEcl,
+            'total_loans' => $cLoans,
             'weighted_pd' => $cSumEad > 0 ? ($cPd1 * $cS1 + $cPd2 * $cS2 + $cPd3 * $cS3) / $cSumEad : 0,
-            'weighted_lgd' => $cSumEad > 0 ? ($cLgd * $cS3) / $cSumEad : 0,
+            'weighted_lgd' => $cSumEad > 0 ? ($cLgd[1] * $cS1 + $cLgd[2] * $cS2 + $cLgd[3] * $cS3) / $cSumEad : 0,
         ];
     }
 
@@ -201,21 +236,23 @@ public function index(Request $request)
         ? round(($stage3Amount / $grossCarryingAmount) * 100, 2)
         : 0;
 
-    $paidAmount = $grossCarryingAmount - $totalECLAllowance;
-    $paidPercentage = $grossCarryingAmount > 0
-        ? round(($paidAmount / $grossCarryingAmount) * 100, 2)
+    $paidAmount = $bookGross - $totalECLAllowance;
+    $paidPercentage = $bookGross > 0
+        ? round(($paidAmount / $bookGross) * 100, 2)
         : 0;
 
     $pdPercentages = [$stage1PD, $stage2PD, $stage3PD];
 
     $weightedPD = $sumEad > 0 ? ($stage1PD * $stage1Amount + $stage2PD * $stage2Amount + $stage3PD * $stage3Amount) / $sumEad : 0;
-    $weightedLGD = $sumEad > 0 ? ($lgdPercentage * $stage3Amount) / $sumEad : 0;
+    // LGD weighted by exposure across all three stages, as PD is (it used
+    // to weight the Stage 3 LGD alone over the whole book).
+    $weightedLGD = $sumEad > 0 ? ($lgdPercentages[0] * $stage1Amount + $lgdPercentages[1] * $stage2Amount + $lgdPercentages[2] * $stage3Amount) / $sumEad : 0;
 
-    // --- Coverage trend: ONE grouped query, optional from/to range --------
-    // Default range: January of the selected period's year through the
-    // latest available period, so the chart tracks the reporting year as
-    // data grows. 'all' shows every period from the first. Only periods
-    // that really exist are plotted; nothing is zero-filled.
+    // --- ECL and coverage trend: ONE grouped query, optional from/to range -
+    // Default range: the 12 months up to the selected period. 'all' shows
+    // every period from the first. Without an explicit end the trend stops
+    // at the selected period. Only periods that really exist are plotted;
+    // nothing is zero-filled.
     $trendFrom = $request->input('trend_from');
     $trendTo = $request->input('trend_to');
 
@@ -225,12 +262,13 @@ public function index(Request $request)
         $lowerBound = $trendFrom;
     } else {
         $trendFrom = null;
-        $lowerBound = substr($selectedPeriod, 0, 4) . '-01';
+        $lowerBound = Carbon::createFromFormat('Y-m-d', $selectedPeriod . '-01')->subMonths(11)->format('Y-m');
     }
+    $upperBound = $periods->contains($trendTo) ? $trendTo : $selectedPeriod;
 
     $trendPeriods = $periods
         ->when($lowerBound !== null, fn ($c) => $c->filter(fn ($p) => $p >= $lowerBound))
-        ->when($periods->contains($trendTo), fn ($c) => $c->filter(fn ($p) => $p <= $trendTo))
+        ->filter(fn ($p) => $p <= $upperBound)
         ->values();
 
     $trendRows = tap(
@@ -239,13 +277,19 @@ public function index(Request $request)
             ? $q->where('ecl_calculation_level', 'portfolio')->where('ecl_calculation_id', $portfolioId)
             : null
     )
-        ->selectRaw('reporting_period, SUM(total_ead) as total_ead, SUM(total_ecl) as total_ecl')
+        ->selectRaw('reporting_period, SUM(total_ead) as total_ead, SUM(total_ecl) as total_ecl,
+            SUM(CASE WHEN ifrs9_stage = 1 THEN total_ecl ELSE 0 END) as ecl_s1,
+            SUM(CASE WHEN ifrs9_stage = 2 THEN total_ecl ELSE 0 END) as ecl_s2,
+            SUM(CASE WHEN ifrs9_stage = 3 THEN total_ecl ELSE 0 END) as ecl_s3')
         ->groupBy('reporting_period')
         ->orderBy('reporting_period')
         ->get();
 
     $eclTrends = $trendRows->map(fn ($row) => [
         'period' => $row->reporting_period,
+        'total_ead' => (float) $row->total_ead,
+        'total_ecl' => (float) $row->total_ecl,
+        'ecl_by_stage' => [(float) $row->ecl_s1, (float) $row->ecl_s2, (float) $row->ecl_s3],
         'ecl_percentage' => $row->total_ead > 0
             ? round(($row->total_ecl / $row->total_ead) * 100, 2)
             : 0,
@@ -259,6 +303,10 @@ public function index(Request $request)
         'last_ecl_percentage' => $lastCoverageRatio,
         'stage_3_amount' => $stage3Amount,
         'paid_amount' => $paidAmount,
+        'net_carrying_amount' => $paidAmount,
+        'total_loans' => array_sum($loansByStage),
+        'loans_by_stage' => $loansByStage,
+        'lgd_percentages' => $lgdPercentages,
         'stage_3_percentage' => $stage3Percentage,
         'paid_percentage' => $paidPercentage,
         'pd_percentages' => $pdPercentages,
@@ -270,7 +318,7 @@ public function index(Request $request)
         'reporting_period' => $selectedPeriod,
     ];
 
-    return Inertia::render('Dashboard', [
+    return [
         'summary' => $summary,
         'compareSummary' => $compareSummary,
         'periods' => $periods,
@@ -281,7 +329,167 @@ public function index(Request $request)
         'trendFrom' => ($trendFrom === 'all' || $periods->contains($trendFrom)) ? $trendFrom : null,
         'trendTo' => $periods->contains($trendTo) ? $trendTo : null,
         'eclTrends' => $eclTrends,
+        'monthEnd' => $this->monthEndStatus($selectedPeriod),
+        'loanBookSnapshot' => $latestLoanBookPeriod ? $this->loanBookSnapshot($latestLoanBookPeriod, $portfolioId) : null,
+        'recentImports' => $recentImports,
+    ];
+}
+
+/**
+ * The dashboard as a branded A4 PDF: the same figures the screen shows for
+ * the chosen period, portfolio and compare-to period (dashboardState), with
+ * the stage mix and the ECL trend drawn server side, the portfolio summary
+ * against the compare-to period and the month-end status.
+ */
+public function eclReportPdf(Request $request)
+{
+    $state = $this->dashboardState($request);
+    if (! empty($state['error'])) {
+        return redirect()->route('dashboard')->with('error', $state['error']);
+    }
+
+    $period = $state['selectedPeriod'];
+    $compare = $state['comparePeriod'];
+    $s = $state['summary'];
+    $c = $state['compareSummary'] ?? null;
+    $portfolioName = $state['selectedPortfolioId']
+        ? optional($state['portfolios']->firstWhere('id', $state['selectedPortfolioId']))->name
+        : null;
+
+    // Tiles and rows as the screen lists them (Dashboard.vue kpis / summaryRows).
+    $kpis = array_map(fn ($k) => ['label' => $k[0], 'value' => $k[1], 'kind' => $k[3], 'sub' => $k[5] ?? null]
+        + $this->pdfChange($k[1], $k[2], $k[3], $k[4], true), [
+        ['Total exposure (EAD)', $s['carrying_amount'], $c['carrying_amount'] ?? null, 'money', true],
+        ['Total ECL', $s['total_ecl'], $c['total_ecl'] ?? null, 'money', false],
+        ['ECL coverage', $s['ecl_percentage'], $c['ecl_percentage'] ?? null, 'pts', false],
+        ['Stage 3 exposure', $s['stage_3_amount'], $c['stage_3_amount'] ?? null, 'money', false, number_format($s['stage_3_percentage'], 2) . '% of book'],
+        ['Weighted PD', $s['weighted_pd'], $c['weighted_pd'] ?? null, 'pts', false],
+        ['Weighted LGD', $s['weighted_lgd'], $c['weighted_lgd'] ?? null, 'pts', false],
     ]);
+
+    $summaryRows = array_map(fn ($r) => ['label' => $r[0], 'kind' => $r[2], 'bold' => $r[4] ?? false,
+        'value' => $s[$r[1]], 'compare' => $c[$r[1]] ?? null] + $this->pdfChange($s[$r[1]], $c[$r[1]] ?? null, $r[2], $r[3]), [
+        ['Number of loans', 'total_loans', 'count', true],
+        ['Total EAD', 'carrying_amount', 'money', true, true],
+        ['Stage 3 share of book', 'stage_3_percentage', 'pts', false],
+        ['Weighted PD', 'weighted_pd', 'pts', false],
+        ['Weighted LGD', 'weighted_lgd', 'pts', false],
+        ['ECL coverage', 'ecl_percentage', 'pts', false],
+        ['Total ECL', 'total_ecl', 'money', false, true],
+        ['Net carrying amount', 'net_carrying_amount', 'money', true],
+    ]);
+
+    $trend = collect($state['eclTrends'])->values()->all();
+    $currency = \App\Support\ReportDownload::currency();
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.dashboard_ecl_pdf', [
+        'company' => \App\Support\ReportDownload::company(),
+        'logo' => \App\Support\ReportDownload::logoPath(),
+        'preparedOn' => now()->format('d M Y H:i'),
+        'preparedBy' => optional($request->user())->name,
+        'currency' => $currency,
+        'period' => $period,
+        'compare' => $compare,
+        'portfolioName' => $portfolioName,
+        'summary' => $s,
+        'compareSummary' => $c,
+        'kpis' => $kpis,
+        'summaryRows' => $summaryRows,
+        'trend' => $trend,
+        'trendChart' => count($trend) ? \App\Support\PdfCharts::trend($trend, $period) : null,
+        'mixChart' => \App\Support\PdfCharts::stageMix($s['total_eads'], $s['ecl_totals']),
+        'monthEnd' => $state['monthEnd'],
+    ])->setPaper('a4', 'portrait')->setOption('enable_font_subsetting', true);
+
+    \App\Support\ReportDownload::stampPageNumbers($pdf);
+
+    return $pdf->download('MAIIC-IFRS9-dashboard-' . $period . ($compare ? '-vs-' . $compare : '')
+        . ($portfolioName ? '-' . \Illuminate\Support\Str::slug($portfolioName) : '') . '.pdf');
+}
+
+/**
+ * Change against the compare-to period, with the screen's status rules
+ * (Dashboard.vue deltaInfo / summaryRows): money and counts in %, rates in
+ * points; tiles are neutral only under 0.005 and have no "Watch".
+ */
+private function pdfChange($now, $then, string $kind, bool $goodWhenUp, bool $tile = false): array
+{
+    if ($then === null) {
+        return ['change' => null, 'status' => null, 'up' => null];
+    }
+    $now = (float) $now;
+    $then = (float) $then;
+    if ($kind === 'money' || $kind === 'count') {
+        if ($then == 0.0) {
+            return ['change' => null, 'status' => null, 'up' => null];
+        }
+        $d = ($now - $then) / abs($then) * 100;
+        $text = ($d > 0 ? '+' : '') . number_format($d, 1) . '%';
+        $neutral = abs($d) < 1;
+        $watch = abs($d) < 10;
+    } else {
+        $d = $now - $then;
+        $text = ($d > 0 ? '+' : '') . number_format($d, 2) . ' pts';
+        $neutral = abs($d) < 0.05;
+        $watch = abs($d) < 1;
+    }
+    $good = $goodWhenUp ? $d > 0 : $d < 0;
+    if ($tile) {
+        $neutral = abs($d) < 0.005;
+        $watch = false;
+    }
+    $status = $neutral ? 'Stable' : ($good ? 'Favourable' : ($watch ? 'Watch' : 'Adverse'));
+
+    return ['change' => $text, 'status' => $status, 'up' => $neutral ? null : $d > 0];
+}
+
+/**
+ * Where the month-end run stands for one period: loan book loaded, PD
+ * applied, LGD applied, ECL calculated. reporting_periods.period is a
+ * date (Y-m-01); loan_books.reporting_period is Y-m.
+ */
+private function monthEndStatus(string $period): array
+{
+    $rp = ReportingPeriods::whereDate('period', $period . '-01')->first();
+
+    return [
+        'period' => $period,
+        'loan_book_rows' => (int) LoanBook::where('reporting_period', $period)->count(),
+        'pd_applied' => (bool) ($rp?->pd_id),
+        'pd_source' => $rp?->pd_calculation_source,
+        'lgd_applied' => (bool) ($rp?->lgd_id),
+        'lgd_source' => $rp?->lgd_calculation_source,
+        'ecl_calculated' => (bool) ($rp?->ecl_calculated),
+    ];
+}
+
+/**
+ * Carrying amount and loan count by stage for the latest loaded loan book,
+ * under the dashboard's portfolio filter.
+ */
+private function loanBookSnapshot(string $period, ?int $portfolioId): array
+{
+    $rows = LoanBook::where('reporting_period', $period)
+        ->when($portfolioId, fn ($q) => $q->where('loan_portfolio_id', $portfolioId))
+        ->selectRaw('ifrs9stage_post_qualitative as stage, COUNT(*) as loans, SUM(carrying_amount) as balance')
+        ->groupBy('ifrs9stage_post_qualitative')
+        ->get()
+        ->keyBy('stage');
+
+    $balance = [];
+    $loans = [];
+    foreach ([1, 2, 3] as $st) {
+        $balance[] = (float) ($rows[$st]->balance ?? 0);
+        $loans[] = (int) ($rows[$st]->loans ?? 0);
+    }
+
+    return [
+        'period' => $period,
+        'balance_by_stage' => $balance,
+        'loans_by_stage' => $loans,
+        'total_balance' => array_sum($balance),
+        'total_loans' => array_sum($loans),
+    ];
 }
 
 private function emptySummary(): array
@@ -294,6 +502,10 @@ private function emptySummary(): array
         'last_ecl_percentage' => 0,
         'stage_3_amount' => 0,
         'paid_amount' => 0,
+        'net_carrying_amount' => 0,
+        'total_loans' => 0,
+        'loans_by_stage' => [0, 0, 0],
+        'lgd_percentages' => [0, 0, 0],
         'stage_3_percentage' => 0,
         'paid_percentage' => 0,
         'pd_percentages' => [0, 0, 0],
@@ -868,7 +1080,7 @@ private function emptySummary(): array
 
     $assignedToMeCount = $query->count();
     $assignedToMeApplications = $query->orderBy('created_at', 'desc')
-        ->paginate(20);
+        ->paginate(15);
     $approvedByMeIds = LoanApplicationLinkedApprovalStage::where('approver_id', Auth::id())
     ->where('status', 'approved')
     ->pluck('loan_application_id')->toArray();
@@ -877,7 +1089,7 @@ private function emptySummary(): array
     $approvedByMeApplications = LoanApplication::with(['staff', 'client', 'product', 'currentLinkedStage', 'currentLinkedStage.stage', 'currentLinkedStage.approver', 'currentLinkedStage.assignedBy','linkedStages', 'branch'])
         ->whereIn('id', $approvedByMeIds)
         ->orderBy('created_at', 'desc')
-        ->paginate(20);
+        ->paginate(15);
 
     $pendingToMeIds = LoanApplicationLinkedApprovalStage::where('approver_id', Auth::id())
     ->where('stage_finished_at', null)
@@ -888,10 +1100,10 @@ private function emptySummary(): array
     $pendingToMeApplications = LoanApplication::with(['staff', 'client', 'product', 'currentLinkedStage', 'currentLinkedStage.stage', 'currentLinkedStage.approver', 'currentLinkedStage.assignedBy','linkedStages', 'branch'])
         ->whereIn('id', $pendingToMeIds)
         ->orderBy('created_at', 'desc')
-        ->paginate(20);
+        ->paginate(15);
 
         $query = LoanApplicationReminder::where('user_id', Auth::id()) ->orderBy('created_at', 'desc');
-        $myReminders = $query->paginate(20);
+        $myReminders = $query->paginate(15);
         // dd($myReminders);
         $myRemindersCount = $query->count();
 
@@ -903,7 +1115,7 @@ private function emptySummary(): array
         $applications = LoanApplication::with(['staff', 'client', 'product', 'currentLinkedStage', 'currentLinkedStage.stage', 'currentLinkedStage.approver', 'currentLinkedStage.assignedBy','linkedStages', 'branch'])
             ->filter(\request()->only('search', 'client_id', 'loan_product_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         // dd($applications);
 
         return Inertia::render('Dashboard/MyWorkspace', [

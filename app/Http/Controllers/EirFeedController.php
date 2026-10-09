@@ -72,6 +72,9 @@ class EirFeedController extends Controller
             'locks' => DB::table('reporting_period_locks')->orderBy('reporting_period')->pluck('reporting_period'),
             'lastLedgerDate' => (new \App\Services\Ebanker\LandingZoneReader())->lastLedgerDate(),
             'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
+            // the view the section tab opened (config/menu.php) and the count on each tab
+            'tab' => in_array(request('tab'), ['loads', 'builds', 'periods', 'queries'], true) ? request('tab') : 'loads',
+            'tabCounts' => ['loads' => DB::table('ebanker_loads')->count(), 'builds' => DB::table('loan_book_builds')->count(), 'periods' => $periods->count(), 'queries' => $queries->count()],
         ]);
     }
 

@@ -10,7 +10,7 @@
         </template>
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="w-full">
                 <!-- Period Summary Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
                     <div class="bg-white overflow-hidden shadow rounded-lg">
@@ -103,8 +103,8 @@
 
                     <div class="flex items-center space-x-4">
                         <!-- Portfolio Filter -->
-                        <select 
-                            v-model="filters.portfolio_id" 
+                        <select
+                            v-model="filters.portfolio_id"
                             @change="applyFilters"
                             class="rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                         >
@@ -115,8 +115,8 @@
                         </select>
 
                         <!-- Metric Filter -->
-                        <select 
-                            v-model="filters.definition_id" 
+                        <select
+                            v-model="filters.definition_id"
                             @change="applyFilters"
                             class="rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                         >
@@ -142,7 +142,7 @@
                                 Portfolio Summary
                             </div>
                         </div>
-                        
+
                         <div class="overflow-hidden">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
@@ -341,6 +341,7 @@
 </template>
 
 <script>
+import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Inertia } from '@inertiajs/inertia'
 import { Link } from '@inertiajs/vue3'
@@ -376,23 +377,23 @@ export default {
         // Group data by portfolio
         groupedData() {
             const grouped = {};
-            
+
             this.creditLossData.forEach(record => {
                 const portfolioId = record.portfolio_id;
-                
+
                 if (!grouped[portfolioId]) {
                     grouped[portfolioId] = [];
                 }
-                
+
                 grouped[portfolioId].push(record);
             });
-            
+
             return grouped;
         },
-        
+
         filteredData() {
             let filtered = { ...this.groupedData };
-            
+
             // Filter by portfolio
             if (this.filters.portfolio_id) {
                 Object.keys(filtered).forEach(portfolioId => {
@@ -401,32 +402,32 @@ export default {
                     }
                 });
             }
-            
+
             // Filter by definition
             Object.keys(filtered).forEach(portfolioId => {
                 if (this.filters.definition_id) {
-                    filtered[portfolioId] = filtered[portfolioId].filter(record => 
+                    filtered[portfolioId] = filtered[portfolioId].filter(record =>
                         record.definition_id == this.filters.definition_id
                     );
                 }
-                
+
                 // Remove empty portfolios
                 if (filtered[portfolioId].length === 0) {
                     delete filtered[portfolioId];
                 }
             });
-            
+
             return filtered;
         },
-        
+
         totalRecords() {
             return this.creditLossData.length;
         },
-        
+
         totalEcl() {
             return this.getTotalMetricValue('ECL');
         },
-        
+
         totalNpl() {
             return this.getTotalMetricValue('NPL');
         }
@@ -436,27 +437,27 @@ export default {
             const portfolio = this.portfolios.find(p => p.id == portfolioId);
             return portfolio ? portfolio.name : `Portfolio ${portfolioId}`;
         },
-        
+
         getPortfolioMetricValue(portfolioId, metricCode) {
             const definition = this.definitions.find(d => d.code === metricCode);
             if (!definition) return 0;
-            
+
             const record = this.groupedData[portfolioId]?.find(r => r.definition_id === definition.id);
             return record?.value || 0;
         },
-        
+
         getTotalMetricValue(metricCode) {
             const definition = this.definitions.find(d => d.code === metricCode);
             if (!definition) return 0;
-            
+
             const records = this.creditLossData.filter(r => r.definition_id === definition.id);
             return records.reduce((sum, record) => sum + (record.value || 0), 0);
         },
-        
+
         navigatePeriod(direction) {
             const currentIndex = this.allPeriods.indexOf(this.period);
             let newIndex;
-            
+
             if (direction === 'prev' && currentIndex > 0) {
                 newIndex = currentIndex - 1;
             } else if (direction === 'next' && currentIndex < this.allPeriods.length - 1) {
@@ -464,26 +465,26 @@ export default {
             } else {
                 return; // No navigation possible
             }
-            
+
             const newPeriod = this.allPeriods[newIndex];
             Inertia.get(route('credit-loss-data.period', { period: newPeriod }));
         },
-        
+
         applyFilters() {
             // Filters are applied reactively in computed property
         },
-        
+
         formatPeriod(period) {
             if (!period) return 'N/A';
             const [year, month] = period.split('-');
             return new Date(year, month - 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
         },
-        
+
         formatCurrency(value) {
             if (!value) return 'E0.00';
             return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
         },
-        
+
         formatPercentage(value) {
             if (!value) return '-';
             return new Intl.NumberFormat('en-US', {
@@ -492,13 +493,13 @@ export default {
                 maximumFractionDigits: 4
             }).format(value);
         },
-        
+
         formatValue(metricCode, value) {
             if (value === null || value === undefined) return '-';
-            
+
             const percentageMetrics = ['PD', 'LGD'];
             const currencyMetrics = ['ECL', 'NPL', 'EAD'];
-            
+
             if (percentageMetrics.includes(metricCode)) {
                 return this.formatPercentage(value);
             } else if (currencyMetrics.includes(metricCode)) {
@@ -507,7 +508,7 @@ export default {
                 return value;
             }
         },
-        
+
         getMetricBadgeClass(metricCode) {
             const classes = {
                 'ECL': 'bg-maiic-100 text-maiic-800',
@@ -520,10 +521,10 @@ export default {
             };
             return classes[metricCode] || 'bg-gray-100 text-gray-800';
         },
-        
+
         getValueColor(metricCode, value) {
             if (value === null || value === undefined) return 'text-gray-500';
-            
+
             if (['PD', 'LGD', 'NPL'].includes(metricCode)) {
                 if (value > 0.1) return 'text-red-600';
                 if (value > 0.05) return 'text-amber-600';
@@ -531,7 +532,7 @@ export default {
             }
             return 'text-gray-900';
         },
-        
+
         getInputClass(metricCode) {
             const percentageMetrics = ['PD', 'LGD'];
             if (percentageMetrics.includes(metricCode)) {
@@ -539,7 +540,7 @@ export default {
             }
             return '';
         },
-        
+
         getInputDescription(metricCode) {
             const descriptions = {
                 'PD': 'Probability of Default (0-1, e.g., 0.05 for 5%)',
@@ -552,16 +553,16 @@ export default {
             };
             return descriptions[metricCode] || 'Enter value';
         },
-        
+
         editRecord(record) {
             this.editingRecord = record;
-            this.editForm = { 
+            this.editForm = {
                 value: record.value,
                 source: record.source,
                 notes: record.notes
             };
         },
-        
+
         updateRecord() {
             this.updating = true;
             Inertia.put(route('credit-loss-data.update', this.editingRecord.id), this.editForm, {
@@ -574,9 +575,9 @@ export default {
                 }
             });
         },
-        
-        deleteRecord(record) {
-            if (confirm('Are you sure you want to delete this record?')) {
+
+        async deleteRecord(record) {
+            if (await confirmDialog({ title: 'Are you sure you want to delete this record?', confirmLabel: 'Delete', tone: 'danger' })) {
                 Inertia.delete(route('credit-loss-data.destroy', record.id));
             }
         }

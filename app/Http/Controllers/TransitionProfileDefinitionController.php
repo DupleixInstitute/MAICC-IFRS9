@@ -15,7 +15,11 @@ class TransitionProfileDefinitionController extends Controller
 
     public function index(Request $request)
     {
-        return Inertia::render('TransitionProfileDefinitions/Index');
+        // The list is sent with the page (15 a page); the old DataTables
+        // endpoint answered only X-Requested-With requests, so it stayed empty.
+        return Inertia::render('TransitionProfileDefinitions/Index', [
+            'profiles' => TransitionProfileDefinition::query()->orderBy('id')->paginate(15)->withQueryString(),
+        ]);
     }
 
     public function getProfiles(Request $request)

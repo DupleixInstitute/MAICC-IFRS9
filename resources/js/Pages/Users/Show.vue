@@ -1,165 +1,66 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('users.index')">Users
-                </inertia-link>
-                <span class="text-maiic-500 font-medium">/</span> {{ profile.name }}
-            </h2>
+    <app-layout :title="profile.name" description="This person's sign-in, role and contact details">
+        <template #actions>
+            <inertia-link v-if="can('users.update')" :href="route('users.edit', profile.id)" class="inline-flex items-center gap-2 rounded-lg bg-maiic-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-maiic-700">
+                <font-awesome-icon icon="pen"/> Edit user
+            </inertia-link>
+            <inertia-link :href="route('users.index')" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">Back to users</inertia-link>
         </template>
-        <div class="mx-auto">
-            <div class="md:flex md:items-start">
-                <div class="bg-white relative shadow-xl mb-4 mt-20 w-full md:w-3/12">
-                    <div class="col-span-12 lg:col-span-4 xxl:col-span-3 flex lg:block flex-col-reverse">
-                        <div class="intro-y box mt-5 lg:mt-0">
-                            <user-menu :profile="profile"></user-menu>
-                        </div>
-                    </div>
 
-                </div>
-                <div class="w-full md:w-9/12 md:ml-4 bg-white sm:mt-4">
-                    <table class="border-collapse w-full border border-gray-400 bg-white text-sm shadow-sm">
-                        <tbody>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Name</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.name }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Gender</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">
-                                <span class="capitalize">{{ profile.gender }}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Role</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.current_role }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Branch</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500" v-if="profile.branch">{{ profile.branch?.name }}</td>
-                        </tr>
-                        <tr v-if="profile.current_role==='doctor'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Qualifications</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.qualifications }}</td>
-                        </tr>
-                        <tr v-if="profile.current_role==='doctor'">
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Practice Number</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.practice_number }}</td>
-                        </tr>
-
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">External ID</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.external_id }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Mobile</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.mobile }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Tel</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.tel }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Email</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.email }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Group Email</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.group_email ?? "N/A" }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Zip</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.zip }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Address</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.address }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Last Login</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.last_login }}</td>
-                        </tr>
-                        <tr>
-                            <td class="w-1/2 border border-gray-300 font-semibold p-4 text-gray-900">Can reasign application to other users?</td>
-                            <td class="w-1/2 border border-gray-300 p-4 text-gray-500">{{ profile.can_reassign ? 'Yes' : 'No' }}</td>
-                        </tr>
-                        </tbody>
-                    </table>
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-4">
+            <div class="maiic-panel p-6 text-center">
+                <img v-if="profile.profile_photo_url" :src="profile.profile_photo_url" alt="" class="mx-auto h-24 w-24 rounded-full object-cover ring-4 ring-maiic-50">
+                <div class="mt-3 text-lg font-bold text-gray-900">{{ profile.name }}</div>
+                <div class="text-sm text-gray-500">{{ profile.email }}</div>
+                <div class="mt-3 flex flex-wrap justify-center gap-1">
+                    <span v-if="profile.current_role" class="maiic-badge maiic-badge-green">{{ humanise(profile.current_role) }}</span>
+                    <span class="maiic-badge" :class="Number(profile.active) ? 'maiic-badge-green' : 'maiic-badge-grey'">{{ Number(profile.active) ? 'Active' : 'Inactive' }}</span>
                 </div>
             </div>
-        </div>
-        <teleport to="head">
-            <title>{{ pageTitle }}</title>
-            <meta property="og:description" :content="pageDescription">
-        </teleport>
-    </app-layout>
 
+            <div class="maiic-panel lg:col-span-3">
+                <div class="border-b border-gray-200 px-5 py-3"><h3 class="font-semibold text-gray-900">Details</h3></div>
+                <dl class="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
+                    <div v-for="row in rows" :key="row.label" class="flex justify-between gap-4 border-b border-gray-100 px-5 py-3 text-sm">
+                        <dt class="text-gray-500">{{ row.label }}</dt>
+                        <dd class="text-right font-semibold text-gray-900">{{ row.value || '-' }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </app-layout>
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Icon from '@/Jetstream/Icon.vue'
-import Pagination from '@/Jetstream/Pagination.vue'
-import SearchFilter from '@/Jetstream/SearchFilter.vue'
-import FilterSearch from '@/Jetstream/FilterSearch.vue'
-import mapValues from 'lodash/mapValues'
-import pickBy from 'lodash/pickBy'
-import throttle from 'lodash/throttle'
-import JetLabel from '@/Jetstream/Label.vue'
-import SelectInput from '@/Jetstream/SelectInput.vue'
-import JetConfirmationModal from '@/Jetstream/ConfirmationModal.vue'
-import JetDangerButton from '@/Jetstream/DangerButton.vue'
-import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
-import UserMenu from '@/Pages/Users/UserMenu.vue'
 
 export default {
-    components: {
-        AppLayout,
-        Icon,
-        Pagination,
-        SearchFilter,
-        FilterSearch,
-        JetLabel,
-        SelectInput,
-        JetConfirmationModal,
-        JetDangerButton,
-        JetSecondaryButton,
-        UserMenu,
-    },
-    props: {
-        profile: Object,
-
-    },
-    data() {
-        return {
-
-            confirmingUserDeletion: false,
-            selectedRecord: null,
-            pageTitle: "User Profile",
-            pageDescription: "User Profile",
-
-        }
-    },
-    watch: {
-
+    components: { AppLayout },
+    props: { profile: Object },
+    computed: {
+        rows() {
+            const p = this.profile
+            return [
+                { label: 'Role', value: this.humanise(p.current_role) },
+                { label: 'Branch', value: p.branch?.name },
+                { label: 'Email', value: p.email },
+                { label: 'Group email', value: p.group_email },
+                { label: 'Mobile', value: p.mobile },
+                { label: 'Telephone', value: p.tel },
+                { label: 'Gender', value: this.humanise(p.gender) },
+                { label: 'External ID', value: p.external_id },
+                { label: 'Address', value: p.address },
+                { label: 'Last sign-in', value: p.last_login },
+                { label: 'Can hand work to other users', value: p.can_reassign ? 'Yes' : 'No' },
+            ]
+        },
     },
     methods: {
-        reset() {
-            this.form = mapValues(this.form, () => null)
-        },
-        deleteAction(id) {
-            this.confirmingUserDeletion = true
-            this.selectedRecord = id
-        },
-        destroy() {
-
-            this.$inertia.delete(this.route('users.destroy', this.profile.id))
-            this.confirmingUserDeletion = false
+        humanise(v) {
+            if (!v) return ''
+            const t = String(v).replace(/_/g, ' ')
+            return t.charAt(0).toUpperCase() + t.slice(1)
         },
     },
 }
 </script>
-
-<style scoped>
-
-</style>

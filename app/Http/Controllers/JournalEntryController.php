@@ -37,7 +37,7 @@ class JournalEntryController extends Controller
         $journalEntries = JournalEntry::with(['branch', 'chartOfAccount', 'currency'])
             ->filter(\request()->only('search', 'branch_id', 'currency_id', 'chart_of_account_id','date_range', 'start_date', 'end_date'))
             ->orderBy('id', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('JournalEntries/Index', [
             'journalEntries' => $journalEntries,
             'chartOfAccounts' => ChartOfAccount::where('active', 1)->get()->map(function ($item) {

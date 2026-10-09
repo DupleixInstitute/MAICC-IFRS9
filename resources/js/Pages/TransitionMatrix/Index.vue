@@ -1,231 +1,92 @@
 <template>
     <app-layout>
         <template #header>
-            <div class="flex justify-between items-center">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Transition Matrix Monthly Probability
-                </h2>
-                <div class="flex items-center space-x-2">
-                    <button @click="showReportModal = true"
-                          class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 focus:outline-none focus:ring focus:ring-maiic-300 transition">
-                        <i class="fas fa-file-archive mr-2"></i>
-                        Get Report
-                    </button>
-                    <Link :href="route('transition-matrices.create')"
-                          class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition">
-                        Create New Matrix
-                    </Link>
+            <div>
+                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                    <span>IFRS 9 Model Setup</span><span>/</span><span>PD Model</span><span>/</span><span class="font-medium text-maiic-700">Monthly Probability</span>
                 </div>
+                <h2 class="text-xl font-semibold text-gray-800">Monthly Probability</h2>
+                <p class="mt-1 text-sm text-gray-600">Monthly transition matrices: how loans move between stages, and the probability of default they give</p>
             </div>
         </template>
+        <template #actions>
+            <button type="button" class="secondary-btn" @click="showReportModal = true">Get report</button>
+            <Link :href="route('transition-matrices.create')" class="primary-btn">Create matrix</Link>
+        </template>
 
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                    <div class="p-6">
-                        <!-- Search and Filters -->
-                        <div class="mb-6 flex justify-between items-center space-x-4">
-                            <div class="flex-1 max-w-sm">
-                                <jet-input type="text" 
-                                          v-model="search" 
-                                          class="w-full"
-                                          placeholder="Search matrices..." />
-                            </div>
-                            <div class="flex space-x-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Start Date</label>
-                                    <input type="date" 
-                                           v-model="startDate"
-                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">End Date</label>
-                                    <input type="date" 
-                                           v-model="endDate"
-                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-300 focus:ring focus:ring-maiic-200 focus:ring-opacity-50" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Matrices Table -->
-                        <div class="overflow-x-auto">
-                            <table class="maiic-table">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Transition Profile Id</th>
-                                        <th class="text-center">PD Level</th>
-                                        <th>Segmentation </th>
-                                        <th class="text-center">Calculation Source</th>
-                                        <th>Payments Included?</th>
-                                        <th class="text-center">Start Period</th>
-                                        <th class="text-center">End Period</th>
-                                        <th class="text-center">Transition Years</th>
-                                        <th>Records Transitioned</th>
-                                        <th>Records Updated</th>
-                                        <th>Reporting Periods</th>
-                                        <th>No of Calc Runs</th>
-                                        <th class="num">Transition Balance</th>
-                                        <th>Updated Balance</th>
-                                        <th>Status</th>
-                                        <th>Last Calc Date</th>
-                                        <th>Comments</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-if="matrices.data.length === 0">
-                                        <td colspan="15" class="px-6 py-4 text-center text-gray-500">No transition matrices found.</td>
-                                    </tr>
-                                    <tr v-for="matrix in matrices.data" :key="matrix.id">
-                                        <td class="whitespace-nowrap">{{ matrix.id }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.transition_profile_id }}</td>
-                                        <td class="whitespace-nowrap">
-                                            <span class="px-2 py-1 text-center text-xs font-semibold rounded-full"
-                                                  :class="{
-                                                      'bg-maiic-100 text-maiic-800': matrix.pd_calculation_level === 'portfolio',
-                                                      'bg-maiic-100 text-maiic-800': matrix.pd_calculation_level === 'sector'
-                                                  }">
-                                                {{ matrix.pd_calculation_level ? matrix.pd_calculation_level.toUpperCase() : '-' }}
-                                            </span>
-                                        </td>       
-
-                                        <!-- Portfolio/Sector Name -->
-                                        <td class="whitespace-nowrap">
-                                            <div v-if="matrix.pd_calculation_level === 'portfolio'">
-                                                <span v-if="matrix.portfolio">
-                                                    {{ matrix.portfolio.name }}
-                                                </span>
-                                                <span v-else class="text-gray-400">
-                                                    Portfolio ID: {{ matrix.pd_calculation_id }}
-                                                </span>
-                                            </div>
-                                            <div v-else-if="matrix.pd_calculation_level === 'sector'">
-                                                <span v-if="matrix.sector">
-                                                    {{ matrix.sector.code }} - {{ matrix.sector.name }}
-                                                </span>
-                                                <span v-else class="text-gray-400">
-                                                    Sector Code: {{ matrix.pd_calculation_code }}
-                                                </span>
-                                            </div>
-                                            <span v-else class="text-gray-400">-</span>
-                                        </td>
-                                        <td class="px-6 py-4 text-center whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.pd_start_stage_total_type }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.start_reporting_period }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.end_reporting_period }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.transition_years }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.records_count_transitioned }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.records_count_updated }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.reporting_periods_count }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.run_no }}</td>
-                                        <td class="px-6 py-4 text-right whitespace-nowrap">{{ formatCurrency(matrix.transition_balance )}}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.updated_balance }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-                                        <span
-                                            class="px-2 py-1 rounded-full text-xs font-semibold"
-                                            :class="{
-                                            'bg-red-100 text-red-700': matrix.status === 'closed',
-                                            'bg-amber-100 text-amber-700': matrix.status === 'draft'
-                                            }"
-                                        >
-                                            {{ matrix.status === 'closed' ? 'Closed' : 'Draft' }}
-                                        </span>
-                                        </td>
-                                        <td class="whitespace-nowrap">{{ formatDate(matrix.last_calculation_date) }}</td>
-                                        <td class="whitespace-nowrap">{{ matrix.comments }}</td>
-                                        <!-- <td class="px-6 py-4 text-right text-sm font-medium">
-                                            <Link :href="route('transition-matrices.show', matrix.id)" class="text-maiic-600 hover:text-maiic-900 mr-4">View</Link>
-                                        </td> -->
-                                        <td class="px-6 py-4 text-right text-sm font-medium">
-                                            <div class="flex  flex-wrap gap-2 w-20">
-                                                <button
-                                                    @click="openModal('view', matrix)"
-                                                    class="text-gray-600 hover:text-gray-800" title="View"
-                                                >
-                                                    <font-awesome-icon :icon="['fas', 'table']" class="w-8 h-8" />
-                                                </button>
-
-                                                <button 
-                                                    v-if="matrix.status === 'draft'"
-                                                    @click="openModal('edit', matrix)"
-                                                    class="text-gray-600 hover:text-gray-800" title="Edit"
-                                                >
-                                                    <font-awesome-icon :icon="['fas', 'pen']" class="w-8 h-8" />
-                                                </button>
-
-                                                <button 
-                                                    v-if="matrix.status === 'draft'"
-                                                    @click="reRunMatrix(matrix.id)"
-                                                    class="text-gray-600 hover:text-gray-800" title="Re-run"
-                                                >
-                                                    <font-awesome-icon :icon="['fas', 'calculator']" class="w-8 h-8" />
-                                                </button>
-
-                                                 <button 
-                                                        v-if="matrix.calculation_source === 'manual'"
-                                                        @click="matrix.has_supporting_document ? downloadFile(matrix.id) : downloadFile(matrix.id)"
-                                                        :class="[
-                                                        matrix.has_supporting_document 
-                                                            ? 'text-gray-600 hover:text-gray-800' 
-                                                            : 'text-gray-600 hover:text-gray-800'
-                                                        ]"
-                                                        :title="matrix.has_supporting_document ? 'Download Support Doc' : 'Attach Support Doc First'"
-                                                    >
-                                                        <i v-if="matrix.has_supporting_document"> 
-                                                            <font-awesome-icon :icon="['fas', 'check-circle']" class="w-8 h-8" />
-                                                        </i>
-                                                        <i v-else>
-                                                             <font-awesome-icon :icon="['fas', 'file-download']" class="w-8 h-8" />
-                                                        </i>
-                                                 </button>
-
-                                                    <button 
-                                                        v-if="matrix.calculation_source === 'manual'"
-                                                        @click="openUploadModal(matrix.id)" 
-                                                        class="text-gray-600 hover:text-gray-800 transition-colors"
-                                                        aria-label="Attach File"
-                                                        title="Attach File"
-                                                    >
-                                                        <font-awesome-icon :icon="['fas', 'paperclip']" class="w-8 h-8" />
-                                                </button>
-
-                                                 <!-- LOCKED STATE -->
-                                                <button
-                                                    v-if="matrix.status === 'closed'"
-                                                    @click="lockPD(matrix.id)"
-                                                    class="text-gray-600 hover:text-gray-800" title="Unlock PD"
-                                                >
-                                                    <font-awesome-icon :icon="['fas', 'lock-open']" class="w-8 h-8" />
-                                                </button>
-
-                                                <!-- ACTIVE STATE -->
-
-                                                <button
-                                                    v-else="matrix.status === 'draft'"
-                                                    @click="lockPD(matrix.id)"
-                                                    class="text-gray-600 hover:text-gray-800" title="Lock PD"
-                                                >
-                                                    <font-awesome-icon :icon="['fas', 'lock']" class="w-8 h-8" />
-                                                </button>
-
-                                                <button
-                                                     v-if="matrix.status === 'closed'"
-                                                     @click="openLoanBookModal(matrix)"
-                                                    class="text-gray-600 hover:text-gray-800" title="Update Loan Book"
-                                                >
-                                                    <font-awesome-icon :icon="['fas', 'book']" class="w-8 h-8" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Pagination -->
-                        <pagination :links="matrices.links" class="mt-6" />
+        <div class="w-full space-y-4">
+            <div class="maiic-panel">
+                <div class="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Transition matrices</h3>
+                        <p class="text-xs text-gray-500">{{ matrices.total ?? matrices.data.length }} matrix run(s), newest first. A closed matrix is locked for use in the ECL.</p>
                     </div>
+                    <div class="flex flex-wrap items-end gap-2">
+                        <label class="block"><span class="maiic-flabel">Search</span><input v-model="search" type="text" class="maiic-input !w-56" placeholder="Segment, period or comment" /></label>
+                        <label class="block"><span class="maiic-flabel">From</span><input v-model="startDate" type="date" class="maiic-input !w-40" /></label>
+                        <label class="block"><span class="maiic-flabel">To</span><input v-model="endDate" type="date" class="maiic-input !w-40" /></label>
+                    </div>
+                </div>
+
+                <div class="maiic-table-wrap overflow-x-auto">
+                    <table class="maiic-table">
+                        <thead>
+                            <tr>
+                                <th>Matrix</th>
+                                <th>Segment</th>
+                                <th>Source</th>
+                                <th>Periods</th>
+                                <th class="num">Years</th>
+                                <th class="num">Records</th>
+                                <th class="num">Transition balance</th>
+                                <th>Status</th>
+                                <th>Last calculated</th>
+                                <th class="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="matrix in matrices.data" :key="matrix.id">
+                                <td class="whitespace-nowrap">
+                                    <div class="font-semibold text-gray-900">#{{ matrix.id }}</div>
+                                    <div class="text-xs text-gray-500">Profile {{ matrix.transition_profile_id }}, run {{ matrix.run_no ?? '-' }}</div>
+                                </td>
+                                <td>
+                                    <span class="maiic-badge maiic-badge-grey">{{ matrix.pd_calculation_level ? matrix.pd_calculation_level.charAt(0).toUpperCase() + matrix.pd_calculation_level.slice(1) : '-' }}</span>
+                                    <div class="mt-0.5 text-sm">
+                                        <template v-if="matrix.pd_calculation_level === 'portfolio'">{{ matrix.portfolio ? matrix.portfolio.name : 'Portfolio ' + matrix.pd_calculation_id }}</template>
+                                        <template v-else-if="matrix.pd_calculation_level === 'sector'">{{ matrix.sector ? matrix.sector.code + ' - ' + matrix.sector.name : 'Sector ' + matrix.pd_calculation_code }}</template>
+                                    </div>
+                                </td>
+                                <td class="whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] || matrix.calculation_source }}<div v-if="matrix.pd_start_stage_total_type" class="text-xs text-gray-500">Payments: {{ matrix.pd_start_stage_total_type }}</div></td>
+                                <td class="whitespace-nowrap">{{ matrix.start_reporting_period }} to {{ matrix.end_reporting_period }}<div class="text-xs text-gray-500">{{ matrix.reporting_periods_count ?? '-' }} reporting period(s)</div></td>
+                                <td class="num">{{ matrix.transition_years }}</td>
+                                <td class="num whitespace-nowrap">{{ matrix.records_count_transitioned ?? '-' }}<div class="text-xs text-gray-500">{{ matrix.records_count_updated ?? 0 }} updated</div></td>
+                                <td class="num whitespace-nowrap">{{ formatCurrency(matrix.transition_balance) }}<div v-if="matrix.updated_balance" class="text-xs text-gray-500">{{ formatCurrency(matrix.updated_balance) }} updated</div></td>
+                                <td>
+                                    <span class="maiic-badge" :class="matrix.status === 'closed' ? 'maiic-badge-green' : 'maiic-badge-gold'" :title="matrix.comments || null">{{ matrix.status === 'closed' ? 'Closed' : 'Draft' }}</span>
+                                </td>
+                                <td class="whitespace-nowrap">{{ formatDate(matrix.last_calculation_date) }}</td>
+                                <td>
+                                    <div class="flex flex-nowrap justify-end gap-1.5">
+                                        <button type="button" class="maiic-action maiic-action-view" title="View the matrix" @click="openModal('view', matrix)"><font-awesome-icon icon="table" /></button>
+                                        <button v-if="matrix.status === 'draft'" type="button" class="maiic-action maiic-action-edit" title="Edit the matrix" @click="openModal('edit', matrix)"><font-awesome-icon icon="pen" /></button>
+                                        <button v-if="matrix.status === 'draft'" type="button" class="maiic-action maiic-action-neutral" title="Re-run the calculation" @click="reRunMatrix(matrix.id)"><font-awesome-icon icon="calculator" /></button>
+                                        <button v-if="matrix.calculation_source === 'manual'" type="button" class="maiic-action maiic-action-neutral" :title="matrix.has_supporting_document ? 'Download the supporting document' : 'No supporting document attached yet'" @click="downloadFile(matrix.id)"><font-awesome-icon :icon="matrix.has_supporting_document ? 'check-circle' : 'file-download'" /></button>
+                                        <button v-if="matrix.calculation_source === 'manual'" type="button" class="maiic-action maiic-action-neutral" title="Attach a supporting document" @click="openUploadModal(matrix.id)"><font-awesome-icon icon="paperclip" /></button>
+                                        <button type="button" class="maiic-action" :class="matrix.status === 'closed' ? 'maiic-action-edit' : 'maiic-action-view'" :title="matrix.status === 'closed' ? 'Unlock this PD' : 'Lock this PD'" @click="lockPD(matrix.id)"><font-awesome-icon :icon="matrix.status === 'closed' ? 'lock-open' : 'lock'" /></button>
+                                        <button v-if="matrix.status === 'closed'" type="button" class="maiic-action maiic-action-neutral" title="Update the loan book" @click="openLoanBookModal(matrix)"><font-awesome-icon icon="book" /></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="matrices.data.length === 0">
+                                <td colspan="10" class="maiic-empty">No transition matrices yet. Use <strong>Create matrix</strong> at the top right to build the first one.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div v-if="matrices.links && matrices.links.length > 3" class="border-t border-gray-100 px-4 pb-4">
+                    <pagination :links="matrices.links" />
                 </div>
             </div>
         </div>
@@ -234,19 +95,19 @@
             <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
                 <h2 class="text-lg font-bold mb-4">Update Loan Book Period</h2>
                 <p class="mb-4">Select the reporting period to update loan books for <strong>{{ selectedTD?.portfolio_group?.name }}</strong>.</p>
-                
+
                 <label for="period" class="block mb-2 text-sm font-medium text-gray-700">Reporting Period</label>
-                <input 
-                    type="month" 
-                    v-model="selectedPeriod" 
-                    id="period" 
+                <input
+                    type="month"
+                    v-model="selectedPeriod"
+                    id="period"
                     class="border-gray-300 rounded-md shadow-sm w-full mb-4"
                 >
-        
+
                 <div class="flex justify-end space-x-2">
                     <button @click="showModal = false" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
-                    <button 
-                        @click="submitUpdate" 
+                    <button
+                        @click="submitUpdate"
                         class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
                         :disabled="loading === selectedTD?.id"
                     >
@@ -257,7 +118,7 @@
             </div>
         </div>
 
-        
+
         <div
             v-if="showUploadModal"
             class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
@@ -268,7 +129,7 @@
                 </h2>
 
                 <p class="text-sm text-gray-600 mb-4 leading-relaxed">
-                Upload a supporting document for this  calculation.  
+                Upload a supporting document for this  calculation.
                 This may include PDF reports, Excel models, or images validating the manual calculation.
                 </p>
                 <!-- File Upload Box -->
@@ -293,7 +154,7 @@
                 v-if="uploadFile"
                 class="mt-4 p-3 bg-maiic-50 border border-maiic-200 rounded-lg text-sm text-maiic-800"
                 >
-                <strong>Selected File:</strong> {{ uploadFile.name }}  
+                <strong>Selected File:</strong> {{ uploadFile.name }}
                 <div class="text-xs mt-1 text-maiic-600">
                     Size: {{ Math.round(uploadFile.size / 1024) }} KB
                 </div>
@@ -301,7 +162,7 @@
 
                 <!-- Max Size & Accepted Formats Note -->
                 <div class="mt-3 text-xs text-gray-500">
-                <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG  
+                <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
                 <br />
                 <strong>Max Size:</strong> 5 MB
                 </div>
@@ -329,7 +190,7 @@
 
         <HelpManual />
 
-        <!-- ✅ INSERT MODAL HERE -->
+        
         <Modal v-if="modalVisible" @close="modalVisible = false">
             <ViewEditMatrix
                 :transitionMatrix="selectedMatrix"
@@ -343,7 +204,9 @@
 </template>
 <script>
 import { ref, watch } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, Link } from '@inertiajs/vue3'
+import { confirmDialog } from '@/Components/confirmDialog'
+import { notice } from '@/Components/Maiic/notice'
 import debounce from 'lodash/debounce'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetInput from '@/Jetstream/Input.vue'
@@ -356,6 +219,7 @@ import HelpManual from '../../Components/HelpManual.vue';
 export default {
     components: {
         AppLayout,
+        Link,
         JetInput,
         Pagination,
         Modal,
@@ -433,7 +297,7 @@ export default {
 
         async function submitUpdate() {
             if (!selectedPeriod.value) {
-                alert("Please select a reporting period.")
+                await notice('Choose a reporting period', 'Pick the month whose loan book should be updated.', 'warning')
                 return
             }
 
@@ -452,44 +316,45 @@ export default {
                     }
                 })
             } catch (error) {
-                alert('Error updating loan book: ' + (error.response?.data?.message || error.message))
+                notice('The loan book was not updated', error.response?.data?.message || error.message, 'danger')
                 loading.value = null
             }
         }
 
         async function reRunMatrix(matrixId) {
             try {
-                const confirmed = confirm('Are you sure you want to re-run this calculation?')
-                if (!confirmed) return
+                if (!(await confirmDialog({ title: 'Re-run this calculation?', message: 'The draft matrix is recalculated from the loan books.', confirmLabel: 'Re-run' }))) return
 
                 await axios.post(`/transition-matrix/${matrixId}/rerun`)
 
-                alert('Matrix re-run completed successfully.')
+                router.reload({ only: ['matrices'] })
+                notice('Matrix re-run', 'The calculation finished.')
             } catch (error) {
-                alert('Error while re-running matrix: ' + (error.response?.data?.message || error.message))
+                notice('The re-run failed', error.response?.data?.message || error.message, 'danger')
             }
         }
 
-        function lockPD(id) {
-            if (confirm('Are you sure you want to change the lock status of this Probability Of Default?')) {
+        async function lockPD(id) {
+            if (await confirmDialog({ title: 'Change the lock on this PD?', message: 'A closed (locked) matrix is the one the ECL uses; a draft can still be edited.', confirmLabel: 'Change lock' })) {
                 loading.value = id
                 router.post(route('transition-matrices.lock', id), {}, {
                     preserveScroll: true,
                     onFinish: () => { loading.value = null },
                     onSuccess: () => { router.reload({ only: ['matrices'] }) },
-                    onError: () => { alert('Something went wrong. Please try again.') },
+                    onError: () => { notice('The lock was not changed', 'Please try again.', 'danger') },
                 })
             }
         }
 
         const formatDate = (date) => {
+            if (!date) return '-'
             return new Date(date).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short',
             })
         }
 
-        
+
            const openUploadModal = (id) => {
                 uploadTargetId.value = id;
                 uploadFile.value = null;
@@ -502,7 +367,7 @@ export default {
 
         const submitUpload = () => {
             if (!uploadFile.value) {
-                alert('Please select a file first.');
+                notice('Choose a file first', 'Pick the supporting document to attach.', 'warning');
                 return;
             }
 
@@ -516,14 +381,14 @@ export default {
                 preserveScroll: true,
 
                 onSuccess: () => {
-                    alert(' File attached successfully');
+
                     showUploadModal.value = false;
                     router.reload({ only: ['matrices'] });
                 },
 
                 onError: (errors) => {
                     console.error(errors);
-                    alert(' Upload failed');
+                    notice('Upload failed', Object.values(errors || {})[0] || 'The file could not be attached.', 'danger');
                 },
 
                 onFinish: () => {
@@ -536,12 +401,12 @@ export default {
                 window.location.href = `/transition-matrix/${id}/download-file`;
             };
 
-        
+
         const formatCurrency = (value) => {
-            if (!value) return 'E0.00';
+            if (!value) return '0.00';
             return  new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
         };
-                    
+
 
         return {
             formatCurrency,

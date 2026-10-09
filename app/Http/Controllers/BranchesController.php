@@ -22,7 +22,7 @@ class BranchesController extends Controller
     public function index()
     {
         $branches = Branch::filter(\request()->only('search'))
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Branches/Index', [
             'filters' => \request()->all('search'),
             'branches' => $branches,

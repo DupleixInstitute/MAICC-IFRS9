@@ -131,9 +131,7 @@ class EirReconciliationController extends Controller
             . ($portfolio !== '' ? '-' . Str::slug($portfolio) : '');
 
         if ($data['format'] === 'pdf') {
-            return Pdf::loadView('reports.ifrs9.report', ['report' => $report])
-                ->setPaper('a4', 'landscape')
-                ->download($filename . '.pdf');
+            return \App\Support\ReportDownload::pdf($report, $filename);
         }
 
         return Excel::download(new Ifrs9ReportExport($report), $filename . '.xlsx');

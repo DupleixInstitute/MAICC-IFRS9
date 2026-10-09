@@ -68,7 +68,50 @@ class StressTestingController extends Controller
             3 => max(0.0, (float) ($v['s3_lgd_add'] ?? 0)) / 100,
         ];
 
-        return response()->json($this->execute($v['period'], $v['loan_portfolio_id'] ?? null, $pd, $lg));
+        $result = $this->execute($v['period'], $v['loan_portfolio_id'] ?? null, $pd, $lg);
+        if (in_array($request->query('download'), ['pdf', 'xlsx', 'csv'], true)) {
+            $inputs = array_map(fn ($s) => ['Stage ' . $s, number_format($pd[$s], 2) . 'x', number_format($lg[$s] * 100, 2) . ' pts'], [1, 2, 3]);
+
+            return $this->download($result, $v, $request->query('download'), [
+                'heading' => 'Scenario inputs', 'columns' => ['Stage', 'PD multiplier', 'LGD add-on'], 'align' => ['l', 'r', 'r'], 'rows' => $inputs,
+            ]);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * A run as a branded PDF, Excel workbook or CSV, in the hub's report
+     * shape: headline figures, the inputs, and the result by stage and by
+     * portfolio. The run is recomputed from the same inputs the screen used.
+     */
+    private function download(array $r, array $v, string $format, array $inputs)
+    {
+        $r = json_decode(json_encode($r), true); // the engine returns collections of objects
+        $money = fn ($x) => number_format((float) $x, 2);
+        $portfolio = ! empty($v['loan_portfolio_id']) ? DB::table('loan_portfolios')->where('id', $v['loan_portfolio_id'])->value('name') : 'All portfolios';
+        $report = [
+            'title' => 'Stress testing',
+            'subtitle' => 'Base against stressed ECL, recomputed loan by loan (EAD x PD x LGD, capped at 100%). ' . $portfolio . '.',
+            'period' => $r['period'],
+            'kpis' => [
+                ['label' => 'Base ECL', 'value' => $money($r['total_base_ecl']), 'tone' => 'maiic'],
+                ['label' => 'Stressed ECL', 'value' => $money($r['total_stress_ecl']), 'tone' => 'amber'],
+                ['label' => 'Change in ECL', 'value' => $money($r['delta']), 'tone' => $r['delta'] > 0 ? 'rose' : 'maiic'],
+                ['label' => 'Change in %', 'value' => number_format($r['delta_pct'] * 100, 2) . '%', 'tone' => $r['delta'] > 0 ? 'rose' : 'maiic'],
+            ],
+            'sections' => [
+                $inputs,
+                ['heading' => 'By IFRS 9 stage', 'columns' => ['Stage', 'Accounts', 'Exposure', 'Base ECL', 'Stressed ECL', 'Change'], 'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
+                    'rows' => array_merge(collect($r['by_stage'])->map(fn ($s) => ['Stage ' . $s['stage'], number_format($s['accounts']), $money($s['exposure']), $money($s['base_ecl']), $money($s['stress_ecl']), $money($s['stress_ecl'] - $s['base_ecl'])])->all(),
+                        [['Total', number_format(collect($r['by_stage'])->sum('accounts')), $money($r['total_exposure']), $money($r['total_base_ecl']), $money($r['total_stress_ecl']), $money($r['delta'])]])],
+                ['heading' => 'By portfolio', 'columns' => ['Portfolio', 'Accounts', 'Exposure', 'Base ECL', 'Stressed ECL', 'Change %'], 'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
+                    'rows' => collect($r['by_portfolio'])->map(fn ($s) => [$s['portfolio'], number_format($s['accounts']), $money($s['exposure']), $money($s['base_ecl']), $money($s['stress_ecl']),
+                        $s['base_ecl'] > 0 ? number_format(($s['stress_ecl'] - $s['base_ecl']) / $s['base_ecl'] * 100, 1) . '%' : '-'])->all()],
+            ],
+        ];
+
+        return \App\Support\ReportDownload::respond($report, 'MAIIC-stress-test-' . $r['period'], $format);
     }
 
     /**
@@ -128,6 +171,21 @@ class StressTestingController extends Controller
             'implied_pd_adjustment' => $adj,
             'pd_multiplier'         => $f,
         ];
+
+        if (in_array($request->query('download'), ['pdf', 'xlsx', 'csv'], true)) {
+            return $this->download($result, $v, $request->query('download'), [
+                'heading' => 'Macro scenario', 'columns' => ['Input', 'Value'], 'align' => ['l', 'r'], 'rows' => [
+                    ['Model', $result['macro']['model']],
+                    ['Slope', number_format($slope, 6)],
+                    ['Intercept', number_format($intercept, 6)],
+                    ['Base macro value', number_format($baseMacro, 4)],
+                    ['Macro shock', number_format($shock, 2) . '%'],
+                    ['Shocked macro value', number_format($shockedMacro, 4)],
+                    ['Implied PD adjustment', number_format($adj * 100, 2) . '%'],
+                    ['PD multiplier applied to every loan', number_format($f, 4) . 'x'],
+                ],
+            ]);
+        }
 
         return response()->json($result);
     }

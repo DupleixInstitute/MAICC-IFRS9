@@ -1,118 +1,56 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('users.roles.index')">Roles
-                </inertia-link>
-                <span class="text-maiic-500 font-medium">/</span> Create
-            </h2>
+    <app-layout title="Add role" description="Name the role and tick what people with it may see and do">
+        <template #actions>
+            <inertia-link :href="route('users.roles.index')" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">Back to roles</inertia-link>
         </template>
 
-        <div class="py-12">
-            <div class=" mx-auto">
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-4">
-                    <form @submit.prevent="submit" enctype="multipart/form-data">
-                        <div class="grid grid-cols-2 space-x-4">
-                            <div>
-                                <jet-label for="name" value="Name"/>
-                                <jet-input id="first_name" type="text" class="mt-1 block w-full"
-                                           v-model="form.name"
-                                           required
-                                           autofocus/>
-                                <jet-input-error :message="form.errors.name" class="mt-2"/>
-                            </div>
-                            <div class="">
-                                <jet-label for="display_name" value="Display Name"/>
-                                <jet-input id="display_name" type="text" class="mt-1 block w-full"
-                                           v-model="form.display_name"
-                                           required/>
-                                <jet-input-error :message="form.errors.display_name" class="mt-2"/>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 space-x-4">
-                            <div style="display: flex; align-items: center; ">
-                                <jet-label for="send_email_to_role_members" value="Send email to all in role level?"/>
-                                <div>
-                                    <input id="send_email_to_role_members" type="checkbox" v-model="form.send_email_to_role_members" class="ml-4"/>
-                                    <jet-input-error :message="form.errors.send_email_to_role_members" class="mt-2"/>
-                                </div>
-                            </div>
-                            <div class="">
-                                <jet-label for="group_email" value="Group Email"/>
-                                <jet-input id="group_email" type="text" class="mt-1 block w-full"
-                                           v-model="form.group_email"
-                                           required/>
-                                <jet-input-error :message="form.errors.group_email" class="mt-2"/>
-                            </div>
-
-                        </div>
-                        <div style="display: flex; align-items: center; ">
-                            <jet-label for="can_reassign_role_members" value="Reassign application to other role members?"/>
-                            <div>
-                                <input id="can_reassign_role_members" type="checkbox" v-model="form.can_reassign_role_members" class="ml-4"/>
-                                <jet-input-error :message="form.errors.can_reassign_role_members" class="mt-2"/>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 mt-4">
-                            <div v-for="(permissionCat,key) in permissions">
-                                <h3 class="mt-4">{{ key }}</h3>
-                                <div class="grid grid-cols-1 mt-2" v-for="permission in permissionCat">
-                                    <jet-label :for="'permission_'+permission.id">
-                                        <div class="flex items-center">
-                                            <jet-checkbox :name="'permission_'+permission.id" :value="permission.name" :id="'permission_'+permission.id"  v-model:checked="form.permissions" />
-                                            <div class="ml-2">
-                                                {{ permission.display_name || permission.name }}
-                                            </div>
-                                        </div>
-                                    </jet-label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-end mt-4">
-
-                            <jet-button class="ml-4" :class="{ 'opacity-25': form.processing }"
-                                        :disabled="form.processing">
-                                Save
-                            </jet-button>
-                        </div>
-                    </form>
+        <form class="maiic-panel p-6" @submit.prevent="submit">
+            <div class="maiic-section-title mt-0">Role</div>
+            <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+                <div>
+                    <label for="display_name" class="maiic-flabel">Display name</label>
+                    <input id="display_name" v-model="form.display_name" type="text" class="maiic-input" required autofocus placeholder="e.g. Finance Officer">
+                    <p v-if="form.errors.display_name" class="mt-1 text-xs font-semibold text-red-600">{{ form.errors.display_name }}</p>
                 </div>
+                <div>
+                    <label for="name" class="maiic-flabel">System name (no spaces)</label>
+                    <input id="name" v-model="form.name" type="text" class="maiic-input" required placeholder="e.g. finance_officer">
+                    <p v-if="form.errors.name" class="mt-1 text-xs font-semibold text-red-600">{{ form.errors.name }}</p>
+                </div>
+                <div>
+                    <label for="group_email" class="maiic-flabel">Group email (optional)</label>
+                    <input id="group_email" v-model="form.group_email" type="email" class="maiic-input">
+                    <p v-if="form.errors.group_email" class="mt-1 text-xs font-semibold text-red-600">{{ form.errors.group_email }}</p>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input v-model="form.send_email_to_role_members" type="checkbox" class="rounded border-gray-300 text-maiic-600 focus:ring-maiic-500"> Email everyone in the role
+                </label>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input v-model="form.can_reassign_role_members" type="checkbox" class="rounded border-gray-300 text-maiic-600 focus:ring-maiic-500"> Members can hand work to each other
+                </label>
             </div>
-        </div>
-        <teleport to="head">
-            <title>{{ pageTitle }}</title>
-            <meta property="og:description" :content="pageDescription">
-        </teleport>
+
+            <div class="maiic-section-title">Permissions <span class="ml-1 font-semibold normal-case tracking-normal text-gray-500">({{ form.permissions.length }} ticked)</span></div>
+            <p v-if="form.errors.permissions" class="mb-2 text-xs font-semibold text-red-600">{{ form.errors.permissions }}</p>
+            <permission-picker v-model="form.permissions" :permissions="permissions"/>
+
+            <div class="mt-6 flex justify-end gap-2 border-t border-gray-100 pt-5">
+                <inertia-link :href="route('users.roles.index')" class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50">Cancel</inertia-link>
+                <button type="submit" :disabled="form.processing" class="inline-flex items-center gap-2 rounded-lg bg-maiic-600 px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-maiic-700 disabled:opacity-50">
+                    <font-awesome-icon icon="check"/> {{ form.processing ? 'Saving...' : 'Add role' }}
+                </button>
+            </div>
+        </form>
     </app-layout>
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import JetButton from "@/Jetstream/Button.vue";
-import JetInput from "@/Jetstream/Input.vue";
-import JetInputError from "@/Jetstream/InputError.vue";
-import JetCheckbox from "@/Jetstream/Checkbox.vue";
-import JetLabel from "@/Jetstream/Label.vue";
-import Select from "@/Jetstream/Select.vue";
-import FileInput from "@/Jetstream/FileInput.vue";
-
+import PermissionPicker from './Partials/PermissionPicker.vue'
 
 export default {
-    props: {
-        permissions: Object
-    },
-    components: {
-        Select,
-        AppLayout,
-        JetButton,
-        JetInput,
-        JetCheckbox,
-        JetLabel,
-        JetInputError,
-        FileInput,
-
-    },
+    components: { AppLayout, PermissionPicker },
+    props: { permissions: Object },
     data() {
         return {
             form: this.$inertia.form({
@@ -123,20 +61,10 @@ export default {
                 group_email: null,
                 can_reassign_role_members: false,
             }),
-            pageTitle: "Create Role",
-            pageDescription: "Create Role",
         }
-
     },
     methods: {
-        submit() {
-            this.form.post(this.route('users.roles.store'), {})
-
-        },
-
-    }
+        submit() { this.form.post(this.route('users.roles.store')) },
+    },
 }
 </script>
-<style scoped>
-
-</style>

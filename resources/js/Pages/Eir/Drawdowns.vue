@@ -10,75 +10,34 @@
           <p class="mt-1 text-sm text-gray-600">Every tranche paid out on a facility, and the commitment still undrawn</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <Link :href="route('eir-data.index')" class="secondary-btn">EIR Data</Link>
           <Link :href="route('eir-intake.index', { type: 'disbursements' })" class="primary-btn">Import drawdowns</Link>
         </div>
       </div>
     </template>
 
-    <div class="max-w-7xl mx-auto space-y-5">
-      <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <form class="flex flex-col gap-3 md:flex-row md:items-end" @submit.prevent="apply">
+    <div class="w-full space-y-5">
+      <KpiRow :cards="cards" />
+
+      <div class="maiic-panel">
+        <div class="flex flex-col gap-3 border-b border-gray-200 p-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Drawn up to</label>
-            <input v-model="form.as_of" type="date" class="form-input md:w-48" />
-            <p class="mt-1 text-xs text-gray-500">Only drawdowns on or before this date are counted.</p>
+            <h3 class="font-semibold text-gray-900">Facilities, largest undrawn commitment first</h3>
+            <p class="mt-1 text-xs text-gray-500">Choose a facility to see each tranche. <strong>Source</strong> says where the amount drawn came from.</p>
+            <details class="group mt-2 text-xs text-gray-600">
+            <summary class="cursor-pointer select-none font-semibold text-maiic-700 hover:underline">How this works</summary>
+            <p class="mt-1 max-w-4xl">The undrawn commitment on a facility is its approved amount less what has been drawn. Where drawdown rows have been loaded, what has been drawn is the sum of the
+              tranches up to the date chosen, so the figure can be struck at any date. Where no rows have been loaded, the figures fall back to the monthly Loan Book Report and the
+              row says so: that source carries no dates, so a month with a tranche in it cannot be reconciled from it. Where neither source states an approved amount the commitment
+              is shown as not known rather than as nil, because an empty table is not evidence that a facility is fully drawn.</p>
+          </details>
           </div>
-          <div class="md:flex-1">
-            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Facility</label>
-            <input v-model="form.search" type="text" class="form-input w-full" placeholder="Part of the loan account number" />
-          </div>
-          <button type="submit" class="secondary-btn">Apply</button>
-          <button v-if="form.search || form.as_of !== asOf" type="button" class="secondary-btn" @click="reset">Clear</button>
-        </form>
-      </div>
-
-      <!-- The four figures a reviewer checks the commitment note against -->
-      <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="text-xl font-bold text-gray-900">{{ money(totals.approved) }}</div>
-          <div class="mt-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">Approved</div>
-          <div class="mt-1 text-xs text-gray-500">{{ number(totals.facilities) }} facilities</div>
-        </div>
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="text-xl font-bold text-gray-900">{{ money(totals.drawn) }}</div>
-          <div class="mt-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">Drawn</div>
-          <div class="mt-1 text-xs text-gray-500">up to {{ asOf }}</div>
-        </div>
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="text-xl font-bold text-maiic-700">{{ money(totals.undrawn) }}</div>
-          <div class="mt-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">Undrawn commitment</div>
-          <div class="mt-1 text-xs text-gray-500">reported separately under IFRS 9</div>
-        </div>
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="text-xl font-bold text-gray-900">{{ number(totals.tranches) }}</div>
-          <div class="mt-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">Drawdowns loaded</div>
-          <div class="mt-1 text-xs text-gray-500">{{ number(totals.from_drawdowns) }} facilities with their own rows</div>
-        </div>
-        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="text-xl font-bold" :class="totals.from_loan_book || totals.not_known ? 'text-amber-700' : 'text-gray-900'">
-            {{ number(totals.from_loan_book + totals.not_known) }}
-          </div>
-          <div class="mt-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">Without drawdown rows</div>
-          <div class="mt-1 text-xs text-gray-500">{{ number(totals.from_loan_book) }} from the loan book, {{ number(totals.not_known) }} not known</div>
-        </div>
-      </div>
-
-      <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-        <p>
-          The undrawn commitment on a facility is its approved amount less what has been drawn. Where drawdown rows have been loaded, what has been drawn is the sum of the
-          tranches up to the date above, so the figure can be struck at any date. Where no rows have been loaded, the figures fall back to the monthly Loan Book Report and the
-          row says so: that source carries no dates, so a month with a tranche in it cannot be reconciled from it. Where neither source states an approved amount the commitment
-          is shown as not known rather than as nil, because an empty table is not evidence that a facility is fully drawn.
-        </p>
-      </div>
-
-      <div class="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div class="border-b border-gray-200 p-4">
-          <h3 class="font-semibold text-gray-900">Facilities, largest undrawn commitment first</h3>
-          <p class="mt-1 text-xs text-gray-500">
-            Choose a facility to see each tranche with its date and reference. <strong>Source</strong> says where the amount drawn came from.
-          </p>
+          <form class="flex flex-wrap items-center gap-2" @submit.prevent="apply">
+            <label class="text-xs font-semibold text-gray-500" for="dd-asof" title="Only drawdowns on or before this date are counted">Drawn up to</label>
+            <input id="dd-asof" v-model="form.as_of" type="date" class="maiic-input !w-40" />
+            <input v-model="form.search" type="text" class="maiic-input !w-56" placeholder="Facility number" aria-label="Facility" />
+            <button type="submit" class="secondary-btn">Apply</button>
+            <button v-if="form.search || form.as_of !== asOf" type="button" class="secondary-btn" @click="reset">Clear</button>
+          </form>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full">
@@ -94,7 +53,7 @@
               </tr>
             </thead>
             <tbody>
-              <template v-for="f in facilities" :key="f.contract_id">
+              <template v-for="f in pagedFacilities" :key="f.contract_id">
                 <tr :class="open === f.contract_id ? 'bg-maiic-50' : ''">
                   <td class="td">
                     <button type="button" class="font-semibold text-maiic-700 underline" @click="toggle(f.contract_id)">{{ f.contract_id }}</button>
@@ -172,15 +131,18 @@
             </tbody>
           </table>
         </div>
+        <RowPager v-model="page" :total="facilities.length" class="border-t border-gray-100" />
       </div>
     </div>
   </app-layout>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import KpiRow from '@/Components/Maiic/KpiRow.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
   asOf: { type: String, required: true },
@@ -192,6 +154,20 @@ const props = defineProps({
 
 const form = reactive({ as_of: props.asOf, search: props.search })
 const open = ref(null)
+const page = ref(1)
+watch(() => props.facilities, () => { page.value = 1 })
+const pagedFacilities = computed(() => props.facilities.slice((page.value - 1) * 15, page.value * 15))
+const cards = computed(() => {
+  const t = props.totals
+  const without = Number(t.from_loan_book || 0) + Number(t.not_known || 0)
+  return [
+    { label: 'Approved', value: money(t.approved), sub: `${number(t.facilities)} facilities` },
+    { label: 'Drawn', value: money(t.drawn), sub: `up to ${props.asOf}` },
+    { label: 'Undrawn commitment', value: money(t.undrawn), sub: 'reported separately under IFRS 9', valueClass: 'text-maiic-700' },
+    { label: 'Drawdowns loaded', value: Number(t.tranches || 0), sub: `${number(t.from_drawdowns)} facilities with their own rows` },
+    { label: 'Without drawdown rows', value: without, sub: `${number(t.from_loan_book)} from the loan book, ${number(t.not_known)} not known`, valueClass: without ? 'text-amber-700' : '', accent: without ? '#d97706' : null },
+  ]
+})
 
 const toggle = (contractId) => { open.value = open.value === contractId ? null : contractId }
 

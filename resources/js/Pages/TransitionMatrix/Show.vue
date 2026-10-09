@@ -13,7 +13,7 @@
         </template>
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="w-full">
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
                     <!-- Matrix Details -->
                     <div class="p-6 border-b border-gray-200">

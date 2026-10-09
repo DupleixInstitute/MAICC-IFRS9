@@ -23,7 +23,7 @@ class LoanPortfoliosController extends Controller
         $portfolios = LoanPortfolio::filter(request()->only('search', 'status'))
             ->with(['createdBy'])
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
             // dd($portfolios);
 
         return Inertia::render('Portfolios/Index', [
@@ -83,7 +83,7 @@ class LoanPortfoliosController extends Controller
     public function destroy(Request $request, LoanPortfolio $portfolio)
     {
         if ($portfolio->loanBooks()->count() > 0) {
-            return response()->json(['error' => 'Cannot delete portfolio with associated loan books.'], 422);
+            return back()->with('error', 'This portfolio holds loan books, so it cannot be deleted. Mark it inactive instead.');
         }
 
         $portfolio->delete();

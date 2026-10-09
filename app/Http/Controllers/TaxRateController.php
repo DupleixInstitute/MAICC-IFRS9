@@ -22,7 +22,7 @@ class TaxRateController extends Controller
     public function index()
     {
         $taxRates = TaxRate::filter(\request()->only('search'))
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('TaxRates/Index', [
             'filters' => \request()->all('search', 'active'),
             'taxRates' => $taxRates,

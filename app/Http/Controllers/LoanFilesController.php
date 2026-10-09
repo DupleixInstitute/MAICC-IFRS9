@@ -25,7 +25,7 @@ class LoanFilesController extends Controller
         $files = File::where('record_id', $loan->id)
             ->where('category', 'loans')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Loans/Files/Index', [
             'loan' => $loan,
             'files' => $files,

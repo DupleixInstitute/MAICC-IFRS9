@@ -15,14 +15,12 @@ const props = defineProps({
 })
 
 const activeTab = ref('checklist')
+const tabs = computed(() => [
+    { key: 'checklist', label: 'IFRS 9 close checklist', count: props.progress.done + '/' + props.progress.total },
+    { key: 'messages', label: 'Team messages', count: props.messages.length },
+])
 const draft = ref('')
 
-const ringStyle = computed(() => {
-    const pct = Math.max(0, Math.min(100, props.progress.percent || 0))
-    return {
-        background: `conic-gradient(#16a34a ${pct * 3.6}deg, #e5e7eb ${pct * 3.6}deg)`,
-    }
-})
 
 function sendMessage() {
     const body = draft.value.trim()
@@ -47,89 +45,57 @@ function toggle(t) {
 <template>
     <AppLayout title="Workspace">
         <template #header>
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">IFRS 9 Period Workspace</h2>
-                <!-- reporting period pill, matching the dashboard filter bar -->
-                <div class="flex items-end gap-3 rounded-xl bg-maiic-600 px-4 py-2.5 shadow-md">
-                    <div>
-                        <label class="mb-0.5 block text-[10px] font-bold uppercase tracking-widest text-white/80">
-                            Reporting Period
-                        </label>
-                        <span class="relative inline-block">
-                        <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                        <select :value="period" @change="changePeriod"
-                                class="cursor-pointer rounded-lg border-0 bg-white py-1.5 pl-9 pr-8 text-sm font-bold text-maiic-800 shadow focus:ring-2 focus:ring-white">
-                            <option v-for="p in periods" :key="p" :value="p">{{ p }}</option>
-                        </select>
-                        </span>
-                    </div>
-                </div>
+            <div>
+                <h2 class="text-xl font-semibold leading-tight text-gray-800">Workspace</h2>
+                <p class="mt-0.5 text-sm text-gray-500">The month-end IFRS 9 close for one reporting period: each step, who did it, and the team's notes</p>
             </div>
         </template>
+        <template #actions>
+            <label for="ws-period" class="text-[11px] font-bold uppercase tracking-wider text-gray-500">Reporting period</label>
+            <select id="ws-period" :value="period" class="maiic-select w-36" @change="changePeriod">
+                <option v-for="p in periods" :key="p" :value="p">{{ p }}</option>
+            </select>
+        </template>
 
-        <div class="mx-auto max-w-6xl">
-
-            <!-- hero: who + progress ring + outstanding nag -->
-            <div class="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <div class="maiic-panel p-5">
-                    <p class="maiic-kpi-label">Signed in as</p>
-                    <p class="text-lg font-extrabold text-gray-900">{{ me.name }}</p>
-                    <p class="text-sm text-gray-500">{{ me.email }}</p>
-                    <span class="maiic-badge mt-3" :class="is_admin ? 'maiic-badge-green' : 'maiic-badge-grey'">
-                        {{ is_admin ? 'Administrator: can tick manual steps' : 'Read-only view' }}
-                    </span>
+        <div class="w-full space-y-4">
+            <!-- One strip of compact figures -->
+            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <div class="maiic-kpi" style="--accent:#15803d">
+                    <div class="maiic-kpi-label">Close progress, {{ period }}</div>
+                    <div class="flex items-center gap-3">
+                        <div class="maiic-kpi-value text-xl">{{ progress.percent }}%</div>
+                        <div class="h-2 flex-1 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full bg-maiic-500" :style="{ width: Math.max(0, Math.min(100, progress.percent || 0)) + '%' }"></div></div>
+                    </div>
                 </div>
-
-                <div class="maiic-panel flex items-center gap-5 p-5 lg:col-span-2">
-                    <div class="relative h-24 w-24 flex-none rounded-full" :style="ringStyle">
-                        <div class="absolute inset-2 flex flex-col items-center justify-center rounded-full bg-white">
-                            <span class="text-xl font-extrabold text-gray-900">{{ progress.percent }}%</span>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">complete</span>
-                        </div>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <p class="font-bold text-gray-900">Close progress for {{ period }}</p>
-                        <p class="text-sm text-gray-500">{{ progress.done }} of {{ progress.total }} steps complete.
-                            System-verified steps update automatically from the data.</p>
-                        <div v-if="outstanding.length" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                            <p class="text-xs font-bold uppercase tracking-wider text-amber-800">
-                                {{ outstanding.length }} step(s) outstanding
-                            </p>
-                            <p class="mt-0.5 truncate text-xs text-amber-700">{{ outstanding.join(' · ') }}</p>
-                        </div>
-                        <div v-else class="mt-3 rounded-lg border border-maiic-200 bg-maiic-50 px-3 py-2">
-                            <p class="text-xs font-bold uppercase tracking-wider text-maiic-800">
-                                All steps complete for this period
-                            </p>
-                        </div>
-                    </div>
+                <div class="maiic-kpi" style="--accent:#0e7490"><div class="maiic-kpi-label">Steps done</div><div class="maiic-kpi-value text-xl">{{ progress.done }} of {{ progress.total }}</div></div>
+                <div class="maiic-kpi" :style="{ '--accent': outstanding.length ? '#d97706' : '#15803d' }"><div class="maiic-kpi-label">Outstanding</div><div class="maiic-kpi-value text-xl" :title="outstanding.join(', ')">{{ outstanding.length }}</div></div>
+                <div class="maiic-kpi" style="--accent:#6b7280">
+                    <div class="maiic-kpi-label">Signed in as</div>
+                    <div class="truncate text-base font-extrabold text-gray-900" :title="me.email">{{ me.name }}</div>
+                    <div class="text-[11px] text-gray-500">{{ is_admin ? 'Administrator: can tick manual steps' : 'Read-only view' }}</div>
                 </div>
             </div>
 
-            <!-- tabs -->
-            <div class="mb-4 flex gap-1 border-b-2 border-gray-200">
-                <button @click="activeTab = 'checklist'"
-                        class="-mb-0.5 border-b-[3px] px-4 py-2.5 text-sm font-bold transition"
-                        :class="activeTab === 'checklist' ? 'border-maiicgold-400 text-maiic-800' : 'border-transparent text-gray-400 hover:text-gray-600'">
-                    IFRS 9 Close Checklist
-                    <span class="ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-extrabold"
-                          :class="activeTab === 'checklist' ? 'bg-maiic-100 text-maiic-800' : 'bg-gray-100 text-gray-500'">
-                        {{ progress.done }}/{{ progress.total }}
-                    </span>
-                </button>
-                <button @click="activeTab = 'messages'"
-                        class="-mb-0.5 border-b-[3px] px-4 py-2.5 text-sm font-bold transition"
-                        :class="activeTab === 'messages' ? 'border-maiicgold-400 text-maiic-800' : 'border-transparent text-gray-400 hover:text-gray-600'">
-                    Team Messages
-                    <span class="ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-extrabold"
-                          :class="activeTab === 'messages' ? 'bg-maiic-100 text-maiic-800' : 'bg-gray-100 text-gray-500'">
-                        {{ messages.length }}
-                    </span>
-                </button>
-            </div>
+            <!-- Tabs -->
+            <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div class="border-b border-gray-200 px-5 pt-4">
+                    <nav class="flex gap-6 overflow-x-auto">
+                        <button v-for="t in tabs" :key="t.key" type="button" class="whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold"
+                                :class="activeTab === t.key ? 'border-maiic-600 text-maiic-700' : 'border-transparent text-gray-500 hover:text-gray-800'"
+                                @click="activeTab = t.key">
+                            {{ t.label }}
+                            <span class="ml-1 rounded-full px-2 py-0.5 text-xs" :class="activeTab === t.key ? 'bg-maiic-100 text-maiic-800' : 'bg-gray-100 text-gray-600'">{{ t.count }}</span>
+                        </button>
+                    </nav>
+                </div>
+                <p v-if="activeTab === 'checklist'" class="border-b border-gray-200 px-5 py-2 text-xs text-gray-500">
+                    Steps marked System are checked automatically from the data; an administrator ticks the others.
+                    <span v-if="outstanding.length" class="font-semibold text-amber-700">Still to do: {{ outstanding.join(', ') }}.</span>
+                    <span v-else class="font-semibold text-maiic-700">All steps complete for this period.</span>
+                </p>
 
             <!-- ===================== CHECKLIST TAB ===================== -->
-            <div v-if="activeTab === 'checklist'" class="maiic-panel">
+            <div v-if="activeTab === 'checklist'">
                 <div v-for="(t, i) in tasks" :key="t.key"
                      class="flex items-center gap-4 border-b border-gray-100 px-5 py-4 last:border-0"
                      :class="t.status === 'done' ? 'bg-maiic-50/40' : ''">
@@ -147,7 +113,7 @@ function toggle(t) {
                         </p>
                         <p v-if="t.detail" class="mt-0.5 text-xs text-gray-500">{{ t.detail }}</p>
                         <p v-else-if="t.completed_by && t.status === 'done'" class="mt-0.5 text-xs text-gray-400">
-                            Ticked by {{ t.completed_by }}<span v-if="t.completed_at"> · {{ t.completed_at }}</span>
+                            Ticked by {{ t.completed_by }}<span v-if="t.completed_at">, {{ t.completed_at }}</span>
                         </p>
                     </div>
 
@@ -175,10 +141,10 @@ function toggle(t) {
             </div>
 
             <!-- ===================== MESSAGES TAB ===================== -->
-            <div v-else class="maiic-panel flex min-h-[420px] flex-col">
+            <div v-else class="flex min-h-[420px] flex-col">
                 <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
                     <p class="text-sm font-bold text-gray-700">Team conversation</p>
-                    <p class="text-xs text-gray-400">Period {{ period }} · visible to everyone signed in</p>
+                    <p class="text-xs text-gray-400">Period {{ period }}, visible to everyone signed in</p>
                 </div>
                 <div class="flex-1 space-y-3 overflow-y-auto px-5 py-4">
                     <p v-if="!messages.length" class="py-10 text-center text-sm text-gray-400">
@@ -203,6 +169,7 @@ function toggle(t) {
                         Send
                     </button>
                 </div>
+            </div>
             </div>
         </div>
     </AppLayout>

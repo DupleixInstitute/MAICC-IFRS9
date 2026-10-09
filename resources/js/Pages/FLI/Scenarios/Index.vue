@@ -66,7 +66,7 @@
           <ScenarioForm
             :scenario="currentScenario"
             :profile="profile"
-            :profiles="profiles" 
+            :profiles="profiles"
             @close="closeForm"
             @saved="reload"
           />
@@ -77,6 +77,7 @@
 </template>
 
 <script setup>
+import { confirmDialog } from '@/Components/confirmDialog'
 import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
@@ -118,8 +119,8 @@ function reload() {
 }
 
 
-function deleteScenario(id) {
-  if (confirm('Deleting this will remove macro data related to this scenario. Are you sure you want to delete this scenario?')) {
+async function deleteScenario(id) {
+  if (await confirmDialog({ title: 'Deleting this will remove macro data related to this scenario. Are you sure you want to delete this scenario?', confirmLabel: 'Delete', tone: 'danger' })) {
     router.delete(route('scenarios.destroy', id), {
       onSuccess: reload
     })

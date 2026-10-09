@@ -6,22 +6,15 @@
       </h2>
     </template>
 
-    <div class="py-6 max-w-5xl mx-auto">
+    <div class="w-full py-6">
       <div class="bg-white shadow rounded-xl p-6">
 
-        <!-- Success/Error Messages -->
-        <div v-if="$page.props.flash.success" class="mb-4 p-3 bg-maiic-100 text-maiic-700 rounded">
-          {{ $page.props.flash.success }}
-        </div>
-        <div v-if="$page.props.flash.error" class="mb-4 p-3 bg-red-100 text-red-700 rounded">
-          {{ $page.props.flash.error }}
-        </div>
 
         <!-- Scenario Selection -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-700">Scenario</label>
-          <select 
-            v-model="form.scenario_id" 
+          <select
+            v-model="form.scenario_id"
             @change="fetchMacroData"
             class="mt-1 block w-full border rounded p-2"
           >
@@ -37,9 +30,9 @@
           <label class="block text-sm font-medium text-gray-700">Forecast Periods</label>
           <div class="mt-2 space-y-2">
             <label v-for="period in props.availablePeriods" :key="period" class="inline-flex items-center mr-4">
-              <input 
-                type="checkbox" 
-                :value="period" 
+              <input
+                type="checkbox"
+                :value="period"
                 v-model="form.periods"
                 @change="fetchMacroData"
                 class="rounded border-gray-300 text-maiic-600 focus:ring-maiic-500"
@@ -58,7 +51,7 @@
           <p class="text-sm text-gray-600 mb-4">
             Using forecast macro data for selected scenario and periods
           </p>
-          
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div v-for="v in props.macroVariables" :key="v.id" class="border rounded-lg p-4 bg-gray-50">
               <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -75,14 +68,14 @@
             </div>
           </div>
         </div>
-        
+
         <div v-else-if="form.scenario_id && form.periods.length > 0" class="mb-6 text-center py-4 text-gray-500">
           Loading forecast macro data...
         </div>
 
         <div class="mt-6">
-          <button 
-            @click="submitPrediction" 
+          <button
+            @click="submitPrediction"
             :disabled="form.processing || !form.scenario_id || form.periods.length === 0 || !macroData"
             class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
@@ -100,7 +93,7 @@
       <!-- Predictions History -->
       <div class="bg-white shadow rounded-xl p-6 mt-6">
         <h3 class="text-lg font-semibold mb-4">Predictions History</h3>
-        
+
         <div v-if="props.model.predictions && props.model.predictions.length > 0" class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
@@ -136,6 +129,7 @@
   </AppLayout>
 </template>
 <script setup>
+import { notice } from '@/Components/Maiic/notice'
 import { ref, watch } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
@@ -179,7 +173,7 @@ function getMacroValue(statisticCode, period) {
 // Submit predictions
 function submitPrediction() {
   if (!macroData.value || Object.keys(macroData.value).length === 0) {
-    alert('No macro data available. Please select a scenario and periods first.')
+    notice('No macro data available. Please select a scenario and periods first.')
     return
   }
 
@@ -190,7 +184,6 @@ function submitPrediction() {
     preserveScroll: true,
     onSuccess: () => {
       form.reset()
-      alert('Predictions generated successfully!')
     },
     onError: (errors) => {
       console.log('Errors:', errors)

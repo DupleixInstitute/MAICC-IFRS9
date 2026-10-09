@@ -25,7 +25,7 @@ class LoanApprovalStagesController extends Controller
     {
         $stages = LoanApprovalStage::filter(\request()->only('search'))
             ->with(['role'])
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('LoanApprovalStages/Index', [
             'filters' => \request()->all('search'),
             'stages' => $stages,

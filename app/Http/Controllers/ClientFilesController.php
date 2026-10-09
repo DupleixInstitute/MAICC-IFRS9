@@ -26,7 +26,7 @@ class ClientFilesController extends Controller
         $files = File::where('record_id', $client->id)
             ->where('category', 'clients')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Clients/Files/Index', [
             'client' => $client,
             'files' => $files,

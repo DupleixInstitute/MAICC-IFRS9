@@ -10,7 +10,7 @@
         </template>
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="w-full">
                 <!-- LGD Summary Card -->
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg mb-6">
                     <div class="p-6">
@@ -172,12 +172,11 @@
                                     </button>
 
                                     <!-- Page Numbers -->
-                                    <div class="flex items-center space-x-1">
-                                        <span class="px-3 py-1 text-sm bg-maiic-600 text-white rounded-md">
-                                            {{ discountedPayments.current_page }}
-                                        </span>
-                                        <span class="text-sm text-gray-500">of</span>
-                                        <span class="text-sm text-gray-700">{{ discountedPayments.last_page }}</span>
+                                    <div class="flex items-center gap-1">
+                                        <template v-for="n in pageWindow" :key="n">
+                                            <span v-if="n === '...'" class="px-1 text-sm text-gray-400">...</span>
+                                            <button v-else @click="goToPage(n)" class="rounded-lg border px-3 py-1.5 text-sm font-semibold" :class="n === discountedPayments.current_page ? 'border-maiic-600 bg-maiic-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-maiic-300 hover:bg-maiic-50'">{{ n }}</button>
+                                        </template>
                                     </div>
 
                                     <!-- Next Button -->
@@ -282,6 +281,26 @@ export default {
         }, { deep: true });
 
         // Pagination methods
+        const pageWindow = computed(() => {
+            const cur = props.discountedPayments.current_page, last = props.discountedPayments.last_page
+            const pages = []
+            for (let n = 1; n <= last; n++) {
+                if (n === 1 || n === last || Math.abs(n - cur) <= 2) pages.push(n)
+                else if (pages[pages.length - 1] !== '...') pages.push('...')
+            }
+            return pages
+        });
+
+        const goToPage = (page) => {
+            const params = { page };
+            Object.keys(search.value).forEach(key => {
+                if (search.value[key]) {
+                    params[key] = search.value[key];
+                }
+            });
+            router.get(`/loss-given-default/${props.lgd.id}/discounted-payments`, params, { preserveScroll: true });
+        };
+
         const prevPage = () => {
             const currentPage = props.discountedPayments.current_page;
 
@@ -394,6 +413,8 @@ export default {
             formatPercentage,
             exportData,
             prevPage,
+            pageWindow,
+            goToPage,
             nextPage,
         };
     },

@@ -10,7 +10,7 @@
     </template>
 
     <div class="py-12">
-      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+      <div class="w-full">
 
         <!-- Retired in favour of FLI Adjustments (system audit of 9 October 2026, finding M6) -->
         <div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
@@ -212,6 +212,7 @@
 </template>
 
 <script>
+import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 export default {
@@ -246,12 +247,12 @@ export default {
       return 'text-red-600'
     },
     getStatusBadgeClass(model) {
-      return model.is_active 
-        ? 'bg-maiic-100 text-maiic-800' 
+      return model.is_active
+        ? 'bg-maiic-100 text-maiic-800'
         : 'bg-gray-100 text-gray-800'
     },
-    toggleActive(model) {
-      if (confirm(`Are you sure you want to ${model.is_active ? 'deactivate' : 'activate'} this model?`)) {
+    async toggleActive(model) {
+      if (await confirmDialog({ title: `Are you sure you want to ${model.is_active ? 'deactivate' : 'activate'} this model?` })) {
         this.$inertia.patch(route('regression.toggle-active', model.id))
       }
     }

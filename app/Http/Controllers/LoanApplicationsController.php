@@ -72,7 +72,7 @@ class LoanApplicationsController extends Controller
         $applications = LoanApplication::with(['staff', 'client', 'product', 'currentLinkedStage', 'currentLinkedStage.stage', 'currentLinkedStage.approver', 'currentLinkedStage.assignedBy', 'branch'])
             ->filter(\request()->only('search', 'client_id', 'loan_product_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('LoanApplications/Index', [
             'filters' => \request()->all('search', 'client_id', 'loan_product_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'),
             'applications' => $applications,
@@ -1011,7 +1011,7 @@ class LoanApplicationsController extends Controller
             ->where('loan_application_id', $id)
             ->filter(\request()->only('comment_date', 'comment_type', 'comment_section', 'comment'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
          $attributeGroups = ScoringAttributeGroup::get(['id', 'name']);
         //  dd($attributeGroups);
 

@@ -65,6 +65,8 @@ class HandleInertiaRequests extends Middleware
                 return [
                     'success' => $request->session()->get('success'),
                     'error' => $request->session()->get('error'),
+                    'warning' => $request->session()->get('warning'),
+                    'info' => $request->session()->get('info'),
                 ];
             },
             // Slim user payload: the full model serialized 174 permission
@@ -84,9 +86,9 @@ class HandleInertiaRequests extends Middleware
                     'theme_preference' => $u->theme_preference ?? 'system',
                 ];
             },
-            'menu' => fn () => $this->visibleMenu(
+            'menu' => fn () => \App\Support\SectionTabCounts::annotate($this->visibleMenu(
                 (Auth::check() && Auth::user()->hasRole('member')) ? config('menu.member') : config('menu.admin')
-            ),
+            ), Route::currentRouteName()),
             'logoUrl' => $logo ? asset('storage/' . $logo) : asset('images/maiic-logo-white.png'),
             'smallLogoUrl' => $smallLogo ? asset('storage/' . $smallLogo) : asset('images/maiic-logo-white.png'),
             'companyName' => $settings['company_name'] ?? 'MAIIC',
@@ -126,6 +128,14 @@ class HandleInertiaRequests extends Middleware
                 if ($item['children'] === []) {
                     continue;
                 }
+            }
+            // A tabbed section keeps the tabs the user may open, and opens the first.
+            if (! empty($item['tabs'])) {
+                $item['tabs'] = array_values(array_filter($item['tabs'], fn ($t) => ($t['permissions'] ?? '') === '' || ($user && $user->can($t['permissions']))));
+                if ($item['tabs'] === []) {
+                    continue;
+                }
+                $item['route'] = $item['route_check'] = $item['tabs'][0]['route'];
             }
             $visible[] = $item;
         }

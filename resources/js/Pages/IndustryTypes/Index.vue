@@ -1,159 +1,81 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Industry Types
-            </h2>
+    <app-layout title="Sector Types" description="The economic sectors loans are classified under, matched to the loan book by sector code">
+        <template #actions>
+            <input v-model="form.search" type="text" class="maiic-input w-56" placeholder="Search code or name" aria-label="Search sector types"/>
+            <Link v-if="can('industry_types.create')" :href="route('industry_types.create')" class="primary-btn">New sector type</Link>
         </template>
-        <div class=" mx-auto mb-4 flex justify-between items-center">
-            <filter-search v-model="form.search" class="w-full max-w-md mr-4" @reset="reset">
-                <div class="w-80 mt-2 px-4 py-6 shadow-xl bg-white rounded">
-                </div>
-            </filter-search>
-            <inertia-link v-if="can('industry_types.create')" class="btn btn-blue" :href="route('industry_types.create')">
-                <span>Create </span>
-                <span class="hidden md:inline">Category</span>
-            </inertia-link>
-        </div>
-        <div class=" mx-auto">
-            <div class="maiic-panel maiic-table-wrap">
+
+        <div class="maiic-panel">
+            <div class="maiic-table-wrap">
                 <table class="maiic-table">
                     <thead>
                     <tr>
                         <th>Code</th>
                         <th>Name</th>
+                        <th>Description</th>
                         <th class="text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
-                    <tr v-for="type in types.data" :key="type.id"
-                        class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="!p-0">
-                             <span class="px-4 py-2.5 flex items-center">
-                                {{ type.code }}
-                            </span>
-                        </td>
-                        <td class="!p-0">
-                             <span class="px-4 py-2.5 flex items-center">
-                                {{ type.name }}
-                            </span>
-                        </td>
-                        <td class="border-t w-px pr-2">
+                    <tr v-for="type in types.data" :key="type.id">
+                        <td class="font-mono text-xs">{{ type.code || '-' }}</td>
+                        <td class="font-semibold text-gray-900">{{ type.name }}</td>
+                        <td>{{ type.description || '-' }}</td>
+                        <td class="w-px">
                             <row-actions :edit-href="can('industry_types.update') ? route('industry_types.edit', type.id) : null"
                                          :deletable="can('industry_types.destroy')"
-                                         @delete="deleteAction(type.id)"/>
+                                         @delete="destroy(type)"/>
                         </td>
                     </tr>
                     <tr v-if="types.data.length === 0">
-                        <td class="border-t px-6 py-4 text-center" colspan="3">No types found.</td>
+                        <td class="maiic-empty" colspan="4">{{ form.search ? 'No sector type matches the search.' : 'No sector type yet. Use New sector type (top right) to add one.' }}</td>
                     </tr>
                     </tbody>
                 </table>
-
             </div>
-            <pagination :links="types.links"/>
         </div>
-        <jet-confirmation-modal :show="confirmingDeletion" @close="confirmingDeletion = false">
-            <template #title>
-                Delete Record
-            </template>
-
-            <template #content>
-                Are you sure you want to delete record?
-            </template>
-
-            <template #footer>
-                <jet-secondary-button @click.native="confirmingDeletion = false">
-                    Nevermind
-                </jet-secondary-button>
-
-                <jet-danger-button class="ml-2" @click.native="destroy" :class="{ 'opacity-25': form.processing }"
-                                   :disabled="form.processing">
-                    Delete Record
-                </jet-danger-button>
-            </template>
-        </jet-confirmation-modal>
-        <teleport to="head">
-            <title>{{ pageTitle }}</title>
-            <meta property="og:description" :content="pageDescription">
-        </teleport>
+        <pagination :links="types.links"/>
     </app-layout>
-
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import RowActions from '@/Shared/RowActions.vue'
-import Icon from '@/Jetstream/Icon.vue'
-import Pagination from '@/Jetstream/Pagination.vue'
-import FilterSearch from '@/Jetstream/FilterSearch.vue'
-import mapValues from 'lodash/mapValues'
+import Pagination from '@/Components/Pagination.vue'
+import { Link } from '@inertiajs/vue3'
+import { confirmDialog } from '@/Components/confirmDialog'
 import pickBy from 'lodash/pickBy'
-import throttle from 'lodash/throttle'
-import JetLabel from '@/Jetstream/Label.vue'
-import SelectInput from '@/Jetstream/SelectInput.vue'
-import JetConfirmationModal from '@/Jetstream/ConfirmationModal.vue'
-import JetDangerButton from '@/Jetstream/DangerButton.vue'
-import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
+import debounce from 'lodash/debounce'
 
 export default {
-    metaInfo: {title: 'Provinces'},
-    components: {
-        AppLayout,
-        RowActions,
-        Icon,
-        Pagination,
-        FilterSearch,
-        JetLabel,
-        SelectInput,
-        JetConfirmationModal,
-        JetDangerButton,
-        JetSecondaryButton,
-    },
+    components: { AppLayout, RowActions, Pagination, Link },
     props: {
         types: Object,
         filters: Object,
-
     },
     data() {
         return {
-            form: {
-                search: this.filters.search,
-                processing: false
-            },
-            confirmingDeletion: false,
-            selectedRecord: null,
-            pageTitle: "Industry Types",
-            pageDescription: "Manage Categories",
-
+            form: { search: this.filters.search || null },
         }
     },
     watch: {
         form: {
-            handler: _.debounce(function () {
-                let query = pickBy(this.form)
-                this.$inertia.get(this.route('industry_types.index', Object.keys(query).length ? query : {}))
-            }, 500),
+            handler: debounce(function () {
+                this.$inertia.get(this.route('industry_types.index'), pickBy(this.form), { preserveState: true, replace: true })
+            }, 400),
             deep: true,
         },
     },
     methods: {
-        reset() {
-            this.form = mapValues(this.form, () => null)
-        },
-        deleteAction(id) {
-            this.confirmingDeletion = true
-            this.selectedRecord = id
-        },
-        destroy() {
-
-            this.$inertia.delete(this.route('industry_types.destroy', this.selectedRecord))
-            this.confirmingDeletion = false
+        async destroy(type) {
+            if (!(await confirmDialog({
+                title: 'Delete the ' + type.name + ' sector type?',
+                message: 'The sector type is removed from the list. This cannot be undone.',
+                confirmLabel: 'Delete',
+                tone: 'danger',
+            }))) return
+            this.$inertia.delete(this.route('industry_types.destroy', type.id), { preserveScroll: true })
         },
     },
 }
 </script>
-
-<style scoped>
-
-</style>

@@ -42,7 +42,7 @@ class InvoicesController extends Controller
         $invoices = Invoice::with(['doctor', 'member', 'coPayer', 'invoiceItems', 'currency'])
             ->filter(\request()->only('search', 'status', 'co_payer_id', 'sponsor', 'doctor_id', 'member_id', 'date_range', 'currency_id'))
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Invoices/Index', [
             'filters' => \request()->all('search', 'status', 'co_payer_id', 'sponsor', 'doctor_id', 'member_id', 'date_range', 'currency_id'),
             'invoices' => $invoices,

@@ -58,7 +58,7 @@
                 <td class="px-6 py-4 whitespace-nowrap">{{ value.value }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ value.scenario?.name || 'Base' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <span :class="value.is_forecast 
+                  <span :class="value.is_forecast
                     ? 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800'
                     : 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-maiic-100 text-maiic-800'">
                     {{ value.is_forecast ? 'Forecast' : 'Historical' }}
@@ -67,7 +67,7 @@
                 <td class="px-6 py-4 whitespace-nowrap">{{ value.source || '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                   <button @click="editValue(value)" class="text-maiic-600 hover:text-maiic-900 mr-3">
-                    <i class="fas fa-edit"></i> 
+                    <i class="fas fa-edit"></i>
                   </button>
                   <button @click="deleteValue(value)" class="text-red-600 hover:text-red-900">
                     <i class="fas fa-trash"></i>
@@ -83,8 +83,8 @@
               v-for="page in values.last_page"
               :key="page"
               @click="goToPage(page)"
-              :class="page === values.current_page 
-                ? 'bg-maiic-600 text-white px-3 py-1 rounded' 
+              :class="page === values.current_page
+                ? 'bg-maiic-600 text-white px-3 py-1 rounded'
                 : 'bg-gray-200 px-3 py-1 rounded'"
             >
               {{ page }}
@@ -111,6 +111,7 @@
 </template>
 
 <script setup>
+import { confirmDialog } from '@/Components/confirmDialog'
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -124,9 +125,9 @@ const props = defineProps({
 });
 
 function goToPage(page) {
-  router.get(route('macro-values.index', { 
-    statId: props.statistic.id, 
-    page, 
+  router.get(route('macro-values.index', {
+    statId: props.statistic.id,
+    page,
     ...filters.value // include filters in the query
   }));
 }
@@ -170,8 +171,8 @@ function fetchValues() {
   router.reload({ only: ['values'] });
 }
 
-function deleteValue(value) {
-  if (confirm(`Delete value for ${formatDate(value.period)}?`)) {
+async function deleteValue(value) {
+  if (await confirmDialog({ title: `Delete value for ${formatDate(value.period)}?`, confirmLabel: 'Delete', tone: 'danger' })) {
     router.delete(route('macro-values.destroy', [props.statistic.id, value.id]), {
       onSuccess: () => fetchValues(),
     });

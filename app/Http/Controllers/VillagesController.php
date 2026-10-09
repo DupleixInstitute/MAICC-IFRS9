@@ -25,7 +25,7 @@ class VillagesController extends Controller
     {
         $villages = Village::filter(\request()->only('search'))
             ->with(['ward'])
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Villages/Index', [
             'filters' => \request()->all('search'),
             'villages' => $villages,

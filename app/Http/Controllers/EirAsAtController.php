@@ -77,7 +77,7 @@ class EirAsAtController extends Controller
         }
         $report = $this->reportPayload($book);
         if ($format === 'pdf') {
-            return Pdf::loadView('reports.ifrs9.report', ['report' => $report])->setPaper('a4', 'landscape')->download($filename . '.pdf');
+            return \App\Support\ReportDownload::pdf($report, $filename);
         }
 
         return Excel::download(new Ifrs9ReportExport($report), $filename . '.xlsx');
@@ -125,7 +125,7 @@ class EirAsAtController extends Controller
         return [
             'company' => $this->company(),
             'title' => 'EIR as at ' . $book['as_at'],
-            'subtitle' => 'The EIR interest, the contractual interest posted and the difference (the revenue shift) for the year to the date, by product, by GL and by contract, with the amortised cost and the gross carrying amount at the date (spec v4 section 6.11)',
+            'subtitle' => 'The EIR interest, the contractual interest posted and the difference (the revenue shift) for the year to the date, by product, by GL and by contract, with the amortised cost and the gross carrying amount at the date',
             'period' => $book['period'],
             'generated_at' => now()->format('d M Y H:i'),
             'generated_by' => optional(auth()->user())->name,
@@ -143,9 +143,9 @@ class EirAsAtController extends Controller
                     'rows' => array_map(fn ($l) => [$l['contract_id'], (string) ($l['customer_name'] ?? ''), (string) $l['product'], (string) $l['gl'], $n($l['eir_ytd']), $n($l['contractual_ytd']), $n($l['difference']), $n($l['amortised_cost']), $n($l['gross'])], $book['contracts'])],
                 ['heading' => 'How the figures are worked out', 'columns' => ['Figure', 'Basis'], 'align' => ['l', 'l'], 'rows' => [
                     ['Month-end', 'the roll-forward row the revenue run locked for the month'],
-                    ['Date inside a month', 'the prior month-end closing amortised cost, plus simple interest at the contractual rate for the actual days over 365 (section 3), less the cash received in the month'],
+                    ['Date inside a month', 'the prior month-end closing amortised cost, plus simple interest at the contractual rate for the actual days over 365, less the cash received in the month'],
                     ['Months without a roll-forward row', 'rolled from the last closing at the monthly EIR, less the cash received in each month'],
-                    ['Take-on loans', 'opened at the take-on basis of section 6.9: the recomputed amortised cost at 31 July 2024, or the take-on balance'],
+                    ['Take-on loans', 'opened at the take-on basis: the recomputed amortised cost at 31 July 2024, or the take-on balance'],
                     ['Gross carrying amount', 'the ledger\'s running balance of every posting on or before the date'],
                     ['Contractual interest', 'what the ledger posted (types 303 and 120)'],
                     ['Scope', $book['note']],

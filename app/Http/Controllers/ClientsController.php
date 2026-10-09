@@ -63,7 +63,7 @@ public function index(Request $request)
                         ->orWhere('mobile', 'like', "%{$search}%");
                 });
             })
-            ->paginate(10)
+            ->paginate(15)
             ->withQueryString()
             ->through(fn ($client) => [
                 'id' => $client->id,
@@ -94,13 +94,15 @@ public function index(Request $request)
 
         $client = new Client();
         $client->created_by_id = Auth::id();
+        // customer_id is required above but was never saved, and
+        // industry_type_code is not a column of clients
+        $client->customer_id = $request->customer_id;
         $client->name = $request->name;
-        //$client->external_id = $request->external_id;
-       // $client->mobile = $request->mobile;
-       $client->industry_code = $request->industry_code;
-       $client->industry_type_code = $request->industry_type;
-        $client->type = 'individual';
-        $client->status = 'active';
+        $client->mobile = $request->mobile;
+        $client->industry_code = $request->industry_code;
+        $client->industry_type = $request->industry_type;
+        $client->type = $request->input('type', 'individual');
+        $client->status = $request->input('status', 'active');
         $client->save();
 
         event(new ClientCreated($client));
@@ -137,12 +139,18 @@ public function index(Request $request)
 
         $client->customer_id = $request->customer_id;
         $client->name = $request->name;
-        //$client->external_id = $request->external_id;
-       // $client->mobile = $request->mobile;
-        $client->industry_code = $request->industry_code;
-        $client->industry_type_code = $request->industry_type;
-        $client->type = 'individual';
-        $client->status = 'active';
+        $client->mobile = $request->mobile;
+        // the sector is set by the loan book import; the form does not
+        // carry it, so it is changed only when sent (the old code nulled it
+        // and wrote a column that does not exist, industry_type_code)
+        if ($request->has('industry_code')) {
+            $client->industry_code = $request->industry_code;
+        }
+        if ($request->has('industry_type')) {
+            $client->industry_type = $request->industry_type;
+        }
+        $client->type = $request->input('type', $client->type ?: 'individual');
+        $client->status = $request->input('status', $client->status ?: 'active');
         $client->save();
 
         activity()
@@ -188,7 +196,7 @@ public function index(Request $request)
             ->filter(\request()->only('search', 'client_id', 'loan_product_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'))
             ->where('client_id', $client->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
 
         return Inertia::render('Clients/LoanApplications/Index', [
             'client' => $client,
@@ -202,7 +210,7 @@ public function index(Request $request)
         $registrations = CourseRegistration::with(['tutor', 'course', 'client'])
             ->where('client_id', $client->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('Clients/Courses/Index', [
             'client' => $client,
             'registrations' => $registrations,
@@ -265,6 +273,8 @@ public function index(Request $request)
                 return Inertia::render('Clients/Import', [
                     'availableFields'   => array_keys($fields),
                     'fieldDescriptions' => $fields,
+                    'recentImports'     => Import::orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
+                    'importCount'       => Import::count(),
                 ]);
             }
 

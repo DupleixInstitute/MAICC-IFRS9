@@ -25,7 +25,7 @@ class SicrTriggerController extends Controller
     {
         $groups = SicrGroup::orderBy('name')->get(['id','name']);
         $items = SicrItem::orderBy('name')->get(['id','name','group_id']);
-        $triggers = SicrTrigger::with(['group','item','user'])->orderByDesc('created_at')->paginate(20);
+        $triggers = SicrTrigger::with(['group','item','user'])->orderByDesc('created_at')->paginate(15);
         return Inertia::render('StageingRules/Triggers', [
             'groups' => $groups,
             'items' => $items,

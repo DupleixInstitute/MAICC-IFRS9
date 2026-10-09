@@ -93,6 +93,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { confirmDialog } from '@/Components/confirmDialog'
 import { format } from 'date-fns'
 
 export default {
@@ -126,7 +127,7 @@ export default {
     }
 
     const deleteTemplate = async (template) => {
-      if (!confirm('Are you sure you want to delete this template?')) return
+      if (!(await confirmDialog({ title: 'Delete this template?', message: 'The import template and its column mappings are removed. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' }))) return
 
       try {
         await axios.delete(`/api/general-import/template/${template.id}`)

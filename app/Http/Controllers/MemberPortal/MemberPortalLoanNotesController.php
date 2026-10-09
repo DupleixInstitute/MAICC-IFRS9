@@ -24,7 +24,7 @@ class MemberPortalLoanNotesController extends Controller
         $notes = ScoringAttribute::with(['createdBy'])
             ->where('loan_id', $loan->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(15);
         return Inertia::render('MemberPortal/Loans/Notes/Index', [
             'loan' => $loan,
             'notes' => $notes,

@@ -28,7 +28,7 @@ class CollateralController extends Controller
     public function collateralType()
     {
         return Inertia::render('Collateral/Types', [
-            'types' => CollateralType::paginate(10),
+            'types' => CollateralType::paginate(15),
         ]);
     }
     
@@ -38,7 +38,9 @@ class CollateralController extends Controller
      */
     public function importView()
     {
-        return Inertia::render('Collateral/Import');
+        return Inertia::render('Collateral/Import', [
+            'recentImports' => Import::orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
+        ]);
     }
 
     /**
@@ -96,7 +98,7 @@ class CollateralController extends Controller
             // --- SORT AND PAGINATE ---
             $allocations = $query
                 ->orderByRaw('CAST(reporting_period AS DATE) DESC')
-                ->paginate(10)
+                ->paginate(15)
                 ->appends($request->all()); 
 
             // --- SUMMARY METRICS USING FRESH QUERY ---
@@ -172,22 +174,13 @@ class CollateralController extends Controller
 
     public function downloadSample()
     {
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="loan_book_sample.csv"',
-        ];
+        $headers = ['Content-Type' => 'text/csv'];
+        // Every heading CollateralRegisterImport reads in its standard layout
+        // (location, market_value and status were missing from the sample).
         $columns = [
-                        'customer_id',
-                        'customer_name',
-                        'collateral_type',
-                        'property_use',
-                        'description',
-                        'registration_date',
-                        'expiry_date',
-                        'valuation_date',
-                        'nominal_value',
-                        'execution_value'
-                            ];
+            'customer_id', 'customer_name', 'collateral_type', 'property_use', 'description', 'location',
+            'registration_date', 'expiry_date', 'valuation_date', 'nominal_value', 'market_value', 'execution_value', 'status',
+        ];
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
@@ -260,7 +253,7 @@ class CollateralController extends Controller
             // --- STRICT ORDERING AND LIMIT ---
             $collateralRegisters = $query
                 ->orderBy('period', 'desc')
-                ->paginate(10)
+                ->paginate(15)
                 ->appends($request->all());
 
             return Inertia::render('Collateral/Register', [
@@ -268,7 +261,7 @@ class CollateralController extends Controller
                 'filters' => $request->only([
                     'registration_date_from',
                     'registration_date_to',
-                    'collateral_type',
+                    'type_code',
                     'customer_id',
                     'customer_name',
                 ]),

@@ -1,25 +1,25 @@
 <template>
-  <app-layout title="Scenario Sets" description="One set per reporting period, versioned: proposed by one person, approved by another, locked with the period's ECL; every scenario but the base is a shock on the base path, and the back-test and sensitivity are stored with the set (spec v4 section 15)">
+  <app-layout title="Scenario Sets" description="One versioned set of economic scenarios and weights per period, proposed by one person, approved by another and locked with the ECL">
     <template #actions>
       <form @submit.prevent="seed" class="flex items-center gap-2">
-        <input v-model="form.period" type="month" class="maiic-input" required/>
-        <button v-if="canGovern && !sets.length" type="submit" class="primary-btn text-sm">Propose the first set (15.8)</button>
+        <input v-model="form.period" type="month" class="maiic-input !w-44" aria-label="Period" required/>
+        <button v-if="canGovern && !sets.length" type="submit" class="primary-btn text-sm">Propose the first set</button>
         <button type="button" @click="go" class="secondary-btn text-sm">View period</button>
       </form>
     </template>
 
-    <div class="space-y-6">
-      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-100">
-        <span class="font-semibold">The rules in force</span> (Governance Centre): at least {{ rules.min_count }} scenarios; the base at least {{ rules.base_floor }} percent; no single weight above {{ rules.single_ceiling }} percent; a calibration note on every downside {{ rules.note_required ? 'required' : 'optional' }}; weighting: {{ rules.weighting }}.
-      </div>
+    <div class="space-y-4">
+      <p class="text-xs text-gray-500">
+        <span class="font-semibold text-gray-700">Rules in force (Governance Centre):</span> at least {{ rules.min_count }} scenarios; base at least {{ rules.base_floor }}%; no weight above {{ rules.single_ceiling }}%; calibration note on every downside {{ rules.note_required ? 'required' : 'optional' }}; weighting: {{ rules.weighting }}.
+      </p>
 
       <div v-if="overlays && overlays.length" class="maiic-panel p-4 text-sm">
-        <span class="font-semibold">Overlays against {{ period }}</span> (the register, spec 15.7):
+        <span class="font-semibold">Overlays against {{ period }}:</span>
         <span v-for="o in overlays" :key="o.id" class="mr-3">#{{ o.id }} {{ o.scope }}{{ o.scope_value ? ' ' + o.scope_value : '' }} {{ pct(o.adjustment) }} <span class="maiic-badge" :class="o.status === 'APPROVED' ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ o.status }}</span></span>
         <a :href="route('fli-overlays.index', { period })" class="text-maiic-700 underline dark:text-maiic-300">open the register</a>
       </div>
 
-      <div v-if="!sets.length" class="maiic-panel p-6 text-sm text-gray-500">No scenario set for {{ period }}. The first set of specification 15.8 (Base 50, Upside 15, Downside 25, Severe 10, each anchored to a year Malawi has lived through) can be proposed here for Dr Thom to set the weights.</div>
+      <div v-if="!sets.length" class="maiic-panel maiic-empty">No scenario set for {{ period }}.<span v-if="canGovern"> Use <strong>Propose the first set</strong> at the top right: Base 50, Upside 15, Downside 25 and Severe 10, each anchored to a year Malawi has lived through, for the CFO to set the weights.</span></div>
 
       <div v-for="s in sets" :key="s.id" class="maiic-panel">
         <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 p-5 dark:border-slate-700">
@@ -28,7 +28,7 @@
             <p class="text-sm text-gray-500">{{ s.narrative }}</p>
             <p class="text-xs text-gray-500">Sources: {{ s.source_vintage || '-' }} · proposed {{ s.proposer || '-' }} {{ s.proposed_at || '' }} · approved {{ s.approver || '-' }} {{ s.approved_at || '' }} · locked {{ s.locked_at || '-' }}<span v-if="s.supersedes_id"> · supersedes set {{ s.supersedes_id }}: {{ s.version_reason }}</span></p>
             <p v-if="s.validation && !s.validation.ok" class="mt-1 text-xs text-red-700 dark:text-red-300">{{ s.validation.problems.join('; ') }}</p>
-            <p v-if="s.validation && s.validation.overlays_pending && s.validation.overlays_pending.length" class="mt-1 text-xs text-amber-700 dark:text-amber-300">Overlay{{ s.validation.overlays_pending.length === 1 ? '' : 's' }} {{ s.validation.overlays_pending.join(', ') }} still proposed: the set cannot lock until each is approved or rejected (15.7).</p>
+            <p v-if="s.validation && s.validation.overlays_pending && s.validation.overlays_pending.length" class="mt-1 text-xs text-amber-700 dark:text-amber-300">Overlay{{ s.validation.overlays_pending.length === 1 ? '' : 's' }} {{ s.validation.overlays_pending.join(', ') }} still proposed: the set cannot lock until each is approved or rejected.</p>
             <p v-if="s.overlays_at_approval" class="mt-1 text-xs text-gray-500">Overlays in force at approval: {{ s.overlays_at_approval.overlays.length ? s.overlays_at_approval.overlays.map(o => '#' + o.id + ' ' + o.scope + (o.scope_value ? ' ' + o.scope_value : '') + ' ' + pct(o.adjustment)).join('; ') : 'none' }}</p>
           </div>
           <div v-if="canGovern" class="flex gap-2">
@@ -39,10 +39,10 @@
             <button v-if="s.status === 'LOCKED' || s.status === 'APPROVED'" @click="newVersion(s.id)" class="secondary-btn text-xs">New version</button>
           </div>
         </div>
-        <!-- The editor (system audit of 9 October 2026, finding M5): the proposer sets the weights, adds or removes scenarios and edits the shocks until the set is approved; read-only after that. -->
+        <!-- The editor: the proposer sets the weights, adds or removes scenarios and edits the shocks until the set is approved; read-only after that. -->
         <div v-if="editing === s.id && draft" class="border-b border-amber-200 bg-amber-50/60 p-5 dark:border-amber-800 dark:bg-amber-900/20">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h4 class="maiic-section-title mt-0">Editing {{ s.name }} v{{ s.version }} <span class="text-xs font-normal text-gray-500">(the decision the spec reserves for the CFO: weights that sum to 100, the base at least {{ rules.base_floor }}, no weight above {{ rules.single_ceiling }}, at least {{ rules.min_count }} scenarios, a calibration note on every downside)</span></h4>
+            <h4 class="maiic-section-title mt-0">Editing {{ s.name }} v{{ s.version }} <span class="text-xs font-normal text-gray-500">(the CFO's decision: weights that sum to 100, the base at least {{ rules.base_floor }}, no weight above {{ rules.single_ceiling }}, at least {{ rules.min_count }} scenarios, a calibration note on every downside)</span></h4>
             <div class="text-sm" :class="Math.abs(weightsSum - 100) < 0.005 ? 'text-maiic-700 dark:text-maiic-300' : 'text-red-700 dark:text-red-300'">Weights sum to {{ weightsSum.toFixed(2) }}</div>
           </div>
           <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -118,6 +118,7 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { router } from '@inertiajs/vue3'
+import { promptReason } from '@/Components/Maiic/promptReason'
 
 export default {
   components: { AppLayout },
@@ -149,7 +150,7 @@ export default {
     go() { router.get(route('scenario-sets.index'), { period: this.form.period }) },
     seed() { router.post(route('scenario-sets.seed'), { period: this.form.period }) },
     post(name, id) { router.post(route(name, id), {}, { preserveScroll: true }) },
-    newVersion(id) { const reason = prompt('Why a new version? (written to the set and the audit log)'); if (reason) router.post(route('scenario-sets.version', id), { reason }, { preserveScroll: true }) },
+    async newVersion(id) { const reason = await promptReason({ title: 'Start a new version?', message: 'The reason is written to the set and the audit log.', label: 'Why a new version?', confirmLabel: 'New version' }); if (reason) router.post(route('scenario-sets.version', id), { reason }, { preserveScroll: true }) },
   },
 }
 </script>
