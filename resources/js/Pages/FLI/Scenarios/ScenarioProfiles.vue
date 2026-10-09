@@ -1,60 +1,50 @@
 <template>
   <AppLayout>
-    
-    <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Scenario Profiles
-      </h2>
 
-    <div class="mb-4 flex justify-end space-x-4">
-          <button @click="openProfileForm()"
-          class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700">
-            + Create New Profile
-          </button>
-          
-            <button @click="openScenarioForm()" class="bg-maiic-600 text-white px-4 py-2 rounded hover:bg-maiic-700">
-          + Add Scenario
-        </button>
+    <template #header>
+      <div>
+        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+          <span>IFRS 9 Model Setup</span><span>/</span><span>Scenarios &amp; Overlays</span><span>/</span><span class="font-medium text-maiic-700">Scenario Profiles</span>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800">Scenario Profiles</h2>
+        <p class="mt-1 text-sm text-gray-600">Named groups of economic scenarios (for example base, upside and downside) used by the weighted forecast</p>
       </div>
     </template>
+    <template #actions>
+      <button type="button" class="secondary-btn" @click="openScenarioForm()">Add scenario</button>
+      <button type="button" class="primary-btn" @click="openProfileForm()">Create profile</button>
+    </template>
 
-    <div class="overflow-x-auto mt-6">
-      <div class="bg-white shadow-md rounded-lg">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="py-2 px-4 border-b text-gray-600 text-center align-middle">Scenario Code</th>
-            <th class="py-2 px-4 border-b text-gray-600 text-center align-middle">Scenario Name</th>
-            <th class="py-2 px-4 border-b text-gray-600 text-center align-middle">Created By</th>
-            <th class="py-2 px-4 border-b text-gray-600 text-center align-middle">Status</th>
-            <th class="py-2 px-4 border-b text-gray-600 text-center align-middle">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="profile in profiles" :key="profile.id">
-            <td class="py-2 px-4 border-b text-center align-middle">{{ profile.profile_code }}</td>
-            <td class="py-2 px-4 border-b text-center align-middle">{{ profile.name }}</td>
-            <td class="py-2 px-4 border-b text-center align-middle">{{ profile.created_by }}</td>
-            <td class="py-2 px-4 border-b text-center align-middle">
-              <span v-if="profile.is_complete" class="text-maiic-600 font-bold">✔</span>
-              <span v-else class="text-red-600 font-bold">✘</span>
-            </td>
-            <td class="py-2 px-4 border-b text-center align-middle space-x-3">
-              <button @click="viewProfile(profile)"
-               class="text-maiic-600 hover:text-maiic-800">
-                <i class="fas fa-eye"></i> 
-              </button>
-              <button class="text-maiic-600 hover:text-maiic-800">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button class="text-red-600 hover:text-red-800">
-                <i class="fas fa-trash"></i>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
+    <div class="w-full space-y-4">
+      <div class="maiic-panel">
+        <div class="border-b border-gray-200 px-5 py-4">
+          <h3 class="font-semibold text-gray-900">Profiles</h3>
+          <p class="text-xs text-gray-500">{{ profiles.length }} profile(s). A profile is complete when its scenarios and weights are all in place.</p>
+        </div>
+        <div class="maiic-table-wrap overflow-x-auto">
+          <table class="maiic-table">
+            <thead>
+              <tr><th>Code</th><th>Name</th><th>Created by</th><th>Status</th><th class="text-right">Actions</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="profile in pagedProfiles" :key="profile.id">
+                <td class="font-semibold text-gray-900">{{ profile.profile_code }}</td>
+                <td>{{ profile.name }}</td>
+                <td>{{ profile.created_by || '-' }}</td>
+                <td><span class="maiic-badge" :class="profile.is_complete ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ profile.is_complete ? 'Complete' : 'Incomplete' }}</span></td>
+                <td>
+                  <div class="flex justify-end gap-1.5">
+                    <button type="button" class="maiic-action maiic-action-view" title="Open the profile's scenarios" @click="viewProfile(profile)"><font-awesome-icon icon="eye" /></button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!profiles.length">
+                <td colspan="5" class="maiic-empty">No scenario profiles yet. Use <strong>Create profile</strong> at the top right, then add its scenarios.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <RowPager v-model="page" :total="profiles.length" class="border-t border-gray-100" />
       </div>
     </div>
 
@@ -74,7 +64,7 @@
         <div class="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
           <ScenarioForm
             :scenario="currentScenario"
-            :profiles="profiles" 
+            :profiles="profiles"
             @close="closeForm"
             @saved="reload"
           />
@@ -85,7 +75,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ProfileForm from './Components/ProfileForm.vue'
@@ -94,6 +85,9 @@ import ScenarioForm from './ScenarioForm.vue'
 const props = defineProps({
   profiles: Array
 })
+
+const page = ref(1)
+const pagedProfiles = computed(() => (props.profiles || []).slice((page.value - 1) * 15, page.value * 15))
 
 const showProfileForm = ref(false)
 const currentProfile = ref(null)
@@ -114,7 +108,7 @@ function openScenarioForm() {
 
 function reload() {
   // Logic to reload the profiles list
-  Inertia.reload({ only: ['profiles'] })
+  router.reload({ only: ['profiles'] })
 }
 
 function closeForm() {

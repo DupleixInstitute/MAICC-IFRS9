@@ -1,101 +1,66 @@
 <template>
     <app-layout>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Economic Scenario Sets
-            </h2>
-        </template>
-        <div class="mx-auto mb-4 flex justify-between items-center">
-            <filter-search v-model="form.search" class="w-full max-w-md mr-4" @reset="reset">
-                <div class="w-80 mt-2 px-4 py-6 shadow-xl bg-white rounded">
-                    <!-- Additional filters can go here -->
+            <div>
+                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                    <span>IFRS 9 Model Setup</span><span>/</span><span>Scenarios &amp; Overlays</span><span>/</span><span class="font-medium text-maiic-700">Economic Scenarios</span>
                 </div>
-            </filter-search>
-            <inertia-link class="btn btn-blue" :href="route('fli.scenarios.create')">
-                <span>Create </span>
-                <span class="hidden md:inline">Scenario Set</span>
-            </inertia-link>
-        </div>
-        <div class="mx-auto">
-            <div class="maiic-panel maiic-table-wrap">
-                <table class="w-full whitespace-no-wrap table-auto">
-                    <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Created By</th>
-                        <th>Action</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr v-if="!scenarioSets.data.length">
-                        <td colspan="6" class="px-6 py-4 text-center">
-                            No Scenario Sets found.
-                        </td>
-                    </tr>
-                    <tr v-for="set in scenarioSets.data" :key="set.id"
-                        class="hover:bg-gray-100 focus-within:bg-gray-100">
-                        <td class="!p-0">
-                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('fli.scenarios.edit', set.id)"
-                                          tabindex="-1">
-                                {{ set.id }}
-                            </inertia-link>
-                        </td>
-                        <td class="!p-0">
-                            <inertia-link class="px-4 py-2.5 flex items-center" :href="route('fli.scenarios.edit', set.id)"
-                                          tabindex="-1">
-                                {{ set.name }}
-                            </inertia-link>
-                        </td>
-                        <td class="!p-0">
-                            <span class="px-4 py-2.5 flex items-center">
-                                {{ set.description }}
-                            </span>
-                        </td>
-                        <td class="!p-0">
-                            <span class="px-4 py-2.5 flex items-center">
-                                <span v-if="set.is_active"
-                                      class="px-2 rounded-full bg-maiic-100 text-maiic-800">
-                                    Active
-                                </span>
-                                <span v-else
-                                      class="px-2 rounded-full bg-gray-100 text-gray-800">
-                                    Inactive
-                                </span>
-                            </span>
-                        </td>
-                        <td class="!p-0">
-                            <span class="px-4 py-2.5 flex items-center">
-                                {{ set.creator?.name || '-' }}
-                            </span>
-                        </td>
-                        <td class="border-t w-px pr-2">
-                            <div class="flex items-center gap-4">
-                                <inertia-link :href="route('fli.scenarios.edit', set.id)"
-                                              tabindex="-1" class="text-maiic-600 hover:text-maiic-900" title="Edit">
-                                    <font-awesome-icon icon="edit"/>
-                                </inertia-link>
-                                <a href="#" @click="deleteAction(set.id)"
-                                   class="text-red-600 hover:text-red-900" title="Delete">
-                                    <font-awesome-icon icon="trash"/>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
+                <h2 class="text-xl font-semibold text-gray-800">Economic Scenarios</h2>
+                <p class="mt-1 text-sm text-gray-600">Sets of economic scenarios and their macro paths, used by the external calculation</p>
             </div>
-            <pagination :links="scenarioSets.links"/>
+        </template>
+        <template #actions>
+            <Link :href="route('fli.scenarios.create')" class="primary-btn">Create scenario set</Link>
+        </template>
+
+        <div class="w-full space-y-4">
+            <div class="maiic-panel">
+                <div class="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Scenario sets</h3>
+                        <p class="text-xs text-gray-500">{{ scenarioSets.total ?? scenarioSets.data.length }} set(s)</p>
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <label class="block"><span class="maiic-flabel">Search</span><input v-model="form.search" type="text" class="maiic-input !w-64" placeholder="Name or description" /></label>
+                        <button v-if="form.search" type="button" class="secondary-btn" @click="reset">Clear</button>
+                    </div>
+                </div>
+                <div class="maiic-table-wrap overflow-x-auto">
+                    <table class="maiic-table">
+                        <thead>
+                            <tr><th>Name</th><th>Description</th><th>Status</th><th>Created by</th><th class="text-right">Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="set in scenarioSets.data" :key="set.id">
+                                <td class="font-semibold text-gray-900"><Link :href="route('fli.scenarios.edit', set.id)" class="hover:underline">{{ set.name }}</Link><div class="text-xs font-normal text-gray-500">#{{ set.id }}</div></td>
+                                <td>{{ set.description || '-' }}</td>
+                                <td><span class="maiic-badge" :class="set.is_active ? 'maiic-badge-green' : 'maiic-badge-grey'">{{ set.is_active ? 'Active' : 'Inactive' }}</span></td>
+                                <td>{{ set.creator?.name || '-' }}</td>
+                                <td>
+                                    <div class="flex justify-end gap-1.5">
+                                        <Link :href="route('fli.scenarios.edit', set.id)" class="maiic-action maiic-action-edit" title="Edit scenario set"><font-awesome-icon icon="pen" /></Link>
+                                        <button type="button" class="maiic-action maiic-action-delete" title="Delete scenario set" @click="deleteAction(set.id)"><font-awesome-icon icon="trash" /></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="!scenarioSets.data.length">
+                                <td colspan="5" class="maiic-empty">{{ form.search ? 'No scenario sets match the search.' : 'No scenario sets yet. Use Create scenario set at the top right.' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="scenarioSets.links && scenarioSets.links.length > 3" class="border-t border-gray-100 px-4 pb-4">
+                    <pagination :links="scenarioSets.links"/>
+                </div>
+            </div>
         </div>
         <jet-confirmation-modal :show="confirmingDeletion" @close="confirmingDeletion = false">
             <template #title>
-                Delete Scenario Set
+                Delete this scenario set?
             </template>
 
             <template #content>
-                Are you sure you want to delete this scenario set? This action cannot be undone.
+                The scenario set and its scenarios are removed. This cannot be undone.
             </template>
 
             <template #footer>
@@ -119,6 +84,7 @@
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { Link } from '@inertiajs/vue3'
 import Icon from '@/Jetstream/Icon.vue'
 import Pagination from '@/Jetstream/Pagination.vue'
 import FilterSearch from '@/Jetstream/FilterSearch.vue'
@@ -133,6 +99,7 @@ import JetSecondaryButton from '@/Jetstream/SecondaryButton.vue'
 export default {
     components: {
         AppLayout,
+        Link,
         Icon,
         Pagination,
         FilterSearch,

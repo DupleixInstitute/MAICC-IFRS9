@@ -1,15 +1,19 @@
 <template>
     <app-layout>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                FLI External Calculations
-            </h2>
+            <div>
+                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                    <span>IFRS 9 Model Setup</span><span>/</span><span>Scenarios &amp; Overlays</span><span>/</span><span class="font-medium text-maiic-700">External Calculations</span>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800">External Calculations</h2>
+                <p class="mt-1 text-sm text-gray-600">The older one-slope forward-looking calculation, kept for reference</p>
+            </div>
         </template>
 
-        <div class="py-12">
+        <div>
             <div class="w-full">
 
-                <!-- Retired in favour of FLI Adjustments (system audit of 9 October 2026, finding M6) -->
+                <!-- Retired in favour of FLI Adjustments -->
                 <div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
                     <p class="font-semibold">This screen is retired in favour of FLI Adjustments.</p>
                     <p class="mt-1">The one-slope external calculation is the legacy route to the post-FLI PD. The governed route of the forward-looking model (the approved fit, the transmission method and the scenario set, with the lineage on every loan) runs on <inertia-link :href="route('fli-adjustments.index')" class="font-semibold underline">FLI Adjustments</inertia-link>.</p>
@@ -18,7 +22,7 @@
                 <!-- Step 1: Configuration & Parameters -->
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 mb-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">1. Configuration & Parameters</h3>
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Scenario Set Selection -->
                         <div>
@@ -117,9 +121,9 @@
                         <h4 class="text-md font-medium text-gray-900 mb-4">Supporting Documentation</h4>
                         <div>
                             <jet-label for="attachment" value="Attach File (Optional)"/>
-                            <input 
-                                type="file" 
-                                id="attachment" 
+                            <input
+                                type="file"
+                                id="attachment"
                                 @change="handleFileUpload"
                                 accept=".pdf,.xlsx,.xls,.csv,.doc,.docx"
                                 class="mt-1 block w-full text-sm text-gray-500
@@ -164,7 +168,7 @@
                 <!-- Step 2: Forecast Generation -->
                 <div v-if="showForecastTable" class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 mb-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">2. Forecast Generation</h3>
-                    
+
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -210,7 +214,7 @@
                 <!-- Step 3: Update Loanbook -->
                 <div v-if="adjustmentsSaved" class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">3. Apply to Loanbook</h3>
-                    
+
                     <div class="text-sm text-gray-600 mb-4">
                         Adjustments have been saved. You can now apply these FLI adjustments to the loan book.
                         This process will update the <code>pd_post_fli_adj</code> and <code>fli_adj</code> columns for all loans in the selected reporting period.
@@ -267,6 +271,7 @@
 </template>
 
 <script>
+import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetButton from "@/Jetstream/Button.vue"
 import JetInput from "@/Jetstream/Input.vue"
@@ -336,10 +341,10 @@ export default {
         async saveParameters() {
             this.loading = true;
             this.errors = {};
-            
+
             try {
                 const response = await axios.post(route('fli.external.save-parameters'), this.form);
-                
+
                 if (response.data.success) {
                     this.parameterId = response.data.parameter_id;
                     this.$toast?.success('Parameters saved successfully!');
@@ -362,7 +367,7 @@ export default {
                 const response = await axios.post(route('fli.external.generate'), {
                     parameter_id: this.parameterId
                 });
-                
+
                 if (response.data.success) {
                     this.forecastData = response.data.forecasts.map(f => ({
                         ...f,
@@ -371,7 +376,7 @@ export default {
                     this.showForecastTable = true;
                     this.adjustmentsSaved = false;
                     this.updateStats = null;
-                    
+
                     // Calculate all rows initially
                     this.forecastData.forEach((_, index) => {
                         this.recalculateRow(index);
@@ -385,21 +390,21 @@ export default {
                 this.$toast?.error('Failed to generate forecasts. Please check your inputs.');
             }
         },
-        recalculateRow(index) {
+        async recalculateRow(index) {
             const row = this.forecastData[index];
             const slope = parseFloat(this.form.regression_slope) || 0;
             const intercept = parseFloat(this.form.regression_intercept) || 0;
             const weightedMacro = parseFloat(row.weighted_macro_value) || 0;
-            
+
             // Calculate Predicted Value
             row.predicted_value = (slope * weightedMacro) + intercept;
-            
+
             // Calculate FLI Adjustment
             // Formula: (Predicted / Base_Predicted) - 1
             // Base Predicted is the predicted value at period 0
             const baseRow = this.forecastData[0];
             const basePredicted = (slope * (parseFloat(baseRow.weighted_macro_value) || 0)) + intercept;
-            
+
             if (basePredicted !== 0) {
                 row.fli_adj = (row.predicted_value / basePredicted) - 1;
             } else {
@@ -420,7 +425,7 @@ export default {
                     parameter_id: this.parameterId,
                     forecasts: forecasts
                 });
-                
+
                 if (response.data.success) {
                     this.adjustmentsSaved = true;
                     this.$toast?.success('Adjustments saved successfully! ' + response.data.count + ' periods saved.');
@@ -435,17 +440,17 @@ export default {
             }
         },
         async updateLoanBook() {
-            if (!confirm('This will update PD values for all loans in the reporting period. Continue?')) {
+            if (!await confirmDialog({ title: 'This will update PD values for all loans in the reporting period. Continue?' })) {
                 return;
             }
-            
+
             this.updatingLoanbook = true;
             try {
                 const response = await axios.post(route('fli.external.update-loanbook'), {
                     reporting_period: this.form.reporting_period,
                     scenario_set_id: this.form.scenario_set_id
                 });
-                
+
                 if (response.data.success) {
                     this.updateStats = {
                         total_loans: response.data.stats.total_loans,

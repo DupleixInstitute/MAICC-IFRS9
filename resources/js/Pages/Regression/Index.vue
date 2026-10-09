@@ -212,6 +212,7 @@
 </template>
 
 <script>
+import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 export default {
@@ -246,12 +247,12 @@ export default {
       return 'text-red-600'
     },
     getStatusBadgeClass(model) {
-      return model.is_active 
-        ? 'bg-maiic-100 text-maiic-800' 
+      return model.is_active
+        ? 'bg-maiic-100 text-maiic-800'
         : 'bg-gray-100 text-gray-800'
     },
-    toggleActive(model) {
-      if (confirm(`Are you sure you want to ${model.is_active ? 'deactivate' : 'activate'} this model?`)) {
+    async toggleActive(model) {
+      if (await confirmDialog({ title: `Are you sure you want to ${model.is_active ? 'deactivate' : 'activate'} this model?` })) {
         this.$inertia.patch(route('regression.toggle-active', model.id))
       }
     }

@@ -1,17 +1,16 @@
 <template>
-  <app-layout title="Macro Statistics" description="The macroeconomic series the forward-looking model reads, with the source each came from: the World Bank for actuals, the IMF World Economic Outlook for the forecast years, the Reserve Bank by file for the policy rate, and the PLR from the landing zone (spec v4 section 13)">
+  <app-layout title="Macro Statistics" description="The economic series the forward-looking model reads, and where each came from (World Bank, IMF, Reserve Bank, the loan books)">
     <template #actions><a :href="route('macro-statistics.export')" class="secondary-btn text-sm">Export CSV</a></template>
     <div class="space-y-4">
-      <div class="flex flex-wrap gap-1 border-b border-gray-200 dark:border-slate-700">
-        <button v-for="t in tabs" :key="t" @click="tab = t" class="px-4 py-2 text-sm font-semibold" :class="tab === t ? 'border-b-2 border-teal-500 text-teal-700 dark:text-teal-300' : 'text-gray-500'">{{ t }}</button>
-      </div>
+      <PageTabs v-model="tab" :tabs="tabItems" />
 
       <!-- Dashboard -->
-      <div v-if="tab === 'Dashboard'" class="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div v-for="s in series" :key="s.id" class="maiic-kpi cursor-pointer" style="--accent:#0d9488" @click="select(s)">
-          <div class="maiic-kpi-label">{{ s.code }} · {{ s.unit }}</div>
+      <div v-if="tab === 'Dashboard'" class="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div v-if="!series.length" class="maiic-panel maiic-empty md:col-span-3">No macro series are set up yet.</div>
+        <div v-for="s in series" :key="s.id" class="maiic-kpi !py-3 cursor-pointer hover:shadow-md" style="--accent:#15803d" :title="'Open ' + s.code + ' in Data Entry'" @click="select(s)">
+          <div class="maiic-kpi-label">{{ s.code }}, {{ s.unit }}</div>
           <div class="text-sm font-bold">{{ s.name }}</div>
-          <div class="text-xs text-gray-500">{{ s.n }} observations{{ s.n ? ' ' + (s.first || '').slice(0, 7) + ' to ' + (s.last || '').slice(0, 7) : '' }}<span v-if="s.forecasts"> · {{ s.forecasts }} forecast</span></div>
+          <div class="text-xs text-gray-500">{{ s.n }} observations{{ s.n ? ' ' + (s.first || '').slice(0, 7) + ' to ' + (s.last || '').slice(0, 7) : '' }}<span v-if="s.forecasts">, {{ s.forecasts }} forecast</span></div>
           <div class="text-xs text-gray-500" v-if="s.last_batch">last from {{ s.last_batch.source }} {{ (s.last_batch.fetched_at || '').slice(0, 10) }}</div>
           <div class="text-xs text-amber-700" v-else>no source committed yet</div>
         </div>
@@ -21,7 +20,7 @@
       <div v-if="tab === 'Variables'" class="maiic-panel">
         <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Code</th><th>Series</th><th>Unit</th><th>Frequency</th><th>Source</th><th>World Bank</th><th>IMF WEO</th><th>Other</th><th>Why MAIIC needs it</th></tr></thead>
           <tbody><tr v-for="s in series" :key="s.id"><td class="font-mono text-xs">{{ s.code }}</td><td>{{ s.name }}</td><td class="text-xs">{{ s.unit }}</td><td class="text-xs">{{ s.frequency }}</td><td class="text-xs">{{ s.source }}</td><td class="font-mono text-xs">{{ s.codes.world_bank || '' }}</td><td class="font-mono text-xs">{{ s.codes.imf_weo || '' }}</td><td class="font-mono text-xs">{{ s.codes.rbm || s.codes.landing_zone || '' }}</td><td class="text-xs">{{ s.why }}</td></tr></tbody></table></div>
-        <p class="p-3 text-xs text-gray-500">A series with no code says so; it is not an error. Codes are a seeder change (MacroSeriesSeeder), not a code change. The legacy editor remains at <Link :href="route('macro-statistics.legacy')" class="underline">Macro Elements</Link>.</p>
+        <p class="p-3 text-xs text-gray-500">A blank source code means the series has none at that source; it is not an error. The older editor is still available at <Link :href="route('macro-statistics.legacy')" class="underline">Macro Elements</Link>.</p>
       </div>
 
       <!-- Data entry -->
@@ -55,11 +54,11 @@
           <p class="text-gray-500">Nothing reaches the table until a person has seen the rows. Each commit is a batch with its source, address, time, who and how many rows.</p>
           <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
             <div class="rounded border border-gray-200 p-3 dark:border-slate-700"><div class="font-semibold">World Bank (live)</div>
-              <select v-model="wb.series_code" class="maiic-select mt-1"><option value="">series…</option><option v-for="s in series.filter(x => x.codes.world_bank)" :key="s.id" :value="s.code">{{ s.code }}</option></select>
+              <select v-model="wb.series_code" class="maiic-select mt-1"><option value="">Series</option><option v-for="s in series.filter(x => x.codes.world_bank)" :key="s.id" :value="s.code">{{ s.code }}</option></select>
               <div class="mt-1 flex gap-1"><input v-model="wb.country" class="maiic-input" placeholder="MWI"/><input v-model="wb.from" type="number" class="maiic-input" placeholder="from"/><input v-model="wb.to" type="number" class="maiic-input" placeholder="to"/></div>
               <button @click="preview('world_bank', wb)" class="secondary-btn mt-2 text-xs">Preview</button></div>
             <div class="rounded border border-gray-200 p-3 dark:border-slate-700"><div class="font-semibold">IMF World Economic Outlook (file)</div>
-              <select v-model="imf.series_code" class="maiic-select mt-1"><option value="">series…</option><option v-for="s in series.filter(x => x.codes.imf_weo)" :key="s.id" :value="s.code">{{ s.code }}</option></select>
+              <select v-model="imf.series_code" class="maiic-select mt-1"><option value="">Series</option><option v-for="s in series.filter(x => x.codes.imf_weo)" :key="s.id" :value="s.code">{{ s.code }}</option></select>
               <input type="file" class="mt-1 text-xs" @change="imf.file = $event.target.files[0]"/>
               <button @click="preview('imf_weo', imf)" class="secondary-btn mt-2 text-xs">Preview</button></div>
             <div class="rounded border border-gray-200 p-3 dark:border-slate-700"><div class="font-semibold">Reserve Bank policy rate (CSV: date,rate)</div>
@@ -68,7 +67,7 @@
           </div>
           <div v-if="previewError" class="mt-3 rounded bg-red-50 p-2 text-xs text-red-700">{{ previewError }}</div>
           <div v-if="previewData" class="mt-3">
-            <div class="text-xs text-gray-500">{{ previewData.series_code }} · {{ previewData.source }} · {{ previewData.address }} · {{ previewData.rows.length }} rows<span v-if="previewData.estimates_start_after"> · estimates start after {{ previewData.estimates_start_after }}</span><span v-if="previewData.note" class="text-amber-700"> · {{ previewData.note }}</span></div>
+            <div class="text-xs text-gray-500">{{ previewData.series_code }}, {{ previewData.source }}, {{ previewData.address }}, {{ previewData.rows.length }} rows<span v-if="previewData.estimates_start_after">, estimates start after {{ previewData.estimates_start_after }}</span><span v-if="previewData.note" class="text-amber-700">. {{ previewData.note }}</span></div>
             <div class="maiic-table-wrap mt-1 max-h-64 overflow-y-auto"><table class="maiic-table"><thead><tr><th>Period</th><th class="num">Value</th><th>Type</th></tr></thead><tbody><tr v-for="r in previewData.rows" :key="r.period"><td>{{ r.period }}</td><td class="num">{{ r.value }}</td><td>{{ r.value_type }}</td></tr></tbody></table></div>
             <button v-if="canManage && previewData.rows.length" @click="commit" class="primary-btn mt-2 text-sm">Commit {{ previewData.rows.length }} rows as a batch</button>
           </div>
@@ -84,14 +83,26 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
+import PageTabs from '@/Components/Maiic/PageTabs.vue'
 
 export default {
-  components: { AppLayout, Link },
+  components: { AppLayout, Link, PageTabs },
   props: { series: Array, selected: Number, observations: Array, batches: Array, sets: Array, canManage: Boolean, defaultCountry: String },
   data() {
     return { tabs: ['Dashboard', 'Variables', 'Data Entry', 'Scenario Assumptions', 'Import / Export'], tab: 'Dashboard', sel: this.selected,
       wb: { series_code: '', country: this.defaultCountry, from: 2000, to: new Date().getFullYear() }, imf: { series_code: '', file: null }, rbm: { file: null },
       m: { period: '', value: '', is_forecast: false, reason: '' }, previewData: null, previewError: null, previewSource: null }
+  },
+  computed: {
+    tabItems() {
+      return [
+        { key: 'Dashboard', label: 'Dashboard', count: this.series.length },
+        { key: 'Variables', label: 'Variables', count: this.series.length },
+        { key: 'Data Entry', label: 'Data entry', count: (this.observations || []).length },
+        { key: 'Scenario Assumptions', label: 'Scenario assumptions', count: (this.sets || []).length },
+        { key: 'Import / Export', label: 'Import / export', count: (this.batches || []).length },
+      ]
+    },
   },
   methods: {
     select(s) { this.sel = s.id; this.tab = 'Data Entry'; this.go() },

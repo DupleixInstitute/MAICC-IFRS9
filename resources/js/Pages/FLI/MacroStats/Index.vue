@@ -77,6 +77,7 @@
 </template>
 
 <script setup>
+import { confirmDialog } from '@/Components/confirmDialog'
 import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import '@fortawesome/fontawesome-free/css/all.css';
@@ -104,8 +105,8 @@ function reload() {
   router.route('macro-statistics.index')
 }
 
-function deleteStat(id) {
-  if (confirm('Are you sure you want to delete this?')) {
+async function deleteStat(id) {
+  if (await confirmDialog({ title: 'Are you sure you want to delete this?', confirmLabel: 'Delete', tone: 'danger' })) {
     router.delete(route('macro-statistics.destroy', id)).then(() => reload())
   }
 }

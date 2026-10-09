@@ -1,118 +1,52 @@
 <template>
   <app-layout>
     <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Credit Loss Data
-      </h2>
-
-      <div class="mb-4 flex justify-end space-x-4">
-        <div class="flex space-x-3">
-            <inertia-link
-                :href="route('credit-loss-data.create')"
-                class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-maiic-800 focus:outline-none focus:border-maiic-800 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
-            >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Add New Record
-            </inertia-link>
-
-            <inertia-link
-                :href="route('credit-loss-data.importView')"
-                class="inline-flex items-center px-4 py-2 bg-maiic-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-maiic-700 active:bg-maiic-800 focus:outline-none focus:border-maiic-800 focus:ring focus:ring-maiic-300 disabled:opacity-25 transition"
-            >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
-                </svg>
-                Import CSV
-            </inertia-link>
+      <div>
+        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+          <span>IFRS 9 Model Setup</span><span>/</span><span>Forward-Looking Model</span><span>/</span><span class="font-medium text-maiic-700">Credit Loss Data</span>
         </div>
-        </div>
+        <h2 class="text-xl font-semibold text-gray-800">Credit Loss Data</h2>
+        <p class="mt-1 text-sm text-gray-600">The historical loss measures (default rates, losses and similar) the forward-looking model is fitted to</p>
+      </div>
+    </template>
+    <template #actions>
+      <Link :href="route('credit-loss-data.importView')" class="secondary-btn">Import CSV</Link>
+      <Link :href="route('credit-loss-data.create')" class="primary-btn">Add record</Link>
     </template>
 
-    <div class="py-12">
-    <div class="w-full">
+    <div class="w-full space-y-4">
+        <KpiRow :cards="[
+            { label: 'Records', value: Number(totalRecords || 0) },
+            { label: 'Portfolios', value: portfolios.length },
+            { label: 'Periods', value: uniquePeriods.length },
+            { label: 'Metrics', value: definitions.length },
+        ]" />
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Total Records</dt>
-                    <dd class="mt-1 text-3xl font-semibold text-gray-900">{{ totalRecords }}</dd>
-                </div>
-            </div>
-
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Portfolios</dt>
-                    <dd class="mt-1 text-lg font-semibold text-gray-900">{{ portfolios.length }}</dd>
-                </div>
-            </div>
-
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Periods</dt>
-                    <dd class="mt-1 text-2xl font-semibold text-maiic-600">{{ uniquePeriods.length }}</dd>
-                </div>
-            </div>
-
-            <div class="bg-white overflow-hidden shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Metrics</dt>
-                    <dd class="mt-1 text-2xl font-semibold text-maiic-600">{{ definitions.length }}</dd>
-                </div>
-            </div>
+        <div class="maiic-filterbar !mb-0">
+          <div class="flex flex-wrap items-end gap-2">
+            <label class="block"><span class="maiic-flabel">Period</span><input v-model="form.period" type="month" class="maiic-input !w-44" /></label>
+            <label class="block"><span class="maiic-flabel">Portfolio</span>
+              <select v-model="form.portfolio_id" class="maiic-select !w-56">
+                <option value="">All portfolios</option>
+                <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">{{ portfolio.name }}</option>
+              </select>
+            </label>
+            <label class="block"><span class="maiic-flabel">Metric</span>
+              <select v-model="form.definition_id" class="maiic-select !w-56">
+                <option value="">All metrics</option>
+                <option v-for="definition in definitions" :key="definition.id" :value="definition.id">{{ definition.name }}</option>
+              </select>
+            </label>
+            <button type="button" class="primary-btn" @click="applyFilters">Apply</button>
+            <button type="button" class="secondary-btn" @click="resetFilters">Reset</button>
+          </div>
         </div>
-
-        <!-- Filters -->
-         <div class="mb-6 flex space-x-4 items-center">
-            <input
-                v-model="form.period"
-                type="month"
-                class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-maiic-500 focus:border-maiic-500 px-3 py-2 text-sm"
-                placeholder="Select Period"
-            />
-
-            <select v-model="form.portfolio_id"
-                class="flex-1 border-gray-300 rounded-md px-3 py-2 text-sm">
-                <option value="">All Portfolios</option>
-                <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
-                    {{ portfolio.name }}
-                </option>
-            </select>
-
-            <select v-model="form.definition_id"
-                class="flex-1 border-gray-300 rounded-md px-3 py-2 text-sm">
-                <option value="">All Metrics</option>
-                <option v-for="definition in definitions" :key="definition.id" :value="definition.id">
-                    {{ definition.name }}
-                </option>
-            </select>
-
-            <!-- Buttons -->
-            <button
-                type="button"
-                @click="applyFilters"
-                class="px-3 py-2 bg-maiic-600 text-white text-sm rounded-md hover:bg-maiic-700"
-            >
-                Apply
-            </button>
-
-            <button
-                type="button"
-                @click="resetFilters"
-                class="px-3 py-2 bg-gray-300 text-sm rounded-md hover:bg-gray-400"
-            >
-                Reset
-            </button>
-        </div>
-
-
 
         <!-- Portfolios -->
-        <div v-for="portfolio in portfolios" :key="portfolio.id" class="bg-white shadow rounded-lg mb-8">
-            <div class="px-6 py-4 bg-gray-50 border-b flex justify-between items-center">
-                <h3 class="text-lg font-semibold text-gray-800">{{ portfolio.name }}</h3>
-                <span class="text-sm text-gray-500">
+        <div v-for="portfolio in portfolios" :key="portfolio.id" class="maiic-panel">
+            <div class="px-5 py-4 border-b flex justify-between items-center">
+                <h3 class="font-semibold text-gray-900">{{ portfolio.name }}</h3>
+                <span class="text-xs text-gray-500">
                     {{ portfolioData[portfolio.id]?.total ?? 0 }} total records
                 </span>
             </div>
@@ -120,13 +54,7 @@
             <div v-if="portfolioData[portfolio.id]?.data?.length" class="overflow-x-auto">
                 <table class="maiic-table">
                     <thead>
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metric</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Value</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </tr>
+                        <tr><th>Period</th><th>Metric</th><th class="num">Value</th><th>Source</th><th class="text-right">Actions</th></tr>
                     </thead>
 
                     <tbody>
@@ -144,50 +72,38 @@
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-500">{{ record.source || 'Manual' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex space-x-2">
-                                    <button @click="editRecord(record)" class="text-maiic-600 hover:text-maiic-900"><i class="fas fa-pen"></i></button>
-                                    <button @click="deleteRecord(record)" class="text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button>
+                                <div class="flex justify-end gap-1.5">
+                                    <button type="button" class="maiic-action maiic-action-edit" title="Edit record" @click="editRecord(record)"><font-awesome-icon icon="pen" /></button>
+                                    <button type="button" class="maiic-action maiic-action-delete" title="Delete record" @click="deleteRecord(record)"><font-awesome-icon icon="trash" /></button>
                                 </div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
 
-                <!-- Pagination -->
-                <div class="mt-4 flex flex-wrap justify-center">
-                    <template v-for="(link, index) in portfolioData[portfolio.id].links" :key="index">
-                        <div v-if="!link.url"
-                            class="px-3 py-2 text-sm text-gray-400 border rounded mr-1 mb-1"
-                            v-html="link.label" />
-                        <inertia-link
-                            v-else :href="link.url"
-                            class="px-3 py-2 text-sm border rounded mr-1 mb-1 hover:bg-maiic-50"
-                            :class="{ 'bg-maiic-100 font-bold': link.active }"
-                            v-html="link.label" />
-                    </template>
+                <div v-if="portfolioData[portfolio.id].links && portfolioData[portfolio.id].links.length > 3" class="border-t border-gray-100 px-4 pb-4">
+                    <Pagination :links="portfolioData[portfolio.id].links" />
                 </div>
             </div>
 
-            <div v-else class="p-6 text-center text-gray-500">
-                No data available for this portfolio
+            <div v-else class="maiic-empty">
+                No credit loss data for this portfolio yet. Use <strong>Import CSV</strong> or <strong>Add record</strong> at the top right.
             </div>
         </div>
 
     </div>
-</div>
-
-
   </app-layout>
 </template>
 
 <script>
+import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Inertia } from '@inertiajs/inertia'
 import { Link } from '@inertiajs/vue3'
-import '@fortawesome/fontawesome-free/css/all.css';
+import KpiRow from '@/Components/Maiic/KpiRow.vue'
 
 export default {
-  components: { AppLayout, Link },
+  components: { AppLayout, Link, KpiRow },
   props: {
     totalRecords: Number,
     portfolios: Array,
@@ -254,10 +170,10 @@ export default {
             };
             return classes[metricCode] || 'bg-gray-100 text-gray-800';
         },
-        
+
         getValueColor(metricCode, value) {
             if (value === null || value === undefined) return 'text-gray-500';
-            
+
             if (['PD', 'LGD', 'NPL'].includes(metricCode)) {
                 if (value > 0.1) return 'text-red-600';
                 if (value > 0.05) return 'text-amber-600';
@@ -265,7 +181,7 @@ export default {
             }
             return 'text-gray-900';
         },
-        
+
         getInputClass(metricCode) {
             const percentageMetrics = ['PD', 'LGD'];
             if (percentageMetrics.includes(metricCode)) {
@@ -273,19 +189,19 @@ export default {
             }
             return '';
         },
-        
+
 
         editRecord(creditLossData) {
             this.$inertia.get(route('credit-loss-data.edit', creditLossData.id));
         },
-        
-        deleteRecord(creditLossData) {
-            if (confirm('Are you sure you want to delete this record?')) {
+
+        async deleteRecord(creditLossData) {
+            if (await confirmDialog({ title: 'Delete this record?', message: 'The credit loss figure is removed. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' })) {
                 Inertia.delete(route('credit-loss-data.destroy', creditLossData.id));
             }
         }
     },
-    
+
 
   }
 </script>
