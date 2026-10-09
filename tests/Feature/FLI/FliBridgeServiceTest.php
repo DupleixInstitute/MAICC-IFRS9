@@ -6,7 +6,9 @@ use App\Services\Eir\GovernanceService;
 use App\Services\Fli\FliBridgeService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 /**
@@ -14,10 +16,15 @@ use Tests\TestCase;
  * MAIIC's own: an annual macro value is held at its December and the months
  * between are interpolated and say so; the credit-loss proxies come from the
  * staged loan books for the book and per segment; the governed parameters
- * carry the Governance Centre's values and the suite's defaults for the rest.
+ * carry the Governance Centre's values (both normality limits, the sign-test
+ * mode) and the suite's defaults for the rest, and the bridge is their only
+ * writer: a value that drifted is put back with a warning (system audit of
+ * 9 October 2026, finding M12).
  */
 class FliBridgeServiceTest extends TestCase
 {
+    use CreatesGovernanceSchema;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -26,6 +33,8 @@ class FliBridgeServiceTest extends TestCase
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
         (require base_path('database/migrations/2026_10_09_000000_create_fli_bridge_tables.php'))->up();
+        $this->createGovernanceSchema();
+        $this->seedGovernanceDefaults();
         Schema::create('macro_statistics', function (Blueprint $t) { $t->increments('id'); $t->string('statistic_code'); $t->string('statistic_name'); $t->string('frequency'); });
         Schema::create('macro_statistics_data', function (Blueprint $t) { $t->increments('id'); $t->integer('macro_stat_definition_id'); $t->date('period'); $t->decimal('value', 15, 4); $t->boolean('is_forecast')->default(0); $t->string('source')->nullable(); });
         Schema::create('reference_rate_series', function (Blueprint $t) { $t->increments('id'); $t->string('index_code'); $t->date('effective_date'); $t->decimal('rate', 10, 4); });
@@ -37,6 +46,11 @@ class FliBridgeServiceTest extends TestCase
                 DB::table('loan_books')->insert(['contract_id' => 'c' . $i, 'reporting_period' => $p, 'product_code' => '1050101', 'product_group' => 'MAIIC Agricultural Loans', 'ifrs9stage_post_qualitative' => $stage, 'carrying_amount' => 100]);
             }
         }
+    }
+
+    private function param(string $key): ?string
+    {
+        return DB::table('governed_parameters')->where('param_key', $key)->where('status', 'approved')->value('param_value');
     }
 
     public function test_the_bridge_fills_the_engine_tables_from_maiic_tables(): void
@@ -52,10 +66,53 @@ class FliBridgeServiceTest extends TestCase
         // the flow into Stage 3 over the year: of the two non-Stage-3 accounts a year earlier, one defaulted
         $this->assertEqualsWithDelta(0.5, (float) DB::table('credit_loss_series')->where('proxy_code', 'DEFAULT_RATE_12M')->where('observation_period', '202512')->value('value'), 1e-6);
         $this->assertTrue(DB::table('credit_loss_series')->where('proxy_code', 'like', 'NPL_RATIO_MAIIC%')->exists());
-        $this->assertSame('24', DB::table('governed_parameters')->where('param_key', 'stats.min_obs')->value('param_value'));
-        $this->assertSame('2.0', DB::table('governed_parameters')->where('param_key', 'stats.kurtosis_limit')->value('param_value'));
+        // the Governance Centre's seeded values, not the suite's: 12 observations, 30 percent, 5 percent, skewness 1.0 and kurtosis 3.0, the sign test required
+        $this->assertSame('12', $this->param('stats.min_obs'));
+        $this->assertSame('0.3', $this->param('fli.r2_cutoff.default'));
+        $this->assertSame('0.05', $this->param('stats.alpha'));
+        $this->assertSame('1.0', $this->param('stats.skew_limit'));
+        $this->assertSame('3.0', $this->param('stats.kurtosis_limit'));
+        $this->assertSame('gating', $this->param('fli.sign_test.mode'));
         $this->assertSame('negative', DB::table('regression_definitions')->where('statistic_code', 'GDP_GROWTH')->where('proxy_code', 'NPL_RATIO')->value('expected_sign'));
+        $this->assertEquals(30, DB::table('regression_definitions')->where('statistic_code', 'GDP_GROWTH')->where('proxy_code', 'NPL_RATIO')->value('r2_cutoff_pct'));
         $this->assertSame(5, $r['events']);
         $this->assertTrue(DB::table('structural_events')->where('code', 'MAIIC_EBANKER_TAKEON')->exists());
+    }
+
+    public function test_a_drifted_or_bypassing_value_is_put_back_with_a_warning(): void
+    {
+        // a direct write that bypassed the Governance Centre, and a later-dated row the engines would have read instead
+        DB::table('governed_parameters')->insert([
+            ['param_key' => 'stats.min_obs', 'param_value' => '8', 'effective_from' => '190001', 'status' => 'approved', 'changed_at' => now()],
+            ['param_key' => 'fli.r2_cutoff.default', 'param_value' => '0.1', 'effective_from' => '202501', 'status' => 'approved', 'changed_at' => now()],
+        ]);
+        Log::shouldReceive('warning')->once()->withArgs(fn ($m) => str_contains($m, 'governed_parameters.stats.min_obs had drifted') && str_contains($m, 'held 8') && str_contains($m, 'says 12'));
+        Log::shouldReceive('warning')->once()->withArgs(fn ($m) => str_contains($m, 'governed_parameters.fli.r2_cutoff.default had a row effective 202501') && str_contains($m, 'retired'));
+
+        (new FliBridgeService(new GovernanceService()))->refresh('2025-12');
+
+        $this->assertSame('12', $this->param('stats.min_obs'));
+        $this->assertSame('0.3', $this->param('fli.r2_cutoff.default'));
+        $this->assertSame('retired', DB::table('governed_parameters')->where('param_key', 'fli.r2_cutoff.default')->where('effective_from', '202501')->value('status'));
+        $this->assertSame(1, DB::table('governed_parameters')->where('param_key', 'fli.r2_cutoff.default')->where('status', 'approved')->count());
+    }
+
+    public function test_the_governed_choices_reach_the_engines_keys(): void
+    {
+        DB::table('governance_settings')->where('key', 'fli_expected_sign_test')->update(['value' => 'Advisory: shown, not enforced']);
+        DB::table('governance_settings')->where('key', 'fli_normality_limits')->update(['value' => 'Skewness 2.0; excess kurtosis 6.0']);
+        DB::table('governance_settings')->where('key', 'fli_min_observations')->update(['value' => '24']);
+        (new FliBridgeService(new GovernanceService()))->refresh('2025-12');
+        $this->assertSame('advisory', $this->param('fli.sign_test.mode'));
+        $this->assertSame('2.0', $this->param('stats.skew_limit'));
+        $this->assertSame('6.0', $this->param('stats.kurtosis_limit'));
+        $this->assertSame('24', $this->param('stats.min_obs'));
+    }
+
+    public function test_a_setting_without_an_approved_value_stops_the_bridge(): void
+    {
+        DB::table('governance_settings')->where('key', 'fli_alpha')->delete();
+        $this->expectException(\App\Exceptions\GovernanceSettingMissingException::class);
+        (new FliBridgeService(new GovernanceService()))->refresh('2025-12');
     }
 }

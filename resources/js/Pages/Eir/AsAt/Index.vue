@@ -1,7 +1,9 @@
 <template>
   <app-layout title="EIR as at a Date" description="The EIR computation for the book, and for any loan, as at any date you name: the amortised cost, the gross carrying amount, the EIR and contractual interest to the date and the difference, which is the revenue shift (spec v4 section 6.11)">
     <template #actions>
-      <a v-if="book" :href="route('eir-as-at.export', { date })" class="secondary-btn text-sm">Download CSV</a>
+      <a v-if="book" :href="route('eir-as-at.export', { date, format: 'xlsx' })" class="primary-btn text-sm">Download Excel</a>
+      <a v-if="book" :href="route('eir-as-at.export', { date, format: 'pdf' })" class="secondary-btn text-sm">Download PDF</a>
+      <a v-if="book" :href="route('eir-as-at.export', { date, format: 'csv' })" class="secondary-btn text-sm">Download CSV</a>
     </template>
 
     <div class="space-y-6">
@@ -26,7 +28,9 @@
             <p class="text-sm text-gray-500">{{ one.product_type }} · GL {{ one.gl_account_code }} · account {{ one.account }} · EIR {{ pct(one.eir.effective_annual) }} solved {{ one.eir.solved_at }}, locked {{ one.eir.locked_at }} · contractual {{ pct(one.eir.contractual_rate) }} {{ one.eir.rate_type }}</p>
           </div>
           <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-4">
-            <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Amortised cost</div><div class="maiic-kpi-value">{{ fmt(one.amortised_cost) }}</div><div class="text-xs text-gray-500">{{ one.amortised_cost_basis }}</div></div>
+            <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Amortised cost</div><div class="maiic-kpi-value">{{ fmt(one.amortised_cost) }}</div><div class="text-xs text-gray-500">{{ one.amortised_cost_basis }}</div>
+              <div v-if="one.takeon" class="mt-1 text-xs text-gray-500">Take-on loan, basis {{ one.takeon.basis }}: take-on balance {{ fmt(one.takeon.takeon_balance) }}<span v-if="one.takeon.recomputed_amortised_cost != null">, recomputed amortised cost {{ fmt(one.takeon.recomputed_amortised_cost) }} at the EIR {{ pct(one.takeon.recomputed_eir) }} from origination {{ one.takeon.origination_date }}</span></div>
+            </div>
             <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Gross carrying amount</div><div class="maiic-kpi-value">{{ fmt(one.gross_carrying_amount) }}</div><div class="text-xs text-gray-500">{{ one.gross_basis }}</div></div>
             <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Difference, year to date</div><div class="maiic-kpi-value">{{ fmt(one.interest.difference_year_to_date) }}</div><div class="text-xs text-gray-500">EIR {{ fmt(one.interest.eir_year_to_date) }} less contractual {{ fmt(one.interest.contractual_year_to_date) }}</div></div>
             <div class="maiic-kpi" style="--accent:#7c3aed"><div class="maiic-kpi-label">Difference, cumulative</div><div class="maiic-kpi-value">{{ fmt(one.interest.difference_cumulative) }}</div><div class="text-xs text-gray-500">from {{ one.interest.cumulative_from || '-' }}</div></div>

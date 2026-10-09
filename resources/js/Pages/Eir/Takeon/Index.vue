@@ -62,7 +62,7 @@
         <div class="border-b border-gray-200 p-5 dark:border-slate-700"><h3 class="text-base font-bold">The take-on population</h3><p class="text-sm text-gray-500">The accounts E-Banker migrated on 31 July 2024 (the 301 principal, 303 opening interest and 305 opening recovery legs), each with the basis it was built on</p></div>
         <div class="maiic-table-wrap">
           <table class="maiic-table">
-            <thead><tr><th>Account</th><th>Basis</th><th>Origination</th><th class="num">Original principal</th><th class="num">Rate %</th><th class="num">Fees</th><th class="num">Take-on principal</th><th class="num">Opening recovery</th><th class="num">Schedule balance 31 Jul 2024</th><th class="num">Difference</th><th>Flags</th></tr></thead>
+            <thead><tr><th>Account</th><th>Basis</th><th>Origination</th><th class="num">Original principal</th><th class="num">Rate %</th><th class="num">Fees</th><th class="num">Take-on principal</th><th class="num">Opening recovery</th><th class="num">Schedule balance 31 Jul 2024</th><th class="num">Difference</th><th class="num">EIR from origination</th><th class="num">Amortised cost 31 Jul 2024</th><th class="num">Take-on balance</th><th class="num">Difference</th><th class="num">Schedule lines</th><th>Flags</th></tr></thead>
             <tbody>
               <tr v-for="c in population" :key="c.account">
                 <td class="font-mono text-xs">{{ c.account }}</td>
@@ -75,9 +75,14 @@
                 <td class="num">{{ fmt(c.takeon_opening_recovery) }}</td>
                 <td class="num">{{ c.schedule_balance_at_takeon != null ? fmt(c.schedule_balance_at_takeon) : '-' }}</td>
                 <td class="num" :class="c.difference_at_takeon > 0 ? 'text-red-700' : (c.difference_at_takeon < 0 ? 'text-teal-700' : '')">{{ c.difference_at_takeon != null ? fmt(c.difference_at_takeon) : '-' }}</td>
+                <td class="num">{{ c.recomputed_eir != null ? (c.recomputed_eir * 100).toFixed(4) + '%' : '-' }}</td>
+                <td class="num">{{ c.recomputed_amortised_cost != null ? fmt(c.recomputed_amortised_cost) : '-' }}</td>
+                <td class="num">{{ c.takeon_balance != null ? fmt(c.takeon_balance) : '-' }}</td>
+                <td class="num" :class="c.recomputed_difference > 0 ? 'text-red-700' : (c.recomputed_difference < 0 ? 'text-teal-700' : '')">{{ c.recomputed_difference != null ? fmt(c.recomputed_difference) : '-' }}</td>
+                <td class="num">{{ c.schedule_lines_written || '-' }}</td>
                 <td class="text-xs text-amber-700 dark:text-amber-300">{{ c.flags.join('; ') }}</td>
               </tr>
-              <tr v-if="!population.length"><td colspan="11" class="maiic-empty">Not built yet.</td></tr>
+              <tr v-if="!population.length"><td colspan="16" class="maiic-empty">Not built yet.</td></tr>
             </tbody>
           </table>
         </div>

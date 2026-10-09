@@ -135,12 +135,16 @@ final class RegressionEngine
     {
         $ols = Stats::olsSimple($aligned['x'], $aligned['y']);
         $r = $ols['r'];
+        // the governed sign test (fli_expected_sign_test, bridged as fli.sign_test.mode;
+        // system audit of 9 October 2026, finding M12): gating declines a wrong sign,
+        // advisory records it as a warning on the fit
         $verdictData = $this->guardrail->evaluate(
             ['n' => $aligned['n'], 'r2' => $ols['r2'], 'p_value' => $ols['p_value'], 'slope' => $ols['slope']],
             $cand['expected_sign'],
             $cand['cutoff'] ?? $cutoff,
             $minObs,
-            $alpha
+            $alpha,
+            $this->gov->string('fli.sign_test.mode')
         );
 
         $relId = $this->ensureRelationship($cand, $lag);
@@ -161,6 +165,7 @@ final class RegressionEngine
             'n_obs' => $aligned['n'],
             'n_years' => $nYears,
             'sign_ok' => $verdictData['sign_ok'],
+            'sign_warning' => $verdictData['sign_warning'],
             'verdict' => $verdictData['verdict'],
             'declined_reason' => $verdictData['declined_reason'],
             'inputs_hash' => $inputsHash,
@@ -180,6 +185,7 @@ final class RegressionEngine
             'p_value' => $ols['p_value'],
             'verdict' => $verdictData['verdict'],
             'declined_reason' => $verdictData['declined_reason'],
+            'sign_warning' => $verdictData['sign_warning'],
             'reasons' => $verdictData['reasons'],
         ];
     }

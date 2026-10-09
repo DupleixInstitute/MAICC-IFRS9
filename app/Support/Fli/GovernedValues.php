@@ -37,6 +37,10 @@ final class GovernedValues
      */
     public const SEED_DEFAULTS = [
         'fli.r2_cutoff.default' => '0.60',
+        // The expected-sign test: 'gating' declines a wrong-signed fit, 'advisory'
+        // records it as a warning on the fit. Bridged from the Governance Centre's
+        // fli_expected_sign_test (system audit of 9 October 2026, finding M12).
+        'fli.sign_test.mode' => 'gating',
         'fli.methodology.default' => 'manual_ass2',   // working default stays the manual ASS2 path
         'fli.adjustment.method' => 'pd_forecast',      // default of the 9 methods when the regression path is selected
         'fli.transmission.style' => 'multiplicative',

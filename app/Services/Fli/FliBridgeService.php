@@ -5,7 +5,7 @@ namespace App\Services\Fli;
 use App\Services\Eir\GovernanceService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
-use Throwable;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Fills the forward-looking engines' input tables from MAIIC's own (spec v4
@@ -20,8 +20,10 @@ use Throwable;
  *                       into Stage 3 over the exposure not in Stage 3 a year
  *                       earlier), for the book and per product group
  *   governed_parameters the engines' keys from the Governance Centre values
- *                       (fli_r2_cutoff, fli_min_observations, fli_alpha,
- *                       fli_normality_limits) and the suite's defaults for the rest
+ *                       (fli_r2_cutoff, fli_min_observations, fli_alpha, both
+ *                       numbers of fli_normality_limits, fli_expected_sign_test)
+ *                       and the suite's defaults for the rest; this service is
+ *                       the only writer and puts right any value that drifted
  *   regression_definitions  the expected sign of each driver against each proxy
  *   structural_events   the register's Malawi events, with the E-Banker take-on
  *
@@ -174,29 +176,60 @@ class FliBridgeService
         return ['proxy_code' => substr($code, 0, 32), 'proxy_name' => substr($name, 0, 128), 'observation_period' => $ym, 'value' => round($value, 6), 'created_at' => now(), 'updated_at' => now()];
     }
 
-    private function parameters(?string $asOf): int
+    /**
+     * The engines' governed_parameters from the Governance Centre. This is
+     * the only writer of that table (system audit of 9 October 2026, finding
+     * M12: the two stores had different seed defaults and a direct write to
+     * the second would have bypassed the first). On every run each bridged
+     * key is set to the Centre's value in force: a value found to differ is
+     * overwritten and a warning logged naming the drift, and any row for a
+     * bridged key dated after the bridge row, which the engines would have
+     * read in its place, is retired. A Centre setting with no approved value
+     * stops the bridge, as it stops every engine; nothing is defaulted here.
+     */
+    public function parameters(?string $asOf = null): int
     {
         $date = $asOf ? CarbonImmutable::parse($asOf . '-01')->endOfMonth() : CarbonImmutable::today();
-        $g = function (string $key, string $default) use ($date) {
-            try {
-                return $this->governance->get($key, $date);
-            } catch (Throwable) {
-                return $default;
-            }
-        };
-        $num = fn (string $v, string $d) => preg_match('/(\d+(?:\.\d+)?)/', $v, $m) ? $m[1] : $d;
-        $r2 = $num($g('fli_r2_cutoff', '60'), '60');
-        $values = [
-            'fli.r2_cutoff.default' => (string) ((float) $r2 > 1 ? (float) $r2 / 100 : (float) $r2),
-            'stats.min_obs' => $num($g('fli_min_observations', '24'), '24'),
-            'stats.alpha' => $num($g('fli_alpha', '0.05'), '0.05'),
-            'stats.skew_limit' => $num($g('fli_normality_limits', '1.0'), '1.0'),
-            'fli.lag_grid' => '0,3,6,9,12', 'fli.max_history_years' => '5', 'fli.vif.max' => '5.0', 'fli.pvalue.max' => $num($g('fli_alpha', '0.05'), '0.05'),
+        $num = fn (string $v) => preg_match('/(\d+(?:\.\d+)?)/', $v, $m) ? $m[1] : $v;
+        $r2 = (float) $num($this->governance->get('fli_r2_cutoff', $date));
+        $alpha = (float) $num($this->governance->get('fli_alpha', $date));
+        // both numbers of the normality limits: skewness, then excess kurtosis
+        preg_match_all('/(\d+(?:\.\d+)?)/', $this->governance->get('fli_normality_limits', $date), $limits);
+        $skew = $limits[1][0] ?? null;
+        $kurtosis = $limits[1][1] ?? null;
+        if ($skew === null || $kurtosis === null) {
+            throw new \RuntimeException('fli_normality_limits must name two numbers (skewness and excess kurtosis).');
+        }
+        $signTest = str_starts_with(strtolower($this->governance->get('fli_expected_sign_test', $date)), 'advisory') ? Guardrail::SIGN_TEST_ADVISORY : Guardrail::SIGN_TEST_GATING;
+        $bridged = [
+            'fli.r2_cutoff.default' => (string) ($r2 > 1 ? $r2 / 100 : $r2),
+            'stats.min_obs' => $num($this->governance->get('fli_min_observations', $date)),
+            'stats.alpha' => (string) ($alpha > 1 ? $alpha / 100 : $alpha),
+            'fli.pvalue.max' => (string) ($alpha > 1 ? $alpha / 100 : $alpha),
+            'stats.skew_limit' => $skew,
+            'stats.kurtosis_limit' => $kurtosis,
+            'fli.sign_test.mode' => $signTest,
+        ];
+        $suite = [
+            'fli.lag_grid' => '0,3,6,9,12', 'fli.max_history_years' => '5', 'fli.vif.max' => '5.0',
             'stats.shapiro_max_n' => '50', 'stats.default_method' => 'pearson', 'fli.methodology.default' => 'regression', 'fli.adjustment.method' => 'fli_adj_byPDs', 'fli.transmission.style' => 'multiplicative',
             'ecl.scenario_method' => 'probability_weighted_outcomes', 'pd.derivation.method' => 'balance_sum_cumulative',
         ];
-        foreach ($values as $key => $value) {
-            DB::table('governed_parameters')->updateOrInsert(['param_key' => $key, 'effective_from' => '190001'], ['param_value' => $value, 'status' => 'approved', 'note' => 'bridged from the Governance Centre or the suite default', 'changed_at' => now()]);
+        foreach ($bridged + $suite as $key => $value) {
+            $governed = array_key_exists($key, $bridged);
+            $existing = DB::table('governed_parameters')->where('param_key', $key)->where('effective_from', '190001')->first();
+            if ($existing !== null && (string) $existing->param_value !== (string) $value) {
+                Log::warning(sprintf('governed_parameters.%s had drifted from %s: held %s, the Governance Centre says %s; overwritten by the FLI bridge (audit finding M12)',
+                    $key, $governed ? 'the Governance Centre' : 'the suite default', $existing->param_value, $value));
+            }
+            DB::table('governed_parameters')->updateOrInsert(['param_key' => $key, 'effective_from' => '190001'],
+                ['param_value' => (string) $value, 'status' => 'approved', 'note' => $governed ? 'bridged from the Governance Centre' : 'the suite default, written by the FLI bridge', 'changed_at' => now()]);
+            // a later-dated row would win over the bridge row in the engines' resolver: it was not written here, so it is retired
+            $later = DB::table('governed_parameters')->where('param_key', $key)->where('effective_from', '!=', '190001')->where('status', 'approved')->get();
+            foreach ($later as $row) {
+                Log::warning(sprintf('governed_parameters.%s had a row effective %s with value %s that the Governance Centre never approved; retired by the FLI bridge (audit finding M12)', $key, $row->effective_from, $row->param_value));
+                DB::table('governed_parameters')->where('id', $row->id)->update(['status' => 'retired', 'note' => 'retired by the FLI bridge: not a Governance Centre value', 'changed_at' => now()]);
+            }
         }
         // every other key the engines read takes the suite's seed default, insert-if-absent
         \App\Support\Fli\GovernedValues::ensureDefaults(config('database.default'), '190001');

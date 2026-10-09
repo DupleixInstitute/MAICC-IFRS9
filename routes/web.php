@@ -1338,16 +1338,24 @@ Route::group(['prefix' => 'compliance-audits', 'as' => 'compliance-audits.'], fu
 });
 
 // Route 3 of the E-Banker feed (spec v4 s.6.5): the export script posts the zipped pack with a token over HTTPS;
-// it is unzipped into the inbox the poller lands from, through the same gates as every other route.
+// it is unzipped into the inbox the poller lands from, through the same gates as every other route. Every entry
+// name is checked before anything is written: a name that climbs out of the inbox refuses the whole pack
+// (system audit of 9 October 2026, finding M14).
 Route::post('/api/ebanker-feed/pack', function (\Illuminate\Http\Request $request) {
     $token = (string) config('services.ebanker_feed.api_token');
     abort_unless($token !== '' && hash_equals($token, (string) $request->bearerToken()), 401, 'A valid feed token is required.');
     $request->validate(['pack' => ['required', 'file', 'mimes:zip']]);
-    $dir = storage_path('app/ebanker-inbox/' . now()->format('Ymd-His') . '-' . substr(hash_file('sha256', $request->file('pack')->getRealPath()), 0, 8));
-    mkdir($dir, 0775, true);
     $zip = new \ZipArchive();
     abort_unless($zip->open($request->file('pack')->getRealPath()) === true, 422, 'The file is not a readable zip.');
-    $zip->extractTo($dir);
+    $unsafe = \App\Services\Ebanker\FeedZip::unsafeEntries($zip);
+    if ($unsafe !== []) {
+        $zip->close();
+        \Illuminate\Support\Facades\Log::warning('E-Banker pack refused at the API: entries that climb out of the inbox: ' . implode(', ', $unsafe) . ' (audit finding M14)', ['ip' => $request->ip()]);
+        abort(422, 'The zip is refused: ' . count($unsafe) . ' entry name(s) would write outside the inbox (' . implode(', ', array_slice($unsafe, 0, 5)) . ').');
+    }
+    $dir = storage_path('app/ebanker-inbox/' . now()->format('Ymd-His') . '-' . substr(hash_file('sha256', $request->file('pack')->getRealPath()), 0, 8));
+    mkdir($dir, 0775, true);
+    \App\Services\Ebanker\FeedZip::extract($zip, $dir, 'API');
     $zip->close();
     $manifest = is_file($dir . '/manifest.json') ? $dir : (glob($dir . '/*/manifest.json') ? dirname(glob($dir . '/*/manifest.json')[0]) : null);
     abort_unless($manifest !== null, 422, 'The zip holds no manifest.json.');

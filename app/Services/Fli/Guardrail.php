@@ -15,8 +15,15 @@ namespace App\Services\Fli;
  *
  * Otherwise the verdict is 'declined' with a declined_reason and the
  * relationship is QUARANTINED - the PD falls back to its pre-FLI value. This is
- * the judgement FDH's legacy code only coloured a comment for, now made to
- * actually block. Pure (no DB) so it is exhaustively unit-testable.
+ * the judgement the earlier calculator only coloured a comment for, now made
+ * to actually block. Pure (no DB) so it is exhaustively unit-testable.
+ *
+ * The sign gate is governed (fli_expected_sign_test in the Governance
+ * Centre, bridged as fli.sign_test.mode; system audit of 9 October 2026,
+ * finding M12). Under the gating mode a wrong sign declines the fit as above.
+ * Under the advisory mode the wrong sign is recorded as a warning on the fit
+ * and the verdict is decided by the other three tests, so a reviewer sees
+ * the sign and decides.
  *
  * FLI_AND_PD_METHODOLOGY.md sections 5 (common guardrail) and 12.2 (precedence).
  */
@@ -27,13 +34,19 @@ final class Guardrail
     public const REASON_R2_BELOW_CUTOFF = 'r2<cutoff';
     public const REASON_INSIGNIFICANT = 'insignificant';
 
+    /** The two modes of the governed sign test, as the bridge writes them. */
+    public const SIGN_TEST_GATING = 'gating';
+    public const SIGN_TEST_ADVISORY = 'advisory';
+
     /**
      * @param array{n:int,r2:?float,p_value:?float,slope:?float} $fit
      * @param string|null $expectedSign 'positive'|'negative'|null (null => sign gate not applied)
-     * @return array{verdict:string,declined_reason:?string,sign_ok:?bool,realised_sign:?string,reasons:array<int,string>,checks:array{sufficient_n:bool,sign_ok:?bool,r2_ok:bool,significant:bool}}
+     * @param string $signTestMode 'gating' (a wrong sign declines) or 'advisory' (a wrong sign is a warning on the fit)
+     * @return array{verdict:string,declined_reason:?string,sign_ok:?bool,realised_sign:?string,sign_warning:?string,reasons:array<int,string>,checks:array{sufficient_n:bool,sign_ok:?bool,r2_ok:bool,significant:bool}}
      */
-    public function evaluate(array $fit, ?string $expectedSign, float $r2Cutoff, int $minObs, float $alpha): array
+    public function evaluate(array $fit, ?string $expectedSign, float $r2Cutoff, int $minObs, float $alpha, string $signTestMode = self::SIGN_TEST_GATING): array
     {
+        $advisory = strtolower(trim($signTestMode)) === self::SIGN_TEST_ADVISORY;
         // Accept a cutoff given either as a fraction (0.60) or a percent (60).
         $cutoff = $r2Cutoff > 1.0 ? $r2Cutoff / 100.0 : $r2Cutoff;
 
@@ -65,8 +78,11 @@ final class Guardrail
         } else {
             $reasons[] = $signOk
                 ? sprintf('correct sign (%s)', $realisedSign)
-                : sprintf('counter-intuitive: realised %s vs expected %s - possible spurious correlation', $realisedSign, $expected);
+                : sprintf('counter-intuitive: realised %s vs expected %s - possible spurious correlation%s', $realisedSign, $expected, $advisory ? ' (sign test advisory: recorded, not enforced)' : '');
         }
+        $signWarning = ($signOk === false && $advisory)
+            ? sprintf('wrong sign: realised %s against expected %s; the sign test is advisory (fli_expected_sign_test), so the fit is not declined for it', $realisedSign, $expected)
+            : null;
         $reasons[] = $r2 === null
             ? 'R2 undefined'
             : sprintf('R2 %.4f %s cutoff %.4f', $r2, $r2Ok ? '>=' : '<', $cutoff);
@@ -79,7 +95,7 @@ final class Guardrail
         $declinedReason = null;
         if (! $sufficientN) {
             $declinedReason = self::REASON_INSUFFICIENT_N;
-        } elseif ($signOk === false) {
+        } elseif ($signOk === false && ! $advisory) {
             $declinedReason = self::REASON_WRONG_SIGN;
         } elseif (! $r2Ok) {
             $declinedReason = self::REASON_R2_BELOW_CUTOFF;
@@ -94,6 +110,7 @@ final class Guardrail
             'declined_reason' => $declinedReason,
             'sign_ok' => $signOk,
             'realised_sign' => $realisedSign,
+            'sign_warning' => $signWarning,
             'reasons' => $reasons,
             'checks' => [
                 'sufficient_n' => $sufficientN,
