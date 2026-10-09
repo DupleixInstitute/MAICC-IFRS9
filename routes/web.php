@@ -1286,6 +1286,19 @@ Route::group(['prefix' => 'scenario-sets', 'as' => 'scenario-sets.'], function (
     Route::post('/{set}/approve', [\App\Http\Controllers\ScenarioSetController::class, 'approve'])->name('approve');
     Route::post('/{set}/lock', [\App\Http\Controllers\ScenarioSetController::class, 'lock'])->name('lock');
     Route::post('/{set}/version', [\App\Http\Controllers\ScenarioSetController::class, 'version'])->name('version');
+    // the editor: the proposer changes weights, scenarios and shocks until the set is approved (audit M5)
+    Route::post('/{set}/update', [\App\Http\Controllers\ScenarioSetController::class, 'update'])->name('update');
+    Route::post('/{set}/scenarios', [\App\Http\Controllers\ScenarioSetController::class, 'addScenario'])->name('add-scenario');
+    Route::post('/{set}/scenarios/{scenario}/remove', [\App\Http\Controllers\ScenarioSetController::class, 'removeScenario'])->name('remove-scenario');
+});
+
+// The manual-overlay register (spec v4 s.14.6, 15.7; audit M3): propose, approve by a second person, reject, expire.
+Route::group(['prefix' => 'fli-overlays', 'as' => 'fli-overlays.'], function () {
+    Route::get('/', [\App\Http\Controllers\FliOverlayController::class, 'index'])->name('index');
+    Route::post('/', [\App\Http\Controllers\FliOverlayController::class, 'propose'])->name('propose');
+    Route::post('/{overlay}/approve', [\App\Http\Controllers\FliOverlayController::class, 'approve'])->name('approve');
+    Route::post('/{overlay}/reject', [\App\Http\Controllers\FliOverlayController::class, 'reject'])->name('reject');
+    Route::post('/{overlay}/expire', [\App\Http\Controllers\FliOverlayController::class, 'expire'])->name('expire');
 });
 
 // FLI Adjustments: the fits, the approved one, the method cards, the route (spec v4 s.14.6 to 14.8).

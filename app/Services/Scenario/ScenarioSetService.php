@@ -21,7 +21,11 @@ use Throwable;
  * needs an approved set. Every scenario but the base is a set of shocks on
  * the base path (percentage, absolute, replacement, multiplier), so a
  * downside is an auditable transformation of the base. The back-test and
- * the sensitivity are computed and stored with the set.
+ * the sensitivity are computed and stored with the set. The proposer edits
+ * the set (weights, scenarios, shocks) until it is approved; after that a
+ * change is a new version. The manual-overlay register is tied to the set:
+ * approval records the overlays in force and the lock refuses while one is
+ * still proposed (system audit of 9 October 2026, findings M4 and M5).
  */
 class ScenarioSetService
 {
@@ -88,10 +92,12 @@ class ScenarioSetService
                 $problems[] = "{$s->name} has no shock on the base: it would be the base under another name";
             }
         }
-        if ($rules['overlay_needs_set'] && DB::getSchemaBuilder()->hasTable('fli_adj')) {
-            // an overlay against this set must be approved before the set locks: recorded as a note for lock()
-        }
-        $result = ['ok' => $problems === [], 'problems' => $problems, 'weights_sum' => $sum, 'rules' => $rules];
+        // The overlay tie of spec 15.7: overlays of the period still proposed
+        // do not stop a proposal or an approval, but lock() refuses while any
+        // remain (system audit of 9 October 2026, finding M4). Their ids are
+        // recorded here so the screen can say what is holding the lock.
+        $pending = $this->proposedOverlayIds($set->reporting_period);
+        $result = ['ok' => $problems === [], 'problems' => $problems, 'weights_sum' => $sum, 'rules' => $rules, 'overlays_pending' => $pending];
         DB::table('governed_scenario_sets')->where('id', $setId)->update(['validation' => json_encode($result), 'updated_at' => now()]);
 
         return $result;
@@ -142,23 +148,226 @@ class ScenarioSetService
         if (! $v['ok']) {
             throw new RuntimeException('The set no longer passes its rules: ' . implode('; ', $v['problems']));
         }
-        DB::transaction(function () use ($setId, $set, $approverId, $label) {
+        // The overlays in force at the moment of approval are written on the
+        // set (spec 15.7: an overlay sits on an approved set and is shown
+        // beside it; system audit of 9 October 2026, finding M4).
+        $overlays = $this->overlaysInForce($set->reporting_period);
+        DB::transaction(function () use ($setId, $set, $approverId, $label, $overlays) {
             DB::table('governed_scenario_sets')->where('reporting_period', $set->reporting_period)->where('id', '!=', $setId)->whereIn('status', ['APPROVED'])->update(['status' => 'SUPERSEDED', 'updated_at' => now()]);
-            DB::table('governed_scenario_sets')->where('id', $setId)->update(['status' => 'APPROVED', 'approved_by' => $approverId, 'approver_label' => $label, 'approved_at' => now(), 'updated_at' => now()]);
+            $update = ['status' => 'APPROVED', 'approved_by' => $approverId, 'approver_label' => $label, 'approved_at' => now(), 'updated_at' => now()];
+            if (DB::getSchemaBuilder()->hasColumn('governed_scenario_sets', 'overlays_at_approval')) {
+                $update['overlays_at_approval'] = json_encode(['approved_at' => now()->toDateTimeString(), 'overlays' => $overlays]);
+            }
+            DB::table('governed_scenario_sets')->where('id', $setId)->update($update);
             $this->backtest($setId);
             $this->sensitivity($setId);
         });
-        AuditLoggerService::log('Scenario Set Approved', 'governed_scenario_sets', $setId, ['meta' => ['approved_by' => $approverId, 'label' => $label]]);
+        AuditLoggerService::log('Scenario Set Approved', 'governed_scenario_sets', $setId, ['meta' => ['approved_by' => $approverId, 'label' => $label, 'overlays_in_force' => array_column($overlays, 'id')]]);
     }
 
+    /**
+     * A set locks with the period's ECL. It refuses while any overlay of the
+     * period is still proposed (spec 15.7; system audit of 9 October 2026,
+     * finding M4): the lock would otherwise fix an ECL that judgement nobody
+     * has approved is about to change.
+     *
+     * @throws OverlayPendingException
+     */
     public function lock(int $setId, ?int $userId): void
     {
         $set = DB::table('governed_scenario_sets')->where('id', $setId)->first() ?? throw new RuntimeException("No scenario set {$setId}.");
         if ($set->status !== 'APPROVED') {
             throw new RuntimeException('Only an approved set can be locked.');
         }
+        $pending = $this->proposedOverlayIds($set->reporting_period);
+        if ($pending !== []) {
+            throw OverlayPendingException::forSet($setId, $set->reporting_period, $pending);
+        }
         DB::table('governed_scenario_sets')->where('id', $setId)->update(['status' => 'LOCKED', 'locked_at' => now(), 'updated_at' => now()]);
         AuditLoggerService::log('Scenario Set Locked', 'governed_scenario_sets', $setId, ['meta' => ['user' => $userId]]);
+    }
+
+    // ----- the editor (system audit of 9 October 2026, finding M5) -----------
+
+    /**
+     * The proposer changes a set that is not yet approved: the name and
+     * narrative, the weights, the scenarios' notes and shocks, scenarios
+     * added or removed. Nothing in an approved, locked or superseded set
+     * can be changed; that is a new version. A proposed set must still pass
+     * every rule of spec 15.6 after the change, or the change is refused
+     * with the reason and nothing is written; a draft may be left failing,
+     * since propose() refuses it until it passes.
+     *
+     * @param array{name?:string,narrative?:?string,source_vintage?:?string,scenarios?:list<array>,remove?:list<int>} $changes
+     *   each scenario: ['id' => int|null, 'name', 'weight', 'is_base', 'anchored_to', 'calibration_note', 'pd_multiplier', 'narrative', 'shocks' => list<array{statistic_code,year_offset,kind,value,note}>];
+     *   a scenario without an id is added; a 'shocks' key present replaces that scenario's shock list.
+     * @return array the validation result after the change
+     */
+    public function updateProposed(int $setId, array $changes, ?int $userId): array
+    {
+        $set = $this->editable($setId, $userId);
+        $before = $this->snapshot($setId);
+        $result = DB::transaction(function () use ($setId, $set, $changes) {
+            $head = array_filter(['name' => $changes['name'] ?? null, 'narrative' => $changes['narrative'] ?? null, 'source_vintage' => $changes['source_vintage'] ?? null], fn ($v) => $v !== null);
+            if ($head !== []) {
+                if (isset($head['name']) && trim((string) $head['name']) === '') {
+                    throw new RuntimeException('The set needs a name.');
+                }
+                DB::table('governed_scenario_sets')->where('id', $setId)->update($head + ['updated_at' => now()]);
+            }
+            foreach ($changes['remove'] ?? [] as $removeId) {
+                $this->deleteScenario($setId, (int) $removeId);
+            }
+            foreach ($changes['scenarios'] ?? [] as $s) {
+                $this->writeScenario($setId, $s);
+            }
+            $v = $this->validate($setId);
+            if ($set->status === 'PROPOSED' && ! $v['ok']) {
+                throw new RuntimeException('The change is refused, the set would no longer pass its rules: ' . implode('; ', $v['problems']));
+            }
+
+            return $v;
+        });
+        AuditLoggerService::log('Scenario Set Edited', 'governed_scenario_sets', $setId, ['reporting_period' => $set->reporting_period, 'old_values' => $before, 'new_values' => $this->snapshot($setId), 'meta' => ['user' => $userId, 'ok' => $result['ok'], 'problems' => $result['problems']]]);
+
+        return $result;
+    }
+
+    /** One scenario added to a set not yet approved; the new scenario's id. */
+    public function addScenario(int $setId, array $scenario, ?int $userId): int
+    {
+        unset($scenario['id']);
+        $this->updateProposed($setId, ['scenarios' => [$scenario]], $userId);
+
+        return (int) DB::table('governed_scenarios')->where('set_id', $setId)->where('name', $scenario['name'])->orderByDesc('id')->value('id');
+    }
+
+    public function removeScenario(int $setId, int $scenarioId, ?int $userId): array
+    {
+        return $this->updateProposed($setId, ['remove' => [$scenarioId]], $userId);
+    }
+
+    private function editable(int $setId, ?int $userId): object
+    {
+        $set = DB::table('governed_scenario_sets')->where('id', $setId)->first() ?? throw new RuntimeException("No scenario set {$setId}.");
+        if (! in_array($set->status, ['DRAFT', 'PROPOSED'], true)) {
+            throw new RuntimeException("Set {$setId} is {$set->status} and cannot be changed; a change after approval is a new version with a reason.");
+        }
+        if ($set->status === 'PROPOSED' && $userId !== null && $set->proposed_by !== null && (int) $set->proposed_by !== $userId) {
+            throw new RuntimeException('Only the proposer may change a proposed set; a second person approves it or asks for a new version.');
+        }
+
+        return $set;
+    }
+
+    private function writeScenario(int $setId, array $s): void
+    {
+        $id = isset($s['id']) ? (int) $s['id'] : null;
+        $existing = $id ? DB::table('governed_scenarios')->where('set_id', $setId)->where('id', $id)->first() : null;
+        if ($id && $existing === null) {
+            throw new RuntimeException("Scenario {$id} is not in set {$setId}.");
+        }
+        $fields = [];
+        foreach (['name', 'weight', 'is_base', 'narrative', 'anchored_to', 'calibration_note', 'pd_multiplier'] as $k) {
+            if (array_key_exists($k, $s)) {
+                $fields[$k] = $s[$k];
+            }
+        }
+        if (array_key_exists('name', $fields) && trim((string) $fields['name']) === '') {
+            throw new RuntimeException('A scenario needs a name.');
+        }
+        if (array_key_exists('weight', $fields)) {
+            if (! is_numeric($fields['weight']) || (float) $fields['weight'] < 0) {
+                throw new RuntimeException('A weight is a percentage from 0 to 100.');
+            }
+            $fields['weight'] = round((float) $fields['weight'], 2);
+        }
+        if (array_key_exists('pd_multiplier', $fields) && $fields['pd_multiplier'] !== null && (! is_numeric($fields['pd_multiplier']) || (float) $fields['pd_multiplier'] <= 0)) {
+            throw new RuntimeException('A PD multiplier is a positive number.');
+        }
+        if (array_key_exists('is_base', $fields)) {
+            $fields['is_base'] = (bool) $fields['is_base'];
+            if ($fields['is_base']) {
+                // one base per set: the base is the path the shocks transform
+                DB::table('governed_scenarios')->where('set_id', $setId)->when($id, fn ($q) => $q->where('id', '!=', $id))->update(['is_base' => false, 'updated_at' => now()]);
+            }
+        }
+        if ($existing === null) {
+            if (! isset($fields['name'])) {
+                throw new RuntimeException('A new scenario needs a name.');
+            }
+            $fields += ['weight' => 0, 'is_base' => false];
+            $fields['order_position'] = (int) DB::table('governed_scenarios')->where('set_id', $setId)->max('order_position') + 1;
+            $id = (int) DB::table('governed_scenarios')->insertGetId($fields + ['set_id' => $setId, 'created_at' => now(), 'updated_at' => now()]);
+        } elseif ($fields !== []) {
+            DB::table('governed_scenarios')->where('id', $id)->update($fields + ['updated_at' => now()]);
+        }
+        if (array_key_exists('shocks', $s)) {
+            DB::table('scenario_shocks')->where('scenario_id', $id)->delete();
+            $seen = [];
+            foreach ((array) $s['shocks'] as $sh) {
+                $code = strtoupper(trim((string) ($sh['statistic_code'] ?? '')));
+                $kind = (string) ($sh['kind'] ?? '');
+                $offset = (int) ($sh['year_offset'] ?? 0);
+                if ($code === '' || ! in_array($kind, ['pct', 'abs', 'replace', 'mult'], true) || ! is_numeric($sh['value'] ?? null)) {
+                    throw new RuntimeException('A shock names a series, a kind (pct, abs, replace or mult) and a numeric value.');
+                }
+                if ($offset < 0 || $offset > 5) {
+                    throw new RuntimeException('A shock\'s year offset is 0 (the first forecast year) to 5.');
+                }
+                if (isset($seen["{$code}|{$offset}"])) {
+                    throw new RuntimeException("Two shocks on {$code} for year offset {$offset}: one series, one offset, one shock.");
+                }
+                $seen["{$code}|{$offset}"] = true;
+                DB::table('scenario_shocks')->insert(['scenario_id' => $id, 'statistic_code' => $code, 'year_offset' => $offset, 'kind' => $kind, 'value' => (float) $sh['value'], 'note' => isset($sh['note']) && trim((string) $sh['note']) !== '' ? trim((string) $sh['note']) : null, 'created_at' => now(), 'updated_at' => now()]);
+            }
+        }
+    }
+
+    private function deleteScenario(int $setId, int $scenarioId): void
+    {
+        $s = DB::table('governed_scenarios')->where('set_id', $setId)->where('id', $scenarioId)->first() ?? throw new RuntimeException("Scenario {$scenarioId} is not in set {$setId}.");
+        if ($s->is_base) {
+            throw new RuntimeException('The base scenario cannot be removed: every other scenario is a shock on it.');
+        }
+        DB::table('scenario_shocks')->where('scenario_id', $scenarioId)->delete();
+        DB::table('governed_scenarios')->where('id', $scenarioId)->delete();
+    }
+
+    /** The set's head and scenarios as the audit log records them before and after an edit. */
+    private function snapshot(int $setId): array
+    {
+        $set = DB::table('governed_scenario_sets')->where('id', $setId)->first(['name', 'narrative', 'source_vintage']);
+        $scenarios = [];
+        foreach (DB::table('governed_scenarios')->where('set_id', $setId)->orderBy('order_position')->get() as $s) {
+            $scenarios[$s->name] = ['weight' => (float) $s->weight, 'is_base' => (bool) $s->is_base, 'pd_multiplier' => $s->pd_multiplier, 'calibration_note' => $s->calibration_note,
+                'shocks' => DB::table('scenario_shocks')->where('scenario_id', $s->id)->orderBy('statistic_code')->get()->map(fn ($x) => "{$x->statistic_code}[{$x->year_offset}] {$x->kind} {$x->value}")->all()];
+        }
+
+        return ['set' => (array) $set, 'scenarios' => $scenarios];
+    }
+
+    // ----- the overlay tie (spec 15.7) --------------------------------------------
+
+    /** @return list<int> the ids of the period's overlays still proposed */
+    public function proposedOverlayIds(string $period): array
+    {
+        if (! DB::getSchemaBuilder()->hasTable('fli_overlays')) {
+            return [];
+        }
+
+        return DB::table('fli_overlays')->where('reporting_period', $period)->where('status', 'PROPOSED')->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /** @return list<array> the approved, unexpired overlays for the period, as recorded on the set at approval */
+    public function overlaysInForce(string $period): array
+    {
+        if (! DB::getSchemaBuilder()->hasTable('fli_overlays')) {
+            return [];
+        }
+
+        return DB::table('fli_overlays')->where('status', 'APPROVED')->where('reporting_period', '<=', $period)->where('expiry_period', '>=', $period)->orderBy('id')
+            ->get(['id', 'scope', 'scope_value', 'adjustment', 'reason', 'owner_id', 'expiry_period', 'approved_by', 'approver_label'])->map(fn ($o) => array_merge((array) $o, ['adjustment' => (float) $o->adjustment, 'id' => (int) $o->id]))->all();
     }
 
     /** A change after lock: a new version, the locked one stays attached to the period. */
@@ -239,6 +448,25 @@ class ScenarioSetService
     }
 
     /**
+     * The stage PD the ECL engine measures from a twelve-month PD: Stage 1
+     * over the shorter of twelve months and the remaining life, Stage 2 over
+     * the lifetime, Stage 3 at 1. The sensitivity and the overlay register's
+     * ECL line both read it, so one rule moves the PD in both places. The
+     * row needs `stage` and `remaining_tenor` (months).
+     */
+    public static function stagePd(object $l, float $pd12): float
+    {
+        $pd12 = max(0.0, min(1.0, $pd12));
+        $months = $l->remaining_tenor === null || (float) $l->remaining_tenor < 1 ? 12.0 : (float) $l->remaining_tenor;
+
+        return match ((string) $l->stage) {
+            '3' => 1.0,
+            '2' => 1 - pow(1 - $pd12, $months / 12),
+            default => 1 - pow(1 - $pd12, min(12.0, $months) / 12),
+        };
+    }
+
+    /**
      * The ECL under each scenario, with 100 percent weight on each, and with ten
      * points moved from the base to the downside and to the upside. Until the
      * chain runs per scenario, each scenario's PD is the pre-FLI PD times its
@@ -262,15 +490,7 @@ class ScenarioSetService
             $by = $l->fli_by_scenario !== null ? (json_decode((string) $l->fli_by_scenario, true) ?: []) : [];
             return (int) $l->fli_set_id === $setId && ($by === [] ? (string) $l->stage === '3' : array_diff($names, array_keys($by)) === []);
         });
-        $stagePd = function (object $l, float $pd12): float {
-            $pd12 = max(0.0, min(1.0, $pd12));
-            $months = $l->remaining_tenor === null || (float) $l->remaining_tenor < 1 ? 12.0 : (float) $l->remaining_tenor;
-            return match ((string) $l->stage) {
-                '3' => 1.0,
-                '2' => 1 - pow(1 - $pd12, $months / 12),
-                default => 1 - pow(1 - $pd12, min(12.0, $months) / 12),
-            };
-        };
+        $stagePd = fn (object $l, float $pd12): float => self::stagePd($l, $pd12);
         // Each loan's booked ECL (ecl_value, whichever engine wrote it) scaled by
         // the ratio of the scenario's stage PD to the booked PD's stage PD, so the
         // base scenario reconciles to the allowance exactly and the others move

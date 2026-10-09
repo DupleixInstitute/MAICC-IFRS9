@@ -22,14 +22,24 @@ use Throwable;
  * each loan's pre-FLI PD under each scenario; the reported post-FLI PD is
  * the probability-weighted PD across scenarios (the weighting method of
  * 15.5), floored and capped, Stage 3 at 100 percent. Under the manual
- * overlay route the overlay of fli_adj for the period is applied the same
- * way; with neither, the PD holds and the loan says so. Every loan records
- * the route, the method, the fit and the set it was adjusted under.
+ * overlay route the approved, unexpired overlays of the register are
+ * applied the same way, each loan taking the sum of the adjustments whose
+ * scope covers it (the book, its product group, its contract); under
+ * regression plus overlay they sit on top of each scenario's adjustment.
+ * With neither a fit nor an overlay, the PD holds and the loan says so.
+ * Every loan records the route, the method, the fit, the set and the
+ * overlays it was adjusted under.
+ *
+ * The register replaced the legacy fli_adj row for the system audit of
+ * 9 October 2026, finding M3.
  */
 class FliRouteService
 {
-    public function __construct(private GovernanceService $governance, private TransmissionMethodCatalogue $methods, private ScenarioSetService $sets)
+    private OverlayService $overlays;
+
+    public function __construct(private GovernanceService $governance, private TransmissionMethodCatalogue $methods, private ScenarioSetService $sets, ?OverlayService $overlays = null)
     {
+        $this->overlays = $overlays ?? new OverlayService($sets);
     }
 
     /** A reviewer proposes an applied fit for the route; a second person approves it. */
@@ -73,7 +83,7 @@ class FliRouteService
     /**
      * Apply the route in force to every loan of the period.
      *
-     * @return array{period:string,route:string,method:string,fit:?int,set:?int,scenarios:array,loans:int,adjusted:int,held:int,note:?string}
+     * @return array{period:string,route:string,method:string,fit:?int,set:?int,scenarios:array,overlays:list<array>,loans:int,adjusted:int,held:int,note:?string}
      */
     public function apply(string $period, ?int $userId = null): array
     {
@@ -104,11 +114,36 @@ class FliRouteService
                     $scenarios[$name] = ['weight' => $sc['weight'], 'driver' => round($driver, 6), 'predicted_proxy' => round($pred, 6), 'adjustment' => round($adj, 6)];
                 }
             }
-        } elseif (str_contains($route, 'overlay') || $fit === null) {
-            $overlay = DB::table('fli_adj')->where('reporting_period', 'like', $period . '%')->orderByDesc('id')->first();
-            $adj = $overlay ? (float) $overlay->fli_adj : 0.0;
-            $scenarios = ['Overlay' => ['weight' => 100.0, 'driver' => null, 'predicted_proxy' => null, 'adjustment' => round($adj, 6)]];
-            $note = $overlay ? 'manual overlay of ' . round($adj, 6) . ' for the period' : ($fit === null && str_starts_with($route, 'Regression') ? 'no approved fit for the period: manual overlay at zero, the PD holds' : 'manual overlay at zero');
+        } elseif ($fit === null && ! str_contains($route, 'overlay')) {
+            // the regression route with nothing approved: the PD holds
+            $scenarios = ['Overlay' => ['weight' => 100.0, 'driver' => null, 'predicted_proxy' => null, 'adjustment' => 0.0]];
+            $note = 'no approved fit for the period: manual overlay at zero, the PD holds';
+        }
+
+        // The overlay register (spec 14.6; system audit of 9 October 2026,
+        // finding M3): under "Manual overlay" the approved, unexpired entries
+        // are the whole adjustment; under "Regression plus overlay" they sit on
+        // top of each scenario's. A book-wide overlay is carried on the
+        // scenario row so the result and the audit log show it; an overlay on
+        // a product group or a contract is added per loan it covers.
+        $overlays = str_contains($route, 'overlay') ? $this->overlays->inForce($period) : collect();
+        if (str_contains($route, 'overlay')) {
+            $bookAdj = round((float) $overlays->where('scope', 'book')->sum('adjustment'), 8);
+            if ($scenarios === []) {
+                $scenarios = ['Overlay' => ['weight' => 100.0, 'driver' => null, 'predicted_proxy' => null, 'adjustment' => $bookAdj]];
+            } elseif ($bookAdj != 0.0) {
+                foreach ($scenarios as $name => $s) {
+                    $scenarios[$name]['adjustment'] = round($s['adjustment'] + $bookAdj, 6);
+                    $scenarios[$name]['overlay'] = $bookAdj;
+                }
+            }
+            $fitStands = $fit !== null && $scenarios !== [] && ! isset($scenarios['Overlay']);
+            $note = $overlays->isEmpty()
+                ? ($fitStands ? 'no overlay in force for the period: the regression adjustment stands alone' : (str_starts_with($route, 'Regression') ? 'no approved fit and no overlay in force for the period: the PD holds' : 'no overlay in force for the period: the PD holds'))
+                : $overlays->count() . ' overlay' . ($overlays->count() === 1 ? '' : 's') . ' in force from the register (ids ' . $overlays->pluck('id')->implode(', ') . ')' . ($fit === null && str_starts_with($route, 'Regression') ? '; no approved fit' : ($fitStands ? '; on top of the regression adjustment' : ''));
+        }
+        if ($scenarios === [] && $note === null) {
+            $note = 'no approved scenario set for the period: the PD holds';
         }
         if (str_starts_with($weighting, 'Weight the macro')) {
             // today's method: one weighted driver, one adjustment
@@ -117,17 +152,22 @@ class FliRouteService
         }
 
         // every loan
-        $loans = DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('pd_prefli')->get(['id', 'pd_prefli', 'ifrs9stage_post_qualitative', 'product_group']);
+        $loans = DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('pd_prefli')->get(['id', 'contract_id', 'pd_prefli', 'ifrs9stage_post_qualitative', 'product_group']);
+        $hasOverlayIds = DB::getSchemaBuilder()->hasColumn('loan_books', 'fli_overlay_ids');
         $adjusted = 0; $held = 0;
-        DB::transaction(function () use ($loans, $scenarios, $method, $route, $fit, $set, &$adjusted, &$held) {
+        DB::transaction(function () use ($loans, $scenarios, $overlays, $method, $route, $fit, $set, $hasOverlayIds, &$adjusted, &$held) {
             foreach ($loans as $loan) {
                 $pre = (float) $loan->pd_prefli;
+                // the overlays whose scope covers this loan: the book-wide ones are already on the scenario rows
+                $covering = $overlays->filter(fn ($o) => $this->overlays->covers($o, $loan));
+                $loanAdj = round((float) $covering->where('scope', '!=', 'book')->sum('adjustment'), 8);
                 if ($loan->ifrs9stage_post_qualitative === '3') {
                     $post = 1.0; $by = [];
                 } else {
                     $post = 0.0; $by = []; $weightSum = 0.0;
                     foreach ($scenarios as $name => $s) {
-                        $p = $this->methods->apply($method, $pre, ['adjustment' => $s['adjustment'], 'segment_adjustment' => $s['adjustment']]);
+                        $a = $s['adjustment'] + $loanAdj;
+                        $p = $this->methods->apply($method, $pre, ['adjustment' => $a, 'segment_adjustment' => $a]);
                         if ($p === null) {
                             continue;
                         }
@@ -138,12 +178,17 @@ class FliRouteService
                 }
                 $changed = abs($post - $pre) > 1e-9;
                 $changed ? $adjusted++ : $held++;
-                DB::table('loan_books')->where('id', $loan->id)->update(['pd_post_fli' => round($post, 8), 'fli_adj' => $pre > 0 ? round($post / $pre - 1, 8) : 0,
-                    'fli_route' => $route, 'fli_method' => $method, 'fli_fit_id' => $fit?->id, 'fli_set_id' => $set?->id, 'fli_by_scenario' => json_encode($by)]);
+                $row = ['pd_post_fli' => round($post, 8), 'fli_adj' => $pre > 0 ? round($post / $pre - 1, 8) : 0,
+                    'fli_route' => $route, 'fli_method' => $method, 'fli_fit_id' => $fit?->id, 'fli_set_id' => $set?->id, 'fli_by_scenario' => json_encode($by)];
+                if ($hasOverlayIds) {
+                    $row['fli_overlay_ids'] = $covering->isEmpty() ? null : json_encode($covering->pluck('id')->map(fn ($id) => (int) $id)->values()->all());
+                }
+                DB::table('loan_books')->where('id', $loan->id)->update($row);
             }
         });
         $result = ['period' => $period, 'route' => $route, 'method' => $method, 'weighting' => $weighting, 'fit' => $fit?->id, 'fit_relationship' => $fit ? "{$fit->statistic_code} -> {$fit->proxy_code} (lag {$fit->lag_months})" : null,
-            'set' => $set?->id, 'scenarios' => $scenarios, 'loans' => $loans->count(), 'adjusted' => $adjusted, 'held' => $held, 'note' => $note];
+            'set' => $set?->id, 'scenarios' => $scenarios, 'overlays' => $overlays->map(fn ($o) => ['id' => (int) $o->id, 'scope' => $o->scope, 'scope_value' => $o->scope_value, 'adjustment' => (float) $o->adjustment])->values()->all(),
+            'loans' => $loans->count(), 'adjusted' => $adjusted, 'held' => $held, 'note' => $note];
         AuditLoggerService::log('FLI Route Applied', 'loan_books', null, ['reporting_period' => $period, 'rows_affected' => $loans->count(), 'new_values' => array_diff_key($result, ['scenarios' => 1]) + ['scenarios' => array_map(fn ($s) => $s['adjustment'], $scenarios)], 'meta' => ['user' => $userId]]);
 
         return $result;

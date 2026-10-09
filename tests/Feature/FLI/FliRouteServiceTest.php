@@ -4,6 +4,7 @@ namespace Tests\Feature\FLI;
 
 use App\Services\Eir\GovernanceService;
 use App\Services\Fli\FliRouteService;
+use App\Services\Fli\OverlayService;
 use App\Services\Fli\TransmissionMethodCatalogue;
 use App\Services\Scenario\ScenarioSetService;
 use Illuminate\Database\Schema\Blueprint;
@@ -35,8 +36,11 @@ class FliRouteServiceTest extends TestCase
             (require base_path("database/migrations/{$m}.php"))->up();
         }
         Schema::table('fli_fits', function (Blueprint $t) { $t->string('approval_status', 12)->default('NONE'); $t->integer('proposed_by')->nullable(); $t->timestamp('proposed_at')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approver_label')->nullable(); $t->timestamp('approved_at')->nullable(); $t->string('approval_note')->nullable(); });
-        Schema::create('fli_adj', function (Blueprint $t) { $t->increments('id'); $t->string('reporting_period'); $t->decimal('fli_adj', 16, 8); });
         Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->decimal('pd_prefli', 16, 8)->nullable(); $t->decimal('pd_value', 16, 8)->nullable(); $t->decimal('12m_pd', 8, 2)->nullable(); $t->decimal('fli_adj', 16, 8)->nullable(); $t->decimal('pd_post_fli', 16, 8)->nullable(); $t->string('fli_route')->nullable(); $t->string('fli_method')->nullable(); $t->integer('fli_fit_id')->nullable(); $t->integer('fli_set_id')->nullable(); $t->text('fli_by_scenario')->nullable(); $t->decimal('lgd_value', 16, 8)->nullable(); $t->decimal('ead', 18, 2)->nullable(); $t->decimal('carrying_amount', 20, 2)->default(0); $t->string('calculated_ifrs9_stage')->nullable(); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->decimal('ecl_value', 18, 2)->nullable(); $t->decimal('remaining_tenor', 8, 2)->nullable(); $t->decimal('commitments', 18, 2)->nullable(); $t->decimal('facility_utilisation_rate', 5, 2)->nullable(); });
+        // the overlay register, with the lineage column it adds to the loan (audit M3)
+        (require base_path('database/migrations/2026_10_09_300000_create_fli_overlays.php'))->up();
+        // the route is a Governance Centre setting; the table so a test can put "Manual overlay" in force
+        Schema::create('governance_settings', function (Blueprint $t) { $t->increments('id'); $t->string('key', 60); $t->string('value', 60); $t->text('options'); $t->string('label'); $t->text('description'); $t->string('effective_from'); $t->integer('set_by')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approved_at')->nullable(); $t->string('reason', 500)->nullable(); $t->string('status', 20)->default('PROPOSED'); $t->timestamps(); });
         DB::table('users')->insert([['id' => 1, 'name' => 'Maker', 'created_at' => now(), 'updated_at' => now()], ['id' => 2, 'name' => 'Checker', 'created_at' => now(), 'updated_at' => now()]]);
         DB::table('macro_series')->insert(['statistic_code' => 'PLR', 'observation_period' => '202608', 'value' => 20.0, 'value_type' => 'actual']);
         DB::table('fli_relationships')->insert(['id' => 1, 'statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'r2_cutoff' => 0.3, 'lag_months' => 0, 'created_at' => now(), 'updated_at' => now()]);
@@ -56,10 +60,10 @@ class FliRouteServiceTest extends TestCase
         return new FliRouteService($gov, new TransmissionMethodCatalogue($gov), new ScenarioSetService($gov));
     }
 
-    private function approvedSet(): int
+    private function approvedSet(string $period = '2026-08'): int
     {
         $sets = new ScenarioSetService(new GovernanceService());
-        $id = $sets->create('2026-08', 'Test set', [
+        $id = $sets->create($period, 'Test set', [
             ['name' => 'Base', 'weight' => 50, 'is_base' => true, 'pd_multiplier' => 1, 'calibration_note' => 'base'],
             ['name' => 'Up', 'weight' => 25, 'pd_multiplier' => 0.9, 'calibration_note' => 'up', 'shocks' => [['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => -5]]],
             ['name' => 'Down', 'weight' => 25, 'pd_multiplier' => 1.2, 'calibration_note' => 'down', 'shocks' => [['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => 5]]],
@@ -121,5 +125,45 @@ class FliRouteServiceTest extends TestCase
         $this->assertStringContainsString('manual overlay at zero', $r['note']);
         $this->assertEqualsWithDelta(0.30, (float) DB::table('loan_books')->where('contract_id', 'A')->value('pd_post_fli'), 1e-9);
         $this->assertEqualsWithDelta(0.0, (float) DB::table('loan_books')->where('contract_id', 'A')->value('fli_adj'), 1e-9);
+        $this->assertNull(DB::table('loan_books')->where('contract_id', 'A')->value('fli_overlay_ids'));
+    }
+
+    /**
+     * The manual-overlay route reads the register, not the legacy fli_adj row
+     * (system audit of 9 October 2026, finding M3): each loan takes the sum
+     * of the approved, unexpired overlays whose scope covers it, and its
+     * lineage names them.
+     */
+    public function test_the_manual_overlay_route_reads_the_register_and_the_loan_names_its_overlays(): void
+    {
+        DB::table('governance_settings')->insert(['key' => 'fli_adjustment_route', 'value' => 'Manual overlay', 'options' => json_encode(['Regression', 'Manual overlay', 'Regression plus overlay']), 'label' => 'route', 'description' => '', 'effective_from' => '2026-01-01', 'status' => 'APPROVED', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('loan_books')->where('contract_id', 'A')->update(['product_group' => 'AGRI']);
+        DB::table('loan_books')->insert(['contract_id' => 'D', 'reporting_period' => '2026-08', 'product_group' => 'SME', 'ifrs9stage_post_qualitative' => '1', 'pd_prefli' => 0.20]);
+        $this->approvedSet();
+        $this->approvedSet('2026-07');
+        $overlays = new OverlayService(new ScenarioSetService(new GovernanceService()));
+        $book = $overlays->propose(['reporting_period' => '2026-08', 'scope' => 'book', 'adjustment' => 0.10, 'reason' => 'a drought', 'expiry_period' => '2026-12'], 1);
+        $overlays->approve($book, 2);
+        $agri = $overlays->propose(['reporting_period' => '2026-08', 'scope' => 'product_group', 'scope_value' => 'AGRI', 'adjustment' => 0.25, 'reason' => 'the harvest', 'expiry_period' => '2026-08'], 1);
+        $overlays->approve($agri, 2);
+        $lapsed = $overlays->propose(['reporting_period' => '2026-07', 'scope' => 'book', 'adjustment' => 0.50, 'reason' => 'last month', 'expiry_period' => '2026-07'], 1);
+        $overlays->approve($lapsed, 2);
+        $overlays->propose(['reporting_period' => '2026-08', 'scope' => 'book', 'adjustment' => 0.99, 'reason' => 'not yet approved', 'expiry_period' => '2026-08'], 1);
+
+        $r = $this->service()->apply('2026-08', 1);
+        $this->assertSame('Manual overlay', $r['route']);
+        $this->assertNull($r['fit']);
+        $this->assertSame([$book, $agri], array_column($r['overlays'], 'id'));
+        $this->assertStringContainsString('2 overlays in force from the register', $r['note']);
+        $this->assertEqualsWithDelta(0.10, $r['scenarios']['Overlay']['adjustment'], 1e-9);   // the book-wide overlay on the scenario row
+        $a = DB::table('loan_books')->where('contract_id', 'A')->first();
+        $d = DB::table('loan_books')->where('contract_id', 'D')->first();
+        $this->assertEqualsWithDelta(0.30 * 1.35, (float) $a->pd_post_fli, 1e-6);   // book + AGRI
+        $this->assertEqualsWithDelta(0.20 * 1.10, (float) $d->pd_post_fli, 1e-6);   // book only
+        $this->assertSame([$book, $agri], json_decode($a->fli_overlay_ids, true));
+        $this->assertSame([$book], json_decode($d->fli_overlay_ids, true));
+        $this->assertSame('Manual overlay', $a->fli_route);
+        $this->assertEqualsWithDelta(1.0, (float) DB::table('loan_books')->where('contract_id', 'B')->value('pd_post_fli'), 1e-9); // Stage 3 at 100 percent
+        $this->assertSame(3, $r['adjusted']);
     }
 }
