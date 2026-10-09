@@ -141,14 +141,14 @@
                              chip with the number of records the tab lists. -->
                         <div v-if="section && section.tabs.length > 1" class="mb-5 rounded-xl border border-gray-200 bg-white px-5 pt-4 shadow-sm">
                             <nav class="flex gap-6 overflow-x-auto" aria-label="Section">
-                                <Link v-for="tab in section.tabs" :key="tab.route" :href="route(tab.route)"
+                                <Link v-for="tab in section.tabs" :key="tab.name" :href="route(tab.route, tab.params || {})"
                                       class="whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold transition-colors duration-150"
                                       :class="isActiveTab(tab) ? 'border-maiic-600 text-maiic-700' : 'border-transparent text-gray-500 hover:text-gray-800'"
                                       :aria-current="isActiveTab(tab) ? 'page' : null">
                                     {{ tab.name }}
-                                    <span v-if="tab.count !== null && tab.count !== undefined"
+                                    <span v-if="tabCount(tab) !== null"
                                           class="ml-1 rounded-full px-2 py-0.5 text-xs"
-                                          :class="isActiveTab(tab) ? 'bg-maiic-100 text-maiic-800' : 'bg-gray-100 text-gray-600'">{{ Number(tab.count).toLocaleString() }}</span>
+                                          :class="isActiveTab(tab) ? 'bg-maiic-100 text-maiic-800' : 'bg-gray-100 text-gray-600'">{{ tabCount(tab).toLocaleString() }}</span>
                                 </Link>
                             </nav>
                         </div>
@@ -305,8 +305,17 @@ export default {
         if (this.offRouterException) this.offRouterException();
     },
     methods: {
+        // A page may send its own counts for the views inside it, keyed by the
+        // tab param (props.tabCounts = { blockers: 4, portfolios: 2 }); else the
+        // server's record count for the tab's screen.
+        tabCount(tab) {
+            const own = this.$page.props.tabCounts
+            const key = tab.params && tab.params.tab
+            if (own && key && own[key] !== undefined && own[key] !== null) return Number(own[key])
+            return tab.count === null || tab.count === undefined ? null : Number(tab.count)
+        },
         isActiveTab(tab) {
-            return !!this.activeTab && this.activeTab.route === tab.route
+            return !!this.activeTab && this.activeTab === tab
         },
 
         logout() {

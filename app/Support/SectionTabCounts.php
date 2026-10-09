@@ -26,6 +26,9 @@ class SectionTabCounts
         'collateral.allocations.index' => 'collateral_allocations',
         'collateral.types.index' => 'collateral_types',
         'eir-data.index' => 'contract_eir',
+        'eir-data.index?tab=contracts' => 'contract_eir',
+        'eir-data.index?tab=cashflows' => 'contract_cashflow_schedule',
+        'eir-data.index?tab=schedules' => 'contract_eir',
         'eir-drawdowns.index' => 'contract_disbursements',
         'eir-reference-rates.index' => 'reference_rate_series',
         'eir-accounting-rules.index' => 'eir_accounting_rules',
@@ -67,7 +70,8 @@ class SectionTabCounts
         foreach ($menu as $i => $item) {
             if (! empty($item['tabs']) && self::inSection($item['tabs'], $current)) {
                 foreach ($item['tabs'] as $t => $tab) {
-                    $menu[$i]['tabs'][$t]['count'] = self::count($tab['route']);
+                    $key = $tab['route'] . (! empty($tab['params']['tab']) ? '?tab=' . $tab['params']['tab'] : '');
+                    $menu[$i]['tabs'][$t]['count'] = self::count($key);
                 }
             }
             if (! empty($item['children'])) {

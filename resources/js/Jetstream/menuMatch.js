@@ -23,11 +23,31 @@ function score(routeName) {
     return patternsFor(routeName).reduce((best, p) => (matches(p) ? Math.max(best, p.length) : best), 0)
 }
 
+// A tab with params (eir-data.index + tab=cashflows) is one view inside a
+// screen: it is current when the address carries those params; with none in
+// the address, the first such tab of that screen is current.
+function paramsState(tab, tabs) {
+    const params = tab.params || {}
+    const keys = Object.keys(params)
+    if (!keys.length) return 'none'
+    const query = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    if (keys.every(k => query.get(k) === String(params[k]))) return 'match'
+    const unset = keys.every(k => !query.get(k))
+    const first = tabs.find(t => t.route === tab.route && Object.keys(t.params || {}).length)
+    return unset && first === tab ? 'default' : 'miss'
+}
+
 export function activeTab(section) {
+    const tabs = section?.tabs || []
     let best = null
     let bestScore = 0
-    for (const tab of section?.tabs || []) {
-        const s = score(tab.route)
+    for (const tab of tabs) {
+        let s = score(tab.route)
+        if (!s) continue
+        const state = paramsState(tab, tabs)
+        if (state === 'miss') continue
+        if (state === 'match') s += 1000
+        if (state === 'default') s += 500
         if (s > bestScore) {
             best = tab
             bestScore = s

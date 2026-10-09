@@ -35,8 +35,10 @@ $leaf = fn ($name, $route, $icon = 'circle', $download = false, $permission = ''
     'permissions' => $permission, 'dropdown' => false, 'children' => [], 'order' => 0,
     'download' => $download,
 ];
-// One tab of a section: [name, route, permission].
-$tab = fn ($name, $route, $permission = '') => ['name' => $name, 'route' => $route, 'permissions' => $permission];
+// One tab of a section. $params opens a tab inside the screen itself (for
+// example eir-data.index with tab=cashflows), so one row of tabs carries
+// both the screens and their inner views.
+$tab = fn ($name, $route, $permission = '', $params = []) => ['name' => $name, 'route' => $route, 'permissions' => $permission, 'params' => $params];
 // A menu entry whose screens are tabs. It opens the first tab the user may see.
 $section = fn ($name, $tabs, $icon = 'circle') => [
     'name' => $name, 'icon' => $icon, 'route' => $tabs[0]['route'], 'route_check' => $tabs[0]['route'],
@@ -86,18 +88,27 @@ return [
         // One pipeline: rules suggest -> intake imports -> classification applies
         // maker/checker. Kept together (contract: EIR module).
         ['color' => '#A3E635'] + $group('EIR & Revenue Recognition', 'percent', [
+            // In the order the data comes in: the contracts, their cash flows,
+            // the tranches drawn, the PLR they reprice from, then the schedule
+            // check. The GL reconciliation sits with the EIR calculations.
             $section('EIR Data', [
-                $tab('EIR Data', 'eir-data.index', 'eir.view'),
+                $tab('Contract Master', 'eir-data.index', 'eir.view', ['tab' => 'contracts']),
+                $tab('Cash Flows', 'eir-data.index', 'eir.view', ['tab' => 'cashflows']),
                 $tab('Drawdowns', 'eir-drawdowns.index', 'eir.view'),
                 $tab('Reference Rates', 'eir-reference-rates.index', 'eir.view'),
+                $tab('Schedule Review', 'eir-data.index', 'eir.view', ['tab' => 'schedules']),
             ]),
             $section('EIR Rules', [
                 $tab('Accounting Rules', 'eir-accounting-rules.index', 'settings'),
                 $tab('Fee Classification', 'eir-fee-classification.index', 'settings'),
             ]),
+            // One row: the calculations, the three views of what blocks the
+            // rest of the book, then the EIR as at a date and the GL check.
             $section('EIR Calculations', [
                 $tab('Calculations', 'eir-calculations.index', 'settings'),
-                $tab('Coverage & Blockers', 'eir-coverage.index', 'eir.view'),
+                $tab('Blockers', 'eir-coverage.index', 'eir.view', ['tab' => 'blockers']),
+                $tab('Coverage by Portfolio', 'eir-coverage.index', 'eir.view', ['tab' => 'portfolios']),
+                $tab('Largest Facilities', 'eir-coverage.index', 'eir.view', ['tab' => 'facilities']),
                 $tab('EIR as at a Date', 'eir-as-at.index', 'eir.view'),
                 $tab('GL Reconciliation', 'eir-reconciliation.index', 'eir.view'),
             ]),
