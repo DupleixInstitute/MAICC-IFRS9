@@ -430,6 +430,35 @@ class Ifrs9NoteService
     // Basis of measurement, from the system's settings and applied inputs
     // -----------------------------------------------------------------
 
+    /**
+     * One sentence per facility class of the staging thresholds in force at the
+     * end of the period, most specific row per class and tenor band.
+     *
+     * @return string[]
+     */
+    private static function stagingBands(string $period): array
+    {
+        if (! Schema::hasTable('staging_thresholds')) {
+            return [];
+        }
+        $asOf = \Carbon\CarbonImmutable::parse($period . '-01')->endOfMonth()->toDateString();
+        $rows = DB::table('staging_thresholds')->whereDate('effective_from', '<=', $asOf)
+            ->orderBy('facility_class')->orderBy('min_tenor_months')->orderByDesc('effective_from')->get()
+            ->unique(fn ($t) => $t->facility_class . '|' . $t->min_tenor_months);
+        $out = [];
+        foreach ($rows as $t) {
+            $who = match (true) {
+                $t->facility_class === 'DEFAULT' && (int) $t->min_tenor_months === 0 => 'short-term facilities (repayment within 12 months)',
+                $t->facility_class === 'DEFAULT' => 'medium- and long-term facilities (over ' . ((int) $t->min_tenor_months - 1) . ' months)',
+                $t->facility_class === 'MEGA_FARM' => 'Mega Farm programme facilities',
+                default => strtolower(str_replace('_', ' ', $t->facility_class)) . ' facilities' . ((int) $t->min_tenor_months > 0 ? ' (from ' . (int) $t->min_tenor_months . ' months)' : ''),
+            };
+            $out[] = "{$who}: Stage 2 from {$t->stage2_dpd} days past due and Stage 3 from {$t->stage3_dpd} days";
+        }
+
+        return $out;
+    }
+
     private static function methodology(array $r): array
     {
         $opening = $r['opening_period'];
@@ -437,16 +466,15 @@ class Ifrs9NoteService
         $close = $r['months'][$closing];
         $saved = $r['saved'][$closing];
 
-        $rule = Schema::hasTable('finance_stageing_rules')
-            ? DB::table('finance_stageing_rules')->orderByRaw("institution_type = 'default' DESC")->orderBy('id')->first()
-            : null;
-        $s1 = $rule ? (int) round((float) $rule->stage_1_threshold) : null;
-        $s3 = $rule ? (int) round((float) $rule->stage_3_threshold) : null;
+        // The thresholds the staging engine applies (staging_thresholds, as at the
+        // closing month end; future-dated proposals are not in force), not the
+        // retired finance_stageing_rules table, which no engine reads.
+        $bands = self::stagingBands($closing);
 
         $p = [];
-        $p['staging'] = ($rule
-            ? "Loans are staged each month on days past due: Stage 1 up to {$s1} days, Stage 2 from " . ($s1 + 1) . " to {$s3} days, Stage 3 over {$s3} days. "
-            : 'Loans are staged each month on days past due under the staging rules set in the system. ')
+        $p['staging'] = ($bands
+            ? 'Loans are staged each month on days past due under the thresholds in force at ' . $closing . ': ' . implode('; ', $bands) . '. '
+            : 'Loans are staged each month on days past due under the staging thresholds in force. ')
             . 'The qualitative significant-increase-in-credit-risk triggers can move a loan to a later stage; the note uses the stage after those triggers, the stage the ECL was provided on. '
             . 'Stage 1 carries a 12-month ECL, Stage 2 a lifetime ECL (not credit-impaired) and Stage 3 a lifetime ECL (credit-impaired).';
 

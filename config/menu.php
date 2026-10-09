@@ -125,7 +125,6 @@ return [
 
         ['color' => '#C084FC'] + $group('IFRS 9 Model Setup', 'chart-line', [
             $section('Staging & SICR Rules', [
-                $tab('Quantitative Thresholds', 'stageing-rules.index'),
                 $tab('SICR Groups', 'sicr-groups.index'),
                 $tab('SICR Alert Items', 'sicr-items.index'),
                 $tab('SICR Trigger Alerts', 'sicr-triggers.index'),

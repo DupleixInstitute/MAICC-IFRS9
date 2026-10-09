@@ -884,9 +884,12 @@ Route::get('/expected-credit-loss/reports',[ExpectedCreditLossController::class,
 Route::get('/expected-credit-loss/projections',[\App\Http\Controllers\EclProjectionController::class,'index'])->name('expected-credit-loss.projections');
 
 // Stageing Rules Routes
-Route::group(['prefix' => 'stageing-rules', 'as' => 'stageing-rules.'], function () {
-    Route::get('/', [\App\Http\Controllers\StageingRulesController::class, 'index'])->name('index');
-    Route::post('/store', [\App\Http\Controllers\StageingRulesController::class, 'store'])->name('store');
+// The old "Quantitative Thresholds" screen edited finance_stageing_rules, which
+// no engine reads: loans are staged from staging_thresholds and the governed
+// settings. Retired 9 October 2026; the address opens Settings, Staging basis.
+Route::group(['prefix' => 'stageing-rules', 'as' => 'stageing-rules.', 'middleware' => 'auth'], function () {
+    Route::get('/', fn () => redirect()->route('settings.index', ['tab' => 'staging']))->name('index');
+    Route::post('/store', fn () => redirect()->route('settings.index', ['tab' => 'staging']))->name('store');
 });
 
 Route::group(['prefix' => 'sicr-groups', 'as' => 'sicr-groups.'], function () {

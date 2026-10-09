@@ -40,7 +40,6 @@ class SectionTabCounts
         'eir-fee-classification.index' => 'contract_fees',
         'eir-calculations.index' => 'contract_eir',
         'eir-reconciliation.index' => 'gl_interest_postings',
-        'stageing-rules.index' => 'finance_stageing_rules',
         'sicr-groups.index' => 'finance_sicr_groups',
         'sicr-items.index' => 'finance_sicr_items',
         'sicr-triggers.index' => 'finance_sicr_triggers',
