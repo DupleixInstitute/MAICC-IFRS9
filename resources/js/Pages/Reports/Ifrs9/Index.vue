@@ -1,7 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import ReportIcon from '../Partials/ReportIcon.vue'
+import TabBar from '../Partials/TabBar.vue'
+import KpiRow from '../Partials/KpiRow.vue'
 
 const props = defineProps({
     categories: { type: Array, default: () => [] },
@@ -9,92 +12,115 @@ const props = defineProps({
     company: { type: String, default: '' },
 })
 
+// The group opened last comes back on ?tab= (the report pages link back with it).
+const initialTab = (() => {
+    try {
+        const t = new URLSearchParams(window.location.search).get('tab')
+        if (t && props.categories.some(c => c.key === t)) return t
+    } catch (e) { /* no window during SSR */ }
+    return props.categories[0]?.key ?? ''
+})()
+
 const period = ref(props.periods[0] ?? '')
-const activeTab = ref(props.categories.length ? props.categories[0].name : '')
+const activeTab = ref(initialTab)
+const search = ref('')
 
-const current = computed(() =>
-    props.categories.find(c => c.name === activeTab.value) || { reports: [] })
+watch(activeTab, (t) => {
+    try {
+        const url = new URL(window.location.href)
+        url.searchParams.set('tab', t)
+        window.history.replaceState(window.history.state, '', url)
+    } catch (e) { /* ignore */ }
+})
 
-// Section accents drawn from the MAIIC logo family (greens, golds, red,
-// charcoal) so every tab is visibly coloured even when inactive.
-const ACCENTS = ['#16a34a', '#d97706', '#dc2626', '#15803d', '#b45309', '#991b1b', '#f59e0b', '#92400e']
-const accent = (name) => {
-    const i = props.categories.findIndex(c => c.name === name)
-    return ACCENTS[(i >= 0 ? i : 0) % ACCENTS.length]
+const tabs = computed(() => props.categories.map(c => ({ key: c.key, label: c.name, count: c.reports.length })))
+const totalReports = computed(() => props.categories.reduce((n, c) => n + c.reports.length, 0))
+const current = computed(() => props.categories.find(c => c.key === activeTab.value) || { reports: [], description: '' })
+
+// A search looks across every group.
+const matches = computed(() => {
+    const q = search.value.trim().toLowerCase()
+    if (!q) return null
+    return props.categories.flatMap(c => c.reports
+        .filter(r => (r.title + ' ' + r.description + ' ' + c.name).toLowerCase().includes(q))
+        .map(r => ({ ...r, group: c.name })))
+})
+const shown = computed(() => matches.value ?? current.value.reports)
+
+function href(r) {
+    return route(r.route, r.period && period.value ? { period: period.value } : {})
 }
-const currentAccent = computed(() => accent(activeTab.value))
+
+const badge = { PDF: 'maiic-badge-red', Excel: 'maiic-badge-green', CSV: 'maiic-badge-grey', ZIP: 'maiic-badge-gold' }
 </script>
 
 <template>
-    <AppLayout title="IFRS 9 Reports">
+    <AppLayout title="Reports">
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">IFRS 9 Reporting Suite</h2>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">Reports</h2>
+            <p class="mt-0.5 text-sm text-gray-500">Every report, reconciliation and export of the system in one place. Pick a group, then a report; most download as PDF, Excel or CSV.</p>
         </template>
 
-        <div class="py-6">
-            <div class="w-full">
+        <template #actions>
+            <label for="hub-period" class="text-[11px] font-bold uppercase tracking-wider text-gray-500">Reporting period</label>
+            <select id="hub-period" v-model="period" class="maiic-select w-40" :disabled="!periods.length">
+                <option v-for="p in periods" :key="p" :value="p">{{ p }}</option>
+                <option v-if="!periods.length" value="">No ECL periods</option>
+            </select>
+        </template>
 
-                <!-- compact header strip (same deep-green ramp as the sidebar) -->
-                <div class="rounded-xl shadow p-4 text-white mb-5 flex flex-wrap items-center justify-between gap-3"
-                     style="background: linear-gradient(120deg, #0b2b1a 0%, #14532d 55%, #15803d 100%); border: 1px solid rgba(212,160,23,0.25);">
-                    <div class="min-w-0">
-                        <h1 class="text-lg font-bold leading-tight">IFRS 9 Reports</h1>
-                        <p class="opacity-80 text-xs">{{ company }} · pick a section, then a report. Every report exports to PDF.</p>
+        <div class="w-full space-y-5">
+            <div v-if="!periods.length" class="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <ReportIcon name="alert" class="h-5 w-5 flex-none text-amber-600"/>
+                <div>
+                    <p class="font-semibold">No reporting period has a calculated ECL yet</p>
+                    <p class="mt-0.5">Run the ECL calculation for a month first; the ECL reports then open on that month. The reconciliations, exports and EIR reports still work.</p>
+                </div>
+            </div>
+
+            <KpiRow :items="[
+                { label: 'Reports you can open', value: totalReports },
+                { label: 'Report groups', value: categories.length },
+                { label: 'Latest ECL period', value: periods[0] || '-', tone: 'amber' },
+                { label: 'Periods with a calculated ECL', value: periods.length, tone: 'amber' },
+            ]"/>
+
+            <div class="maiic-panel">
+                <TabBar v-model="activeTab" :tabs="tabs" @update:modelValue="search = ''"/>
+
+                <div class="flex flex-col gap-3 border-b border-gray-200 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">{{ matches ? 'Search results' : current.name }}</h3>
+                        <p class="text-xs text-gray-500">{{ matches ? matches.length + ' report(s) match "' + search + '" across all groups' : current.description }}</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-xs font-semibold uppercase tracking-wider opacity-90">Reporting Period</label>
-                        <span class="relative inline-block">
-                        <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                        <select v-model="period"
-                                class="rounded-lg border-0 text-gray-800 text-sm py-1.5 pl-9 pr-3 shadow focus:ring-2 focus:ring-white">
-                            <option v-for="p in periods" :key="p" :value="p">{{ p }}</option>
-                            <option v-if="!periods.length" value="">No ECL-calculated periods</option>
-                        </select>
-                        </span>
+                    <div class="relative w-full md:w-72">
+                        <ReportIcon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"/>
+                        <input v-model="search" type="search" class="maiic-input pl-8" placeholder="Find a report" aria-label="Find a report">
                     </div>
                 </div>
 
-                <div v-if="!periods.length"
-                     class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 mb-6 text-sm">
-                    No reporting period has a calculated ECL yet. Run the ECL calculation first.
-                </div>
-
-                <!-- coloured section tabs -->
-                <div class="flex flex-wrap gap-2 mb-6">
-                    <button v-for="cat in categories" :key="cat.name"
-                            @click="activeTab = cat.name"
-                            class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition-all border"
-                            :style="activeTab === cat.name
-                                ? { backgroundColor: accent(cat.name), borderColor: accent(cat.name), color: '#fff' }
-                                : { backgroundColor: accent(cat.name) + '14', borderColor: accent(cat.name) + '55', color: accent(cat.name) }">
-                        <span class="h-2 w-2 rounded-full"
-                              :style="{ backgroundColor: activeTab === cat.name ? '#fff' : accent(cat.name) }"></span>
-                        {{ cat.name }}
-                        <span class="rounded-full px-1.5 text-[11px] font-bold"
-                              :style="activeTab === cat.name
-                                  ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
-                                  : { backgroundColor: accent(cat.name) + '22', color: accent(cat.name) }">
-                            {{ (cat.reports || []).length }}
+                <div v-if="shown.length" class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <Link v-for="r in shown" :key="r.key" :href="href(r)"
+                          class="group flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition hover:border-maiic-400 hover:shadow-md">
+                        <span class="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-maiic-50 text-maiic-700 transition group-hover:bg-maiic-600 group-hover:text-white">
+                            <ReportIcon :name="r.icon" class="h-5 w-5"/>
                         </span>
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <Link v-for="r in current.reports" :key="r.key"
-                          :href="route('ifrs9-reports.' + r.key, period ? { period } : {})"
-                          class="group block rounded-xl bg-white shadow-sm hover:shadow-lg transition-all border border-gray-100 overflow-hidden">
-                        <div class="h-1.5" :style="{ backgroundColor: currentAccent }"></div>
-                        <div class="p-5">
-                            <h3 class="font-semibold text-gray-900 group-hover:text-maiic-700">{{ r.title }}</h3>
-                            <p class="text-sm text-gray-500 mt-1.5 leading-relaxed">{{ r.subtitle }}</p>
-                            <span class="inline-flex items-center text-sm font-medium mt-3" :style="{ color: currentAccent }">
-                                Open
-                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                </svg>
+                        <span class="min-w-0 flex-1">
+                            <span class="flex items-start justify-between gap-2">
+                                <span class="block font-bold text-gray-900 group-hover:text-maiic-700">{{ r.title }}</span>
+                                <ReportIcon name="arrow" class="mt-0.5 h-4 w-4 flex-none text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-maiic-600"/>
                             </span>
-                        </div>
+                            <span class="mt-0.5 block text-sm leading-snug text-gray-500">{{ r.description }}</span>
+                            <span class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span v-if="r.group" class="maiic-badge maiic-badge-grey">{{ r.group }}</span>
+                                <span v-for="f in r.formats" :key="f" class="maiic-badge" :class="badge[f] || 'maiic-badge-grey'">{{ f }}</span>
+                            </span>
+                        </span>
                     </Link>
+                </div>
+                <div v-else class="maiic-empty">
+                    <template v-if="matches">No report matches "{{ search }}". Try a shorter word, such as ECL, stage or RBM.</template>
+                    <template v-else>You do not have access to any report in this group. Ask your administrator if you need one.</template>
                 </div>
             </div>
         </div>
