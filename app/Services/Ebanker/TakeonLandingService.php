@@ -2,7 +2,9 @@
 
 namespace App\Services\Ebanker;
 
+use App\Exceptions\GovernanceSettingMissingException;
 use App\Services\AuditLoggerService;
+use App\Services\Eir\CalculateEirService;
 use App\Services\Eir\GovernanceService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -23,14 +25,26 @@ use Throwable;
  * mapping, ticks and fees from the mapping copy, recording the sheet and
  * cell every value came from, runs the gates, and the build writes
  * contract_takeon under the governed basis (takeon_history_basis).
+ *
+ * Under the recompute basis the build does what the specification asks and
+ * the system audit of 9 October 2026 (finding M7) found missing: it writes
+ * the workbook's lines as the contract's version 1 schedule with
+ * schedule_source TAKEON_WORKBOOK, records the fees it finds, solves the EIR
+ * from origination on that schedule and the net investment, and rolls the
+ * amortised cost forward month by month to 31 July 2024, so that
+ * contract_takeon carries the recomputed amortised cost beside E-Banker's
+ * take-on balance and the difference between them.
  */
 class TakeonLandingService
 {
     public const ROUTE = 'TAKEON_WORKBOOK';
     public const TAKEON_DATE = '2024-07-31';
 
-    public function __construct(private LandingZoneReader $zone, private GovernanceService $governance)
+    private CalculateEirService $eir;
+
+    public function __construct(private LandingZoneReader $zone, private GovernanceService $governance, ?CalculateEirService $eir = null)
     {
+        $this->eir = $eir ?? new CalculateEirService();
     }
 
     /** @return array{load_id:int,status:string,blocks:int,lines:int,gates:array} */
@@ -190,7 +204,7 @@ class TakeonLandingService
         $mode = str_starts_with($setting, 'Start every') ? 'BALANCE' : (str_starts_with($setting, 'Recompute from origination for every') ? 'STRICT' : 'WHERE_EVIDENCED');
         $blocks = DB::table('takeon_blocks')->where('load_id', $loadId)->whereNotNull('account')->where('status', '!=', 'REFUSED')->get()->keyBy('account');
         $postings = $this->takeonPostings();
-        $counts = ['accounts' => 0, 'recomputed' => 0, 'takeon_balance' => 0, 'refused' => 0, 'setting' => $setting];
+        $counts = ['accounts' => 0, 'recomputed' => 0, 'takeon_balance' => 0, 'refused' => 0, 'schedule_lines' => 0, 'setting' => $setting];
         DB::transaction(function () use ($blocks, $postings, $mode, $setting, &$counts, $userId) {
             DB::table('contract_takeon')->delete();
             foreach ($postings as $account => $p) {
@@ -211,21 +225,233 @@ class TakeonLandingService
                     default => $evidenced ? 'RECOMPUTED' : 'TAKEON_BALANCE',
                 };
                 $scheduleBalance = $b !== null ? $this->scheduleBalanceAt((int) $b->id, self::TAKEON_DATE) : null;
-                DB::table('contract_takeon')->insert([
+                $takeonBalance = round($p['principal'] + $p['interest'] - $p['recovery'], 4);
+
+                // the recompute of 6.9, only where the basis says so; a block the solver
+                // cannot use falls back to the take-on balance (or a refusal under the
+                // strict option) with the reason on the row, never a silent label
+                $recompute = ['columns' => [], 'lines' => 0];
+                if ($basis === 'RECOMPUTED') {
+                    $recompute = $this->recompute($account, $b, $takeonBalance);
+                    $flags = array_merge($flags, $recompute['flags']);
+                    if (! $recompute['solved']) {
+                        $basis = $mode === 'STRICT' ? 'REFUSED' : 'TAKEON_BALANCE';
+                    }
+                }
+                DB::table('contract_takeon')->insert($recompute['columns'] + [
                     'account' => $account, 'contract_id' => ltrim($account, '0'), 'block_id' => $b?->id, 'basis' => $basis,
                     'origination_date' => $b?->value_date, 'original_principal' => $b?->principal, 'contractual_rate' => $b?->rate,
                     'fees_total' => $b?->total_fees, 'fee_date' => $b?->fee_date, 'fees_deducted' => $b?->fee_deducted === null ? null : $b->fee_deducted === 'Y',
                     'takeon_posting' => $p['principal'], 'takeon_opening_interest' => $p['interest'], 'takeon_opening_recovery' => $p['recovery'], 'schedule_balance_at_takeon' => $scheduleBalance,
                     'difference_at_takeon' => $scheduleBalance !== null ? round($p['principal'] - $p['recovery'] - $scheduleBalance, 4) : null,
+                    'takeon_balance' => $takeonBalance, 'schedule_lines_written' => $recompute['lines'],
+                    'fees_detail' => $b !== null ? json_encode($this->feesFound($b)) : null,
                     'flags' => json_encode($flags), 'setting_value' => $setting, 'built_at' => now(), 'created_at' => now(), 'updated_at' => now(),
                 ]);
                 $counts['accounts']++;
+                $counts['schedule_lines'] += $recompute['lines'];
                 $counts[match ($basis) { 'RECOMPUTED' => 'recomputed', 'TAKEON_BALANCE' => 'takeon_balance', default => 'refused' }]++;
             }
             AuditLoggerService::log('Take-on Population Built', 'contract_takeon', null, ['new_values' => $counts, 'meta' => ['user' => $userId]]);
         });
 
         return $counts;
+    }
+
+    // ----- the recompute from origination (6.9; audit finding M7) -----------
+
+    /**
+     * For one evidenced block: the version 1 schedule from the workbook, the
+     * EIR solved from origination on the net investment, and the amortised
+     * cost rolled forward to the take-on date. Returns the contract_takeon
+     * columns to write, the flags raised and whether the solve succeeded.
+     *
+     * @return array{solved:bool,columns:array,lines:int,flags:list<string>}
+     */
+    private function recompute(string $account, object $b, float $takeonBalance): array
+    {
+        $flags = [];
+        $contractId = ltrim($account, '0');
+        $origination = $b->value_date !== null ? CarbonImmutable::parse($b->value_date) : null;
+        $principal = $b->principal !== null ? (float) $b->principal : null;
+        // the fees are a condition of the loan and so integral; none exist today
+        // (every fee row is blank), so a known nil must work as well as a figure
+        $fees = (float) ($b->total_fees ?? 0);
+        if ($origination === null || $principal === null || $principal <= 0) {
+            $flags[] = 'recompute not possible: the block has no origination date or principal';
+
+            return ['solved' => false, 'columns' => [], 'lines' => 0, 'flags' => $flags];
+        }
+
+        // the schedule: one row per due date (two workbook lines on one date are
+        // added together, since the schedule table keys on the date)
+        $byDate = [];
+        $undated = 0;
+        foreach (DB::table('takeon_schedule_lines')->where('block_id', $b->id)->orderBy('period_end')->orderBy('serial')->get() as $l) {
+            if ($l->period_end === null) {
+                $undated++;
+                continue;
+            }
+            $instalment = $l->instalment !== null ? (float) $l->instalment : (float) ($l->principal ?? 0) + (float) ($l->interest ?? 0);
+            $interest = $l->interest !== null ? (float) $l->interest : 0.0;
+            $principalDue = $l->principal !== null ? (float) $l->principal : $instalment - $interest;
+            $byDate[$l->period_end] ??= ['principal' => 0.0, 'interest' => 0.0, 'amount' => 0.0, 'rows' => []];
+            $byDate[$l->period_end]['principal'] += $principalDue;
+            $byDate[$l->period_end]['interest'] += $interest;
+            $byDate[$l->period_end]['amount'] += $instalment;
+            $byDate[$l->period_end]['rows'][] = (int) $l->sheet_row;
+        }
+        if ($undated > 0) {
+            $flags[] = "{$undated} schedule line(s) without a due date left out of the recompute";
+        }
+        ksort($byDate);
+
+        $lines = $this->writeWorkbookSchedule($contractId, $b, $origination, $byDate, $flags);
+
+        // the solve: the dated EIR on the receipts after origination, under the
+        // governed day count in force at origination (no basis written here)
+        $flows = [];
+        $onOrBefore = 0;
+        foreach ($byDate as $date => $d) {
+            if ($date <= $origination->toDateString()) {
+                $onOrBefore++;
+                continue;
+            }
+            $flows[] = ['due_date' => $date, 'amount' => round($d['amount'], 4)];
+        }
+        if ($onOrBefore > 0) {
+            $flags[] = "{$onOrBefore} schedule line(s) dated on or before origination left out of the solve";
+        }
+        $net = round($principal - $fees, 4);
+        try {
+            $dayCount = $this->governance->get('day_count', $origination);
+            $ppy = in_array((int) $b->periods_per_year, [1, 2, 4, 6, 12], true) ? (int) $b->periods_per_year : 12;
+            $solve = $this->eir->calculateDated($net, $flows, $ppy, $origination->toDateString(), $dayCount);
+        } catch (GovernanceSettingMissingException $e) {
+            $flags[] = 'recompute not possible: ' . $e->getMessage();
+
+            return ['solved' => false, 'columns' => ['net_investment' => $net, 'schedule_lines_written' => $lines], 'lines' => $lines, 'flags' => $flags];
+        } catch (Throwable $e) {
+            $flags[] = 'EIR not solved from origination: ' . $e->getMessage();
+
+            return ['solved' => false, 'columns' => ['net_investment' => $net, 'schedule_lines_written' => $lines], 'lines' => $lines, 'flags' => $flags];
+        }
+
+        $roll = $this->rollForward($net, (float) $solve['eir_effective_annual'], $origination, $byDate, CarbonImmutable::parse(self::TAKEON_DATE));
+        if ($roll === []) {
+            $flags[] = 'origination is after the take-on date: nothing to roll forward';
+
+            return ['solved' => false, 'columns' => ['net_investment' => $net, 'recomputed_eir' => $solve['eir_effective_annual'], 'schedule_lines_written' => $lines], 'lines' => $lines, 'flags' => $flags];
+        }
+        $closing = round(end($roll)['closing'], 4);
+
+        return ['solved' => true, 'lines' => $lines, 'flags' => $flags, 'columns' => [
+            'net_investment' => $net,
+            'recomputed_eir' => round((float) $solve['eir_effective_annual'], 8),
+            'recomputed_eir_monthly' => round(pow(1 + (float) $solve['eir_effective_annual'], 1 / 12) - 1, 8),
+            'recomputed_amortised_cost' => $closing,
+            'recomputed_difference' => round($takeonBalance - $closing, 4),
+            'schedule_lines_written' => $lines,
+            'recompute_detail' => json_encode([
+                'solve' => ['method' => $solve['method'], 'iterations' => $solve['solver_iterations'], 'residual' => $solve['solver_residual'], 'day_count' => $dayCount,
+                    'payments_per_year' => $ppy, 'net_investment' => $net, 'fees' => $fees, 'flows' => count($flows), 'receipts' => round(array_sum(array_column($flows, 'amount')), 4)],
+                'roll_forward' => $roll,
+            ]),
+        ]];
+    }
+
+    /**
+     * The workbook schedule as the contract's version 1 (schedule_source
+     * TAKEON_WORKBOOK). A generated version 1 or an earlier workbook version
+     * is replaced; an imported version 1 is left as it is and the row says so,
+     * since version 1 schedules from a delivered file are never overwritten.
+     */
+    private function writeWorkbookSchedule(string $contractId, object $b, CarbonImmutable $origination, array $byDate, array &$flags): int
+    {
+        if ($byDate === []) {
+            $flags[] = 'no dated schedule lines: no version 1 schedule written';
+
+            return 0;
+        }
+        $imported = DB::table('contract_cashflow_schedule')->where('contract_id', $contractId)->where('schedule_version', 1)->where('schedule_source', 'IMPORTED')->count();
+        if ($imported > 0) {
+            $flags[] = "version 1 schedule is IMPORTED ({$imported} lines): the workbook schedule was not written over it";
+
+            return 0;
+        }
+        DB::table('contract_cashflow_schedule')->where('contract_id', $contractId)->where('schedule_version', 1)->whereIn('schedule_source', ['GENERATED', self::ROUTE])->delete();
+        $rows = [];
+        foreach ($byDate as $date => $d) {
+            $rows[] = [
+                'contract_id' => $contractId, 'schedule_version' => 1, 'effective_from' => $origination->toDateString(), 'due_date' => $date,
+                'principal_due' => round($d['principal'], 2), 'interest_due' => round($d['interest'], 2), 'fee_due' => 0,
+                'schedule_source' => self::ROUTE, 'source_system' => self::ROUTE,
+                'source_reference' => 'block ' . $b->block_no . ' row ' . implode(',', $d['rows']), 'external_transaction_id' => self::ROUTE . ':' . $contractId . ':' . $date,
+                'created_at' => now(), 'updated_at' => now(),
+            ];
+        }
+        DB::table('contract_cashflow_schedule')->insert($rows);
+        DB::table('contract_eir')->where('contract_id', $contractId)->update(['schedule_source' => self::ROUTE, 'updated_at' => now()]);
+
+        return count($rows);
+    }
+
+    /**
+     * The amortised cost from origination to the take-on date: each whole
+     * calendar month earns the monthly EIR on the opening balance and gives
+     * up the schedule's cash due in the month; the first, part, month from
+     * origination to its month-end earns the EIR for its actual days over
+     * 365, the same daily basis the dated solve discounts on.
+     *
+     * @return list<array{period:string,opening:float,interest:float,cash:float,closing:float,days:?int}>
+     */
+    private function rollForward(float $net, float $eir, CarbonImmutable $origination, array $byDate, CarbonImmutable $to): array
+    {
+        $to = $to->endOfDay();
+        if ($origination->gt($to)) {
+            return [];
+        }
+        $monthly = pow(1 + $eir, 1 / 12) - 1;
+        $rows = [];
+        $balance = $net;
+        $prevEnd = $origination;
+        $monthEnd = $origination->endOfMonth();
+        $stub = ! $origination->isSameDay($monthEnd);   // originated on a month-end: the first full month starts tomorrow
+        if (! $stub) {
+            $monthEnd = $monthEnd->addDay()->endOfMonth();
+        }
+        while ($monthEnd->lte($to)) {
+            $days = $prevEnd->diffInDays($monthEnd);
+            $interest = $stub ? $balance * (pow(1 + $eir, $days / 365) - 1) : $balance * $monthly;
+            $cash = 0.0;
+            foreach ($byDate as $date => $d) {
+                if ($date > $prevEnd->toDateString() && $date <= $monthEnd->toDateString()) {
+                    $cash += $d['amount'];
+                }
+            }
+            $closing = $balance + $interest - $cash;
+            $rows[] = ['period' => $monthEnd->format('Y-m'), 'opening' => round($balance, 4), 'interest' => round($interest, 4), 'cash' => round($cash, 4), 'closing' => round($closing, 4), 'days' => $stub ? $days : null];
+            $balance = $closing;
+            $prevEnd = $monthEnd;
+            $monthEnd = $monthEnd->addDay()->endOfMonth();
+            $stub = false;
+        }
+
+        return $rows;
+    }
+
+    /** The fees found on a block, each with the cell it came from; a blank is not a fee. */
+    private function feesFound(object $b): array
+    {
+        $cells = json_decode($b->cells ?? '', true) ?? [];
+        $out = ['total' => $b->total_fees !== null ? (float) $b->total_fees : null, 'date' => $b->fee_date, 'deducted' => $b->fee_deducted, 'source' => $b->fee_source, 'lines' => []];
+        foreach (['arrangement_fee', 'legal_fees', 'other_fees'] as $k) {
+            if ($b->$k !== null) {
+                $out['lines'][] = ['type' => $k, 'amount' => (float) $b->$k, 'cell' => $cells[$k] ?? null];
+            }
+        }
+
+        return $out;
     }
 
     // ----- gates ----------------------------------------------------------

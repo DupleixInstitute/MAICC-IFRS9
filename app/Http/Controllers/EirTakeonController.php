@@ -45,6 +45,12 @@ class EirTakeonController extends Controller
             'fees_total' => $c->fees_total !== null ? (float) $c->fees_total : null, 'takeon_posting' => (float) $c->takeon_posting, 'takeon_opening_interest' => (float) $c->takeon_opening_interest,
             'takeon_opening_recovery' => (float) ($c->takeon_opening_recovery ?? 0), 'schedule_balance_at_takeon' => $c->schedule_balance_at_takeon !== null ? (float) $c->schedule_balance_at_takeon : null,
             'difference_at_takeon' => $c->difference_at_takeon !== null ? (float) $c->difference_at_takeon : null, 'flags' => json_decode($c->flags, true) ?? [], 'built_at' => $c->built_at,
+            // the recompute from origination (system audit of 9 October 2026, finding M7)
+            'takeon_balance' => isset($c->takeon_balance) ? (float) $c->takeon_balance : null,
+            'recomputed_eir' => isset($c->recomputed_eir) ? (float) $c->recomputed_eir : null,
+            'recomputed_amortised_cost' => isset($c->recomputed_amortised_cost) ? (float) $c->recomputed_amortised_cost : null,
+            'recomputed_difference' => isset($c->recomputed_difference) ? (float) $c->recomputed_difference : null,
+            'schedule_lines_written' => (int) ($c->schedule_lines_written ?? 0),
         ]);
         try {
             $basis = $governance->get('takeon_history_basis');
