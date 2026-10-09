@@ -84,9 +84,9 @@ class HandleInertiaRequests extends Middleware
                     'theme_preference' => $u->theme_preference ?? 'system',
                 ];
             },
-            'menu' => fn () => $this->visibleMenu(
+            'menu' => fn () => \App\Support\SectionTabCounts::annotate($this->visibleMenu(
                 (Auth::check() && Auth::user()->hasRole('member')) ? config('menu.member') : config('menu.admin')
-            ),
+            ), Route::currentRouteName()),
             'logoUrl' => $logo ? asset('storage/' . $logo) : asset('images/maiic-logo-white.png'),
             'smallLogoUrl' => $smallLogo ? asset('storage/' . $smallLogo) : asset('images/maiic-logo-white.png'),
             'companyName' => $settings['company_name'] ?? 'MAIIC',
