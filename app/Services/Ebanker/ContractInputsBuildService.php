@@ -165,6 +165,43 @@ class ContractInputsBuildService
     public function actualTransactions(?string $to = null): array
     {
         $rows = [];
+        return $this->actualTransactionsFrom($rows, $to);
+    }
+
+    /**
+     * The tranche register from the ledger (spec 7.5; system audit of 9 October
+     * 2026, finding H2): every type-301 drawdown posting becomes a disbursement
+     * on its date, so a facility drawn in tranches enters the EIR with each
+     * tranche at its own date. P3_12 is E-Banker's disbursement schedule (the
+     * plan), landed for reference; the postings are what was paid. The voucher
+     * id is the external id, so a re-run loads nothing twice.
+     *
+     * @return array{rows:int,result:array}
+     */
+    public function disbursements(?string $to = null): array
+    {
+        $rows = [];
+        foreach ($this->zone->ledgerByAccount($to) as $account => $posts) {
+            $n = 0;
+            foreach ($posts as $p) {
+                $x = $p['payload'];
+                if (! in_array((string) ($x['TRANTYPE'] ?? ''), LoanBookBuildService::TYPE_DISBURSEMENT, true) || $p['row_date'] === null) {
+                    continue;
+                }
+                $amt = -$this->num($x['TRANSAMT'] ?? 0); // a debit to the loan: cash advanced
+                if ($amt <= 0) {
+                    continue;
+                }
+                $rows[] = ['contract_id' => $account, 'disbursement_date' => $p['row_date'], 'amount' => round($amt, 2), 'tranche_no' => ++$n,
+                    'reference' => 'CUMVOUCH:' . (string) ($x['CUMVOUCH_DET_ID'] ?? $p['source_key']), 'sub_account_no' => null];
+            }
+        }
+
+        return ['rows' => count($rows), 'result' => $rows === [] ? [] : app(\App\Services\Eir\DisbursementImportService::class)->import($rows)];
+    }
+
+    private function actualTransactionsFrom(array $rows, ?string $to): array
+    {
         foreach ($this->zone->ledgerByAccount($to) as $account => $posts) {
             foreach ($posts as $p) {
                 $x = $p['payload'];

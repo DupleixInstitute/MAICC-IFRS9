@@ -19,55 +19,67 @@ class StressTestService
 
     public function execute(string $period, ?int $portfolioId, array $pd, array $lg): array
     {
-        // Per-stage CASE expressions (bindings in stage order 1,2,3).
-        // LEAST() is MySQL; SQLite (the test database) spells it MIN().
-        $least   = DB::connection()->getDriverName() === 'sqlite' ? 'MIN' : 'LEAST';
-        $pdCase  = "CASE ifrs9stage_pre_qualitative WHEN 1 THEN ? WHEN 2 THEN ? WHEN 3 THEN ? ELSE 1 END";
-        $lgCase  = "CASE ifrs9stage_pre_qualitative WHEN 1 THEN ? WHEN 2 THEN ? WHEN 3 THEN ? ELSE 0 END";
-        $baseEcl = self::EAD . ' * ' . self::PD . ' * ' . self::LGD;
-        $strEcl  = self::EAD
-            . " * $least(1, " . self::PD . " * ($pdCase))"
-            . " * $least(1, " . self::LGD . " + ($lgCase))";
+        /*
+        | On the ECL basis (system audit of 9 October 2026, H5 and the step-5
+        | reconciliation): each loan's booked allowance (ecl_value, whichever
+        | engine wrote it) scaled by the ratio of the stressed stage PD to the
+        | booked stage PD and of the stressed LGD to the held LGD, by the stage
+        | the ECL was measured on. The base case (multipliers 1, add-ons 0)
+        | therefore equals the allowance to the kwacha; a loan with no booked
+        | ECL is measured directly. Before, the stress recomputed 12-month PD x
+        | LGD x EAD by the DPD-only stage and never agreed with the allowance.
+        */
+        $q = DB::table('loan_books')->where('reporting_period', $period);
+        if (! empty($portfolioId)) {
+            $q->where('loan_portfolio_id', $portfolioId);
+        }
+        $loans = $q->leftJoin('loan_portfolios as p', 'p.id', '=', 'loan_books.loan_portfolio_id')
+            ->get(['loan_books.*', DB::raw("COALESCE(p.name, 'Unmapped') AS portfolio_name")]);
 
-        // Binding order: stress PD case (3), stress LGD case (3).
-        $b = [$pd[1], $pd[2], $pd[3], $lg[1], $lg[2], $lg[3]];
-
-        $scope = function ($q) use ($period, $portfolioId) {
-            $q->where('reporting_period', $period);
-            if (! empty($portfolioId)) {
-                $q->where('loan_portfolio_id', $portfolioId);
-            }
-            return $q;
+        $stagePd = function (string $stage, float $pd12, $tenor): float {
+            $pd12 = max(0.0, min(1.0, $pd12));
+            $months = $tenor === null || (float) $tenor < 1 ? 12.0 : (float) $tenor;
+            return match ($stage) {
+                '3' => 1.0,
+                '2' => 1 - pow(1 - $pd12, $months / 12),
+                default => 1 - pow(1 - $pd12, min(12.0, $months) / 12),
+            };
         };
 
-        $byStage = $scope(DB::table('loan_books'))
-            ->whereIn('ifrs9stage_pre_qualitative', [1, 2, 3])
-            ->groupBy('ifrs9stage_pre_qualitative')
-            ->orderBy('ifrs9stage_pre_qualitative')
-            ->selectRaw(
-                "ifrs9stage_pre_qualitative AS stage,
-                 COUNT(*) AS accounts,
-                 SUM(" . self::EAD . ") AS exposure,
-                 SUM($baseEcl) AS base_ecl,
-                 SUM($strEcl) AS stress_ecl,
-                 AVG(" . self::PD . ") AS avg_pd,
-                 AVG(" . self::LGD . ") AS avg_lgd",
-                $b
-            )->get();
-
-        $byPortfolio = $scope(DB::table('loan_books as lb'))
-            ->leftJoin('loan_portfolios as p', 'p.id', 'lb.loan_portfolio_id')
-            ->whereIn('ifrs9stage_pre_qualitative', [1, 2, 3])
-            ->groupBy('p.name')
-            ->selectRaw(
-                "COALESCE(p.name,'Unmapped') AS portfolio,
-                 COUNT(*) AS accounts,
-                 SUM(" . self::EAD . ") AS exposure,
-                 SUM($baseEcl) AS base_ecl,
-                 SUM($strEcl) AS stress_ecl",
-                $b
-            )->get()
-            ->sortByDesc('stress_ecl')->values();
+        $byStage = []; $byPortfolio = [];
+        foreach ($loans as $l) {
+            $stage = (string) ($l->ifrs9stage_post_qualitative ?? $l->calculated_ifrs9_stage ?? $l->ifrs9stage_pre_qualitative ?? '');
+            if (! in_array($stage, ['1', '2', '3'], true)) {
+                continue;
+            }
+            $i = (int) $stage;
+            $ead = (float) ($l->carrying_amount ?? 0) + (float) ($l->commitments ?? 0) * (float) ($l->facility_utilisation_rate ?? 1);
+            $pd12 = (float) ($l->pd_post_fli ?? $l->pd_prefli ?? 0);
+            $lgd = (float) ($l->lgd_value ?? 0);
+            $basePd = $stagePd($stage, $pd12, $l->remaining_tenor ?? null);
+            $stressPd = $stagePd($stage, min(1.0, $pd12 * (float) ($pd[$i] ?? 1)), $l->remaining_tenor ?? null);
+            $stressLgd = min(1.0, $lgd + (float) ($lg[$i] ?? 0));
+            if ($l->ecl_value !== null && $basePd > 0 && $lgd > 0) {
+                $base = (float) $l->ecl_value;
+                $stress = $base * ($stressPd / $basePd) * ($stressLgd / $lgd);
+            } else {
+                $base = $ead * $basePd * $lgd;
+                $stress = $ead * $stressPd * $stressLgd;
+            }
+            foreach ([['byStage', $stage], ['byPortfolio', (string) $l->portfolio_name]] as [$bucket, $key]) {
+                $$bucket[$key] = $$bucket[$key] ?? ['accounts' => 0, 'exposure' => 0.0, 'base_ecl' => 0.0, 'stress_ecl' => 0.0, 'pd_sum' => 0.0, 'lgd_sum' => 0.0];
+                $$bucket[$key]['accounts']++; $$bucket[$key]['exposure'] += $ead; $$bucket[$key]['base_ecl'] += $base; $$bucket[$key]['stress_ecl'] += $stress;
+                $$bucket[$key]['pd_sum'] += $pd12; $$bucket[$key]['lgd_sum'] += $lgd;
+            }
+        }
+        ksort($byStage);
+        $rows = fn (array $groups, string $keyName) => collect($groups)->map(fn ($g, $k) => (object) [
+            $keyName => $keyName === 'stage' ? (int) $k : $k, 'accounts' => $g['accounts'], 'exposure' => round($g['exposure'], 2),
+            'base_ecl' => round($g['base_ecl'], 2), 'stress_ecl' => round($g['stress_ecl'], 2),
+            'avg_pd' => $g['accounts'] ? $g['pd_sum'] / $g['accounts'] : 0, 'avg_lgd' => $g['accounts'] ? $g['lgd_sum'] / $g['accounts'] : 0,
+        ])->values();
+        $byStage = $rows($byStage, 'stage');
+        $byPortfolio = $rows($byPortfolio, 'portfolio')->sortByDesc('stress_ecl')->values();
 
         $totBase   = (float) $byStage->sum('base_ecl');
         $totStress = (float) $byStage->sum('stress_ecl');

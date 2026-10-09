@@ -67,6 +67,35 @@ class EirCalculationWorkflowTest extends TestCase
         DB::table('contract_fees')->insert(['contract_id' => $id, 'amount' => 30, 'integral' => true, 'classification_status' => 'REVIEWED', 'cashflow_direction' => 'RECEIVED']);
     }
 
+    /** Audit H2: a later tranche enters the vector at its own date, so the EIR of a two-tranche facility is its contractual rate, not far above it. */
+    public function test_later_drawdowns_enter_the_eir_vector_at_their_own_dates(): void
+    {
+        Schema::create('contract_disbursements', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('sub_account_no')->nullable(); $t->integer('tranche_no')->nullable(); $t->string('disbursement_date'); $t->double('amount'); $t->string('reference')->nullable(); $t->string('source_system')->nullable(); $t->string('source_reference')->nullable(); $t->string('external_transaction_id')->nullable(); $t->integer('import_id')->nullable(); $t->integer('created_by')->nullable(); $t->timestamps(); });
+        // 100 approved: 60 at origination, 40 six months later; one bullet repayment of 100 plus 12 percent a year of interest after twelve months
+        DB::table('contract_eir')->insert(['contract_id' => 'T-1', 'origination_date' => '2025-01-01', 'drawn_amount' => 100, 'payments_per_year' => 12, 'frequency_source' => 'STATED', 'schedule_source' => 'GENERATED', 'schedule_approval_status' => 'APPROVED', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('contract_cashflow_schedule')->insert(['contract_id' => 'T-1', 'due_date' => '2026-01-01', 'principal_due' => 100, 'interest_due' => 60 * 0.12 + 40 * 0.12 / 2]);
+        DB::table('contract_disbursements')->insert([
+            ['contract_id' => 'T-1', 'tranche_no' => 1, 'disbursement_date' => '2025-01-01', 'amount' => 60, 'created_at' => now(), 'updated_at' => now()],
+            ['contract_id' => 'T-1', 'tranche_no' => 2, 'disbursement_date' => '2025-07-01', 'amount' => 40, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $readiness = new EirReadinessService();
+        $withTranches = (new EirContractInputService($readiness, new GovernanceService(), new \App\Services\Eir\DisbursementService()))->assemble('T-1');
+        $without = (new EirContractInputService($readiness, new GovernanceService()))->assemble('T-1');
+
+        $this->assertEquals(60.0, $withTranches['initial_net_investment']);
+        $this->assertEquals(100.0, $without['initial_net_investment']);
+        $this->assertCount(2, $withTranches['cash_flows']);
+        $this->assertSame('DISBURSEMENT', $withTranches['cash_flows'][0]['flow_type']);
+        $this->assertEquals(-40.0, $withTranches['cash_flows'][0]['amount']);
+
+        $solver = new CalculateEirService();
+        $eirWith = $solver->calculateDated($withTranches['initial_net_investment'], $withTranches['cash_flows'], 12, '2025-01-01')['eir_effective_annual'];
+        $eirWithout = $solver->calculateDated($without['initial_net_investment'], $without['cash_flows'], 12, '2025-01-01')['eir_effective_annual'];
+        // 60 out now, 40 out in six months, 107.20 in at twelve months: about 12 percent; 100 out now against 107.20 back is 7.2 percent
+        $this->assertEqualsWithDelta(0.12, $eirWith, 0.01);
+        $this->assertLessThan($eirWith, $eirWithout);
+    }
+
     public function test_calculation_persists_reviewable_result_and_complete_snapshot(): void
     {
         $this->seedContract();

@@ -64,6 +64,17 @@ class PdAndLgdEngineTest extends TestCase
         $this->assertSame('closed', DB::table('transition_matrices')->where('id', $r['matrix_id'])->value('status'));
     }
 
+    /** Audit H8: a default rate measured over three months is annualised before it is written as a twelve-month PD. */
+    public function test_a_short_window_is_annualised(): void
+    {
+        // the same four loans, but the only earlier book is three months before the period
+        DB::table('loan_books')->where('reporting_period', '2025-08')->update(['reporting_period' => '2026-05']);
+        $r = (new PdEngineService())->run('2026-08', 1, 12, 'test', null);
+        $this->assertSame(3, $r['window_months']);
+        $this->assertTrue($r['annualised']);
+        $this->assertEqualsWithDelta(1 - pow(1 - 0.5, 12 / 3), $r['pds'][1], 1e-6); // 50 percent in three months is 93.75 percent in a year
+    }
+
     public function test_the_lgd_engine_follows_the_stage_3_cohort(): void
     {
         $r = (new LgdEngineService())->run('2026-08', 1, 12, null, 'test');

@@ -71,12 +71,15 @@ class StressTestingReconciliationTest extends TestCase
 
         $response->assertOk();
 
+        // On the ECL basis (audit H5 and step 5): Stage 1 and 2 over a twelve-month
+        // horizon (no tenor on the rows), Stage 3 at a PD of 1 as in every engine;
+        // the tape's 0.9 on the Stage 3 row is not what the allowance is measured on.
         $base = 1000000 * 0.05 * 0.40    // 20,000
               + 500000 * 0.20 * 0.50     // 50,000
-              + 200000 * 0.90 * 0.60;    // 108,000
+              + 200000 * 1.00 * 0.60;    // 120,000
         $stress = 1000000 * 0.10 * 0.50  // 50,000
                 + 500000 * 0.40 * 0.60   // 120,000
-                + 200000 * 0.90 * 0.70;  // 126,000
+                + 200000 * 1.00 * 0.70;  // 140,000
 
         $this->assertEqualsWithDelta($base, $response->json('total_base_ecl'), 0.01);
         $this->assertEqualsWithDelta($stress, $response->json('total_stress_ecl'), 0.01);

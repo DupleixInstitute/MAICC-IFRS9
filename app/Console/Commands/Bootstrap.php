@@ -189,6 +189,8 @@ class Bootstrap extends Command
 
         $tx = $inputs->actualTransactions();
         $this->note('5f cash movements (ledger)', "{$tx['rows']} postings: " . ($tx['result']['actual_rows_loaded'] ?? json_encode(array_intersect_key($tx['result'], array_flip(['actual_rows_loaded', 'held', 'duplicate_source_rows'])))) . ' actual transactions loaded, ' . count($tx['result']['held'] ?? []) . ' accounts held (not in the loan book)');
+        $dd = $inputs->disbursements();
+        $this->note('5f drawdowns (ledger)', "{$dd['rows']} type-301 postings: " . json_encode(array_intersect_key($dd['result'], array_flip(['loaded_rows', 'already_stored', 'contracts', 'total_amount']))) . '; facilities drawn in more than one tranche: ' . DB::table('contract_disbursements')->selectRaw('contract_id, count(*) n')->groupBy('contract_id')->havingRaw('count(*) > 1')->get()->count());
         Artisan::call('eir:derive-spreads', ['--user' => $user]);
         $this->note('5g spreads', trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 200))));
 

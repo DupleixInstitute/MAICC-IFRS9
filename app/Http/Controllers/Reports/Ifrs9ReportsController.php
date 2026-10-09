@@ -23,6 +23,8 @@ use Inertia\Inertia;
  */
 class Ifrs9ReportsController extends Controller
 {
+    // Every stage split reads ifrs9stage_post_qualitative, the stage the staging engine
+    // measured and the ECL was provided on (audit H5); the DPD-only stage is ifrs9stage_pre_qualitative.
     private const EAD_SQL = 'COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1)';
 
     // key => [title, subtitle, category]. Full catalogue: 30 reports covering
@@ -134,7 +136,7 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         $rows = DB::table('loan_books')
-            ->selectRaw("contract_id, customer_name, ifrs9stage_pre_qualitative stage,
+            ->selectRaw("contract_id, customer_name, ifrs9stage_post_qualitative stage,
                 " . self::EAD_SQL . " ead, COALESCE(pd_post_fli,pd_prefli) pd,
                 COALESCE(lgd_value,0) lgd, COALESCE(ecl_value,0) ecl")
             ->where('reporting_period', $period)
@@ -158,12 +160,12 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         $rows = DB::table('loan_books')
-            ->selectRaw("ifrs9stage_pre_qualitative stage, COUNT(*) loans,
+            ->selectRaw("ifrs9stage_post_qualitative stage, COUNT(*) loans,
                 SUM(" . self::EAD_SQL . ") ead, SUM(COALESCE(ecl_value,0)) ecl,
                 SUM(CASE WHEN COALESCE(overdue_days,0)=0 THEN 1 ELSE 0 END) current_n,
                 SUM(CASE WHEN COALESCE(overdue_days,0)>0 THEN 1 ELSE 0 END) arrears_n")
             ->where('reporting_period', $period)
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get()
+            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
             ->map(fn ($r) => ['Stage ' . $r->stage, number_format($r->loans),
                 number_format($r->current_n), number_format($r->arrears_n),
                 $this->money($r->ead), $this->money($r->ecl),
@@ -194,12 +196,12 @@ class Ifrs9ReportsController extends Controller
                     ELSE 'Other / qualitative' END trig,
                 COUNT(*) loans, SUM(" . self::EAD_SQL . ") ead, SUM(COALESCE(ecl_value,0)) ecl")
             ->where('reporting_period', $period)
-            ->where('ifrs9stage_pre_qualitative', 2)
+            ->where('ifrs9stage_post_qualitative', 2)
             ->groupBy('trig')->get()
             ->map(fn ($r) => [$r->trig, number_format($r->loans), $this->money($r->ead), $this->money($r->ecl)])->all();
 
         $s2 = DB::table('loan_books')->where('reporting_period', $period)
-            ->where('ifrs9stage_pre_qualitative', 2)->count();
+            ->where('ifrs9stage_post_qualitative', 2)->count();
 
         return $this->respond(['key' => 'sicr-trigger', 'period' => $period,
             'subtitle' => 'Why exposures moved to Stage 2 (Significant Increase in Credit Risk)',
@@ -230,9 +232,9 @@ class Ifrs9ReportsController extends Controller
                 $j->on('c.contract_id', '=', 'p.contract_id')->where('p.reporting_period', '=', $prev);
             })
             ->where('c.reporting_period', $period)
-            ->selectRaw("p.ifrs9stage_pre_qualitative from_s, c.ifrs9stage_pre_qualitative to_s,
+            ->selectRaw("p.ifrs9stage_post_qualitative from_s, c.ifrs9stage_post_qualitative to_s,
                 COUNT(*) n")
-            ->groupBy('p.ifrs9stage_pre_qualitative', 'c.ifrs9stage_pre_qualitative')->get();
+            ->groupBy('p.ifrs9stage_post_qualitative', 'c.ifrs9stage_post_qualitative')->get();
 
         $states = ['1', '2', '3'];
         $grid = [];
@@ -265,8 +267,8 @@ class Ifrs9ReportsController extends Controller
         $movement = $closing - $opening;
 
         $byStage = DB::table('loan_books')
-            ->selectRaw("ifrs9stage_pre_qualitative s, SUM(COALESCE(ecl_value,0)) ecl")
-            ->where('reporting_period', $period)->groupBy('ifrs9stage_pre_qualitative')->pluck('ecl', 's');
+            ->selectRaw("ifrs9stage_post_qualitative s, SUM(COALESCE(ecl_value,0)) ecl")
+            ->where('reporting_period', $period)->groupBy('ifrs9stage_post_qualitative')->pluck('ecl', 's');
 
         return $this->respond(['key' => 'ecl-reconciliation', 'period' => $period,
             'subtitle' => $prev ? "Opening {$prev} -> Closing {$period}" : 'No prior period — closing only',
@@ -298,14 +300,14 @@ class Ifrs9ReportsController extends Controller
         $prev = $this->previousPeriod($period);
 
         $cur = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n,
+            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n,
                 SUM(COALESCE(carrying_amount,0)) ca, SUM(COALESCE(disbursed,0)) disb,
                 SUM(COALESCE(repayments,0)) rep")
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get();
+            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get();
 
         $prevByStage = $prev ? DB::table('loan_books')->where('reporting_period', $prev)
-            ->selectRaw("ifrs9stage_pre_qualitative s, SUM(COALESCE(carrying_amount,0)) ca")
-            ->groupBy('ifrs9stage_pre_qualitative')->pluck('ca', 's') : collect();
+            ->selectRaw("ifrs9stage_post_qualitative s, SUM(COALESCE(carrying_amount,0)) ca")
+            ->groupBy('ifrs9stage_post_qualitative')->pluck('ca', 's') : collect();
 
         $rows = $cur->map(function ($r) use ($prevByStage) {
             $open = (float) ($prevByStage[$r->s] ?? 0);
@@ -330,10 +332,10 @@ class Ifrs9ReportsController extends Controller
         $period = $this->period($request);
         $prev = $this->previousPeriod($period);
 
-        $cur = DB::table('loan_books')->selectRaw("ifrs9stage_pre_qualitative s, SUM(COALESCE(ecl_value,0)) ecl")
-            ->where('reporting_period', $period)->groupBy('ifrs9stage_pre_qualitative')->pluck('ecl', 's');
-        $pre = $prev ? DB::table('loan_books')->selectRaw("ifrs9stage_pre_qualitative s, SUM(COALESCE(ecl_value,0)) ecl")
-            ->where('reporting_period', $prev)->groupBy('ifrs9stage_pre_qualitative')->pluck('ecl', 's') : collect();
+        $cur = DB::table('loan_books')->selectRaw("ifrs9stage_post_qualitative s, SUM(COALESCE(ecl_value,0)) ecl")
+            ->where('reporting_period', $period)->groupBy('ifrs9stage_post_qualitative')->pluck('ecl', 's');
+        $pre = $prev ? DB::table('loan_books')->selectRaw("ifrs9stage_post_qualitative s, SUM(COALESCE(ecl_value,0)) ecl")
+            ->where('reporting_period', $prev)->groupBy('ifrs9stage_post_qualitative')->pluck('ecl', 's') : collect();
 
         $rows = collect(['1', '2', '3'])->map(function ($s) use ($cur, $pre) {
             $c = (float) ($cur[$s] ?? 0);
@@ -364,11 +366,11 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         $rows = DB::table('loan_books')
-            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n,
+            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n,
                 AVG(COALESCE(lifetime_pd,0)) pdlt,
                 AVG(COALESCE(pd_prefli,0)) pdpre, AVG(COALESCE(pd_post_fli,0)) pdpost")
             ->where('reporting_period', $period)
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get()
+            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
             ->map(fn ($r) => ['Stage ' . $r->s, number_format($r->n),
                 $this->num($r->pdpre, 6), $this->num($r->pdlt, 6), $this->num($r->pdpost, 6)])->all();
 
@@ -387,13 +389,13 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         $rows = DB::table('loan_books')
-            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n,
+            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n,
                 SUM(" . self::EAD_SQL . ") ead,
                 SUM(COALESCE(allocated_gross_value,0)) coll_gross,
                 SUM(COALESCE(allocated_discounted_value,0)) coll_disc,
                 AVG(COALESCE(customer_lgd,0)) clgd, AVG(COALESCE(collection_lgd,0)) collgd")
             ->where('reporting_period', $period)
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get()
+            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
             ->map(function ($r) {
                 $netUnsec = max(0, $r->ead - $r->coll_disc);
                 return ['Stage ' . $r->s, number_format($r->n), $this->money($r->ead),
@@ -416,11 +418,11 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         $rows = DB::table('loan_books')
-            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n,
+            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n,
                 SUM(COALESCE(carrying_amount,0)) ca, SUM(COALESCE(commitments,0)) comm,
                 AVG(COALESCE(facility_utilisation_rate,1)) ccf, SUM(" . self::EAD_SQL . ") ead")
             ->where('reporting_period', $period)
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get()
+            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
             ->map(fn ($r) => ['Stage ' . $r->s, number_format($r->n), $this->money($r->ca),
                 $this->money($r->comm), $this->num($r->ccf, 4), $this->money($r->ead)])->all();
 
@@ -527,8 +529,8 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         $rows = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n, SUM(" . self::EAD_SQL . ") ead")
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get()
+            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n, SUM(" . self::EAD_SQL . ") ead")
+            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
             ->map(fn ($r) => ['Stage ' . $r->s, $this->rbmClass((string) $r->s),
                 number_format($r->n), $this->money($r->ead)])->all();
 
@@ -562,7 +564,7 @@ class Ifrs9ReportsController extends Controller
             ->map(fn ($r) => [$r->bucket, $r->rbm, number_format($r->n), $this->money($r->ead), $this->money($r->ecl)])->all();
 
         $npl = DB::table('loan_books')->where('reporting_period', $period)
-            ->where('ifrs9stage_pre_qualitative', 3)
+            ->where('ifrs9stage_post_qualitative', 3)
             ->selectRaw("COUNT(*) n, SUM(" . self::EAD_SQL . ") ead")->first();
         $tot = $this->periodTotals($period);
 
@@ -625,20 +627,21 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
         $stage = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n, SUM(" . self::EAD_SQL . ") ead,
+            // the note carries the gross carrying amount, not the EAD (which adds the undrawn commitment at the credit-conversion factor); audit H6
+            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n, SUM(COALESCE(carrying_amount,0)) gross, SUM(" . self::EAD_SQL . ") ead,
                 SUM(COALESCE(ecl_value,0)) ecl")
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')->get()
+            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
             ->map(fn ($r) => ['Stage ' . $r->s . ' — ' . $this->rbmClass((string) $r->s),
-                number_format($r->n), $this->money($r->ead), $this->money($r->ecl),
-                $this->money($r->ead - $r->ecl)])->all();
+                number_format($r->n), $this->money($r->gross), $this->money($r->ead), $this->money($r->ecl),
+                $this->money($r->gross - $r->ecl)])->all();
 
         return $this->respond(['key' => 'fs-disclosure', 'period' => $period,
             'subtitle' => 'IFRS 9 financial statement note tables',
             'kpis' => $this->totalsKpis($period),
             'sections' => [[
                 'heading' => 'Note: Loans & Advances by ECL Stage',
-                'columns' => ['Stage / Class', 'Accounts', 'Gross Carrying (EAD)', 'Loss Allowance (ECL)', 'Net Carrying'],
-                'align' => ['l', 'r', 'r', 'r', 'r'],
+                'columns' => ['Stage / Class', 'Accounts', 'Gross Carrying Amount', 'Exposure at Default', 'Loss Allowance (ECL)', 'Net Carrying Amount'],
+                'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $stage,
             ]]]);
     }
@@ -660,9 +663,9 @@ class Ifrs9ReportsController extends Controller
             ['Missing customer name', number_format($b("(customer_name IS NULL OR customer_name='')"))],
             ['Missing / zero EAD', number_format($b('COALESCE(carrying_amount,0)=0'))],
             ['Negative balance', number_format($b('carrying_amount < 0'))],
-            ['Missing stage', number_format($b("(ifrs9stage_pre_qualitative IS NULL OR ifrs9stage_pre_qualitative='')"))],
+            ['Missing stage', number_format($b("(ifrs9stage_post_qualitative IS NULL OR ifrs9stage_post_qualitative='')"))],
             ['ECL not calculated', number_format($b('ecl_value IS NULL'))],
-            ['Zero ECL on Stage 3', number_format($b("ifrs9stage_pre_qualitative=3 AND COALESCE(ecl_value,0)=0"))],
+            ['Zero ECL on Stage 3', number_format($b("ifrs9stage_post_qualitative=3 AND COALESCE(ecl_value,0)=0"))],
             ['ECL exceeds EAD', number_format($b('COALESCE(ecl_value,0) > (' . self::EAD_SQL . ')'))],
             ['Missing remaining tenor', number_format($b('COALESCE(remaining_tenor,0)=0'))],
         ];
@@ -692,8 +695,8 @@ class Ifrs9ReportsController extends Controller
         $EAD    = '(' . self::EAD_SQL . ')';
 
         $stage = DB::table('loan_books')->where('reporting_period', $period)
-            ->groupBy('ifrs9stage_pre_qualitative')->orderBy('ifrs9stage_pre_qualitative')
-            ->selectRaw("ifrs9stage_pre_qualitative s, COUNT(*) n,
+            ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')
+            ->selectRaw("ifrs9stage_post_qualitative s, COUNT(*) n,
                 SUM($EAD) ead, SUM(COALESCE(ecl_value,0)) ecl")->get()
             ->map(fn ($r) => ['Stage ' . $r->s, number_format($r->n), $this->money($r->ead),
                 $this->money($r->ecl), $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
@@ -707,7 +710,7 @@ class Ifrs9ReportsController extends Controller
                 $this->money($r->ecl), $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         $top = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw("contract_id, customer_name, ifrs9stage_pre_qualitative s,
+            ->selectRaw("contract_id, customer_name, ifrs9stage_post_qualitative s,
                 $EAD ead, COALESCE(ecl_value,0) ecl")
             ->orderByDesc(DB::raw($EAD))->limit(10)->get()
             ->map(fn ($r) => [$r->contract_id, $r->customer_name ?: '(Unnamed)', 'Stage ' . $r->s,
@@ -718,7 +721,7 @@ class Ifrs9ReportsController extends Controller
             ['Missing sector tag', number_format($dq("(industry_type IS NULL OR industry_type='')"))],
             ['Unmapped portfolio', number_format($dq('(loan_portfolio_id IS NULL OR loan_portfolio_id = 1)'))],
             ['ECL not calculated', number_format($dq('ecl_value IS NULL'))],
-            ['Zero ECL on Stage 3', number_format($dq("ifrs9stage_pre_qualitative=3 AND COALESCE(ecl_value,0)=0"))],
+            ['Zero ECL on Stage 3', number_format($dq("ifrs9stage_post_qualitative=3 AND COALESCE(ecl_value,0)=0"))],
         ];
 
         return $this->respond(['key' => 'executive', 'period' => $period,
@@ -1001,7 +1004,7 @@ class Ifrs9ReportsController extends Controller
         // Large exposures over the threshold.
         $large = DB::table('loan_books')->where('reporting_period', $period)
             ->whereRaw("$EAD >= ?", [$threshold])
-            ->selectRaw("contract_id, customer_name, ifrs9stage_pre_qualitative s,
+            ->selectRaw("contract_id, customer_name, ifrs9stage_post_qualitative s,
                 $EAD ead, COALESCE(ecl_value,0) ecl")
             ->orderByDesc(DB::raw($EAD))->limit(50)->get()
             ->map(fn ($r) => [$r->contract_id, $r->customer_name ?: '(Unnamed)', 'Stage ' . $r->s,
@@ -1057,7 +1060,7 @@ class Ifrs9ReportsController extends Controller
         $prev = $this->previousPeriod($period);
 
         $s1arrears = DB::table('loan_books')->where('reporting_period', $period)
-            ->where('ifrs9stage_pre_qualitative', 1)->where('overdue_days', '>', 0)
+            ->where('ifrs9stage_post_qualitative', 1)->where('overdue_days', '>', 0)
             ->selectRaw("COUNT(*) n, SUM(" . self::EAD_SQL . ") ead")->first();
 
         $highUtil = DB::table('loan_books')->where('reporting_period', $period)
@@ -1071,14 +1074,14 @@ class Ifrs9ReportsController extends Controller
                     $j->on('c.contract_id', '=', 'p.contract_id')->where('p.reporting_period', '=', $prev);
                 })
                 ->where('c.reporting_period', $period)
-                ->where('p.ifrs9stage_pre_qualitative', 1)
-                ->where('c.ifrs9stage_pre_qualitative', 2)->count();
+                ->where('p.ifrs9stage_post_qualitative', 1)
+                ->where('c.ifrs9stage_post_qualitative', 2)->count();
         }
 
         $watch = DB::table('loan_books')->where('reporting_period', $period)
-            ->whereIn('ifrs9stage_pre_qualitative', [1, 2])
+            ->whereIn('ifrs9stage_post_qualitative', [1, 2])
             ->where('overdue_days', '>', 0)
-            ->selectRaw("contract_id, customer_name, ifrs9stage_pre_qualitative s,
+            ->selectRaw("contract_id, customer_name, ifrs9stage_post_qualitative s,
                 overdue_days dpd, " . self::EAD_SQL . " ead")
             ->orderByDesc(DB::raw(self::EAD_SQL))->limit(40)->get()
             ->map(fn ($r) => [$r->contract_id, $r->customer_name ?: '(Unnamed)', 'Stage ' . $r->s,
@@ -1110,8 +1113,8 @@ class Ifrs9ReportsController extends Controller
 
         $cov = ($t->ead ?? 0) ? ($t->ecl / $t->ead) : 0;
         $stages = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw("ifrs9stage_pre_qualitative s, SUM(" . self::EAD_SQL . ") ead")
-            ->groupBy('ifrs9stage_pre_qualitative')->pluck('ead', 's');
+            ->selectRaw("ifrs9stage_post_qualitative s, SUM(" . self::EAD_SQL . ") ead")
+            ->groupBy('ifrs9stage_post_qualitative')->pluck('ead', 's');
         $s3 = (float) ($stages[3] ?? 0);
         $nplRatio = ($t->ead ?? 0) ? $s3 / $t->ead : 0;
 

@@ -56,14 +56,21 @@ class PdEngineService
         if ($pds->isEmpty()) {
             throw new RuntimeException("The matrix {$matrix->id} has no transition to Stage 3.");
         }
+        // The matrix measures the default rate over the window actually
+        // available. A window shorter than twelve months is annualised,
+        // 1 - (1 - p)^(12/months), so a three-month rate is not written as a
+        // twelve-month PD (system audit of 9 October 2026, finding H8); the
+        // window is recorded on the matrix.
+        $windowActual = max(1, $start->diffInMonths($end));
+        $annualise = fn (float $p) => $windowActual >= 12 ? $p : 1 - pow(1 - max(0.0, min(1.0, $p)), 12 / $windowActual);
         $applied = [];
         $updated = 0;
-        DB::transaction(function () use ($pds, $period, $portfolioId, &$applied, &$updated) {
+        DB::transaction(function () use ($pds, $period, $portfolioId, $annualise, &$applied, &$updated) {
             foreach ([1, 2, 3] as $stage) {
                 if ($stage !== 3 && ! isset($pds[$stage])) {
                     continue;
                 }
-                $pd = $stage === 3 ? 1.0 : (float) $pds[$stage]->transition_probability_month / 100;
+                $pd = $stage === 3 ? 1.0 : $annualise((float) $pds[$stage]->transition_probability_month / 100);
                 $applied[$stage] = round($pd, 6);
                 $updated += DB::update('UPDATE loan_books SET pd_prefli = ?, `12m_pd` = ? WHERE reporting_period = ? AND ifrs9stage_pre_qualitative = ? AND loan_portfolio_id = ?', [$pd, round($pd * 100, 2), $period, (string) $stage, $portfolioId]);
                 // lifetime PD over the remaining tenor (months): 1 - (1 - annual PD)^(months/12), at least one month
@@ -76,6 +83,6 @@ class PdEngineService
         });
         AuditLoggerService::log('PD Engine Run', 'transition_matrices', $matrix->id, ['reporting_period' => $period, 'rows_affected' => $updated, 'new_values' => ['window' => $start->format('Y-m') . ' to ' . $end->format('Y-m'), 'pds' => $applied], 'meta' => ['user' => $userId]]);
 
-        return ['matrix_id' => $matrix->id, 'window' => $start->format('Y-m') . ' to ' . $end->format('Y-m'), 'transitioned' => (int) $matrix->records_count_transitioned, 'pds' => $applied, 'updated' => $updated];
+        return ['matrix_id' => $matrix->id, 'window_months' => $windowActual, 'annualised' => $windowActual < 12, 'window' => $start->format('Y-m') . ' to ' . $end->format('Y-m'), 'transitioned' => (int) $matrix->records_count_transitioned, 'pds' => $applied, 'updated' => $updated];
     }
 }

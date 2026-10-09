@@ -439,7 +439,7 @@ class ExpectedCreditLossController extends Controller
                     */
                     $grouped = DB::table('loan_books')
                         ->selectRaw("
-                            ifrs9stage_pre_qualitative,
+                            {$stageExpr} AS ifrs9stage_post_qualitative,
                             SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0) * COALESCE(facility_utilisation_rate, 1)) AS total_ead,
                             SUM(ecl_value) AS total_ecl,
                             SUM(ecl_value_discounted) AS total_ecl_discounted,
@@ -450,7 +450,7 @@ class ExpectedCreditLossController extends Controller
                             COUNT(*) AS total_loans
                         ")
                         ->whereRaw($baseWhere, $bindings)
-                        ->groupBy('ifrs9stage_pre_qualitative')
+                        ->groupByRaw($stageExpr)
                         ->get();
 
                     /*
@@ -462,7 +462,7 @@ class ExpectedCreditLossController extends Controller
                         ExpectedCreditLoss::updateOrCreate(
                             [
                                 'reporting_period'        => $period,
-                                'ifrs9_stage'             => $row->ifrs9stage_pre_qualitative,
+                                'ifrs9_stage'             => $row->ifrs9stage_post_qualitative,
                                 'ecl_calculation_level'  => $level,
                                 'ecl_calculation_id'     => $portfolioId,
                                 'ecl_calculation_code'   => $sectorCode,
@@ -577,7 +577,7 @@ class ExpectedCreditLossController extends Controller
             if ($mode === 'summary') {
                 $data = DB::table('loan_books')
                     ->selectRaw('
-                        ifrs9stage_pre_qualitative as stage,
+                        COALESCE(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative) as stage,
                         SUM(carrying_amount) as total_ead,
                         AVG(pd_value_used) as avg_pd,
                         AVG(lgd_value_used) as avg_lgd,
@@ -585,7 +585,7 @@ class ExpectedCreditLossController extends Controller
                     ')
                     ->where('loan_portfolio_id', $portfolioId)
                     ->where('reporting_period', $period)
-                    ->groupBy('ifrs9stage_pre_qualitative')
+                    ->groupByRaw('COALESCE(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative)')
                     ->get();
 
                 fputcsv($handle, ['Stage', 'Total EAD', 'PD', 'LGD', 'Total ECL']);
