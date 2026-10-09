@@ -171,83 +171,29 @@
             </div>
         </jet-modal>
 
-        <!-- Bulk Import Modal -->
-        <jet-modal :show="showImportModal" @close="closeImportModal" max-width="lg">
-            <div class="bg-white rounded-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-maiic-600 to-maiic-600 px-6 py-4">
-                    <h3 class="text-lg font-semibold text-white flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                        </svg>
-                        Bulk Import SICR Groups
-                    </h3>
-                    <p class="mt-1 text-maiic-100 text-sm">Import multiple groups from a CSV file</p>
+        <!-- Bulk import: how to, sample CSV, upload -->
+        <jet-modal :show="showImportModal" @close="closeImportModal" max-width="2xl">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900">Import SICR groups from a CSV file</h3>
+                <p class="mt-1 text-sm text-gray-500">Add many groups at once. A group that already exists, by name, is left as it is.</p>
+
+                <div class="mt-5 grid gap-5 md:grid-cols-5">
+                    <div class="md:col-span-3">
+                        <FileDrop :key="importKey" :error="importError" :disabled="processing" @file="onFile"/>
+                    </div>
+                    <ImportHowTo class="md:col-span-2" title="How to import" :sample-url="route('import-samples.show', 'sicr-groups')">
+                        <li>Download the sample CSV: two columns, name and description, headings in lower case.</li>
+                        <li>One row per group. Rows without a name are skipped.</li>
+                        <li>A name that already exists is not added again and its description is not changed.</li>
+                        <li>Choose the file and press Start import. The message at the top says how many rows were read.</li>
+                    </ImportHowTo>
                 </div>
 
-                <div class="p-6">
-                    <div class="mb-4">
-                        <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 mb-4">
-                            <div class="flex">
-                                <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-maiic-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-maiic-800">CSV Format Requirements</h3>
-                                    <div class="mt-2 text-sm text-maiic-700">
-                                        <p>Your CSV file should contain the following columns:</p>
-                                        <ul class="list-disc list-inside mt-2">
-                                            <li><strong>name</strong> - Group name (required)</li>
-                                            <li><strong>description</strong> - Group description (required)</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <jet-label class="text-sm font-medium text-gray-900">
-                                Select CSV File *
-                            </jet-label>
-                            <p class="text-xs text-gray-500 mt-1">Choose a CSV file containing group data</p>
-                            <div class="mt-3">
-                                <input
-                                    type="file"
-                                    @change="onFile"
-                                    accept=".csv,text/csv"
-                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-maiic-50 file:text-maiic-700 hover:file:bg-maiic-100 file:cursor-pointer border border-gray-300 rounded-md"
-                                    :disabled="processing"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end pt-4 border-t border-gray-200 space-x-3">
-                        <button
-                            type="button"
-                            @click="closeImportModal"
-                            :disabled="processing"
-                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            @click="uploadCsv"
-                            :disabled="processing || !csvFile"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-maiic-600 to-maiic-600 hover:from-maiic-700 hover:to-maiic-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-maiic-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                        >
-                            <svg v-if="processing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <svg v-else class="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                            </svg>
-                            {{ processing ? 'Uploading...' : 'Upload CSV' }}
-                        </button>
-                    </div>
+                <div class="mt-6 flex justify-end gap-2 border-t border-gray-200 pt-4">
+                    <button type="button" class="secondary-btn" :disabled="processing" @click="closeImportModal">Cancel</button>
+                    <button type="button" class="primary-btn" :disabled="processing || !csvFile" @click="uploadCsv">
+                        {{ processing ? 'Importing...' : 'Start import' }}
+                    </button>
                 </div>
             </div>
         </jet-modal>
@@ -263,12 +209,14 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import JetButton from '@/Jetstream/Button.vue'
 import JetLabel from '@/Jetstream/Label.vue'
 import JetModal from '@/Jetstream/Modal.vue'
+import FileDrop from '@/Components/Data/FileDrop.vue'
+import ImportHowTo from '@/Components/Data/ImportHowTo.vue'
 import Pagination from '@/Jetstream/Pagination.vue'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
     props: { groups: Object },
-    components: { AppLayout, JetButton, JetLabel, JetModal, Pagination },
+    components: { FileDrop, ImportHowTo, AppLayout, JetButton, JetLabel, JetModal, Pagination },
     data(){
         return {
             form: { name: '', description: '' },
@@ -276,7 +224,9 @@ export default {
             editingId: null,
             csvFile: null,
             showModal: false,
-            showImportModal: false
+            showImportModal: false,
+            importError: '',
+            importKey: 0
         }
     },
     methods:{
@@ -294,6 +244,8 @@ export default {
         openImportModal() {
             this.showImportModal = true
             this.csvFile = null
+            this.importError = ''
+            this.importKey++
         },
         closeImportModal() {
             this.showImportModal = false
@@ -334,8 +286,9 @@ export default {
         },
 
         // File Upload
-        onFile(e) {
-            this.csvFile = e.target.files[0]
+        onFile(file) {
+            this.csvFile = file
+            this.importError = ''
         },
         uploadCsv() {
             if (!this.csvFile) return
@@ -346,11 +299,9 @@ export default {
                 onFinish: () => { this.processing = false },
                 onSuccess: () => {
                     this.closeImportModal()
-                    this.$toast?.success('CSV imported successfully!')
                 },
                 onError: (errors) => {
-                    console.error('Import errors:', errors)
-                    this.$toast?.error('Failed to import CSV. Please check the file format.')
+                    this.importError = Object.values(errors || {})[0] || 'The file could not be imported. Check it against the sample CSV.'
                 }
             })
         }
