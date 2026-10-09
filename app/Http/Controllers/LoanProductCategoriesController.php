@@ -12,7 +12,9 @@ class LoanProductCategoriesController extends Controller
     public function index()
     {
         $groups = LoanProductCategory::filter(\request()->only('search'))
-            ->paginate();
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
         return Inertia::render('LoanProductGroups/Index', [
             'filters' => \request()->all('search'),
             'groups' => $groups,

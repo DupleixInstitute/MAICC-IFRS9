@@ -1,27 +1,9 @@
 <template>
-    <app-layout title="Create Portfolio">
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                <Link class="text-maiic-500 hover:text-maiic-600" :href="route('portfolios.index')">Portfolios</Link>
-                <span class="text-maiic-500 font-medium"> / </span>
-                Create
-            </h2>
+    <app-layout title="New Portfolio" description="Add a portfolio that loan books can be imported into">
+        <template #actions>
+            <Link :href="route('portfolios.index')" class="secondary-btn">Back to portfolios</Link>
         </template>
-
-        <div class="py-12">
-            <div class="w-full">
-                <div class="flex flex-col">
-                    <div class="overflow-x-auto sm:-mx-6 lg:-mx-8">
-                        <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
-                            <portfolio-form
-                                :form="form"
-                                @submit="store"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <portfolio-form :form="form" @submit="store"/>
     </app-layout>
 </template>
 

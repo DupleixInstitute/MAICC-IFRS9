@@ -20,7 +20,9 @@ class IndustryTypesController extends Controller
     public function index()
     {
         $types = IndustryType::filter(\request()->only('search'))
-            ->paginate();
+            ->orderByRaw('CAST(code AS UNSIGNED), code')
+            ->paginate(15)
+            ->withQueryString();
         return Inertia::render('IndustryTypes/Index', [
             'filters' => \request()->all('search'),
             'types' => $types,
