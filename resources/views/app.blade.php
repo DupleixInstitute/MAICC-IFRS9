@@ -9,16 +9,12 @@
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 
 
-        <!-- The theme before the page paints, so there is no flash of the wrong
-             theme: the saved choice (maiic.theme) or, for "follow the device"
-             and for a new browser, the device setting (spec v4 section 11.5). -->
+        <!-- Light only: the MAIIC layout was restored on 9 October 2026 and has
+             no appearance switch, so the theme is pinned to light (the saved
+             choice is reset so useTheme does not follow a dark device). -->
         <script>
             (function () {
-                try {
-                    var t = localStorage.getItem('maiic.theme');
-                    var dark = t === 'dark' || ((!t || t === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                    if (dark) document.documentElement.classList.add('dark');
-                } catch (e) {}
+                try { localStorage.setItem('maiic.theme', 'light'); } catch (e) {}
             })();
         </script>
 
