@@ -1,62 +1,127 @@
 <template>
-    <div>
-        <div v-if="$page.props.flash.success && show" class="mb-8 flex items-center justify-between bg-maiic-500 rounded w-full">
-            <div class="flex items-center">
-                <svg class="ml-4 mr-2 flex-shrink-0 w-4 h-4 fill-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><polygon points="0 11 2 9 7 14 18 3 20 5 7 18" /></svg>
-                <div class="py-4 text-white text-sm font-medium">{{ $page.props.flash.success }}</div>
+    <!-- Page messages after an action: a box with an icon, a title and the
+         message, coloured by type (success green, error red, warning amber,
+         info blue-grey). Each can be closed; a new message shows again. -->
+    <div v-if="visible.length" class="mb-5 space-y-3" aria-live="polite">
+        <div v-for="msg in visible" :key="msg.type"
+             class="flex items-start gap-3 rounded-xl border p-4 shadow-sm"
+             :class="styles[msg.type].box"
+             :role="msg.type === 'error' ? 'alert' : 'status'">
+            <span class="flex h-9 w-9 flex-none items-center justify-center rounded-full" :class="styles[msg.type].iconWrap">
+                <svg v-if="msg.type === 'success'" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+                <svg v-else-if="msg.type === 'error'" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                <svg v-else-if="msg.type === 'warning'" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0Z"/></svg>
+                <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            </span>
+            <div class="min-w-0 flex-1 pt-0.5">
+                <p class="text-sm font-bold" :class="styles[msg.type].title">{{ msg.title }}</p>
+                <p v-if="msg.text" class="mt-0.5 whitespace-pre-line text-sm" :class="styles[msg.type].text">{{ msg.text }}</p>
+                <ul v-if="msg.list && msg.list.length" class="mt-1.5 list-disc space-y-0.5 pl-5 text-sm" :class="styles[msg.type].text">
+                    <li v-for="(item, i) in msg.list" :key="i">{{ item }}</li>
+                </ul>
             </div>
-            <button type="button" class="group mr-2 p-2" @click="show = false">
-                <svg class="block w-2 h-2 fill-maiic-800 group-hover:fill-white" xmlns="http://www.w3.org/2000/svg" width="235.908" height="235.908" viewBox="278.046 126.846 235.908 235.908"><path d="M506.784 134.017c-9.56-9.56-25.06-9.56-34.62 0L396 210.18l-76.164-76.164c-9.56-9.56-25.06-9.56-34.62 0-9.56 9.56-9.56 25.06 0 34.62L361.38 244.8l-76.164 76.165c-9.56 9.56-9.56 25.06 0 34.62 9.56 9.56 25.06 9.56 34.62 0L396 279.42l76.164 76.165c9.56 9.56 25.06 9.56 34.62 0 9.56-9.56 9.56-25.06 0-34.62L430.62 244.8l76.164-76.163c9.56-9.56 9.56-25.06 0-34.62z" /></svg>
-            </button>
-        </div>
-        <div v-if="($page.props.flash.error || Object.keys($page.props.errors).length > 0) && show"
-             class="mb-8 flex  justify-between bg-red-500 rounded w-full">
-            <div>
-                <div class="flex items-center">
-                    <svg class="ml-4 mr-2 flex-shrink-0 w-4 h-4 fill-white" xmlns="http://www.w3.org/2000/svg"
-                         viewBox="0 0 20 20">
-                        <path
-                            d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zm1.41-1.41A8 8 0 1 0 15.66 4.34 8 8 0 0 0 4.34 15.66zm9.9-8.49L11.41 10l2.83 2.83-1.41 1.41L10 11.41l-2.83 2.83-1.41-1.41L8.59 10 5.76 7.17l1.41-1.41L10 8.59l2.83-2.83 1.41 1.41z"/>
-                    </svg>
-                    <div v-if="$page.props.flash.error" class="py-4 text-white text-sm font-medium">
-                        {{ $page.props.flash.error }}
-                    </div>
-                    <div v-else class="py-4 text-white text-sm font-medium">
-                        <span v-if="Object.keys($page.props.errors).length === 1">There is one form error.</span>
-                        <span v-else>There are {{ Object.keys($page.props.errors).length }} form errors.</span>
-                    </div>
-
-                </div>
-                <div v-if="Object.keys($page.props.errors).length">
-                    <ul class="ml-8 mb-4 list-disc text-white text-sm font-medium">
-                        <li v-for="error in Object.values($page.props.errors)">{{ error }}</li>
-                    </ul>
-                </div>
-            </div>
-            <button type="button" class="group mr-2 p-2" @click="show = false">
-                <svg class="block w-2 h-2 fill-red-800 group-hover:fill-white" xmlns="http://www.w3.org/2000/svg"
-                     width="235.908" height="235.908" viewBox="278.046 126.846 235.908 235.908">
-                    <path
-                        d="M506.784 134.017c-9.56-9.56-25.06-9.56-34.62 0L396 210.18l-76.164-76.164c-9.56-9.56-25.06-9.56-34.62 0-9.56 9.56-9.56 25.06 0 34.62L361.38 244.8l-76.164 76.165c-9.56 9.56-9.56 25.06 0 34.62 9.56 9.56 25.06 9.56 34.62 0L396 279.42l76.164 76.165c9.56 9.56 25.06 9.56 34.62 0 9.56-9.56 9.56-25.06 0-34.62L430.62 244.8l76.164-76.163c9.56-9.56 9.56-25.06 0-34.62z"/>
-                </svg>
+            <button type="button" class="flex-none rounded-md p-1.5 transition" :class="styles[msg.type].close"
+                    :title="'Close this message'" aria-label="Close this message" @click="dismiss(msg.type)">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
             </button>
         </div>
     </div>
 </template>
 
 <script>
+const STYLES = {
+    success: {
+        box: 'border-maiic-200 bg-maiic-50',
+        iconWrap: 'bg-maiic-100 text-maiic-700',
+        title: 'text-maiic-900',
+        text: 'text-maiic-800',
+        close: 'text-maiic-600 hover:bg-maiic-100 hover:text-maiic-900',
+    },
+    error: {
+        box: 'border-red-200 bg-red-50',
+        iconWrap: 'bg-red-100 text-red-600',
+        title: 'text-red-900',
+        text: 'text-red-800',
+        close: 'text-red-500 hover:bg-red-100 hover:text-red-800',
+    },
+    warning: {
+        box: 'border-amber-200 bg-amber-50',
+        iconWrap: 'bg-amber-100 text-amber-600',
+        title: 'text-amber-900',
+        text: 'text-amber-800',
+        close: 'text-amber-600 hover:bg-amber-100 hover:text-amber-900',
+    },
+    info: {
+        box: 'border-slate-200 bg-slate-50',
+        iconWrap: 'bg-slate-200 text-slate-700',
+        title: 'text-slate-900',
+        text: 'text-slate-700',
+        close: 'text-slate-500 hover:bg-slate-200 hover:text-slate-800',
+    },
+}
+
 export default {
     data() {
         return {
-            show: true,
+            styles: STYLES,
+            dismissed: {},
         }
     },
+    computed: {
+        flash() {
+            return this.$page.props.flash || {}
+        },
+        errors() {
+            // Named error bags arrive nested ({ bag: { field: message } }).
+            const collect = (value) => (value && typeof value === 'object')
+                ? Object.values(value).flatMap(collect)
+                : [value]
+            return collect(this.$page.props.errors || {}).filter(Boolean)
+        },
+        messages() {
+            const out = []
+            if (this.flash.success) {
+                out.push({ type: 'success', title: 'Done', text: this.flash.success })
+            }
+            if (this.flash.error) {
+                out.push({ type: 'error', title: 'Something went wrong', text: this.flash.error })
+            } else if (this.errors.length) {
+                out.push({
+                    type: 'error',
+                    title: this.errors.length === 1 ? 'Please correct one thing before saving' : `Please correct ${this.errors.length} things before saving`,
+                    list: this.errors,
+                })
+            }
+            if (this.flash.warning) {
+                out.push({ type: 'warning', title: 'Please note', text: this.flash.warning })
+            }
+            if (this.flash.info) {
+                out.push({ type: 'info', title: 'For your information', text: this.flash.info })
+            }
+            return out
+        },
+        visible() {
+            return this.messages.filter((m) => !this.dismissed[m.type])
+        },
+    },
     watch: {
+        // A new response brings its messages back, even ones closed before.
         '$page.props.flash': {
             handler() {
-                this.show = true
+                this.dismissed = {}
             },
             deep: true,
+        },
+        '$page.props.errors': {
+            handler() {
+                this.dismissed = {}
+            },
+            deep: true,
+        },
+    },
+    methods: {
+        dismiss(type) {
+            this.dismissed = { ...this.dismissed, [type]: true }
         },
     },
 }
