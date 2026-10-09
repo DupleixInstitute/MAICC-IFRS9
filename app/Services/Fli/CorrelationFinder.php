@@ -32,6 +32,9 @@ final class CorrelationFinder
 
     private Diagnostics $diagnostics;
 
+    /** True when the governed sign test is advisory: a wrong sign is a warning on the pair, not a rejection. */
+    private bool $signAdvisory = false;
+
     public function __construct(string $connection, GovernedValues $gov, ?Diagnostics $diagnostics = null)
     {
         $this->connection = $connection;
@@ -82,6 +85,9 @@ final class CorrelationFinder
         $cutoff = $this->gov->float('fli.r2_cutoff.default');
         $minObs = $this->gov->int('stats.min_obs');
         $alpha = $this->gov->float('stats.alpha');
+        // the governed sign test (fli_expected_sign_test, bridged as fli.sign_test.mode;
+        // system audit of 9 October 2026, finding M12)
+        $this->signAdvisory = strtolower(trim($this->gov->string('fli.sign_test.mode'))) === Guardrail::SIGN_TEST_ADVISORY;
 
         if ($xSeries === [] || $ySeries === []) {
             $note = $ySeries === []
@@ -252,10 +258,13 @@ final class CorrelationFinder
         $score = $signGate * $forecastWeight *
             (0.5 * $strength + 0.2 * $sigScore + 0.2 * $sampleScore + 0.1 * $agreeScore);
 
-        // Verdict.
-        if ($expected !== null && $signOk === false) {
+        // Verdict. A wrong sign rejects the pair under the gating sign test; under the
+        // advisory test it is a warning in the reason and sign_ok stays false on the
+        // row, and the verdict is decided by strength, significance and sample.
+        $wrongSign = $expected !== null && $signOk === false;
+        if ($wrongSign && ! $this->signAdvisory) {
             $verdict = 'rejected';
-        } elseif ($r2 !== null && $r2 >= $cutoff && $sigScore === 1.0 && $n >= $minObs && $signOk !== false) {
+        } elseif ($r2 !== null && $r2 >= $cutoff && $sigScore === 1.0 && $n >= $minObs) {
             $verdict = 'recommended';
         } else {
             $verdict = 'usable_with_caveat';
@@ -264,7 +273,7 @@ final class CorrelationFinder
         $diag = $this->diagnostics->diagnose($aligned['x'], $aligned['y'], $aligned['periods']);
         $spanned = $diag['break']['registered_events_in_window'] ?? [];
 
-        $reason = $this->composeReason($verdict, $realised, $expected, $signOk, $r2, $cutoff, $p, $alpha, $n, $minObs, $aligned, $agree, $lag, $forecastable, $spanned, $diag['recommended_method']);
+        $reason = $this->composeReason($verdict, $realised, $expected, $signOk, $r2, $cutoff, $p, $alpha, $n, $minObs, $aligned, $agree, $lag, $forecastable, $spanned, $diag['recommended_method'], $wrongSign && $this->signAdvisory);
 
         return array_merge($base, [
             'pearson' => $pearson, 'spearman' => $spearman, 'theil_sen' => $theil,
@@ -276,14 +285,14 @@ final class CorrelationFinder
     }
 
     /** @param array<int,string> $spanned */
-    private function composeReason(string $verdict, ?string $realised, ?string $expected, ?bool $signOk, ?float $r2, float $cutoff, ?float $p, float $alpha, int $n, int $minObs, array $aligned, string $agree, int $lag, bool $forecastable, array $spanned, string $recMethod): string
+    private function composeReason(string $verdict, ?string $realised, ?string $expected, ?bool $signOk, ?float $r2, float $cutoff, ?float $p, float $alpha, int $n, int $minObs, array $aligned, string $agree, int $lag, bool $forecastable, array $spanned, string $recMethod, bool $signWarning = false): string
     {
         $parts = [];
         $parts[] = '[' . $verdict . ']';
         if ($signOk === null) {
             $parts[] = $expected === null ? 'sign n/a (context driver)' : 'sign indeterminate';
         } else {
-            $parts[] = $signOk ? sprintf('correct sign (%s)', $realised) : sprintf('WRONG sign %s vs %s', $realised, $expected);
+            $parts[] = $signOk ? sprintf('correct sign (%s)', $realised) : sprintf('WRONG sign %s vs %s%s', $realised, $expected, $signWarning ? ' (warning: sign test advisory)' : '');
         }
         $parts[] = $r2 === null ? 'R2 n/a' : sprintf('R2 %.3f%s%.2f', $r2, $r2 >= $cutoff ? '>=' : '<', $cutoff);
         $parts[] = $p === null ? 'p n/a' : sprintf('p=%.3f%s%.2f', $p, $p <= $alpha ? '<=' : '>', $alpha);
