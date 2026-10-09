@@ -1,398 +1,462 @@
 <template>
     <app-layout title="Dashboard">
+        <!-- ============================ HEADER ============================ -->
         <template #header>
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center gap-2">
-                    IFRS 9 ECL Dashboard
-                    <HelpManual />
-                </h2>
+            <h1 class="flex items-center gap-2 text-xl font-extrabold leading-tight text-maiic-900 dark:text-slate-100">
+                IFRS 9 ECL Dashboard
+                <HelpManual />
+            </h1>
+            <p class="mt-0.5 text-sm text-gray-500 dark:text-slate-400">
+                <template v-if="selectedPeriod">
+                    Showing <b class="text-gray-700 dark:text-slate-200">{{ periodLabel(selectedPeriod) }}</b>
+                    <template v-if="selectedPortfolioName"> &middot; portfolio <b class="text-gray-700 dark:text-slate-200">{{ selectedPortfolioName }}</b></template>
+                    <template v-if="comparePeriod"> compared with <b class="text-gray-700 dark:text-slate-200">{{ periodLabel(comparePeriod) }}</b></template>
+                </template>
+                <template v-else>Expected credit loss position of the MAIIC loan book</template>
+            </p>
+        </template>
 
-                <!-- Global filter bar: everything on this page is scoped by these.
-                     All options come from the database (reporting_periods /
-                     loan_portfolios) - nothing hardcoded. -->
-                <div class="flex flex-wrap items-end gap-3 bg-maiic-600 rounded-xl px-4 py-2.5 shadow-md">
-                    <div>
-                        <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
-                            Reporting Period
-                        </label>
-                        <span class="relative inline-block">
-                            <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                            <select v-model="filterForm.period" @change="applyFilters"
-                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 pl-9 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
-                            <option v-for="period in periods" :key="period" :value="period">{{ period }}</option>
-                        </select>
-                        </span>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
-                            Portfolio
-                        </label>
-                        <span class="relative inline-block">
-                            <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 8.5 4.5L12 11 3.5 6.5 12 2Z"/><path d="m3.5 11.5 8.5 4.5 8.5-4.5"/><path d="m3.5 16.5 8.5 4.5 8.5-4.5"/></svg>
-                            <select v-model="filterForm.portfolio_id" @change="applyFilters"
-                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 pl-9 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
-                            <option :value="null">All portfolios</option>
-                            <option v-for="p in portfolios" :key="p.id" :value="p.id">{{ p.name }}</option>
-                        </select>
-                        </span>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold uppercase tracking-widest text-white/80 mb-0.5">
-                            Compare To
-                        </label>
-                        <span class="relative inline-block">
-                            <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                            <select v-model="filterForm.compare" @change="applyFilters"
-                                class="rounded-lg border-0 bg-white text-maiic-800 text-sm font-bold py-1.5 pl-9 pr-8 shadow focus:ring-2 focus:ring-white cursor-pointer">
-                            <option :value="null">Previous period</option>
-                            <option v-for="period in comparablePeriods" :key="period" :value="period">{{ period }}</option>
-                        </select>
-                        </span>
-                    </div>
+        <!-- Global filter bar: everything on this page is scoped by these.
+             All options come from the database (reporting_periods /
+             loan_portfolios) - nothing hardcoded. -->
+        <template v-if="periods.length" #actions>
+            <div class="flex flex-wrap items-end gap-3 rounded-xl bg-maiic-600 px-4 py-2.5 shadow-md">
+                <div>
+                    <label class="mb-0.5 block text-[10px] font-bold uppercase tracking-widest text-white/80">Reporting period</label>
+                    <select v-model="filterForm.period" @change="applyFilters"
+                            class="cursor-pointer rounded-lg border-0 bg-white py-1.5 pl-3 pr-8 text-sm font-bold text-maiic-800 shadow focus:ring-2 focus:ring-white">
+                        <option v-for="p in periods" :key="p" :value="p">{{ periodLabel(p) }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-0.5 block text-[10px] font-bold uppercase tracking-widest text-white/80">Portfolio</label>
+                    <select v-model="filterForm.portfolio_id" @change="applyFilters"
+                            class="cursor-pointer rounded-lg border-0 bg-white py-1.5 pl-3 pr-8 text-sm font-bold text-maiic-800 shadow focus:ring-2 focus:ring-white">
+                        <option :value="null">All portfolios</option>
+                        <option v-for="p in portfolios" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-0.5 block text-[10px] font-bold uppercase tracking-widest text-white/80">Compare to</label>
+                    <select v-model="filterForm.compare" @change="applyFilters"
+                            class="cursor-pointer rounded-lg border-0 bg-white py-1.5 pl-3 pr-8 text-sm font-bold text-maiic-800 shadow focus:ring-2 focus:ring-white">
+                        <option :value="null">Previous period</option>
+                        <option v-for="p in comparablePeriods" :key="p" :value="p">{{ periodLabel(p) }}</option>
+                    </select>
                 </div>
             </div>
         </template>
 
-        <div class="py-8">
-            <div class="w-full px-4 sm:px-6 lg:px-10">
+        <!-- ============================ NO ECL YET ============================ -->
+        <div v-if="error" class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 dark:border-amber-800 dark:bg-amber-900/30">
+            <div class="flex items-start gap-3">
+                <span class="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full bg-maiicgold-500 text-white">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v-4M12 8h.01"/></svg>
+                </span>
+                <div>
+                    <p class="font-bold text-maiic-900 dark:text-slate-100">No ECL results to show yet</p>
+                    <p class="text-sm text-gray-700 dark:text-slate-300">{{ error }}</p>
+                </div>
+            </div>
+            <Link :href="route('expected-credit-loss.create')" class="inline-flex items-center gap-2 rounded-lg bg-maiic-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-maiic-700">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Run ECL calculation
+            </Link>
+        </div>
 
-                <!-- filter context line -->
-                <p class="mb-4 text-sm text-gray-500">
-                    Showing <b class="text-gray-700">{{ selectedPeriod }}</b>
-                    <template v-if="selectedPortfolioName"> · portfolio <b class="text-gray-700">{{ selectedPortfolioName }}</b></template>
-                    <template v-if="comparePeriod"> · compared to <b class="text-gray-700">{{ comparePeriod }}</b></template>
-                </p>
+        <template v-if="!error">
+            <!-- ============================ KPI TILES ============================ -->
+            <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+                <div v-for="k in kpis" :key="k.label" class="maiic-kpi" :style="{ '--accent': k.accent }" :title="k.full || k.value">
+                    <div class="flex items-center gap-2">
+                        <span class="flex h-7 w-7 flex-none items-center justify-center rounded-lg"
+                              :style="{ backgroundColor: k.accent + '1f', color: k.accent }">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round"><path :d="k.icon"/></svg>
+                        </span>
+                        <p class="maiic-kpi-label !mb-0 truncate">{{ k.label }}</p>
+                    </div>
+                    <p class="maiic-kpi-value mt-2 break-words text-xl xl:text-2xl">{{ k.value }}</p>
+                    <p v-if="k.full" class="mt-0.5 truncate text-[11px] tabular-nums text-gray-400">{{ k.full }}</p>
+                    <p v-if="k.delta" class="mt-1.5">
+                        <span :class="['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
+                                       k.deltaGood === null ? 'bg-gray-100 text-gray-600'
+                                           : k.deltaGood ? 'bg-maiic-100 text-maiic-800' : 'bg-red-100 text-red-700']">
+                            <span v-if="k.deltaUp !== null">{{ k.deltaUp ? '▲' : '▼' }}</span>{{ k.delta }}
+                        </span>
+                    </p>
+                    <p v-else-if="k.sub" class="mt-1.5 truncate text-xs text-gray-400">{{ k.sub }}</p>
+                </div>
+            </div>
 
-                <!-- Headline KPI tiles: one standard design (white card, accent
-                     bar, metric icon), compact value with the exact amount in
-                     small text + tooltip, and direction-aware change chips -->
-                <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-                    <div v-for="k in kpis" :key="k.label"
-                         class="maiic-kpi" :style="{ '--accent': k.accent }" :title="k.full || k.value">
-                        <div class="flex items-center gap-2">
-                            <span class="flex h-7 w-7 flex-none items-center justify-center rounded-lg"
-                                  :style="{ backgroundColor: k.accent + '18', color: k.accent }">
-                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="k.icon"/></svg>
+            <!-- ============================ STAGE CARDS ============================ -->
+            <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div v-for="(s, i) in stages" :key="i" :class="['overflow-hidden rounded-2xl border shadow-sm', s.border]">
+                    <div :class="['h-1.5', s.bar]"></div>
+                    <div :class="['p-5', s.wash]">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span :class="['flex h-8 w-8 items-center justify-center rounded-full text-sm font-extrabold text-white', s.bar]">{{ i + 1 }}</span>
+                                <h3 class="font-bold text-gray-900 dark:text-slate-100">Stage {{ i + 1 }}</h3>
+                            </div>
+                            <span :class="['rounded-full px-2.5 py-1 text-xs font-bold', s.badge]">{{ s.tag }}</span>
+                        </div>
+                        <p class="mt-4 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">Exposure (EAD)</p>
+                        <p :class="['text-xl font-extrabold tabular-nums', s.text]">{{ currencyCode }} {{ formatAmount(s.ead) }}</p>
+                        <div class="mt-3 space-y-1 rounded-lg bg-white/75 px-3 py-2 dark:bg-slate-900/50">
+                            <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-slate-400">ECL</span><span class="num font-semibold text-gray-800 dark:text-slate-200">{{ currencyCode }} {{ formatAmount(s.ecl) }}</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-slate-400">Coverage</span><span class="num font-semibold text-gray-800 dark:text-slate-200">{{ s.ead ? formatPct((s.ecl / s.ead) * 100) : '0.00%' }}</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-slate-400">PD applied</span><span class="num font-semibold text-gray-800 dark:text-slate-200">{{ formatPct(s.pd) }}</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-slate-400">LGD applied</span><span class="num font-semibold text-gray-800 dark:text-slate-200">{{ formatPct(s.lgd) }}</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-slate-400">Loans</span><span class="num font-semibold text-gray-800 dark:text-slate-200">{{ formatCount(s.loans) }}</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-500 dark:text-slate-400">Share of book</span><span :class="['num font-bold', s.text]">{{ stageShare(i) }}</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================ CHARTS ============================ -->
+            <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
+                <div class="maiic-panel p-6 lg:col-span-2">
+                    <div class="mb-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-slate-100">Exposure by stage</h3>
+                            <p class="text-xs text-gray-400">{{ periodLabel(selectedPeriod) }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span></p>
+                        </div>
+                        <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                            <button @click="pieView = 'chart'" :class="pieView === 'chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
+                            <button @click="pieView = 'table'" :class="pieView === 'table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                        </div>
+                    </div>
+                    <div v-show="pieView === 'chart'" class="relative h-72 w-full"><canvas ref="pieChart"></canvas></div>
+                    <table v-if="pieView === 'table'" class="maiic-table">
+                        <thead><tr><th>Stage</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">Share</th></tr></thead>
+                        <tbody>
+                            <tr v-for="(s, i) in stages" :key="i">
+                                <td>Stage {{ i + 1 }}</td>
+                                <td class="num">{{ formatAmount(s.ead) }}</td>
+                                <td class="num">{{ stageShare(i) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="maiic-panel p-6 lg:col-span-3">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-slate-100">ECL and coverage trend</h3>
+                            <p class="text-xs text-gray-400">{{ trendRangeLabel }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span></p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select v-model="filterForm.trend_from" @change="applyFilters"
+                                    class="rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
+                                <option :value="null">Last 12 months</option>
+                                <option value="all">From the start</option>
+                                <option v-for="p in periods" :key="'f' + p" :value="p">From {{ periodLabel(p) }}</option>
+                            </select>
+                            <select v-model="filterForm.trend_to" @change="applyFilters"
+                                    class="rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
+                                <option :value="null">To {{ periodLabel(selectedPeriod) }}</option>
+                                <option v-for="p in periods" :key="'t' + p" :value="p">To {{ periodLabel(p) }}</option>
+                            </select>
+                            <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                                <button @click="trendView = 'chart'" :class="trendView === 'chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
+                                <button @click="trendView = 'table'" :class="trendView === 'table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-show="trendView === 'chart'" class="h-72"><canvas ref="trendChart"></canvas></div>
+                    <div v-if="trendView === 'table'" class="maiic-table-wrap">
+                        <table class="maiic-table">
+                            <thead><tr><th>Period</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">ECL ({{ currencyCode }})</th><th class="num">Coverage</th></tr></thead>
+                            <tbody>
+                                <tr v-for="t in (eclTrends || [])" :key="t.period">
+                                    <td>{{ periodLabel(t.period) }}</td>
+                                    <td class="num">{{ formatAmount(t.total_ead) }}</td>
+                                    <td class="num">{{ formatAmount(t.total_ecl) }}</td>
+                                    <td class="num">{{ formatPct(t.ecl_percentage) }}</td>
+                                </tr>
+                                <tr v-if="!(eclTrends || []).length"><td colspan="4" class="maiic-empty">No calculated periods in this range.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================ SUMMARY TABLE ============================ -->
+            <div class="maiic-panel mb-6">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
+                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-maiic-800 dark:text-maiic-200">Portfolio summary</h3>
+                    <p class="text-xs text-gray-400">Values in {{ currencyCode }}<template v-if="comparePeriod"> &middot; compared with {{ periodLabel(comparePeriod) }}</template></p>
+                </div>
+                <div class="maiic-table-wrap">
+                    <table class="maiic-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th class="num">{{ periodLabel(selectedPeriod) }}</th>
+                                <th v-if="comparePeriod" class="num">{{ periodLabel(comparePeriod) }}</th>
+                                <th v-if="comparePeriod" class="num">Change</th>
+                                <th v-if="comparePeriod" class="!text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(r, i) in summaryRows" :key="i">
+                                <td :class="r.bold ? 'font-bold' : ''">{{ r.label }}</td>
+                                <td class="num" :class="r.bold ? 'font-bold' : ''">{{ r.value }}</td>
+                                <td v-if="comparePeriod" class="num text-gray-500">{{ r.compare ?? '-' }}</td>
+                                <td v-if="comparePeriod" class="num font-semibold"
+                                    :class="r.status === 'good' ? 'text-maiic-700' : r.status === 'bad' ? 'text-red-600' : r.status === 'watch' ? 'text-amber-600' : 'text-gray-400'">
+                                    {{ r.change ?? '-' }}
+                                </td>
+                                <td v-if="comparePeriod" class="text-center">
+                                    <span v-if="r.status && r.status !== 'neutral'"
+                                          :class="['maiic-badge', r.status === 'good' ? 'maiic-badge-green' : r.status === 'watch' ? 'maiic-badge-gold' : 'maiic-badge-red']">
+                                        <span v-if="r.up !== null" class="mr-1">{{ r.up ? '▲' : '▼' }}</span>
+                                        {{ r.status === 'good' ? 'Favourable' : r.status === 'watch' ? 'Watch' : 'Adverse' }}
+                                    </span>
+                                    <span v-else-if="r.status === 'neutral'" class="maiic-badge maiic-badge-grey">Stable</span>
+                                    <span v-else class="text-gray-300">-</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </template>
+
+        <!-- ============================ OPERATIONS ROW ============================ -->
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <!-- month-end status -->
+            <div class="maiic-panel">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
+                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-maiic-800 dark:text-maiic-200">Month-end status</h3>
+                    <span v-if="monthEnd" class="maiic-badge maiic-badge-green">{{ periodLabel(monthEnd.period) }}</span>
+                </div>
+                <ul v-if="monthEnd" class="divide-y divide-gray-100 dark:divide-slate-700">
+                    <li v-for="step in monthEndSteps" :key="step.label" class="flex items-center justify-between gap-3 px-4 py-3">
+                        <div class="flex items-center gap-3">
+                            <span :class="['flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs font-bold',
+                                           step.done ? 'bg-maiic-600 text-white' : 'bg-gray-100 text-gray-400']">
+                                <font-awesome-icon :icon="step.done ? 'check' : 'minus'"/>
                             </span>
-                            <p class="maiic-kpi-label !mb-0 truncate">{{ k.label }}</p>
-                        </div>
-                        <p class="maiic-kpi-value mt-2 break-words text-xl xl:text-2xl">{{ k.value }}</p>
-                        <p v-if="k.full" class="mt-0.5 truncate text-[11px] text-gray-400 tabular-nums">{{ k.full }}</p>
-                        <p v-if="k.delta" class="mt-1.5">
-                            <span :class="['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
-                                           k.deltaGood === null ? 'bg-gray-100 text-gray-600'
-                                               : k.deltaGood ? 'bg-maiic-100 text-maiic-800' : 'bg-red-100 text-red-700']">
-                                <span v-if="k.deltaUp !== null">{{ k.deltaUp ? '▲' : '▼' }}</span>{{ k.delta }}
-                            </span>
-                        </p>
-                        <p v-else-if="k.sub" class="mt-1.5 text-xs text-gray-400 truncate">{{ k.sub }}</p>
-                    </div>
-                </div>
-
-                <!-- Stage breakdown: colour-coded cards (green / amber / red) -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div v-for="(s, i) in stages" :key="i"
-                         :class="['rounded-2xl shadow-sm border overflow-hidden', s.border]">
-                        <div :class="['h-1.5', s.bar]"></div>
-                        <div :class="['p-5', s.wash]">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2.5">
-                                    <span :class="['flex h-8 w-8 items-center justify-center rounded-full text-sm font-extrabold text-white', s.bar]">{{ i + 1 }}</span>
-                                    <h3 class="font-bold text-gray-900">Stage {{ i + 1 }}</h3>
-                                </div>
-                                <span :class="['text-xs px-2.5 py-1 rounded-full font-bold', s.badge]">{{ s.tag }}</span>
-                            </div>
-                            <p class="text-[11px] uppercase tracking-wider font-bold text-gray-500 mt-4">Exposure (EAD)</p>
-                            <p :class="['text-xl font-extrabold tabular-nums', s.text]">{{ currencyCode }} {{ formatAmount(s.ead) }}</p>
-                            <div class="mt-3 space-y-1 rounded-lg bg-white/70 px-3 py-2">
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-500">ECL</span>
-                                    <span class="num font-semibold text-gray-800">{{ currencyCode }} {{ formatAmount(s.ecl) }}</span>
-                                </div>
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-500">PD</span>
-                                    <span class="num font-semibold text-gray-800">{{ formatPct(s.pd) }}</span>
-                                </div>
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-500">Share of book</span>
-                                    <span :class="['num font-bold', s.text]">{{ stageShare(i) }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Charts (with chart / table toggle) -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex items-center justify-between mb-4">
                             <div>
-                                <h3 class="font-semibold text-gray-900">Portfolio Composition by Stage</h3>
-                                <p class="text-xs text-gray-400">{{ selectedPeriod }}<span v-if="selectedPortfolioName"> · {{ selectedPortfolioName }}</span></p>
-                            </div>
-                            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
-                                <button @click="pieView='chart'" :class="pieView==='chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
-                                <button @click="pieView='table'" :class="pieView==='table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                                <p class="text-sm font-semibold text-gray-800 dark:text-slate-200">{{ step.label }}</p>
+                                <p class="text-xs text-gray-500 dark:text-slate-400">{{ step.detail }}</p>
                             </div>
                         </div>
-                        <div v-show="pieView==='chart'" class="h-72 flex items-center justify-center">
-                            <canvas ref="pieChart"></canvas>
-                        </div>
-                        <table v-if="pieView==='table'" class="min-w-full text-sm">
-                            <thead class="bg-maiic-900 text-white">
-                                <tr><th class="px-4 py-2 text-left text-xs uppercase">Stage</th>
-                                    <th class="px-4 py-2 text-right text-xs uppercase">EAD</th>
-                                    <th class="px-4 py-2 text-right text-xs uppercase">Share</th></tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                <tr v-for="(s,i) in stages" :key="i" :class="i%2?'bg-maiic-50/40':'bg-white'">
-                                    <td class="px-4 py-2">Stage {{ i+1 }}</td>
-                                    <td class="px-4 py-2 text-right tabular-nums">{{ formatAmount(s.ead) }}</td>
-                                    <td class="px-4 py-2 text-right tabular-nums">{{ stageShare(i) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                            <div>
-                                <h3 class="font-semibold text-gray-900">ECL Coverage Trend</h3>
-                                <p class="text-xs text-gray-400">
-                                    {{ trendRangeLabel }}<span v-if="selectedPortfolioName"> · {{ selectedPortfolioName }}</span>
-                                </p>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <!-- Trend range (periods from the database). Default
-                                     anchors to January of the reporting year. -->
-                                <span class="relative">
-                                    <svg class="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                                    <select v-model="filterForm.trend_from" @change="applyFilters"
-                                            class="rounded-md border border-maiic-300 bg-maiic-50 py-1 pl-7 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
-                                        <option :value="null">From Jan {{ selectedYear }}</option>
-                                        <option value="all">From the start</option>
-                                        <option v-for="p in periods" :key="'f'+p" :value="p">From {{ p }}</option>
-                                    </select>
-                                </span>
-                                <span class="relative">
-                                    <svg class="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-maiic-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                                    <select v-model="filterForm.trend_to" @change="applyFilters"
-                                            class="rounded-md border border-maiic-300 bg-maiic-50 py-1 pl-7 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
-                                        <option :value="null">To latest</option>
-                                        <option v-for="p in periods" :key="'t'+p" :value="p">To {{ p }}</option>
-                                    </select>
-                                </span>
-                                <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
-                                    <button @click="trendView='chart'" :class="trendView==='chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
-                                    <button @click="trendView='table'" :class="trendView==='table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-show="trendView==='chart'" class="h-72">
-                            <canvas ref="trendChart"></canvas>
-                        </div>
-                        <table v-if="trendView==='table'" class="min-w-full text-sm">
-                            <thead class="bg-maiic-900 text-white">
-                                <tr><th class="px-4 py-2 text-left text-xs uppercase">Period</th>
-                                    <th class="px-4 py-2 text-right text-xs uppercase">ECL %</th></tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                <tr v-for="(t,i) in (eclTrends||[])" :key="i" :class="i%2?'bg-maiic-50/40':'bg-white'">
-                                    <td class="px-4 py-2">{{ t.period }}</td>
-                                    <td class="px-4 py-2 text-right tabular-nums">{{ Number(t.ecl_percentage||0).toFixed(2) }}%</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                        <Link v-if="step.href" :href="step.href" class="text-xs font-bold text-maiic-600 hover:text-maiic-800">Open</Link>
+                    </li>
+                </ul>
+                <p v-else class="maiic-empty">No loan book has been loaded yet.</p>
+            </div>
 
-                <!-- Summary table: current vs compare-to with traffic lights -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="px-6 py-4 border-l-4 border-maiic-600 flex flex-wrap items-baseline justify-between gap-2">
-                        <h3 class="font-semibold text-gray-900">Portfolio Summary</h3>
-                        <p class="text-xs text-gray-400">Values in {{ currencyCode }}<template v-if="comparePeriod"> · compared to {{ comparePeriod }}</template></p>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-maiic-900 text-white">
-                                <tr>
-                                    <th class="px-6 py-3 text-left font-medium uppercase text-xs tracking-wider">Metric</th>
-                                    <th class="px-6 py-3 text-right font-medium uppercase text-xs tracking-wider">Current ({{ selectedPeriod }})</th>
-                                    <th v-if="comparePeriod" class="px-6 py-3 text-right font-medium uppercase text-xs tracking-wider">Compare To ({{ comparePeriod }})</th>
-                                    <th v-if="comparePeriod" class="px-6 py-3 text-right font-medium uppercase text-xs tracking-wider">Change</th>
-                                    <th v-if="comparePeriod" class="px-6 py-3 text-center font-medium uppercase text-xs tracking-wider">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                <tr v-for="(r, i) in summaryRows" :key="i" :class="i % 2 ? 'bg-maiic-50/40' : 'bg-white'">
-                                    <td class="px-6 py-3 text-gray-700" :class="r.bold ? 'font-bold' : ''">{{ r.label }}</td>
-                                    <td class="px-6 py-3 num text-gray-800" :class="r.bold ? 'font-bold' : ''">{{ r.value }}</td>
-                                    <td v-if="comparePeriod" class="px-6 py-3 num text-gray-500">{{ r.compare ?? '-' }}</td>
-                                    <td v-if="comparePeriod" class="px-6 py-3 num font-semibold"
-                                        :class="r.status === 'good' ? 'text-maiic-700' : r.status === 'bad' ? 'text-red-600' : r.status === 'watch' ? 'text-amber-600' : 'text-gray-400'">
-                                        {{ r.change ?? '-' }}
-                                    </td>
-                                    <td v-if="comparePeriod" class="px-6 py-3 text-center">
-                                        <span v-if="r.status && r.status !== 'neutral'"
-                                              :title="r.status === 'good' ? 'Favourable movement' : r.status === 'watch' ? 'Moderate movement, keep an eye on it' : 'Adverse movement'"
-                                              :class="['inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold',
-                                                       r.status === 'good' ? 'bg-maiic-100 text-maiic-800'
-                                                           : r.status === 'watch' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700']">
-                                            <span v-if="r.up !== null">{{ r.up ? '▲' : '▼' }}</span>
-                                            {{ r.status === 'good' ? 'Favourable' : r.status === 'watch' ? 'Watch' : 'Adverse' }}
-                                        </span>
-                                        <span v-else-if="r.status === 'neutral'" class="maiic-badge maiic-badge-grey">Stable</span>
-                                        <span v-else class="text-gray-300">-</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- latest loan book -->
+            <div class="maiic-panel">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
+                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-maiic-800 dark:text-maiic-200">Latest loan book</h3>
+                    <span v-if="loanBookSnapshot" class="maiic-badge maiic-badge-green">{{ periodLabel(loanBookSnapshot.period) }}</span>
                 </div>
+                <div v-if="loanBookSnapshot" class="p-4">
+                    <div class="mb-3 flex items-baseline justify-between">
+                        <span class="text-sm text-gray-500 dark:text-slate-400">Carrying amount</span>
+                        <span class="text-lg font-extrabold tabular-nums text-maiic-900 dark:text-slate-100">{{ currencyCode }} {{ formatAmount(loanBookSnapshot.total_balance) }}</span>
+                    </div>
+                    <div class="mb-4 flex h-3 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
+                        <div v-for="(b, i) in loanBookSnapshot.balance_by_stage" :key="i" :class="stageBar[i]"
+                             :style="{ width: (loanBookSnapshot.total_balance ? (b / loanBookSnapshot.total_balance) * 100 : 0) + '%' }"></div>
+                    </div>
+                    <table class="maiic-table">
+                        <thead><tr><th>Stage</th><th class="num">Loans</th><th class="num">Balance ({{ currencyCode }})</th></tr></thead>
+                        <tbody>
+                            <tr v-for="(b, i) in loanBookSnapshot.balance_by_stage" :key="i">
+                                <td><span :class="['maiic-badge', stageBadge[i]]">Stage {{ i + 1 }}</span></td>
+                                <td class="num">{{ formatCount(loanBookSnapshot.loans_by_stage[i]) }}</td>
+                                <td class="num">{{ formatAmount(b) }}</td>
+                            </tr>
+                            <tr class="total">
+                                <td>Total</td>
+                                <td class="num">{{ formatCount(loanBookSnapshot.total_loans) }}</td>
+                                <td class="num">{{ formatAmount(loanBookSnapshot.total_balance) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p v-else class="maiic-empty">No loan book has been loaded yet.</p>
+            </div>
 
-                <p v-if="props.error" class="text-amber-600 text-sm mt-4">{{ props.error }}</p>
+            <!-- recent imports -->
+            <div class="maiic-panel">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
+                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-maiic-800 dark:text-maiic-200">Recent imports</h3>
+                    <Link :href="route('imports.index')" class="text-xs font-bold text-maiic-600 hover:text-maiic-800">View all</Link>
+                </div>
+                <ul class="divide-y divide-gray-100 dark:divide-slate-700">
+                    <li v-for="imp in (recentImports || [])" :key="imp.id" class="flex items-center justify-between gap-3 px-4 py-3">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-gray-800 dark:text-slate-200">{{ imp.name }}</p>
+                            <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatCount(imp.records) }} rows &middot; {{ formatDate(imp.completed_at || imp.created_at) }}</p>
+                        </div>
+                        <span :class="['maiic-badge', importBadge(imp.status)]">{{ imp.status }}</span>
+                    </li>
+                    <li v-if="!(recentImports || []).length" class="maiic-empty">No imports yet.</li>
+                </ul>
             </div>
         </div>
     </app-layout>
 </template>
 
 <script setup>
-import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, onMounted, watch, computed } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
-import { Chart, registerables } from 'chart.js';
-import HelpManual from '../Components/HelpManual.vue';
-import { useTheme } from '@/composables/useTheme';
-Chart.register(...registerables);
-const theme = useTheme();
+import AppLayout from '@/Layouts/AppLayout.vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { Link, router, usePage } from '@inertiajs/vue3'
+import { Chart, registerables } from 'chart.js'
+import HelpManual from '../Components/HelpManual.vue'
+import { useTheme } from '@/composables/useTheme'
+
+Chart.register(...registerables)
+const theme = useTheme()
+
+// Respect the OS / browser 'reduce motion' setting (also used by the
+// manual screenshot tool so charts are captured fully drawn).
+function reducedMotion() {
+    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 
 const props = defineProps({
     summary: Object,
     compareSummary: Object,
-    periods: Array,
-    portfolios: Array,
+    periods: { type: Array, default: () => [] },
+    portfolios: { type: Array, default: () => [] },
     selectedPeriod: String,
     selectedPortfolioId: Number,
     comparePeriod: String,
     trendFrom: String,
     trendTo: String,
-    eclTrends: Array,
+    eclTrends: { type: Array, default: () => [] },
+    monthEnd: Object,
+    loanBookSnapshot: Object,
+    recentImports: { type: Array, default: () => [] },
     error: String,
-});
+})
 
-const page = usePage();
+const page = usePage()
 // Organisation reporting currency (Settings > currency) - shared prop.
-const currencyCode = computed(() => page.props.currency?.code || '');
+const currencyCode = computed(() => page.props.currency?.code || '')
+const summary = computed(() => props.summary || {})
 
-const summary = computed(() => props.summary);
-const periods = ref(props.periods);
-const portfolios = ref(props.portfolios || []);
+// MAIIC palette for charts: brand green, deep green, gold, red, orange.
+const C = { green: '#16a34a', deep: '#14532d', gold: '#f59e0b', red: '#dc2626', orange: '#ea580c' }
+// the chart's neutrals follow the theme: card surface, axis text, grid lines
+const N = () => theme.isDark.value
+    ? { surface: '#1e293b', text: '#94a3b8', legend: '#cbd5e1', grid: 'rgba(51, 65, 85, 0.8)', line: '#4ade80' }
+    : { surface: '#ffffff', text: '#64748b', legend: '#475569', grid: 'rgba(226, 232, 240, 0.8)', line: C.deep }
 
-// Filter state initialised from server-resolved values.
 const filterForm = ref({
     period: props.selectedPeriod,
     portfolio_id: props.selectedPortfolioId ?? null,
     compare: props.comparePeriod ?? null,
     trend_from: props.trendFrom ?? null,
     trend_to: props.trendTo ?? null,
-});
+})
 
-const comparablePeriods = computed(() =>
-    (props.periods || []).filter(p => p !== filterForm.value.period));
+// Only months before the reporting month can be compared with it.
+const comparablePeriods = computed(() => (props.periods || []).filter(p => p < filterForm.value.period))
 
 const selectedPortfolioName = computed(() => {
-    const p = (props.portfolios || []).find(p => p.id === props.selectedPortfolioId);
-    return p ? p.name : null;
-});
-
-const selectedYear = computed(() => (props.selectedPeriod || '').substring(0, 4));
+    const p = (props.portfolios || []).find(p => p.id === props.selectedPortfolioId)
+    return p ? p.name : null
+})
 
 const trendRangeLabel = computed(() => {
-    const t = props.eclTrends || [];
-    if (!t.length) return 'No data in the selected range';
-    return `${t[0].period} to ${t[t.length - 1].period}`;
-});
+    const t = props.eclTrends || []
+    if (!t.length) return 'No calculated periods in the selected range'
+    return `${periodLabel(t[0].period)} to ${periodLabel(t[t.length - 1].period)}`
+})
 
 function applyFilters() {
-    const query = {};
-    if (filterForm.value.period) query.period = filterForm.value.period;
-    if (filterForm.value.portfolio_id) query.portfolio_id = filterForm.value.portfolio_id;
-    if (filterForm.value.compare) query.compare = filterForm.value.compare;
-    if (filterForm.value.trend_from) query.trend_from = filterForm.value.trend_from;
-    if (filterForm.value.trend_to) query.trend_to = filterForm.value.trend_to;
-    router.get(route('dashboard'), query, { preserveState: false, preserveScroll: true });
+    // A new reporting month on or before the compare month: compare with the
+    // closest earlier calculated month instead (periods are newest first).
+    const f = filterForm.value
+    if (f.compare && f.period && f.compare >= f.period) {
+        f.compare = (props.periods || []).find(p => p < f.period) ?? null
+    }
+    const query = {}
+    Object.entries(filterForm.value).forEach(([k, v]) => { if (v) query[k] = v })
+    router.get(route('dashboard'), query, { preserveState: false, preserveScroll: true })
 }
 
-const pieChart = ref(null);
-const trendChart = ref(null);
-let pieInstance = null;
-let trendInstance = null;
-
-const C = { maiic: '#16a34a', gold: '#f59e0b', red: '#dc2626' };
-// the chart's neutrals follow the theme: card surface, axis text, grid lines
-const N = () => theme.isDark.value
-    ? { surface: '#1e293b', text: '#94a3b8', grid: 'rgba(51, 65, 85, 0.8)' }
-    : { surface: '#ffffff', text: '#64748b', grid: 'rgba(226, 232, 240, 0.8)' };
-
-const pieView = ref('chart');
-const trendView = ref('chart');
-
-function stageShare(i) {
-    const e = (summary.value && summary.value.total_eads) || [0, 0, 0];
-    const tot = e[0] + e[1] + e[2];
-    return tot ? ((e[i] / tot) * 100).toFixed(1) + '%' : '0%';
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function periodLabel(p) {
+    if (!p) return ''
+    const [y, m] = String(p).split('-')
+    return m ? `${MONTHS[Number(m) - 1]} ${y}` : p
 }
-
 function formatAmount(amount) {
-    const n = Number(amount || 0);
-    const abs = Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return n < 0 ? '(' + abs + ')' : abs;
+    const n = Number(amount || 0)
+    const abs = Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return n < 0 ? '(' + abs + ')' : abs
+}
+function formatCount(n) {
+    return Number(n || 0).toLocaleString()
 }
 function formatPct(v) {
-    return (Number(v || 0)).toFixed(2) + '%';
+    return Number(v || 0).toFixed(2) + '%'
 }
-// Compact currency so KPI cards never overflow: 66.40B / 8.62M / 950.0K.
+function formatDate(d) {
+    if (!d) return ''
+    const dt = new Date(d)
+    return isNaN(dt) ? d : dt.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+// Compact currency so KPI tiles never overflow: 66.40B / 8.62M / 950.0K
 function money(v) {
-    const n = Number(v || 0);
-    const a = Math.abs(n);
-    const c = currencyCode.value ? currencyCode.value + ' ' : '';
-    if (a >= 1e12) return c + (n / 1e12).toFixed(2) + 'T';
-    if (a >= 1e9)  return c + (n / 1e9).toFixed(2) + 'B';
-    if (a >= 1e6)  return c + (n / 1e6).toFixed(2) + 'M';
-    if (a >= 1e3)  return c + (n / 1e3).toFixed(1) + 'K';
-    return c + n.toLocaleString();
+    const n = Number(v || 0)
+    const a = Math.abs(n)
+    const c = currencyCode.value ? currencyCode.value + ' ' : ''
+    if (a >= 1e12) return c + (n / 1e12).toFixed(2) + 'T'
+    if (a >= 1e9) return c + (n / 1e9).toFixed(2) + 'B'
+    if (a >= 1e6) return c + (n / 1e6).toFixed(2) + 'M'
+    if (a >= 1e3) return c + (n / 1e3).toFixed(1) + 'K'
+    return c + n.toLocaleString()
 }
-
-// Signed change vs the compare-to period. Money values compare as a
-// percentage change; ratio values compare in percentage points.
-// goodWhenUp says whether an increase is favourable (book growth) or
-// adverse (risk metrics), which drives the chip colour.
-function deltaInfo(key, kind, goodWhenUp) {
-    const s = summary.value || {};
-    const c = props.compareSummary;
-    if (!c || !props.comparePeriod) return { delta: null, deltaUp: null, deltaGood: null };
-    const now = Number(s[key] || 0);
-    const then = Number(c[key] || 0);
-    let text, d;
-    if (kind === 'money') {
-        if (then === 0) return { delta: null, deltaUp: null, deltaGood: null };
-        d = ((now - then) / Math.abs(then)) * 100;
-        text = `${d > 0 ? '+' : ''}${d.toFixed(1)}% vs ${props.comparePeriod}`;
-    } else {
-        d = now - then;
-        text = `${d > 0 ? '+' : ''}${d.toFixed(2)}pts vs ${props.comparePeriod}`;
-    }
-    if (Math.abs(d) < 0.005) return { delta: text, deltaUp: null, deltaGood: null };
-    return { delta: text, deltaUp: d > 0, deltaGood: goodWhenUp ? d > 0 : d < 0 };
-}
-
 function fullMoney(v) {
-    return currencyCode.value + ' ' + formatAmount(v);
+    return (currencyCode.value ? currencyCode.value + ' ' : '') + formatAmount(v)
+}
+
+function stageShare(i) {
+    const e = summary.value.total_eads || [0, 0, 0]
+    const tot = e[0] + e[1] + e[2]
+    return tot ? ((e[i] / tot) * 100).toFixed(1) + '%' : '0%'
+}
+
+const stageBar = ['bg-maiic-600', 'bg-amber-500', 'bg-red-600']
+const stageBadge = ['maiic-badge-green', 'maiic-badge-gold', 'maiic-badge-red']
+function importBadge(status) {
+    return { completed: 'maiic-badge-green', processing: 'maiic-badge-gold', failed: 'maiic-badge-red' }[status] || 'maiic-badge-grey'
+}
+
+// Signed change vs the compare-to period. Money compares as % change,
+// ratios in percentage points. goodWhenUp says whether a rise is favourable.
+function deltaInfo(key, kind, goodWhenUp) {
+    const s = summary.value
+    const c = props.compareSummary
+    if (!c || !props.comparePeriod) return { delta: null, deltaUp: null, deltaGood: null }
+    const now = Number(s[key] || 0)
+    const then = Number(c[key] || 0)
+    let text, d
+    if (kind === 'money') {
+        if (then === 0) return { delta: null, deltaUp: null, deltaGood: null }
+        d = ((now - then) / Math.abs(then)) * 100
+        text = `${d > 0 ? '+' : ''}${d.toFixed(1)}% vs ${periodLabel(props.comparePeriod)}`
+    } else {
+        d = now - then
+        text = `${d > 0 ? '+' : ''}${d.toFixed(2)}pts vs ${periodLabel(props.comparePeriod)}`
+    }
+    if (Math.abs(d) < 0.005) return { delta: text, deltaUp: null, deltaGood: null }
+    return { delta: text, deltaUp: d > 0, deltaGood: goodWhenUp ? d > 0 : d < 0 }
 }
 
 const kpis = computed(() => {
-    const s = summary.value || {};
-    const A = { green: '#15803d', gold: '#d97706', red: '#dc2626' };
+    const s = summary.value
     // Lucide-style single-path icons per metric.
     const I = {
         bank: 'M3 21h18M4 18h16M6 18V9m4 9V9m4 9V9m4 9V9M2 9l10-6 10 6H2Z',
@@ -401,195 +465,190 @@ const kpis = computed(() => {
         pie: 'M21.2 15.9A10 10 0 1 1 8 2.8M22 12A10 10 0 0 0 12 2v10Z',
         trend: 'M3 3v18h18M7 14l4-4 3 3 5-6',
         scale: 'M12 3v18M8 21h8M7 7l-4 6a4 4 0 0 0 8 0L7 7Zm10 0-4 6a4 4 0 0 0 8 0l-4-6ZM4 7h16',
-    };
+    }
     return [
-        { label: 'Total Exposure (EAD)', value: money(s.carrying_amount), full: fullMoney(s.carrying_amount), icon: I.bank, accent: A.green, ...deltaInfo('carrying_amount', 'money', true) },
-        { label: 'Total ECL', value: money(s.total_ecl), full: fullMoney(s.total_ecl), icon: I.alert, accent: A.red, sub: formatPct(s.ecl_percentage) + ' coverage', ...deltaInfo('total_ecl', 'money', false) },
-        { label: 'ECL Coverage', value: formatPct(s.ecl_percentage), full: null, icon: I.shield, accent: A.gold, ...deltaInfo('ecl_percentage', 'pts', false) },
-        { label: 'Stage 3 Exposure', value: money(s.stage_3_amount), full: fullMoney(s.stage_3_amount), icon: I.pie, accent: A.red, sub: formatPct(s.stage_3_percentage) + ' of book', ...deltaInfo('stage_3_amount', 'money', false) },
-        { label: 'Weighted PD', value: formatPct(s.weighted_pd), full: null, icon: I.trend, accent: A.green, ...deltaInfo('weighted_pd', 'pts', false) },
-        { label: 'Weighted LGD', value: formatPct(s.weighted_lgd), full: null, icon: I.scale, accent: A.green, ...deltaInfo('weighted_lgd', 'pts', false) },
-    ];
-});
+        { label: 'Total exposure (EAD)', value: money(s.carrying_amount), full: fullMoney(s.carrying_amount), icon: I.bank, accent: C.green, ...deltaInfo('carrying_amount', 'money', true) },
+        { label: 'Total ECL', value: money(s.total_ecl), full: fullMoney(s.total_ecl), icon: I.alert, accent: C.red, ...deltaInfo('total_ecl', 'money', false) },
+        { label: 'ECL coverage', value: formatPct(s.ecl_percentage), full: null, icon: I.shield, accent: C.gold, ...deltaInfo('ecl_percentage', 'pts', false) },
+        { label: 'Stage 3 exposure', value: money(s.stage_3_amount), full: fullMoney(s.stage_3_amount), icon: I.pie, accent: C.orange, sub: formatPct(s.stage_3_percentage) + ' of book', ...deltaInfo('stage_3_amount', 'money', false) },
+        { label: 'Weighted PD', value: formatPct(s.weighted_pd), full: null, icon: I.trend, accent: C.deep, ...deltaInfo('weighted_pd', 'pts', false) },
+        { label: 'Weighted LGD', value: formatPct(s.weighted_lgd), full: null, icon: I.scale, accent: C.deep, ...deltaInfo('weighted_lgd', 'pts', false) },
+    ]
+})
 
 const stages = computed(() => {
-    const s = summary.value || {};
-    const ead = s.total_eads || [0, 0, 0];
-    const ecl = s.ecl_totals || [0, 0, 0];
-    const pd = s.pd_percentages || [0, 0, 0];
+    const s = summary.value
     const meta = [
-        { tag: 'Performing', badge: 'bg-maiic-100 text-maiic-800', bar: 'bg-maiic-600', border: 'border-maiic-200', wash: 'bg-gradient-to-br from-maiic-50 to-white', text: 'text-maiic-800' },
-        { tag: 'Underperforming', badge: 'bg-amber-100 text-amber-800', bar: 'bg-amber-500', border: 'border-amber-200', wash: 'bg-gradient-to-br from-amber-50 to-white', text: 'text-amber-800' },
-        { tag: 'Non-performing', badge: 'bg-red-100 text-red-800', bar: 'bg-red-600', border: 'border-red-200', wash: 'bg-gradient-to-br from-red-50 to-white', text: 'text-red-700' },
-    ];
-    return [0, 1, 2].map(i => ({ ead: ead[i], ecl: ecl[i], pd: pd[i], ...meta[i] }));
-});
+        { tag: 'Performing', badge: 'bg-maiic-100 text-maiic-800', bar: 'bg-maiic-600', border: 'border-maiic-200 dark:border-slate-700', wash: 'bg-gradient-to-br from-maiic-50 to-white dark:from-slate-800 dark:to-slate-800', text: 'text-maiic-800 dark:text-maiic-300' },
+        { tag: 'Under-performing', badge: 'bg-amber-100 text-amber-800', bar: 'bg-amber-500', border: 'border-amber-200 dark:border-slate-700', wash: 'bg-gradient-to-br from-amber-50 to-white dark:from-slate-800 dark:to-slate-800', text: 'text-amber-800 dark:text-amber-300' },
+        { tag: 'Credit-impaired', badge: 'bg-red-100 text-red-800', bar: 'bg-red-600', border: 'border-red-200 dark:border-slate-700', wash: 'bg-gradient-to-br from-red-50 to-white dark:from-slate-800 dark:to-slate-800', text: 'text-red-700 dark:text-red-300' },
+    ]
+    return [0, 1, 2].map(i => ({
+        ead: (s.total_eads || [])[i] || 0,
+        ecl: (s.ecl_totals || [])[i] || 0,
+        pd: (s.pd_percentages || [])[i] || 0,
+        lgd: (s.lgd_percentages || [])[i] || 0,
+        loans: (s.loans_by_stage || [])[i] || 0,
+        ...meta[i],
+    }))
+})
 
-// 5-column compare table: current vs compare-to with metric-aware
-// traffic lights (a rise in exposure is growth; a rise in ECL/PD/LGD is risk).
+// Current vs compare-to with metric-aware traffic lights: a rise in exposure
+// is growth, a rise in ECL / PD / LGD / coverage is risk.
 const summaryRows = computed(() => {
-    const s = summary.value || {};
-    const c = props.compareSummary || null;
-
+    const s = summary.value
+    const c = props.compareSummary || null
     const row = (label, key, kind, goodWhenUp, bold = false) => {
-        const now = Number(s[key] || 0);
-        const then = c ? Number(c[key] || 0) : null;
-        let change = null, status = null;
+        const now = Number(s[key] || 0)
+        const then = c ? Number(c[key] || 0) : null
+        let change = null, status = null
         if (c && then !== null) {
-            if (kind === 'money') {
-                change = then !== 0 ? (((now - then) / Math.abs(then)) * 100) : null;
+            if (kind === 'money' || kind === 'count') {
+                change = then !== 0 ? ((now - then) / Math.abs(then)) * 100 : null
                 if (change !== null) {
-                    const good = goodWhenUp ? change > 0 : change < 0;
-                    status = Math.abs(change) < 1 ? 'neutral' : (good ? 'good' : (Math.abs(change) < 10 ? 'watch' : 'bad'));
-                    change = `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
+                    const good = goodWhenUp ? change > 0 : change < 0
+                    status = Math.abs(change) < 1 ? 'neutral' : (good ? 'good' : (Math.abs(change) < 10 ? 'watch' : 'bad'))
+                    change = `${change > 0 ? '+' : ''}${change.toFixed(1)}%`
                 }
             } else {
-                const d = now - then;
-                const good = goodWhenUp ? d > 0 : d < 0;
-                status = Math.abs(d) < 0.05 ? 'neutral' : (good ? 'good' : (Math.abs(d) < 1 ? 'watch' : 'bad'));
-                change = `${d > 0 ? '+' : ''}${d.toFixed(2)}pts`;
+                const d = now - then
+                const good = goodWhenUp ? d > 0 : d < 0
+                status = Math.abs(d) < 0.05 ? 'neutral' : (good ? 'good' : (Math.abs(d) < 1 ? 'watch' : 'bad'))
+                change = `${d > 0 ? '+' : ''}${d.toFixed(2)}pts`
             }
         }
-        return {
-            label, bold,
-            value: kind === 'money' ? formatAmount(now) : formatPct(now),
-            compare: c ? (kind === 'money' ? formatAmount(then) : formatPct(then)) : null,
-            change, status,
-            up: c && then !== null ? now > then : null,
-        };
-    };
-
+        const fmt = (v) => kind === 'money' ? formatAmount(v) : kind === 'count' ? formatCount(v) : formatPct(v)
+        return { label, bold, value: fmt(now), compare: c ? fmt(then) : null, change, status, up: c && then !== null ? now > then : null }
+    }
     return [
+        row('Number of loans', 'total_loans', 'count', true),
         row('Total EAD', 'carrying_amount', 'money', true, true),
+        row('Stage 3 share of book', 'stage_3_percentage', 'pts', false),
         row('Weighted PD', 'weighted_pd', 'pts', false),
         row('Weighted LGD', 'weighted_lgd', 'pts', false),
-        row('Net Carrying Amount', 'paid_amount', 'money', true),
+        row('ECL coverage', 'ecl_percentage', 'pts', false),
         row('Total ECL', 'total_ecl', 'money', false, true),
-    ];
-});
+        row('Net carrying amount', 'net_carrying_amount', 'money', true),
+    ]
+})
+
+const monthEndSteps = computed(() => {
+    const m = props.monthEnd
+    if (!m) return []
+    return [
+        { label: 'Loan book loaded', done: m.loan_book_rows > 0, detail: m.loan_book_rows > 0 ? `${formatCount(m.loan_book_rows)} loans` : 'Not loaded', href: route('loan_applications.loan-book') },
+        { label: 'PD applied', done: m.pd_applied, detail: m.pd_applied ? `Source: ${m.pd_source || 'system'}` : 'Cumulative PD not yet applied', href: route('transition-matrix-cummulative.index') },
+        { label: 'LGD applied', done: m.lgd_applied, detail: m.lgd_applied ? `Source: ${m.lgd_source || 'system'}` : 'Cumulative LGD not yet applied', href: route('lgd-cummulative.index') },
+        { label: 'ECL calculated', done: m.ecl_calculated, detail: m.ecl_calculated ? 'Results available' : 'Not yet calculated', href: route('expected-credit-loss.index') },
+    ]
+})
+
+const pieView = ref('chart')
+const trendView = ref('chart')
+const pieChart = ref(null)
+const trendChart = ref(null)
+let pieInstance = null
+let trendInstance = null
+
+const tooltip = { backgroundColor: '#0b2b1a', titleColor: '#fbbf24', bodyColor: '#ffffff', padding: 12, cornerRadius: 10 }
 
 function renderCharts() {
-    const n = N();
-    if (pieInstance) { pieInstance.destroy(); pieInstance = null; }
-    if (trendInstance) { trendInstance.destroy(); trendInstance = null; }
+    const n = N()
+    if (pieInstance) { pieInstance.destroy(); pieInstance = null }
+    if (trendInstance) { trendInstance.destroy(); trendInstance = null }
+    if (props.error) return
 
     if (pieChart.value) {
-        const e = summary.value?.total_eads || [0, 0, 0];
+        const e = summary.value.total_eads || [0, 0, 0]
         pieInstance = new Chart(pieChart.value.getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: ['Stage 1', 'Stage 2', 'Stage 3'],
-                datasets: [{
-                    data: [e[0], e[1], e[2]],
-                    backgroundColor: [C.maiic, C.gold, C.red],
-                    borderWidth: 3,
-                    borderColor: n.surface,
-                    hoverOffset: 10,
-                }],
+                datasets: [{ data: e, backgroundColor: [C.green, C.gold, C.red], borderWidth: 3, borderColor: n.surface, hoverOffset: 10 }],
             },
             options: {
                 maintainAspectRatio: false,
+                animation: reducedMotion() ? false : { duration: 700 },
                 cutout: '62%',
                 plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: n.text, font: { size: 12 } },
-                    },
+                    legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: n.legend, font: { size: 12 } } },
                     tooltip: {
-                        backgroundColor: '#0b2b1a',
-                        titleColor: '#fbbf24',
-                        bodyColor: '#ffffff',
-                        padding: 12,
-                        cornerRadius: 10,
+                        ...tooltip,
                         callbacks: {
                             label: (item) => {
-                                const total = e[0] + e[1] + e[2];
-                                const share = total ? ((item.parsed / total) * 100).toFixed(1) : 0;
-                                return ' ' + formatAmount(item.parsed) + ' (' + share + '%)';
+                                const total = e[0] + e[1] + e[2]
+                                const share = total ? ((item.parsed / total) * 100).toFixed(1) : 0
+                                return ' ' + formatAmount(item.parsed) + ' (' + share + '%)'
                             },
                         },
                     },
                 },
-                animation: { duration: 800 },
             },
-        });
+        })
     }
 
     if (trendChart.value) {
-        // Auto-scale the y-axis to the data (a fixed 0-100 axis flattened a
-        // 3-6% coverage line into invisibility).
-        const values = (props.eclTrends || []).map(i => Number(i.ecl_percentage || 0));
-        const peak = values.length ? Math.max(...values) : 0;
-        const ctx = trendChart.value.getContext('2d');
-        // Soft brand-green area gradient under the line.
-        const fillGrad = ctx.createLinearGradient(0, 0, 0, trendChart.value.clientHeight || 288);
-        fillGrad.addColorStop(0, 'rgba(22, 163, 74, 0.28)');
-        fillGrad.addColorStop(0.6, 'rgba(22, 163, 74, 0.10)');
-        fillGrad.addColorStop(1, 'rgba(22, 163, 74, 0.01)');
-        trendInstance = new Chart(ctx, {
-            type: 'line',
+        const t = props.eclTrends || []
+        const coverage = t.map(i => Number(i.ecl_percentage || 0))
+        const peak = coverage.length ? Math.max(...coverage) : 0
+        // Two bands: the stacked ECL bars use the lower ~60% of the chart and
+        // the coverage line rides above them, so the line never runs through
+        // the bars. Each keeps its own scale (left currency, right %).
+        const barPeak = t.length ? Math.max(...t.map(i => (i.ecl_by_stage || []).reduce((a, b) => a + Number(b || 0), 0))) : 0
+        trendInstance = new Chart(trendChart.value.getContext('2d'), {
             data: {
-                labels: (props.eclTrends || []).map(i => i.period),
-                datasets: [{
-                    label: 'ECL Coverage %',
-                    data: values,
-                    borderColor: C.maiic,
-                    borderWidth: 2.5,
-                    backgroundColor: fillGrad,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: (props.eclTrends || []).map(i => i.period === props.selectedPeriod ? 6 : 3.5),
-                    pointHoverRadius: 7,
-                    pointBackgroundColor: (props.eclTrends || []).map(i => i.period === props.selectedPeriod ? C.gold : n.surface),
-                    pointBorderColor: (props.eclTrends || []).map(i => i.period === props.selectedPeriod ? C.gold : C.maiic),
-                    pointBorderWidth: 2,
-                    pointHoverBackgroundColor: C.gold,
-                    pointHoverBorderColor: n.surface,
-                }],
+                labels: t.map(i => periodLabel(i.period)),
+                datasets: [
+                    { type: 'bar', order: 1, label: 'Stage 1 ECL', data: t.map(i => (i.ecl_by_stage || [])[0] || 0), backgroundColor: C.green, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
+                    { type: 'bar', order: 1, label: 'Stage 2 ECL', data: t.map(i => (i.ecl_by_stage || [])[1] || 0), backgroundColor: C.gold, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
+                    { type: 'bar', order: 1, label: 'Stage 3 ECL', data: t.map(i => (i.ecl_by_stage || [])[2] || 0), backgroundColor: C.red, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
+                    {
+                        type: 'line', label: 'Coverage %', data: coverage, yAxisID: 'y1', order: 0,
+                        borderColor: n.line, backgroundColor: n.line, borderWidth: 3, tension: 0.35,
+                        pointRadius: t.map(i => i.period === props.selectedPeriod ? 6 : 3.5),
+                        pointBackgroundColor: t.map(i => i.period === props.selectedPeriod ? '#fbbf24' : n.surface),
+                        pointBorderColor: n.line, pointBorderWidth: 2,
+                    },
+                ],
             },
             options: {
                 maintainAspectRatio: false,
+                animation: reducedMotion() ? false : { duration: 700 },
                 interaction: { mode: 'index', intersect: false },
                 scales: {
                     y: {
-                        beginAtZero: true,
-                        suggestedMax: peak > 0 ? Math.ceil(peak * 1.25) : 10,
-                        border: { display: false },
-                        grid: { color: n.grid },
-                        ticks: {
-                            color: n.text,
-                            font: { size: 11 },
-                            callback: (v) => v + '%',
-                        },
-                        title: { display: false },
+                        stacked: true, beginAtZero: true, suggestedMax: barPeak > 0 ? barPeak * 1.65 : undefined,
+                        border: { display: false }, grid: { color: n.grid },
+                        ticks: { color: n.text, font: { size: 11 }, callback: (v) => money(v).replace(currencyCode.value + ' ', '') },
                     },
-                    x: {
-                        border: { display: false },
-                        grid: { display: false },
-                        ticks: { color: n.text, font: { size: 11 }, maxRotation: 40 },
-                        title: { display: false },
+                    y1: {
+                        position: 'right', beginAtZero: true, suggestedMax: peak > 0 ? Math.ceil(peak * 1.1) : 10,
+                        border: { display: false }, grid: { display: false },
+                        ticks: { color: n.line, font: { size: 11 }, callback: (v) => v + '%' },
                     },
+                    x: { stacked: true, border: { display: false }, grid: { display: false }, ticks: { color: n.text, font: { size: 11 }, maxRotation: 40 } },
                 },
                 plugins: {
-                    legend: { display: false },
+                    legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 14, color: n.legend, font: { size: 11 } } },
                     tooltip: {
-                        backgroundColor: '#0b2b1a',
-                        titleColor: '#fbbf24',
-                        bodyColor: '#ffffff',
-                        padding: 12,
-                        cornerRadius: 10,
-                        displayColors: false,
+                        ...tooltip,
                         callbacks: {
-                            label: (item) => 'ECL coverage: ' + Number(item.parsed.y).toFixed(2) + '%',
+                            label: (item) => item.dataset.yAxisID === 'y1'
+                                ? ' Coverage: ' + Number(item.parsed.y).toFixed(2) + '%'
+                                : ' ' + item.dataset.label + ': ' + formatAmount(item.parsed.y),
                         },
                     },
                 },
             },
-        });
+        })
     }
 }
 
-onMounted(renderCharts);
-watch(summary, renderCharts);
-watch(theme.isDark, renderCharts);
+onMounted(renderCharts)
+watch(() => [props.summary, props.eclTrends], renderCharts)
+watch(theme.isDark, renderCharts)
+onBeforeUnmount(() => {
+    if (pieInstance) pieInstance.destroy()
+    if (trendInstance) trendInstance.destroy()
+})
 </script>

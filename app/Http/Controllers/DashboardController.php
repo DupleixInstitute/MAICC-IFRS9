@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ExpectedCreditLoss;
+use App\Models\Import;
 use App\Models\LoanBook;
 use Carbon\Carbon;
 use Inertia\Inertia;
@@ -64,6 +65,12 @@ public function index(Request $request)
 
     $portfolios = LoanPortfolio::orderBy('name')->get(['id', 'name']);
 
+    // The operations row (month-end status, latest loan book, recent
+    // imports) shows even before any ECL has been calculated.
+    $latestLoanBookPeriod = LoanBook::max('reporting_period');
+    $recentImports = Import::orderByDesc('id')->limit(5)
+        ->get(['id', 'name', 'status', 'records', 'created_at', 'completed_at']);
+
     if ($periods->isEmpty()) {
         return Inertia::render('Dashboard', [
             'summary' => $this->emptySummary(),
@@ -73,7 +80,10 @@ public function index(Request $request)
             'selectedPortfolioId' => null,
             'comparePeriod' => null,
             'eclTrends' => [],
-            'error' => 'No data available. Please upload or calculate ECL first.',
+            'monthEnd' => $latestLoanBookPeriod ? $this->monthEndStatus($latestLoanBookPeriod) : null,
+            'loanBookSnapshot' => $latestLoanBookPeriod ? $this->loanBookSnapshot($latestLoanBookPeriod, null) : null,
+            'recentImports' => $recentImports,
+            'error' => 'No ECL has been calculated yet. Load the loan book, apply PD and LGD, then run the ECL calculation.',
         ]);
     }
 
@@ -112,11 +122,14 @@ public function index(Request $request)
         return $q;
     };
 
-    // --- Loan book: EAD by stage in ONE grouped query --------------------
-    $eadByStage = $loanBookScope()
-        ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount')
+    // --- Loan book: EAD and loan count by stage in ONE grouped query ------
+    $bookByStage = $loanBookScope()
+        ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount, COUNT(*) as loans')
         ->groupBy('ifrs9stage_post_qualitative')
-        ->pluck('amount', 'stage');
+        ->get()
+        ->keyBy('stage');
+    $eadByStage = $bookByStage->map(fn ($r) => (float) $r->amount);
+    $loansByStage = [(int) ($bookByStage[1]->loans ?? 0), (int) ($bookByStage[2]->loans ?? 0), (int) ($bookByStage[3]->loans ?? 0)];
 
     $stage1Amount = (float) ($eadByStage[1] ?? 0);
     $stage2Amount = (float) ($eadByStage[2] ?? 0);
@@ -138,6 +151,7 @@ public function index(Request $request)
     $stage2PD = round((float) ($eclByStage[2]->avg_pd ?? 0) * 100, 2);
     $stage3PD = round((float) ($eclByStage[3]->avg_pd ?? 0) * 100, 2);
     $lgdPercentage = round((float) ($eclByStage[3]->avg_lgd ?? 0) * 100, 2);
+    $lgdPercentages = array_map(fn ($st) => round((float) ($eclByStage[$st]->avg_lgd ?? 0) * 100, 2), [1, 2, 3]);
 
     // --- Compare-to period: same formulas as the selected period ----------
     $lastTotalECLAllowance = collect([1 => 0, 2 => 0, 3 => 0]);
@@ -157,9 +171,12 @@ public function index(Request $request)
             LoanBook::where('reporting_period', $comparePeriod),
             fn ($q) => $portfolioId ? $q->where('loan_portfolio_id', $portfolioId) : null
         )
-            ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount')
+            ->selectRaw('ifrs9stage_post_qualitative as stage, SUM(carrying_amount) as amount, COUNT(*) as loans')
             ->groupBy('ifrs9stage_post_qualitative')
-            ->pluck('amount', 'stage');
+            ->get()
+            ->keyBy('stage');
+        $cLoans = (int) $compareEad->sum('loans');
+        $compareEad = $compareEad->map(fn ($r) => (float) $r->amount);
 
         $cS1 = (float) ($compareEad[1] ?? 0);
         $cS2 = (float) ($compareEad[2] ?? 0);
@@ -179,6 +196,8 @@ public function index(Request $request)
             'stage_3_amount' => $cS3,
             'stage_3_percentage' => $cGross > 0 ? round(($cS3 / $cGross) * 100, 2) : 0,
             'paid_amount' => $cGross - $cEcl,
+            'net_carrying_amount' => $cGross - $cEcl,
+            'total_loans' => $cLoans,
             'weighted_pd' => $cSumEad > 0 ? ($cPd1 * $cS1 + $cPd2 * $cS2 + $cPd3 * $cS3) / $cSumEad : 0,
             'weighted_lgd' => $cSumEad > 0 ? ($cLgd * $cS3) / $cSumEad : 0,
         ];
@@ -211,11 +230,11 @@ public function index(Request $request)
     $weightedPD = $sumEad > 0 ? ($stage1PD * $stage1Amount + $stage2PD * $stage2Amount + $stage3PD * $stage3Amount) / $sumEad : 0;
     $weightedLGD = $sumEad > 0 ? ($lgdPercentage * $stage3Amount) / $sumEad : 0;
 
-    // --- Coverage trend: ONE grouped query, optional from/to range --------
-    // Default range: January of the selected period's year through the
-    // latest available period, so the chart tracks the reporting year as
-    // data grows. 'all' shows every period from the first. Only periods
-    // that really exist are plotted; nothing is zero-filled.
+    // --- ECL and coverage trend: ONE grouped query, optional from/to range -
+    // Default range: the 12 months up to the selected period. 'all' shows
+    // every period from the first. Without an explicit end the trend stops
+    // at the selected period. Only periods that really exist are plotted;
+    // nothing is zero-filled.
     $trendFrom = $request->input('trend_from');
     $trendTo = $request->input('trend_to');
 
@@ -225,12 +244,13 @@ public function index(Request $request)
         $lowerBound = $trendFrom;
     } else {
         $trendFrom = null;
-        $lowerBound = substr($selectedPeriod, 0, 4) . '-01';
+        $lowerBound = Carbon::createFromFormat('Y-m-d', $selectedPeriod . '-01')->subMonths(11)->format('Y-m');
     }
+    $upperBound = $periods->contains($trendTo) ? $trendTo : $selectedPeriod;
 
     $trendPeriods = $periods
         ->when($lowerBound !== null, fn ($c) => $c->filter(fn ($p) => $p >= $lowerBound))
-        ->when($periods->contains($trendTo), fn ($c) => $c->filter(fn ($p) => $p <= $trendTo))
+        ->filter(fn ($p) => $p <= $upperBound)
         ->values();
 
     $trendRows = tap(
@@ -239,13 +259,19 @@ public function index(Request $request)
             ? $q->where('ecl_calculation_level', 'portfolio')->where('ecl_calculation_id', $portfolioId)
             : null
     )
-        ->selectRaw('reporting_period, SUM(total_ead) as total_ead, SUM(total_ecl) as total_ecl')
+        ->selectRaw('reporting_period, SUM(total_ead) as total_ead, SUM(total_ecl) as total_ecl,
+            SUM(CASE WHEN ifrs9_stage = 1 THEN total_ecl ELSE 0 END) as ecl_s1,
+            SUM(CASE WHEN ifrs9_stage = 2 THEN total_ecl ELSE 0 END) as ecl_s2,
+            SUM(CASE WHEN ifrs9_stage = 3 THEN total_ecl ELSE 0 END) as ecl_s3')
         ->groupBy('reporting_period')
         ->orderBy('reporting_period')
         ->get();
 
     $eclTrends = $trendRows->map(fn ($row) => [
         'period' => $row->reporting_period,
+        'total_ead' => (float) $row->total_ead,
+        'total_ecl' => (float) $row->total_ecl,
+        'ecl_by_stage' => [(float) $row->ecl_s1, (float) $row->ecl_s2, (float) $row->ecl_s3],
         'ecl_percentage' => $row->total_ead > 0
             ? round(($row->total_ecl / $row->total_ead) * 100, 2)
             : 0,
@@ -259,6 +285,10 @@ public function index(Request $request)
         'last_ecl_percentage' => $lastCoverageRatio,
         'stage_3_amount' => $stage3Amount,
         'paid_amount' => $paidAmount,
+        'net_carrying_amount' => $paidAmount,
+        'total_loans' => array_sum($loansByStage),
+        'loans_by_stage' => $loansByStage,
+        'lgd_percentages' => $lgdPercentages,
         'stage_3_percentage' => $stage3Percentage,
         'paid_percentage' => $paidPercentage,
         'pd_percentages' => $pdPercentages,
@@ -281,7 +311,59 @@ public function index(Request $request)
         'trendFrom' => ($trendFrom === 'all' || $periods->contains($trendFrom)) ? $trendFrom : null,
         'trendTo' => $periods->contains($trendTo) ? $trendTo : null,
         'eclTrends' => $eclTrends,
+        'monthEnd' => $this->monthEndStatus($selectedPeriod),
+        'loanBookSnapshot' => $latestLoanBookPeriod ? $this->loanBookSnapshot($latestLoanBookPeriod, $portfolioId) : null,
+        'recentImports' => $recentImports,
     ]);
+}
+
+/**
+ * Where the month-end run stands for one period: loan book loaded, PD
+ * applied, LGD applied, ECL calculated. reporting_periods.period is a
+ * date (Y-m-01); loan_books.reporting_period is Y-m.
+ */
+private function monthEndStatus(string $period): array
+{
+    $rp = ReportingPeriods::whereDate('period', $period . '-01')->first();
+
+    return [
+        'period' => $period,
+        'loan_book_rows' => (int) LoanBook::where('reporting_period', $period)->count(),
+        'pd_applied' => (bool) ($rp?->pd_id),
+        'pd_source' => $rp?->pd_calculation_source,
+        'lgd_applied' => (bool) ($rp?->lgd_id),
+        'lgd_source' => $rp?->lgd_calculation_source,
+        'ecl_calculated' => (bool) ($rp?->ecl_calculated),
+    ];
+}
+
+/**
+ * Carrying amount and loan count by stage for the latest loaded loan book,
+ * under the dashboard's portfolio filter.
+ */
+private function loanBookSnapshot(string $period, ?int $portfolioId): array
+{
+    $rows = LoanBook::where('reporting_period', $period)
+        ->when($portfolioId, fn ($q) => $q->where('loan_portfolio_id', $portfolioId))
+        ->selectRaw('ifrs9stage_post_qualitative as stage, COUNT(*) as loans, SUM(carrying_amount) as balance')
+        ->groupBy('ifrs9stage_post_qualitative')
+        ->get()
+        ->keyBy('stage');
+
+    $balance = [];
+    $loans = [];
+    foreach ([1, 2, 3] as $st) {
+        $balance[] = (float) ($rows[$st]->balance ?? 0);
+        $loans[] = (int) ($rows[$st]->loans ?? 0);
+    }
+
+    return [
+        'period' => $period,
+        'balance_by_stage' => $balance,
+        'loans_by_stage' => $loans,
+        'total_balance' => array_sum($balance),
+        'total_loans' => array_sum($loans),
+    ];
 }
 
 private function emptySummary(): array
@@ -294,6 +376,10 @@ private function emptySummary(): array
         'last_ecl_percentage' => 0,
         'stage_3_amount' => 0,
         'paid_amount' => 0,
+        'net_carrying_amount' => 0,
+        'total_loans' => 0,
+        'loans_by_stage' => [0, 0, 0],
+        'lgd_percentages' => [0, 0, 0],
         'stage_3_percentage' => 0,
         'paid_percentage' => 0,
         'pd_percentages' => [0, 0, 0],
