@@ -495,6 +495,9 @@ class TransitionMatrixController extends Controller
 
                 $period = substr($validated['reporting_period'], 0, 7);
                 $totalUpdated = 0;
+                // the PD is assigned by the measured stage the matrix was built on: post-qualitative,
+                // then calculated, then the DPD stage (system audit of 9 October 2026, finding M10)
+                $stageExpr = \App\Services\TransitionMatrixService::gradeExpression('loan_books', 'ifrs9stage_post_qualitative');
 
                 foreach ([1, 2, 3] as $stage) {
 
@@ -512,7 +515,7 @@ class TransitionMatrixController extends Controller
                             UPDATE loan_books
                             SET pd_prefli = ?
                             WHERE reporting_period = ?
-                            AND ifrs9stage_pre_qualitative = ?
+                            AND {$stageExpr} = ?
                             AND industry_code = ?
                         ", [
                             $pdDecimal, $period, $stage, $sector
@@ -522,7 +525,7 @@ class TransitionMatrixController extends Controller
                             UPDATE loan_books
                             SET lifetime_pd = 1 - POWER((1 - ?), (CASE WHEN remaining_tenor < 1 THEN 1 ELSE remaining_tenor END) / 12.0)
                             WHERE reporting_period = ?
-                            AND ifrs9stage_pre_qualitative = ?
+                            AND {$stageExpr} = ?
                             AND remaining_tenor IS NOT NULL
                             AND industry_code = ?
                         ", [
@@ -535,7 +538,7 @@ class TransitionMatrixController extends Controller
                             UPDATE loan_books
                             SET pd_prefli = ?
                             WHERE reporting_period = ?
-                            AND ifrs9stage_pre_qualitative = ?
+                            AND {$stageExpr} = ?
                             AND loan_portfolio_id  = ?
                         ", [
                             $pdDecimal, $period, $stage, $portfolio
@@ -545,7 +548,7 @@ class TransitionMatrixController extends Controller
                             UPDATE loan_books
                             SET lifetime_pd = 1 - POWER((1 - ?), (CASE WHEN remaining_tenor < 1 THEN 1 ELSE remaining_tenor END) / 12.0)
                             WHERE reporting_period = ?
-                            AND ifrs9stage_pre_qualitative = ?
+                            AND {$stageExpr} = ?
                             AND remaining_tenor IS NOT NULL
                             AND loan_portfolio_id  = ?
                         ", [

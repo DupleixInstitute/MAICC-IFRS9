@@ -11,6 +11,52 @@ use Exception;
 
 class TransitionMatrixService
 {
+        /**
+         * The stage a profile grades on, as a SQL expression. The measured
+         * stage of a loan is the post-qualitative one (the instalment trigger,
+         * the SICR flag and the cure hold are in it); where a book row carries
+         * none, the calculated stage stands in, then the DPD stage, so a loan
+         * the instalment trigger moved to Stage 3 is a default at either end
+         * of the window (system audit of 9 October 2026, finding M10). Any
+         * other grading column is read as it is.
+         */
+        public static function gradeExpression(string $alias, string $column): string
+        {
+            if ($column !== 'ifrs9stage_post_qualitative') {
+                return "{$alias}.{$column}";
+            }
+
+            return "COALESCE(NULLIF({$alias}.ifrs9stage_post_qualitative, ''), NULLIF({$alias}.calculated_ifrs9_stage, ''), {$alias}.ifrs9stage_pre_qualitative)";
+        }
+
+        /** The contract statuses a loan's last book row may carry to count as settled when it leaves the book. */
+        public const SETTLED_STATUSES = ['closed', 'paid', 'settled', 'paid_up', 'repaid', 'matured'];
+
+        /**
+         * The end grade of a loan missing from the end book (finding M10): "Paid"
+         * only when its last row inside the window shows it settled (a zero
+         * balance, or a closed or paid contract status); otherwise the window's
+         * default end grade, because a balance that vanished without being
+         * repaid was written off, not repaid. Before this every missing end row
+         * was read as "Paid", which flattered the default rate.
+         */
+        public static function exitGrade(string $endTable, string $clientIdCol, string $clientId, string $startPeriod, string $endPeriod, string $defaultGrade, bool $hasStatus, bool $hasBalance = true): string
+        {
+            if (! $hasBalance) {
+                return 'Paid'; // a profile graded on a table without balances keeps the old reading
+            }
+            $last = DB::table($endTable)->where($clientIdCol, $clientId)
+                ->where('reporting_period', '>=', $startPeriod)->where('reporting_period', '<', $endPeriod)
+                ->orderByDesc('reporting_period')->first(array_merge(['carrying_amount'], $hasStatus ? ['contract_status'] : []));
+            if ($last === null) {
+                return $defaultGrade;
+            }
+            $settled = (float) ($last->carrying_amount ?? 0) <= 0.0
+                || ($hasStatus && in_array(strtolower(trim((string) ($last->contract_status ?? ''))), self::SETTLED_STATUSES, true));
+
+            return $settled ? 'Paid' : $defaultGrade;
+        }
+
         public static function processTransitionMatrixData(TransitionMatrix $transitionMatrix)
         {
             DB::beginTransaction();
@@ -68,15 +114,20 @@ class TransitionMatrixService
                 $balance_column = 'carrying_amount'; // adjust if needed
 
                 // Build SQL - NOTE: only values are bound, table/column names are interpolated.
+                // A loan with no end row comes back with a null end grade and is
+                // sorted by exitGrade() below: "Paid" or the default end grade.
+                $startGradeExpr = self::gradeExpression('start_tbl', $start_grading_col);
+                $endGradeExpr = self::gradeExpression('end_tbl', $end_grading_col);
                 $matrix_sql = "
-                    SELECT 
+                    SELECT
                         start_tbl.{$start_client_id_col} AS client_id,
                         start_tbl.{$balance_column} AS start_bal,
-                        start_tbl.{$start_grading_col} AS start_grade,
-                        COALESCE(end_tbl.{$end_grading_col}, 'Paid') AS end_grade 
-                    FROM {$start_table} AS start_tbl 
-                    LEFT JOIN {$end_table} AS end_tbl 
-                        ON start_tbl.{$start_client_id_col} = end_tbl.{$end_client_id_col} 
+                        {$startGradeExpr} AS start_grade,
+                        {$endGradeExpr} AS end_grade,
+                        end_tbl.{$end_client_id_col} AS end_client_id
+                    FROM {$start_table} AS start_tbl
+                    LEFT JOIN {$end_table} AS end_tbl
+                        ON start_tbl.{$start_client_id_col} = end_tbl.{$end_client_id_col}
                         AND end_tbl.reporting_period = ?
                     WHERE start_tbl.reporting_period = ?
                     AND start_tbl.{$filterColumn} = ?
@@ -89,9 +140,25 @@ class TransitionMatrixService
                     $filterValue
                 ]);
 
+                // the default end grade of the profile (the bucket a written-off exit falls into)
+                $defaultEndGrade = 'Paid';
+                foreach ($endStages as $endStage) {
+                    if ((int) ($endStage->default_flag ?? ($endStage->default_value ?? 0)) === 1) {
+                        $defaultEndGrade = $endStage->category_name;
+                        break;
+                    }
+                }
+                $hasStatus = \Illuminate\Support\Facades\Schema::hasColumn($end_table, 'contract_status');
+                $hasBalance = \Illuminate\Support\Facades\Schema::hasColumn($end_table, 'carrying_amount');
+
                 foreach ($matrix_rows as $row) {
                     $start_grade = $row->start_grade;
                     $end_grade = $row->end_grade;
+                    if ($row->end_client_id === null) {
+                        $end_grade = self::exitGrade($end_table, $end_client_id_col, (string) $row->client_id, $transitionMatrix->start_reporting_period, $transitionMatrix->end_reporting_period, $defaultEndGrade, $hasStatus, $hasBalance);
+                    } elseif ($end_grade === null) {
+                        $end_grade = 'Paid';
+                    }
                     $bal = (float) $row->start_bal;
 
                     $start_total[$start_grade] = ($start_total[$start_grade] ?? 0) + $bal;
