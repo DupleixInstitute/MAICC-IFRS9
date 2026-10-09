@@ -148,21 +148,18 @@ return [
                 $tab('Scenario Assumptions', 'macro-statistics.index', 'macro.view', ['tab' => 'scenarios']),
                 $tab('Import / Export', 'macro-statistics.index', 'macro.view', ['tab' => 'import']),
             ]),
+            // The governed chain in its order: the finder ranks the drivers
+            // against the credit-loss proxies the bridge derives from the
+            // staged loan books, the regression runs on FLI Adjustments under
+            // maker-checker, then the scenario set and the overlays reach
+            // every loan's PD. The legacy tools sit under Administration.
             $section('Forward-Looking Model', [
-                $tab('Weighted Forecast', 'macro-forecast-weighted.index'),
-                $tab('Credit Loss Data', 'credit-loss-data.index'),
-                $tab('Adjusted Forecast', 'forecasting.manual'),
                 $tab('Correlation Finder', 'fli-correlation.index'),
-                // The regression runs on FLI Adjustments under maker-checker.
                 $tab('Regression (FLI Adjustments)', 'fli-adjustments.index'),
             ]),
             $section('Scenarios & Overlays', [
                 $tab('Scenario Sets', 'scenario-sets.index'),
-                $tab('Scenario Profiles', 'scenarios.profiles'),
                 $tab('Manual Overlays', 'fli-overlays.index'),
-                $tab('Economic Scenarios', 'fli.scenarios.index'),
-                $tab('External Calculations', 'fli.external.index', 'reports.ifrs9'),
-                $tab('Calculation History', 'fli.external.list', 'reports.ifrs9'),
             ]),
         ], 5),
 
@@ -194,6 +191,20 @@ return [
             ]),
             $leaf('Support Tickets', 'tickets.index'),
             $leaf('Settings', 'settings.index'),
+            // The forward-looking screens inherited from the older platform.
+            // None of them is an input of the governed chain (it reads
+            // credit_loss_series, fli_fits, governed_scenario_sets and
+            // fli_overlays); kept reachable for reference only. External
+            // Calculations can still write fli_adj onto loan_books.
+            $section('Legacy FLI tools', [
+                $tab('Weighted Forecast', 'macro-forecast-weighted.index'),
+                $tab('Credit Loss Data', 'credit-loss-data.index'),
+                $tab('Adjusted Forecast', 'forecasting.manual'),
+                $tab('Scenario Profiles', 'scenarios.profiles'),
+                $tab('Economic Scenarios', 'fli.scenarios.index'),
+                $tab('External Calculations', 'fli.external.index', 'reports.ifrs9'),
+                $tab('Calculation History', 'fli.external.list', 'reports.ifrs9'),
+            ]),
         ], 8),
 
     ],

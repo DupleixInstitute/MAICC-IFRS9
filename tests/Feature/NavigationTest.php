@@ -65,6 +65,22 @@ class NavigationTest extends TestCase
         $this->assertSame('ECL Processing', $where['expected-credit-loss.index']);
     }
 
+    /** The governed forward-looking chain is the model menu; the legacy tools that do not feed the ECL sit in one Administration entry. */
+    public function test_the_forward_looking_menu_is_the_governed_chain(): void
+    {
+        $sections = [];
+        $this->walk(config('menu.admin'), function (array $item) use (&$sections) {
+            if (! empty($item['tabs'])) {
+                $sections[$item['name']] = array_map(fn ($t) => $t['route'], $item['tabs']);
+            }
+        });
+        $this->assertSame(['fli-correlation.index', 'fli-adjustments.index'], $sections['Forward-Looking Model']);
+        $this->assertSame(['scenario-sets.index', 'fli-overlays.index'], $sections['Scenarios & Overlays']);
+        $this->assertSame(['macro-forecast-weighted.index', 'credit-loss-data.index', 'forecasting.manual', 'scenarios.profiles', 'fli.scenarios.index', 'fli.external.index', 'fli.external.list'], $sections['Legacy FLI tools']);
+        $admin = collect(config('menu.admin'))->firstWhere('name', 'Administration');
+        $this->assertContains('Legacy FLI tools', array_column($admin['children'], 'name'));
+    }
+
     public function test_report_hub_tiles_are_not_menu_items(): void
     {
         $tiles = [];
