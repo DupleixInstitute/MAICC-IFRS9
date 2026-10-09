@@ -52,7 +52,7 @@
                                     <span :class="['maiic-badge', stageOf(loan) === 3 ? 'maiic-badge-red' : stageOf(loan) === 2 ? 'maiic-badge-gold' : 'maiic-badge-green']">Stage {{ stageOf(loan) }}</span>
                                 </td>
                                 <td class="num">{{ formatMoney(loan.ead ?? loan.carrying_amount) }}</td>
-                                <td class="num">{{ formatRate(loan.pd_post_fli ?? loan.pd_value) }}</td>
+                                <td class="num">{{ formatRate(loan.pd_post_fli ?? loan.pd_value ?? loan.pd_prefli) }}</td>
                                 <td class="num">{{ formatRate(loan.lgd_value) }}</td>
                                 <td class="num">{{ formatMoney(loan.ecl_value) }}</td>
                                 <td class="num">{{ coverageOf(loan) }}</td>
@@ -353,9 +353,10 @@ const stageOf = (loan) => {
     return Number(loan.ifrs9stage_post_qualitative ?? loan.calculated_ifrs9_stage ?? loan.ifrs9_stage ?? 1);
 };
 
-// Per-loan ECL coverage: ECL over carrying amount.
+// Per-loan ECL coverage: ECL over the exposure at default shown beside it
+// (an undrawn facility has no carrying amount but does have an EAD).
 const coverageOf = (loan) => {
-    const ead = Number(loan.carrying_amount ?? 0);
+    const ead = Number(loan.ead ?? loan.carrying_amount ?? 0);
     const ecl = Number(loan.ecl_value ?? 0);
     if (!ead) return '0.00%';
     return ((ecl / ead) * 100).toFixed(2) + '%';
