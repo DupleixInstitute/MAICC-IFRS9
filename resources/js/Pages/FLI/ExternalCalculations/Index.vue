@@ -8,7 +8,13 @@
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                
+
+                <!-- Retired in favour of FLI Adjustments (system audit of 9 October 2026, finding M6) -->
+                <div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+                    <p class="font-semibold">This screen is retired in favour of FLI Adjustments.</p>
+                    <p class="mt-1">The one-slope external calculation is the legacy route to the post-FLI PD. The governed route of the forward-looking model (the approved fit, the transmission method and the scenario set, with the lineage on every loan) runs on <inertia-link :href="route('fli-adjustments.index')" class="font-semibold underline">FLI Adjustments</inertia-link>.</p>
+                </div>
+
                 <!-- Step 1: Configuration & Parameters -->
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 mb-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">1. Configuration & Parameters</h3>

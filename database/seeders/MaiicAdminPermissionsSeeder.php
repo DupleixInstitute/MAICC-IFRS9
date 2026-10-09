@@ -17,7 +17,8 @@ use Spatie\Permission\PermissionRegistrar;
  * eir.view for the read-only screens, eir.run for calculations and runs,
  * eir.export for downloads and eir.govern for the Governance Centre. Until
  * the other EIR routes move off the broad Settings permission, only
- * eir.view and eir.govern are enforced.
+ * eir.view and eir.govern are enforced. The Macro Statistics screen has its
+ * own pair, macro.view and macro.manage (spec v4 section 13).
  *
  *   php artisan db:seed --class=MaiicAdminPermissionsSeeder
  */
@@ -39,6 +40,10 @@ class MaiicAdminPermissionsSeeder extends Seeder
             'eir.run' => 'EIR & Revenue Recognition',
             'eir.export' => 'EIR & Revenue Recognition',
             'eir.govern' => 'EIR & Revenue Recognition',
+            // Macro Statistics (spec v4 section 13; system audit of 9 October 2026, finding M16):
+            // macro.view for the screen and its previews, macro.manage for a commit or a manual entry.
+            'macro.view' => 'Macro Statistics',
+            'macro.manage' => 'Macro Statistics',
         ];
 
         $names = [];

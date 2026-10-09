@@ -27,6 +27,15 @@ use Throwable;
  * The DPD stage is written to ifrs9stage_pre_qualitative; the stage after the
  * missed-instalment trigger and any SICR flag already on the row goes to
  * ifrs9stage_post_qualitative. A row never moves down by the trigger alone.
+ *
+ * The cure period (governed, stage_cure_months; system audit of 9 October
+ * 2026, finding M11): the prior month's post-qualitative stage is read, and
+ * when the month's measured stage would move a loan DOWN, the loan is held at
+ * the prior stage until it has been below the threshold for that many
+ * consecutive month-ends, the current one included, counted from the DPD
+ * stage stored on the prior months' book rows. A move up is immediate. A
+ * loan the instalment trigger still holds this month is not cured at all;
+ * once the trigger releases, its DPD history governs the probation.
  */
 class StagingService
 {
@@ -34,7 +43,7 @@ class StagingService
     {
     }
 
-    /** @return array{period:string,rows:int,stage1:int,stage2:int,stage3:int,by_dpd:int,by_instalments:int,by_sicr:int,by_bucket:int} */
+    /** @return array{period:string,rows:int,stage1:int,stage2:int,stage3:int,by_dpd:int,by_instalments:int,by_sicr:int,by_bucket:int,held_by_cure:int,cure_months:int} */
     public function stage(string $period, ?int $userId = null, bool $dryRun = false): array
     {
         if (! $dryRun) {
@@ -42,11 +51,13 @@ class StagingService
         }
         $monthEnd = CarbonImmutable::parse($period . '-01')->endOfMonth();
         $missedTrigger = $this->missedTrigger($monthEnd);
+        $cureMonths = $this->cureMonths($monthEnd);
         $rows = DB::table('loan_books')->where('reporting_period', $period)
             ->get(['id', 'contract_id', 'external_identity_id', 'product_group', 'tenor', 'overdue_days', 'sicr', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360']);
         $charts = $missedTrigger > 0 ? $this->instalmentsByAccount() : [];
         $receipts = $missedTrigger > 0 ? $this->receiptsByAccount($monthEnd->toDateString()) : [];
-        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_bucket' => 0];
+        [$priorStage, $dpdHistory] = $this->priorMonths($period, $cureMonths);
+        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths];
         $updates = [];
         foreach ($rows as $r) {
             $class = str_contains(strtolower((string) $r->product_group), 'mega') ? 'MEGA_FARM' : 'DEFAULT';
@@ -72,11 +83,29 @@ class StagingService
                 $post = 2;
                 $reason = 'sicr';
             }
+            // the cure period (finding M11): a move down waits until the loan has
+            // been below the threshold for the governed number of consecutive
+            // month-ends; this month counts, the prior months by their DPD stage
+            $prior = $priorStage[$r->contract_id] ?? 0;
+            if ($cureMonths > 0 && $prior > $post) {
+                $below = 1;
+                foreach ($dpdHistory[$r->contract_id] ?? [] as $monthStage) {
+                    if ($monthStage === null || $monthStage >= $prior) {
+                        break;
+                    }
+                    $below++;
+                }
+                if ($below < $cureMonths) {
+                    $post = $prior;
+                    $reason = 'cure';
+                }
+            }
             $counts['rows']++;
             $counts['stage' . $post]++;
             if ($reason === 'dpd') { $counts['by_dpd']++; }
             if ($reason === 'instalments') { $counts['by_instalments']++; }
             if ($reason === 'sicr') { $counts['by_sicr']++; }
+            if ($reason === 'cure') { $counts['held_by_cure']++; }
             $updates[] = ['id' => $r->id, 'pre' => (string) $pre, 'post' => (string) $post];
         }
         if (! $dryRun) {
@@ -93,6 +122,49 @@ class StagingService
         }
 
         return $counts;
+    }
+
+    /**
+     * The prior month's post-qualitative stage per contract, and, for the cure
+     * count, the DPD (pre-qualitative) stage of the prior month-ends, newest
+     * first, with a null for a month the book does not hold (which ends the
+     * count: a month that cannot be seen is not a month proved cured).
+     *
+     * @return array{0:array<string,int>,1:array<string,list<?int>>}
+     */
+    private function priorMonths(string $period, int $cureMonths): array
+    {
+        $priorPeriod = CarbonImmutable::parse($period . '-01')->subMonth();
+        $prior = DB::table('loan_books')->where('reporting_period', $priorPeriod->format('Y-m'))->whereNotNull('ifrs9stage_post_qualitative')
+            ->pluck('ifrs9stage_post_qualitative', 'contract_id')->map(fn ($s) => (int) $s)->all();
+        if ($cureMonths <= 1 || $prior === []) {
+            return [$prior, []];
+        }
+        // the months whose DPD stage the count reads: the prior month back to cureMonths - 1 months ago
+        $months = [];
+        for ($i = 1; $i < $cureMonths; $i++) {
+            $months[] = $priorPeriod->subMonths($i - 1)->format('Y-m');
+        }
+        $stored = [];
+        foreach (DB::table('loan_books')->whereIn('reporting_period', $months)->whereIn('contract_id', array_keys($prior))->get(['contract_id', 'reporting_period', 'ifrs9stage_pre_qualitative']) as $row) {
+            $stored[$row->contract_id][$row->reporting_period] = $row->ifrs9stage_pre_qualitative === null ? null : (int) $row->ifrs9stage_pre_qualitative;
+        }
+        $history = [];
+        foreach ($prior as $contract => $stage) {
+            foreach ($months as $m) {
+                $history[$contract][] = $stored[$contract][$m] ?? null;
+            }
+        }
+
+        return [$prior, $history];
+    }
+
+    private function cureMonths(CarbonImmutable $asOf): int
+    {
+        // no default in code (D21): the governed value or a named error
+        $v = $this->governance->get('stage_cure_months', $asOf);
+
+        return (int) (preg_match('/^(\d+)/', $v, $m) ? $m[1] : 0);
     }
 
     /** Lower bound of the highest non-empty arrears bucket; 0 = current. */

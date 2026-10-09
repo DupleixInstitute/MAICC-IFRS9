@@ -30,7 +30,9 @@ class PdEngineService
         }
         $end = CarbonImmutable::parse($period . '-01');
         $start = $end->subMonths($windowMonths);
-        $available = DB::table('loan_books')->whereNotNull('ifrs9stage_pre_qualitative')->where('loan_portfolio_id', $portfolioId)->min('reporting_period');
+        // the measured stage: post-qualitative, then calculated, then the DPD stage (finding M10)
+        $stageExpr = TransitionMatrixService::gradeExpression('loan_books', 'ifrs9stage_post_qualitative');
+        $available = DB::table('loan_books')->whereRaw("{$stageExpr} IS NOT NULL")->where('loan_portfolio_id', $portfolioId)->min('reporting_period');
         if ($available === null) {
             throw new RuntimeException('No staged loan book: run eir:stage first.');
         }
@@ -65,16 +67,18 @@ class PdEngineService
         $annualise = fn (float $p) => $windowActual >= 12 ? $p : 1 - pow(1 - max(0.0, min(1.0, $p)), 12 / $windowActual);
         $applied = [];
         $updated = 0;
-        DB::transaction(function () use ($pds, $period, $portfolioId, $annualise, &$applied, &$updated) {
+        DB::transaction(function () use ($pds, $period, $portfolioId, $annualise, $stageExpr, &$applied, &$updated) {
             foreach ([1, 2, 3] as $stage) {
                 if ($stage !== 3 && ! isset($pds[$stage])) {
                     continue;
                 }
                 $pd = $stage === 3 ? 1.0 : $annualise((float) $pds[$stage]->transition_probability_month / 100);
                 $applied[$stage] = round($pd, 6);
-                $updated += DB::update('UPDATE loan_books SET pd_prefli = ?, `12m_pd` = ? WHERE reporting_period = ? AND ifrs9stage_pre_qualitative = ? AND loan_portfolio_id = ?', [$pd, round($pd * 100, 2), $period, (string) $stage, $portfolioId]);
+                // the PD is assigned by the measured (post-qualitative) stage, the same stage the matrix
+                // was built on, so a loan the instalment trigger moved to Stage 3 carries a PD of one
+                $updated += DB::update("UPDATE loan_books SET pd_prefli = ?, `12m_pd` = ? WHERE reporting_period = ? AND {$stageExpr} = ? AND loan_portfolio_id = ?", [$pd, round($pd * 100, 2), $period, (string) $stage, $portfolioId]);
                 // lifetime PD over the remaining tenor (months): 1 - (1 - annual PD)^(months/12), at least one month
-                foreach (DB::table('loan_books')->where('reporting_period', $period)->where('ifrs9stage_pre_qualitative', (string) $stage)->where('loan_portfolio_id', $portfolioId)->whereNotNull('remaining_tenor')->get(['id', 'remaining_tenor']) as $loan) {
+                foreach (DB::table('loan_books')->where('reporting_period', $period)->whereRaw("{$stageExpr} = ?", [(string) $stage])->where('loan_portfolio_id', $portfolioId)->whereNotNull('remaining_tenor')->get(['id', 'remaining_tenor']) as $loan) {
                     $years = max(1.0, (float) $loan->remaining_tenor) / 12;
                     DB::table('loan_books')->where('id', $loan->id)->update(['lifetime_pd' => round(min(1.0, 1 - (1 - $pd) ** $years), 8)]);
                 }

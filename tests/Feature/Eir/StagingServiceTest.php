@@ -89,4 +89,62 @@ class StagingServiceTest extends TestCase
         (new StagingService(new GovernanceService(), new LandingZoneReader()))->stage('2025-12', 1);
         $this->assertSame('1', DB::table('loan_books')->first()->ifrs9stage_post_qualitative);
     }
+
+    /**
+     * The cure period (system audit of 9 October 2026, finding M11): a loan
+     * that was Stage 3 in September and is current from October is held at
+     * Stage 3 for October and November and released in December, the third
+     * consecutive month-end below the threshold under the seeded three
+     * months; a loan whose arrears grow moves up at once.
+     */
+    public function test_a_cured_loan_is_held_at_its_prior_stage_for_the_governed_months_and_a_move_up_is_immediate(): void
+    {
+        $row = fn (string $period, int $dpd, ?string $pre = null, ?string $post = null) => ['contract_id' => 'cured', 'reporting_period' => $period, 'tenor' => 36, 'overdue_days' => $dpd, 'ifrs9stage_pre_qualitative' => $pre, 'ifrs9stage_post_qualitative' => $post];
+        DB::table('loan_books')->insert($row('2025-09', 200, '3', '3'));
+        $stage = fn (string $period) => (new StagingService(new GovernanceService(), new LandingZoneReader()))->stage($period, 1);
+
+        DB::table('loan_books')->insert($row('2025-10', 0));
+        $c = $stage('2025-10');
+        $this->assertSame(['pre' => '1', 'post' => '3'], $this->stages('2025-10'));
+        $this->assertSame(1, $c['held_by_cure']);
+        $this->assertSame(3, $c['cure_months']);
+
+        DB::table('loan_books')->insert($row('2025-11', 0));
+        $stage('2025-11');
+        $this->assertSame(['pre' => '1', 'post' => '3'], $this->stages('2025-11'));
+
+        DB::table('loan_books')->insert($row('2025-12', 0));
+        $c = $stage('2025-12');
+        $this->assertSame(['pre' => '1', 'post' => '1'], $this->stages('2025-12'));
+        $this->assertSame(0, $c['held_by_cure']);
+
+        // arrears again in January: the move up to Stage 2 is immediate
+        DB::table('loan_books')->insert($row('2026-01', 45));
+        $stage('2026-01');
+        $this->assertSame(['pre' => '2', 'post' => '2'], $this->stages('2026-01'));
+
+        // no February row: there is no prior-month stage to hold March at
+        DB::table('loan_books')->insert($row('2026-03', 0));
+        $stage('2026-03');
+        $this->assertSame(['pre' => '1', 'post' => '1'], $this->stages('2026-03'), 'no prior-month row: nothing to hold the loan at');
+    }
+
+    public function test_a_cure_period_of_zero_months_releases_a_cured_loan_at_once(): void
+    {
+        DB::table('governance_settings')->where('key', 'stage_cure_months')->update(['value' => '0 months (no probation)']);
+        DB::table('loan_books')->insert(['contract_id' => 'cured', 'reporting_period' => '2025-09', 'tenor' => 36, 'overdue_days' => 200, 'ifrs9stage_pre_qualitative' => '3', 'ifrs9stage_post_qualitative' => '3']);
+        DB::table('loan_books')->insert(['contract_id' => 'cured', 'reporting_period' => '2025-10', 'tenor' => 36, 'overdue_days' => 0]);
+        $c = (new StagingService(new GovernanceService(), new LandingZoneReader()))->stage('2025-10', 1);
+        $this->assertSame(['pre' => '1', 'post' => '1'], $this->stages('2025-10'));
+        $this->assertSame(0, $c['held_by_cure']);
+        $this->assertSame(0, $c['cure_months']);
+    }
+
+    /** @return array{pre:string,post:string} */
+    private function stages(string $period): array
+    {
+        $r = DB::table('loan_books')->where('contract_id', 'cured')->where('reporting_period', $period)->first();
+
+        return ['pre' => $r->ifrs9stage_pre_qualitative, 'post' => $r->ifrs9stage_post_qualitative];
+    }
 }

@@ -31,6 +31,7 @@ import {
     faStar, faStethoscope, faTable, faTasks, faTicketAlt, faTimesCircle,
     faTrash, faUser, faUserLock, faUsers, faWrench,
     faBalanceScale, faBell, faCalendarDay, faSeedling, faCloudDownloadAlt, faFileInvoice, faGavel, faShieldAlt, faSun, faMoon, faAdjust, faBars, faChevronLeft, faClipboardCheck,
+    faFileArchive, faChartArea,
 } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import Multiselect from '@vueform/multiselect'
@@ -59,6 +60,7 @@ library.add(
     faStar, faStethoscope, faTable, faTasks, faTicketAlt, faTimesCircle,
     faTrash, faUser, faUserLock, faUsers, faWrench,
     faBalanceScale, faBell, faCalendarDay, faSeedling, faCloudDownloadAlt, faFileInvoice, faGavel, faShieldAlt, faSun, faMoon, faAdjust, faBars, faChevronLeft, faClipboardCheck,
+    faFileArchive, faChartArea,
 )
 
 const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'YoPractice';
