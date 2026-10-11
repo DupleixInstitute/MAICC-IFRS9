@@ -16,6 +16,7 @@
 --   RUN 4   CH_02a, CH_02b                the term-loan fees (schemes 140 to 145)
 --   RUN 5   P2_07_disbursement_charges.csv  whole table, replaces the 7 Oct file
 --   RUN 6   GL_04a, GL_04b                the fee income GL legs: new, and from now on monthly
+--   RUN 7   GL_05_writeoff_batch_legs.csv the write-off batches (GL 1064 and 1876): new
 --
 -- Every run in this pack is a normal grid export. No SPOOL is needed: the
 -- ledger is cut into seven account ranges of roughly 60,000 to 70,000 rows
@@ -277,6 +278,28 @@ WHERE  (cv.transaction_date, cv.batch_type, cv.batch_number) IN (
          AND    x.transaction_date >= DATE '2024-01-01')
 ORDER  BY cv.transaction_date, cv.batch_number, cv.vscrno, cv.cumvouch_det_id;
 
+
+--==============================================================================
+-- RUN 7  |  save as GL_05_writeoff_batch_legs.csv   (new)
+-- Every leg of every batch that touched GL 1064 Term Loans Write Offs or 1876
+-- ECL Write Offs since 1 January 2024. It covers three entries we can see in
+-- the trial balance but not fully in the ledger: the two write-offs of August
+-- 2024; 138,135,680.80 debited to 1064 in January 2026 against 1876, where no
+-- loan account moved; and batch TRF 3 of 29 June 2026, which credited
+-- 38,492,032.54 to 20 loan accounts as "ACCOUNT CLOSURE" (type 305) while 1064
+-- rose by the same amount. Same shape as GL_03; expect a few hundred rows.
+SELECT cv.cumvouch_det_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
+       cv.transaction_date, cv.transamt, cv.dbcr, cv.trantype, cv.batch_type, cv.batch_number,
+       cv.vscrno, cv.particulars
+FROM   cumvouch cv
+WHERE  (cv.transaction_date, cv.batch_type, cv.batch_number) IN (
+         SELECT DISTINCT x.transaction_date, x.batch_type, x.batch_number
+         FROM   cumvouch x
+         WHERE  (x.cb_glcode IN ('1064','1876') OR x.ac_glcode IN ('1064','1876'))
+         AND    x.transaction_date >= DATE '2024-01-01')
+ORDER  BY cv.transaction_date, cv.batch_number, cv.vscrno, cv.cumvouch_det_id;
+-- If the January 2026 entry does not appear, it may have been keyed outside
+-- CUMVOUCH: tell us where GL journals are held and we will adjust.
 
 --==============================================================================
 -- From Finance (not a query): Trial Balance_30 September 2026, from Tamanda.

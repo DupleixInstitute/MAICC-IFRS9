@@ -47,6 +47,8 @@ class EbankerQuerySeeder extends Seeder
             // fee income GL legs (spec v4 section 3.7): the fee control, run every month; 4b adds the other legs of those batches
             ['GL_04a', 'Fee income GL legs (4871, 4873, 4874, 4875)', 'CUMVOUCH',             'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     true],
             ['GL_04b', 'Every leg of the fee batches',          'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     true],
+            // the write-off batches, GL 1064 and 1876 (spec v4 section 3.8)
+            ['GL_05',  'Write-off batch legs (1064, 1876)',     'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
             // packs 3 and 4 (9 and 11 October 2026)
             ['SM_01',  'Scheme master',                         'SCHEME_MASTER',           'SCHEME_MST_ID',       null,            null,                   false],
             ['CT_01',  'Row counts of the reschedule, write-off and charges tables', null,  'TABLE_NAME',          null,            null,                   false],
