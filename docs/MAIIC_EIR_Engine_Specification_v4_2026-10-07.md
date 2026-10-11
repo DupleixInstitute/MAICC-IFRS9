@@ -30,6 +30,7 @@ Where a section says a design is taken from the Dupleix suite (sections 6, 11, 1
 | 5 Oct 2026 | MAIIC's three extract scripts analysed. The data-dictionary pack of 27 queries written and run by Barry the next morning. Codex reviewed the analysis; eight corrections adopted. |
 | 6 Oct 2026 | 18 follow-up extracts specified, with a run order and session settings that make every date unambiguous. Barry ran all 18 by 10 am on 7 October. |
 | 8 Oct 2026 | Pack 2 specified (the September month-end feed, the interest arithmetic, collateral, guarantors, the origination payloads, GL_03, the Mega Farm schemes); seven of its eleven runs received the same evening and checked: the first monthly feed ties on every account, GL_03 settles the year-end adjustments, the collateral register is in hand. |
+| 11 Oct 2026 | Section 7.8 added: how fees are ingested and reconciled, from E-Banker to the EIR, with the sources and their precedence, the five delivery routes of `GL_04`, the link of each fee to its loan by the batch, the checks, the settings and Finance's steps. |
 | 11 Oct 2026 | Built: the fee GL check on every fee import and on Fee Classification, by month and year, with a Governance Centre switch (`fee_gl_reconciliation`) and a fee-only import permission (`eir.fees.import`) for Finance (section 7.4). |
 | 11 Oct 2026 | The fee income ledgers (4871, 4873) reconciled to the trial balance in every month of 2025 and 2026 to date, and the 2025 year-end true-up into 4206 traced from E-Banker to the audited accounts: 21,865,867.35 of suspense reversals and 259,317,000 of arrangement fees presented as EIR interest (section 3.7). |
 | 7 Oct 2026 | The 18 extracts audited in full. Five further queries run the same day to explain two reconciling differences. The take-on amortisation schedules mapped to E-Banker accounts. The open choices of version 3 written into the Governance Centre with seeded defaults. Two of them decided: which record is contractual (O19) and how a mid-month PLR change is charged (O2). |
@@ -250,6 +251,7 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | Reset or modification | In-contract moves reset; negotiated changes modify | Recommendation; Deloitte in writing before the first reset is booked | O17 |
 | Approving a version 1 schedule | Second person must approve | Recommendation | O18 |
 | The historic materiality assessment | Reproduce it beside the detailed figure | Recommendation; Finance supplies the threshold | O20 |
+| Which source a contract's fees come from (`fee_source_precedence`) | GL posting, then Finance workbook, then LOS capture, then Extract A | To build (P4b, section 7.8.2); a lower source is superseded, never added | new |
 | Fee imports checked against the fee GLs (`fee_gl_reconciliation`) | On: check fee imports against 4871 and 4873 | Built 11 October 2026 (section 7.4); reports and never blocks; Off stops the check and the screens say so | new |
 | The year-end fee reclassification journal | Engine journal replaces the manual reclass | Recommendation; follows O10. The 2025 move (259,317,000 from 4873 into 4206) was made in the presentation of the accounts, not posted to the ledger (section 3.7); the engine's proposal is reconciled to it | O21 |
 | Mega Farms facilities | **Out of the EIR engine; in the ECL module; MAIIC's 5 percent share on the net carrying amount** | Decided D30 on the 2025 financial statements (section 16); Dr Thom to confirm | O22 |
@@ -475,6 +477,8 @@ Reads `P1_02` and `P1_03` and loads the verbatim E-Banker code columns that P2 i
 
 ### 7.4 The fee importer (two routes)
 
+Section 7.8 sets out the whole path of a fee, from E-Banker to the EIR, with the sources, the delivery routes, the link to the loan, the checks and the settings. This section keeps the importer's own detail.
+
 Loans disbursed through E-Banker: `P2_07`, the charges table, with the fee name, amount, posting date and income GL; the standing fee rulebook (25 rules) classifies each as integral or not. Take-on loans: Tamanda's template. Both land in the same table with their source recorded. The control total for both routes is the fee income GLs, 4871 and 4873, not the account ledger: about 44 percent of 2025 fee income, and nearly all of it from March 2026, was credited to income in the drawdown batch with no fee leg on the loan account (section 3.7). The importer therefore reconciles each month's fees to the GL spools and flags a GL fee line it cannot place on a loan.
 
 **Built 11 October 2026: the fee GL check.** After every fee import, `FeeGlReconciliationService` takes each year the file covers and sets every fee held for that year (all imports, not only this file) beside the trial balance movement of its GL, by month and for the year, inside the `recon_tolerance` band. The GL of a line is its `gl_account_ref` when that names a fee GL, otherwise 4873 for an arrangement fee and 4871 for a legal fee; a PAID line (a cost MAIIC paid out, 6752) is left out of the income GLs and listed apart; a line with no date is reported because it cannot be placed in a month. The monthly GL figure is `TrialBalanceMovementService`'s, so December 2025 is read pre-closing from the AFS workbook (the 2025 year then totals 171,128,135.00 and 311,342,792.00, as in section 3.7). The result shows on the import (EIR Data Intake) and on Fee Classification, which gains an **Import fees** button. It reports and never blocks, and the Governance Centre setting `fee_gl_reconciliation` switches it off. A new permission, `eir.fees.import`, opens EIR Data Intake for the fee type only and Fee Classification read-only, so Finance can load fees by loan account without the broad settings permission; classifying and reviewing still need settings. The fee sample file now carries 4873, 4871 and 6752 in `gl_account_ref`, with a received legal fee and a paid legal cost. Tests: `tests/Feature/Eir/FeeGlReconciliationServiceTest.php`. The `COLLECTION_TYPES` list in `EirRevenueService` wrongly includes 'Interest' and treats an interest charge as cash collected; it is corrected.
@@ -503,13 +507,91 @@ The trial balance is the check on everything else, so it enters by the same door
 
 The reconciliation therefore runs in two steps: E-Banker's ledger to E-Banker's trial balance (the ties of section 9), then E-Banker's trial balance to the accounts through this mapping, with each audit adjustment as its own named line. The mapping is seeded in `gl_account_scope` (chart `QUICKBOOKS`, codes 4206, 4209 and 4870) and the full 191-row map is landed with the AFS bridge. E-Banker's own year-end posting, the re-rating batch of 31 December (section 3.4), is expected every year and sits inside the E-Banker figures, not among the audit adjustments.
 
+### 7.8 Fees: how they are ingested and reconciled (added 11 October 2026)
+
+**In plain language.** A fee is part of a loan's effective interest rate, so every arrangement and legal fee has to reach the engine once, on the right loan, at the right amount and date. MAIIC holds the same fee in several places: the GL fee accounts (4871, 4873), the loan account in E-Banker, the loan origination system's charges table, Finance's own workbook, and the offer letter. Only the GL posting is the accounting record; the others are evidence of it. This section says which record the engine takes, how it arrives, how it is tied to its loan, how it is proved against the trial balance, and which choices MAIIC can change. The findings behind it are in section 3.7 and in the note `docs/MAIIC_Fees_2025_Workbook_GL_and_Design_2026-10-11.md`.
+
+### 7.8.1 How E-Banker records a fee
+
+The fees are read off the offer letter, keyed by Finance and deducted from the amount advanced: a facility of 100 million with 5 million of fees pays out 95 million and is carried at 100 million. E-Banker posts it as one balanced batch on the drawdown date: the loan account is debited with the gross amount, the bank is credited with the cash paid out, and 4871 and 4873 are credited with the fees. The fee therefore appears in two places (on the loan and in income) because a double entry has two sides; it is not recorded twice. The loan side is written in one of two ways: a separate fee debit on the loan account, type 301 with a fee narration (about 56 percent of 2025 fee income), or one gross drawdown line with the fee inside it (the rest, and nearly all of 2026). The GL printout of 4871 and 4873 carries no account number; the link to the loan is the batch, which every leg of the drawdown shares.
+
+### 7.8.2 The sources, and which one counts
+
+| Source | What it holds | How it arrives | Role |
+|---|---|---|---|
+| **GL fee postings by loan** (`GL_04a`, `GL_04b`) | Every posting to 4871, 4873, 4874 and 4875, and every other leg of the same batches | The E-Banker feed (7.8.3) | **The source of record** once landed: it is the GL, so it ties to the trial balance by construction, and it carries the posting date |
+| **Finance's fee workbook** | The fees by loan account for a year (for 2025: `MAIIC EIR Assessment as of 31st December 2025 with account numbers.xlsx`, 34 loans, ties to the GL within 800) | EIR Data Intake, type fees, by Finance (`eir.fees.import`) | The source of record for 2025 until `GL_04` is landed; afterwards a cross-check |
+| **LOS charges** (`P2_07`, LOS_DISB_CHARGES_POST) | What the origination system captured at application, with no date | The E-Banker feed (the whole table is RUN 5 of pack 4) | Evidence only: it differed from what was posted on 9 of 21 loans in 2025 |
+| **Extract A fee columns** | arrangement_fee and legal_fees on the contract master | EIR Data Intake, contract master | Evidence only |
+| **Take-on fees** | Fees of the 109 loans taken on in July 2024, which E-Banker never posted | The take-on workbook or the Take-on Schedules screen (section 6.9) | The only record for those loans; they never compete with the others |
+| **Offer letters** | The contract | Read by Credit and Dupleix | Evidence (decision D20) |
+
+**One fee, one source.** The engine reads a contract's fees from the highest source that holds them, in the order of the governed setting `fee_source_precedence` (7.8.6). A line from a lower source is kept and shown, marked `SUPERSEDED`, and never enters the EIR; where its amount differs from the source of record, Fee Classification lists the difference as an exception for Finance. This is what stops the same fee being counted twice: today the bootstrap loads `P2_07` into `contract_fees`, and importing Finance's workbook as well would count the fees of 21 loans twice and overstate the EIR.
+
+### 7.8.3 How the GL fee postings arrive
+
+`GL_04a` and `GL_04b` are two read-only queries in the register (section 6.4). They arrive like every other extract, by the route in force (`ebanker_feed_route`, section 6.5):
+
+| Route | What happens | Status |
+|---|---|---|
+| 1. Manual pack (in force) | Barry runs the queries in SQL Developer (RUN 6 of pack 4), exports two CSVs and sends them; they are uploaded on Data Foundation, E-Banker Feed | Ready. The first run covers 1 January 2024 to date |
+| 2. Scheduled export | A Windows scheduled task at MAIIC runs the export script on the first working day after month-end and writes the pack to a shared folder that the system polls (`eir:poll-feed-folder`) | The script template already carries `GL_04a` and `GL_04b`; needs a read-only Oracle account and the folder from ICT |
+| 3. Push by API | The same script posts the zipped pack to the system with a token | Built; needs the token issued |
+| 4. Direct read over the VPN | The system reads E-Banker with a read-only account | Needs Dr Thom and ICT |
+| 5. Vendor view or API | The vendor exposes the same rows | Not started |
+
+After the first run the queries are incremental: postings with a `CUMVOUCH_DET_ID` above the watermark, plus the two months before the period again, so that a back-dated correction is caught. From the October 2026 month-end they are part of every monthly pack with `M09_01` to `M09_03`. Landing is unchanged: the pack passes the gates and the rows are kept verbatim in the landing zone, keyed on `CUMVOUCH_DET_ID`.
+
+### 7.8.4 Tying each fee to its loan
+
+The build joins `GL_04a` to `GL_04b` on the batch (transaction date, batch type, batch number) and writes one fee line per loan, fee type and posting, with the GL code, the amount, the posting date, the batch and the voucher, into `contract_fees` with the source `E-Banker GL fee posting`.
+
+| Case | Rule |
+|---|---|
+| One loan account in the batch (most drawdowns) | The fee belongs to that loan, whether the loan shows it as its own line or inside the gross drawdown |
+| Several loans in the batch (2 January 2025: Ebenezer Midian and Doorbell Services) | Split by matching each loan's own fee debit; where the loan has none, by the narration; what cannot be split is held as an exception, never guessed |
+| No loan account in the batch (a fee paid in cash, or a loan outside the eighteen schemes, such as the BRFF fees of June 2026) | Held as an unassigned fee line and shown on the reconciliation; never dropped |
+| A correction or reversal (Mchinji: 3,020,000 reversed on 24 October 2025 and 2,920,000 posted) | Netted on the loan, both lines kept for audit |
+
+**A fee debit is not a drawdown.** The disbursement builder (`ContractInputsBuildService::disbursements`) today turns every type-301 debit on a loan account into a tranche. A type-301 line in a batch that also credits a fee GL, or whose narration names a fee, is instead the fee capitalised into the loan: it is added to the amount drawn at origination and never becomes a tranche of its own; a reversal reduces it. With that, the initial net investment is the gross amount drawn less the fees, which is the cash MAIIC paid out.
+
+### 7.8.5 How the fees are reconciled
+
+| Check | When | What it proves | Status |
+|---|---|---|---|
+| **Fee GL check** (`fee_gl_reconciliation`) | After every fee import, and always on Fee Classification | The fees held for each year against the trial balance movement of 4871 and 4873, by month and for the year, inside `recon_tolerance`; PAID lines and undated lines listed apart; reports, never blocks | **Built 11 October 2026** (7.4) |
+| **Fee GL gate** on the monthly pack | When a pack lands | The month's movement on each fee GL in `GL_04a` equals the trial balance's | To build (P4b) |
+| **Assignment completeness** | After the batch link | Every `GL_04a` line is on a loan, or listed as unassigned or held, with its reason | To build (P4b) |
+| **Source cross-check** | After each load | Where a lower source differs from the source of record: the loan, the fee type, both amounts and the difference, on Fee Classification | To build (P4b) |
+| **Two-chart bridge** | Year end | The fees in E-Banker's trial balance to the audited accounts (section 7.7) | Mapping seeded; bridge to build |
+
+For 2025 the arithmetic is already known: Finance's workbook ties to the GL at 311,342,792 (arrangement) and at 171,128,135 less 800 (legal: one keying slip on Chikwendeni General Dealers), and every GL fee line of 2025 traces to a loan in it. The workbook's own check rows show a doubled figure because row 46 sums a range that includes the row-39 subtotal; that is a spreadsheet range, not a second posting.
+
+### 7.8.6 The choices MAIIC can make
+
+| Setting (Governance Centre) | Options | Default | Status |
+|---|---|---|---|
+| `fee_gl_reconciliation`: fee imports checked against the fee GLs | On; Off | On | Built |
+| `fee_source_precedence`: which source a contract's fees come from | GL posting, then Finance workbook, then LOS capture, then Extract A; or Finance workbook first; or LOS capture first | GL posting first | To build (P4b) |
+| `ebanker_feed_route`: how the packs, `GL_04` included, arrive | Routes 1 to 5 (7.8.3) | Route 1 | Built |
+| `recon_tolerance`: the band for every reconciliation | As in section 4.2 | 1 percent, floor MWK 1 | Built |
+| `takeon_history_basis`: how the take-on fees are used | As in section 6.9 | Recompute where block and fees exist | Built |
+
+### 7.8.7 What Finance does, in order
+
+1. For 2025, import the fee workbook through EIR Data Intake (type fees) with the GL posting date as `transaction_date` and 4871 or 4873 in `gl_account_ref`. Dupleix prepares the mapped file from the workbook and the GL lines, with the source `MAIIC Finance EIR assessment 2025`. This waits for `fee_source_precedence`, so that it supersedes the `P2_07` lines rather than adding to them.
+2. Check the fee GL card on Fee Classification: every month of 2025 agrees, or the difference is named.
+3. From the October 2026 month-end nothing is typed: the fees arrive with the monthly pack through `GL_04`, are tied to their loans by the batch, and are proved against the trial balance by the gate and the check.
+4. Classify each line (integral or not) and have it reviewed, as today; only reviewed integral lines enter the EIR.
+5. For the take-on loans, fill the fee columns of the take-on workbook or of the Take-on Schedules screen (section 6.9): one of the two, not both.
+
 ## 8. The build plan from here
 
 Phases P1 to P4 are built. The order from today, with what each one waits for:
 
 | Phase | Content | Waits for |
 |---|---|---|
-| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by all three methods (the report importer landed and gated); the take-on schedules landed, gated and built (6.9); `EirAsAtService` (6.11); `eir:bootstrap` with the committed inputs and `--verify` (6.10); the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists; added 11 October 2026: `GL_04` in the monthly pack with the fee-GL gate (6.4), the fee importer's reconciliation to the fee GLs (7.4; built 11 October 2026 with its Governance Centre switch and the `eir.fees.import` permission), and the two-chart reconciliation to the accounts (7.7) | Nothing; route 4 waits for Dr Thom and ICT |
+| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by all three methods (the report importer landed and gated); the take-on schedules landed, gated and built (6.9); `EirAsAtService` (6.11); `eir:bootstrap` with the committed inputs and `--verify` (6.10); the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists; added 11 October 2026: `GL_04` in the monthly pack with the fee-GL gate (6.4), the fee importer's reconciliation to the fee GLs (7.4; built 11 October 2026 with its Governance Centre switch and the `eir.fees.import` permission), and the two-chart reconciliation to the accounts (7.7); the fee path of section 7.8: `fee_source_precedence` with superseding, the batch link of `GL_04` to the loan, fee debits capitalised rather than made tranches, the assignment and cross-source checks | Nothing; route 4 waits for Dr Thom and ICT |
 | **P5 Floating resets** | Reset detector from the PLR series writing `rate_reset_events`; a spread change as a separate event; maker-checker intake; a reset inside a locked period refused; prospective re-estimation under B5.4.5 | Nothing to build; O17 confirmed by Deloitte before the first reset is booked |
 | **P6 Arrears** | Cash receipts from the ledger (exact); re-estimation under B5.4.6; IRR on actual expected flows | P5 |
 | **P7 Restructuring** | Version N+1 import; `contract_modifications`; the 10 percent test; lineage | The restructure register from MAIIC |
