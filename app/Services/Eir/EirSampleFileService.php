@@ -167,27 +167,37 @@ class EirSampleFileService
      */
     private function feeExamples(): array
     {
+        // gl_account_ref is the E-Banker fee GL the fee was credited to: 4873 arrangement, 4871 legal.
+        // A cost MAIIC paid out on the borrower's behalf is PAID and sits on 6752 (Legal Costs-Clients),
+        // so the fee GL check (spec v4 section 7.4) leaves it out of the income GLs.
         return [
             [
                 'contract_id' => self::SAMPLE_CONTRACT_A, 'fee_type' => 'arrangement', 'amount' => 12500000,
                 'description' => 'Arrangement fee on facility', 'transaction_date' => '2024-07-31',
                 'cashflow_direction' => 'RECEIVED', 'currency' => 'MWK', 'source_system' => 'EBANKER',
                 'source_reference' => 'FEE-0001-1', 'external_transaction_id' => 'FEE-0001-1',
-                'basis' => 'ON_DRAWN', 'gl_account_ref' => '4020100',
+                'basis' => 'ON_DRAWN', 'gl_account_ref' => '4873',
+            ],
+            [
+                'contract_id' => self::SAMPLE_CONTRACT_A, 'fee_type' => 'legal', 'amount' => 3090000,
+                'description' => 'Legal fee charged at drawdown', 'transaction_date' => '2024-07-31',
+                'cashflow_direction' => 'RECEIVED', 'currency' => 'MWK', 'source_system' => 'EBANKER',
+                'source_reference' => 'FEE-0001-2', 'external_transaction_id' => 'FEE-0001-2',
+                'basis' => 'ON_DRAWN', 'gl_account_ref' => '4871',
             ],
             [
                 'contract_id' => self::SAMPLE_CONTRACT_A, 'fee_type' => 'legal', 'amount' => 2400000,
-                'description' => 'Legal cost - origination and documentation', 'transaction_date' => '2024-07-31',
+                'description' => 'Legal cost paid to the lawyers - origination and documentation', 'transaction_date' => '2024-07-31',
                 'cashflow_direction' => 'PAID', 'currency' => 'MWK', 'source_system' => 'EBANKER',
-                'source_reference' => 'FEE-0001-2', 'external_transaction_id' => 'FEE-0001-2',
-                'basis' => 'ON_DRAWN', 'gl_account_ref' => '4020100',
+                'source_reference' => 'FEE-0001-3', 'external_transaction_id' => 'FEE-0001-3',
+                'basis' => 'ON_DRAWN', 'gl_account_ref' => '6752',
             ],
             [
                 'contract_id' => self::SAMPLE_CONTRACT_B, 'fee_type' => 'arrangement', 'amount' => 4000000,
                 'description' => 'Arrangement fee on facility', 'transaction_date' => '2024-06-30',
                 'cashflow_direction' => 'RECEIVED', 'currency' => 'MWK', 'source_system' => 'EBANKER',
                 'source_reference' => 'FEE-0002-1', 'external_transaction_id' => 'FEE-0002-1',
-                'basis' => 'ON_APPROVED', 'gl_account_ref' => '4020100',
+                'basis' => 'ON_APPROVED', 'gl_account_ref' => '4873',
             ],
         ];
     }

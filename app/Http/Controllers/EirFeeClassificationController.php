@@ -15,7 +15,10 @@ class EirFeeClassificationController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'permission:settings']);
+        $this->middleware('auth');
+        // the list and the fee GL check are readable with eir.fees.import; classifying and reviewing stay with settings
+        $this->middleware('permission:settings|eir.fees.import')->only('index');
+        $this->middleware('permission:settings')->except('index');
     }
 
     public function index(Request $request)
@@ -34,6 +37,9 @@ class EirFeeClassificationController extends Controller
                 ->groupBy('classification_status')->get()->keyBy('classification_status'),
             // Drives the re-apply prompt: an operator needs to see that pending
             // lines carry no suggestion before being told to use rule mode.
+            'glReconciliation' => app(\App\Services\Eir\FeeGlReconciliationService::class)->report(),
+            'canClassify' => (bool) $request->user()?->can('settings'),
+            'canGovern' => (bool) $request->user()?->can('eir.govern'),
             'ruleCoverage' => [
                 'pending' => ContractFee::where('classification_status', 'PENDING')->count(),
                 'pending_matched' => ContractFee::where('classification_status', 'PENDING')->whereNotNull('suggested_rule_id')->count(),

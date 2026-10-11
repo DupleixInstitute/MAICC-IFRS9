@@ -40,6 +40,9 @@ class MaiicAdminPermissionsSeeder extends Seeder
             'eir.run' => 'EIR & Revenue Recognition',
             'eir.export' => 'EIR & Revenue Recognition',
             'eir.govern' => 'EIR & Revenue Recognition',
+            // Finance loading fees by loan account without the broad settings permission (11 Oct 2026, spec v4 section 7.4):
+            // EIR Data Intake for the fee type only, and Fee Classification to read the fee GL check.
+            'eir.fees.import' => 'EIR & Revenue Recognition',
             // Macro Statistics (spec v4 section 13; system audit of 9 October 2026, finding M16):
             // macro.view for the screen and its previews, macro.manage for a commit or a manual entry.
             'macro.view' => 'Macro Statistics',

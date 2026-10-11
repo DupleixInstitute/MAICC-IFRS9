@@ -33,7 +33,7 @@
                             <div>
                                 <label class="maiic-flabel" for="eir-import-type">Import type</label>
                                 <select id="eir-import-type" v-model="importType" class="maiic-select" :disabled="processing" @change="resetAnalysis">
-                                    <option v-for="t in importTypes" :key="t.key" :value="t.key">{{ t.label }}</option>
+                                    <option v-for="t in visibleTypes" :key="t.key" :value="t.key">{{ t.label }}</option>
                                 </select>
                             </div>
 
@@ -185,15 +185,17 @@
                     </div>
                 </div>
 
-                <!-- Fee totals vs GL -->
+                <!-- Fee totals, and the check against the fee GLs (spec v4 section 7.4) -->
                 <div v-if="importType === 'fees' && result.totals_by_type" class="mb-4">
-                    <h4 class="text-sm font-medium text-gray-900 mb-2">Totals by fee type - eyeball these against the GL fee accounts:</h4>
+                    <h4 class="text-sm font-medium text-gray-900 mb-2">Totals by fee type in this file:</h4>
                     <div class="flex flex-wrap gap-2">
                         <span v-for="(total, type) in result.totals_by_type" :key="type" class="px-3 py-1 bg-maiic-50 text-maiic-800 text-xs rounded-full">
                             {{ type }}: {{ Number(total).toLocaleString() }}
                         </span>
                     </div>
                 </div>
+
+                <FeeGlReconciliation v-if="importType === 'fees' && result.gl_reconciliation" :report="result.gl_reconciliation" :can-govern="canGovern" class="mb-4" />
 
                 <!-- Named reasons -->
                 <div v-if="reasonEntries.length" class="border border-gray-200 rounded-lg overflow-hidden">
@@ -276,6 +278,7 @@ import ImportHistoryTable from '@/Components/Data/ImportHistoryTable.vue'
 import ImportHowTo from '@/Components/Data/ImportHowTo.vue'
 import FileDrop from '@/Components/Data/FileDrop.vue'
 import LocalPager from '@/Components/Data/LocalPager.vue'
+import FeeGlReconciliation from '@/Components/Eir/FeeGlReconciliation.vue'
 import { Link } from '@inertiajs/vue3'
 import { markRaw } from 'vue'
 import axios from 'axios'
@@ -287,8 +290,11 @@ export default {
         fieldSpec: Object,
         initialType: { type: String, default: 'contract_master' },
         recentImports: { type: Array, default: () => [] },
+        // a user with eir.fees.import but not settings sees the fee type only
+        allowedTypes: { type: Array, default: null },
+        canGovern: { type: Boolean, default: false },
     },
-    components: { AppLayout, Link, InPageTabs, ImportHistoryTable, ImportHowTo, FileDrop, LocalPager },
+    components: { AppLayout, Link, InPageTabs, ImportHistoryTable, ImportHowTo, FileDrop, LocalPager, FeeGlReconciliation },
     data() {
         return {
             importType: this.initialType || 'contract_master',
@@ -326,6 +332,9 @@ export default {
         importType() { this.historyPage = 1 },
     },
     computed: {
+        visibleTypes() {
+            return this.allowedTypes ? this.importTypes.filter(t => this.allowedTypes.includes(t.key)) : this.importTypes
+        },
         typeLabel() {
             return (this.importTypes.find(t => t.key === this.importType) || {}).label || this.importType
         },

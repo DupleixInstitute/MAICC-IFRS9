@@ -35,6 +35,7 @@ class FeeImportService
         $unknownTypes  = [];
         $negativeLines = 0;
         $totals        = [];
+        $years         = [];
         $now           = now();
 
         foreach ($rows as $row) {
@@ -98,6 +99,10 @@ class FeeImportService
             ];
 
             $totals[$type] = ($totals[$type] ?? 0) + $amount;
+            // the years the file covers, so the fee GL check (FeeGlReconciliationService) knows what to prove
+            if (preg_match('/^(\d{4})-\d{2}/', (string) ($row['transaction_date'] ?? ''), $y) === 1) {
+                $years[(int) $y[1]] = true;
+            }
         }
 
         if ($inserts !== []) {
@@ -114,6 +119,7 @@ class FeeImportService
             'unknown_types'  => $unknownTypes,
             'negative_lines' => $negativeLines,
             'totals_by_type' => array_map(fn ($v) => round($v, 2), $totals),
+            'years'          => array_map('intval', array_keys($years)),
         ];
     }
 }

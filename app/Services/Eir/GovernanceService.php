@@ -231,6 +231,12 @@ class GovernanceService
                 'options' => ['Engine journal replaces the manual reclass', 'Both run in parallel for one year'],
                 'default' => 'Engine journal replaces the manual reclass',
             ],
+            'fee_gl_reconciliation' => [
+                'label' => 'Fee imports checked against the fee GLs',
+                'description' => 'When fees are imported by loan (EIR Data Intake, type fees), every fee held for each year the file covers is set beside the trial balance movement of 4871 Legal Fees and 4873 Arrangement Fees, month by month and for the year, inside the reconciliation band. The fee GLs agree to the trial balance every month, while about 44 percent of 2025 fee income never touched a loan account, so the GL is the control total (spec v4 sections 3.7 and 7.4). The result shows on the import and on Fee Classification; it reports and never blocks. Switching it off stops the check, and the screens then say it is off.',
+                'options' => [\App\Services\Eir\FeeGlReconciliationService::ON, \App\Services\Eir\FeeGlReconciliationService::OFF],
+                'default' => \App\Services\Eir\FeeGlReconciliationService::ON,
+            ],
             'mega_farms_scope' => [
                 'label' => 'Mega Farms facilities',
                 'description' => 'The Mega Farm programme is Government money that MAIIC runs on its behalf, at 15 percent of which 5 is MAIIC\'s and 10 the fund\'s; 95 percent of the loans are in default and the losses are the fund\'s (spec v4 section 16, decision D30). The seeded option keeps the programme outside the EIR engine, computes MAIIC\'s 5 percent share on the amount expected to be recovered, and provisions the loans fully in the ECL module against the fund. Open choice O22; Dr Thom to confirm.',
