@@ -37,6 +37,28 @@ SPOOL "\maiic-fs\ebanker-feed\pack-&period\M09_03_loan_book_runs.csv"
 SELECT * FROM LOAN_BOOK_DETAILS_ALL WHERE LOAN_BOOK_DET_ID_A > &wm_loanbook ORDER BY LOAN_BOOK_DET_ID_A;
 SPOOL OFF
 
+-- GL_04a the fee income GL legs since the ledger watermark (spec v4 sections 3.7 and 6.4: the fee control)
+SPOOL "\maiic-fs\ebanker-feed\pack-&period\GL_04a_fee_gl_legs.csv"
+SELECT cumvouch_det_id, cb_glcode, ac_glcode, new_ac_number, sub_account_no, transaction_date, transamt, dbcr,
+       trantype, batch_type, batch_number, vscrno, particulars
+FROM   CUMVOUCH
+WHERE  (cb_glcode IN ('4871','4873','4874','4875') OR ac_glcode IN ('4871','4873','4874','4875'))
+AND    (CUMVOUCH_DET_ID > &wm_ledger OR TRANSACTION_DATE >= ADD_MONTHS(TRUNC(TO_DATE('&period-01','YYYY-MM-DD'),'MM'), -2))
+ORDER  BY CUMVOUCH_DET_ID;
+SPOOL OFF
+
+-- GL_04b every other leg of those fee batches (the loan account or bank side)
+SPOOL "\maiic-fs\ebanker-feed\pack-&period\GL_04b_fee_batch_legs.csv"
+SELECT cv.cumvouch_det_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no, cv.transaction_date,
+       cv.transamt, cv.dbcr, cv.trantype, cv.batch_type, cv.batch_number, cv.vscrno, cv.particulars
+FROM   CUMVOUCH cv
+WHERE  (cv.transaction_date, cv.batch_type, cv.batch_number) IN (
+         SELECT DISTINCT x.transaction_date, x.batch_type, x.batch_number FROM CUMVOUCH x
+         WHERE (x.cb_glcode IN ('4871','4873','4874','4875') OR x.ac_glcode IN ('4871','4873','4874','4875'))
+         AND   (x.CUMVOUCH_DET_ID > &wm_ledger OR x.TRANSACTION_DATE >= ADD_MONTHS(TRUNC(TO_DATE('&period-01','YYYY-MM-DD'),'MM'), -2)))
+ORDER  BY cv.CUMVOUCH_DET_ID;
+SPOOL OFF
+
 -- the masters come whole each time (P1_02, P1_03, P1_04, P2_06, P2_07, P3_12, P3_13): copy the SELECTs of the
 -- versioned queries in this folder here, one SPOOL each, unchanged.
 

@@ -44,6 +44,18 @@ class EbankerQuerySeeder extends Seeder
             ['GL_01',  'FInES postings without an account',     'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
             ['GL_02',  'Keyed GL opening balances',             'GL_OPENING_BALANCE',      null,                  null,            null,                   false],
             ['GL_03',  'Year-end interest batch legs',          'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
+            // fee income GL legs (spec v4 section 3.7): the fee control, run every month; 4b adds the other legs of those batches
+            ['GL_04a', 'Fee income GL legs (4871, 4873, 4874, 4875)', 'CUMVOUCH',             'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     true],
+            ['GL_04b', 'Every leg of the fee batches',          'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     true],
+            // packs 3 and 4 (9 and 11 October 2026)
+            ['SM_01',  'Scheme master',                         'SCHEME_MASTER',           'SCHEME_MST_ID',       null,            null,                   false],
+            ['CT_01',  'Row counts of the reschedule, write-off and charges tables', null,  'TABLE_NAME',          null,            null,                   false],
+            ['CH_01a', 'Charges posting history, term loans',   'CHARGES_POSTING_HISTORY', null,                  'NEW_AC_NUMBER', null,                   false],
+            ['CH_01b', 'Disburse charges details, term loans',  'DISBURSE_CHARGES_DETAILS', null,                 'NEW_AC_NUMBER', null,                   false],
+            ['CH_02a', 'LOS charges, schemes 140 to 145',       'LOS_DISB_CHARGES_POST',   'LO_DISB_CHARG_DET_ID','NEW_AC_NUMBER', null,                   false],
+            ['CH_02b', 'Drawdown batch legs, schemes 140 to 145', 'CUMVOUCH',              'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
+            ['RS_01',  'Reschedules',                           'LOAN_RESCHEDULE_DETAILS', 'LOAN_RESCH_DET_ID',   'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
+            ['WO_01',  'Write-offs',                            'LOAN_WRITEOFF_MASTER',    'LOAN_WRITEOFF_MST_ID','NEW_AC_NUMBER', 'WRITEOFF_DATE',        false],
             ['ZF_01',  'Zaithwa Farms postings',                'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
             ['ZF_02',  'Zaithwa Farms amount search',           'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
             ['ZF_03',  'Zaithwa Farms balance rows',            'ACCOUNT_BALANCE',         'ACCOUNT_BAL_MST_ID',  'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],

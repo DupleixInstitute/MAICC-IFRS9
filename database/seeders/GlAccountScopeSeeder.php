@@ -82,9 +82,10 @@ class GlAccountScopeSeeder extends Seeder
         $rows[] = [
             'gl_code' => '42019', 'gl_title' => 'Interest On MAIIC Term Loan',
             'category' => 'INTEREST_INCOME', 'eir_door' => 2, 'in_eir_scope' => true, 'portfolio' => 'MAIIC',
-            'notes' => 'Appears Jan 2026 -> Jul 2026 only. Spec §3.4.3 says "from Nov 2025" and also lists a '
-                . 'code 4201, which appears in none of the 19 trial balances. Confirm whether 2025 term-loan '
-                . 'interest was posted elsewhere before relying on 2025 coverage for this product.',
+            'notes' => 'Not in the monthly TBs before Jan 2026, but the final E-Banker TB for Dec 2025 (AFS '
+                . 'mapping workbook) carries MK39,093,897.99 on it: the 2025 interest of the term loans launched '
+                . 'in Nov 2025. With 4215 and 4216 it makes QuickBooks 4206 (spec v4 section 3.7). The "4201" '
+                . 'of spec section 3.4.3 is this code truncated in the TB export (42019...).',
         ];
 
         return $rows;
@@ -102,7 +103,14 @@ class GlAccountScopeSeeder extends Seeder
                     . 'and the combined total is unchanged - but the legal-vs-arrangement disclosure split is '
                     . 'affected. Do not reclassify pending MAIIC.',
             ],
-            ['gl_code' => '4873', 'gl_title' => 'Arrangement Fees', 'category' => 'FEE_INCOME', 'in_eir_scope' => true],
+            [
+                'gl_code' => '4873', 'gl_title' => 'Arrangement Fees', 'category' => 'FEE_INCOME', 'in_eir_scope' => true,
+                'notes' => 'The GL spool agrees to the TB every month (2025 before closing: MK311,342,792). About 44% '
+                    . 'of 2025 fee income, and nearly all from Mar 2026, is credited here in the drawdown batch with '
+                    . 'no fee leg on the loan account, so fees reconcile to this GL, not to the account ledger. The '
+                    . '2025 AFS shows MK52,025,792 after an audit-estimate presentation of MK259,317,000 in '
+                    . 'QuickBooks 4206 (spec v4 section 3.7).',
+            ],
             [
                 'gl_code' => '4874', 'gl_title' => 'Insurance Fees', 'category' => 'FEE_INCOME', 'in_eir_scope' => true,
                 'notes' => 'Integrality is a B5.4.1 judgement per fee, not per account. Keyman insurance on EcoGen '
@@ -205,7 +213,13 @@ class GlAccountScopeSeeder extends Seeder
         return [
             ['chart' => 'QUICKBOOKS', 'gl_code' => '4206', 'gl_title' => 'Interest on Term Loans-Maiic',
                 'category' => 'INTEREST_INCOME', 'eir_door' => 2, 'in_eir_scope' => true, 'quickbooks_code' => '4206',
-                'notes' => 'AFS-side counterpart of E-Banker 42019 / 4201. MK2,128,427,032.36 in the 2025 AFS TB.'],
+                'notes' => 'AFS-side total of E-Banker 4215 + 4216 + 42019 (MK2,106,561,165.01 in 2025). Final AFS TB '
+                    . 'MK2,128,427,032.36 after the MK21,865,867.35 interest-in-suspense reversal; the 2025 accounts '
+                    . 'add MK259,317,000 of arrangement fees, an audit estimate in the absence of an EIR engine '
+                    . '(spec v4 section 3.7).'],
+            ['chart' => 'QUICKBOOKS', 'gl_code' => '4209', 'gl_title' => 'Term loan interest- FInES',
+                'category' => 'INTEREST_INCOME', 'eir_door' => 2, 'in_eir_scope' => true, 'quickbooks_code' => '4209',
+                'notes' => 'AFS-side total of E-Banker 4218 + 4219 (MK447,829,531.72 in 2025), unchanged by the audit.'],
             ['chart' => 'QUICKBOOKS', 'gl_code' => '4870', 'gl_title' => 'Services Income', 'category' => 'FEE_INCOME',
                 'notes' => 'Parent of the nested QuickBooks fee accounts (4870 Services Income:4871 Legal fees).'],
         ];

@@ -5,7 +5,7 @@ subtitle: What the follow-up extracts proved, what has been decided, how E-Banke
 date: 7 October 2026
 prepared: Prepared by Dupleix Institute for the Malawi Agricultural and Industrial Investment Corporation plc (MAIIC)
 people: Project sponsor Dr Thomson Kumwenda, CFO | Engagement lead Edward Mazibuko CA(SA) | Build lead Kundai Muriwo
-status: Working document. Replaces version 3 of 24 September 2026 as the single point of reference; version 3 is kept in 9. Archive and still applies wherever this document is silent. Where the two differ, this one governs.
+status: Working document, updated 11 October 2026 (section 3.7, the fee ledgers and the true-up into 4206). Replaces version 3 of 24 September 2026 as the single point of reference; version 3 is kept in 9. Archive and still applies wherever this document is silent. Where the two differ, this one governs.
 ---
 
 ## 0. How to read this document
@@ -30,6 +30,7 @@ Where a section says a design is taken from the Dupleix suite (sections 6, 11, 1
 | 5 Oct 2026 | MAIIC's three extract scripts analysed. The data-dictionary pack of 27 queries written and run by Barry the next morning. Codex reviewed the analysis; eight corrections adopted. |
 | 6 Oct 2026 | 18 follow-up extracts specified, with a run order and session settings that make every date unambiguous. Barry ran all 18 by 10 am on 7 October. |
 | 8 Oct 2026 | Pack 2 specified (the September month-end feed, the interest arithmetic, collateral, guarantors, the origination payloads, GL_03, the Mega Farm schemes); seven of its eleven runs received the same evening and checked: the first monthly feed ties on every account, GL_03 settles the year-end adjustments, the collateral register is in hand. |
+| 11 Oct 2026 | The fee income ledgers (4871, 4873) reconciled to the trial balance in every month of 2025 and 2026 to date, and the 2025 year-end true-up into 4206 traced from E-Banker to the audited accounts: 21,865,867.35 of suspense reversals and 259,317,000 of arrangement fees presented as EIR interest (section 3.7). |
 | 7 Oct 2026 | The 18 extracts audited in full. Five further queries run the same day to explain two reconciling differences. The take-on amortisation schedules mapped to E-Banker accounts. The open choices of version 3 written into the Governance Centre with seeded defaults. Two of them decided: which record is contractual (O19) and how a mid-month PLR change is charged (O2). |
 
 The result in one sentence: **the engine's inputs are now complete, every reconciliation either ties to the cent or has a named cause and a named fix, and what remains is engineering plus a short list of answers that only people at MAIIC can give.**
@@ -55,7 +56,7 @@ Version 3 built the engine around a contract master (Extract A), a transaction f
 | The repayment pattern | The instalment chart | `P2_10` the current chart and `P3_11` the instalment plans | The chart exists for 75 of 184 accounts, and actual repayments are within 5 percent of it on 23 of 69 testable accounts. The engine generates the expected pattern from the loan's terms (section 7.5) and keeps the chart as a reference. |
 | Status changes | Not available | `P3_13` every status change with its reason | Explains codes D and F. Code H (21 accounts) is paid-up awaiting closure on the evidence; the vendor is asked to confirm. |
 | Daily accrual | Not available | `P3_14` the daily interest accrual, 7,489 rows from 1 November 2024 | Held for 14 accounts only. For those it proves the month-end posting is the sum of the daily rows, to the cent. |
-| GL control | The trial balance | The trial balance, every month, plus `GL_02` the keyed GL opening balances and `GL_03` the GL legs of the year-end batches | Interest income on a year-to-date basis ties on 83 of 83 comparable account-months, and December 2025 to the cent once the year-end adjustments are read correctly (section 3.4). |
+| GL control | The trial balance | The trial balance, every month, plus `GL_02` the keyed GL opening balances and `GL_03` the GL legs of the year-end batches; for fees, the GL spools of 4871 and 4873 (Tamanda, 19 August) and from pack 4 `GL_04` the fee GL legs straight from E-Banker | Interest income on a year-to-date basis ties on 83 of 83 comparable account-months, and December 2025 to the cent once the year-end adjustments are read correctly (section 3.4). The fee GLs tie to the trial balance in every month of 2025 and 2026 to date (section 3.7). |
 | The monthly feed | Not tested | `M09_01`, `M09_02` of 8 October: the ledger since the last loaded id with August re-pulled, and the month-end balances for August and September 2026 | The first run of the feed contract of section 6.4: August identical to the 7 October file with no back-dated posting; September's 118 postings on 83 accounts; the balance change equals the ledger on 105 of 105 accounts. |
 
 ### 2.2 Two tables that do not help, and why
@@ -92,6 +93,8 @@ Consequence for the build: the rate-history importer takes the **monthly loan-bo
 ### 3.3 Signs, transaction types and the six GL codes
 
 Debits are negative in the ledger. The transaction types that matter: 301 drawdown, 303 monthly interest, 305 repayment, 306 reversal of a repayment, 120 the year-end "Diff Int Credit by ROI" adjustment, 300 write-off, 343 reversal of a credit, 900 and 901 a fee posted and reversed, 400 and 401 the Nascomex equity entries. The loan accounts sit on six GL codes: 1050101 and 1050102 (MAIIC Agricultural and Industrial), 1050201 and 1050202 (FInES Agricultural and Industrial, the 10 percent concessional book), 1050401 (term loans) and 1050103.
+
+**The income GLs, and the second chart of accounts.** Interest income sits on one E-Banker GL per loan GL: 4215 (1050101), 4216 (1050102), 42019 (1050401; printed as 4201 in the code column of the trial balance export, with the full code in its title), 4218 (1050201), 4219 (1050202), and 4221 to 4224, 4260 and 4262 for the Mega Farm schemes. Fees sit on 4871 legal, 4873 arrangement, 4874 insurance and 4875 PCG guarantee. Fees are not always posted to the loan account: in 2025 about 44 percent of fee income, and nearly all of it from March 2026, was credited to the fee GL in the drawdown batch with the loan account carrying the gross drawdown (section 3.7). The annual accounts are prepared in a second ledger (QuickBooks) with its own codes, and E-Banker's interest GLs roll up into it: 4215, 4216 and 42019 into 4206 Interest on Term Loans-MAIIC; 4218 and 4219 into 4209 Term loan interest-FInES (section 7.7). Any extract, reconciliation or interface to Finance has to carry that mapping.
 
 ### 3.4 The 28 year-end adjustments of 31 December 2025
 
@@ -145,6 +148,37 @@ Five things follow. **The policy note says 90 days and the model applied 181**; 
 **Decision D31.** The governed thresholds stand as seeded: Stage 3 at 181 days for medium- and long-term facilities and 91 for short-term and Mega Farm, Stage 2 at 31 days. They follow the directive and reproduce the 2025 model, so the 2025 figures do not move. The rebuttal of the 90-day presumption is written down as the O13 sign-off, with the directive cited by gazette and section, and a sentence is drafted for the 2026 policy note. The four-payment trigger and the days-past-due basis become governed items beside the thresholds.
 
 Two differences between the directive and IFRS 9 that the engine must show rather than resolve: the directive stops interest on a non-performing facility, where IFRS 9 5.4.1(b) continues it on the net carrying amount (the trial balance's interest-suspense account, 1320, is the directive's rule in practice, and the reconciliation carries the difference as its own line); and the directive's provision percentages are prudential floors, so the loan-loss reserve of section 15 is where any excess over the ECL sits.
+
+### 3.7 Fee income and the year-end true-up into 4206 (added 11 October 2026)
+
+**In plain language.** The fees MAIIC charges at drawdown are booked in full to two income accounts, 4871 Legal Fees and 4873 Arrangement Fees. When the annual accounts are prepared, Finance moves the part of those fees that belongs in the effective interest rate, and a few interest adjustments, into one interest account, 4206 Interest on Term Loans-MAIIC. Dr Thom described this at the meeting of 24 September 2026. The figures below show exactly what moved in 2025 and where each figure was found.
+
+**The fee ledgers agree to the trial balance.** Tamanda's GL spools of 19 August (`GL 4871` and `GL 4873`, as at 31 December 2025 and 31 July 2026) agree to the trial balance year-to-date in every month from January to November 2025 and from January to July 2026, to the cent. Before the closing voucher of 31 December 2025 they stand at **171,128,135.00** (legal) and **311,342,792.00** (arrangement), which are also the figures in the final E-Banker trial balance for December 2025 and in the "Mapping TBs" sheet of Dr Thom's workbook of 24 September (`Mapping TBs August 2026 to Audited Financial Statements4.xlsx`). Within the year the spools hold two corrections only: a legal fee over-deduction reversed on 24 October 2025 (net 100,000) and 7,629,800 moved from 4873 to 4871 for Prominade Medical Centre on 30 December 2025.
+
+**Not every fee touches the loan account.** Each spool line was matched to the account ledger (`P1_01`) by date and amount. In 2025 about 56 percent of each fee account (legal 96,579,275 on 20 lines; arrangement about 175 million on 21 lines) has a matching fee debit on the loan account at drawdown. The rest was credited to income in the drawdown batch with no fee leg on the account: the loan account carries the gross drawdown instead (Malawi Police SACCO, 7 May 2025: 1,046,210,000 drawn, being 1,000,000,000 plus 30,000,000 arrangement and 16,210,000 legal). From March 2026 almost no fee reaches a loan account. The 23 "BRFF" fee lines of June and July 2026 have no drawdown in the eighteen schemes at all; whether BRFF is a programme outside them is asked in section 5. **So the fee importer reconciles to the fee GL spools, not to the account ledger** (section 7.4).
+
+**What 4206 carries in the 2025 accounts.**
+
+| 4206 Interest on Term Loans-MAIIC, 2025 | MWK | Source |
+|---|---:|---|
+| E-Banker 4215 Interest on MAIIC Agricultural Loans (includes the year-end adjustment +32,956,675.55, section 3.4) | 554,447,006.83 | GL 4215 spool; final E-Banker TB |
+| E-Banker 4216 Interest on MAIIC Industrial Loans (includes the year-end adjustment -21,733,262.70) | 1,513,020,260.19 | GL 4216 spool; final E-Banker TB |
+| E-Banker 42019 Interest on MAIIC Term Loan | 39,093,897.99 | Final E-Banker TB |
+| **4206 in the initial TB submitted to the auditor** | **2,106,561,165.01** | AFS mapping workbook |
+| Audit adjustment "Interest in suspense reversals" (the 1320 Interest Suspense balance) | 21,865,867.35 | AFS mapping workbook, Final AFS TB of 19 March 2026 |
+| **4206 in the final AFS TB** | **2,128,427,032.36** | Same |
+| Arrangement fees presented as EIR interest income | 259,317,000.00 | Dr Thom's workbook, "Income Statement" sheet against "Mapping TBs" |
+| **EIR Interest Income line for 4206 in the audited accounts** | **2,387,744,032.36** | Same |
+
+E-Banker 4218 and 4219 together (447,829,531.72) are 4209 Term loan interest-FInES, unchanged.
+
+**The fee move is a presentation entry, not a ledger journal.** The final AFS TB lists every audit adjustment (31 of them) and 4873 is still 311,342,792 in it. The 259,317,000 exists only in the income-statement mapping, where 4873 shows 52,025,792 and 4206 shows the 259,317,000 more; profit is the same in both sheets (4,850,745,713). No spool will ever show it, and it is not a set of whole fee postings: no combination of the 35 lines of GL 4873 for 2025 leaves 52,025,792. It was an audit adjustment based on an estimate: E-Banker has no effective-interest calculation, which is why this engine is being built. Its detailed working is therefore not needed; the figure is kept only as the 2025 comparator for the engine's output. Legal fees were not moved in 2025. In 2024 the move went the other way: 37,610,000 out of 4206 into 4873, so 2024 arrangement fees are 1,299,964,206 in the ledger and 1,337,574,206 in the accounts.
+
+**What this corrects.** Version 3 (fact F18 and open item O23) and the note of 24 September read 52,025,792 as the 2025 ledger figure for arrangement fees. It is the figure after the move; the ledger figure is 311,342,792. O23, which asked why 2024 arrangement fees were so much larger than 2025, is smaller than it looked: 1,299,964,206 against 311,342,792, not against 52,025,792.
+
+**What the engine does with it.** The engine's inputs are the fees as charged, which are the ledger figures above. Its output for 2025 is compared with what the accounts recognised: 259,317,000 of arrangement fees treated as interest, plus the 21,865,867.35 suspense reversal, both inside 4206. The journal the engine proposes (O10, O21) replaces this presentation entry. Until Finance opens a dedicated EIR adjustment account, 4206 is the account the true-up lands in, because that is where it lands today.
+
+Scripts: `docs/build-files/fee_gl_recon_2026-10-11.py` (the spools against the trial balances and the account ledger). The 4206 bridge is read from the AFS mapping workbook ("TB December 2025", "Final E-Banker TB Dec 2025" and "FINAL AFS TB as of 19th Mar 26") and Dr Thom's workbook. Dr Thom's email of 24 September 2026 is saved beside the workbook in `New Doc Received 21 Sep`.
 
 ## 4. Decisions, and the Governance Centre
 
@@ -205,7 +239,7 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | Calibration note required on a downside (`scenario_calibration_note`) | Required | Recommendation (section 15.6) | new |
 | An overlay needs an approved scenario set (`overlay_requires_approved_set`) | Required | Recommendation (section 15.7) | new |
 | How the loan book is built (`loan_book_build_method`) | Method B, derived from the ledger | Decided D22: all three methods of section 6.2 are built (bootstrap of the stored run, derivation from the ledger, the printed report importer); MAIIC switches at any time; the method used is recorded on every row | O8 |
-| Which GL absorbs the EIR true-up | Dedicated EIR adjustment income account | Recommendation; Finance opens the account | O10 |
+| Which GL absorbs the EIR true-up | Dedicated EIR adjustment income account | Recommendation; Finance opens the account. Today the true-up lands in 4206 Interest on Term Loans-MAIIC (section 3.7), which is the fallback until the new account exists | O10 |
 | Shape of the auditor export | Summary-tab shape | Recommendation, with Deloitte | O12 |
 | Keyman insurance charged to the borrower | Not integral: pass-through, outside the EIR | Recommendation; a Phase 0 sign-off | O13 |
 | Nascomex preference shares | Equity instrument (IAS 32), outside the EIR | Recommendation; a Phase 0 sign-off | O13 |
@@ -215,7 +249,7 @@ The Governance Centre now holds 28 settings. The first 13 were there from P1 and
 | Reset or modification | In-contract moves reset; negotiated changes modify | Recommendation; Deloitte in writing before the first reset is booked | O17 |
 | Approving a version 1 schedule | Second person must approve | Recommendation | O18 |
 | The historic materiality assessment | Reproduce it beside the detailed figure | Recommendation; Finance supplies the threshold | O20 |
-| The year-end fee reclassification journal | Engine journal replaces the manual reclass | Recommendation; follows O10 | O21 |
+| The year-end fee reclassification journal | Engine journal replaces the manual reclass | Recommendation; follows O10. The 2025 move (259,317,000 from 4873 into 4206) was made in the presentation of the accounts, not posted to the ledger (section 3.7); the engine's proposal is reconciled to it | O21 |
 | Mega Farms facilities | **Out of the EIR engine; in the ECL module; MAIIC's 5 percent share on the net carrying amount** | Decided D30 on the 2025 financial statements (section 16); Dr Thom to confirm | O22 |
 | Probability of default for the Mega Farm schemes (`megafarm_pd_method`) | MAIIC agricultural-sector PD scaled to the programme | Recommendation (section 16.8); the seasonal cohort rate is the check; the programme's own transition matrix is declined until three seasons exist; the method used for the 2025 provision to be confirmed by Finance | new |
 | Programme scalar ceiling for the Mega Farm PD (`megafarm_scalar_ceiling`) | 40 times the sector PD | A scalar above it needs a second approval (section 16.8); the 2025 cohort implies about 30 | new |
@@ -231,7 +265,7 @@ Nothing further is needed from the database to start building. These are the ans
 | Who | What | Asked in | Why it matters |
 |---|---|---|---|
 | Tamanda | Tick the take-on mapping workbook (4 unmatched, 11 carrying-amount differences above 5 percent) | `Take-on schedules with mapping - for Tamanda to confirm - 7 Oct 2026.xlsx` | Loads the 109 take-on loans |
-| Tamanda | The fees of the take-on loans, in the yellow columns of the returned workbook (O14), and the explanation of the 2024 arrangement fee of MWK 1.34 billion (O23) | The workbook with fee columns of 7 Oct; the 2024 question in version 3 | Fees are the EIR; the 2024 figure decides how much of 2024 belongs in it |
+| Tamanda | The fees of the take-on loans, in the yellow columns of the returned workbook (O14), and the explanation of the 2024 arrangement fee of MWK 1.30 billion in the ledger (O23, restated in section 3.7); and whether the BRFF fees of June 2026 belong to a programme outside the eighteen schemes, so that the extracts cover it | The workbook with fee columns of 7 Oct; the 2024 question in version 3; section 3.7 | Fees are the EIR; the BRFF answer decides the scheme list in the queries |
 | Credit | The twelve offer letters: the ten samples and the two over-sanction accounts (Mchinji 50m against 100m drawn; VNC Bricks 20m against 200m); the 31 active accounts with no security on the register (`P2_11`) | `Request to Credit - the twelve offer letters - 7 Oct 2026.pdf`; the collateral list of 8 Oct | Test evidence under D20; the two sanction checks are a control finding; the loss-given-default rests on the register |
 | Finance | Which 2024 figure agreed to the audited accounts for 1050201 and 1050202, then the GL opening adjustment | `Outcome - GL differences and Zaithwa Farms explained - 7 Oct 2026.pdf` | The ledger-to-accounts bridge |
 | Finance | Whether the year-end re-rating of 31 December 2025 was intended as policy (the posting itself is now fully explained, section 3.4); which 25 loans the November 2025 ECL model leaves out of E-Banker's 125 and why (section 3.6); the historic materiality threshold; **how the 2025 Mega Farm provision of K39.76 billion was arrived at** (the staging rule, the probability and loss assumptions, the treatment of maize and the buyer receivables) | `Note to Barry - the 28 interest adjustments of 31 Dec 2025.pdf`; O20; section 16.8 | December 2025 interest; the historic assessment; the starting point for the Mega Farm provisioning method |
@@ -288,7 +322,9 @@ A pack is a set of files, one per query, plus the month's trial balance from Fin
 
 - **The queries are versioned in the system**, not in an email. Data Foundation, E-Banker Feed, Queries holds the SQL text of each extract with a version number and a checksum, and hands Barry the file to run. A column added later is a new version; the manifest says which version produced each file.
 - **Watermarks.** For each incremental table the system records the last key loaded; the query for the next pack is "where the key is greater than the watermark", plus the two-month re-pull. Masters come whole.
-- **Gates, run before anything is derived.** Dates parse as ISO throughout; numerics parse; counts and hashes match the manifest; the query versions are ones the system knows; every ledger account exists in the account master; the balance history ties to the ledger running balance at every month-end in the pack; every in-scope account has a month-end row. A failure refuses the pack with the file and row named; the raw rows are kept in quarantine against the load; nothing downstream moves.
+- **Gates, run before anything is derived.** Dates parse as ISO throughout; numerics parse; counts and hashes match the manifest; the query versions are ones the system knows; every ledger account exists in the account master; the balance history ties to the ledger running balance at every month-end in the pack; every in-scope account has a month-end row; the month's movement on each fee GL in `GL_04a` equals the trial balance's movement on that GL (section 3.7), since the account ledger alone does not carry every fee (this gate is new on 11 October 2026 and is built with `GL_04` in P4b). A failure refuses the pack with the file and row named; the raw rows are kept in quarantine against the load; nothing downstream moves.
+- **The fee control is a standing monthly query** (added 11 October 2026). `GL_04a` takes every posting to 4871, 4873, 4874 and 4875 since the watermark, and `GL_04b` every other leg of the same batches, which shows the loan account or bank side of each fee. Both are in the register and in pack 4; from the October month-end they join `M09_01` to `M09_03` in every monthly pack.
+- **A large extract may come in parts.** Where SQL Developer cannot hold a result (the Mega Farm ledger, `MF_03`, stopped at 107 of about 3,685 accounts on 9 October), the run sheet splits it by account range into parts that each export from the grid. The parts are named `MF_03_ledger_a.csv` to `MF_03_ledger_g.csv`, so that both a hand-written manifest and the route 2 script (which reads the query id from the first two parts of the file name) put every part under `MF_03`; rows are keyed on `CUMVOUCH_DET_ID`, so the parts neither overlap nor need a merge. The counts come in `CHECK_MF_03_row_counts.csv`, a check file that is never landed.
 
 ### 6.5 The five routes
 
@@ -437,7 +473,7 @@ Reads `P1_02` and `P1_03` and loads the verbatim E-Banker code columns that P2 i
 
 ### 7.4 The fee importer (two routes)
 
-Loans disbursed through E-Banker: `P2_07`, the charges table, with the fee name, amount, posting date and income GL; the standing fee rulebook (25 rules) classifies each as integral or not. Take-on loans: Tamanda's template. Both land in the same table with their source recorded. The `COLLECTION_TYPES` list in `EirRevenueService` wrongly includes 'Interest' and treats an interest charge as cash collected; it is corrected.
+Loans disbursed through E-Banker: `P2_07`, the charges table, with the fee name, amount, posting date and income GL; the standing fee rulebook (25 rules) classifies each as integral or not. Take-on loans: Tamanda's template. Both land in the same table with their source recorded. The control total for both routes is the fee income GLs, 4871 and 4873, not the account ledger: about 44 percent of 2025 fee income, and nearly all of it from March 2026, was credited to income in the drawdown batch with no fee leg on the loan account (section 3.7). The importer therefore reconciles each month's fees to the GL spools and flags a GL fee line it cannot place on a loan. The `COLLECTION_TYPES` list in `EirRevenueService` wrongly includes 'Interest' and treats an interest charge as cash collected; it is corrected.
 
 ### 7.5 Expected cash flows (generated, not imported)
 
@@ -451,13 +487,25 @@ As section 6.9: the workbook landed as `takeon_blocks` and `takeon_schedule_line
 
 The trial balance is the check on everything else, so it enters by the same door as everything else. The 20 monthly files, the December 2025 AFS bridge (the 10 September 2026 version is the one loaded; the 19 August version held its amounts as text) and the mapping of every GL line to the audited accounts are committed under `docs/bootstrap/trial-balances/` and landed as `ebanker_trial_balances` (section 6.3); each later month arrives as one more file in the monthly pack, with its hash in the manifest. `gl_trial_balance_lines`, which the reconciliation reads, is derived from the landed files by the build, and `gl_account_scope` still says what each GL code is. The two rules of the September importer are unchanged: a P&L balance is cumulative year-to-date and is turned into a month on read (January taken whole); a balance-sheet balance is never differenced. `GL_02` is landed as the small table of keyed GL opening balances so that the bridge shows the two FInES differences as what they are. The ties the trial balance gives (section 9: the loan GLs to the cent, the FInES differences, interest income year-to-date on 83 of 83) are run by `eir:bootstrap --verify` like every other baseline.
 
+**The two charts of accounts** (added 11 October 2026). E-Banker's trial balance is not the ledger the accounts are prepared from. Finance keeps the statutory books in QuickBooks, and the AFS mapping workbook's "TB December 2025" sheet maps every E-Banker line to a QuickBooks code. For the lines the engine touches:
+
+| QuickBooks (accounts) | E-Banker (trial balance) | 2025, MWK | What changes between them |
+|---|---|---:|---|
+| 4206 Interest on Term Loans-MAIIC | 4215 + 4216 + 42019 | 2,106,561,165.01 | The audit added the interest-in-suspense reversal (21,865,867.35); the accounts then presented 259,317,000 of arrangement fees here, an estimate made because E-Banker has no EIR calculation (section 3.7) |
+| 4209 Term loan interest-FInES | 4218 + 4219 | 447,829,531.72 | Nothing |
+| 4870 Services Income: 4871 Legal fees | 4871 | 171,128,135.00 | Nothing in 2025 |
+| 4870 Services Income: 4873 Arrangement fees | 4873 | 311,342,792.00 | Shown as 52,025,792 in the accounts after the presentation above |
+| 1320 Interest Suspense | 1320 | 21,865,867.35 (credit) | Reversed to 4206 by the audit |
+
+The reconciliation therefore runs in two steps: E-Banker's ledger to E-Banker's trial balance (the ties of section 9), then E-Banker's trial balance to the accounts through this mapping, with each audit adjustment as its own named line. The mapping is seeded in `gl_account_scope` (chart `QUICKBOOKS`, codes 4206, 4209 and 4870) and the full 191-row map is landed with the AFS bridge. E-Banker's own year-end posting, the re-rating batch of 31 December (section 3.4), is expected every year and sits inside the E-Banker figures, not among the audit adjustments.
+
 ## 8. The build plan from here
 
 Phases P1 to P4 are built. The order from today, with what each one waits for:
 
 | Phase | Content | Waits for |
 |---|---|---|
-| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by all three methods (the report importer landed and gated); the take-on schedules landed, gated and built (6.9); `EirAsAtService` (6.11); `eir:bootstrap` with the committed inputs and `--verify` (6.10); the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists | Nothing; route 4 waits for Dr Thom and ICT |
+| **P4b Ingestion and importer rework** (sections 6 and 7) | The landing zone, the pack contract and gates, route 1 and the feed screen, the build by all three methods (the report importer landed and gated); the take-on schedules landed, gated and built (6.9); `EirAsAtService` (6.11); `eir:bootstrap` with the committed inputs and `--verify` (6.10); the rate-history, contract-master, fee and take-on importers; the four code corrections; route 2's script once the read-only account exists; added 11 October 2026: `GL_04` in the monthly pack with the fee-GL gate (6.4), the fee importer's reconciliation to the fee GLs (7.4), and the two-chart reconciliation to the accounts (7.7) | Nothing; route 4 waits for Dr Thom and ICT |
 | **P5 Floating resets** | Reset detector from the PLR series writing `rate_reset_events`; a spread change as a separate event; maker-checker intake; a reset inside a locked period refused; prospective re-estimation under B5.4.5 | Nothing to build; O17 confirmed by Deloitte before the first reset is booked |
 | **P6 Arrears** | Cash receipts from the ledger (exact); re-estimation under B5.4.6; IRR on actual expected flows | P5 |
 | **P7 Restructuring** | Version N+1 import; `contract_modifications`; the 10 percent test; lineage | The restructure register from MAIIC |
@@ -481,6 +529,8 @@ The ties achieved this week become regression tests, run by `eir:bootstrap --ver
 | Contractual interest rebuilt from the previous month-end balance, rate and days over 365 | 1,595 of 2,047 within 0.1 percent; 1,828 within 1 percent |
 | The month of a rate change | Whole month at the new rate on 217 of 229 |
 | Take-on postings of 31 July 2024 | 77 postings, MWK 8,297,388,309.25 |
+| Fee income GLs against the trial balance | 4871 and 4873 year-to-date equal the trial balance in every month, January to November 2025 and January to July 2026; 2025 before the closing voucher 171,128,135.00 and 311,342,792.00 |
+| 4206 against the audited accounts, 2025 | E-Banker 4215 + 4216 + 42019 = 2,106,561,165.01; plus the suspense reversal 21,865,867.35 = 2,128,427,032.36 (final AFS TB); plus the fee presentation 259,317,000.00 = 2,387,744,032.36 (section 3.7) |
 | Year-end adjustments of 31 December 2025 | 28 postings: 22 debits 96,390,096.16; 6 credits 85,166,683.31; GL legs 4215 +32,956,675.55 and 4216 -21,733,262.70; December income movement on both GLs equal to the ledger to the cent |
 | The monthly feed (September 2026, the first pack) | August re-pull identical to the first load; September balance change equals the ledger on 105 of 105 accounts |
 | Collateral register | 118 distinct securities, MWK 47.1 billion, after de-duplication on the security id; 58 of 89 active accounts covered |
