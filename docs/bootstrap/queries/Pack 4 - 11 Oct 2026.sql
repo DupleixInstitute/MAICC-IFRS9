@@ -466,7 +466,7 @@ ORDER  BY cv.transaction_date, cv.batch_number, cv.vscrno, cv.cumvouch_det_id;
 -- versions of each schedule. The 6 October extract (P2_10) took live rows only.
 -- Split by account block on 12 October 2026 to stay under the 100 MB grid limit.
 
--- RUN 8  |  save as CHECK_RS_02_row_counts.csv   (a check file; it is not loaded)
+-- RUN 8a0  |  save as CHECK_RS_02_row_counts.csv   (a check file; it is not loaded)
 -- The row count each RUN 8 file should have. Run it first and keep its grid;
 -- each file's row count must match its line here.
 SELECT part, COUNT(*) AS rows_expected
