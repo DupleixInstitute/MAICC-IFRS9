@@ -60,8 +60,15 @@ class AuditTraceController extends Controller
                 $add((string) $a->created_at, "Roll-forward {$a->reporting_period}", 'opening ' . number_format((float) $a->opening_gross, 2) . ', EIR interest ' . number_format((float) $a->interest_accrued, 2) . " ({$a->interest_basis}), cash " . number_format((float) $a->cash_received, 2) . " ({$a->cash_source}), closing " . number_format((float) $a->closing_gross, 2), 'eir_amortisation');
             }
             // the loan's months and the governance values each ran under
-            $keys = ['loan_book_build_method', 'dpd_basis', 'stage3_missed_instalments', 'stage3_interest_basis', 'fli_adjustment_route', 'fli_transmission_method', 'scenario_weighting_method', 'plr_mid_period'];
-            foreach (DB::table('loan_books')->where('contract_id', $contract)->orderBy('reporting_period')->get(['reporting_period', 'build_method', 'build_load_id', 'ifrs9stage_post_qualitative', 'overdue_days', 'carrying_amount', 'pd_prefli', 'pd_post_fli', 'lgd_value', 'ecl_value', 'fli_route', 'fli_method', 'fli_fit_id', 'fli_set_id']) as $m) {
+            $keys = ['loan_book_build_method', 'dpd_basis', 'stage3_missed_instalments', 'stage_cure_months', 'stage3_interest_basis', 'fli_adjustment_route', 'fli_transmission_method', 'scenario_weighting_method', 'plr_mid_period'];
+            // the qualitative SICR triggers on the loan or its customer, to show which were in force at each month-end
+            $customerIds = DB::table('loan_books')->where('contract_id', $contract)->whereNotNull('customer_id')->distinct()->pluck('customer_id')->map(fn ($c) => (string) $c)->all();
+            $triggers = DB::getSchemaBuilder()->hasColumn('finance_sicr_triggers', 'status') ? DB::table('finance_sicr_triggers as t')->leftJoin('finance_sicr_items as i', 'i.id', '=', 't.item_id')
+                ->leftJoin('users as r', 'r.id', '=', 't.triggered_by')->leftJoin('users as a', 'a.id', '=', 't.approved_by')
+                ->whereIn('t.status', ['APPROVED', 'CLOSED'])
+                ->where(fn ($q) => $q->where(fn ($q) => $q->where('t.scope', 'contract')->where('t.account_number', $contract))->orWhere(fn ($q) => $q->where('t.scope', 'customer')->whereIn('t.customer_id', $customerIds ?: ['-'])))
+                ->get(['t.id', 't.effective_from', 't.effective_to', 't.stage_implied', 't.approver_label', 't.is_demo', 'i.name as item', 'r.name as raised_by', 'a.name as approved_by']) : collect();
+            foreach (DB::table('loan_books')->where('contract_id', $contract)->orderBy('reporting_period')->get(['reporting_period', 'build_method', 'build_load_id', 'ifrs9stage_pre_qualitative', 'ifrs9stage_post_qualitative', 'overdue_days', 'carrying_amount', 'pd_prefli', 'pd_post_fli', 'lgd_value', 'ecl_value', 'fli_route', 'fli_method', 'fli_fit_id', 'fli_set_id']) as $m) {
                 $lock = DB::table('reporting_period_locks')->where('reporting_period', $m->reporting_period)->first();
                 $snapshot = $lock && $lock->settings_snapshot ? json_decode($lock->settings_snapshot, true) : null;
                 $values = [];
@@ -72,7 +79,10 @@ class AuditTraceController extends Controller
                         $values[$k] = null;
                     }
                 }
-                $months[] = ['period' => $m->reporting_period, 'build' => $m->build_method . ($m->build_load_id ? " (load {$m->build_load_id})" : ''), 'stage' => $m->ifrs9stage_post_qualitative, 'dpd' => $m->overdue_days, 'carrying' => (float) $m->carrying_amount,
+                $monthEnd = CarbonImmutable::parse($m->reporting_period . '-01')->endOfMonth()->toDateString();
+                $qualitative = $triggers->filter(fn ($t) => $t->effective_from !== null && $t->effective_from <= $monthEnd && ($t->effective_to === null || $t->effective_to >= $monthEnd))
+                    ->map(fn ($t) => "Trigger {$t->id}: {$t->item} (Stage {$t->stage_implied}), raised by " . ($t->raised_by ?? '-') . ', approved by ' . ($t->approved_by ?? $t->approver_label ?? '-') . ($t->is_demo ? ' [demo trigger, not a MAIIC assessment]' : ''))->values()->all();
+                $months[] = ['period' => $m->reporting_period, 'build' => $m->build_method . ($m->build_load_id ? " (load {$m->build_load_id})" : ''), 'stage' => $m->ifrs9stage_post_qualitative, 'stage_pre' => $m->ifrs9stage_pre_qualitative, 'qualitative' => $qualitative, 'dpd' => $m->overdue_days, 'carrying' => (float) $m->carrying_amount,
                     'pd_pre' => $m->pd_prefli, 'pd_post' => $m->pd_post_fli, 'lgd' => $m->lgd_value, 'ecl' => $m->ecl_value, 'fli' => trim(($m->fli_route ?? '') . ' ' . ($m->fli_method ?? '')) . ($m->fli_fit_id ? " fit {$m->fli_fit_id}" : '') . ($m->fli_set_id ? " set {$m->fli_set_id}" : ''),
                     'locked' => $lock !== null, 'governance' => $values, 'governance_source' => $snapshot ? 'locked snapshot' : 'values in force on the month-end'];
             }

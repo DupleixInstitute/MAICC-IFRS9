@@ -124,7 +124,11 @@
                     <tr class="align-top">
                       <td class="whitespace-nowrap font-semibold">{{ m.period }}<span v-if="m.locked" class="maiic-badge maiic-badge-grey ml-2">Locked</span></td>
                       <td class="text-xs">{{ humanise(m.build) || '-' }}</td>
-                      <td><span class="maiic-badge" :class="stageBadge(m.stage)">{{ m.stage ? 'Stage ' + m.stage : '-' }}</span></td>
+                      <td>
+                        <span class="maiic-badge" :class="stageBadge(m.stage)">{{ m.stage ? 'Stage ' + m.stage : '-' }}</span>
+                        <div v-if="m.stage_pre && String(m.stage_pre) !== String(m.stage)" class="mt-0.5 whitespace-nowrap text-[11px] text-gray-500">Stage {{ m.stage_pre }} by days past due</div>
+                        <div v-for="q in (m.qualitative || [])" :key="q" class="mt-0.5 max-w-xs text-[11px] text-amber-800">{{ q }}</div>
+                      </td>
                       <td class="num">{{ m.dpd ?? '-' }}</td>
                       <td class="num">{{ fmt(m.carrying) }}</td>
                       <td class="num">{{ pct(m.pd_pre) }}</td>
@@ -179,6 +183,7 @@ const SETTINGS = {
   loan_book_build_method: 'Loan book build method',
   dpd_basis: 'Days past due basis',
   stage3_missed_instalments: 'Stage 3 after missed instalments',
+  stage_cure_months: 'Months held after a loan cures',
   stage3_interest_basis: 'Stage 3 interest basis',
   fli_adjustment_route: 'FLI adjustment route',
   fli_transmission_method: 'FLI transmission method',

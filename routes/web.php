@@ -909,12 +909,14 @@ Route::group(['prefix' => 'sicr-items', 'as' => 'sicr-items.'], function () {
     Route::delete('/{item}/destroy', [\App\Http\Controllers\SicrItemController::class, 'destroy'])->name('destroy');
 });
 
+// The qualitative SICR register: raise, approve (a second person), reject,
+// close. The staging engine reads the approved triggers in force.
 Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function () {
     Route::get('/', [\App\Http\Controllers\SicrTriggerController::class, 'index'])->name('index');
     Route::post('/store', [\App\Http\Controllers\SicrTriggerController::class, 'store'])->name('store');
-    Route::post('/{trigger}/update-loan-book', [\App\Http\Controllers\SicrTriggerController::class, 'updateLoanBook'])->name('update-loan-book');
-    Route::post('/{trigger}/remove-alert', [\App\Http\Controllers\SicrTriggerController::class, 'removeAlert'])->name('remove-alert');
-    Route::get('/customers', [\App\Http\Controllers\SicrTriggerController::class, 'getCustomers'])->name('customers');
+    Route::post('/{trigger}/approve', [\App\Http\Controllers\SicrTriggerController::class, 'approve'])->whereNumber('trigger')->name('approve');
+    Route::post('/{trigger}/reject', [\App\Http\Controllers\SicrTriggerController::class, 'reject'])->whereNumber('trigger')->name('reject');
+    Route::post('/{trigger}/close', [\App\Http\Controllers\SicrTriggerController::class, 'close'])->whereNumber('trigger')->name('close');
 });
 
 // EIR module - schedule & fee intake (docs/EIR_Build.md Phase 2)

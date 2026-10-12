@@ -16,7 +16,9 @@ use ReflectionClass;
  *    credit loss definition (it matches the definition's aliases against the
  *    file's slugged headings) and the optional "source" and "notes".
  *  - sicr-groups: SicrGroupController::import requires name, description.
- *  - sicr-items: SicrItemController::import requires group, name, active.
+ *  - sicr-items: SicrItemController::import requires group, name, active and
+ *    reads the optional stage (2 or 3), description, evidence_required and
+ *    standard_reference.
  *  - rbm-policy-rate: MacroStatisticsController::rbmPreview reads two columns,
  *    date and rate, and skips a first row whose rate is not a number.
  *  - imf-weo: ImfWeoParserService reads a tab-delimited file with the
@@ -43,7 +45,7 @@ class ImportSampleController extends Controller
         [$headers, $file] = match ($kind) {
             'credit-loss-data' => [$this->creditLossHeaders(), 'credit_loss_data_sample.csv'],
             'sicr-groups' => [['name', 'description'], 'sicr_groups_sample.csv'],
-            'sicr-items' => [['group', 'name', 'active'], 'sicr_items_sample.csv'],
+            'sicr-items' => [['group', 'name', 'active', 'stage', 'description', 'evidence_required', 'standard_reference'], 'sicr_items_sample.csv'],
             'rbm-policy-rate' => [['date', 'rate'], 'rbm_policy_rate_sample.csv'],
             'imf-weo' => [null, 'imf_weo_sample.tsv'],
             default => abort(404),

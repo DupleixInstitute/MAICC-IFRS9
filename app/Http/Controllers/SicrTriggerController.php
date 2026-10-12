@@ -2,17 +2,29 @@
 
 namespace App\Http\Controllers;
 
-use Inertia\Inertia;
-use App\Models\Client;
-use App\Models\LoanBook;
-use App\Models\SicrItem;
-use App\Models\SicrGroup;
-use App\Models\SicrTrigger;
+use App\Services\Eir\GovernanceService;
+use App\Services\Eir\QualitativeSicrService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
+use Throwable;
 
+/**
+ * Staging & SICR Rules, SICR Trigger Alerts: the qualitative SICR register.
+ *
+ * A credit officer raises a trigger on a loan (or on every loan of a
+ * customer) from the SICR item list, with the reason, the evidence and the
+ * dates it applies; a second person approves or rejects it; when the
+ * condition passes it is closed with a date and a reason. Nothing here
+ * writes to the loan book: the staging engine reads the approved triggers in
+ * force at each month-end the next time the month is staged (eir:stage),
+ * and the PD and ECL runs then read the stage it wrote.
+ *
+ * Replaces the screen of the cloned platform, whose form sent columns the
+ * table never had (they were dropped without a word), whose "update loan
+ * book now" set a flag on one row of the latest month only, and whose
+ * "remove alert" wrote a column that does not exist.
+ */
 class SicrTriggerController extends Controller
 {
     public function __construct()
@@ -21,218 +33,131 @@ class SicrTriggerController extends Controller
         $this->middleware('permission:settings');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $groups = SicrGroup::orderBy('name')->get(['id','name']);
-        $items = SicrItem::orderBy('name')->get(['id','name','group_id']);
-        $triggers = SicrTrigger::with(['group','item','user'])->orderByDesc('created_at')->paginate(15);
+        $today = now()->toDateString();
+        $show = (string) $request->query('show', 'current');
+        $search = trim((string) $request->query('search', ''));
+        $latest = (string) (DB::table('loan_books')->whereNotNull('ifrs9stage_post_qualitative')->max('reporting_period') ?? DB::table('loan_books')->max('reporting_period') ?? '');
+
+        $query = DB::table('finance_sicr_triggers as t')
+            ->leftJoin('finance_sicr_items as i', 'i.id', '=', 't.item_id')
+            ->leftJoin('finance_sicr_groups as g', 'g.id', '=', 't.group_id')
+            ->leftJoin('users as r', 'r.id', '=', 't.triggered_by')
+            ->leftJoin('users as a', 'a.id', '=', 't.approved_by')
+            ->leftJoin('users as x', 'x.id', '=', 't.rejected_by')
+            ->leftJoin('users as c', 'c.id', '=', 't.closed_by')
+            ->select(['t.*', 'i.name as item_name', 'g.name as group_name', 'r.name as raised_by', 'a.name as approved_by_name', 'x.name as rejected_by_name', 'c.name as closed_by_name']);
+        match ($show) {
+            'proposed' => $query->where('t.status', 'PROPOSED'),
+            'closed' => $query->where(fn ($q) => $q->whereIn('t.status', ['CLOSED', 'REJECTED'])->orWhere(fn ($q) => $q->where('t.status', 'APPROVED')->where('t.effective_to', '<', $today))),
+            'all' => null,
+            default => $query->where(fn ($q) => $q->where('t.status', 'PROPOSED')->orWhere(fn ($q) => $q->where('t.status', 'APPROVED')->where(fn ($q) => $q->whereNull('t.effective_to')->orWhere('t.effective_to', '>=', $today)))),
+        };
+        if ($search !== '') {
+            $query->where(fn ($q) => $q->where('t.account_number', 'like', "%{$search}%")->orWhere('t.customer_name', 'like', "%{$search}%")->orWhere('t.customer_id', $search));
+        }
+        $triggers = $query->orderByRaw("CASE t.status WHEN 'PROPOSED' THEN 0 WHEN 'APPROVED' THEN 1 ELSE 2 END")->orderByDesc('t.id')->paginate(15)->withQueryString();
+
+        // the stage each loan was given at the latest staged month, before and after the qualitative triggers
+        $page = collect($triggers->items());
+        $contracts = $page->where('scope', 'contract')->pluck('account_number')->all();
+        $customers = $page->where('scope', 'customer')->pluck('customer_id')->filter()->all();
+        $rows = $latest === '' ? collect() : DB::table('loan_books')->where('reporting_period', $latest)
+            ->where(fn ($q) => $q->whereIn('contract_id', $contracts ?: ['-'])->orWhereIn('customer_id', $customers ?: ['-']))
+            ->get(['contract_id', 'customer_id', 'ifrs9stage_pre_qualitative', 'ifrs9stage_post_qualitative', 'ecl_value', 'carrying_amount']);
+        $triggers->setCollection($page->map(function ($t) use ($rows, $today) {
+            $loans = $t->scope === 'customer' ? $rows->where('customer_id', $t->customer_id) : $rows->where('contract_id', $t->account_number);
+            $t->loans = $loans->map(fn ($l) => ['contract_id' => $l->contract_id, 'pre' => $l->ifrs9stage_pre_qualitative, 'post' => $l->ifrs9stage_post_qualitative, 'ecl' => $l->ecl_value === null ? null : (float) $l->ecl_value])->values();
+            $t->display_status = $this->displayStatus($t, $today);
+
+            return $t;
+        }));
+
+        $inForceToday = (new QualitativeSicrService())->inForce($today);
+
         return Inertia::render('StageingRules/Triggers', [
-            'groups' => $groups,
-            'items' => $items,
             'triggers' => $triggers,
+            'filters' => ['show' => $show, 'search' => $search],
+            'latestPeriod' => $latest,
+            'summary' => [
+                'in_force' => $inForceToday->count(),
+                'stage2' => $inForceToday->where('stage_implied', 2)->count(),
+                'stage3' => $inForceToday->where('stage_implied', 3)->count(),
+                'proposed' => DB::table('finance_sicr_triggers')->where('status', 'PROPOSED')->count(),
+                'closed' => DB::table('finance_sicr_triggers')->whereIn('status', ['CLOSED', 'REJECTED'])->count(),
+            ],
+            'items' => DB::table('finance_sicr_items as i')->join('finance_sicr_groups as g', 'g.id', '=', 'i.group_id')->where('i.active', true)
+                ->orderBy('g.sort_order')->orderBy('g.name')->orderBy('i.stage_implied')->orderBy('i.name')
+                ->get(['i.id', 'i.name', 'i.description', 'i.stage_implied', 'i.evidence_required', 'i.standard_reference', 'g.name as group_name']),
+            'loans' => $latest === '' ? [] : DB::table('loan_books')->where('reporting_period', $latest)->orderBy('customer_name')
+                ->get(['contract_id', 'customer_id', 'customer_name', 'ifrs9stage_post_qualitative as stage']),
+            'userId' => (int) auth()->id(),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, QualitativeSicrService $register)
     {
         $data = $request->validate([
-            'group_id' => ['required','exists:finance_sicr_groups,id'],
-            'item_id' => ['required','exists:finance_sicr_items,id'],
-            'customer_id' => ['nullable','string','max:255'],
-            'account_number' => ['required','string','max:255'],
-            'affect_all' => ['boolean'],
-            'reason' => ['required','string'],
-            'effective_period' => ['nullable','date'],
-            'update_loan_book_now' => ['boolean'],
-            'attachment' => ['nullable','file','max:5120'],
-        ]);
-
-        // Check if customer is active (if customer_id is provided)
-        if (!empty($data['customer_id'])) {
-            $activeCustomer = LoanBook::where('external_identity_id', $data['customer_id'])
-                ->whereNotNull('external_identity_id')
-                ->where('external_identity_id', '!=', '')
-                ->first();
-                
-            if (!$activeCustomer) {
-                return back()->withErrors([
-                    'customer_id' => 'Customer is not active or does not exist in the loan book.'
-                ])->withInput();
-            }
+            'item_id' => ['required', 'integer', 'exists:finance_sicr_items,id'],
+            'scope' => ['required', 'in:contract,customer'],
+            'contract_id' => ['nullable', 'required_if:scope,contract', 'string', 'max:60'],
+            'customer_id' => ['nullable', 'required_if:scope,customer', 'string', 'max:60'],
+            'reason' => ['required', 'string', 'max:2000'],
+            'evidence' => ['nullable', 'string', 'max:2000'],
+            'effective_from' => ['required', 'date'],
+            'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
+        ], [], ['item_id' => 'item', 'contract_id' => 'loan', 'customer_id' => 'customer', 'effective_from' => 'start date', 'effective_to' => 'end date']);
+        try {
+            $id = $register->propose($data, (int) $request->user()->id);
+        } catch (Throwable $e) {
+            return back()->withErrors(['trigger' => $e->getMessage()])->withInput();
         }
 
-        $path = null;
-        if ($request->hasFile('attachment')) {
-            $path = $request->file('attachment')->store('sicr_attachments', 'public');
-        }
-
-        $trigger = SicrTrigger::create([
-            'group_id' => $data['group_id'],
-            'item_id' => $data['item_id'],
-            'customer_id' => $data['customer_id'] ?? null,
-            'account_number' => $data['account_number'],
-            'affect_all' => $data['affect_all'] ?? false,
-            'reason' => $data['reason'],
-            'effective_period' => $data['effective_period'] ?? null,
-            'attachment_path' => $path,
-            'triggered_by' => Auth::id(),
-            'last_update' => now(),
-        ]);
-
-        // If "Update Loan Book Now" is checked, apply changes immediately
-        if ($data['update_loan_book_now'] ?? false) {
-            $this->updateLoanBookForTrigger($trigger);
-        }
-
-        return back()->with('success', 'SICR trigger recorded successfully.');
+        return redirect()->route('sicr-triggers.index', ['show' => 'current'])->with('success', "Trigger {$id} raised. A second person approves it; it reaches the loan's stage when the month is next staged.");
     }
 
-    /**
-     * Update loan book from trigger modal
-     */
-    public function updateLoanBook(Request $request, $id)
+    public function approve(Request $request, int $trigger, QualitativeSicrService $register, GovernanceService $governance)
     {
-        $trigger = SicrTrigger::findOrFail($id);
-        
-        $data = $request->validate([
-            'effective_period' => ['required','date'],
-        ]);
-
-        // Check if customer is active (if customer_id is provided)
-        if ($trigger->customer_id) {
-            $activeCustomer = LoanBook::where('external_identity_id', $trigger->customer_id)
-                ->whereNotNull('external_identity_id')
-                ->where('external_identity_id', '!=', '')
-                ->first();
-                
-            if (!$activeCustomer) {
-                return back()->withErrors([
-                    'customer' => 'Customer is not active or does not exist in the loan book.'
-                ]);
-            }
-        }
-
-        $trigger->update([
-            'effective_period' => $data['effective_period'],
-            'last_update' => now(),
-        ]);
-
-        $this->updateLoanBookForTrigger($trigger);
-
-        return back()->with('success', 'Loan book updated successfully for SICR trigger.');
+        return $this->act(fn () => $register->approve($trigger, (int) $request->user()->id, $governance->adminOverrideAllowed($request->user())),
+            "Trigger {$trigger} approved. Stage the month again (and re-run PD and ECL) for it to change the loan's stage and ECL.");
     }
 
-    /**
-     * Remove/deactivate a trigger alert
-     */
-    public function removeAlert($id)
+    public function reject(Request $request, int $trigger, QualitativeSicrService $register)
     {
-        $trigger = SicrTrigger::findOrFail($id);
-        
-        $trigger->update([
-            'removal_date' => now(),
-            'last_update' => now(),
-        ]);
+        $data = $request->validate(['reason' => ['required', 'string', 'max:500']]);
 
-        // Optionally reset SICR trigger in loan book
-        if ($trigger->affect_all && $trigger->customer_id) {
-            // Reset for all customer loans
-            $loans = LoanBook::where('external_identity_id', 'LIKE', "%{$trigger->customer_id}%")
-                ->orWhere('contract_id', 'LIKE', "%{$trigger->customer_id}%")
-                ->get();
-            
-            foreach ($loans as $loan) {
-                $loan->sicr_trigger = 0;
-                $loan->save();
-            }
-        } else {
-            // Reset for single account
-            $loan = LoanBook::where('contract_id', $trigger->account_number)
-                ->orWhere('external_identity_id', $trigger->account_number)
-                ->orderByDesc('reporting_period')
-                ->first();
-            
-            if ($loan) {
-                $loan->sicr_trigger = 0;
-                $loan->save();
-            }
-        }
-
-        return back()->with('success', 'Alert removed successfully.');
+        return $this->act(fn () => $register->reject($trigger, (int) $request->user()->id, $data['reason']), "Trigger {$trigger} rejected.");
     }
 
-    /**
-     * Get customers for autocomplete/search
-     */
-    public function getCustomers(Request $request)
+    public function close(Request $request, int $trigger, QualitativeSicrService $register)
     {
-        $search = $request->get('search', '');
-        
-        $customers = LoanBook::select('external_identity_id', DB::raw('COUNT(*) as loan_count'))
-            ->distinct()
-            ->when($search, function ($query, $search) {
-                return $query->where('external_identity_id', 'LIKE', "%{$search}%");
-            })
-            ->whereNotNull('external_identity_id')
-            ->where('external_identity_id', '!=', '')
-            ->groupBy('external_identity_id')
-            ->orderBy('external_identity_id')
-            ->limit(20)
-            ->get()
-            ->map(function ($customer) {
-                return [
-                    'id' => $customer->external_identity_id,
-                    'external_identity_id' => $customer->external_identity_id,
-                    'name' => $customer->external_identity_id, // Use ID as name for now
-                    'loan_count' => $customer->loan_count
-                ];
-            });
+        $data = $request->validate(['reason' => ['required', 'string', 'max:500'], 'closed_on' => ['nullable', 'date']]);
 
-        return response()->json(['customers' => $customers]);
+        return $this->act(fn () => $register->close($trigger, (int) $request->user()->id, $data['reason'], $data['closed_on'] ?? null),
+            "Trigger {$trigger} closed. Month-ends after the closing date no longer see it; the cure period decides when the loan moves down.");
     }
 
-    /**
-     * Core logic to update loan book based on trigger
-     */
-    private function updateLoanBookForTrigger(SicrTrigger $trigger)
+    private function act(callable $fn, string $ok)
     {
-        if ($trigger->affect_all && $trigger->customer_id) {
-            // Apply to all loans under this customer
-            $loans = LoanBook::where('external_identity_id', 'LIKE', "%{$trigger->customer_id}%")
-                ->orWhere('contract_id', 'LIKE', "%{$trigger->customer_id}%")
-                ->get();
-            
-            foreach ($loans as $loan) {
-                $this->applyTriggerToLoan($loan);
-            }
-        } else {
-            // Apply to single account
-            $loan = LoanBook::where('contract_id', $trigger->account_number)
-                ->orWhere('external_identity_id', $trigger->account_number)
-                ->orderByDesc('reporting_period')
-                ->first();
-            
-            if ($loan) {
-                $this->applyTriggerToLoan($loan);
-            }
+        try {
+            $fn();
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
         }
+
+        return back()->with('success', $ok);
     }
 
-    /**
-     * Apply SICR trigger logic to individual loan
-     */
-    private function applyTriggerToLoan(LoanBook $loan)
+    private function displayStatus(object $t, string $today): string
     {
-        $loan->sicr = 1;
-        
-        // Qualitative stage conditional: if Stage 1, move to Stage 2
-        $preStage = (int)($loan->ifrs9stage_pre_qualitative ?? $loan->ifrs9_stage ?? 1);
-        
-        if ($preStage == 1) {
-            $loan->ifrs9stage_post_qualitative = 2;
-        }
-        // If already Stage 2 or 3, no change needed
-        
-        $loan->save();
+        return match (true) {
+            $t->status === 'PROPOSED' => 'Awaiting approval',
+            $t->status === 'REJECTED' => 'Rejected',
+            $t->status === 'CLOSED' => 'Closed',
+            $t->status === 'APPROVED' && $t->effective_from > $today => 'Approved, not started',
+            $t->status === 'APPROVED' && $t->effective_to !== null && $t->effective_to < $today => 'Ended',
+            default => 'In force',
+        };
     }
 }
