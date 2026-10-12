@@ -11,8 +11,8 @@
 -- What is still open, and the only things in this pack:
 --   RUN 1   MF_01_account_master.csv      not received (the run 3 file held MF_02 only)
 --   RUN 2   P2_13_los_requests_text.csv   the 9 Oct re-run stopped with ORA-02392
---   RUN 3   MF_03 ledger, in 7 parts       the 9 Oct file stops after 107 of ~3,685 accounts
---           (RUN 3 count first, then 3a to 3g, and 3h only if the count says so)
+--   RUN 3   MF_03 ledger, in 10 parts      the 9 Oct file stops after 107 of ~3,685 accounts
+--           (RUN 3 count first, then 3a to 3f and 3g1 to 3g4, and 3h1a to 3h6 only if the count says so)
 --   RUN 4   CH_02a, CH_02b                the term-loan fees (schemes 140 to 145)
 --   RUN 5   P2_07_disbursement_charges.csv  whole table, replaces the 7 Oct file
 --   RUN 6   GL_04a, GL_04b                the fee income GL legs: new, and from now on monthly
@@ -21,7 +21,7 @@
 --   RUN 9   TB_02, CV_01, TB_03           two probes, and the trial balance rows: new
 --
 -- Every run in this pack is a normal grid export. No SPOOL is needed: the
--- ledger is cut into seven account ranges of roughly 60,000 to 70,000 rows
+-- ledger is cut into ten account ranges of roughly 30,000 to 70,000 rows
 -- each, with only the 28 columns we use, so each part is small.
 --==============================================================================
 
@@ -86,17 +86,17 @@ ORDER  BY r.los_req_id;
 
 
 --==============================================================================
--- RUN 3  |  the Mega Farm ledger (MF_03) in seven parts, all grid exports
+-- RUN 3  |  the Mega Farm ledger (MF_03) in ten parts, all grid exports
 -- Why the change: the 9 October MF_03 stopped after 107 of about 3,685
 -- accounts (13,610 rows), and SPOOL has not written a file on your side.
--- So the ledger now comes out as seven ordinary grid exports, each one an
+-- So the ledger now comes out as ten ordinary grid exports, each one an
 -- account range of roughly 60,000 to 70,000 rows, with only the 28 columns
 -- we use (the 9 October file had 84). There is no ORDER BY, which saves the
 -- database a large sort and keeps each query well inside the CPU limit; we
 -- sort on our side.
 --
 -- Run RUN 3 (the count) first and keep its grid: save it as
--- CHECK_MF_03_row_counts.csv (a check file; it is not loaded). Then run 3a to 3g one at a time, each on its own,
+-- CHECK_MF_03_row_counts.csv (a check file; it is not loaded). Then run 3a to 3f and 3g1 to 3g4 one at a time, each on its own,
 -- exporting its grid before running the next. Each file's row count must
 -- match its line in CHECK_MF_03_row_counts.csv.
 
@@ -109,7 +109,10 @@ FROM  (SELECT CASE
               WHEN cv.new_ac_number BETWEEN '000104490000000' AND '000104490001276' THEN 'RUN 3d'
               WHEN cv.new_ac_number BETWEEN '000104490001277' AND '000104490001697' THEN 'RUN 3e'
               WHEN cv.new_ac_number BETWEEN '000104490001698' AND '000104499999999' THEN 'RUN 3f'
-              ELSE 'RUN 3g'
+              WHEN cv.new_ac_number BETWEEN '000105530000000' AND '000105530000894' THEN 'RUN 3g1'
+              WHEN cv.new_ac_number BETWEEN '000105530000895' AND '000105539999999' THEN 'RUN 3g2'
+              WHEN cv.new_ac_number LIKE '00010450%' THEN 'RUN 3g3'
+              ELSE 'RUN 3g4'
               END AS part
        FROM   cumvouch cv
        WHERE  cv.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103)))
@@ -188,7 +191,10 @@ FROM   cumvouch cv
 WHERE  cv.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
 AND    cv.new_ac_number BETWEEN '000104490001698' AND '000104499999999';
 
--- RUN 3g  |  save as MF_03_ledger_g.csv
+-- RUN 3g was too large for the grid (the 100 MB limit, 12 October 2026), so it is
+-- now four parts, 3g1 to 3g4, each about a quarter to a third of the old 3g.
+
+-- RUN 3g1  |  save as MF_03_ledger_g1.csv   (the 10553 block, first half)
 SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number,
        cv.sub_account_no, cv.cb_gltype, cv.cb_alnx_type, cv.transaction_date, cv.cb_effective_date,
        cv.transaction_time, cv.transamt, cv.interest_amount, cv.vscrno, cv.batch_type, cv.batch_number,
@@ -197,17 +203,130 @@ SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.cb_glcode, cv.ac_glcode, cv.n
        cv.operation_date
 FROM   cumvouch cv
 WHERE  cv.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
-AND    cv.new_ac_number NOT LIKE '00010448%' AND cv.new_ac_number NOT LIKE '00010449%';
+AND    cv.new_ac_number BETWEEN '000105530000000' AND '000105530000894';
 
--- RUN 3h  |  save as MF_05_loan_book_month_ends.csv
+-- RUN 3g2  |  save as MF_03_ledger_g2.csv   (the 10553 block, second half)
+SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number,
+       cv.sub_account_no, cv.cb_gltype, cv.cb_alnx_type, cv.transaction_date, cv.cb_effective_date,
+       cv.transaction_time, cv.transamt, cv.interest_amount, cv.vscrno, cv.batch_type, cv.batch_number,
+       cv.dbcr, cv.trantype, cv.particulars, cv.trf_glcode, cv.trf_new_ac_number, cv.original_transamt,
+       cv.pass_flag, cv.delete_flag, cv.modify_delete_flag, cv.back_dated_date, cv.txn_number,
+       cv.operation_date
+FROM   cumvouch cv
+WHERE  cv.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+AND    cv.new_ac_number BETWEEN '000105530000895' AND '000105539999999';
+
+-- RUN 3g3  |  save as MF_03_ledger_g3.csv   (the 10450 block)
+SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number,
+       cv.sub_account_no, cv.cb_gltype, cv.cb_alnx_type, cv.transaction_date, cv.cb_effective_date,
+       cv.transaction_time, cv.transamt, cv.interest_amount, cv.vscrno, cv.batch_type, cv.batch_number,
+       cv.dbcr, cv.trantype, cv.particulars, cv.trf_glcode, cv.trf_new_ac_number, cv.original_transamt,
+       cv.pass_flag, cv.delete_flag, cv.modify_delete_flag, cv.back_dated_date, cv.txn_number,
+       cv.operation_date
+FROM   cumvouch cv
+WHERE  cv.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+AND    cv.new_ac_number LIKE '00010450%';
+
+-- RUN 3g4  |  save as MF_03_ledger_g4.csv   (every other Mega Farm account: the 10451 and 10545 blocks and any other)
+SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number,
+       cv.sub_account_no, cv.cb_gltype, cv.cb_alnx_type, cv.transaction_date, cv.cb_effective_date,
+       cv.transaction_time, cv.transamt, cv.interest_amount, cv.vscrno, cv.batch_type, cv.batch_number,
+       cv.dbcr, cv.trantype, cv.particulars, cv.trf_glcode, cv.trf_new_ac_number, cv.original_transamt,
+       cv.pass_flag, cv.delete_flag, cv.modify_delete_flag, cv.back_dated_date, cv.txn_number,
+       cv.operation_date
+FROM   cumvouch cv
+WHERE  cv.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+AND    cv.new_ac_number NOT LIKE '00010448%' AND cv.new_ac_number NOT LIKE '00010449%'
+AND    cv.new_ac_number NOT LIKE '00010553%' AND cv.new_ac_number NOT LIKE '00010450%';
+
+-- RUN 3h  |  the Mega Farm loan book report, month-ends (MF_05), in seven parts
 -- ONLY IF the 'MF_05 loan book' line of CHECK_MF_03_row_counts.csv is more than
 -- 34,540 (the rows we received on 9 October). If it equals 34,540, the
--- 9 October file was already whole and this run is not needed.
-SELECT l.*
-FROM   loan_book_details_all l
-WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
-AND    l.asondate = LAST_DAY(l.asondate);
+-- 9 October file was already whole and these runs are not needed.
+-- The report keeps every run: about four per account per month-end, and up to
+-- 23. Each part therefore keeps only the latest run for each account and
+-- month-end (the highest LOAN_BOOK_DET_ID_A), which is the one the engine
+-- uses, so it is about a quarter of the size. The extra column RN is always 1.
+-- 3h1 was split in two on 12 October 2026 after hitting the 100 MB limit.
+-- Run each on its own and export its grid.
 
+-- RUN 3h1a  |  save as MF_05_loan_book_month_ends_h1a.csv   (the 10448 block up to 000104480001881)
+SELECT *
+FROM  (SELECT l.*,
+              ROW_NUMBER() OVER (PARTITION BY l.new_ac_number, l.asondate
+                                 ORDER BY l.loan_book_det_id_a DESC) AS rn
+       FROM   loan_book_details_all l
+       WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+       AND    l.asondate = LAST_DAY(l.asondate)
+       AND    l.new_ac_number BETWEEN '000104480000000' AND '000104480001881')
+WHERE  rn = 1;
+
+-- RUN 3h1b  |  save as MF_05_loan_book_month_ends_h1b.csv   (the 10448 block from 000104480001882 to 000104480002153)
+SELECT *
+FROM  (SELECT l.*,
+              ROW_NUMBER() OVER (PARTITION BY l.new_ac_number, l.asondate
+                                 ORDER BY l.loan_book_det_id_a DESC) AS rn
+       FROM   loan_book_details_all l
+       WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+       AND    l.asondate = LAST_DAY(l.asondate)
+       AND    l.new_ac_number BETWEEN '000104480001882' AND '000104480002153')
+WHERE  rn = 1;
+
+-- RUN 3h2  |  save as MF_05_loan_book_month_ends_h2.csv   (the 10448 block from 000104480002154)
+SELECT *
+FROM  (SELECT l.*,
+              ROW_NUMBER() OVER (PARTITION BY l.new_ac_number, l.asondate
+                                 ORDER BY l.loan_book_det_id_a DESC) AS rn
+       FROM   loan_book_details_all l
+       WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+       AND    l.asondate = LAST_DAY(l.asondate)
+       AND    l.new_ac_number BETWEEN '000104480002154' AND '000104489999999')
+WHERE  rn = 1;
+
+-- RUN 3h3  |  save as MF_05_loan_book_month_ends_h3.csv   (the 10449 block up to 000104490001276)
+SELECT *
+FROM  (SELECT l.*,
+              ROW_NUMBER() OVER (PARTITION BY l.new_ac_number, l.asondate
+                                 ORDER BY l.loan_book_det_id_a DESC) AS rn
+       FROM   loan_book_details_all l
+       WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+       AND    l.asondate = LAST_DAY(l.asondate)
+       AND    l.new_ac_number BETWEEN '000104490000000' AND '000104490001276')
+WHERE  rn = 1;
+
+-- RUN 3h4  |  save as MF_05_loan_book_month_ends_h4.csv   (the 10449 block from 000104490001277)
+SELECT *
+FROM  (SELECT l.*,
+              ROW_NUMBER() OVER (PARTITION BY l.new_ac_number, l.asondate
+                                 ORDER BY l.loan_book_det_id_a DESC) AS rn
+       FROM   loan_book_details_all l
+       WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+       AND    l.asondate = LAST_DAY(l.asondate)
+       AND    l.new_ac_number BETWEEN '000104490001277' AND '000104499999999')
+WHERE  rn = 1;
+
+-- RUN 3h5  |  save as MF_05_loan_book_month_ends_h5.csv   (the 10553 block)
+SELECT *
+FROM  (SELECT l.*,
+              ROW_NUMBER() OVER (PARTITION BY l.new_ac_number, l.asondate
+                                 ORDER BY l.loan_book_det_id_a DESC) AS rn
+       FROM   loan_book_details_all l
+       WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+       AND    l.asondate = LAST_DAY(l.asondate)
+       AND    l.new_ac_number LIKE '00010553%')
+WHERE  rn = 1;
+
+-- RUN 3h6  |  save as MF_05_loan_book_month_ends_h6.csv   (every other Mega Farm account: the 10450, 10451 and 10545 blocks and any other)
+SELECT *
+FROM  (SELECT l.*,
+              ROW_NUMBER() OVER (PARTITION BY l.new_ac_number, l.asondate
+                                 ORDER BY l.loan_book_det_id_a DESC) AS rn
+       FROM   loan_book_details_all l
+       WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+       AND    l.asondate = LAST_DAY(l.asondate)
+       AND    l.new_ac_number NOT LIKE '00010448%' AND l.new_ac_number NOT LIKE '00010449%'
+           AND    l.new_ac_number NOT LIKE '00010553%')
+WHERE  rn = 1;
 
 --==============================================================================
 -- RUN 4  |  the term-loan fees (schemes 140 to 145)
