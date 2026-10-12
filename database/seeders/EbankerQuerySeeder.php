@@ -49,6 +49,16 @@ class EbankerQuerySeeder extends Seeder
             ['GL_04b', 'Every leg of the fee batches',          'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     true],
             // the write-off batches, GL 1064 and 1876 (spec v4 section 3.8)
             ['GL_05',  'Write-off batch legs (1064, 1876)',     'CUMVOUCH',                'CUMVOUCH_DET_ID',     'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
+            // the reschedule history rebuilt from E-Banker, and two probes (pack 4 RUN 8 and 9, 12 October 2026)
+            ['RS_02a', 'Superseded instalment rows', 'FIXLOAN_INST_CHART', 'INST_CHART_DET_ID', 'NEW_AC_NUMBER', 'INSTALLMENT_DATE', false],
+            ['RS_02b', 'Instalment chart copy of 30 Aug 2024', 'FIXLOAN_INST_CHART_300824', 'INST_CHART_DET_ID', 'NEW_AC_NUMBER', 'INSTALLMENT_DATE', false],
+            ['RS_02c', 'Instalment chart copy of 14 Nov 2024', 'FIXLOAN_INST_CHART_141124', 'INST_CHART_DET_ID', 'NEW_AC_NUMBER', 'INSTALLMENT_DATE', false],
+            ['RS_02d', 'Instalment chart copy of 28 Sep', 'FIX_INST_CHART28SEP', 'INST_CHART_DET_ID', 'NEW_AC_NUMBER', 'INSTALLMENT_DATE', false],
+            ['RS_02e', 'Instalment chart copy CHART1', 'FIXLOAN_INST_CHART1', 'INST_CHART_DET_ID', 'NEW_AC_NUMBER', 'INSTALLMENT_DATE', false],
+            ['RS_02f', 'Modification log', 'MODIFICATION_LOG', 'MOD_LOG_DET_ID', null, 'TRANSACTION_DATE', false],
+            ['RS_02g', 'Account closure history', 'ACCOUNT_CLOSER_HISTORY', 'ACT_CLOSE_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['TB_02', 'Trial balance history probe (counts)', 'TRIAL_BALANCE_HISTORY', 'MONTH', null, null, false],
+            ['CV_01', 'Old ledger probe (counts)', 'CUMOVUCH_OLD', 'YEAR', null, null, false],
             // packs 3 and 4 (9 and 11 October 2026)
             ['SM_01',  'Scheme master',                         'SCHEME_MASTER',           'SCHEME_MST_ID',       null,            null,                   false],
             ['CT_01',  'Row counts of the reschedule, write-off and charges tables', null,  'TABLE_NAME',          null,            null,                   false],

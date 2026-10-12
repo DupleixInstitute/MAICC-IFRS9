@@ -17,6 +17,8 @@
 --   RUN 5   P2_07_disbursement_charges.csv  whole table, replaces the 7 Oct file
 --   RUN 6   GL_04a, GL_04b                the fee income GL legs: new, and from now on monthly
 --   RUN 7   GL_05_writeoff_batch_legs.csv the write-off batches (GL 1064 and 1876): new
+--   RUN 8   RS_02a to RS_02g              the reschedule history, rebuilt from E-Banker: new
+--   RUN 9   TB_02, CV_01                  two probes (counts only): new
 --
 -- Every run in this pack is a normal grid export. No SPOOL is needed: the
 -- ledger is cut into seven account ranges of roughly 60,000 to 70,000 rows
@@ -300,6 +302,91 @@ WHERE  (cv.transaction_date, cv.batch_type, cv.batch_number) IN (
 ORDER  BY cv.transaction_date, cv.batch_number, cv.vscrno, cv.cumvouch_det_id;
 -- If the January 2026 entry does not appear, it may have been keyed outside
 -- CUMVOUCH: tell us where GL journals are held and we will adjust.
+
+--==============================================================================
+-- RUN 8  |  the reschedule history, rebuilt from E-Banker  (new)
+-- LOAN_RESCHEDULE_DETAILS is empty, but E-Banker keeps the evidence elsewhere:
+-- superseded instalment rows in FIXLOAN_INST_CHART, four dated copies of the
+-- chart, and MODIFICATION_LOG, which records every edit with the old and the
+-- new value. Together they show which loans were rescheduled, when, by whom,
+-- and from what terms to what. One SELECT per run; small grid exports.
+
+-- RUN 8a  |  save as RS_02a_superseded_instalments.csv
+-- Instalment rows that are no longer live (deleted or inactive): the earlier
+-- versions of each schedule. The 6 October extract (P2_10) took live rows only.
+SELECT f.*
+FROM   fixloan_inst_chart f
+WHERE  (f.delete_flag = 'Y' OR f.active_flag = 'N')
+AND    f.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+ORDER  BY f.new_ac_number, f.operation_date, f.inst_sr_no;
+
+-- RUN 8b  |  save as RS_02b_chart_300824.csv
+SELECT c.*
+FROM   fixloan_inst_chart_300824 c
+WHERE  c.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+ORDER  BY c.new_ac_number, c.inst_sr_no;
+
+-- RUN 8c  |  save as RS_02c_chart_141124.csv
+SELECT c.*
+FROM   fixloan_inst_chart_141124 c
+WHERE  c.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+ORDER  BY c.new_ac_number, c.inst_sr_no;
+
+-- RUN 8d  |  save as RS_02d_chart_28sep.csv
+SELECT c.*
+FROM   fix_inst_chart28sep c
+WHERE  c.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+ORDER  BY c.new_ac_number, c.inst_sr_no;
+
+-- RUN 8e  |  save as RS_02e_chart1.csv
+SELECT c.*
+FROM   fixloan_inst_chart1 c
+WHERE  c.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+ORDER  BY c.new_ac_number, c.inst_sr_no;
+
+-- RUN 8f  |  save as RS_02f_modification_log.csv
+-- The whole log, 5,991 rows: every edit with the table, the field, the old and
+-- the new value, the date, and who entered and passed it.
+SELECT m.*
+FROM   modification_log m
+ORDER  BY m.transaction_date, m.mod_log_det_id;
+
+-- RUN 8g  |  save as RS_02g_account_closer_history.csv
+-- The 21 closure records (the accounts with status H).
+SELECT h.*
+FROM   account_closer_history h
+ORDER  BY h.transaction_date, h.act_close_det_id;
+
+
+--==============================================================================
+-- RUN 9  |  two probes: what two more tables hold  (new; counts only)
+-- Before we ask for either in full.
+
+-- RUN 9a  |  save as TB_02_trial_balance_history_probe.csv
+-- E-Banker's own trial balance history (346,261 rows). If it holds every
+-- month-end, the monthly trial balance can come with the pack instead of
+-- separately from Finance.
+SELECT TO_CHAR(t.transaction_date, 'YYYY-MM') AS month, COUNT(*) AS gl_rows,
+       COUNT(DISTINCT t.glcode) AS gl_codes, MIN(t.transaction_date) AS first_date,
+       MAX(t.transaction_date) AS last_date
+FROM   trial_balance_history t
+GROUP  BY TO_CHAR(t.transaction_date, 'YYYY-MM')
+ORDER  BY 1;
+
+-- RUN 9b  |  save as CV_01_cumovuch_old_probe.csv
+-- An older copy of the ledger (13,359 rows). It may hold postings from before
+-- the July 2024 migration, which would give the take-on loans their history.
+SELECT TO_CHAR(c.transaction_date, 'YYYY') AS year, COUNT(*) AS postings,
+       COUNT(DISTINCT c.new_ac_number) AS accounts,
+       MIN(c.transaction_date) AS first_date, MAX(c.transaction_date) AS last_date
+FROM   cumovuch_old c
+GROUP  BY TO_CHAR(c.transaction_date, 'YYYY')
+ORDER  BY 1;
 
 --==============================================================================
 -- From Finance (not a query): Trial Balance_30 September 2026, from Tamanda.
