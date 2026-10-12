@@ -17,7 +17,7 @@
 --   RUN 5   P2_07_disbursement_charges.csv  whole table, replaces the 7 Oct file
 --   RUN 6   GL_04a, GL_04b                the fee income GL legs: new, and from now on monthly
 --   RUN 7   GL_05_writeoff_batch_legs.csv the write-off batches (GL 1064 and 1876): new
---   RUN 8   RS_02a to RS_02g              the reschedule history, rebuilt from E-Banker: new
+--   RUN 8   RS_02a to RS_02g              the reschedule history, rebuilt from E-Banker (count first): new
 --   RUN 9   TB_02, CV_01, TB_03           two probes, and the trial balance rows: new
 --
 -- Every run in this pack is a normal grid export. No SPOOL is needed: the
@@ -250,6 +250,28 @@ AND    cv.new_ac_number NOT LIKE '00010553%' AND cv.new_ac_number NOT LIKE '0001
 -- 3h1 was split in two on 12 October 2026 after hitting the 100 MB limit.
 -- Run each on its own and export its grid.
 
+-- RUN 3h0  |  save as CHECK_MF_05_row_counts.csv   (a check file; it is not loaded)
+-- The latest-run row count each 3h part should have (RUN 3's MF_05 line counts
+-- every run, so it cannot be compared with these parts).
+SELECT part, COUNT(*) AS rows_expected
+FROM  (SELECT CASE
+              WHEN l.new_ac_number BETWEEN '000104480000000' AND '000104480001881' THEN 'RUN 3h1a'
+              WHEN l.new_ac_number BETWEEN '000104480001882' AND '000104480002153' THEN 'RUN 3h1b'
+              WHEN l.new_ac_number BETWEEN '000104480002154' AND '000104489999999' THEN 'RUN 3h2'
+              WHEN l.new_ac_number BETWEEN '000104490000000' AND '000104490001276' THEN 'RUN 3h3'
+              WHEN l.new_ac_number BETWEEN '000104490001277' AND '000104499999999' THEN 'RUN 3h4'
+              WHEN l.new_ac_number LIKE '00010553%' THEN 'RUN 3h5'
+              ELSE 'RUN 3h6'
+              END AS part,
+              ROW_NUMBER() OVER (PARTITION BY l.new_ac_number, l.asondate
+                                 ORDER BY l.loan_book_det_id_a DESC) AS rn
+       FROM   loan_book_details_all l
+       WHERE  l.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (96,97,98,99,100,101,102,103))
+       AND    l.asondate = LAST_DAY(l.asondate))
+WHERE  rn = 1
+GROUP  BY part
+ORDER  BY 1;
+
 -- RUN 3h1a  |  save as MF_05_loan_book_month_ends_h1a.csv   (the 10448 block up to 000104480001881)
 SELECT *
 FROM  (SELECT l.*,
@@ -443,6 +465,39 @@ ORDER  BY cv.transaction_date, cv.batch_number, cv.vscrno, cv.cumvouch_det_id;
 -- Instalment rows that are no longer live (deleted or inactive): the earlier
 -- versions of each schedule. The 6 October extract (P2_10) took live rows only.
 -- Split by account block on 12 October 2026 to stay under the 100 MB grid limit.
+
+-- RUN 8  |  save as CHECK_RS_02_row_counts.csv   (a check file; it is not loaded)
+-- The row count each RUN 8 file should have. Run it first and keep its grid;
+-- each file's row count must match its line here.
+SELECT part, COUNT(*) AS rows_expected
+FROM  (SELECT CASE
+              WHEN f.new_ac_number LIKE '00010442%' THEN 'RUN 8a1'
+              WHEN f.new_ac_number LIKE '00010443%' THEN 'RUN 8a2'
+              WHEN f.new_ac_number LIKE '00010445%' THEN 'RUN 8a3'
+              WHEN f.new_ac_number LIKE '00010446%' THEN 'RUN 8a4'
+              ELSE 'RUN 8a5'
+              END AS part
+       FROM   fixloan_inst_chart f
+       WHERE  (f.delete_flag = 'Y' OR f.active_flag = 'N')
+       AND    f.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145)))
+GROUP  BY part
+UNION ALL
+SELECT 'RUN 8b chart 300824', COUNT(*) FROM fixloan_inst_chart_300824 c
+WHERE  c.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+UNION ALL
+SELECT 'RUN 8c chart 141124', COUNT(*) FROM fixloan_inst_chart_141124 c
+WHERE  c.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+UNION ALL
+SELECT 'RUN 8d chart 28sep', COUNT(*) FROM fix_inst_chart28sep c
+WHERE  c.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+UNION ALL
+SELECT 'RUN 8e chart1', COUNT(*) FROM fixloan_inst_chart1 c
+WHERE  c.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+UNION ALL
+SELECT 'RUN 8f modification log', COUNT(*) FROM modification_log
+UNION ALL
+SELECT 'RUN 8g account closer history', COUNT(*) FROM account_closer_history
+ORDER  BY 1;
 
 -- RUN 8a1  |  save as RS_02a_superseded_instalments_1.csv   (the 10442 block)
 SELECT f.*
