@@ -225,9 +225,10 @@ ORDER  BY c.new_ac_number, c.lo_disb_charg_det_id;
 -- RUN 4b  |  save as CH_02b_disb_batch_legs_140_145.csv
 -- Every leg of every DISB batch that touched a scheme 140 to 145 account, so
 -- we can see which income GL took the fee credit.
-SELECT cv.cumvouch_det_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
+SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.t_branch_mst_id, cv.o_branch_mst_id,
+       cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
        cv.transaction_date, cv.transamt, cv.dbcr, cv.trantype, cv.batch_type, cv.batch_number,
-       cv.vscrno, cv.particulars
+       cv.vscrno, cv.particulars, cv.pass_flag, cv.delete_flag, cv.modify_delete_flag
 FROM   cumvouch cv
 WHERE  cv.batch_type = 'DISB'
 AND    (cv.transaction_date, cv.batch_number) IN (
@@ -254,12 +255,18 @@ SELECT * FROM los_disb_charges_post ORDER BY new_ac_number, lo_disb_charg_det_id
 -- loan account: it is credited to 4871 or 4873 in the drawdown batch while the
 -- loan account carries the gross drawdown. So the fees are read from the GL
 -- side, and these two queries are the fee control.
+-- RUN 6, 7 and 4b carry the three branch columns and the posted, deleted and
+-- modified flags, so each leg can be tied to the right batch and a deleted or
+-- unposted leg told apart. Question for ICT: is a batch number unique per
+-- branch, or across the whole system? The match below stays on date, batch
+-- type and batch number, so no leg is missed while that is confirmed.
 
 -- RUN 6a  |  save as GL_04a_fee_gl_legs.csv
 -- Every posting to the four fee income GLs since 1 January 2024.
-SELECT cv.cumvouch_det_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
+SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.t_branch_mst_id, cv.o_branch_mst_id,
+       cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
        cv.transaction_date, cv.transamt, cv.dbcr, cv.trantype, cv.batch_type, cv.batch_number,
-       cv.vscrno, cv.particulars
+       cv.vscrno, cv.particulars, cv.pass_flag, cv.delete_flag, cv.modify_delete_flag
 FROM   cumvouch cv
 WHERE  (cv.cb_glcode IN ('4871','4873','4874','4875') OR cv.ac_glcode IN ('4871','4873','4874','4875'))
 AND    cv.transaction_date >= DATE '2024-01-01'
@@ -269,9 +276,10 @@ ORDER  BY cv.transaction_date, cv.batch_number, cv.vscrno, cv.cumvouch_det_id;
 
 -- RUN 6b  |  save as GL_04b_fee_batch_legs.csv
 -- Every other leg of the same batches: the loan account or bank side of each fee.
-SELECT cv.cumvouch_det_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
+SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.t_branch_mst_id, cv.o_branch_mst_id,
+       cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
        cv.transaction_date, cv.transamt, cv.dbcr, cv.trantype, cv.batch_type, cv.batch_number,
-       cv.vscrno, cv.particulars
+       cv.vscrno, cv.particulars, cv.pass_flag, cv.delete_flag, cv.modify_delete_flag
 FROM   cumvouch cv
 WHERE  (cv.transaction_date, cv.batch_type, cv.batch_number) IN (
          SELECT DISTINCT x.transaction_date, x.batch_type, x.batch_number
@@ -290,9 +298,10 @@ ORDER  BY cv.transaction_date, cv.batch_number, cv.vscrno, cv.cumvouch_det_id;
 -- loan account moved; and batch TRF 3 of 29 June 2026, which credited
 -- 38,492,032.54 to 20 loan accounts as "ACCOUNT CLOSURE" (type 305) while 1064
 -- rose by the same amount. Same shape as GL_03; expect a few hundred rows.
-SELECT cv.cumvouch_det_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
+SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.t_branch_mst_id, cv.o_branch_mst_id,
+       cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no,
        cv.transaction_date, cv.transamt, cv.dbcr, cv.trantype, cv.batch_type, cv.batch_number,
-       cv.vscrno, cv.particulars
+       cv.vscrno, cv.particulars, cv.pass_flag, cv.delete_flag, cv.modify_delete_flag
 FROM   cumvouch cv
 WHERE  (cv.transaction_date, cv.batch_type, cv.batch_number) IN (
          SELECT DISTINCT x.transaction_date, x.batch_type, x.batch_number

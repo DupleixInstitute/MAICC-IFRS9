@@ -39,8 +39,9 @@ SPOOL OFF
 
 -- GL_04a the fee income GL legs since the ledger watermark (spec v4 sections 3.7 and 6.4: the fee control)
 SPOOL "\maiic-fs\ebanker-feed\pack-&period\GL_04a_fee_gl_legs.csv"
-SELECT cumvouch_det_id, cb_glcode, ac_glcode, new_ac_number, sub_account_no, transaction_date, transamt, dbcr,
-       trantype, batch_type, batch_number, vscrno, particulars
+SELECT cumvouch_det_id, cb_branch_mst_id, t_branch_mst_id, o_branch_mst_id, cb_glcode, ac_glcode, new_ac_number,
+       sub_account_no, transaction_date, transamt, dbcr, trantype, batch_type, batch_number, vscrno, particulars,
+       pass_flag, delete_flag, modify_delete_flag
 FROM   CUMVOUCH
 WHERE  (cb_glcode IN ('4871','4873','4874','4875') OR ac_glcode IN ('4871','4873','4874','4875'))
 AND    (CUMVOUCH_DET_ID > &wm_ledger OR TRANSACTION_DATE >= ADD_MONTHS(TRUNC(TO_DATE('&period-01','YYYY-MM-DD'),'MM'), -2))
@@ -49,8 +50,9 @@ SPOOL OFF
 
 -- GL_04b every other leg of those fee batches (the loan account or bank side)
 SPOOL "\maiic-fs\ebanker-feed\pack-&period\GL_04b_fee_batch_legs.csv"
-SELECT cv.cumvouch_det_id, cv.cb_glcode, cv.ac_glcode, cv.new_ac_number, cv.sub_account_no, cv.transaction_date,
-       cv.transamt, cv.dbcr, cv.trantype, cv.batch_type, cv.batch_number, cv.vscrno, cv.particulars
+SELECT cv.cumvouch_det_id, cv.cb_branch_mst_id, cv.t_branch_mst_id, cv.o_branch_mst_id, cv.cb_glcode, cv.ac_glcode,
+       cv.new_ac_number, cv.sub_account_no, cv.transaction_date, cv.transamt, cv.dbcr, cv.trantype, cv.batch_type,
+       cv.batch_number, cv.vscrno, cv.particulars, cv.pass_flag, cv.delete_flag, cv.modify_delete_flag
 FROM   CUMVOUCH cv
 WHERE  (cv.transaction_date, cv.batch_type, cv.batch_number) IN (
          SELECT DISTINCT x.transaction_date, x.batch_type, x.batch_number FROM CUMVOUCH x
