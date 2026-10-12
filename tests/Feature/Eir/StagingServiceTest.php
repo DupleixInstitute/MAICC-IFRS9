@@ -9,6 +9,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
+use Tests\Feature\Eir\Concerns\CreatesSicrSchema;
 use Tests\TestCase;
 
 /**
@@ -21,6 +22,7 @@ use Tests\TestCase;
 class StagingServiceTest extends TestCase
 {
     use CreatesGovernanceSchema;
+    use CreatesSicrSchema;
 
     protected $seed = false;
 
@@ -39,9 +41,10 @@ class StagingServiceTest extends TestCase
             ['facility_class' => 'DEFAULT', 'min_tenor_months' => 13, 'stage2_dpd' => 31, 'stage3_dpd' => 181, 'effective_from' => '2018-07-13', 'created_at' => now(), 'updated_at' => now()],
             ['facility_class' => 'MEGA_FARM', 'min_tenor_months' => 0, 'stage2_dpd' => 31, 'stage3_dpd' => 91, 'effective_from' => '2018-07-13', 'created_at' => now(), 'updated_at' => now()],
         ]);
-        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('external_identity_id')->nullable(); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->integer('tenor')->default(0); $t->integer('overdue_days')->default(0); $t->integer('sicr')->default(0); $t->integer('ifrs9_stage')->default(0); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->string('calculated_ifrs9_stage')->nullable(); foreach (['arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'] as $c) { $t->string($c)->nullable(); } });
+        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('external_identity_id')->nullable(); $t->string('customer_id')->nullable(); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->integer('tenor')->default(0); $t->integer('overdue_days')->default(0); $t->integer('sicr')->default(0); $t->integer('ifrs9_stage')->default(0); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->string('calculated_ifrs9_stage')->nullable(); foreach (['arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'] as $c) { $t->string($c)->nullable(); } });
         $migration = require base_path('database/migrations/2026_10_08_000000_create_ebanker_landing_zone.php');
         $migration->up();
+        $this->createSicrSchema();
         DB::table('ebanker_loads')->insert(['id' => 1, 'pack_hash' => str_repeat('b', 64), 'pack_name' => 'fixture', 'manifest' => '{}', 'status' => 'LANDED', 'created_at' => now(), 'updated_at' => now()]);
     }
 
@@ -59,15 +62,16 @@ class StagingServiceTest extends TestCase
             ['contract_id' => 'long-200', 'tenor' => 36, 'overdue_days' => 200],
             ['contract_id' => 'current', 'tenor' => 36, 'overdue_days' => 0],
             ['contract_id' => 'mega-bucket', 'product_group' => 'Mega Farm Seed Loans', 'tenor' => 0, 'overdue_days' => 0, 'arrears_91_to_180' => '7471500'],
+            // a flag on the row with no approved trigger behind it is not read (it is the engine's output now)
             ['contract_id' => 'sicr-flag', 'tenor' => 36, 'overdue_days' => 0, 'sicr' => 1],
         ] as $row) {
             DB::table('loan_books')->insert($row + $base);
         }
         $c = (new StagingService(new GovernanceService(), new LandingZoneReader()))->stage('2025-12', 1);
         $stage = DB::table('loan_books')->pluck('ifrs9stage_post_qualitative', 'contract_id')->all();
-        $this->assertSame(['short-100' => '3', 'long-100' => '2', 'long-200' => '3', 'current' => '1', 'mega-bucket' => '3', 'sicr-flag' => '2'], $stage);
-        $this->assertSame('1', DB::table('loan_books')->where('contract_id', 'sicr-flag')->value('ifrs9stage_pre_qualitative'));
-        $this->assertSame(['rows' => 6, 'stage1' => 1, 'stage2' => 2, 'stage3' => 3, 'by_dpd' => 4, 'by_instalments' => 0, 'by_sicr' => 1, 'by_bucket' => 1], array_intersect_key($c, array_flip(['rows', 'stage1', 'stage2', 'stage3', 'by_dpd', 'by_instalments', 'by_sicr', 'by_bucket'])));
+        $this->assertSame(['short-100' => '3', 'long-100' => '2', 'long-200' => '3', 'current' => '1', 'mega-bucket' => '3', 'sicr-flag' => '1'], $stage);
+        $this->assertSame(0, (int) DB::table('loan_books')->where('contract_id', 'sicr-flag')->value('sicr'));
+        $this->assertSame(['rows' => 6, 'stage1' => 2, 'stage2' => 1, 'stage3' => 3, 'by_dpd' => 4, 'by_instalments' => 0, 'by_sicr' => 0, 'by_bucket' => 1], array_intersect_key($c, array_flip(['rows', 'stage1', 'stage2', 'stage3', 'by_dpd', 'by_instalments', 'by_sicr', 'by_bucket'])));
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'Loan Book Staged')->count());
     }
 

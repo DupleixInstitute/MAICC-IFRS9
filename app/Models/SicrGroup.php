@@ -12,6 +12,7 @@ class SicrGroup extends Model
     protected $fillable = [
         'name',
         'description',
+        'sort_order',
     ];
 
     public function items(): HasMany
