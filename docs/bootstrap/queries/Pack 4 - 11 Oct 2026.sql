@@ -439,14 +439,55 @@ ORDER  BY cv.transaction_date, cv.batch_number, cv.vscrno, cv.cumvouch_det_id;
 -- new value. Together they show which loans were rescheduled, when, by whom,
 -- and from what terms to what. One SELECT per run; small grid exports.
 
--- RUN 8a  |  save as RS_02a_superseded_instalments.csv
+-- RUN 8a  |  superseded instalment rows, in five parts
 -- Instalment rows that are no longer live (deleted or inactive): the earlier
 -- versions of each schedule. The 6 October extract (P2_10) took live rows only.
+-- Split by account block on 12 October 2026 to stay under the 100 MB grid limit.
+
+-- RUN 8a1  |  save as RS_02a_superseded_instalments_1.csv   (the 10442 block)
 SELECT f.*
 FROM   fixloan_inst_chart f
 WHERE  (f.delete_flag = 'Y' OR f.active_flag = 'N')
 AND    f.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
                            WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+AND    f.new_ac_number LIKE '00010442%'
+ORDER  BY f.new_ac_number, f.operation_date, f.inst_sr_no;
+
+-- RUN 8a2  |  save as RS_02a_superseded_instalments_2.csv   (the 10443 block)
+SELECT f.*
+FROM   fixloan_inst_chart f
+WHERE  (f.delete_flag = 'Y' OR f.active_flag = 'N')
+AND    f.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+AND    f.new_ac_number LIKE '00010443%'
+ORDER  BY f.new_ac_number, f.operation_date, f.inst_sr_no;
+
+-- RUN 8a3  |  save as RS_02a_superseded_instalments_3.csv   (the 10445 block)
+SELECT f.*
+FROM   fixloan_inst_chart f
+WHERE  (f.delete_flag = 'Y' OR f.active_flag = 'N')
+AND    f.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+AND    f.new_ac_number LIKE '00010445%'
+ORDER  BY f.new_ac_number, f.operation_date, f.inst_sr_no;
+
+-- RUN 8a4  |  save as RS_02a_superseded_instalments_4.csv   (the 10446 block)
+SELECT f.*
+FROM   fixloan_inst_chart f
+WHERE  (f.delete_flag = 'Y' OR f.active_flag = 'N')
+AND    f.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+AND    f.new_ac_number LIKE '00010446%'
+ORDER  BY f.new_ac_number, f.operation_date, f.inst_sr_no;
+
+-- RUN 8a5  |  save as RS_02a_superseded_instalments_5.csv   (every other block: 10444, 10447, 10581, 10605 and any other)
+SELECT f.*
+FROM   fixloan_inst_chart f
+WHERE  (f.delete_flag = 'Y' OR f.active_flag = 'N')
+AND    f.new_ac_number IN (SELECT a.new_ac_number FROM acmaster a
+                           WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145))
+AND    f.new_ac_number NOT LIKE '00010442%' AND f.new_ac_number NOT LIKE '00010443%'
+AND    f.new_ac_number NOT LIKE '00010445%' AND f.new_ac_number NOT LIKE '00010446%'
 ORDER  BY f.new_ac_number, f.operation_date, f.inst_sr_no;
 
 -- RUN 8b  |  save as RS_02b_chart_300824.csv
