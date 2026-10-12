@@ -18,7 +18,7 @@
 --   RUN 6   GL_04a, GL_04b                the fee income GL legs: new, and from now on monthly
 --   RUN 7   GL_05_writeoff_batch_legs.csv the write-off batches (GL 1064 and 1876): new
 --   RUN 8   RS_02a to RS_02g              the reschedule history, rebuilt from E-Banker: new
---   RUN 9   TB_02, CV_01                  two probes (counts only): new
+--   RUN 9   TB_02, CV_01, TB_03           two probes, and the trial balance rows: new
 --
 -- Every run in this pack is a normal grid export. No SPOOL is needed: the
 -- ledger is cut into seven account ranges of roughly 60,000 to 70,000 rows
@@ -387,6 +387,19 @@ SELECT TO_CHAR(c.transaction_date, 'YYYY') AS year, COUNT(*) AS postings,
 FROM   cumovuch_old c
 GROUP  BY TO_CHAR(c.transaction_date, 'YYYY')
 ORDER  BY 1;
+
+-- RUN 9c  |  save as TB_03_trial_balance_rows.csv
+-- The trial balance rows themselves for December 2025, August 2026 and
+-- September 2026. December and August are checked against the trial balances
+-- Finance sent us, to the cent (December also shows how the year-end closing
+-- is held); if they tie, September is the September trial balance, and the
+-- monthly trial balance can come with the pack from now on. The ranges run to
+-- the first days of the next month in case a month is stored under that date.
+SELECT t.*
+FROM   trial_balance_history t
+WHERE  (t.transaction_date >= DATE '2025-12-01' AND t.transaction_date < DATE '2026-01-03')
+OR     (t.transaction_date >= DATE '2026-08-01' AND t.transaction_date < DATE '2026-10-03')
+ORDER  BY t.transaction_date, t.glcode;
 
 --==============================================================================
 -- From Finance (not a query): Trial Balance_30 September 2026, from Tamanda.

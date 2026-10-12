@@ -59,6 +59,7 @@ class EbankerQuerySeeder extends Seeder
             ['RS_02g', 'Account closure history', 'ACCOUNT_CLOSER_HISTORY', 'ACT_CLOSE_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
             ['TB_02', 'Trial balance history probe (counts)', 'TRIAL_BALANCE_HISTORY', 'MONTH', null, null, false],
             ['CV_01', 'Old ledger probe (counts)', 'CUMOVUCH_OLD', 'YEAR', null, null, false],
+            ['TB_03', 'Trial balance rows (E-Banker)', 'TRIAL_BALANCE_HISTORY', 'GLCODE,TRANSACTION_DATE', null, 'TRANSACTION_DATE', false],
             // packs 3 and 4 (9 and 11 October 2026)
             ['SM_01',  'Scheme master',                         'SCHEME_MASTER',           'SCHEME_MST_ID',       null,            null,                   false],
             ['CT_01',  'Row counts of the reschedule, write-off and charges tables', null,  'TABLE_NAME',          null,            null,                   false],
