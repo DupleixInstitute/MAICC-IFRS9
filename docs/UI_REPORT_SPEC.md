@@ -81,3 +81,73 @@ PDF (dompdf now; consider mPDF for running header/footer + real TOC):
 - Workspace: add a personal work-queue tab set (my items / awaiting my action)
   with counted tabs + user-scoped KPI strip alongside the period-close
   checklist.
+
+## Conventions agreed in the UI audits of 13 October 2026
+
+Two audits walked every screen from the imports, through the calculations, to
+the reports. What they settled is the standard for every screen from now on;
+the code that implements each point is named so it can be reused, not
+re-invented.
+
+### Screens
+
+- **Page header.** `app-layout` with `title` and a one-line `description`;
+  the actions sit at the top right (`#actions`). Back is a white secondary
+  button (`secondary-btn`) in the header actions, never a second green
+  button, and there is no blank gap above the first panel.
+- **Buttons.** Sentence case everywhere (the Jetstream button is now
+  `primary-btn`). Green primary, white secondary, red `danger-btn` for a
+  delete, which always asks for confirmation naming what is deleted.
+- **Every list can be worked from the screen.** Create, edit, delete and
+  refresh are on the screen itself. A delete that would leave the system
+  wrong is refused with the reason: a role still held by a user, your own
+  account, the last administrator, an active grading profile.
+- **Tables fit the panel at 1440 px.** A table of more than six columns uses
+  `maiic-table-compact`; long text columns are capped in width; a short
+  first column (a period, a code) never wraps. Tab rows wrap onto a second
+  line rather than scroll sideways. Footer totals line up with the body
+  (`tfoot th` has the body's padding).
+- **Paging.** 15 rows a page, with the standard pager (`Pagination.vue` for
+  server pages, `ClientPager.vue` for lists the page holds in full).
+- **Segments.** The segment a PD or LGD run was calculated for is shown with
+  `Components/Maiic/SegmentCell.vue`: an icon chip, the name on one line and
+  the level under it (Whole loan book / All portfolios pooled, Portfolio,
+  Sector and code).
+- **Numbers and dates.** Comma thousands and two decimals; PD and LGD as
+  percentages; dates as `13 Oct 2026` and run times as `13 Oct, 11:59`, so
+  two runs of the same window can be told apart.
+- **Imports.** An Import button at the top right opens a modal with the
+  instructions, the layout and a sample file; the file is previewed before it
+  is committed; each import screen lists only its own history
+  (`imports.kind`).
+- **Source codes** of macro series read `WB: code` and `IMF: code`.
+- **Help.** The floating help button opens the manual article for the screen;
+  page content keeps clear of it (bottom padding), so it never covers a Save
+  button.
+- **Dialogs** take a width from `sm` to `6xl` (`Jetstream/Modal.vue`).
+- **Light and dark mode** for every change.
+
+### Reports
+
+- **Hub tiles** list their formats as text ("Downloads as PDF, Excel, CSV"),
+  not as badges that look like buttons.
+- **PDF.** A section of up to 20 rows stays on one page together with its
+  part banner, so no heading or table header is left at the foot of a page;
+  `thead` repeats on each page of a long table.
+- **Same basis on every screen.** The RBM classification and the RBM Return
+  both apply the directive's minimum rates to the gross balance, so the NPL
+  ratio and the minimum provision agree.
+- **The forward-looking reports** read the month record (`fli_run_snapshots`)
+  and the approved scenario set of the chosen month; a month with no record
+  says so.
+- **CSV** downloads are the branded report (the RBM Return included) and are
+  served as `text/csv`.
+- **Large PDFs** (the manuals) embed screenshots at 1400 pixels wide and are
+  served from a file, so they arrive whole (the user manual went from 26 MB to
+  10 MB).
+
+### Maintenance
+
+Seven jobs, as in the Stress Testing suite (`maiic:task`): month-end, refresh
+data, health check, update and bootstrap (behind a typed confirmation), with a
+run history.

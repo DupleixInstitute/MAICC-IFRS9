@@ -5,7 +5,7 @@ subtitle: How the economy enters MAIIC's expected credit loss: what is built, wh
 date: 13 October 2026
 prepared: Prepared by Dupleix Institute for the Malawi Agricultural and Industrial Investment Corporation plc (MAIIC)
 people: Project sponsor Dr Thomson Kumwenda, CFO | Engagement lead Edward Mazibuko CA(SA) | Build lead Kundai Muriwo
-status: Draft for review. Builds on specification version 4, sections 13 (macro statistics), 14 (forward-looking adjustments) and 15 (economic scenarios), which stay in force; where this document decides something new, it says so and it governs for the forward-looking module.
+status: Draft for review, updated 13 October 2026 evening (decisions D-F13 to D-F16: the earlier screens kept and improved, the macro statistics screens, the reports that read the month record, the month-end job). Builds on specification version 4, sections 13 (macro statistics), 14 (forward-looking adjustments) and 15 (economic scenarios), which stay in force; where this document decides something new, it says so and it governs for the forward-looking module.
 ---
 
 ## 0. Why this document, and how to read it
@@ -115,6 +115,26 @@ Each official ECL run records, in one row: the loan book build, the staging run,
 
 The Workspace close checklist gains an FLI step that is done only when an approved model version and an approved scenario set are in force for the period and have been applied to every loan. The ECL run already refuses a loan without a stage, PD or LGD (commit 70b7333); it also refuses an official run without the FLI step done.
 
+### D-F13. Keep the earlier screens and improve them, not replace them (agreed 13 October 2026)
+
+The proposal of section 4 drew a new set of tabs. Edward's direction on 13 October was not to remove what MAIIC already uses: every earlier forward-looking screen (Macro Statistics, Credit Loss Data, Correlation Finder, Regression, Adjusted Forecast, Weighted Forecast, Scenario Profiles, Scenario Sets, Economic Scenarios, Manual Overlays, External Calculations, Calculation History) comes back to its place, out of the old Legacy section, and the new pieces (Overview, Impact Analysis, Model Versions) join them. Each screen became a working step of the governed chain rather than a separate tool, and a user can start and finish the month from the screens alone. Section 4 is updated to the menu as built.
+
+### D-F14. The macro statistics screens (agreed 13 October 2026)
+
+- Variables, observations, credit loss data and assumptions are created, edited and deleted on screen, with field errors and a confirmation that names what is deleted.
+- Source codes read **WB: code** and, below it, **IMF: code**, not the raw JSON.
+- **One approved assumption set per period for MAIIC.** The Scenario Assumptions tab shows the set in force at a glance (the weights row and one tab per scenario), and a draft is created only from it; approving a new version supersedes the one before, so a period never has two approved sets.
+- Actions sit on the right: Add shock and Save at the right of their panel; Import is a button at the top right that opens a modal with the instructions, the layout and a sample file, and previews before it commits.
+- The scenario-set selector is wide enough to read a set's name and version.
+
+### D-F15. The reports read the month record (agreed 13 October 2026)
+
+The forward-looking report and the scenario-weighted ECL report read what the ECL actually used for the chosen month: the macro data the bridge held for it, the approved scenario set with its weights and shocks, and the month record (`fli_run_snapshots`): ECL per scenario, weighted against booked, and the sign-off status. A month with no record says so. The ECL Projection Audit lists contract-level discounted runs only; the portfolio PD projection of D-F4 is shown on FLI Month-End.
+
+### D-F16. One month-end job (agreed 13 October 2026)
+
+Maintenance is reduced to seven jobs (specification version 4, decision D37). The month-end job runs, in order: link clients to the loan book, stage, PD by segment, the forward-looking month-end of D-F12 (`fli:month-end --all`), the ledger cash, the EIR revenue run, and the Mega Farm ECL where there are such loans. The Overview's own Run buttons start the same steps one at a time in the background.
+
 ## 4. The screens
 
 The forward-looking module moves out of IFRS 9 Model Setup into its own menu entry, **Forward-Looking Information**, with one tab row (the section-tab pattern used across the system):
@@ -130,6 +150,17 @@ The forward-looking module moves out of IFRS 9 Model Setup into its own menu ent
 | Approval and History | Every model version, scenario set and overlay, who proposed, who approved, when, and what each month-end ran under | New, from the existing approval records |
 
 Every figure on the Overview and Impact Analysis tabs comes from the same stored results as the ECL and the dashboard build-up panel, so a headline can never disagree with the detail.
+
+**As built (13 October 2026, D-F13).** The menu entry **Forward-Looking Information** has four groups, each a row of tabs:
+
+| Group | Tabs |
+|---|---|
+| FLI Month-End | Overview, Impact Analysis |
+| Macro Statistics | Dashboard, Variables, Data Entry, Scenario Assumptions, Import / Export |
+| Forward-Looking Model | Credit Loss Data, Correlation Finder, Regression, Model Versions, Adjusted Forecast, Weighted Forecast |
+| Scenarios and Overlays | Scenario Profiles, Scenario Sets, Economic Scenarios, Manual Overlays, External Calculations, Calculation History |
+
+Economic Indicators of the proposal is Macro Statistics; Scenario Workbench is Scenario Sets; Model Calibration is Correlation Finder, Regression and Model Versions; Overlays is Manual Overlays; Approval and History is Model Versions and Calculation History.
 
 ## 5. The data model
 
@@ -194,6 +225,8 @@ The Report Hub gains, under Annual report and audit and under Risk and analytics
 
 Each carries the reporting date and the run identifier, so it can be reproduced from the run snapshot.
 
+Built so far (D-F15): the forward-looking report (macro data held for the month, the scenario set, its weights and shocks) and the scenario-weighted ECL report (ECL per scenario, weighted against booked, sign-off status), both in PDF, Excel and CSV, read from the month record. The calibration workbook and the FLI line in the IFRS 9 note are still to build.
+
 ## 9. Order of work
 
 | Phase | Content | Acceptance |
@@ -201,7 +234,7 @@ Each carries the reporting date and the run identifier, so it can be reproduced 
 | 1. Cadence and registry | D-F1, D-F2, D-F12: the model version in force is applied monthly; no monthly re-fit; the month-end gate | A month-end with no model version in force refuses; re-running August with the same version reproduces the booked ECL to the kwacha |
 | 2. Per-scenario ECL and term structure | D-F3, D-F4, D-F5: per-scenario results stored, Stage 2 lifetime by year with survival, Stage 3 on the shortfall basis | Weighted per-scenario ECL equals the booked ECL; the sensitivity table reads the same rows; a Stage 2 loan's lifetime ECL is shown year by year |
 | 3. Discounting and vintages | D-F6, D-F10, D-F11: floating-rate current EIR, publisher release dates, the run snapshot | A PLR-linked loan's discount rate moves with the PLR as at the date; a March run re-read in October gives the March figure |
-| 4. Screens | Section 4: the Forward-Looking Information menu, Overview, Impact Analysis, Approval and History | Every headline figure equals the stored results; one tab row; the Legacy FLI tools stay under Administration |
+| 4. Screens | Section 4: the Forward-Looking Information menu, Overview, Impact Analysis, Approval and History | Every headline figure equals the stored results; one tab row per group; the earlier screens kept in their places (D-F13) |
 | 5. Method and LGD | D-F7, D-F8, D-F9: the credit-cycle method on an industry series, the stationarity check, scenario-sensitive LGD where evidenced, the overlay double-counting check | The method card's preconditions pass on MAIIC's data; an overlay on a modelled driver is refused without a reason |
 | 6. Workbooks | Section 8 | Each workbook reproduces from the run snapshot |
 
@@ -236,6 +269,10 @@ Built on branch eir_revenue_recognition and run end to end on the demonstration 
 | D-F9 double counting | `risk_driver` and the review on overlays; approval refused on the model's own driver | Test |
 | D-F10 vintages | `published_at` on macro and credit-loss rows; the as-at reader honours it | Existing as-at tests pass |
 | D-F11 run snapshot | `fli_run_snapshots`, Calculation History | Each month recorded with its inputs and sign-off |
+| D-F13 earlier screens kept | Every earlier screen back in its place in the Forward-Looking Information menu, out of the Legacy section | The navigation test; a month started and finished from the screens on the demonstration database |
+| D-F14 macro statistics screens | Variables, observations, credit loss data and assumptions with create, edit and delete; WB: and IMF: codes; one approved assumption set; actions on the right; import as a modal with a preview | Clicked through on the demonstration database; tests |
+| D-F15 reports | Forward-looking and scenario-weighted ECL reports from `fli_run_snapshots` and the approved set; ECL Projection Audit limited to contract-level runs | August 2026: Base 11,052,982,549.26 at 50 percent, Upside 10,709,643,059.93 at 15, Downside 11,828,244,520.96 at 25, Severe 12,245,809,425.13 at 10; weighted 11,314,579,806.37 against booked 11,314,579,806.97 |
+| D-F16 month-end job | `maiic:task month-end` and the Overview's background steps | Run end to end from the console |
 | D-F12 month-end gate | `FliMonthEnd` steps; the Overview and `fli:month-end`; Maintenance job `maiic:task month-end` | A full month-end from the console reproduced the booked August ECL |
 
 Not built yet: the scenario-sensitive LGD (D-F8, awaiting question 4 of section 10), the current-EIR discounting of floating-rate loans (D-F6, awaiting question 5), the credit-cycle method on an industry series (D-F7, awaiting question 2) and the calibration and scenario workbooks (section 8).

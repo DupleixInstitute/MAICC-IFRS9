@@ -5,7 +5,7 @@ subtitle: What the follow-up extracts proved, what has been decided, how E-Banke
 date: 7 October 2026
 prepared: Prepared by Dupleix Institute for the Malawi Agricultural and Industrial Investment Corporation plc (MAIIC)
 people: Project sponsor Dr Thomson Kumwenda, CFO | Engagement lead Edward Mazibuko CA(SA) | Build lead Kundai Muriwo
-status: Working document, updated 11 October 2026 (section 3.7, the fee ledgers and the true-up into 4206). Replaces version 3 of 24 September 2026 as the single point of reference; version 3 is kept in 9. Archive and still applies wherever this document is silent. Where the two differ, this one governs.
+status: Working document, updated 13 October 2026 (section 3.10, the opening of the revenue roll-forward and facilities drawn in tranches; decisions D32 to D37; the forward-looking module now specified in its own document). Earlier update 11 October 2026 (section 3.7, the fee ledgers and the true-up into 4206). Replaces version 3 of 24 September 2026 as the single point of reference; version 3 is kept in 9. Archive and still applies wherever this document is silent. Where the two differ, this one governs.
 ---
 
 ## 0. How to read this document
@@ -38,6 +38,7 @@ Where a section says a design is taken from the Dupleix suite (sections 6, 11, 1
 | 11 Oct 2026 | Built: the fee GL check on every fee import and on Fee Classification, by month and year, with a Governance Centre switch (`fee_gl_reconciliation`) and a fee-only import permission (`eir.fees.import`) for Finance (section 7.4). |
 | 11 Oct 2026 | The fee income ledgers (4871, 4873) reconciled to the trial balance in every month of 2025 and 2026 to date, and the 2025 year-end true-up into 4206 traced from E-Banker to the audited accounts: 21,865,867.35 of suspense reversals and 259,317,000 of arrangement fees presented as EIR interest (section 3.7). |
 | 7 Oct 2026 | The 18 extracts audited in full. Five further queries run the same day to explain two reconciling differences. The take-on amortisation schedules mapped to E-Banker accounts. The open choices of version 3 written into the Governance Centre with seeded defaults. Two of them decided: which record is contractual (O19) and how a mid-month PLR change is charged (O2). |
+| 13 Oct 2026 | The forward-looking module rebuilt to its own specification (`MAIIC_FLI_Module_Specification_v1_2026-10-13.md`): model registry, month record per scenario, sign-off. Two UI audits closed (imports to reports, create, edit, delete and refresh on every screen; Maintenance reduced to seven jobs). The revenue roll-forward corrected for its first month and for facilities drawn in tranches (section 3.10); the book's EIR revenue shift to 31 August 2026 is now -219.1 million. |
 
 The result in one sentence: **the engine's inputs are now complete, every reconciliation either ties to the cent or has a named cause and a named fix, and what remains is engineering plus a short list of answers that only people at MAIIC can give.**
 
@@ -239,6 +240,27 @@ The write-off tables of E-Banker (LOAN_WRITEOFF_MASTER, LOAN_WRITEOFF_TRANS) are
 
 **Two probes in the same pack.** `TRIAL_BALANCE_HISTORY` (346,261 rows) is E-Banker's own trial balance history; if it holds every month-end, the monthly trial balance can come with the pack instead of separately from Finance. `CUMOVUCH_OLD` (13,359 rows) is an older copy of the ledger that may hold postings from before the July 2024 migration, the history the take-on loans lack (section 6.9). `TB_02` and `CV_01` (RUN 9) count what each holds before either is asked for in full, and `TB_03` (RUN 9c) brings the trial balance rows for December 2025, August 2026 and September 2026: December and August are proved against the trial balances Finance supplied, to the cent (December also shows how the year-end closing is held), and if they tie, September's rows are the September trial balance and the monthly trial balance joins the pack (section 7.7).
 
+### 3.10 Where the revenue roll-forward starts, and facilities drawn in tranches (added 13 October 2026)
+
+**In plain language.** The engine builds each loan's amortised cost month by month: the opening balance, plus the interest at the EIR, less the cash. Everything after the first month follows from the month before, so the first month has to be right. Two faults were found in it on 13 October 2026 and both are corrected.
+
+**The first month was dated a month late.** The opening was the present value of the remaining instalments taken at the end of the first month, and the month's interest was then added on top, so that month's interest was counted twice. A loan with one repayment of 1,030 due at the end of March, run from January at 1 percent a month, was left with about 10 outstanding after it was repaid in full. The opening is now the present value at the end of the month before (decision D32).
+
+**A facility drawn in tranches was treated as if it had been lent in full on day one.** The schedule assumes every tranche is advanced at the start, so its present value counts money not yet lent, and the roll-forward never added a later tranche. Proven on Mphunzitsi SACCO (104430000085): approved 1,047.7 million, drawn 397.7 million in August 2025, 350 million in November 2025 and 300 million in February 2026; the engine opened December 2025 at 887.5 million against a ledger of 421.2 million and closed August 2026 at 349.9 million against 133.6 million. Malawi Police SACCO (3,139.3 million drawn on 19 January 2026) and KWACHA Boutique Hotel (800 million on 20 May and 700 million on 2 June 2026) were lent within their first engine month and were opened at the full present value with a full month's interest.
+
+**The rule now (decision D33).** The first month opens on one of two bases, recorded on every row as `opening_basis` and carried forward with the closing balance:
+
+| Basis | When | Opening | Later advances |
+|---|---|---|---|
+| SCHEDULE | The usual case | Present value, at the locked EIR, of the contractual flows due after the end of the month before | Never added: the schedule's value already counts every tranche |
+| LEDGER | The facility is still drawing down (an advance falls after the end of the month before), or was lent within the month (opening nil), or the borrower has prepaid (the ledger is below half the present value, decision D34) | The drawn balance in the E-Banker ledger at the end of the month before | Each tranche added in the month it is drawn, earning interest from that day; held on the row as `advances` |
+
+Every ledger opening is written to the audit log (`EIR Opening From Ledger`) with the present value, the ledger balance and the reason. The row now ties as opening + advances + interest + unwind - cash - derecognised = closing.
+
+**What it did to the figures (demo database, August 2026).** The ten loans on the ledger basis tie to the loan book within 2.8 million on 6,675.7 million: Mphunzitsi 127.2 million against 133.6 million, Malawi Police SACCO 3,065.1 million against 3,054.2 million. EIR interest for January to August 2026 is 1,812.3 million against contractual interest of 2,031.4 million, a shift of -219.1 million (it read -51.6 million before the correction, because the double-counted first months raised the EIR side).
+
+**What is still open, with the evidence.** The 21 loans on the schedule basis opened December 2025 within 62 million of the ledger in total but are 479.5 million below it by August 2026, and the gap grows every month. The largest are Chipala Investment (-117.6 million), Saile Financial Services (-70.1 million) and Chikomanyama Farms (-41.2 million). Two causes, both already in the build plan: the contractual rate has moved with the prime lending rate while the locked EIR has not been re-estimated (IFRS 9 B5.4.5, phase P5); and instalments unpaid before the first month are not added to the opening (Chipala had paid 152.2 million of 219.5 million due by 30 November 2025; phase P6, arrears). Until P5 and P6 are built the shift for these loans is overstated and is reported as such.
+
 ## 4. Decisions, and the Governance Centre
 
 ### 4.1 Agreed this week
@@ -256,6 +278,12 @@ The write-off tables of E-Banker (LOAN_WRITEOFF_MASTER, LOAN_WRITEOFF_TRANS) are
 | D29 | **The scenario set is a governed object per period and the ECL is weighted across scenarios** (section 15): three or more scenarios with narratives, weights, source vintage, calibration to Malawi's own history, shocks on the base path, two approvals, a lock, back-tests and sensitivity; the weighting moves from the macro path to the loss. | Edward, 7 Oct 2026 | IFRS 9 B5.5.42 asks for the probability-weighted loss over a range of outcomes; IFRS 7.35G asks for the disclosure; the auditors ask for the governance |
 | D30 | **The Mega Farm programme loans stay outside the EIR engine and go fully into the ECL module** (section 16): they are Government money that MAIIC runs on its behalf, at 15 percent of which 5 is MAIIC's and 10 the fund's; 95 percent are in default and the losses are the fund's. The engine works out MAIIC's 5 percent share on the amount expected to be recovered, the ECL module stages and provides for the loans against the fund, and the Report Hub produces the Mega Farms notes of the financial statements. | Dupleix, 8 Oct 2026, on the 2025 financial statements; Dr Thom to confirm (O22) | The statements present the programme ring-fenced on every page; an EIR on a programme split would restate nothing they report, and the revenue-shift number is about MAIIC's own lending |
 | D31 | **The staging thresholds follow the RBM DFI directive and reproduce the 2025 model** (section 3.6): Stage 3 at 181 days past due for medium- and long-term facilities, 91 for short-term and the Mega Farm programme; Stage 2 at 31 days; the 90-day presumption rebutted in writing on the directive; the four-consecutive-payments trigger and the days-past-due basis governed beside them; the 2026 policy note to say so. | Dupleix, 8 Oct 2026; Dr Thom to sign the rebuttal (O13) | The policy note says 90 days, the model applied 181 and the statements rest on it; the gap is closed by documenting the rebuttal, not by moving the number |
+| D32 | **The revenue roll-forward's first month opens on the amortised cost at the end of the month before** (section 3.10): the present value at that date of the flows still to come. | Dupleix, 13 Oct 2026 | Taking it at the end of the month itself counted that month's interest twice. |
+| D33 | **A facility still drawing down, or lent within the month, runs on the ledger's drawn balance** (section 3.10): the opening is the drawn balance (nil when lent in the month) and each later tranche is added in the month it is drawn, with interest from that day; a schedule-basis loan never adds a tranche. The basis is recorded on every row. | Dupleix, 13 Oct 2026 | The schedule assumes every tranche on day one; Mphunzitsi SACCO was overstated by 216 million at August 2026. |
+| D34 | **A prepaid loan opens on the ledger balance** when the ledger at the end of the month before is below half the present value of the remaining schedule; the substitution is audit-logged with both figures. | Dupleix, 13 Oct 2026 | Barnet Agriculture repaid 55.6 million in November 2025; the schedule's value was 38.8 million against 0.4 million owed. |
+| D35 | **The actual cash of every loan is loaded from the E-Banker ledger** (`eir:load-ledger-cash`, source `EBANKER_LEDGER` in `eir_actual_transactions`) and is part of the month-end job, so the roll-forward uses receipts, not the schedule, wherever the ledger covers the month. A customer who has paid more than the ledger says is owed is shown as a credit balance, not a negative loan. | Dupleix, 13 Oct 2026 | EIR as at a date read the schedule where the ledger held the receipts. |
+| D36 | **Every client is linked to its loans** (`clients:link-loan-book`, by external identity and then by name, recorded on the client) and **each import screen shows only its own import history** (`imports.kind`). | Edward, 13 Oct 2026 | Clients were not linked to the loan book; every import screen listed every import. |
+| D37 | **Maintenance is seven jobs, as in the Stress Testing suite** (`maiic:task`): month-end (link clients, stage, PD by segment, forward-looking month-end, ledger cash, revenue run, Mega Farm ECL where present), refresh data, health check, update and bootstrap behind a typed confirmation, with a run history. | Edward, 13 Oct 2026 | The tabs were overwhelming; the month-end order is now one button. |
 | D23 | **The three MAIIC extract scripts are retired.** The engine's importers read the tables directly, through CSVs produced with the session settings of the 6 October request (ISO dates, point decimal). | Dupleix, 7 Oct 2026 | Removes the three script faults of section 2.1 at source. |
 
 ### 4.2 Decided and seeded: every setting, its default, and where it stands
@@ -659,6 +687,8 @@ Phases P1 to P4 are built. The order from today, with what each one waits for:
 
 P4b and P5 start now. Fees and the Mega Farms decision are the two items that gate the number; everything else is engineering.
 
+**Status at 13 October 2026.** P4b is built, with `EirAsAtService` (the EIR as at any date, by contract, product and GL, with the credit-balance flag and the months a loan has no revenue row). The month-end run of P8 is built as the Maintenance month-end job (D37) and the corrected roll-forward of section 3.10 is in it. P5 (re-estimation when the prime rate moves) and P6 (arrears at the opening and re-estimation under B5.4.6) are the next engine work: section 3.10 gives the evidence and the size, 479.5 million on 21 loans at August 2026.
+
 ## 9. Acceptance baselines
 
 The ties achieved this week become regression tests, run by `eir:bootstrap --verify` (section 6.10) and shown on the Baselines sheet of every audit workbook (section 12). A build that cannot reproduce them has broken something.
@@ -993,6 +1023,8 @@ MS-1 the migrations, the ported services, the seeder and the command, with tests
 
 ## 14. Forward-looking adjustments: the regression, the correlation finder and the manual route
 
+*Since 13 October 2026 the forward-looking adjustment is specified in its own document, `MAIIC_FLI_Module_Specification_v1_2026-10-13.md` (decisions D-F1 to D-F12 and its section 12, what is built). Sections 14 and 15 here record how the design began; where the two differ, the FLI specification governs.*
+
 ### 14.1 Background: why the economy enters the loss estimate
 
 An expected credit loss is, for each loan, the probability that the borrower defaults (PD) times the share of the exposure that would be lost if they did (LGD) times the exposure at that moment (EAD), discounted at the loan's effective interest rate. Of the three, the PD is the one the economy moves most. MAIIC measures its PDs from its own history through the transition matrices: how often, over the years observed, a loan in a given grade moved to default. That history is the honest starting point, but it is an average over the years that happened to be in the window, good and bad together: a "through-the-cycle" figure. IFRS 9 asks for the probability that applies to the twelve months, or the lifetime, that is now ahead: a "point-in-time" figure that reflects where the economy is and where it is expected to go (5.5.17(c), B5.5.49). The step from the first to the second is the forward-looking adjustment.
@@ -1105,6 +1137,8 @@ Financial Modelling › Forward-Looking Model: **Correlation Finder** (new), **R
 FL-1 the finder with the guardrail, the register, the proxy deriver and the profiler (one and a half days); FL-2 the regression repair with its tests (one day); FL-3 the FLI Adjustments screen, the overlay register, the route setting and the transmission-method setting with the nine reference methods ported, the logit and Vasicek methods behind their preconditions, and the method cards with live precondition checks and worked examples (two days); FL-4 lineage, the computed weighting, the back-test and the workbook rows (one day). FL-1 needs the macro series of section 13; the rest can follow P4b.
 
 ## 15. Economic scenarios: governance and incorporation
+
+*See the note at the head of section 14: the scenario set, its weighting and the month record are now specified in the FLI module specification.*
 
 ### 15.1 Background: what a scenario is, and why one is not enough
 
