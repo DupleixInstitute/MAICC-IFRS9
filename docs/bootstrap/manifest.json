@@ -408,13 +408,13 @@
       "bytes": 383
     },
     {
-      "file": "takeon/Take-on schedules with mapping - with fee columns - for Tamanda to confirm - 7 Oct 2026.xlsx",
+      "file": "takeon/Take-on schedules with mapping - fees completed by MAIIC - received 13 Oct 2026.xlsx",
       "query_id": "TAKEON_MAPPING",
-      "kind": "take-on amortisation schedules mapped to E-Banker accounts; fee columns AO:AU for Finance to complete",
+      "kind": "take-on amortisation schedules mapped to E-Banker accounts, with the fee columns AO:AU completed by MAIIC Finance",
       "rows": null,
-      "sha256": "7713893c7d19672030ea3ac4b7c3b347ceedb1920cdf67655baa26716bc38872",
-      "bytes": 513214,
-      "note": "The mapping workbook returned to Tamanda on 7 Oct 2026 with the fee columns; its figures link to the original"
+      "sha256": "9b54a193f7baf6351376c37b298b85cc5049b7c2dc363ce427679f52937bc874",
+      "bytes": 908638,
+      "note": "Returned 13 Oct 2026 (last saved by Themba Mazibuko): fees for 101 facilities, arrangement 173,983,551.26 and legal 188,323,699.97, total 362,307,251.23, each deducted from the disbursement, source the offer letter and QuickBooks. The account confirmations (Mapping columns X and Y) are still blank. Supersedes the 7 Oct copy, kept under takeon/superseded/."
     },
     {
       "file": "queries/FOLLOW-UP extracts for Barry - 6 Oct 2026.sql",

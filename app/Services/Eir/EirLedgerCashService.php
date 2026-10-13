@@ -42,7 +42,10 @@ class EirLedgerCashService
     public function load(?string $toDate = null, ?int $userId = null): array
     {
         $toDate ??= $this->zone->lastLedgerDate();
-        $existing = array_flip(DB::table('eir_actual_transactions')->where('source_system', self::SOURCE)->pluck('external_transaction_id')->all());
+        // id => the type it was loaded as, so a write-off loaded as a repayment before the classifier existed is corrected
+        $existing = DB::table('eir_actual_transactions')->where('source_system', self::SOURCE)->pluck('transaction_type', 'external_transaction_id')->all();
+        $writeOffs = new \App\Services\Ebanker\WriteOffClassifier($this->zone);
+        $reclassified = 0;
         $customers = DB::table('loan_books')->whereNotNull('customer_id')->orderByDesc('reporting_period')->pluck('customer_id', 'contract_id')->all();
         $batch = [];
         $byType = [];
@@ -59,11 +62,19 @@ class EirLedgerCashService
                 }
                 $postings++;
                 $id = (string) ($p['CUMVOUCH_DET_ID'] ?? $r['source_key']);
+                $amount = (float) str_replace(',', '', (string) ($p['TRANSAMT'] ?? 0));
+                $writeOffRule = $writeOffs->rule($p, $r['row_date'], $account);
                 if (isset($existing[$id])) {
+                    if ($writeOffRule !== null && $existing[$id] !== 'Write-off') {
+                        DB::table('eir_actual_transactions')->where('source_system', self::SOURCE)->where('external_transaction_id', $id)
+                            ->update(['transaction_type' => 'Write-off', 'total_amount' => round(abs($amount), 2), 'row_note' => 'Reclassified as a write-off: ' . $writeOffRule . ' (spec v4 3.8)', 'updated_at' => now()]);
+                        $existing[$id] = 'Write-off';
+                        $reclassified++;
+                    }
                     continue;
                 }
-                $amount = (float) str_replace(',', '', (string) ($p['TRANSAMT'] ?? 0));
                 $kind = match (true) {
+                    $writeOffRule !== null => 'Write-off',
                     in_array($type, LoanBookBuildService::TYPE_RECEIPT, true) => 'Principal+Interest',
                     in_array($type, LoanBookBuildService::TYPE_WRITEOFF, true) => 'Write-off',
                     in_array($type, LoanBookBuildService::TYPE_SETTLEMENT_IN_KIND, true) => 'Settlement in kind',
@@ -79,13 +90,13 @@ class EirLedgerCashService
                     'principal_component' => 0, 'interest_component' => 0, 'fee_component' => 0, 'total_amount' => round($total, 2),
                     'balance_after_transaction' => null, 'source_system' => self::SOURCE, 'source_reference' => 'TRANTYPE ' . $type . ' ' . mb_substr((string) ($p['PARTICULARS'] ?? ''), 0, 120),
                     'external_transaction_id' => $id, 'row_note' => null, 'created_at' => now(), 'updated_at' => now()];
-                $existing[$id] = true;
+                $existing[$id] = $kind;
             }
         }
         foreach (array_chunk($batch, 500) as $chunk) {
             DB::table('eir_actual_transactions')->insert($chunk);
         }
-        $result = ['postings' => $postings, 'loaded' => count($batch), 'accounts' => $accounts, 'by_type' => $byType, 'last_date' => $toDate];
+        $result = ['postings' => $postings, 'loaded' => count($batch), 'reclassified_as_write_off' => $reclassified, 'accounts' => $accounts, 'by_type' => $byType, 'last_date' => $toDate];
         AuditLoggerService::log('EIR Ledger Cash Loaded', 'eir_actual_transactions', null, ['rows_affected' => count($batch), 'new_values' => $result, 'meta' => ['user' => $userId]]);
 
         return $result;

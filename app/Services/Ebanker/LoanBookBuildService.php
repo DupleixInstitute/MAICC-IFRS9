@@ -393,6 +393,8 @@ class LoanBookBuildService
         $loans = $this->zone->loanMaster();
         $rates = $this->zone->rateSetupByAccount();
         $statuses = $this->zone->statusHistoryByAccount();
+        // a write-off posted as a repayment (spec 3.8) is a write-off here too
+        $writeOffs = new WriteOffClassifier($this->zone);
         $accounts = array_unique(array_merge(array_keys($ledger), array_keys($runs)));
         sort($accounts);
         $rows = [];
@@ -403,14 +405,14 @@ class LoanBookBuildService
                 $type = (string) ($post['payload']['TRANTYPE'] ?? '');
                 $sum['all'] += $amt; $sum['n']++;
                 $sum['first'] ??= $post['row_date']; $sum['last'] = $post['row_date']; $sum['load'] = $post['load_id'];
-                if (in_array($type, self::TYPE_DISBURSEMENT, true)) {
+                if ($writeOffs->isWriteOff($post['payload'], $post['row_date'], $account)) {
+                    $sum['woff'] += $amt;     // in the balance, never in repayments (type 300, a 1064 batch, an H closure)
+                } elseif (in_array($type, self::TYPE_DISBURSEMENT, true)) {
                     $sum['disb'] += $amt;
                 } elseif (in_array($type, self::TYPE_INTEREST, true)) {
                     $sum['int'] += $amt;
                 } elseif (in_array($type, self::TYPE_RECEIPT, true)) {
                     $sum['rec'] += $amt;
-                } elseif (in_array($type, self::TYPE_WRITEOFF, true)) {
-                    $sum['woff'] += $amt;     // in the balance, never in repayments
                 } elseif (in_array($type, self::TYPE_SETTLEMENT_IN_KIND, true)) {
                     $sum['kind'] += $amt;     // in the balance, never in repayments
                 } else {
@@ -559,7 +561,9 @@ class LoanBookBuildService
         $v += [
             'loan_portfolio_id' => $this->portfolioId(), 'reporting_year' => $end->year, 'reporting_month' => $end->month, 'reporting_period' => $end->format('Y-m'),
             'remaining_tenor' => $remaining, // the ECL engines read this as the credit-conversion fraction on the undrawn commitment (null = 1), so it is a fraction, not a percentage
-            'facility_utilisation_rate' => $v['approved_amount'] > 0 ? round(min(1.0, max(0.0, $v['disbursed'] / $v['approved_amount'])), 2) : null,
+            // with no approved amount (the Mega Farm loan-book runs carry none) the facility counts as fully drawn:
+            // the column is NOT NULL with a default of 1, and the ECL engines read a missing rate as 1
+            'facility_utilisation_rate' => $v['approved_amount'] > 0 ? round(min(1.0, max(0.0, $v['disbursed'] / $v['approved_amount'])), 2) : 1.0,
             'ead' => round($carrying + (float) $v['commitments'], 2),
             'overdue_status' => $v['overdue_days'] > 0 ? 'OVERDUE' : 'CURRENT', 'is_month_end' => 1,
             'created_at' => now(), 'updated_at' => now(),

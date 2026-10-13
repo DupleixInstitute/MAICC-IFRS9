@@ -233,7 +233,7 @@ class EirRevenueService
         $account = DB::table('loan_books')->where('contract_id', $contract->contract_id)->whereNotNull('external_identity_id')
             ->where('external_identity_id', '!=', 'TBA')->value('external_identity_id') ?? str_pad((string) $contract->contract_id, 15, '0', STR_PAD_LEFT);
         try {
-            $ledger = app(\App\Services\Ebanker\LandingZoneReader::class)->ledgerByAccount($priorEnd)[$account] ?? [];
+            $ledger = app(\App\Services\Ebanker\LandingZoneReader::class)->ledgerByAccount($priorEnd, $account)[$account] ?? [];
         } catch (\Throwable) {
             return [$pv, 'SCHEDULE', 0.0];
         }

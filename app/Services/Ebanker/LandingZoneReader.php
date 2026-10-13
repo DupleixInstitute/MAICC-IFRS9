@@ -49,10 +49,13 @@ class LandingZoneReader
      * @param  list<string>  $queryIds
      * @return array<string, array{load_id:int,query_id:string,source_key:string,account:?string,row_date:?string,payload:array}>
      */
-    public function family(array $queryIds, ?string $toDate = null, ?string $onDate = null): array
+    public function family(array $queryIds, ?string $toDate = null, ?string $onDate = null, ?string $account = null): array
     {
         $q = $this->current()->whereIn('query_id', $queryIds)
             ->orderBy('load_id')->orderBy('id');
+        if ($account !== null) {
+            $q->where('account', $account);
+        }
         if ($toDate !== null) {
             $q->where('row_date', '<=', $toDate);
         }
@@ -82,11 +85,17 @@ class LandingZoneReader
         return DB::table('ebanker_loads')->select('id')->where('status', 'LANDED');
     }
 
-    /** Ledger postings dated on or before the date, grouped by account, each in date then key order. */
-    public function ledgerByAccount(?string $toDate = null): array
+    /**
+     * Ledger postings dated on or before the date, grouped by account, each in date then key order;
+     * one account's only when it is named. The Mega Farm ledger (MF_03) is not read: its GLs are not
+     * loan GLs here (the programme goes to the ECL module, decision D30), so every one of its rows
+     * would be decoded only to be dropped, which after pack 4 (298,259 rows) made each call take
+     * about a minute.
+     */
+    public function ledgerByAccount(?string $toDate = null, ?string $account = null): array
     {
         $by = [];
-        foreach ($this->family(self::LEDGER, $toDate) as $row) {
+        foreach ($this->family(array_values(array_diff(self::LEDGER, ['MF_03'])), $toDate, null, $account) as $row) {
             $p = $row['payload'];
             if (($p['DELETE_FLAG'] ?? 'N') === 'Y' || $row['account'] === null || $row['account'] === '') {
                 continue;
@@ -187,7 +196,21 @@ class LandingZoneReader
     /** The last date any ledger posting carries: the date after which a build is refused, never estimated. */
     public function lastLedgerDate(): ?string
     {
-        return $this->current()->whereIn('query_id', self::LEDGER)->max('row_date');
+        return self::onCurrentIndex()->whereNull('superseded_at')->whereIn('load_id', self::landedLoadIds())
+            ->whereIn('query_id', self::LEDGER)->max('row_date');
+    }
+
+    /**
+     * The raw rows read through the covering index (query_id, superseded_at, load_id, row_date)
+     * for a count, a last date or a list of keys, which never need the payload. MySQL's planner
+     * otherwise walks the load index and reads every row, payload and all: after packs 3 and 4
+     * (620,000 rows, 742 MB) that took 90 seconds. SQLite (the tests) has no index hint.
+     */
+    public static function onCurrentIndex(): \Illuminate\Database\Query\Builder
+    {
+        return DB::connection()->getDriverName() === 'mysql'
+            ? DB::table(DB::raw('ebanker_raw_rows FORCE INDEX (ebanker_raw_rows_current_idx)'))
+            : DB::table('ebanker_raw_rows');
     }
 
     /** Loads read by a family, for the build's audit trail. */

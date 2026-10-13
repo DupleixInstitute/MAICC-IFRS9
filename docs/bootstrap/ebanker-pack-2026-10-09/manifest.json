@@ -1,0 +1,179 @@
+{
+  "pack": "MAIIC E-Banker pack 3, received 9 October 2026",
+  "assembled": "2026-10-09",
+  "period": "2026-09",
+  "source": "E-Banker (Virtual Galaxy CBS, schema VGCBS), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 3 - 9 Oct 2026.sql; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
+  "date_format": "m/d/Y",
+  "scope_scheme_ids": [
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    140,
+    141,
+    142,
+    143,
+    144,
+    145,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103
+  ],
+  "accepted_exceptions": [
+    "RUN 0 not applied: every date is m/d/yyyy; the manifest declares the format (D23)",
+    "MF_02 Mega Farm loan master lands before its account master MF_01, which came in pack 4 (12 Oct 2026)",
+    "MF_04 Mega Farm balance history: the balance_history_ties gate cannot tie these accounts here, because the Mega Farm loan GLs 1050301 to 1050307 are not in LandingZoneReader::LOAN_GLS and the Mega Farm ledger (MF_03) is complete only in pack 4; the pack 4 results review of 12 Oct 2026 tied 80,121 of 80,121 account-months to the pack 4 ledger",
+    "CH_01a, CH_01b, RS_01 and WO_01 returned no rows; they are landed as empty files so the load records that the tables were searched",
+    "CT_01 was exported twice (run 6 and run 7, identical); one copy is landed"
+  ],
+  "not_landed": [
+    {
+      "received_as": "Received 9 October/Pack 3/run 4/MF_03_ledger_all.csv",
+      "reason": "truncated at 107 accounts (13,610 rows); every row is in pack 4 MF_03 parts a to g4 with identical content, so pack 4 lands the complete ledger"
+    },
+    {
+      "received_as": "Received 9 October/MF_03_ledger_all.csv, MF_04_balance_history",
+      "reason": "misnamed: it holds MF_05 loan book runs, truncated at 34,540 rows (160 accounts, GL 1050301 only); every month-end latest run it holds is in pack 4 MF_05 parts h1a to h6, so it adds nothing a reader uses"
+    },
+    {
+      "received_as": "Received 9 October/MF_01_account_master.csv and MF_02_loan_master",
+      "reason": "misnamed duplicate of run 3/MF_02_loan_master.csv (same SHA-256); MF_02 is landed from run 3"
+    },
+    {
+      "received_as": "Received 9 October/MF_06_status_history.csv, MF_07_rate_setup",
+      "reason": "misnamed duplicate of run 5/MF_08_charges.csv (same SHA-256); MF_08 is landed from run 5"
+    },
+    {
+      "received_as": "Received 9 October/GL_03, M09_01, M09_02, P1_05b, P2_11, P2_12, P2_13 (top level)",
+      "reason": "byte-identical to the 8 October files already committed in ebanker-pack-2026-10-08 and landed in load 1"
+    },
+    {
+      "received_as": "Received 9 October/M09_03_loan_book_runs.csv and Pack 3/M09_03_loan_book_runs_sep.csv",
+      "reason": "byte-identical to run 3/M09_03_loan_book_runs_sep.csv, which is landed"
+    }
+  ],
+  "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "M09_03_loan_book_runs_sep.csv",
+      "query_id": "M09_03",
+      "kind": "pack 3 RUN 1, open from pack 2: Loan Book Report runs for 30 Sep 2026 and every run after id 808196, MAIIC schemes",
+      "rows": 550,
+      "sha256": "b31a7c93d5396607c85cfb878ee5c871114f1fce40c6f77a0061f3a29459ecc4",
+      "bytes": 245241,
+      "received_as": "Received 9 October/Pack 3/run 3/M09_03_loan_book_runs_sep.csv"
+    },
+    {
+      "file": "MF_02_loan_master.csv",
+      "query_id": "MF_02",
+      "kind": "pack 3 RUN 3b: Mega Farm loan master (ACLOANMASTER), schemes 96 to 103",
+      "rows": 6973,
+      "sha256": "49a2aedecfaae358edd9d1bc4612beca9b2900e2d4f397b4d476d8ab35a709bc",
+      "bytes": 2736511,
+      "received_as": "Received 9 October/Pack 3/run 3/MF_02_loan_master.csv"
+    },
+    {
+      "file": "MF_04_balance_history.csv",
+      "query_id": "MF_04",
+      "kind": "pack 3 RUN 4b: Mega Farm month-end balance history (ACCOUNT_BALANCE), Jul 2024 to Sep 2026",
+      "rows": 80121,
+      "sha256": "11439d6aebbd4ce30085e607f9a9c4776e9eb9cd493e25ca8cb84a65f090753e",
+      "bytes": 26808710,
+      "received_as": "Received 9 October/Pack 3/run 4/MF_04_balance_history.csv"
+    },
+    {
+      "file": "MF_06_status_history.csv",
+      "query_id": "MF_06",
+      "kind": "pack 3 RUN 5a: Mega Farm status history (ACCOUNT_STATUS_HISTORY)",
+      "rows": 7006,
+      "sha256": "979f4363b8dde6ffdb5aefed1663d36d7c6fe3a28d6c5a2d813d20dded7d8596",
+      "bytes": 1068884,
+      "received_as": "Received 9 October/Pack 3/run 5/MF_06_status_history.csv"
+    },
+    {
+      "file": "MF_07_rate_setup.csv",
+      "query_id": "MF_07",
+      "kind": "pack 3 RUN 5b: Mega Farm rate set-up (INTEREST_SLAB_DETAILS)",
+      "rows": 6974,
+      "sha256": "ade34b5203556733ab071f96ed13adfb49e23af3c5e90f28e8f7774a753a6617",
+      "bytes": 2016517,
+      "received_as": "Received 9 October/Pack 3/run 5/MF_07_rate_setup.csv"
+    },
+    {
+      "file": "MF_08_charges.csv",
+      "query_id": "MF_08",
+      "kind": "pack 3 RUN 5c: Mega Farm LOS charges (LOS_DISB_CHARGES_POST)",
+      "rows": 9855,
+      "sha256": "41827032585b27fce0e2ac8f2ad30949b17758f7b9b8c16ac8d2c72a1d36a5e3",
+      "bytes": 1391094,
+      "received_as": "Received 9 October/Pack 3/run 5/MF_08_charges.csv"
+    },
+    {
+      "file": "SM_01_scheme_master.csv",
+      "query_id": "SM_01",
+      "kind": "pack 3 RUN 6: scheme master, the 18 MAIIC and 8 Mega Farm schemes",
+      "rows": 26,
+      "sha256": "82f5afd0e8bb128cd595482ba2abf3279e874e6a96474cc63f85662417f2f6c0",
+      "bytes": 16173,
+      "received_as": "Received 9 October/Pack 3/run 6/SM_01_scheme_master.csv"
+    },
+    {
+      "file": "CT_01_table_counts.csv",
+      "query_id": "CT_01",
+      "kind": "pack 3 RUN 7: row counts of the reschedule, write-off and charges tables",
+      "rows": 8,
+      "sha256": "3dedcb9727d8723eb1155db67fd1d32e65fafc96a7f8c242e3b25790d13912f8",
+      "bytes": 332,
+      "received_as": "Received 9 October/Pack 3/run 6/CT_01_table_counts.csv"
+    },
+    {
+      "file": "CH_01a_charges_posting_history.csv",
+      "query_id": "CH_01a",
+      "kind": "pack 3 RUN 8a: CHARGES_POSTING_HISTORY for term-loan schemes 140 to 145 (no rows)",
+      "rows": 0,
+      "sha256": "fa6b78674d7fc4c7ffb0882240d3abe73fad2efd57c6030a6bf02a1ebd674fd6",
+      "bytes": 721,
+      "received_as": "Received 9 October/Pack 3/run 8/CH_01a_charges_posting_history.csv"
+    },
+    {
+      "file": "CH_01b_disburse_charges_details.csv",
+      "query_id": "CH_01b",
+      "kind": "pack 3 RUN 8b: DISBURSE_CHARGES_DETAILS for term-loan schemes 140 to 145 (no rows)",
+      "rows": 0,
+      "sha256": "4e36090cc8ff9df695d54c504bb09ec17fa96c0e1a060ad57e030ab494d24c08",
+      "bytes": 304,
+      "received_as": "Received 9 October/Pack 3/run 8/CH_01b_disburse_charges_details.csv"
+    },
+    {
+      "file": "RS_01_reschedules.csv",
+      "query_id": "RS_01",
+      "kind": "pack 3 RUN 9: LOAN_RESCHEDULE_DETAILS, MAIIC schemes (no rows)",
+      "rows": 0,
+      "sha256": "f1f5c87a044e951b6d441866907b22c7e51cfd584a4b4f8a7825a30b6f1b92a9",
+      "bytes": 617,
+      "received_as": "Received 9 October/Pack 3/run 9/RS_01_reschedules.csv"
+    },
+    {
+      "file": "WO_01_writeoffs.csv",
+      "query_id": "WO_01",
+      "kind": "pack 3 RUN 10: LOAN_WRITEOFF_MASTER, MAIIC schemes (no rows)",
+      "rows": 0,
+      "sha256": "ecd21966b23c20be14ef2245532bec12c1275726eaa5553711b5a0334e532b49",
+      "bytes": 383,
+      "received_as": "Received 9 October/Pack 3/run 10/WO_01_writeoffs.csv"
+    }
+  ]
+}

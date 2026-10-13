@@ -219,6 +219,30 @@ class InternalGradingController extends Controller
         return back()->with('success', "Grade {$grade->grade_code} deleted");
     }
 
+    /** Read an ECL model workbook's S&P grading and show it before anything is saved. */
+    public function previewSp(Request $request, \App\Services\Ifrs9\SpGradesImportService $service)
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:xlsx,xlsm', 'max:51200']]);
+        try {
+            return response()->json($service->read($request->file('file')->getRealPath()));
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /** Create a draft grading profile from the workbook's S&P grading. */
+    public function importSp(Request $request, \App\Services\Ifrs9\SpGradesImportService $service)
+    {
+        $data = $request->validate(['file' => ['required', 'file', 'mimes:xlsx,xlsm', 'max:51200'], 'name' => ['required', 'string', 'max:190']]);
+        try {
+            $profile = $service->import($request->file('file')->getRealPath(), $request->file('file')->getClientOriginalName(), $data['name'], $request->user()->id);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Draft profile \"{$profile->name}\" created with {$profile->mappings()->count()} grades. It changes no PD until it is activated.");
+    }
+
         public function toggle(InternalGradeProfile $profile)
         {
             DB::transaction(function () use ($profile) {

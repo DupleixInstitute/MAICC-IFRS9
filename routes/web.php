@@ -1153,6 +1153,10 @@ Route::prefix('forecasting')->group(function () {
 
         Route::post('/internal-grading/profile', [InternalGradingController::class, 'storeProfile'])
             ->name('internal-grading.profile.store');
+        Route::post('/internal-grading/import-sp/preview', [InternalGradingController::class, 'previewSp'])
+            ->name('internal-grading.import-sp.preview');
+        Route::post('/internal-grading/import-sp', [InternalGradingController::class, 'importSp'])
+            ->name('internal-grading.import-sp');
 
         // Grades + PD Curves per profile
         Route::get('/internal-grading/{profile}', [InternalGradingController::class, 'index'])
@@ -1289,6 +1293,13 @@ Route::group(['prefix' => 'eir-feed', 'as' => 'eir-feed.'], function () {
     Route::post('/land', [\App\Http\Controllers\EirFeedController::class, 'land'])->name('land');
     Route::post('/build', [\App\Http\Controllers\EirFeedController::class, 'build'])->name('build');
     Route::post('/build/{build}/approve', [\App\Http\Controllers\EirFeedController::class, 'approve'])->name('approve');
+});
+// Write-offs: those the ledger carries, and the governed register (spec v4 s.3.8)
+Route::group(['prefix' => 'eir-write-offs', 'as' => 'eir-write-offs.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirWriteOffController::class, 'index'])->name('index');
+    Route::post('/', [\App\Http\Controllers\EirWriteOffController::class, 'store'])->name('store');
+    Route::post('/{id}/approve', [\App\Http\Controllers\EirWriteOffController::class, 'approve'])->name('approve');
+    Route::post('/{id}/close', [\App\Http\Controllers\EirWriteOffController::class, 'close'])->name('close');
 });
 // Finance's monthly trial balance, from the screen, through the landing zone's gates
 Route::group(['prefix' => 'eir-trial-balances', 'as' => 'eir-trial-balances.'], function () {

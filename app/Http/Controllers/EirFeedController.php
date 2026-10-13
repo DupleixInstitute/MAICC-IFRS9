@@ -50,7 +50,7 @@ class EirFeedController extends Controller
             });
         $queries = DB::table('ebanker_queries')->orderBy('query_id')->get(['query_id', 'title', 'source_table', 'key_column', 'date_column', 'version', 'incremental']);
         // only rows of landed loads count: a quarantined load keeps its rows but no reader sees them
-        $rowsByQuery = DB::table('ebanker_raw_rows')->whereNull('superseded_at')->whereIn('load_id', \App\Services\Ebanker\LandingZoneReader::landedLoadIds())
+        $rowsByQuery = \App\Services\Ebanker\LandingZoneReader::onCurrentIndex()->whereNull('superseded_at')->whereIn('load_id', \App\Services\Ebanker\LandingZoneReader::landedLoadIds())
             ->selectRaw('query_id, count(*) n, max(row_date) last_date')->groupBy('query_id')->get()->keyBy('query_id');
         $builds = DB::table('loan_book_builds as b')->leftJoin('users as r', 'r.id', '=', 'b.requested_by')->leftJoin('users as a', 'a.id', '=', 'b.approved_by')
             ->orderByDesc('b.id')->limit(20)
@@ -96,11 +96,19 @@ class EirFeedController extends Controller
             return back()->with('error', 'The zip holds no manifest.json.' . ($extracted['skipped'] !== [] ? ' ' . count($extracted['skipped']) . ' entry name(s) were refused: ' . implode(', ', $extracted['skipped']) : ''));
         }
         try {
-            $r = $service->land($packDir, $request->user()->id, PackLandingService::ROUTE_MANUAL);
+            $r = $service->land($packDir, $request->user()->id, PackLandingService::ROUTE_MANUAL, $request->boolean('dry_run'));
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
         $note = $extracted['skipped'] !== [] ? ' ' . count($extracted['skipped']) . ' entry name(s) were refused and left out: ' . implode(', ', $extracted['skipped']) . '.' : '';
+        if ($request->boolean('dry_run')) {
+            $failed = array_filter($r['gates']['files'] ?? [], fn ($f) => ($f['failures'] ?? []) !== []);
+            $packFails = array_filter($r['gates']['pack'] ?? [], fn ($g) => is_array($g) && ($g['result'] ?? '') === 'FAIL');
+
+            return back()->with($failed === [] && $packFails === [] ? 'success' : 'error', 'Check only, nothing kept: '
+                . ($failed === [] && $packFails === [] ? 'every check passed; load the pack to keep it.' : count($failed) . ' file(s) and ' . count($packFails) . ' pack check(s) failed: '
+                    . implode('; ', array_map(fn ($name, $f) => $name . ' ' . implode(', ', $f['failures']), array_keys($failed), $failed))) . $note);
+        }
 
         return back()->with($r['status'] === 'QUARANTINED' ? 'error' : 'success', "Pack {$r['status']} (load {$r['load_id']}).{$note}");
     }
