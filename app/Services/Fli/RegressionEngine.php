@@ -153,13 +153,21 @@ final class RegressionEngine
         );
 
         $relId = $this->ensureRelationship($cand, $lag);
+        // The hash covers the data AND the governed guardrail settings the
+        // verdict was reached under, so a re-sweep on the same inputs reuses the
+        // fit already recorded (keeping its approval) instead of appending a
+        // copy, while a changed setting or a changed observation records anew.
         $inputsHash = hash('sha256', json_encode([
             'x' => $cand['x'], 'y' => $cand['y'], 'lag' => $lag,
             'periods' => $aligned['periods'], 'xvals' => $aligned['x'], 'yvals' => $aligned['y'],
+            'guardrail' => [$cand['cutoff'] ?? $cutoff, $minObs, $alpha, $cand['expected_sign'], $this->gov->string('fli.sign_test.mode')],
         ]));
 
         $nYears = $this->annualEquivalent($aligned['periods'] ?? []);
-        $this->db()->table('fli_fits')->insert([
+        $existing = $this->db()->table('fli_fits')->where('fli_relationship_id', $relId)
+            ->where('reporting_period', $asOfPeriod)->where('inputs_hash', $inputsHash)->orderBy('id')->value('id');
+        if ($existing === null) {
+            $this->db()->table('fli_fits')->insert([
             'fli_relationship_id' => $relId,
             'reporting_period' => $asOfPeriod,
             'slope' => $ols['slope'],
@@ -176,10 +184,12 @@ final class RegressionEngine
             'inputs_hash' => $inputsHash,
             'supporting_document_id' => null,
             'computed_at' => now(),
-        ]);
+            ]);
+        }
 
         return [
             'fli_relationship_id' => $relId,
+            'reused' => $existing !== null,
             'statistic_code' => $cand['x'],
             'proxy_code' => $cand['y'],
             'lag_months' => $lag,

@@ -86,6 +86,23 @@ class AsAtReportingDateTest extends TestCase
         $this->assertGreaterThan(1e-4, abs($december['slope'] - $before['slope']));
     }
 
+    public function test_a_re_sweep_on_the_same_inputs_reuses_the_fit_instead_of_copying_it(): void
+    {
+        $first = $this->fit('202506');
+        $rows = DB::table('fli_fits')->where('reporting_period', '202506')->count();
+        $this->assertGreaterThan(0, $rows);
+
+        // the same period, the same data, the same governed settings: no new rows
+        $again = $this->fit('202506');
+        $this->assertTrue($again['reused']);
+        $this->assertSame($rows, DB::table('fli_fits')->where('reporting_period', '202506')->count());
+        $this->assertEqualsWithDelta($first['slope'], $again['slope'], 1e-12);
+
+        // a later month is new information as at a later period: recorded anew
+        $this->laterMonths();
+        $this->assertFalse($this->fit('202512')['reused']);
+    }
+
     public function test_the_correlation_sweep_for_a_period_never_sees_an_observation_after_its_end(): void
     {
         $finder = fn (string $p) => collect((new CorrelationFinder('sqlite', new GovernedValues($p, 'sqlite')))->run($p)['ranked'])
