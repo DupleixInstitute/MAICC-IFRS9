@@ -77,8 +77,9 @@
         <template v-if="profile.description">
           <p class="text-gray-500 dark:text-slate-400"><span class="font-semibold text-gray-600 dark:text-slate-300">Source:</span> {{ source.text }}</p>
           <p v-if="source.url" class="text-gray-500 dark:text-slate-400">
-            <span class="font-semibold text-gray-600 dark:text-slate-300">Link given in the workbook:</span>
-            <a :href="source.url" target="_blank" rel="noopener noreferrer" class="ml-1 inline-flex items-center gap-1 break-all text-maiic-700 underline decoration-dotted underline-offset-2 hover:text-maiic-800 dark:text-emerald-300 dark:hover:text-emerald-200">{{ source.label }} <i class="fas fa-external-link-alt text-[10px]"></i></a>
+            <span class="font-semibold text-gray-600 dark:text-slate-300">S&amp;P table:</span>
+            <a :href="source.tableUrl" target="_blank" rel="noopener noreferrer" class="ml-1 inline-flex items-center gap-1 break-all text-maiic-700 underline decoration-dotted underline-offset-2 hover:text-maiic-800 dark:text-emerald-300 dark:hover:text-emerald-200" :title="source.url">{{ source.tableLabel }} <i class="fas fa-external-link-alt text-[10px]"></i></a>
+            <span class="block text-[11px] text-gray-400 dark:text-slate-500">Opens the S&amp;P page given in the workbook ({{ source.label }}) at the table's title; the page may ask for an S&amp;P login first.</span>
           </p>
           <div v-if="source.leftOut.length" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
             <p class="font-semibold">Left out of this profile</p>
@@ -114,7 +115,15 @@ const source = computed(() => {
   if (m) text = text.replace(m[0], '').trim()
   let label = url
   try { if (url) { const u = new URL(url); const slug = u.pathname.split('/').filter(Boolean).pop() || ''; label = u.hostname + ' - ' + slug.replace(/-\d+$/, '').replace(/^\d+-/, '').replace(/-/g, ' ') } } catch (e) { /* keep the raw link */ }
-  return { text, url, label, leftOut }
+  // a text-fragment link opens the page at the table's own title (Chrome, Edge); the title is the one the
+  // workbook names, without its period, which differs between S&P's annual studies
+  const t = (props.profile?.description || '').match(/(Average Cumulative Default Rates[^(.,]*)/)
+  const tableTitle = t ? t[1].trim() : null
+  const tableNo = ((props.profile?.description || '').match(/\((Table \d+)\)/) || [])[1]
+  const region = ((props.profile?.description || '').match(/\),\s*([A-Z][A-Za-z ]+?)\s*\(Table/) || [])[1]
+  const tableUrl = url && tableTitle ? url.split('#')[0] + '#:~:text=' + encodeURIComponent(tableTitle) : url
+  const tableLabel = tableTitle ? [tableNo, tableTitle, region].filter(Boolean).join(' - ') : label
+  return { text, url, label, leftOut, tableUrl, tableLabel }
 })
 
 function formatPd(value) {
