@@ -190,6 +190,7 @@ return [
             ]),
             $leaf('Support Tickets', 'tickets.index'),
             $leaf('Settings', 'settings.index'),
+            $leaf('Maintenance', 'maintenance.index', permission: 'settings'),
             // The forward-looking screens inherited from the older platform.
             // None of them is an input of the governed chain (it reads
             // credit_loss_series, fli_fits, governed_scenario_sets and

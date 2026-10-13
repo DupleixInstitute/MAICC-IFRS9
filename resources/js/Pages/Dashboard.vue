@@ -48,9 +48,9 @@
             <!-- The same figures as this screen, for the chosen period,
                  portfolio and compare-to month, as a branded PDF. -->
             <a :href="reportPdfUrl" title="Download the dashboard for the chosen period, portfolio and compare-to month as a PDF"
-               class="inline-flex items-center gap-1.5 self-stretch rounded-xl border border-maiic-600 bg-white px-4 text-sm font-bold text-maiic-700 shadow-sm hover:bg-maiic-50">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
-                Download dashboard (PDF)
+               class="inline-flex items-center gap-1.5 self-center rounded-lg bg-maiicgold-400 px-3 py-1.5 text-xs font-bold text-maiic-900 shadow-sm ring-1 ring-maiicgold-500/40 transition hover:bg-maiicgold-500">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 001 1h4"/><path d="M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/><path d="M12 11v6m0 0l-2.5-2.5M12 17l2.5-2.5"/></svg>
+                PDF
             </a>
         </template>
 

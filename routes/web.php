@@ -562,6 +562,15 @@ Route::prefix('communication')->group(function () {
 // Settings. The whole group (including every update POST) requires the
 // settings permission: previously any logged-in user could rewrite e.g.
 // mail credentials.
+// Maintenance console: a fixed whitelist of artisan commands run from the
+// browser with live output. Viewing needs the settings permission; running,
+// which includes a full wipe-and-rebuild, needs the admin role.
+Route::middleware(['auth', 'permission:settings'])->prefix('maintenance')->name('maintenance.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\MaintenanceController::class, 'index'])->name('index');
+    Route::post('/run', [\App\Http\Controllers\MaintenanceController::class, 'run'])->name('run')->middleware('role:admin');
+    Route::get('/output/{id}', [\App\Http\Controllers\MaintenanceController::class, 'output'])->name('output')->where('id', '[A-Za-z0-9\-]+');
+});
+
 Route::group(['prefix' => 'setting', 'middleware' => ['auth', 'permission:settings']], function () {
     Route::get('/', [SettingsController::class, 'index'])->name('settings.index');
     Route::get('/organisation', [SettingsController::class, 'organisation'])->name('settings.organisation');
