@@ -366,7 +366,8 @@ class TransitionMatrixController extends Controller
         $loanProduct = $matrix->transitionProfile()->with('scoringAttributes')->first();
         
         // Get states from loan product's configured category names
-        $states = $loanProduct->scoringAttributes
+        // the engine's matrices are built per portfolio, with no loan product behind them
+        $states = ($loanProduct?->scoringAttributes ?? collect())
             ->map(function ($attribute) {
                 return [
                     'id' => $attribute->id,
@@ -386,6 +387,9 @@ class TransitionMatrixController extends Controller
 
         return Inertia::render('TransitionMatrix/Show', [
             'matrix' => $matrix->load('transitionProfile', 'entries'),
+            'scopeName' => $matrix->pd_calculation_level === 'portfolio'
+                ? (DB::table('loan_portfolios')->where('id', $matrix->pd_calculation_id)->value('name') ?? 'Pooled book')
+                : ($matrix->pd_calculation_code ?: 'Pooled book'),
             'portfolioGroups' => $portfolioGroups,
             'states' => $states
         ]);
@@ -605,9 +609,8 @@ class TransitionMatrixController extends Controller
 
     public function view(TransitionMatrix $matrix)
     {
-        return Inertia::render('TransitionMatrices/View', [
-            'matrix' => $matrix->load('portfolio'),
-        ]);
+        // the matrix is shown on its show page; this older address leads there
+        return redirect()->route('transition-matrices.show', $matrix);
     }
 
     public function edit(TransitionMatrix $matrix)
@@ -700,6 +703,7 @@ class TransitionMatrixController extends Controller
             'pdPercentages' => $pdPercentages,
             'endStageTotals' => $endStageTotals,
             'grandTotal' => $grandTotal,
+            'meta' => \App\Support\MatrixPopupMeta::for($matrix),
         ]);
     }
 
@@ -898,6 +902,9 @@ class TransitionMatrixController extends Controller
                     'id',
                     'transition_profile_id',
                     'portfolio_group_id',
+                    'pd_calculation_id',
+                    'pd_calculation_level',
+                    'pd_calculation_code',
                     'start_reporting_period',
                     'end_reporting_period',
                     'transition_years',
@@ -912,7 +919,7 @@ class TransitionMatrixController extends Controller
                     'calculation_source',
                     'comments'
                 ])
-                ->with(['portfolio:id,name', 'transitionProfile:id,name'])
+                ->with(['portfolio:id,name', 'transitionProfile'])
                 ->where('start_reporting_period', '<=', $end)
                 ->where('end_reporting_period', '>=', $start)
                 ->where('status', 'closed')
@@ -959,8 +966,8 @@ class TransitionMatrixController extends Controller
             foreach ($matrices as $matrix) {
                 $csvRows[] = [
                     $matrix->id,
-                    $matrix->transitionProfile ? $matrix->transitionProfile->name : 'N/A',
-                    $matrix->portfolio ? $matrix->portfolio->name : 'N/A',
+                    ($matrix->transitionProfile->short_name ?? $matrix->transitionProfile->name ?? $matrix->transitionProfile->profile_code ?? 'N/A'),
+                    $matrix->portfolio ? $matrix->portfolio->name : (($matrix->pd_calculation_level ?? null) === 'book' || ($matrix->pd_calculation_code ?? null) === 'book' ? 'Pooled book' : 'N/A'),
                     $matrix->start_reporting_period,
                     $matrix->end_reporting_period,
                     $matrix->transition_years,
@@ -1011,11 +1018,20 @@ class TransitionMatrixController extends Controller
             } else {
                 // Return CSV directly
                 if ($format === 'excel') {
-                    // For Excel format, we'd need to use a library like Laravel Excel
-                    // For now, return CSV with Excel MIME type
-                    Log::info("Returning CSV download as Excel format");
-                    return response()->download($csvPath, "{$filename}.csv", [
-                        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    // a real workbook, converted from the CSV the report wrote
+                    $reader = new \PhpOffice\PhpSpreadsheet\Reader\Csv();
+                    $book = $reader->load($csvPath);
+                    $sheet = $book->getActiveSheet();
+                    $sheet->setTitle('PD report');
+                    foreach (range('A', $sheet->getHighestColumn()) as $col) {
+                        $sheet->getColumnDimension($col)->setAutoSize(true);
+                    }
+                    $xlsxPath = preg_replace('/\.csv$/', '', $csvPath) . '.xlsx';
+                    (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($xlsxPath);
+                    @unlink($csvPath);
+
+                    return response()->download($xlsxPath, "{$filename}.xlsx", [
+                        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     ])->deleteFileAfterSend(true);
                 } else {
                     Log::info("Returning CSV download response");
@@ -1052,9 +1068,9 @@ class TransitionMatrixController extends Controller
 
                 // Matrix Header
                 $csvRows[] = ["Closed Transition Matrix Report"];
-                $csvRows[] = ["Profile: " . ($matrix->transitionProfile ? $matrix->transitionProfile->name : 'N/A')];
+                $csvRows[] = ["Profile: " . (($matrix->transitionProfile->short_name ?? $matrix->transitionProfile->name ?? $matrix->transitionProfile->profile_code ?? 'N/A'))];
                 $csvRows[] = ["Period: " . $matrix->start_reporting_period . " to " . $matrix->end_reporting_period];
-                $csvRows[] = ["Portfolio Group: " . ($matrix->portfolio ? $matrix->portfolio->name : 'N/A')];
+                $csvRows[] = ["Portfolio Group: " . ($matrix->portfolio ? $matrix->portfolio->name : (($matrix->pd_calculation_level ?? null) === 'book' || ($matrix->pd_calculation_code ?? null) === 'book' ? 'Pooled book' : 'N/A'))];
                 $csvRows[] = ["Matrix ID: " . $matrix->id];
                 $csvRows[] = []; // empty row
 

@@ -1,10 +1,5 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Currencies
-            </h2>
-        </template>
+    <app-layout title="Currencies" description="The currency list the reporting currency is chosen from, with the symbol, rate and decimals of each">
         <div class=" mx-auto mb-4 flex justify-between items-center">
             <filter-search v-model="form.search" class="w-full max-w-md mr-4" @reset="reset">
             </filter-search>

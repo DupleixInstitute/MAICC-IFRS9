@@ -43,7 +43,7 @@ class DisbursementReportService
         $mode = $params['mode'] ?? 'summary';
         $portfolioName = DB::table('loan_portfolios')
             ->where('id', $params['portfolio_id'])
-            ->value('name') ?? 'Unknown Portfolio';
+            ->value('name') ?? 'All portfolios';
 
         return self::createCsvResponse($data, $startPeriod, $endPeriod, $portfolioName, $mode);
     }
@@ -134,7 +134,7 @@ class DisbursementReportService
                 'lb.external_identity_id',
                 DB::raw('lb.carrying_amount as principal_balance'),
                 'lb.create_date',
-                'lb.portfolio_group',
+                DB::raw('(SELECT name FROM loan_portfolios p WHERE p.id = lb.loan_portfolio_id) as portfolio_group'),
             ])
             ->whereBetween('lb.reporting_period', [$startPeriod, $endPeriod])
             ->whereRaw("DATE_FORMAT(lb.create_date, '%Y-%m') = lb.reporting_period")
@@ -170,12 +170,12 @@ class DisbursementReportService
             fputcsv($file, ['Loan Disbursement Export Report']);
             fputcsv($file, ['Period Range: ' . $startPeriod . ' to ' . $endPeriod]);
             fputcsv($file, ['Export Mode: ' . ucfirst($mode)]);
-            fputcsv($file, ['Portfolio : ' . $portfolioName]);
+            fputcsv($file, ['Portfolio: ' . $portfolioName]);
             fputcsv($file, ['Export Date: ' . now()->format('Y-m-d H:i:s')]);
             fputcsv($file, []); // Empty row for spacing
 
             fputcsv($file, ['DISBURSEMENT SUMMARY']);
-            fputcsv($file, ['reporting_period', 'Total Disbursement', 'No Of Contacts', 'Average Disbursement', 'Movement 30days', 'Movement 60 Days', 'Movement 90days']);
+            fputcsv($file, ['Reporting Period', 'Total Disbursement', 'Number of Contracts', 'Average Disbursement', 'Movement 30 Days', 'Movement 60 Days', 'Movement 90 Days']);
 
             foreach ($data['summary'] as $summary) {
                 fputcsv($file, [

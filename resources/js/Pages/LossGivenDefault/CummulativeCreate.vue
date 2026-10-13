@@ -1,14 +1,12 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Cummulative LGD - Essentials
-            </h2>
+    <app-layout title="Calculate cumulative LGD" description="Combine closed monthly LGD runs into the LGD used by the ECL">
+        <template #actions>
+            <Link href="/loss-given-default/cummulative" class="secondary-btn">Back</Link>
         </template>
 
-        <div class="py-12">
+        <div>
             <div class="w-full">
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
+                <div class="maiic-panel p-6">
                     <form @submit.prevent="submitForm">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Start Reporting Period -->
@@ -70,12 +68,9 @@
                         </div>
 
                         <div class="flex justify-end mt-6 gap-4">
-                            <jet-button @click="toggleModal" class=" items-center px-4 py-2 bg-black-600 hover:bg-gray-400 text-black-700 rounded-md">
+                            <jet-button @click="toggleModal">
                                 Calculate
                             </jet-button>
-                            <Link href="/loss-given-default/cummulative" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md">
-                                Back
-                            </Link>
                         </div>
                     </form>
                 </div>

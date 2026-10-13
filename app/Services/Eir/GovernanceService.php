@@ -231,6 +231,12 @@ class GovernanceService
                 'options' => ['Engine journal replaces the manual reclass', 'Both run in parallel for one year'],
                 'default' => 'Engine journal replaces the manual reclass',
             ],
+            'fee_gl_reconciliation' => [
+                'label' => 'Fee imports checked against the fee GLs',
+                'description' => 'When fees are imported by loan (EIR Data Intake, type fees), every fee held for each year the file covers is set beside the trial balance movement of 4871 Legal Fees and 4873 Arrangement Fees, month by month and for the year, inside the reconciliation band. The fee GLs agree to the trial balance every month, while about 44 percent of 2025 fee income never touched a loan account, so the GL is the control total (spec v4 sections 3.7 and 7.4). The result shows on the import and on Fee Classification; it reports and never blocks. Switching it off stops the check, and the screens then say it is off.',
+                'options' => [\App\Services\Eir\FeeGlReconciliationService::ON, \App\Services\Eir\FeeGlReconciliationService::OFF],
+                'default' => \App\Services\Eir\FeeGlReconciliationService::ON,
+            ],
             'mega_farms_scope' => [
                 'label' => 'Mega Farms facilities',
                 'description' => 'The Mega Farm programme is Government money that MAIIC runs on its behalf, at 15 percent of which 5 is MAIIC\'s and 10 the fund\'s; 95 percent of the loans are in default and the losses are the fund\'s (spec v4 section 16, decision D30). The seeded option keeps the programme outside the EIR engine, computes MAIIC\'s 5 percent share on the amount expected to be recovered, and provisions the loans fully in the ECL module against the fund. Open choice O22; Dr Thom to confirm.',
@@ -309,6 +315,25 @@ class GovernanceService
                 'options' => ['Weight the ECL across scenarios', 'Weight the macro path, one ECL'],
                 'default' => 'Weight the ECL across scenarios',
             ],
+            // The forward-looking module (FLI module specification v1, 13 October 2026)
+            'fli_model_cadence' => [
+                'label' => 'How often the forward-looking model is recalibrated',
+                'description' => 'The model (the driver, the lag and the coefficients) is recalibrated and approved as a new version, and each month-end applies the version in force at its date. Under the seeded option a version stays in force until the next annual review, or until an event breaks the relationship (a devaluation, a drought, a change of policy regime); the month-end does not re-fit it, and a version older than twelve months is flagged as due for review. Under the other option a version must be published for every month (FLI module decision D-F1).',
+                'options' => ['Once a year, and when an event breaks the relationship', 'Every month-end'],
+                'default' => 'Once a year, and when an event breaks the relationship',
+            ],
+            'fli_forecast_horizon' => [
+                'label' => 'Reasonable and supportable forecast horizon',
+                'description' => 'How far the scenario paths are used before the projection reverts to the long-run PD (IFRS 9 B5.5.50). Inside the horizon each forecast year takes the scenario\'s own path; after it the adjustment falls in equal steps to nil over the reversion years, so a long Stage 2 loan is measured on the long-run PD for the years nobody can forecast (FLI module decision D-F4).',
+                'options' => ['3 years, then 2 years back to the long-run PD', '2 years, then 1 year back to the long-run PD', '5 years, then 2 years back to the long-run PD'],
+                'default' => '3 years, then 2 years back to the long-run PD',
+            ],
+            'fli_movement_commentary' => [
+                'label' => 'ECL movement that needs a commentary',
+                'description' => 'When the booked ECL moves by more than this against the previous month-end, the month cannot be closed on the forward-looking Overview until a reviewer records why (FLI module section 7).',
+                'options' => ['10 percent month on month', '5 percent month on month', '20 percent month on month'],
+                'default' => '10 percent month on month',
+            ],
             'scenario_minimum_count' => [
                 'label' => 'Minimum scenarios in a set',
                 'description' => 'A scenario set cannot be proposed with fewer scenarios than this (spec v4 section 15.6). Three is the practice: a base, an upside and a downside.',
@@ -350,6 +375,37 @@ class GovernanceService
                 'description' => 'A loan whose days past due fall back below a stage threshold is held at its prior stage until it has been below that threshold for this many consecutive month-ends, the current one included; it moves down on the month that completes the count. A move up is immediate. The directive classifies by how long instalments are overdue and expects a cured facility to prove itself before it is upgraded (spec v4 section 3.6; the directive\'s section 15; system audit of 9 October 2026, finding M11).',
                 'options' => ['0 months (no probation)', '3 months', '6 months', '12 months'],
                 'default' => '3 months',
+            ],
+            // PD and LGD by segment (9 October 2026): the book split into its real programmes
+            'pd_segmentation_basis' => [
+                'label' => 'How the PD is segmented',
+                'description' => 'The probability of default is measured on groups of loans that share their credit risk (IFRS 9 B5.5.5): a segment. By portfolio measures each lending programme (MAIIC Industrial, MAIIC Agricultural, MAIIC Term, FInES Industrial, FInES Agricultural) on its own transition matrix. Pooled book measures the whole book as one. By RBM sector measures each economic sector of the directive across the programmes. By portfolio and RBM sector measures each sector inside each programme. Every segment uses the same twelve-month window. A segment with too little history follows the thin-segment rule. The ECL is still reported by portfolio; the loan carries the segment its PD came from.',
+                'options' => ['By portfolio', 'Pooled book', 'By RBM sector', 'By portfolio and RBM sector'],
+                'default' => 'By portfolio',
+            ],
+            'pd_segment_min_observations' => [
+                'label' => 'Minimum history for a segment\'s own PD',
+                'description' => 'A segment\'s PD from Stage 1, or from Stage 2, is its own only when at least this many loans started the twelve-month window in that stage and at least this many of them were in Stage 3 at its end (or had left the book unpaid, which counts as a default). Below that the stage is thin: a rate measured on two or three loans is noise, and a stage with no default at all would give a PD of nil. A thin stage follows the thin-segment rule.',
+                'options' => ['10 loans and 1 default per stage', '5 loans and 1 default per stage', '20 loans and 2 defaults per stage', '10 loans per stage, defaults not counted'],
+                'default' => '10 loans and 1 default per stage',
+            ],
+            'pd_segment_thin_rule' => [
+                'label' => 'A segment too thin for its own PD or LGD',
+                'description' => 'Under the first option a thin stage takes the PD of the segment above it for that stage: a sector inside a portfolio takes its portfolio\'s, a portfolio or a sector takes the pooled book\'s. A portfolio with too small a Stage 3 cohort takes the pooled book\'s LGD. The parent must meet the minimum itself, or the run stops. Every substitution is recorded on the loan and shown in the ECL by segment report. Under the second option any thin segment stops the run, names the segment and the reason, and nothing is written.',
+                'options' => ['Take the parent: portfolio, then the pooled book', 'Fail closed: stop the run and name the segment'],
+                'default' => 'Take the parent: portfolio, then the pooled book',
+            ],
+            'pd_sector_unverified_codes' => [
+                'label' => 'Industry codes held apart in a sector PD',
+                'description' => 'E-Banker gives industry code 4290 (other civil engineering) to a loan whose sector was never captured: in the August 2026 book 58 of the 135 loans carry it (57 with a balance), among them an eye clinic, a lodge, transport firms and a farmers\' cooperative. Held apart, those loans form their own "unverified sector" segment in a sector PD, and the sector reports show them separately, instead of being read as construction risk. Their codes are never changed by the system; the fix is to capture the right code in E-Banker.',
+                'options' => ['4290 (E-Banker default civil engineering code)', 'None held apart'],
+                'default' => '4290 (E-Banker default civil engineering code)',
+            ],
+            'lgd_segment_min_cohort' => [
+                'label' => 'Minimum Stage 3 cohort for a portfolio\'s own LGD',
+                'description' => 'The LGD is measured per portfolio on the loans that were in Stage 3 twelve months before the period, followed to the period (cure and recovery). A portfolio with fewer such loans than this follows the thin-segment rule.',
+                'options' => ['5 Stage 3 loans at the window start', '3 Stage 3 loans at the window start', '10 Stage 3 loans at the window start'],
+                'default' => '5 Stage 3 loans at the window start',
             ],
         ];
     }

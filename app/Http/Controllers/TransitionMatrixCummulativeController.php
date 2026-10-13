@@ -227,6 +227,7 @@ class TransitionMatrixCummulativeController extends Controller
                     'pdPercentages' => $pdPercentages,
                     'endStageTotals' => $endStageTotals,
                     'grandTotal' => $grandTotal,
+                    'meta' => \App\Support\MatrixPopupMeta::for($cumulative),
                 ]);
             }
 
@@ -324,7 +325,7 @@ class TransitionMatrixCummulativeController extends Controller
 
             if(!$cummulative){
                 Log::error('Cumulative Matrix not found');
-                return back()->with('error','Cummulative Matrix not found');
+                return back()->with('error','Cumulative matrix not found');
             }
 
             // Delete related cumulative matrix data
@@ -338,7 +339,7 @@ class TransitionMatrixCummulativeController extends Controller
             DB::commit();
 
             return redirect()->route('transition-matrix-cummulative.index')
-                ->with('success', 'Cummulative Matrix and all related data deleted successfully.');
+                ->with('success', 'Cumulative matrix and all related data deleted successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -379,7 +380,7 @@ class TransitionMatrixCummulativeController extends Controller
         $matrices = TransitionMatrixCummulative::select([
                 'id',
                 'transition_profile_id',
-                'pd_calculation_id',
+                'pd_calculation_id', 'pd_calculation_level', 'pd_calculation_code',
                 'start_period',
                 'end_period',
                 'records_counted',
@@ -390,7 +391,7 @@ class TransitionMatrixCummulativeController extends Controller
                 'last_reporting_period',
                 'calculation_source',
             ])
-            ->with(['portfolio:id,name', 'transitionProfile:id,name'])
+            ->with(['portfolio:id,name', 'transitionProfile'])
             ->where('start_period', '<=', $end)
             ->where('end_period', '>=', $start)
             ->where('status', 'closed')
@@ -432,8 +433,8 @@ class TransitionMatrixCummulativeController extends Controller
         foreach ($matrices as $matrix) {
             $csvRows[] = [
                 $matrix->id,
-                $matrix->transitionProfile ? $matrix->transitionProfile->name : 'N/A',
-                $matrix->portfolio ? $matrix->portfolio->name : 'N/A',
+                ($matrix->transitionProfile->short_name ?? $matrix->transitionProfile->name ?? $matrix->transitionProfile->profile_code ?? 'N/A'),
+                $matrix->portfolio ? $matrix->portfolio->name : (($matrix->pd_calculation_level ?? null) === 'book' || ($matrix->pd_calculation_code ?? null) === 'book' ? 'Pooled book' : 'N/A'),
                 $matrix->start_period,
                 $matrix->end_period,
                 $matrix->records_counted,
@@ -507,9 +508,9 @@ class TransitionMatrixCummulativeController extends Controller
 
             // Matrix Header
             $csvRows[] = ["Closed Transition Matrix Cumulative Report"];
-            $csvRows[] = ["Profile: " . ($matrix->transitionProfile ? $matrix->transitionProfile->name : 'N/A')];
+            $csvRows[] = ["Profile: " . (($matrix->transitionProfile->short_name ?? $matrix->transitionProfile->name ?? $matrix->transitionProfile->profile_code ?? 'N/A'))];
             $csvRows[] = ["Period: " . $matrix->start_period . " to " . $matrix->end_period];
-            $csvRows[] = ["Portfolio Group: " . ($matrix->portfolio ? $matrix->portfolio->name : 'N/A')];
+            $csvRows[] = ["Portfolio Group: " . ($matrix->portfolio ? $matrix->portfolio->name : (($matrix->pd_calculation_level ?? null) === 'book' || ($matrix->pd_calculation_code ?? null) === 'book' ? 'Pooled book' : 'N/A'))];
             $csvRows[] = ["Matrix ID: " . $matrix->id];
             $csvRows[] = []; // empty row
 

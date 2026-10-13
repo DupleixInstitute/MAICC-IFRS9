@@ -17,18 +17,32 @@ class SicrGroupController extends Controller
 
     public function index()
     {
-        $groups = SicrGroup::orderByDesc('created_at')->paginate(15);
+        // each group with how many of its items imply Stage 2 and Stage 3
+        $groups = SicrGroup::withCount([
+            'items',
+            'items as stage2_count' => fn ($q) => $q->where('stage_implied', 2),
+            'items as stage3_count' => fn ($q) => $q->where('stage_implied', 3),
+            'items as active_count' => fn ($q) => $q->where('active', true),
+        ])->orderBy('sort_order')->orderBy('name')->paginate(15);
         return Inertia::render('StageingRules/Groups', [
             'groups' => $groups,
+            'totals' => [
+                'groups' => SicrGroup::count(),
+                'items' => \App\Models\SicrItem::count(),
+                'stage2' => \App\Models\SicrItem::where('stage_implied', 2)->count(),
+                'stage3' => \App\Models\SicrItem::where('stage_implied', 3)->count(),
+            ],
         ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => ['required','string','max:255'],
+            'name' => ['required','string','max:199'],
             'description' => ['nullable','string'],
+            'sort_order' => ['nullable','integer','min:0','max:999'],
         ]);
+        $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
         SicrGroup::create($data);
         return back()->with('success', 'Group created.');
     }
@@ -36,9 +50,11 @@ class SicrGroupController extends Controller
     public function update(Request $request, SicrGroup $group)
     {
         $data = $request->validate([
-            'name' => ['required','string','max:255'],
+            'name' => ['required','string','max:199'],
             'description' => ['nullable','string'],
+            'sort_order' => ['nullable','integer','min:0','max:999'],
         ]);
+        $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
         $group->update($data);
         return back()->with('success', 'Group updated.');
     }

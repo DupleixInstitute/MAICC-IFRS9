@@ -39,6 +39,9 @@ class FliRouteServiceTest extends TestCase
         Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->decimal('pd_prefli', 16, 8)->nullable(); $t->decimal('pd_value', 16, 8)->nullable(); $t->decimal('12m_pd', 8, 2)->nullable(); $t->decimal('fli_adj', 16, 8)->nullable(); $t->decimal('pd_post_fli', 16, 8)->nullable(); $t->string('fli_route')->nullable(); $t->string('fli_method')->nullable(); $t->integer('fli_fit_id')->nullable(); $t->integer('fli_set_id')->nullable(); $t->text('fli_by_scenario')->nullable(); $t->decimal('lgd_value', 16, 8)->nullable(); $t->decimal('ead', 18, 2)->nullable(); $t->decimal('carrying_amount', 20, 2)->default(0); $t->string('calculated_ifrs9_stage')->nullable(); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->decimal('ecl_value', 18, 2)->nullable(); $t->decimal('remaining_tenor', 8, 2)->nullable(); $t->decimal('commitments', 18, 2)->nullable(); $t->decimal('facility_utilisation_rate', 5, 2)->nullable(); });
         // the overlay register, with the lineage column it adds to the loan (audit M3)
         (require base_path('database/migrations/2026_10_09_300000_create_fli_overlays.php'))->up();
+        // the model registry (FLI module D-F2): an approved fit is published as the version in force
+        (require base_path('database/migrations/2026_10_13_100000_fli_module_registry_and_snapshots.php'))->up();
+        (require base_path('database/migrations/2026_10_13_120000_fli_model_versions_external.php'))->up();
         // the route is a Governance Centre setting; the table so a test can put "Manual overlay" in force
         Schema::create('governance_settings', function (Blueprint $t) { $t->increments('id'); $t->string('key', 60); $t->string('value', 60); $t->text('options'); $t->string('label'); $t->text('description'); $t->string('effective_from'); $t->integer('set_by')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approved_at')->nullable(); $t->string('reason', 500)->nullable(); $t->string('status', 20)->default('PROPOSED'); $t->timestamps(); });
         DB::table('users')->insert([['id' => 1, 'name' => 'Maker', 'created_at' => now(), 'updated_at' => now()], ['id' => 2, 'name' => 'Checker', 'created_at' => now(), 'updated_at' => now()]]);
@@ -165,5 +168,190 @@ class FliRouteServiceTest extends TestCase
         $this->assertSame('Manual overlay', $a->fli_route);
         $this->assertEqualsWithDelta(1.0, (float) DB::table('loan_books')->where('contract_id', 'B')->value('pd_post_fli'), 1e-9); // Stage 3 at 100 percent
         $this->assertSame(3, $r['adjusted']);
+    }
+
+    /** A fit for January 2026 on PLR, lag in months, approved by two people; one Stage 1 loan in January. */
+    private function januaryFit(int $lag): void
+    {
+        DB::table('fli_relationships')->insert(['id' => 2, 'statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'r2_cutoff' => 0.3, 'lag_months' => $lag, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('fli_fits')->insert(['id' => 20, 'fli_relationship_id' => 2, 'reporting_period' => '202601', 'slope' => 0.01, 'intercept' => 0.1, 'correlation_r' => 0.9, 'r_squared' => 0.81, 'n_obs' => 24, 'verdict' => 'applied']);
+        $this->service()->proposeFit(20, 1);
+        $this->service()->approveFit(20, 2);
+        DB::table('loan_books')->insert(['contract_id' => 'E', 'reporting_period' => '2026-01', 'ifrs9stage_post_qualitative' => '1', 'pd_prefli' => 0.30, 'remaining_tenor' => 24]);
+    }
+
+    /**
+     * The base value is the driver as at the period, under the fitted lag
+     * (IFRS 9 B5.5.49 to B5.5.51): for January 2026 with a lag of nine
+     * months the base window reads the April 2025 PLR, the twelve-month
+     * window reads April 2026, inside the first forecast year, whose base
+     * path is the PLR known in January (25.3), never August's 20. A later
+     * observation leaves January's adjustments as they were.
+     */
+    public function test_the_base_value_is_the_driver_as_at_the_period_under_the_fitted_lag(): void
+    {
+        DB::table('macro_series')->insert([
+            ['statistic_code' => 'PLR', 'observation_period' => '202504', 'value' => 26.0, 'value_type' => 'actual'],
+            ['statistic_code' => 'PLR', 'observation_period' => '202601', 'value' => 25.3, 'value_type' => 'actual'],
+        ]);
+        $this->januaryFit(9);
+        $setId = $this->approvedSet('2026-01');
+        $r = $this->service()->apply('2026-01', 1);
+
+        $this->assertSame('202504', (string) $r['base_driver']['base_period']);
+        $this->assertEqualsWithDelta(26.0, $r['base_driver']['base_value'], 1e-9);
+        $this->assertSame('202604', (string) $r['base_driver']['window_period']);
+        $this->assertStringContainsString('forecast year 0', $r['base_driver']['window_driver_source']);
+        $this->assertEqualsWithDelta(25.3, $r['scenarios']['Base']['driver'], 1e-9);
+        $this->assertEqualsWithDelta(30.3, $r['scenarios']['Down']['driver'], 1e-9);
+        $this->assertEqualsWithDelta(20.3, $r['scenarios']['Up']['driver'], 1e-9);
+        $predBase = 0.01 * 26.0 + 0.1;
+        $this->assertEqualsWithDelta((0.01 * 25.3 + 0.1) / $predBase - 1, $r['scenarios']['Base']['adjustment'], 1e-6);
+        $this->assertEqualsWithDelta((0.01 * 30.3 + 0.1) / $predBase - 1, $r['scenarios']['Down']['adjustment'], 1e-6);
+        $this->assertSame($setId, (int) DB::table('loan_books')->where('contract_id', 'E')->value('fli_set_id'));
+
+        // February to July arrive (and August is already held): January does not move
+        foreach (['202602', '202603', '202604', '202605', '202606', '202607'] as $p) {
+            DB::table('macro_series')->insert(['statistic_code' => 'PLR', 'observation_period' => $p, 'value' => 10.0, 'value_type' => 'actual']);
+        }
+        $again = $this->service()->apply('2026-01', 1);
+        $this->assertSame($r['base_driver'], $again['base_driver']);
+        $this->assertSame(array_map(fn ($s) => $s['adjustment'], $r['scenarios']), array_map(fn ($s) => $s['adjustment'], $again['scenarios']));
+    }
+
+    /** With a lag of twelve months the window's driver is the period's own actual: every scenario takes it. */
+    public function test_a_lag_of_twelve_months_puts_the_window_on_data_known_at_the_period(): void
+    {
+        DB::table('macro_series')->insert([
+            ['statistic_code' => 'PLR', 'observation_period' => '202501', 'value' => 24.0, 'value_type' => 'actual'],
+            ['statistic_code' => 'PLR', 'observation_period' => '202601', 'value' => 25.3, 'value_type' => 'actual'],
+        ]);
+        $this->januaryFit(12);
+        $this->approvedSet('2026-01');
+        $r = $this->service()->apply('2026-01', 1);
+        $expected = (0.01 * 25.3 + 0.1) / (0.01 * 24.0 + 0.1) - 1;
+        foreach (['Base', 'Up', 'Down'] as $name) {
+            $this->assertEqualsWithDelta(25.3, $r['scenarios'][$name]['driver'], 1e-9);
+            $this->assertEqualsWithDelta($expected, $r['scenarios'][$name]['adjustment'], 1e-6);
+        }
+        $this->assertStringContainsString('actual 202601', $r['base_driver']['window_driver_source']);
+    }
+
+    /** No actual at P - lag known at the period: the route refuses, and no loan is touched. */
+    public function test_the_route_fails_closed_when_the_lagged_base_is_not_known_at_the_period(): void
+    {
+        DB::table('macro_series')->insert(['statistic_code' => 'PLR', 'observation_period' => '202601', 'value' => 25.3, 'value_type' => 'actual']);
+        $this->januaryFit(9);
+        $this->approvedSet('2026-01');
+        try {
+            $this->service()->apply('2026-01', 1);
+            $this->fail('the route ran without the lagged base');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('cannot run for 2026-01', $e->getMessage());
+            $this->assertStringContainsString('202504', $e->getMessage());
+        }
+        $this->assertNull(DB::table('loan_books')->where('contract_id', 'E')->value('pd_post_fli'));
+    }
+
+    /**
+     * The booked post-FLI PD reproduces the probability-weighted ECL (spec
+     * 15.5): on a Stage 2 loan over three years, whose lifetime PD is concave
+     * in the twelve-month PD, the ECL measured on the post-FLI PD equals the
+     * weighted ECL across scenarios, and the sensitivity's weighted figure
+     * equals the allowance booked on it.
+     */
+    public function test_the_ecl_on_the_post_fli_pd_is_the_weighted_ecl_across_scenarios(): void
+    {
+        DB::table('loan_books')->insert(['contract_id' => 'C', 'reporting_period' => '2026-08', 'ifrs9stage_post_qualitative' => '2', 'pd_prefli' => 0.30, 'remaining_tenor' => 36]);
+        DB::table('loan_books')->where('reporting_period', '2026-08')->update(['lgd_value' => 0.5, 'carrying_amount' => 1000]);
+        $setId = $this->approvedSet();
+        $this->service()->proposeFit(10, 1);
+        $this->service()->approveFit(10, 2);
+        $this->service()->apply('2026-08', 1);
+
+        $c = DB::table('loan_books')->where('contract_id', 'C')->first();
+        $life = fn (float $pd12) => 1 - pow(1 - $pd12, 36 / 12);
+        $weighted = 0.0;
+        foreach (json_decode($c->fli_by_scenario, true) as $s) {
+            $weighted += $s['weight'] / 100 * $life((float) $s['pd']);
+        }
+        $this->assertEqualsWithDelta($weighted, $life((float) $c->pd_post_fli), 1e-8);
+        // the averaged twelve-month PD would have overstated it
+        $this->assertLessThan($life(0.30), $weighted);
+
+        // book the ECL as the engine measures it, then the sensitivity reconciles to it
+        foreach (DB::table('loan_books')->where('reporting_period', '2026-08')->get() as $l) {
+            $stagePd = ScenarioSetService::stagePd((object) ['stage' => $l->ifrs9stage_post_qualitative, 'remaining_tenor' => $l->remaining_tenor], (float) $l->pd_post_fli);
+            DB::table('loan_books')->where('id', $l->id)->update(['ecl_value' => round($stagePd * 0.5 * 1000, 2)]);
+        }
+        $sens = (new ScenarioSetService(new GovernanceService()))->sensitivity($setId);
+        $this->assertEqualsWithDelta((float) DB::table('loan_books')->where('reporting_period', '2026-08')->sum('ecl_value'), $sens['weighted_ecl'], 0.02);
+    }
+
+    /** FLI module D-F1, D-F2: approving a fit publishes a version that governs its month and every later one until replaced. */
+    public function test_an_approved_fit_is_a_version_in_force_from_its_month_until_a_later_one(): void
+    {
+        $this->service()->proposeFit(10, 1);
+        $this->service()->approveFit(10, 2);
+        $registry = new \App\Services\Fli\FliModelRegistry();
+        $this->assertNull($registry->inForce('2026-07'), 'a version never governs a month before its own');
+        $this->assertSame(10, (int) $registry->inForce('2026-08')->fli_fit_id);
+        $this->assertSame(10, (int) $registry->inForce('2027-03')->fli_fit_id, 'the month-end applies the version without a new fit');
+        $v = $this->service()->approvedFit('2026-11');
+        $this->assertSame('2026-08', $v->effective_from);
+        $this->assertNotNull($v->model_version_id);
+    }
+
+    /** External Calculations: a model calibrated outside needs a second person, and retiring it sends its months back to the version before. */
+    public function test_an_external_model_needs_a_second_person_and_retiring_it_falls_back(): void
+    {
+        Schema::create('macro_statistics', function (Blueprint $t) { $t->increments('id'); $t->string('statistic_code'); $t->string('statistic_name')->nullable(); });
+        DB::table('macro_statistics')->insert(['statistic_code' => 'PLR', 'statistic_name' => 'Prime lending rate']);
+        DB::table('credit_loss_series')->insert(['proxy_code' => 'STAGE3_SHARE', 'proxy_name' => 'Stage 3 share', 'observation_period' => '202608', 'value' => 0.3]);
+        $this->service()->proposeFit(10, 1);
+        $this->service()->approveFit(10, 2);
+        $registry = new \App\Services\Fli\FliModelRegistry();
+        $id = $registry->proposeExternal(['statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'lag_months' => 3, 'slope' => 0.02, 'intercept' => 0.05,
+            'calibrated_period' => '2026-08', 'effective_from' => '2026-10', 'evidence' => 'validation workbook'], 1);
+        $this->assertSame(10, (int) $registry->inForce('2026-10')->fli_fit_id, 'a proposal governs nothing');
+        try {
+            $registry->approveExternal($id, 1);
+            $this->fail('the proposer approved their own model');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('different person', $e->getMessage());
+        }
+        $registry->approveExternal($id, 2);
+        $this->assertSame($id, (int) $registry->inForce('2026-10')->id);
+        $this->assertSame(10, (int) $registry->inForce('2026-09')->fli_fit_id, 'the month before it keeps the earlier version');
+        $registry->retire($id, 2, 'test');
+        $this->assertSame(10, (int) $registry->inForce('2026-10')->fli_fit_id);
+        try {
+            $registry->proposeExternal(['statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'lag_months' => 0, 'slope' => 1, 'intercept' => 0,
+                'calibrated_period' => '2026-08', 'effective_from' => '2026-07', 'evidence' => 'x'], 1);
+            $this->fail('a model governed a month before its data');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('B5.5.49', $e->getMessage());
+        }
+    }
+
+    /** FLI module D-F9: an overlay on the model's own driver is refused unless the proposer says why it is not counted twice. */
+    public function test_an_overlay_on_the_models_driver_needs_a_double_count_review(): void
+    {
+        $sets = new ScenarioSetService(new GovernanceService());
+        $this->approvedSet();
+        $this->service()->proposeFit(10, 1);
+        $this->service()->approveFit(10, 2);
+        $overlays = new \App\Services\Fli\OverlayService($sets);
+        $bare = $overlays->propose(['reporting_period' => '2026-08', 'scope' => 'book', 'adjustment' => 0.05, 'reason' => 'rates', 'expiry_period' => '2026-08', 'risk_driver' => 'PLR'], 1);
+        try {
+            $overlays->approve($bare, 2);
+            $this->fail('an overlay on the driver of the model in force was approved without a review');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('count that risk twice', $e->getMessage());
+        }
+        $reviewed = $overlays->propose(['reporting_period' => '2026-08', 'scope' => 'book', 'adjustment' => 0.05, 'reason' => 'rates', 'expiry_period' => '2026-08', 'risk_driver' => 'PLR',
+            'double_count_review' => 'the model reads the PLR with a nine-month lag; the overlay covers the rate rise announced after the month-end'], 1);
+        $overlays->approve($reviewed, 2);
+        $this->assertSame('APPROVED', DB::table('fli_overlays')->where('id', $reviewed)->value('status'));
     }
 }

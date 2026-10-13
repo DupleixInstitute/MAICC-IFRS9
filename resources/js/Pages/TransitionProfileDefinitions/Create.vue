@@ -1,17 +1,12 @@
   <template>
-    <app-layout>
-      <template #header>
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-          <inertia-link class="text-maiic-500 hover:text-maiic-600" :href="route('transition-profiles.index')">
-              Transition Profile List
-            </inertia-link>
-            <span class="text-maiic-500 font-medium">/</span>  Create
-            </h2>
-      </template>
+    <app-layout title="Create transition profile" description="Which table and column hold the grade at the start and the end of each period, and how transitions are weighted">
+        <template #actions>
+            <Link :href="route('transition-profiles.index')" class="secondary-btn">Back</Link>
+        </template>
   
-      <div class="py-12">
+      <div>
         <div class="w-full">
-          <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
+          <div class="maiic-panel p-6">
             <form @submit.prevent="submitForm">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
   
@@ -222,7 +217,7 @@ const endTableColumns = ref([]);
 // Fetch available tables when component is mounted
 const fetchTables = async () => {
   try {
-    const response = await axios.get('/api/get-tables');
+    const response = await axios.get('/api/transition-profiles/tables');
     tables.value = response.data.tables;
   } catch (error) {
     console.error('Error fetching tables:', error);
@@ -233,7 +228,7 @@ const fetchTables = async () => {
 const fetchStartTableColumns = async () => {
   if (!form.start_table) return;
   try {
-    const response = await axios.get(`/api/get-columns/${form.start_table}`);
+    const response = await axios.get(`/api/transition-profiles/columns/${form.start_table}`);
     startTableColumns.value = response.data;
   } catch (error) {
     console.error('Error fetching start table columns:', error);
@@ -243,7 +238,7 @@ const fetchStartTableColumns = async () => {
 const fetchEndTableColumns = async () => {
   if (!form.end_table) return;
   try {
-    const response = await axios.get(`/api/get-columns/${form.end_table}`);
+    const response = await axios.get(`/api/transition-profiles/columns/${form.end_table}`);
     endTableColumns.value = response.data;
   } catch (error) {
     console.error('Error fetching end table columns:', error);

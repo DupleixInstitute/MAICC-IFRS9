@@ -29,7 +29,7 @@
                 </div>
 
                 <div class="maiic-table-wrap overflow-x-auto">
-                    <table class="maiic-table">
+                    <table class="maiic-table maiic-table-compact">
                         <thead>
                             <tr>
                                 <th>Matrix</th>
@@ -49,13 +49,7 @@
                                     <div class="font-semibold text-gray-900">#{{ matrix.id }}</div>
                                     <div class="text-xs text-gray-500">Profile {{ matrix.transition_profile_id }}, run {{ matrix.run_no ?? '-' }}</div>
                                 </td>
-                                <td>
-                                    <span class="maiic-badge maiic-badge-grey">{{ matrix.pd_calculation_level ? matrix.pd_calculation_level.charAt(0).toUpperCase() + matrix.pd_calculation_level.slice(1) : '-' }}</span>
-                                    <div class="mt-0.5 text-sm">
-                                        <template v-if="matrix.pd_calculation_level === 'portfolio'">{{ matrix.portfolio ? matrix.portfolio.name : 'Portfolio ' + matrix.pd_calculation_id }}</template>
-                                        <template v-else-if="matrix.pd_calculation_level === 'sector'">{{ matrix.sector ? matrix.sector.code + ' - ' + matrix.sector.name : 'Sector ' + matrix.pd_calculation_code }}</template>
-                                    </div>
-                                </td>
+                                <td class="min-w-[11rem]"><SegmentCell :level="matrix.pd_calculation_level" :name="matrix.pd_calculation_level === 'portfolio' ? (matrix.portfolio?.name || '') : (matrix.pd_calculation_level === 'sector' ? (matrix.sector?.name || '') : '')" :code="matrix.pd_calculation_level === 'sector' ? (matrix.sector?.code || matrix.pd_calculation_code) : matrix.pd_calculation_id"/></td>
                                 <td class="whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] || matrix.calculation_source }}</td>
                                 <td class="whitespace-nowrap">{{ formatDate(matrix.start_period) }} to {{ formatDate(matrix.end_period) }}<div class="text-xs text-gray-500">{{ matrix.periods_count ?? '-' }} transition period(s)</div></td>
                                 <td class="num">{{ matrix.records_counted ?? '-' }}</td>
@@ -188,7 +182,7 @@
                 <div class="mt-3 text-xs text-gray-500">
                 <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
                 <br />
-                <strong>Max Size:</strong> 5 MB
+                <strong>Max Size:</strong> 50 MB
                 </div>
 
                 <!-- Buttons -->
@@ -220,6 +214,7 @@
             :transitionMatrix="selectedMatrix"
             :mode="mode"
             type="cumulative"
+            @close="modalVisible = false"
             />
         </Modal>
 
@@ -234,6 +229,7 @@ import { confirmDialog } from '@/Components/confirmDialog'
 import { notice } from '@/Components/Maiic/notice'
 import debounce from 'lodash/debounce'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import SegmentCell from '@/Components/Maiic/SegmentCell.vue';
 import JetInput from '@/Jetstream/Input.vue'
 import Pagination from '@/Shared/Pagination.vue'
 import Modal from './Modal.vue' // Your modal component
@@ -243,6 +239,7 @@ import HelpManual from '../../Components/HelpManual.vue';
 
 export default {
     components: {
+        SegmentCell,
         AppLayout,
         Link,
         JetInput,

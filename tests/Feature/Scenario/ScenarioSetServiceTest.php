@@ -37,7 +37,7 @@ class ScenarioSetServiceTest extends TestCase
         // the overlay register and the columns it adds to the set and the loan (audit M3, M4)
         (require base_path('database/migrations/2026_10_09_300000_create_fli_overlays.php'))->up();
         DB::table('users')->insert([['id' => 1, 'name' => 'Maker', 'created_at' => now(), 'updated_at' => now()], ['id' => 2, 'name' => 'Checker', 'created_at' => now(), 'updated_at' => now()]]);
-        DB::table('macro_series')->insert([['statistic_code' => 'MWK_USD', 'observation_period' => '202612', 'value' => 1000], ['statistic_code' => 'GDP_GROWTH', 'observation_period' => '202612', 'value' => 2.0]]);
+        DB::table('macro_series')->insert([['statistic_code' => 'MWK_USD', 'observation_period' => '202606', 'value' => 1000], ['statistic_code' => 'GDP_GROWTH', 'observation_period' => '202606', 'value' => 2.0]]);
         DB::table('loan_books')->insert([
             // EAD is carrying + commitments x utilisation, as the ECL engine measures it (audit M9); 24 months remaining so Stage 1 is a full twelve-month PD
             ['reporting_period' => '2026-08', 'ifrs9stage_post_qualitative' => '1', 'pd_prefli' => 0.10, 'lgd_value' => 0.5, 'ead' => 1000, 'carrying_amount' => 1000, 'remaining_tenor' => 24],

@@ -43,7 +43,7 @@ sudo crontab -u maiic -e
 * * * * * cd /var/www/maiic-ifrs9 && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Today the schedule only carries legacy campaign and reminder commands; the monthly EIR revenue run is triggered by hand until the extract cadence is fixed (Technical Manual chapter 9).
+Today the schedule polls the E-Banker feed folder daily at 06:30 (`eir:poll-feed-folder --also-route-3`), imports the World Bank macro series on the 2nd of each month at 07:00 (`macro:import-worldbank`), and runs the legacy campaign and reminder commands. The month-end chain (staging, PD, the forward-looking adjustment, ECL and the EIR revenue run) is started from Administration, Maintenance (`maiic:task month-end`) or by hand (Technical Manual chapter 9).
 
 ### 7.3 PHP-FPM and OPcache
 

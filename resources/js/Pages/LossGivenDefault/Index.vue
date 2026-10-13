@@ -21,11 +21,11 @@
           <p class="text-xs text-gray-500">{{ lossGivenDefaults.length }} run(s). A closed run is locked for use in the ECL; amounts in MWK.</p>
         </div>
         <div class="maiic-table-wrap overflow-x-auto">
-          <table class="maiic-table">
+          <table class="maiic-table maiic-table-compact">
             <thead>
               <tr>
                 <th>Window</th>
-                <th>Portfolio</th>
+                <th>Segment</th>
                 <th class="num">LGD %</th>
                 <th class="num">Cure rate %</th>
                 <th class="num">Recovery rate %</th>
@@ -38,8 +38,8 @@
             </thead>
             <tbody>
               <tr v-for="lgd in pagedRows" :key="lgd.id">
-                <td class="whitespace-nowrap" :title="'Created ' + formatDate(lgd.created_at) + (lgd.created_by ? ' by ' + lgd.created_by : '')">{{ formatDate(lgd.start_period) }} to {{ formatDate(lgd.reporting_period) }}</td>
-                <td>{{ lgd.portfolio_group?.name || '-' }}</td>
+                <td class="whitespace-nowrap" :title="'Created ' + formatDate(lgd.created_at) + (lgd.created_by ? ' by ' + lgd.created_by : '')">{{ formatDate(lgd.start_period) }} to {{ formatDate(lgd.reporting_period) }}<div class="text-xs text-gray-500">Run {{ formatRunTime(lgd.created_at) }}</div></td>
+                <td class="min-w-[11rem]"><SegmentCell :level="lgd.portfolio_group ? 'portfolio' : 'book'" :name="lgd.portfolio_group?.name || ''"/></td>
                 <td class="num font-bold" :class="lgd.loss_given_default_percentage >= 0.5 ? 'text-amber-700' : 'text-maiic-700'">{{ pct(lgd.loss_given_default_percentage) }}</td>
                 <td class="num">{{ pct(lgd.cure_rate) }}</td>
                 <td class="num">{{ pct(lgd.recovery_rate) }}</td>
@@ -63,7 +63,7 @@
             </tbody>
           </table>
         </div>
-        <RowPager v-model="page" :total="lossGivenDefaults.length" class="border-t border-gray-100" />
+        <div v-if="lossGivenDefaults.length > 15" class="border-t border-gray-100 px-4 py-3"><ClientPager v-model="page" :total="lossGivenDefaults.length" /></div>
       </div>
     </div>
 
@@ -145,16 +145,18 @@ import { ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import { confirmDialog } from '@/Components/confirmDialog';
 import { notice } from '@/Components/Maiic/notice';
-import RowPager from '@/Components/Maiic/RowPager.vue';
+import ClientPager from '@/Components/ClientPager.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import SegmentCell from '@/Components/Maiic/SegmentCell.vue';
 import HelpManual from '../../Components/HelpManual.vue';
 
 export default {
     components: {
+        SegmentCell,
         AppLayout,
         HelpManual,
         Link,
-        RowPager,
+        ClientPager,
     },
     props: {
         lossGivenDefaults: {
@@ -194,8 +196,11 @@ export default {
             return new Intl.NumberFormat('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
-            }).format(value).replace(/,/g, ' ');
+            }).format(value);
         };
+
+        // the day and time a run was made, so two runs of the same window can be told apart
+        const formatRunTime = (d) => d ? new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 
         const formatDate = (dateStr) => {
             if (!dateStr) return '-';
@@ -306,6 +311,7 @@ export default {
             pagedRows,
             pct,
             formatDate,
+            formatRunTime,
             loading,
             lockLGD,
             openUpdateModal,

@@ -34,7 +34,7 @@ class NavigationTest extends TestCase
     public function test_the_contract_entries_are_in_order(): void
     {
         $entries = array_map(fn ($g) => $g['name'], config('menu.admin'));
-        $this->assertSame(['Dashboard', 'Workspace', 'Reports', 'Portfolio Setup', 'Customer & Loan Data', 'Collateral Management', 'EIR & Revenue Recognition', 'IFRS 9 Model Setup', 'ECL Processing', 'System Documentation', 'Administration'], $entries);
+        $this->assertSame(['Dashboard', 'Workspace', 'Reports', 'Portfolio Setup', 'Customer & Loan Data', 'Collateral Management', 'EIR & Revenue Recognition', 'IFRS 9 Model Setup', 'Forward-Looking Information', 'ECL Processing', 'System Documentation', 'Administration'], $entries);
     }
 
     public function test_reports_is_one_entry_to_the_hub(): void
@@ -63,6 +63,30 @@ class NavigationTest extends TestCase
         $this->assertSame('EIR & Revenue Recognition', $where['eir-governance.index']);
         $this->assertSame('Administration', $where['accounting.financial_periods.index']);
         $this->assertSame('ECL Processing', $where['expected-credit-loss.index']);
+    }
+
+    /**
+     * Forward-Looking Information is one menu entry (FLI module specification
+     * v1): the month-end, the macro data, the model and the scenarios, every
+     * screen in its place and none of them under Administration.
+     */
+    public function test_the_forward_looking_menu_is_one_entry_in_month_end_order(): void
+    {
+        $fli = collect(config('menu.admin'))->firstWhere('name', 'Forward-Looking Information');
+        $this->assertNotNull($fli);
+        $sections = [];
+        foreach ($fli['children'] as $item) {
+            $sections[$item['name']] = array_map(fn ($t) => $t['route'], $item['tabs'] ?? []);
+        }
+        $this->assertSame(['FLI Month-End', 'Macro Statistics', 'Forward-Looking Model', 'Scenarios & Overlays'], array_keys($sections));
+        $this->assertSame(['fli.overview', 'fli.impact'], $sections['FLI Month-End']);
+        $this->assertSame(['credit-loss-data.index', 'fli-correlation.index', 'fli-adjustments.index', 'fli-models.index', 'forecasting.manual', 'macro-forecast-weighted.index'], $sections['Forward-Looking Model']);
+        $this->assertSame(['scenarios.profiles', 'scenario-sets.index', 'fli.scenarios.index', 'fli-overlays.index', 'fli.external.index', 'fli.external.list'], $sections['Scenarios & Overlays']);
+        $admin = collect(config('menu.admin'))->firstWhere('name', 'Administration');
+        $this->assertNotContains('Legacy FLI tools', array_column($admin['children'], 'name'));
+        foreach ($sections as $tabs) {
+            $this->assertLessThanOrEqual(7, count($tabs), 'one tab row carries seven tabs at most');
+        }
     }
 
     public function test_report_hub_tiles_are_not_menu_items(): void

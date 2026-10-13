@@ -268,9 +268,17 @@ class HelpContentSeeder extends Seeder
                     'routes' => ['loss-given-default.index', 'lgd-cummulative.index'],
                 ],
                 'Forward-Looking Engine' => [
-                    'body' => '<p>Macro elements hold the economic series (GDP growth, inflation, exchange rate and others) with their historical values. Scenario profiles weight upside, base and downside paths; the weighted forecast combines them into the probability-weighted macro outlook; regression links macro movements to credit losses; and the resulting forward-looking factor adjusts PDs from their through-the-cycle values to point-in-time.</p>',
+                    'body' => '<p>Forward-Looking Information has its own menu entry. <b>Macro Statistics</b> holds the economic variables and their values (add a variable on Variables, a value on Data Entry, many values with Import at the top right) and the <b>Scenario Assumptions</b>: for a month&rsquo;s scenario set, the weight of each scenario and the shocks that move each variable away from the base path. <b>Credit Loss Data</b> shows the credit-loss measures derived from MAIIC&rsquo;s own books and takes external series such as the industry NPL ratio. The <b>model</b> links a variable to a credit-loss measure: the Correlation Finder and Regression fit it, a second person approves it, and it becomes a <b>model version</b> in force from that month until it is recalibrated (once a year, or after an event). <b>Scenario Profiles</b> start a month&rsquo;s scenario set; Scenario Sets proposes and approves it. Each month-end the <b>Overview</b> applies the model version in force under every scenario, projects each portfolio&rsquo;s PD year by year, calculates the ECL, and records the ECL under each scenario, checked against the booked ECL; a second person signs the month off. <b>Impact Analysis</b> shows what the forward-looking information did, and measures a proposed scenario set before it is approved.</p>',
+                    'steps' => [
+                        'Keep the variables current on Macro Statistics: add values or import them, with the date the publisher released each.',
+                        'For the month, start a scenario set from a profile on Scenario Profiles, then set its weights and shocks on Macro Statistics, Scenario Assumptions.',
+                        'Propose the set on Scenario Sets; a second person approves it (see its effect on Impact Analysis first).',
+                        'Open Forward-Looking Information, Overview, choose the month and press Run the remaining steps.',
+                        'Read the result on Impact Analysis; a second person signs the month off on the Overview, with a commentary when the ECL moved beyond the governed tolerance.',
+                        'Once a year, or after an event, recalibrate: run the correlation sweep, propose and approve a fit on Regression; it is published as the new model version.',
+                    ],
                     'images' => ['fli' => 'Probability-weighted macro forecast'],
-                    'routes' => ['macro-statistics.index', 'macro-forecast-weighted.index', 'regression.index'],
+                    'routes' => ['fli.overview', 'fli.impact', 'macro-statistics.index', 'credit-loss-data.index', 'fli-models.index', 'scenarios.profiles', 'scenario-sets.index'],
                 ],
             ],
 

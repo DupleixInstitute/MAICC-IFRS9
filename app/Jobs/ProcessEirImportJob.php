@@ -8,6 +8,7 @@ use App\Services\Eir\ContractMasterImportService;
 use App\Services\Eir\ContractTransactionImportService;
 use App\Services\Eir\DisbursementImportService;
 use App\Services\Eir\FeeImportService;
+use App\Services\Eir\FeeGlReconciliationService;
 use App\Services\Eir\GlInterestImportService;
 use App\Services\Eir\ReferenceRateImportService;
 use App\Services\Eir\ScheduleImportService;
@@ -49,6 +50,7 @@ class ProcessEirImportJob implements ShouldQueue
         GlInterestImportService $glInterest,
         ReferenceRateImportService $referenceRates,
         DisbursementImportService $disbursements,
+        FeeGlReconciliationService $feeGl,
     ): void {
         $import = Import::findOrFail($this->importId);
         $import->update(['status' => 'processing', 'started_at' => now()]);
@@ -78,6 +80,10 @@ class ProcessEirImportJob implements ShouldQueue
                 'reference_rates' => $referenceRates->import($read['rows'], importId: $import->id, userId: $this->userId ?? auth()->id()),
                 'disbursements' => $disbursements->import($read['rows'], $import->id, $this->userId ?? auth()->id()),
             };
+            if ($this->importType === 'fees') {
+                // every fee held for the years the file covers, against 4871 and 4873 (spec v4 section 7.4); reports, never blocks
+                $result['gl_reconciliation'] = $feeGl->report($result['years'] ?? []);
+            }
             $exceptions = $this->failureRows($result);
             if ($exceptions !== []) $this->writeExceptionFile($exceptionPath, $exceptions);
 

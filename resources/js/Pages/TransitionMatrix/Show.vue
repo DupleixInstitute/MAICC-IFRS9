@@ -23,7 +23,7 @@
                                 <dl class="mt-2 text-sm text-gray-600">
                                     <div class="mt-1">
                                         <dt class="font-medium">Profile</dt>
-                                        <dd>{{ matrix.transition_profile.name }}</dd>
+                                        <dd>{{ matrix.transition_profile?.name || scopeName }}</dd>
                                     </div>
                                     <div class="mt-1">
                                         <dt class="font-medium">Reporting Period</dt>
@@ -127,8 +127,12 @@ export default {
             required: true
         },
         states: {
-            type: Object,
+            type: [Object, Array],
             required: true
+        },
+        scopeName: {
+            type: String,
+            default: ''
         }
     },
 

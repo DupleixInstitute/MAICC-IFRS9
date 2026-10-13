@@ -17,7 +17,7 @@ class StageLoanBooks extends Command
 {
     protected $signature = 'eir:stage {from : YYYY-MM} {to? : YYYY-MM} {--user=} {--dry-run}';
 
-    protected $description = 'Stage the loan book of each period: days past due against the governed thresholds, then the missed-instalment trigger';
+    protected $description = 'Stage the loan book of each period: days past due against the governed thresholds, then the missed-instalment trigger and the approved qualitative SICR triggers';
 
     public function handle(StagingService $service, LoanBookBuildService $build): int
     {
@@ -34,13 +34,13 @@ class StageLoanBooks extends Command
             $rows = [];
             foreach ($periods as $p) {
                 $c = $service->stage($p, $user, (bool) $this->option('dry-run'));
-                $rows[] = [$p, $c['rows'], $c['stage1'], $c['stage2'], $c['stage3'], $c['by_dpd'], $c['by_instalments'], $c['by_sicr'], $c['by_bucket']];
+                $rows[] = [$p, $c['rows'], $c['stage1'], $c['stage2'], $c['stage3'], $c['by_dpd'], $c['by_instalments'], $c['by_sicr'], $c['by_credit_impaired'], $c['by_bucket'], $c['held_by_cure']];
             }
         } catch (Throwable $e) {
             $this->error($e->getMessage());
             return self::FAILURE;
         }
-        $this->table(['Period', 'Rows', 'Stage 1', 'Stage 2', 'Stage 3', 'by DPD', 'by instalments', 'by SICR', 'DPD from buckets'], $rows);
+        $this->table(['Period', 'Rows', 'Stage 1', 'Stage 2', 'Stage 3', 'by DPD', 'by instalments', 'by SICR trigger', 'by credit-impaired trigger', 'DPD from buckets', 'held by cure'], $rows);
         if ($this->option('dry-run')) {
             $this->warn('Dry run: nothing written.');
         }

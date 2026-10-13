@@ -163,7 +163,7 @@ class LossGivenDefaultCummulativeController extends Controller
 
             
 
-            return back()->with('success', 'Cummulative LGD calculated and saved successfully.');
+            return back()->with('success', 'Cumulative LGD calculated and saved successfully.');
         }
 
     // Function to create a manual cummulative LGD record 

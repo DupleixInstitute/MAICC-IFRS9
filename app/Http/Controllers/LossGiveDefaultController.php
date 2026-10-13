@@ -891,7 +891,7 @@ class LossGiveDefaultController extends Controller
             // Add LGD data
             foreach ($lgds as $lgd) {
                 $csvRows[] = [
-                    $lgd->portfolioGroup->name,
+                    $lgd->portfolioGroup?->name ?? 'Pooled book',
                     $lgd->loss_given_default_percentage,
                     Carbon::parse($lgd->start_period)->format('Y-m'),
                     Carbon::parse($lgd->reporting_period)->format('Y-m'),

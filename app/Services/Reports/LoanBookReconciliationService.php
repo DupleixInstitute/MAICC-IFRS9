@@ -93,7 +93,7 @@ class LoanBookReconciliationService
         $report = self::generate($params);
         $portfolioName = DB::table('loan_portfolios')
             ->where('id', $report['portfolio_id'])
-            ->value('name') ?? 'Unknown Portfolio';
+            ->value('name') ?? 'All portfolios';
 
         $filename = sprintf(
             'loan_book_reconciliation_%s_%s_to_%s.csv',

@@ -29,7 +29,7 @@
                 </div>
 
                 <div class="maiic-table-wrap overflow-x-auto">
-                    <table class="maiic-table">
+                    <table class="maiic-table maiic-table-compact">
                         <thead>
                             <tr>
                                 <th>Matrix</th>
@@ -50,22 +50,16 @@
                                     <div class="font-semibold text-gray-900">#{{ matrix.id }}</div>
                                     <div class="text-xs text-gray-500">Profile {{ matrix.transition_profile_id }}, run {{ matrix.run_no ?? '-' }}</div>
                                 </td>
-                                <td>
-                                    <span class="maiic-badge maiic-badge-grey">{{ matrix.pd_calculation_level ? matrix.pd_calculation_level.charAt(0).toUpperCase() + matrix.pd_calculation_level.slice(1) : '-' }}</span>
-                                    <div class="mt-0.5 text-sm">
-                                        <template v-if="matrix.pd_calculation_level === 'portfolio'">{{ matrix.portfolio ? matrix.portfolio.name : 'Portfolio ' + matrix.pd_calculation_id }}</template>
-                                        <template v-else-if="matrix.pd_calculation_level === 'sector'">{{ matrix.sector ? matrix.sector.code + ' - ' + matrix.sector.name : 'Sector ' + matrix.pd_calculation_code }}</template>
-                                    </div>
-                                </td>
+                                <td class="min-w-[11rem]"><SegmentCell :level="matrix.pd_calculation_level" :name="matrix.pd_calculation_level === 'portfolio' ? (matrix.portfolio?.name || '') : (matrix.pd_calculation_level === 'sector' ? (matrix.sector?.name || '') : '')" :code="matrix.pd_calculation_level === 'sector' ? (matrix.sector?.code || matrix.pd_calculation_code) : matrix.pd_calculation_id"/></td>
                                 <td class="whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] || matrix.calculation_source }}<div v-if="matrix.pd_start_stage_total_type" class="text-xs text-gray-500">Payments: {{ matrix.pd_start_stage_total_type }}</div></td>
-                                <td class="whitespace-nowrap">{{ matrix.start_reporting_period }} to {{ matrix.end_reporting_period }}<div class="text-xs text-gray-500">{{ matrix.reporting_periods_count ?? '-' }} reporting period(s)</div></td>
+                                <td class="whitespace-nowrap">{{ matrix.start_reporting_period }} to {{ matrix.end_reporting_period }}<div v-if="Number(matrix.reporting_periods_count) > 0" class="text-xs text-gray-500">{{ matrix.reporting_periods_count }} reporting period(s)</div></td>
                                 <td class="num">{{ matrix.transition_years }}</td>
-                                <td class="num whitespace-nowrap">{{ matrix.records_count_transitioned ?? '-' }}<div class="text-xs text-gray-500">{{ matrix.records_count_updated ?? 0 }} updated</div></td>
-                                <td class="num whitespace-nowrap">{{ formatCurrency(matrix.transition_balance) }}<div v-if="matrix.updated_balance" class="text-xs text-gray-500">{{ formatCurrency(matrix.updated_balance) }} updated</div></td>
+                                <td class="num whitespace-nowrap">{{ matrix.records_count_transitioned ?? '-' }}<div v-if="Number(matrix.records_count_updated) > 0" class="text-xs text-gray-500">{{ matrix.records_count_updated }} updated</div></td>
+                                <td class="num whitespace-nowrap">{{ formatCurrency(matrix.transition_balance) }}<div v-if="Number(matrix.updated_balance) > 0" class="text-xs text-gray-500">{{ formatCurrency(matrix.updated_balance) }} updated</div></td>
                                 <td>
                                     <span class="maiic-badge" :class="matrix.status === 'closed' ? 'maiic-badge-green' : 'maiic-badge-gold'" :title="matrix.comments || null">{{ matrix.status === 'closed' ? 'Closed' : 'Draft' }}</span>
                                 </td>
-                                <td class="whitespace-nowrap">{{ formatDate(matrix.last_calculation_date) }}</td>
+                                <td class="whitespace-nowrap">{{ formatDate(matrix.last_calculation_date) }}<div class="text-xs text-gray-500">{{ formatRunTime(matrix.last_calculation_date || matrix.created_at) }}</div></td>
                                 <td>
                                     <div class="flex flex-nowrap justify-end gap-1.5">
                                         <button type="button" class="maiic-action maiic-action-view" title="View the matrix" @click="openModal('view', matrix)"><font-awesome-icon icon="table" /></button>
@@ -164,7 +158,7 @@
                 <div class="mt-3 text-xs text-gray-500">
                 <strong>Allowed Formats:</strong> PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
                 <br />
-                <strong>Max Size:</strong> 5 MB
+                <strong>Max Size:</strong> 50 MB
                 </div>
 
                 <!-- Buttons -->
@@ -196,7 +190,8 @@
                 :transitionMatrix="selectedMatrix"
                 :mode="mode"
                 type="normal"
-                />
+                @close="modalVisible = false"
+            />
         </Modal>
 
         <ExportModal :show="showReportModal" @close="showReportModal = false" />
@@ -209,6 +204,7 @@ import { confirmDialog } from '@/Components/confirmDialog'
 import { notice } from '@/Components/Maiic/notice'
 import debounce from 'lodash/debounce'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import SegmentCell from '@/Components/Maiic/SegmentCell.vue';
 import JetInput from '@/Jetstream/Input.vue'
 import Pagination from '@/Shared/Pagination.vue'
 import Modal from './Modal.vue'
@@ -218,6 +214,7 @@ import HelpManual from '../../Components/HelpManual.vue';
 
 export default {
     components: {
+        SegmentCell,
         AppLayout,
         Link,
         JetInput,
@@ -346,6 +343,12 @@ export default {
             }
         }
 
+        // the day and time a run was made, so two runs of the same window can be told apart
+        const formatRunTime = (date) => {
+            if (!date) return ''
+            return new Date(date).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        }
+
         const formatDate = (date) => {
             if (!date) return '-'
             return new Date(date).toLocaleDateString('en-US', {
@@ -427,6 +430,7 @@ export default {
             reRunMatrix,
             lockPD,
             formatDate,
+            formatRunTime,
             calculationSourceLabels,
             showUploadModal,
             downloadFile,

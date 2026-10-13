@@ -120,7 +120,7 @@
             </div>
 
             <main>
-                <div class="py-6">
+                <div class="pt-6 pb-20"><!-- the bottom clears the floating help button -->
                     <div class="mx-auto px-4 sm:px-6 md:px-4">
                         <!-- Page Heading -->
                         <header class="" v-if="$slots.header || $slots.actions || description">
@@ -140,7 +140,7 @@
                              as the in-page tabs (Eir/Data.vue): green active tab and a
                              chip with the number of records the tab lists. -->
                         <div v-if="section && section.tabs.length > 1" class="mb-5 rounded-xl border border-gray-200 bg-white px-5 pt-4 shadow-sm">
-                            <nav class="flex gap-6 overflow-x-auto" aria-label="Section">
+                            <nav class="flex flex-wrap gap-x-6 gap-y-1" aria-label="Section">
                                 <Link v-for="tab in section.tabs" :key="tab.name" :href="route(tab.route, tab.params || {})"
                                       class="whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold transition-colors duration-150"
                                       :class="isActiveTab(tab) ? 'border-maiic-600 text-maiic-700' : 'border-transparent text-gray-500 hover:text-gray-800'"

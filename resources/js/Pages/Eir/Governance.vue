@@ -43,15 +43,15 @@
                   </td>
                   <td class="td">
                     <template v-if="s.in_force">
-                      <div class="font-medium text-gray-900">{{ s.in_force.value }}</div>
-                      <div class="text-xs text-gray-500">From {{ s.in_force.effective_from }}</div>
+                      <div class="font-medium text-gray-900">{{ $filters.plain(s.in_force.value) }}</div>
+                      <div class="text-xs text-gray-500">{{ $filters.since(s.in_force.effective_from) === 'the seeded default' ? 'The seeded default' : 'From ' + $filters.since(s.in_force.effective_from) }}</div>
                       <div class="text-xs text-gray-500">{{ s.in_force.approver ? 'Approved by ' + s.in_force.approver : 'Dupleix recommended default' }}</div>
                     </template>
                     <span v-else class="badge-red">No approved value: the calculation stops</span>
                   </td>
                   <td class="td text-xs text-gray-600">
                     <div v-for="o in s.options" :key="o" :class="s.in_force && o === s.in_force.value ? 'font-semibold text-maiic-800' : ''">
-                      {{ o }}<span v-if="o === s.default" class="text-gray-400"> (recommended)</span>
+                      {{ $filters.plain(o) }}<span v-if="o === s.default" class="text-gray-400"> (recommended)</span>
                       <template v-if="s.key === 'fli_transmission_method' && cardFor(o)">
                         <span class="ml-1 maiic-badge" :class="cardFor(o).available ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ cardFor(o).available ? 'preconditions met' : 'not yet available' }}</span>
                         <button type="button" @click="openCard = openCard === o ? null : o" class="ml-1 text-xs text-sky-700 underline dark:text-sky-300">{{ openCard === o ? 'hide the card' : 'method card' }}</button>
@@ -70,7 +70,7 @@
                   <td class="td text-xs">
                     <div v-for="r in pendingRows(s)" :key="r.id" class="mb-2">
                       <span :class="r.state === 'PROPOSED' ? 'badge-yellow' : 'badge-blue'">{{ r.state === 'PROPOSED' ? 'Awaiting approval' : 'Approved, applies from ' + r.effective_from }}</span>
-                      <div class="mt-1 font-medium text-gray-800">{{ r.value }}<span v-if="r.state === 'PROPOSED'"> from {{ r.effective_from }}</span></div>
+                      <div class="mt-1 font-medium text-gray-800">{{ $filters.plain(r.value) }}<span v-if="r.state === 'PROPOSED'"> from {{ r.effective_from }}</span></div>
                       <div class="text-gray-500">Proposed by {{ r.proposer || 'unknown' }}<span v-if="r.approver">, approved by {{ r.approver }}</span></div>
                       <div class="text-gray-500 italic">{{ r.reason }}</div>
                       <button
@@ -100,8 +100,8 @@
                       <tbody>
                         <tr v-for="r in s.rows" :key="'row-' + r.id">
                           <td class="sub-td"><span :class="stateClass(r.state)">{{ stateLabel(r.state) }}</span></td>
-                          <td class="sub-td">{{ r.value }}</td>
-                          <td class="sub-td">{{ r.effective_from }}</td>
+                          <td class="sub-td">{{ $filters.plain(r.value) }}</td>
+                          <td class="sub-td">{{ $filters.since(r.effective_from) }}</td>
                           <td class="sub-td">{{ r.proposer || (r.approver ? 'unknown' : 'Dupleix (seeded)') }}</td>
                           <td class="sub-td">{{ r.approver || (r.status === 'APPROVED' ? 'Seeded default' : 'Not yet') }}<span v-if="r.approved_at" class="text-gray-400"> {{ r.approved_at }}</span></td>
                           <td class="sub-td">{{ r.reason }}</td>
@@ -117,7 +117,7 @@
                       <tbody>
                         <tr v-for="h in s.history" :key="'hist-' + h.id">
                           <td class="sub-td">{{ h.value }}</td>
-                          <td class="sub-td">{{ h.effective_from }}</td>
+                          <td class="sub-td">{{ $filters.since(h.effective_from) }}</td>
                           <td class="sub-td">{{ h.superseded_at }}</td>
                           <td class="sub-td">{{ h.superseded_by || 'unknown' }}</td>
                           <td class="sub-td">#{{ h.superseded_by_setting_id }}</td>
@@ -147,7 +147,7 @@
           <label class="field sm:col-span-2">New value
             <select v-model="form.value" class="form-input mt-1">
               <option value="">Choose an option</option>
-              <option v-for="o in proposing?.options || []" :key="o" :value="o" :disabled="isInForce(o)">{{ o }}{{ isInForce(o) ? ' (in force now)' : '' }}</option>
+              <option v-for="o in proposing?.options || []" :key="o" :value="o" :disabled="isInForce(o)">{{ $filters.plain(o) }}{{ isInForce(o) ? ' (in force now)' : '' }}</option>
             </select>
           </label>
           <label class="field">Effective from
@@ -189,6 +189,8 @@ const AREAS = [
     keys: ['recon_tolerance', 'trueup_gl_account', 'auditor_export_format', 'fee_reclass_journal', 'historic_materiality_assessment', 'keyman_insurance_treatment', 'nascomex_preference_shares', 'maker_checker_admin_override'] },
   { key: 'staging', label: 'Staging', description: 'Days past due, Stage 3 triggers, rebuttals and cure periods.',
     keys: ['staging_rebuttal', 'dpd_basis', 'stage3_missed_instalments', 'stage_cure_months'] },
+  { key: 'segments', label: 'PD & LGD segments', description: 'How the book is split for the PD and LGD, the history a segment needs for its own rate, and what a thin segment does.',
+    keys: ['pd_segmentation_basis', 'pd_segment_min_observations', 'pd_segment_thin_rule', 'pd_sector_unverified_codes', 'lgd_segment_min_cohort'] },
   { key: 'fli', label: 'Forward-looking', description: 'How the forward-looking adjustment is built and tested, and how scenarios are weighted.',
     keys: ['fli_adjustment_route', 'fli_transmission_method', 'fli_asset_correlation', 'fli_expected_sign_test', 'fli_r2_cutoff', 'fli_min_observations', 'fli_alpha', 'fli_normality_limits', 'scenario_weighting_method', 'scenario_minimum_count', 'scenario_weight_bounds', 'scenario_calibration_note', 'overlay_requires_approved_set'] },
   { key: 'megafarm', label: 'Mega Farm', description: 'Scope and probability of default for the Mega Farm programme.',

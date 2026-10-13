@@ -29,7 +29,15 @@ class ExpectedCreditLoss extends Model
         'ifrs9_stage',
         'total_loans',
         'last_reporting_period',
+        'pd_segment_run_id',
+        'pd_segment_keys',
     ];
+
+    /** Every saved row is stamped with the PD segments of the loans it sums (EclSegmentLineage). */
+    protected static function booted(): void
+    {
+        static::saving(fn (ExpectedCreditLoss $row) => \App\Services\Pd\EclSegmentLineage::stamp($row));
+    }
 
     protected $casts =[
         'reporting_period' => 'string',

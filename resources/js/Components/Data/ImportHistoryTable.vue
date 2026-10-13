@@ -18,7 +18,7 @@
                 <tr v-for="row in imports" :key="row.id">
                     <td class="min-w-[16rem] font-semibold text-gray-900">{{ row.name }}</td>
                     <td><span class="maiic-badge capitalize" :class="badge(row.status)">{{ row.status }}</span></td>
-                    <td class="whitespace-nowrap">{{ String(row.created_at || '').replace('T', ' ').slice(0, 16) }}</td>
+                    <td class="whitespace-nowrap">{{ row.created_at ? $filters.time(row.created_at) : '' }}</td>
                     <td class="num">{{ count(row.records) }}</td>
                     <td class="num"><span :class="row.failed_records > 0 ? 'font-semibold text-red-600' : ''">{{ count(row.failed_records) }}</span></td>
                     <td class="text-right">
@@ -29,13 +29,13 @@
                     </td>
                 </tr>
                 <tr v-if="!imports.length">
-                    <td colspan="6" class="maiic-empty">No file has been imported yet. Use the Upload tab to import the first one.</td>
+                    <td colspan="6" class="maiic-empty">{{ emptyText }}</td>
                 </tr>
                 </tbody>
             </table>
         </div>
         <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-sm">
-            <span class="text-gray-500">The {{ imports.length }} most recent uploads of every kind.</span>
+            <span class="text-gray-500">{{ caption || `The ${imports.length} most recent uploads of every kind.` }}</span>
             <Link :href="route('imports.index')" class="font-semibold text-maiic-700 hover:text-maiic-900">Open the full import history</Link>
         </div>
     </div>
@@ -46,6 +46,9 @@ import { Link } from '@inertiajs/vue3';
 
 defineProps({
     imports: { type: Array, default: () => [] },
+    // Optional: a screen that shows only its own uploads says so here.
+    caption: { type: String, default: '' },
+    emptyText: { type: String, default: 'No file has been imported yet. Use the Upload tab to import the first one.' },
 });
 
 function badge(status) {

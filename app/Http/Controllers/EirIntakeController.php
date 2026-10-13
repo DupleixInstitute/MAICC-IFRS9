@@ -38,12 +38,22 @@ class EirIntakeController extends Controller
         'disbursements',
     ];
 
-    private const TYPE_RULE = 'in:contract_master,schedule,fees,contract_transactions,gl_interest,reference_rates,disbursements';
-
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('permission:settings');
+        // settings opens every type; eir.fees.import (Finance loading fees by loan) opens the fee type only
+        $this->middleware('permission:settings|eir.fees.import');
+    }
+
+    /** @return list<string> the import types this user may use */
+    private function allowedTypes(Request $request): array
+    {
+        return $request->user()?->can('settings') ? self::IMPORT_TYPES : ['fees'];
+    }
+
+    private function typeRule(Request $request): string
+    {
+        return 'in:' . implode(',', $this->allowedTypes($request));
     }
 
     public function index(Request $request, ScheduleImportService $schedules)
@@ -53,7 +63,9 @@ class EirIntakeController extends Controller
         $requestedType = (string) $request->query('type', '');
 
         return Inertia::render('Eir/Intake', [
-            'initialType' => in_array($requestedType, self::IMPORT_TYPES, true) ? $requestedType : 'contract_master',
+            'initialType' => in_array($requestedType, $this->allowedTypes($request), true) ? $requestedType : $this->allowedTypes($request)[0],
+            'allowedTypes' => $request->user()?->can('settings') ? null : $this->allowedTypes($request),
+            'canGovern' => (bool) $request->user()?->can('eir.govern'),
             'coverage'  => $schedules->coverage(),
             'templates' => ImportMapping::orderBy('import_type')->orderBy('source_header')->get()
                 ->groupBy('import_type'),
@@ -61,6 +73,11 @@ class EirIntakeController extends Controller
                 'required' => MappedFileReader::REQUIRED_FIELDS[$type],
                 'optional' => MappedFileReader::OPTIONAL_FIELDS[$type],
             ]])->all(),
+            // The History tab: every EIR upload is logged in imports with the
+            // name "EIR <type>: <file>" (see import() below), so the log can
+            // be filtered to this screen's uploads by that prefix.
+            'recentImports' => Import::where('name', 'like', 'EIR %')->orderByDesc('id')->limit(300)
+                ->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
         ]);
     }
 
@@ -73,9 +90,9 @@ class EirIntakeController extends Controller
      * file per type, because the five types share almost no columns and a
      * single combined workbook would have to be edited down before use.
      */
-    public function sample(string $type, EirSampleFileService $samples)
+    public function sample(Request $request, string $type, EirSampleFileService $samples)
     {
-        abort_unless(in_array($type, self::IMPORT_TYPES, true), 404);
+        abort_unless(in_array($type, $this->allowedTypes($request), true), 404);
 
         $csv = $samples->csv($type);
 
@@ -95,7 +112,7 @@ class EirIntakeController extends Controller
     {
         $request->validate([
             'file'        => ['required', 'file', 'mimes:csv,txt,xlsx,xls,ods', 'max:20480'],
-            'import_type' => ['required', self::TYPE_RULE],
+            'import_type' => ['required', $this->typeRule($request)],
         ]);
 
         try {
@@ -114,7 +131,7 @@ class EirIntakeController extends Controller
     public function saveTemplate(Request $request)
     {
         $data = $request->validate([
-            'import_type'             => ['required', self::TYPE_RULE],
+            'import_type'             => ['required', $this->typeRule($request)],
             'mappings'                => ['required', 'array', 'min:1'],
             'mappings.*.source_header' => ['required', 'string', 'max:255'],
             'mappings.*.target_field'  => ['required', 'string', 'max:255'],
@@ -187,7 +204,7 @@ class EirIntakeController extends Controller
     ) {
         $request->validate([
             'file'        => ['required', 'file', 'mimes:csv,txt,xlsx,xls,ods', 'max:20480'],
-            'import_type' => ['required', self::TYPE_RULE],
+            'import_type' => ['required', $this->typeRule($request)],
             'mapping'     => ['required', 'json'],
             'transforms'  => ['nullable', 'json'],
         ]);
@@ -202,6 +219,7 @@ class EirIntakeController extends Controller
 
             $file = $request->file('file');
             $import = Import::create([
+                'kind' => 'eir_intake',
                 'name' => "EIR {$importType}: " . $file->getClientOriginalName(),
                 'status' => 'pending',
             ]);

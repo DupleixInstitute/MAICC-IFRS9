@@ -14,6 +14,15 @@ account balance quoted below should be read that way.
 the ledger to the audited accounts. The workbook now shows both, by year, as named sub-accounts of 4870 Services
 Income, and every line carries its AFS classification. All amounts are kwacha.
 
+> **Correction, 11 October 2026.** This note read the workbook's "Income Statement" sheet as the ledger position for
+> the fee accounts. For 2025 it is not: that sheet is after the year-end move of arrangement fees into 4206 Interest on
+> Term Loans-MAIIC. The 2025 ledger figure for 4873 Arrangement fees is **311,342,792** (the GL spool, the trial balance
+> and the workbook's own "Mapping TBs" sheet all agree); **52,025,792** is what is left after **259,317,000** was
+> presented as EIR interest income. In 2024 the move went the other way: 37,610,000 out of 4206 into 4873, so the 2024
+> ledger figure is 1,299,964,206 and the accounts show 1,337,574,206. Legal fees (4871) were not moved in 2025.
+> The figures and their sources are in specification v4, section 3.7. The text below is kept as written on
+> 24 September, with the affected figures marked.
+
 ## 1. It agrees with what was said in the room
 
 | Figure | Workbook | Said at the meeting |
@@ -29,11 +38,11 @@ build the reconciliation on it without a further translation.
 
 | Account | 2023 | 2024 | 2025 | Jan to Aug 2026 |
 |---|---:|---:|---:|---:|
-| 4873 Arrangement fees | 78,983,020 | 1,337,574,206 | 52,025,792 | 414,947,879 |
+| 4873 Arrangement fees (after the year-end move; ledger 2024 1,299,964,206 and 2025 311,342,792) | 78,983,020 | 1,337,574,206 | 52,025,792 | 414,947,879 |
 | 4871 Legal fees | 84,163,508 | 270,114,433 | 171,128,135 | 243,389,041 |
 | 4874 Insurance fees | 1,084,837 | 0 | 2,463,131 | 63,828,000 |
 | 4875 PCG guarantee fees | 2,474,362 | 345,000 | 1,284,900 | 3,275,440 |
-| **Arrangement and legal together** | 163,146,528 | 1,607,688,639 | 223,153,927 | 658,336,920 |
+| **Arrangement and legal together** (after the move; ledger 2024 1,570,078,639 and 2025 482,470,927) | 163,146,528 | 1,607,688,639 | 223,153,927 | 658,336,920 |
 | 6752 Legal costs recharged to clients | -27,831,303 | -168,702,040 | -125,774,122 | -64,170,683 |
 
 Two things follow.
@@ -44,7 +53,7 @@ interest rate both legs count: what the borrower was charged reduces the amount 
 the borrower's behalf is a transaction cost. The fee template carries a direction column for exactly this, so the
 legal cost rows should come through marked PAID rather than being netted off before they reach us.
 
-**The fee accounts here are before the reclassification, which is what we want.** At the meeting Dr Thom explained
+**The fee accounts here are before the reclassification, which is what we want.** *(Corrected 11 October 2026: true for legal fees; for 2025 arrangement fees the sheet is after the move, see the box at the top.)* At the meeting Dr Thom explained
 that once the EIR assessment is done a manual journal moves the EIR-related part of fee income into Interest on term
 loans, normally post year end at audit time. So a ledger figure for fees will read higher than the fee line in the
 published accounts, and the two reconcile only when interest income and loan-related income are taken together. The
@@ -53,7 +62,7 @@ interest rate, because what we need is the fee as it was charged to the borrower
 journal, and using it would strip out the part that has already been moved.
 
 **The 2024 arrangement fee is still worth a question.** In the ledger it is 1,337,574,206 for 2024 against 52,025,792
-for 2025, and in the same year it is close to double the 1,127,466,814 of interest earned on the MAIIC, FinES and
+for 2025 *(corrected: the ledger figures are 1,299,964,206 and 311,342,792)*, and in the same year it is close to double the 1,127,466,814 of interest earned on the MAIIC, FinES and
 staff term loans. Arrangement fees of one to four percent of an approved amount do not usually produce that shape.
 The likeliest explanation is the Mega Farms facilities that were written that year, but we should hear it rather than
 assume it, because the answer decides how much of 2024 belongs in the effective interest rate and how much belongs

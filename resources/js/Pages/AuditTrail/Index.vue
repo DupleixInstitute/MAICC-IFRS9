@@ -1,5 +1,10 @@
 <template>
-    <app-layout title="Audit Trail" description="Every recorded change and engine run in the system, newest first, with who made it">
+    <app-layout title="Audit Trail" description="Every recorded change, module action and export in the system, newest first, with who made it">
+        <template #actions>
+            <a :href="exportUrl" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
+                <font-awesome-icon icon="download"/> Export CSV
+            </a>
+        </template>
         <div class="maiic-panel">
             <!-- One slim filter row, with the two log sizes on the right -->
             <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3">
@@ -8,7 +13,7 @@
                 <select v-model="form.source" aria-label="Source" title="Source" class="maiic-select w-36 py-1.5">
                     <option :value="null">All sources</option>
                     <option value="activity">Record changes</option>
-                    <option value="module">Engine runs</option>
+                    <option value="module">Module actions and exports</option>
                 </select>
                 <select v-model="form.user_id" aria-label="User" title="User" class="maiic-select w-36 py-1.5">
                     <option :value="null">All users</option>
@@ -22,7 +27,7 @@
                 <div class="ml-auto flex items-center gap-3 text-xs text-gray-500">
                     <span><b class="text-sm text-gray-900">{{ counts.activity.toLocaleString('en-GB') }}</b> record changes</span>
                     <span class="text-gray-300">|</span>
-                    <span><b class="text-sm text-gray-900">{{ counts.module.toLocaleString('en-GB') }}</b> engine runs</span>
+                    <span><b class="text-sm text-gray-900">{{ counts.module.toLocaleString('en-GB') }}</b> module actions</span>
                 </div>
             </div>
 
@@ -48,8 +53,8 @@
                                 {{ humanise(e.entity) }}<span v-if="e.entity_id" class="text-gray-400"> #{{ e.entity_id }}</span>
                             </td>
                             <td>
-                                <span class="maiic-badge" :class="e.source === 'module' ? 'maiic-badge-gold' : 'maiic-badge-green'">
-                                    {{ e.source === 'module' ? 'Engine run' : 'Record change' }}
+                                <span class="maiic-badge" :class="e.kind === 'Export' ? 'maiic-badge-grey' : e.source === 'module' ? 'maiic-badge-gold' : 'maiic-badge-green'">
+                                    {{ e.kind }}
                                 </span>
                             </td>
                             <td class="num">
@@ -79,20 +84,9 @@
                 </table>
             </div>
 
-            <!-- Numbered pager in the Pagination.vue style; this list merges two logs, so it pages here -->
-            <div v-if="pagination.last_page > 1" class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
-                <span class="text-xs text-gray-500">Page {{ pagination.current_page }} of {{ pagination.last_page }}, {{ pagination.total.toLocaleString('en-GB') }} entries</span>
-                <nav class="flex flex-wrap items-center gap-1" aria-label="Pages">
-                    <button type="button" :disabled="pagination.current_page <= 1" @click="go(pagination.current_page - 1)"
-                            class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-maiic-50 disabled:cursor-default disabled:text-gray-400 disabled:hover:bg-white">&laquo; Previous</button>
-                    <template v-for="(n, k) in pageWindow" :key="k">
-                        <span v-if="n === '...'" class="px-1 text-gray-400">...</span>
-                        <button v-else type="button" @click="go(n)" class="rounded-lg border px-3 py-1.5 text-sm font-semibold"
-                                :class="n === pagination.current_page ? 'border-maiic-600 bg-maiic-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-maiic-300 hover:bg-maiic-50'">{{ n }}</button>
-                    </template>
-                    <button type="button" :disabled="pagination.current_page >= pagination.last_page" @click="go(pagination.current_page + 1)"
-                            class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-maiic-50 disabled:cursor-default disabled:text-gray-400 disabled:hover:bg-white">Next &raquo;</button>
-                </nav>
+            <!-- The standard pager; this list merges two logs, so it pages on the server -->
+            <div v-if="pagination.last_page > 1" class="border-t border-gray-100 px-4 py-3">
+                <ClientPager :model-value="pagination.current_page" :total="pagination.total" :per-page="pagination.per_page" @update:model-value="go"/>
             </div>
         </div>
     </app-layout>
@@ -101,9 +95,10 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import pickBy from 'lodash/pickBy'
+import ClientPager from '@/Components/ClientPager.vue'
 
 export default {
-    components: { AppLayout },
+    components: { AppLayout, ClientPager },
     props: {
         entries: Array,
         filters: Object,
@@ -132,18 +127,13 @@ export default {
         },
     },
     computed: {
+        // the filters on screen, as a CSV of the whole filtered trail
+        exportUrl() {
+            const query = pickBy({ ...this.form, export: 'csv' }, (v) => v !== null && v !== '' && v !== undefined)
+            return this.route('audit-trail.index') + '?' + new URLSearchParams(query).toString()
+        },
         hasFilters() {
             return Object.values(this.form).some(v => v !== null && v !== '' && v !== undefined)
-        },
-        // Page numbers around the current page, with the first and last.
-        pageWindow() {
-            const cur = this.pagination.current_page, last = this.pagination.last_page
-            const pages = []
-            for (let n = 1; n <= last; n++) {
-                if (n === 1 || n === last || Math.abs(n - cur) <= 2) pages.push(n)
-                else if (pages[pages.length - 1] !== '...') pages.push('...')
-            }
-            return pages
         },
     },
     methods: {

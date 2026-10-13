@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import DocumentCover from '@/Shared/DocumentCover.vue'
@@ -51,6 +51,14 @@ function jump(c, slug) {
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 50)
 }
+
+// the help button of a screen opens here with ?article=<slug>: go straight to it
+onMounted(() => {
+    const slug = new URLSearchParams(window.location.search).get('article')
+    if (!slug) return
+    const c = props.categories.find(x => (x.articles || []).some(a => a.slug === slug))
+    if (c) jump(c, slug)
+})
 
 function step(delta) {
     const i = chapterIndex.value + delta

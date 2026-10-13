@@ -1,3 +1,4 @@
+import { plainCode, plainSince } from './Support/plainCode'
 import './bootstrap';
 import '../css/app.css';
 
@@ -21,7 +22,7 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import {
     faArrowAltCircleLeft, faArrowAltCircleRight, faBarcode, faBolt, faBook,
     faBookOpen, faBookmark, faBuilding, faCalculator, faCalendar, faChartBar,
-    faChartLine, faCheck, faCheckCircle, faChevronDown, faChevronRight,
+    faChartLine, faBinoculars, faQuestion, faTimes, faSyncAlt, faBan, faUpload, faCheck, faCheckCircle, faChevronDown, faChevronRight,
     faCircle, faCog, faCogs, faDatabase, faDollarSign, faDownload, faEdit,
     faEnvelope, faExchangeAlt, faExclamationCircle, faExclamationTriangle,
     faEye, faFileDownload, faFileExport, faFilePdf, faFolder,
@@ -50,7 +51,7 @@ import numeral from 'numeral';
 library.add(
     faArrowAltCircleLeft, faArrowAltCircleRight, faBarcode, faBolt, faBook,
     faBookOpen, faBookmark, faBuilding, faCalculator, faCalendar, faChartBar,
-    faChartLine, faCheck, faCheckCircle, faChevronDown, faChevronRight,
+    faChartLine, faBinoculars, faQuestion, faTimes, faSyncAlt, faBan, faUpload, faCheck, faCheckCircle, faChevronDown, faChevronRight,
     faCircle, faCog, faCogs, faDatabase, faDollarSign, faDownload, faEdit,
     faEnvelope, faExchangeAlt, faExclamationCircle, faExclamationTriangle,
     faEye, faFileDownload, faFileExport, faFilePdf, faFolder,
@@ -109,6 +110,8 @@ createInertiaApp({
             }
         })
         vueApp.config.globalProperties.$filters = {
+            plain: plainCode,
+            since: plainSince,
             currency(value, currency = null, decimals = 2) {
                 if (!currency) {
                     return new Intl.NumberFormat('en-IN', {

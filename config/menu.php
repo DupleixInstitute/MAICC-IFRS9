@@ -104,6 +104,7 @@ return [
                 $tab('Cash Flows', 'eir-data.index', 'eir.view', ['tab' => 'cashflows']),
                 $tab('Drawdowns', 'eir-drawdowns.index', 'eir.view'),
                 $tab('Reference Rates', 'eir-reference-rates.index', 'eir.view'),
+                $tab('Trial Balances', 'eir-trial-balances.index', 'eir.view'),
                 $tab('Schedule Review', 'eir-data.index', 'eir.view', ['tab' => 'schedules']),
             ]),
             $section('EIR Rules', [
@@ -125,7 +126,6 @@ return [
 
         ['color' => '#C084FC'] + $group('IFRS 9 Model Setup', 'chart-line', [
             $section('Staging & SICR Rules', [
-                $tab('Quantitative Thresholds', 'stageing-rules.index'),
                 $tab('SICR Groups', 'sicr-groups.index'),
                 $tab('SICR Alert Items', 'sicr-items.index'),
                 $tab('SICR Trigger Alerts', 'sicr-triggers.index'),
@@ -140,7 +140,18 @@ return [
                 $tab('Monthly LGD', 'loss-given-default.index'),
                 $tab('Cumulative LGD', 'lgd-cummulative.index'),
             ]),
-            // The macro inputs first, then the model that uses them.
+        ], 5),
+
+        // Forward-Looking Information (FLI module specification v1, 13 October
+        // 2026): one menu entry for the whole chain, in the order a month-end
+        // runs it. The screens of the older platform are back in their places
+        // and each is now a working step of the governed chain.
+        ['color' => '#7DD3FC'] + $group('Forward-Looking Information', 'binoculars', [
+            $section('FLI Month-End', [
+                $tab('Overview', 'fli.overview'),
+                $tab('Impact Analysis', 'fli.impact'),
+            ]),
+            // The economic data, then the model that uses it.
             $section('Macro Statistics', [
                 $tab('Dashboard', 'macro-statistics.index', 'macro.view', ['tab' => 'dashboard']),
                 $tab('Variables', 'macro-statistics.index', 'macro.view', ['tab' => 'variables']),
@@ -149,27 +160,27 @@ return [
                 $tab('Import / Export', 'macro-statistics.index', 'macro.view', ['tab' => 'import']),
             ]),
             $section('Forward-Looking Model', [
-                $tab('Weighted Forecast', 'macro-forecast-weighted.index'),
                 $tab('Credit Loss Data', 'credit-loss-data.index'),
-                $tab('Adjusted Forecast', 'forecasting.manual'),
                 $tab('Correlation Finder', 'fli-correlation.index'),
-                // The regression runs on FLI Adjustments under maker-checker.
-                $tab('Regression (FLI Adjustments)', 'fli-adjustments.index'),
+                $tab('Regression', 'fli-adjustments.index'),
+                $tab('Model Versions', 'fli-models.index'),
+                $tab('Adjusted Forecast', 'forecasting.manual'),
+                $tab('Weighted Forecast', 'macro-forecast-weighted.index'),
             ]),
             $section('Scenarios & Overlays', [
-                $tab('Scenario Sets', 'scenario-sets.index'),
                 $tab('Scenario Profiles', 'scenarios.profiles'),
-                $tab('Manual Overlays', 'fli-overlays.index'),
+                $tab('Scenario Sets', 'scenario-sets.index'),
                 $tab('Economic Scenarios', 'fli.scenarios.index'),
-                $tab('External Calculations', 'fli.external.index', 'reports.ifrs9'),
-                $tab('Calculation History', 'fli.external.list', 'reports.ifrs9'),
+                $tab('Manual Overlays', 'fli-overlays.index'),
+                $tab('External Calculations', 'fli.external.index'),
+                $tab('Calculation History', 'fli.external.list'),
             ]),
-        ], 5),
+        ], 6),
 
         ['color' => '#F87171'] + $group('ECL Processing', 'calculator', [
             $leaf('ECL Calculation', 'expected-credit-loss.index'),
             $leaf('Mega Farm Programme', 'megafarm.index'),
-        ], 6),
+        ], 7),
 
         // Contract Schedule 1 deliverables 5, 6 and 7. The two manuals are
         // database content (help centre); the technical manual and the
@@ -179,7 +190,7 @@ return [
             $leaf('Administrator Manual', 'help.admin'),
             $leaf('Technical Manual', 'docs.technical'),
             $leaf('Installation Guide', 'docs.installation'),
-        ], 7),
+        ], 8),
 
         ['color' => '#C4B5FD'] + $group('Administration', 'cog', [
             $section('Users & Roles', [
@@ -194,7 +205,8 @@ return [
             ]),
             $leaf('Support Tickets', 'tickets.index'),
             $leaf('Settings', 'settings.index'),
-        ], 8),
+            $leaf('Maintenance', 'maintenance.index', permission: 'settings'),
+        ], 9),
 
     ],
     'member' => [],

@@ -13,6 +13,7 @@
           <select v-if="indexes.length > 1" v-model="form.index" class="maiic-select !w-32" title="Index" aria-label="Index" @change="apply">
             <option v-for="i in indexes" :key="i" :value="i">{{ i }}</option>
           </select>
+          <a :href="route('eir-intake.sample', { type: 'reference_rates' })" class="secondary-btn" title="The import's columns with worked example rows">Download sample CSV</a>
           <Link :href="route('eir-intake.index', { type: 'reference_rates' })" class="primary-btn">Import reference rates</Link>
         </div>
       </div>

@@ -26,21 +26,22 @@ The platform is one Laravel application with a Vue single-page front end. It car
 
 | Component | Where it lives in the application |
 |---|---|
-| User and access management | Administration: User Management, Roles and Permissions |
-| Data import and onboarding | Customer and Loan Data: Loan Book, Clients, Imports; EIR and Revenue Recognition: EIR Data |
-| Collateral module | Collateral Management: Register, Types, Allocation |
-| Internal grading | IFRS 9 Model Setup: PD Model Setup, Internal Grades |
-| PD module | Transition Profiles, Monthly and Cumulative Probability |
-| LGD module | Monthly and Cumulative LGD, discounting of recoveries |
+| User and access management | Administration: Users & Roles (Users, Roles & Permissions) |
+| Data import and onboarding | Portfolio Setup (Loan Portfolios, Product Groups, Sector Types); Customer & Loan Data: Clients, Loan Book, Imports & Feeds (Imports, E-Banker Loads, Loan Book Builds, Periods Built, Query Register, Take-on Blocks, Take-on Population); EIR & Revenue Recognition: EIR Data |
+| Collateral module | Collateral Management (Collateral Register, Collateral Allocation, Collateral Types) |
+| Internal grading | IFRS 9 Model Setup: PD Model, Internal Grades |
+| PD module | IFRS 9 Model Setup: PD Model (Transition Profiles, Monthly Probability, Cumulative Probability) |
+| LGD module | IFRS 9 Model Setup: LGD Model (Monthly LGD, Cumulative LGD), and the discounting of recoveries |
 | EAD module | Carrying amount plus undrawn commitments times utilisation, computed inside the ECL and report queries |
-| EIR module | Accounting Rules, EIR Data, Fee Classification, EIR Calculations, GL Reconciliation, Coverage and Blockers |
-| Forward-Looking Information | Macro Elements, Scenario Profiles, Weighted Forecast, Credit Loss Data, Adjusted Forecast, Regression Analysis, Management Overlays |
-| SICR and staging engine | Staging and SICR Rules, and the staging classifier applied on import |
-| ECL engine | ECL Processing: ECL Calculation, time-phased projections, stress testing |
-| Reports | IFRS 9 Reports hub, reconciliation reports, disbursement report, Excel and PDF exports |
-| Audit trail | Administration: Audit Trail, over both the activity log and the custom audit log |
-| Dashboard | Dashboard with reporting period, portfolio and compare-to filters |
-| Support and documentation | Support Tickets, User Manual, Administrator Manual, this manual, the Installation Guide |
+| EIR module | EIR & Revenue Recognition: EIR Data (Contract Master, Cash Flows, Drawdowns, Reference Rates, Schedule Review), EIR Rules (Accounting Rules, Fee Classification), EIR Calculations (Calculations, Blockers, Coverage by Portfolio, Largest Facilities, EIR as at a Date, GL Reconciliation), Governance Centre |
+| Forward-Looking Information | Forward-Looking Information: FLI Month-End (Overview, Impact Analysis), Macro Statistics, Forward-Looking Model (Credit Loss Data, Correlation Finder, Regression, Model Versions, Adjusted Forecast, Weighted Forecast), Scenarios & Overlays (Scenario Profiles, Scenario Sets, Economic Scenarios, Manual Overlays, External Calculations, Calculation History) |
+| SICR and staging engine | IFRS 9 Model Setup: Staging & SICR Rules (SICR Groups, SICR Alert Items, SICR Trigger Alerts), and the staging classifier applied on import |
+| ECL engine | ECL Processing: ECL Calculation (with the time-phased projections), Mega Farm Programme; stress testing from the Reports hub |
+| Reports | Reports: the IFRS 9 reports hub, from which every report, reconciliation, disbursement report and Excel and PDF export is reached |
+| Audit trail | Administration: Audit (Audit Trail, Audit Trace, Compliance Audits); the Audit Trail reads both the activity log and the custom audit log |
+| Dashboard | Dashboard with reporting period, portfolio and compare-to filters; Workspace for the period close checklist |
+| Support and documentation | Administration: Support Tickets; System Documentation: User Manual, Administrator Manual, Technical Manual (this manual), Installation Guide |
+| Operations | Administration: Financial Periods, Settings, Maintenance (the month-end and system jobs run from the browser, chapter 9.5) |
 
 ### 1.4 Technology stack
 

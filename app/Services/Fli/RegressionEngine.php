@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Fli;
 
+use App\Support\Fli\AsAtSeries;
 use App\Support\Fli\ExpectedSignPolicy;
 use App\Support\Fli\GovernedValues;
 use App\Support\Fli\SeriesAligner;
@@ -55,8 +56,12 @@ final class RegressionEngine
      */
     public function fitCandidates(string $asOfPeriod): array
     {
-        $xSeries = $this->loadSeries('macro_series', 'statistic_code', "value_type = 'actual'");
-        $ySeries = $this->loadSeries('credit_loss_series', 'proxy_code', null);
+        // As at the reporting date, exactly as the sweep reads them (IFRS 9
+        // 5.5.17(c), B5.5.49 to B5.5.51): the fit for period P sees no
+        // observation, and no interpolation, that was not knowable by the end of P.
+        $asOf = AsAtSeries::ym($asOfPeriod);
+        $xSeries = AsAtSeries::macro($this->connection, $asOf, ['actual']);
+        $ySeries = AsAtSeries::proxies($this->connection, $asOf);
         // Same governed historical horizon as the sweep (fli.max_history_years).
         [$xSeries, $ySeries] = $this->capHorizon($xSeries, $ySeries, max(1, $this->gov->int('fli.max_history_years')));
         $definitions = $this->loadDefinitions();
@@ -78,7 +83,7 @@ final class RegressionEngine
         $runId = (int) $this->db()->table('analysis_runs')->insertGetId([
             'run_type' => 'regression',
             'reporting_period' => $asOfPeriod,
-            'inputs_hash' => hash('sha256', json_encode(array_keys($candidates))),
+            'inputs_hash' => hash('sha256', json_encode(['as_of' => $asOf, 'candidates' => array_keys($candidates)])),
             'status' => 'complete',
             'run_by' => null,
             'run_at' => now(),
@@ -148,13 +153,21 @@ final class RegressionEngine
         );
 
         $relId = $this->ensureRelationship($cand, $lag);
+        // The hash covers the data AND the governed guardrail settings the
+        // verdict was reached under, so a re-sweep on the same inputs reuses the
+        // fit already recorded (keeping its approval) instead of appending a
+        // copy, while a changed setting or a changed observation records anew.
         $inputsHash = hash('sha256', json_encode([
             'x' => $cand['x'], 'y' => $cand['y'], 'lag' => $lag,
             'periods' => $aligned['periods'], 'xvals' => $aligned['x'], 'yvals' => $aligned['y'],
+            'guardrail' => [$cand['cutoff'] ?? $cutoff, $minObs, $alpha, $cand['expected_sign'], $this->gov->string('fli.sign_test.mode')],
         ]));
 
         $nYears = $this->annualEquivalent($aligned['periods'] ?? []);
-        $this->db()->table('fli_fits')->insert([
+        $existing = $this->db()->table('fli_fits')->where('fli_relationship_id', $relId)
+            ->where('reporting_period', $asOfPeriod)->where('inputs_hash', $inputsHash)->orderBy('id')->value('id');
+        if ($existing === null) {
+            $this->db()->table('fli_fits')->insert([
             'fli_relationship_id' => $relId,
             'reporting_period' => $asOfPeriod,
             'slope' => $ols['slope'],
@@ -171,10 +184,12 @@ final class RegressionEngine
             'inputs_hash' => $inputsHash,
             'supporting_document_id' => null,
             'computed_at' => now(),
-        ]);
+            ]);
+        }
 
         return [
             'fli_relationship_id' => $relId,
+            'reused' => $existing !== null,
             'statistic_code' => $cand['x'],
             'proxy_code' => $cand['y'],
             'lag_months' => $lag,
@@ -197,13 +212,15 @@ final class RegressionEngine
      * which is single-parent; multivariate candidate shortlists persist via the
      * fli_model_candidates extension - out of scope for v1, documented).
      *
+     * @param string $asOfPeriod the reporting period (YYYY-MM or YYYYMM): only data knowable by its end is read
      * @param array<int,string> $xCodes
      * @return array{ok:bool,error:?string,n:int,r2:?float,adj_r2:?float,coef:array<int,float>,p_values:array<int,?float>,vif:array<int,?float>,vif_ok:bool,verdict:string,reason:string}
      */
-    public function fitMultivariate(array $xCodes, string $yCode, int $lag = 0): array
+    public function fitMultivariate(string $asOfPeriod, array $xCodes, string $yCode, int $lag = 0): array
     {
-        $xSeries = $this->loadSeries('macro_series', 'statistic_code', "value_type = 'actual'");
-        $ySeries = $this->loadSeries('credit_loss_series', 'proxy_code', null);
+        $asOf = AsAtSeries::ym($asOfPeriod);
+        $xSeries = AsAtSeries::macro($this->connection, $asOf, ['actual']);
+        $ySeries = AsAtSeries::proxies($this->connection, $asOf);
         $y = $ySeries[$yCode] ?? [];
         $vifMax = $this->gov->float('fli.vif.max');
         $cutoff = $this->gov->float('fli.r2_cutoff.default');
@@ -437,22 +454,6 @@ final class RegressionEngine
         };
 
         return [$filter($x), $filter($y)];
-    }
-
-    /** @return array<string,array<string,float>> */
-    private function loadSeries(string $table, string $codeCol, ?string $whereRaw): array
-    {
-        $q = $this->db()->table($table);
-        if ($whereRaw !== null) {
-            $q->whereRaw($whereRaw);
-        }
-        $rows = $q->orderBy($codeCol)->orderBy('observation_period')->get([$codeCol, 'observation_period', 'value']);
-        $out = [];
-        foreach ($rows as $r) {
-            $out[(string) $r->$codeCol][(string) $r->observation_period] = (float) $r->value;
-        }
-
-        return $out;
     }
 
     /** @return array<int,array{statistic_code:string,proxy_code:string,expected_sign:string,r2_cutoff_pct:float}> */

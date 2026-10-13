@@ -72,7 +72,7 @@ class EclReconciliationService
 
         $portfolioName = DB::table('loan_portfolios')
             ->where('id', $report['portfolio_id'])
-            ->value('name') ?? 'Unknown Portfolio';
+            ->value('name') ?? 'All portfolios';
 
         if (($report['report_type'] ?? 'summary') === 'detailed') {
             return self::exportDetailedToCsv($report, $portfolioName, $params);

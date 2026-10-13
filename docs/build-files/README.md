@@ -82,3 +82,9 @@ Barry ran the queries from the two morning notes and returned five files in `..\
 | `outcome_note.py` | Plain-language outcome for Barry and Finance: the GL opening balances keyed on 1 January 2025 (+400,000.00 on 1050201, -1,000,000.00 on 1050202, carried into 2026) and the Zaithwa Farms balance-table fault (duplicate 30 April 2025 row, May row restarted from nil); what to fix | `..\Outcome - GL differences and Zaithwa Farms explained - 7 Oct 2026.pdf` |
 
 Findings in one line each: the ledger is complete and right for both items; the fixes are on MAIIC's side (Finance to confirm the 2024 audited figure and adjust the two GL openings; the vendor to rebuild the Zaithwa Farms month-end rows from May 2025). Readiness is unchanged: both were reconciling items, not data gaps.
+
+## 11 October 2026: the fee ledgers and the true-up into 4206 (spec v4 section 3.7)
+
+| Script | What it does | Output |
+|---|---|---|
+| `fee_gl_recon_2026-10-11.py` | Parses the GL 4871 and 4873 spools of 19 August (31 Dec 2025 and 31 Jul 2026), reconciles them year-to-date to the 20 monthly trial balances and the final E-Banker TB for December 2025, and matches every spool line to a fee debit on a loan account in `P1_01` by date and amount | Printed: the monthly tie (zero difference every month), the line-by-line match, the matched and unmatched totals |

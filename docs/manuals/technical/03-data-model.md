@@ -13,7 +13,7 @@ This chapter describes the tables by module and how they relate. It is a narrati
 | `notifications` | Laravel database notifications feeding the bell. | `type`, `notifiable_id`, `data`, `read_at` |
 | `sessions`, `password_reset_tokens`, `personal_access_tokens` | Framework tables. | |
 
-The Audit Trail page reads `activity_log` and `audit_logs` through a normalised union so both sources appear in one timeline.
+The Audit Trail screen (Administration, Audit) reads `activity_log` and `audit_logs` through a normalised union so both sources appear in one timeline.
 
 ### 3.2 Portfolio and client master
 
@@ -32,7 +32,7 @@ The Audit Trail page reads `activity_log` and `audit_logs` through a normalised 
 | Table | Purpose | Key columns |
 |---|---|---|
 | `loan_books` | One row per contract per reporting period. Carries balances, arrears buckets, staging results, PD, LGD and ECL values written by the engines, agricultural risk fields and the EIR discounting audit fields. | `contract_id`, `customer_id`, `loan_portfolio_id`, `reporting_period`, `carrying_amount`, `commitments`, `facility_utilisation_rate`, `overdue_days`, `ifrs9stage_pre_qualitative`, `ifrs9stage_post_qualitative`, `calculated_ifrs9_stage`, `pd_prefli`, `pd_post_fli`, `lgd_value`, `ecl_value`, `internal_grade_code`, `ecl_discount_rate`, `ecl_discount_status` |
-| `imports` | Import job records with status, counts and the failed rows file path. | `name`, `status`, `records`, `failed_records`, `failed_file_path` |
+| `imports` | Import job records with status, counts and the failed rows file path. `kind` (added 13 October 2026) records what each import loaded, so each import page lists only its own; the rows held before were classified from their file names. | `name`, `kind` (`loan_book`, `clients`, `collateral`, `credit_loss`, `eir_intake`), `status`, `records`, `failed_records`, `failed_file_path` |
 | `collaterals`, `collateral_types`, `collateral_allocations` | Collateral register, type catalogue with forced-sale discounts, and allocation of collateral to exposures. | `client_id`, `collateral_type_id`, `value`, `allocated_value` |
 
 Three stage columns exist on `loan_books`. `ifrs9stage_pre_qualitative` is the quantitative stage from the DPD ladder, `ifrs9stage_post_qualitative` is after SICR qualitative triggers, and `calculated_ifrs9_stage` is the stage written by the ECL run. The reports hub and stress testing read the pre-qualitative stage, the dashboard reads the post-qualitative stage, and the reconciliation services read the calculated stage. Chapter 12 lists this as an item to unify.
@@ -65,15 +65,30 @@ Three stage columns exist on `loan_books`. `ifrs9stage_pre_qualitative` is the q
 
 ### 3.7 Forward-looking information
 
+The tables follow the chain of chapter 5.5: the economic data, the bridge, the calibration evidence, the model registry, the scenario sets and overlays, and the month record.
+
 | Table | Purpose |
 |---|---|
-| `macro_economic_variables` and data tables | Macro element library and their historical values. |
-| `scenario_sets`, `scenario_probabilities` | Scenario profiles with base, upside and downside weights. |
-| `macro_forecast_weighted` | Probability-weighted forecasts. |
-| `credit_loss_data`, `credit_loss_definitions` | Historical credit loss series used for regression. |
-| `regression_models` | Fitted models (coefficients, intercept) applied to convert macro shocks to PD adjustments. |
-| `fli_reporting_periods_parameters`, `fli_adj` | Period parameters and management overlay adjustments. |
+| `macro_statistics`, `macro_statistics_data` | The macro variable library and its observations, actual or forecast. `macro_statistics_data.published_at` (13 October 2026) is the publisher's release date, which the as-at reader honours. |
+| `macro_source_import_batches` | Provenance of each macro load: source (World Bank, IMF WEO, RBM file, snapshot, manual), address, file hash, rows and series. |
+| `macro_credit_loss_definitions`, `macro_credit_loss_data` | The Credit Loss Data register, including external series such as an industry NPL ratio. `portfolio_id` may be empty for a series that belongs to no MAIIC portfolio; `published_at` is the release date. |
+| `macro_series` | The bridge's monthly macro series (`statistic_code`, `observation_period` as YYYYMM, `value`, `value_type` actual, estimate or forecast, `lag_months`, `vintage`), filled by `FliBridgeService` from `macro_statistics_data` and the PLR. |
+| `credit_loss_series` | The bridge's credit-loss proxies by `proxy_code` and `observation_period`: those derived from the staged loan books, and the external series as `EXT_` proxies. `known_from` (YYYYMM, 13 October 2026) is the month an external figure was published, empty meaning the end of its own month; `source` names where it came from. |
+| `governed_parameters`, `regression_definitions`, `structural_events` | The engines' parameters copied from the Governance Centre, the expected sign of each driver against each proxy, and the register of Malawi structural events. |
+| `fli_series_distributions`, `analysis_runs`, `fli_suggestions` | The profile of every series, the run log, and the ranked candidates of each correlation sweep. |
+| `fli_relationships`, `fli_fits` | Driver, proxy and lag relationships, and the fits estimated on them with slope, intercept, R-squared, p-value, observations and the guardrail `verdict` (applied or declined with `declined_reason`). `approval_status` (NONE, PROPOSED, APPROVED, REJECTED) with proposer and approver records the maker and checker. |
+| `fli_models` | New 13 October 2026. The forward-looking models by `code` (today `PD-FLI-BOOK`, the book-level PD model), with `target_metric` and `segment_basis`. |
+| `fli_model_versions` | New 13 October 2026. One row per published model version: `model_id`, `version`, `fli_fit_id` (empty for an external model), `statistic_code`, `proxy_code`, `lag_months`, `slope`, `intercept`, `r_squared`, `p_value`, `n_obs`, `calibrated_period`, `effective_from`, `status` (PROPOSED, PUBLISHED, SUPERSEDED, RETIRED, REJECTED), `source` (`fit` or `external`), `evidence`, and the proposer, publisher and retirement stamps. The migration published every fit already approved as a version effective from its own month. |
+| `scenario_profiles` | Scenario profiles from which a governed set can be started. |
+| `governed_scenario_sets`, `governed_scenarios`, `scenario_shocks` | The governed scenario set of each period and version (status DRAFT, PROPOSED, APPROVED, LOCKED, SUPERSEDED; narrative, source vintage, validation, back-test, sensitivity, `overlays_at_approval`), its scenarios (`weight`, `is_base`, narrative, calibration note) and the shocks that transform the base path (`statistic_code`, `year_offset`, `kind`, `value`). |
+| `macro_forecast_weighted` | The probability-weighted path of each driver under a governed set (`governed_set_id`, `reporting_period`, `statistic_code`, `year_offset`, `scenario_values`), shown on Weighted Forecast. |
+| `fli_overlays` | The manual-overlay register: period, scope and scope value, adjustment, reason, evidence, owner, expiry, status (PROPOSED, APPROVED, REJECTED, EXPIRED), the set it sits on, and the maker and checker stamps. `risk_driver` and `double_count_review` (13 October 2026) carry the double-counting check. |
+| `fli_run_snapshots` | New 13 October 2026. One row per recorded forward-looking month-end: `reporting_period`, `model_version_id`, `fit_id`, `set_id`, `set_version`, `route`, `method`, `weighting`, `overlay_ids`, `macro_vintage`, `loans`, `pre_fli_ecl`, `model_effect`, `overlay_effect`, `booked_ecl`, `weighted_ecl`, `difference`, `reconciles`, `per_scenario`, `by_stage`, `by_portfolio`, `inputs`, `prior_booked_ecl`, `movement_pct`, `needs_commentary`, `commentary`, `status` (RECORDED, SIGNED_OFF, SUPERSEDED) and the recorder and sign-off stamps. |
 | `ecl_scenario_assumptions` | Approved scenario weights used by the time-phased ECL engine. |
+
+Each loan in `loan_books` carries its forward-looking lineage: `pd_post_fli`, `fli_adj`, `fli_route`, `fli_method`, `fli_fit_id`, `fli_set_id`, `fli_model_version_id` (13 October 2026), `fli_by_scenario` (each scenario's weight and PD) and `fli_overlay_ids`.
+
+The tables of the earlier forward-looking screens (`scenario_sets`, `scenario_probabilities`, `fli_reporting_periods_parameters`, `fli_adj`, `regression_models`) remain in the schema. The route, the ECL and the month record do not read them: Economic Scenarios still lists the older named sets of `scenario_sets` beneath the governed set, and `regression_models` still feeds the stress test's macro mode.
 
 ### 3.8 Expected credit loss
 
@@ -81,6 +96,8 @@ Three stage columns exist on `loan_books`. `ifrs9stage_pre_qualitative` is the q
 |---|---|
 | `expected_credit_loss` | ECL summary rows per reporting period, stage, calculation level and calculation id (portfolio, sector or total). Columns include `total_ead`, `total_ecl`, `pd_value_used`, `lgd_value_used`. Composite indexes on period, level and stage were added for the dashboard and report hot paths. |
 | `time_phased_ecl` | Month-by-month projection rows written by the time-phased engine: PD, survival, EAD, LGD, discount factor and shortfall per scenario. |
+| `ecl_scenario_results` | New 13 October 2026. The ECL of each loan under each scenario of the set applied, written by the forward-looking month-end close: `snapshot_id` (the `fli_run_snapshots` row), `reporting_period`, `loan_book_id`, `contract_id`, `loan_portfolio_id`, `stage`, `scenario`, `weight`, `pd12`, `stage_pd`, `ecl`. Their totals are held on the same record (`fli_run_snapshots.per_scenario`), which the FLI Month-End Overview and Impact Analysis and the Scenario-weighted ECL report read. A new record of the month deletes the rows of the record it supersedes. |
+| `ecl_projection_runs`, `ecl_pd_term_structures` | The scenario projection: one run row per month (`methodology_version` = `fli-projection`, the model version, set and horizon in `input_snapshot`) and, per portfolio, scenario and future year, the conditional, opening survival, marginal and cumulative PD (`contract_id` = `portfolio:<id>`, `source` = `fli-projection`). A new projection supersedes the month's previous run. |
 | `ecl_recovery_cashflows` | Reviewed recovery plans for stage 3 exposures, used to place shortfalls on the dates the plan names. |
 | `stress_scenarios` | Saved stress test parameter sets and result snapshots. |
 

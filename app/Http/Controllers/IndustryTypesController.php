@@ -78,9 +78,8 @@ class IndustryTypesController extends Controller
     public function show(IndustryType $type)
     {
 
-        return Inertia::render('IndustryTypes/Show', [
-            'type' => $type
-        ]);
+        // there is no separate view page for a sector: open it for editing
+        return redirect()->route('industry_types.edit', $type);
     }
 
     public function edit(IndustryType $type)

@@ -368,25 +368,25 @@ class PermissionsTableSeeder extends Seeder
             ],
 
             // Stageing Rules Module
-            [ 'name' => 'stageing-rules', 'module' => 'Stageing Rules', 'display_name' => 'Access Stageing Rules', 'guard_name' => 'web' ],
-            [ 'name' => 'stageing-rules.index', 'module' => 'Stageing Rules', 'display_name' => 'View Thresholds', 'guard_name' => 'web' ],
-            [ 'name' => 'stageing-rules.store', 'module' => 'Stageing Rules', 'display_name' => 'Update Thresholds', 'guard_name' => 'web' ],
+            [ 'name' => 'stageing-rules', 'module' => 'Staging and SICR Rules', 'display_name' => 'Access Staging Rules', 'guard_name' => 'web' ],
+            [ 'name' => 'stageing-rules.index', 'module' => 'Staging and SICR Rules', 'display_name' => 'View Thresholds', 'guard_name' => 'web' ],
+            [ 'name' => 'stageing-rules.store', 'module' => 'Staging and SICR Rules', 'display_name' => 'Update Thresholds', 'guard_name' => 'web' ],
 
-            [ 'name' => 'sicr-groups.index', 'module' => 'Stageing Rules', 'display_name' => 'View SICR Groups', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-groups.store', 'module' => 'Stageing Rules', 'display_name' => 'Create SICR Groups', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-groups.update', 'module' => 'Stageing Rules', 'display_name' => 'Update SICR Groups', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-groups.destroy', 'module' => 'Stageing Rules', 'display_name' => 'Delete SICR Groups', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-groups.import', 'module' => 'Stageing Rules', 'display_name' => 'Import SICR Groups', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-groups.index', 'module' => 'Staging and SICR Rules', 'display_name' => 'View SICR Groups', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-groups.store', 'module' => 'Staging and SICR Rules', 'display_name' => 'Create SICR Groups', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-groups.update', 'module' => 'Staging and SICR Rules', 'display_name' => 'Update SICR Groups', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-groups.destroy', 'module' => 'Staging and SICR Rules', 'display_name' => 'Delete SICR Groups', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-groups.import', 'module' => 'Staging and SICR Rules', 'display_name' => 'Import SICR Groups', 'guard_name' => 'web' ],
 
-            [ 'name' => 'sicr-items.index', 'module' => 'Stageing Rules', 'display_name' => 'View SICR Items', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-items.store', 'module' => 'Stageing Rules', 'display_name' => 'Create SICR Items', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-items.update', 'module' => 'Stageing Rules', 'display_name' => 'Update SICR Items', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-items.toggle', 'module' => 'Stageing Rules', 'display_name' => 'Toggle SICR Items', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-items.destroy', 'module' => 'Stageing Rules', 'display_name' => 'Delete SICR Items', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-items.import', 'module' => 'Stageing Rules', 'display_name' => 'Import SICR Items', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-items.index', 'module' => 'Staging and SICR Rules', 'display_name' => 'View SICR Items', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-items.store', 'module' => 'Staging and SICR Rules', 'display_name' => 'Create SICR Items', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-items.update', 'module' => 'Staging and SICR Rules', 'display_name' => 'Update SICR Items', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-items.toggle', 'module' => 'Staging and SICR Rules', 'display_name' => 'Toggle SICR Items', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-items.destroy', 'module' => 'Staging and SICR Rules', 'display_name' => 'Delete SICR Items', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-items.import', 'module' => 'Staging and SICR Rules', 'display_name' => 'Import SICR Items', 'guard_name' => 'web' ],
 
-            [ 'name' => 'sicr-triggers.index', 'module' => 'Stageing Rules', 'display_name' => 'View SICR Triggers', 'guard_name' => 'web' ],
-            [ 'name' => 'sicr-triggers.store', 'module' => 'Stageing Rules', 'display_name' => 'Create SICR Triggers', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-triggers.index', 'module' => 'Staging and SICR Rules', 'display_name' => 'View SICR Triggers', 'guard_name' => 'web' ],
+            [ 'name' => 'sicr-triggers.store', 'module' => 'Staging and SICR Rules', 'display_name' => 'Create SICR Triggers', 'guard_name' => 'web' ],
 
 
         ];

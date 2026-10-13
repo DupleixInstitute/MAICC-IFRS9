@@ -20,7 +20,7 @@ accounting rules -> intake (Extracts A, B, C, schedules, fees) -> fee classifica
 -> monthly revenue run -> GL reconciliation and trial balance movements -> coverage and blockers
 ```
 
-Every EIR screen is gated by `permission:settings` in its controller constructor, with `hasRole('admin')` as the only finer control (used for the review override, the lock override and reopening). Dedicated EIR permissions are an open item in the specification.
+The EIR screens are gated in their controller constructors: the rules, fee classification, schedule and calculation screens by `permission:settings` (fee classification and intake also admit `eir.fees.import`); EIR Data, the coverage tabs (Blockers, Coverage by Portfolio, Largest Facilities), EIR as at a Date and the GL Reconciliation view by `eir.view`; the reconciliation export by `eir.export`; the Governance Centre by `eir.govern`. The menu hides each tab from a user without its permission (chapter 2.3). `hasRole('admin')` remains the finer control used for the review override, the lock override and reopening.
 
 ### 6.3 Fee rulebook
 
@@ -53,14 +53,23 @@ The ACADES golden case (eight quarterly instalments of MK 17,099,839.71 on net p
 `php artisan eir:run-revenue {period}` (queued with `--queue`) runs `app/Jobs/RunEirRevenueJob.php` over locked contracts. Per contract and month, `EirRevenueService` computes:
 
 ```
-monthlyRate = (1 + eir_effective_annual)^(1/12) - 1
+eirInForce  = FIXED ? eir_effective_annual
+            : (1 + (nominal(eir_effective_annual) + loanBookRate - contractual_rate) / 12)^12 - 1
+monthlyRate = (1 + eirInForce)^(1/12) - 1
 basis       = stage 3 ? NET : GROSS
 interest    = monthlyRate x (basis NET ? max(0, opening - allowance) : opening)
 unwind      = basis NET ? monthlyRate x min(allowance, opening) : 0
-closing     = max(0, opening + interest + unwind - cash)
+advances    = basis LEDGER ? tranches drawn in the month : 0
+interest   += monthlyRate x each advance x (days outstanding in the month / days in the month)
+closing     = max(0, opening + advances + interest + unwind - cash - derecognised)
 ```
 
-Opening is the prior month's closing, or for a late first run the present value of the remaining contractual flows at the locked rate. The stage and ECL allowance are read from the loan book row for the month. Cash received comes from imported actuals when the actuals window covers the month (collection types Interest, Principal+Interest and Fee; disbursements are never netted; unknown types are reported), otherwise from the version 1 schedule and marked DERIVED. Rerunning a period archives that period and every later one for the contract, because each opening is the prior closing; recalculation without a reason is refused.
+Opening is the prior month's closing. The first month opens on one of two bases, recorded on every row as `opening_basis` and carried forward with the closing balance:
+
+- **SCHEDULE**: the present value, at the locked rate, of the contractual flows due after the end of the month before. (Until 13 October 2026 the value was taken at the end of the month itself, which counted that month's interest twice.) Where the ledger at that date owes more than the balance the schedule expects (the same flows at `contractual_rate`) by more than one percent, the difference is booked as arrears and added, undiscounted; the first row holds it as `opening_arrears` and the audit log as `EIR Opening Arrears` (decision D39).
+- **LEDGER**: the drawn balance in the E-Banker ledger at the end of the month before, used when the facility is still drawing down (an advance falls after that date), when it was lent within the month (the opening is then nil), or when the borrower has prepaid (the ledger is below half the present value). Each later tranche is added in the month it is drawn and earns interest from that day; the row's `advances` column holds it. A schedule-basis row never adds an advance, because the schedule's present value already counts every tranche. Each ledger opening is written to the audit log as `EIR Opening From Ledger` with both figures and the reason.
+
+A floating-rate loan (`contract_eir.rate_type` FLOATING) accrues at the EIR in force for the month: the locked nominal EIR moved by the change from the rate its schedule was built on (`contractual_rate`) to the rate E-Banker charged that month (`loan_books.interest_rate`), keeping the margin the fees add (IFRS 9 B5.4.5, decision D38). Every row records the effective annual rate it accrued at as `eir_annual`; the GL reconciliation's rate effect and `EirAsAtService` read it. The stage and ECL allowance are read from the loan book row for the month. Cash received comes from imported actuals when the actuals window covers the month (collection types Interest, Principal+Interest and Fee; disbursements are never netted; unknown types are reported), otherwise from the version 1 schedule and marked DERIVED. Rerunning a period archives that period and every later one for the contract, because each opening is the prior closing; recalculation without a reason is refused.
 
 ### 6.10 GL reconciliation
 
@@ -74,7 +83,7 @@ impairment effect = accrued - effective monthly x opening
 unexplained       = variance - base - rate - impairment
 ```
 
-Rows within one percent (floor MK 1) are WITHIN_TOLERANCE; postings with no calculated counterpart are NOT_CALCULATED or NO_CONTRACT and stay out of the bridge as coverage gaps. The bridge totals GL matched and unmatched, the three effects, the unexplained residual and the net variance. On MAIIC's sample ledger the residual reconciles to zero and the impairment effect equals the stage 3 unwind to the cent. No download exists on this screen yet.
+Rows within one percent (floor MK 1) are WITHIN_TOLERANCE; postings with no calculated counterpart are NOT_CALCULATED or NO_CONTRACT and stay out of the bridge as coverage gaps. The bridge totals GL matched and unmatched, the three effects, the unexplained residual and the net variance. On MAIIC's sample ledger the residual reconciles to zero and the impairment effect equals the stage 3 unwind to the cent. The screen exports to Excel or PDF (`eir-reconciliation.export`, needing `eir.export`).
 
 `app/Services/Eir/TrialBalanceMovementService.php` supplies control totals from the trial balances: movement equals this month's balance minus last month's, January taken whole, balance sheet accounts never differenced, a missing prior month refused, the pre-closing basis preferred for December. Scope comes from `gl_account_scope` so investment income codes and QuickBooks duplicates are excluded.
 
@@ -84,4 +93,4 @@ Rows within one percent (floor MK 1) are WITHIN_TOLERANCE; postings with no calc
 
 ### 6.12 Not yet implemented
 
-Proposed adjusting journal entries, the auditor-format Excel export of the reconciliation, dedicated EIR permissions, schedule versions beyond one, modification accounting, rate-reset regeneration, an actuals import with `cash_source = IMPORTED` end to end, a CCF model, and scheduling of the monthly run. `app/Console/Kernel.php` schedules no EIR command today.
+Reset events written to `rate_reset_events` from the PLR series with maker-checker intake (the re-estimation itself is built, from the loan book's rate); re-estimation of expected cash flows under B5.4.6 for a credit-impaired loan. Proposed adjusting journal entries, the auditor-format Excel export of the reconciliation, schedule versions beyond one, modification accounting, rate-reset regeneration, an actuals import with `cash_source = IMPORTED` end to end, a CCF model, and scheduling of the monthly run. `app/Console/Kernel.php` does not schedule the monthly revenue run; it is run by hand or as a step of the Maintenance month-end job (`maiic:task month-end`, chapter 9.5).

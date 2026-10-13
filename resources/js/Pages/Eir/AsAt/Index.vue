@@ -66,7 +66,9 @@
           { label: 'Contractual interest, year to date', value: fmt(book.total.contractual_ytd), tone: 'amber' },
           { label: 'The revenue shift', value: fmt(book.total.difference), tone: book.total.difference >= 0 ? 'maiic' : 'rose' },
         ]"/>
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <p v-if="book.missing_revenue_months && book.missing_revenue_months.length" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">No EIR revenue run is held for {{ book.missing_revenue_months.join(', ') }}: the EIR interest of those months is rolled forward here at the monthly EIR, not read from a locked run. Run the revenue for them (Maintenance, Month-end).</p>
+        <p v-if="book.total.credit_balance_contracts" class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-700">{{ book.total.credit_balance_contracts }} contract(s) carry a credit balance of {{ fmt(book.total.credit_balances) }} in total: the customer paid more than was owed. The amount is owed back to the customer; it is shown in the gross column as a negative and marked.</p>
+        <div class="grid grid-cols-1 gap-6 2xl:grid-cols-2">
           <div class="maiic-panel" v-for="(g, key) in { 'By product': book.by_product, 'By GL': book.by_gl }" :key="key">
             <div class="border-b border-gray-200 p-4 dark:border-slate-700"><h3 class="text-base font-bold">{{ key }}</h3></div>
             <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>{{ key.replace('By ', '') }}</th><th class="num">Contracts</th><th class="num">EIR YTD</th><th class="num">Contractual YTD</th><th class="num">Difference</th><th class="num">Amortised cost</th><th class="num">Gross</th></tr></thead>
@@ -77,7 +79,8 @@
         <div class="maiic-panel">
           <div class="border-b border-gray-200 p-4 dark:border-slate-700"><h3 class="text-base font-bold">By contract</h3><p class="text-sm text-gray-500">Click a contract to see its full computation at this date</p></div>
           <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Contract</th><th>Customer</th><th>Product</th><th>GL</th><th class="num">EIR YTD</th><th class="num">Contractual YTD</th><th class="num">Difference</th><th class="num">Amortised cost</th><th class="num">Gross</th></tr></thead>
-            <tbody><tr v-for="l in book.contracts" :key="l.contract_id" class="cursor-pointer" @click="form.contract = l.contract_id; view()"><td class="font-mono text-xs">{{ l.contract_id }}</td><td>{{ l.customer_name }}</td><td class="text-xs">{{ l.product }}</td><td class="text-xs">{{ l.gl }}</td><td class="num">{{ fmt(l.eir_ytd) }}</td><td class="num">{{ fmt(l.contractual_ytd) }}</td><td class="num">{{ fmt(l.difference) }}</td><td class="num">{{ fmt(l.amortised_cost) }}</td><td class="num">{{ fmt(l.gross) }}</td></tr></tbody></table></div>
+            <tbody><tr v-for="l in pagedContracts" :key="l.contract_id" class="cursor-pointer" @click="form.contract = l.contract_id; view()"><td class="font-mono text-xs">{{ l.contract_id }}</td><td>{{ l.customer_name }}</td><td class="text-xs">{{ l.product }}</td><td class="text-xs">{{ l.gl }}</td><td class="num">{{ fmt(l.eir_ytd) }}</td><td class="num">{{ fmt(l.contractual_ytd) }}</td><td class="num">{{ fmt(l.difference) }}</td><td class="num">{{ fmt(l.amortised_cost) }}</td><td class="num">{{ fmt(l.gross) }}<div v-if="l.credit_balance > 0" class="text-[11px] font-semibold text-amber-700" title="The customer has paid more than the ledger says is owed: an amount owed back, not a negative loan">credit balance</div></td></tr></tbody></table></div>
+          <RowPager v-model="contractPage" :total="(book.contracts || []).length" class="border-t border-gray-100" />
         </div>
       </template>
     </div>
@@ -90,13 +93,15 @@ import { router } from '@inertiajs/vue3'
 import BackToReports from '@/Pages/Reports/Partials/BackToReports.vue'
 import DownloadButton from '@/Pages/Reports/Partials/DownloadButton.vue'
 import KpiRow from '@/Pages/Reports/Partials/KpiRow.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 export default {
-  components: { AppLayout, BackToReports, DownloadButton, KpiRow },
+  components: { AppLayout, BackToReports, DownloadButton, KpiRow, RowPager },
   props: { date: String, contract: String, lastLedgerDate: String, book: Object, one: Object, error: String, contracts: Array, yearEnds: Array },
   data() {
-    return { form: { date: this.date, contract: this.contract || '' } }
+    return { form: { date: this.date, contract: this.contract || '' }, contractPage: 1 }
   },
+  computed: { pagedContracts() { return ((this.book && this.book.contracts) || []).slice((this.contractPage - 1) * 15, this.contractPage * 15) } },
   methods: {
     fmt(v) { return v == null ? '-' : Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     pct(v) { return v == null ? '-' : (Number(v) * 100).toFixed(4) + '%' },

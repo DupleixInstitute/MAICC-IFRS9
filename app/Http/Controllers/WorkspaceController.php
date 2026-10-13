@@ -32,7 +32,7 @@ class WorkspaceController extends Controller
         ['key' => 'staging',         'label' => 'Stage allocation (SICR rules applied)',       'route' => 'stageing-rules.index',           'auto' => true],
         ['key' => 'pd_model',        'label' => 'PD model applied to the loan book',           'route' => 'transition-matrices.index',      'auto' => true],
         ['key' => 'lgd_model',       'label' => 'LGD model applied to the loan book',          'route' => 'loss-given-default.index',       'auto' => true],
-        ['key' => 'fli',             'label' => 'Forward-looking (macro) adjustment applied',  'route' => 'macro-forecast-weighted.index',  'auto' => true],
+        ['key' => 'fli',             'label' => 'Forward-looking month-end (route, record, sign-off)', 'route' => 'fli.overview',          'auto' => true],
         ['key' => 'run_ecl',         'label' => 'ECL calculation run',                          'route' => 'expected-credit-loss.index',     'auto' => true],
         ['key' => 'review_reports',  'label' => 'Review IFRS 9 reports & data quality',        'route' => 'ifrs9-reports.index',            'auto' => false],
         ['key' => 'stress_test',     'label' => 'Stress / sensitivity scenarios run',           'route' => 'stress-testing.index',           'auto' => true],
@@ -96,10 +96,9 @@ class WorkspaceController extends Controller
                 'done' => $total > 0 && (int) $lb->with_lgd > 0,
                 'detail' => $total > 0 ? $n($lb->with_lgd) . ' loans carry an LGD' : 'Awaiting loan book',
             ],
-            'fli' => [
-                'done' => $total > 0 && (int) $lb->with_fli > 0,
-                'detail' => $total > 0 ? $n($lb->with_fli) . ' loans carry a post-FLI PD' : 'Awaiting loan book',
-            ],
+            // the forward-looking Overview's own steps (FLI module D-F12): done when the
+            // route is applied under the version and set in force and the month is signed off
+            'fli' => $this->fliCheck($period, $total, $lb, $n),
             'run_ecl' => [
                 'done' => $eclRows > 0,
                 'detail' => $eclRows > 0 ? $n($eclRows) . ' ECL result rows' : 'ECL not calculated for this period',
@@ -109,6 +108,23 @@ class WorkspaceController extends Controller
                 'detail' => $stressRuns > 0 ? $n($stressRuns) . ' saved scenario run(s)' : 'No saved stress scenarios',
             ],
         ];
+    }
+
+    private function fliCheck(string $period, int $total, object $lb, callable $n): array
+    {
+        if ($total === 0) {
+            return ['done' => false, 'detail' => 'Awaiting loan book'];
+        }
+        try {
+            $steps = collect(app(\App\Services\Fli\FliMonthEnd::class)->steps($period))->keyBy('key');
+        } catch (\Throwable) {
+            return ['done' => (int) $lb->with_fli > 0, 'detail' => $n($lb->with_fli) . ' loans carry a post-FLI PD'];
+        }
+        $close = $steps['close'] ?? null;
+        $apply = $steps['apply'] ?? null;
+
+        return ['done' => $close && $close['state'] === 'done',
+            'detail' => $close && $close['state'] === 'done' ? $close['status'] : (($apply['state'] ?? '') === 'done' ? 'Route applied; ' . lcfirst($close['status'] ?? '') : ($apply['status'] ?? ''))];
     }
 
     public function index(Request $request)

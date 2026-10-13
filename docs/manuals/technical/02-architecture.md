@@ -33,9 +33,25 @@ Background work (imports, EIR calculation, revenue runs, LGD payment tracking) i
 
 ### 2.3 Navigation
 
-The sidebar is generated from `config/menu.php`. Each entry is either a group (with children) or a leaf pointing at a named route. Groups mirror the contract's solution components: Reports, Portfolio Setup, Customer and Loan Data, Collateral Management, EIR and Revenue Recognition, IFRS 9 Model Setup (with nested Staging, PD, LGD, Forward-Looking and Management Overlay groups), ECL Processing, System Documentation and Administration. The header comment in the file records the deduplication rules applied during the August 2026 navigation audit, for example that Early Warning and AI Commentary are tiles inside the reports hub and not menu items.
+The sidebar is generated from `config/menu.php`, consolidated on 9 October 2026. The file builds entries with four helpers: `$leaf` (one named route), `$section` (one menu entry whose screens are a row of tabs, each tab `$tab` being a screen's own route, optionally with query parameters such as `tab=cashflows`, so links and bookmarks keep working), and `$group` (a dropdown of leaves and sections). A top-level entry may carry a `color` for its icon and a `match` list of further route patterns that light it up. In order, the entries are:
 
-Rules that keep the menu honest: every leaf must be a registered route, and items a user is not permitted to see are hidden by the sidebar's permission check rather than left to fail with a 403.
+| Entry | Contents |
+|---|---|
+| Dashboard, Workspace | Leaves |
+| Reports | One leaf, the IFRS 9 reports hub; every report, reconciliation, export, stress testing and the auditor pack are reached from the hub and light this entry up |
+| Portfolio Setup | Section: Loan Portfolios, Product Groups, Sector Types |
+| Customer & Loan Data | Clients, Loan Book, and the section Imports & Feeds (Imports, E-Banker Loads, Loan Book Builds, Periods Built, Query Register, Take-on Blocks, Take-on Population) |
+| Collateral Management | Section: Collateral Register, Collateral Allocation, Collateral Types |
+| EIR & Revenue Recognition | Sections EIR Data, EIR Rules and EIR Calculations, and the Governance Centre |
+| IFRS 9 Model Setup | Sections Staging & SICR Rules, PD Model, LGD Model |
+| Forward-Looking Information | Sections FLI Month-End, Macro Statistics, Forward-Looking Model, Scenarios & Overlays (chapter 5.5) |
+| ECL Processing | ECL Calculation, Mega Farm Programme |
+| System Documentation | User Manual, Administrator Manual, Technical Manual, Installation Guide |
+| Administration | Users & Roles, Financial Periods, Audit (Audit Trail, Audit Trace, Compliance Audits), Support Tickets, Settings, Maintenance |
+
+There is no Legacy section: the earlier forward-looking screens are back in their places as working steps of the governed chain, and the legacy `/report` page and the legacy one-click regression screen are not linked. The header comment in the file records the rules: Reports is one entry; screens that do one job together are one entry with tabs; the report-hub tiles (Early Warning, AI Commentary, Executive Summary, the `ifrs9-reports.*` views) are never menu items.
+
+Rules that keep the menu honest: every route named in the file must be registered (`tests/Feature/NavigationTest.php`), and an entry or tab that declares a permission is hidden from a user who lacks it. `HandleInertiaRequests::visibleMenu()` drops such entries, drops a group left with no children, keeps only the tabs of a section the user may open and points the section at the first of them, so a user never sees a link that answers 403. A `download` entry is rendered as a plain anchor (2.1).
 
 ### 2.4 Shared props
 
@@ -64,13 +80,14 @@ Legacy button and label classes (`btn-*`, `label-*`) are recoloured at the sourc
 | Dashboard, Workspace | `DashboardController`, `WorkspaceController` | `ExpectedCreditLoss`, `LoanBook`, `ReportingPeriods`, `PeriodWorkspaceTask`, `WorkspaceMessage` | `Dashboard.vue`, `Workspace/` |
 | Reports | `Reports/Ifrs9ReportsController`, `Reports/StressTestingController`, `ReportsController` | `LoanBook`, `ExpectedCreditLoss`, `StressScenario`, `RegressionModel` | `Reports/`, `Reports/Ifrs9/` |
 | Portfolio Setup | `LoanPortfoliosController`, `IndustryTypesController`, `LoanProductGroupsController` | `LoanPortfolio`, `IndustryType`, `LoanProductGroup` | `Portfolios/`, `IndustryTypes/`, `LoanProductGroups/` |
-| Customer and Loan Data | `ClientsController`, `LoanBookController`, `ImportsController`, `GeneralImportController` | `Client`, `LoanBook`, `Import` | `Clients/`, `LoanBooks/`, `Imports/` |
+| Customer & Loan Data | `ClientsController`, `LoanBookController`, `ImportsController`, `GeneralImportController`, `EirFeedController`, `EirTakeonController` | `Client`, `LoanBook`, `Import` | `Clients/`, `LoanBooks/`, `Imports/` |
 | Collateral Management | `CollateralController` | `Collateral`, `CollateralType`, `CollateralAllocation` | `Collateral/` |
-| EIR and Revenue Recognition | `EirAccountingRuleController`, `EirDataController`, `EirIntakeController`, `EirFeeClassificationController`, `EirCalculationController`, `EirScheduleController`, `EirReconciliationController`, `EirCoverageController` | `ContractEir`, `ContractCashflowSchedule`, `ContractRemainingCashflowSchedule`, `ContractFee`, `EirAccountingRule`, `EirAmortisation`, `GlInterestPosting`, `GlTrialBalanceLine`, `GlAccountScope` | `Eir/` |
-| IFRS 9 Model Setup | `StageingRulesController`, `SicrGroupController`, `SicrItemController`, `SicrTriggerController`, `TransitionProfileController`, `TransitionMatrixController`, `TransitionMatrixCummulativeController`, `InternalGradingController`, `LossGiveDefaultController`, `LossGivenDefaultCummulativeController`, `MacroStatisticsController`, `ScenarioController`, `MacroForecastWeightedController`, `CreditLossDataController`, `ManualForecastController`, `RegressionController`, FLI controllers | `SicrGroup`, `SicrItem`, `SicrTrigger`, `TransitionProfile`, `TransitionMatrix`, `LossGivenDefault`, `MacroEconomicVariable`, `ScenarioSet`, `RegressionModel` | `StageingRules/`, `TransitionProfiles/`, `TransitionMatrix/`, `InternalGrading/`, `LossGivenDefault/`, `FLI/`, `Regression/` |
-| ECL Processing | `ExpectedCreditLossController`, `EclProjectionController` | `ExpectedCreditLoss`, `LoanBook` | `ExpectedCreditLoss/` |
+| EIR & Revenue Recognition | `EirAccountingRuleController`, `EirDataController`, `EirIntakeController`, `EirFeeClassificationController`, `EirCalculationController`, `EirScheduleController`, `EirReconciliationController`, `EirCoverageController`, `EirDrawdownController`, `EirReferenceRateController`, `EirAsAtController`, `EirGovernanceController` | `ContractEir`, `ContractCashflowSchedule`, `ContractRemainingCashflowSchedule`, `ContractFee`, `EirAccountingRule`, `EirAmortisation`, `GlInterestPosting`, `GlTrialBalanceLine`, `GlAccountScope` | `Eir/` |
+| IFRS 9 Model Setup | `StageingRulesController`, `SicrGroupController`, `SicrItemController`, `SicrTriggerController`, `TransitionProfileDefinitionController`, `TransitionMatrixController`, `TransitionMatrixCummulativeController`, `InternalGradingController`, `LossGiveDefaultController`, `LossGivenDefaultCummulativeController` | `SicrGroup`, `SicrItem`, `SicrTrigger`, `TransitionProfileDefinition`, `TransitionMatrix`, `LossGivenDefault` | `StageingRules/`, `TransitionProfileDefinitions/`, `TransitionMatrix/`, `InternalGrading/`, `LossGivenDefault/` |
+| Forward-Looking Information | `FliModuleController`, `MacroStatisticsController`, `CreditLossDataController`, `FliCorrelationController`, `FliAdjustmentsController`, `ManualForecastController`, `MacroForecastWeightedController`, `ScenariosController`, `ScenarioSetController`, `FLI/ScenarioSetController`, `FliOverlayController`, `FLI/ExternalCalculationsController` | `MacroStatsDefinition`, `MacroStatsValue`, `CreditLossDefinition`, `CreditLossData`, `ScenarioProfiles`, `MacroForecastWeighted`; the governed tables are read and written by the services in `app/Services/Fli` and `app/Services/Scenario` through the query builder (chapter 5.5) | `FLI/`, `Macro/`, `Governance/ScenarioSets.vue`, `Governance/Overlays.vue` |
+| ECL Processing | `ExpectedCreditLossController`, `EclProjectionController`, `MegaFarmController` | `ExpectedCreditLoss`, `LoanBook` | `ExpectedCreditLoss/`, `MegaFarm/` |
 | System Documentation | `HelpController`, `HelpManagementController`, `SystemDocsController` | `HelpCategory`, `HelpArticle` and children | `Help/`, `Docs/` |
-| Administration | `UsersController`, `RolesController`, `FinancialPeriodsController`, `AuditTrailController`, `TicketsController`, `SettingsController`, `LicenseController` | `User`, `Role`, `Permission`, `FinancialPeriod`, `Ticket`, `TicketUpdate`, `Setting`, `License` | `Users/`, `Roles/`, `FinancialPeriods/`, `AuditTrail/`, `Tickets/`, `Settings/`, `License/` |
+| Administration | `UsersController`, `RolesController`, `FinancialPeriodController`, `AuditTrailController`, `AuditTraceController`, `ComplianceAuditController`, `TicketsController`, `SettingsController`, `LicenseController`, `MaintenanceController` | `User`, `Role`, `Permission`, `FinancialPeriod`, `Ticket`, `TicketUpdate`, `Setting`, `License` | `Users/`, `Roles/`, `FinancialPeriods/`, `AuditTrail/`, `Audit/`, `Governance/Compliance/`, `Tickets/`, `Settings/`, `License/`, `Admin/Maintenance.vue` |
 
 ### 2.7 Conventions
 

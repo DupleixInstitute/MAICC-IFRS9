@@ -1,143 +1,69 @@
 <?php
-// app/Http/Controllers/ManualForecastController.php
 
 namespace App\Http\Controllers;
 
+use App\Services\Fli\FliProjectionService;
+use App\Services\Fli\FliRouteService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Log;
+use Throwable;
 
+/**
+ * Adjusted Forecast (FLI module specification v1, decision D-F4): the
+ * forecast of the credit-loss measure and of the PD that the model version
+ * in force gives under each scenario, year by year.
+ *
+ * The screen used to take a typed intercept, slope and macro path and keep
+ * the result in the session. It now reads the approved model and the
+ * approved scenario set of the month, so the forecast it shows is the one
+ * the ECL is built on: year 0 is the adjustment the route books, the later
+ * years run to the governed forecast horizon and revert to the long-run PD
+ * after it, and each portfolio's PD term structure (conditional, survival,
+ * marginal, cumulative) is stored for the month.
+ */
 class ManualForecastController extends Controller
 {
-    public function show(Request $request)
+    public function __construct()
     {
-        // Get forecast results from session if they exist
-        $forecastResults = $request->session()->get('forecastResults');
-        
+        $this->middleware('auth');
+        $this->middleware('permission:eir.govern')->only(['process']);
+    }
+
+    public function show(Request $request, FliProjectionService $projection, FliRouteService $route)
+    {
+        $p = (string) $request->query('period', '');
+        $period = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $p) ? $p : (string) (DB::table('loan_books')->whereNotNull('pd_prefli')->max('reporting_period') ?? now()->format('Y-m'));
+        $horizon = null;
+        $error = null;
+        try {
+            $horizon = $projection->horizon($period);
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        }
+        $model = $route->approvedFit($period);
+        $set = DB::table('governed_scenario_sets')->where('reporting_period', $period)->whereIn('status', ['APPROVED', 'LOCKED'])->orderByDesc('version')->first(['id', 'name', 'version', 'status']);
+        $applied = DB::table('audit_logs')->where('action', 'FLI Route Applied')->where('reporting_period', $period)->max('created_at');
+        $result = $projection->latest($period);
+
         return Inertia::render('FLI/ForecastMacroData/Manual', [
-            'forecastResults' => $forecastResults
+            'period' => $period,
+            'periods' => DB::table('loan_books')->distinct()->orderByDesc('reporting_period')->limit(36)->pluck('reporting_period'),
+            'model' => $model, 'set' => $set, 'horizon' => $horizon, 'error' => $error, 'result' => $result,
+            'stale' => $result && $applied && $result['created_at'] < $applied,
+            'canGovern' => (bool) $request->user()?->can('eir.govern'),
         ]);
     }
-    
-    public function process(Request $request)
+
+    public function process(Request $request, FliProjectionService $projection)
     {
-        Log::info('Manual forecast request received', $request->all());
-        
-        $request->validate([
-            'dependent_variable' => 'required|string',
-            'regression_intercept' => 'required|numeric',
-            'regression_coefficient' => 'required|numeric',
-            'baseline_value' => 'required|numeric',
-            'scenarios' => 'required|array|min:1',
-            'scenarios.*.name' => 'required|string',
-            'scenarios.*.probability' => 'required|numeric|min:0|max:100',
-            'scenarios.*.macro_forecast' => 'required|array|min:1',
-            'scenarios.*.macro_forecast.*' => 'required|numeric',
-            'save_session' => 'boolean',
-            'session_name' => 'nullable|string|max:255',
-        ]);
-        
-        // Only require session_name if save_session is true
-        if ($request->save_session && empty($request->session_name)) {
-            Log::warning('Session name required but not provided');
-            return back()->withErrors([
-                'session_name' => 'Session name is required when saving the session.'
-            ]);
+        $data = $request->validate(['period' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/']]);
+        try {
+            $r = $projection->run($data['period'], (int) $request->user()->id);
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
         }
-        
-        // Calculate forecasts
-        $results = $this->calculateManualForecast($request);
-        
-        Log::info('Forecast calculation completed', ['results' => $results]);
-        
-        // Store in session AND return to the page with the data
-        return redirect()->route('forecasting.manual')->with([
-            'forecastResults' => $results
-        ]);
-    }
-    
-    private function calculateManualForecast(Request $request)
-    {
-        $scenarios = collect($request->scenarios);
-        $coefficients = [
-            'intercept' => $request->regression_intercept,
-            'coeff_0' => $request->regression_coefficient
-        ];
-        $baselineValue = $request->baseline_value;
-        $forecastHorizon = 5;
-        
-        Log::info('Starting forecast calculation', [
-            'coefficients' => $coefficients,
-            'baseline' => $baselineValue,
-            'scenarios_count' => $scenarios->count()
-        ]);
-        
-        // Calculate weighted average for each period
-        $weightedForecasts = [];
-        for ($period = 0; $period < $forecastHorizon; $period++) {
-            $weightedMacroValue = 0;
-            
-            foreach ($scenarios as $scenario) {
-                $macroValue = $scenario['macro_forecast'][$period];
-                $probability = $scenario['probability'] / 100;
-                $weightedMacroValue += $macroValue * $probability;
-            }
-            
-            $weightedForecasts[] = [
-                'period' => $period,
-                'year' => now()->addYears($period)->year,
-                'weighted_macro_value' => $weightedMacroValue,
-            ];
-        }
-        
-        Log::info('Weighted forecasts calculated', $weightedForecasts);
-        
-        // Calculate forecasts using regression
-        $forecastResults = [];
-        foreach ($weightedForecasts as $forecast) {
-            $macroValue = $forecast['weighted_macro_value'];
-            $forecastValue = $coefficients['intercept'] + ($coefficients['coeff_0'] * $macroValue);
-            $changeFromBaseline = ($baselineValue != 0) ? ($forecastValue - $baselineValue) / $baselineValue : 0;
-            
-            $forecastResults[] = [
-                'period' => $forecast['period'],
-                'year' => $forecast['year'],
-                'weighted_macro_driver' => $macroValue,
-                'forecast_value' => $forecastValue,
-                'change_from_baseline' => $changeFromBaseline * 100, // as percentage
-            ];
-        }
-        
-        // Calculate individual scenario forecasts
-        $scenarioForecasts = [];
-        foreach ($scenarios as $scenario) {
-            $scenarioResults = [];
-            for ($period = 0; $period < $forecastHorizon; $period++) {
-                $macroValue = $scenario['macro_forecast'][$period];
-                $forecastValue = $coefficients['intercept'] + ($coefficients['coeff_0'] * $macroValue);
-                
-                $scenarioResults[] = [
-                    'period' => $period,
-                    'macro_value' => $macroValue,
-                    'forecast_value' => $forecastValue,
-                ];
-            }
-            
-            $scenarioForecasts[] = [
-                'name' => $scenario['name'],
-                'probability' => $scenario['probability'],
-                'forecasts' => $scenarioResults,
-            ];
-        }
-        
-        $finalResults = [
-            'weighted_forecast' => $forecastResults,
-            'scenario_forecasts' => $scenarioForecasts,
-            'regression_equation' => "Forecast = {$coefficients['intercept']} + ({$coefficients['coeff_0']} × Macro Driver)",
-        ];
-        
-        Log::info('Final results prepared', $finalResults);
-        
-        return $finalResults;
+
+        return redirect()->route('forecasting.manual', ['period' => $data['period']])->with('success', 'Projected ' . count($r['segments']) . ' portfolios under ' . count($r['adjustments']) . ' scenarios.');
     }
 }

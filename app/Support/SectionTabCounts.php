@@ -40,7 +40,6 @@ class SectionTabCounts
         'eir-fee-classification.index' => 'contract_fees',
         'eir-calculations.index' => 'contract_eir',
         'eir-reconciliation.index' => 'gl_interest_postings',
-        'stageing-rules.index' => 'finance_stageing_rules',
         'sicr-groups.index' => 'finance_sicr_groups',
         'sicr-items.index' => 'finance_sicr_items',
         'sicr-triggers.index' => 'finance_sicr_triggers',
@@ -51,15 +50,18 @@ class SectionTabCounts
         'loss-given-default.index' => 'loss_given_default',
         'lgd-cummulative.index' => 'loss_given_default_cummulative',
         'macro-statistics.index' => 'macro_statistics',
-        'macro-forecast-weighted.index' => 'macro_forecast_weighted',
+        'macro-forecast-weighted.index' => 'governed_scenario_sets',
         'credit-loss-data.index' => 'macro_credit_loss_data',
+        'fli-models.index' => 'fli_model_versions',
+        'forecasting.manual' => 'ecl_projection_runs',
+        'fli.overview' => 'fli_run_snapshots',
         'fli-correlation.index' => 'analysis_runs',
         'fli-adjustments.index' => 'fli_fits',
         'scenario-sets.index' => 'governed_scenario_sets',
         'scenarios.profiles' => 'scenario_profiles',
         'fli-overlays.index' => 'fli_overlays',
-        'fli.scenarios.index' => 'scenario_sets',
-        'fli.external.list' => 'fli_adj',
+        'fli.scenarios.index' => 'governed_scenario_sets',
+        'fli.external.list' => 'fli_run_snapshots',
         'users.index' => 'users',
         'users.roles.index' => 'roles',
         'audit-trail.index' => ['activity_log', 'audit_logs'],
@@ -102,26 +104,38 @@ class SectionTabCounts
         return false;
     }
 
+    /** Counts worked out once per request: a chip is never older than the page it sits on. */
+    private static array $memo = [];
+
     private static function count(string $route): ?int
     {
+        if (array_key_exists($route, self::$memo)) {
+            return self::$memo[$route];
+        }
+        // the views that list something other than a whole table
+        $special = [
+            'eir-feed.index?tab=periods' => fn () => Schema::hasTable('loan_books') ? DB::table('loan_books')->distinct()->count('reporting_period') : null,
+            'eir-as-at.index' => fn () => Schema::hasTable('contract_eir') ? DB::table('contract_eir')->where('calculation_status', 'LOCKED')->count() : null,
+            'eir-trial-balances.index' => fn () => Schema::hasTable('gl_trial_balance_lines') ? DB::table('gl_trial_balance_lines')->where('basis', 'POSTCLOSING')->distinct()->count('period') : null,
+        ];
+        if (isset($special[$route])) {
+            return self::$memo[$route] = $special[$route]();
+        }
         if (! isset(self::TABLES[$route])) {
-            return null;
+            return self::$memo[$route] = null;
+        }
+        $total = 0;
+        foreach ((array) self::TABLES[$route] as $table) {
+            if (! Schema::hasTable($table)) {
+                return self::$memo[$route] = null;
+            }
+            $q = DB::table($table);
+            if (Schema::hasColumn($table, 'deleted_at')) {
+                $q->whereNull('deleted_at');
+            }
+            $total += $q->count();
         }
 
-        return Cache::remember('section_tab_count.' . $route, 60, function () use ($route) {
-            $total = 0;
-            foreach ((array) self::TABLES[$route] as $table) {
-                if (! Schema::hasTable($table)) {
-                    return null;
-                }
-                $q = DB::table($table);
-                if (Schema::hasColumn($table, 'deleted_at')) {
-                    $q->whereNull('deleted_at');
-                }
-                $total += $q->count();
-            }
-
-            return $total;
-        });
+        return self::$memo[$route] = $total;
     }
 }

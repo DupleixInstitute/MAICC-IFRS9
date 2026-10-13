@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\DB;
+
 use App\Models\Event;
 use App\Models\Consultation;
 use App\Models\InvoicePayment;
@@ -53,7 +55,7 @@ class RolesController extends Controller
     {
 
         return Inertia::render('Roles/Create', [
-            'permissions' => Permission::all()->groupBy('module'),
+            'permissions' => $this->permissionGroups(),
         ]);
     }
 
@@ -87,7 +89,7 @@ class RolesController extends Controller
         });
         return Inertia::render('Roles/Show', [
             'role' => $role,
-            'permissions' => Permission::all()->groupBy('module'),
+            'permissions' => $this->permissionGroups(),
         ]);
     }
     public function edit(Role $role)
@@ -98,7 +100,7 @@ class RolesController extends Controller
         });
         return Inertia::render('Roles/Edit', [
             'role' => $role,
-            'permissions' => Permission::all()->groupBy('module'),
+            'permissions' => $this->permissionGroups(),
         ]);
     }
 
@@ -131,6 +133,19 @@ class RolesController extends Controller
         return redirect()->route('users.roles.index')->with('success', 'Role updated successfully.');
     }
 
+    /**
+     * The permission matrix by module, IFRS 9 modules first; the banks, branches and legal types
+     * screens are left from the platform's earlier life and are listed last, marked as such.
+     */
+    private function permissionGroups()
+    {
+        $legacy = ['Banks', 'Branches', 'Legal Types'];
+        $groups = Permission::all()->groupBy('module')->toBase();
+
+        return $groups->reject(fn ($p, $m) => in_array($m, $legacy, true))
+            ->merge($groups->only($legacy)->mapWithKeys(fn ($p, $m) => [$m . ' (legacy screen, not in the menu)' => $p]));
+    }
+
     public function destroy(Role $role)
     {
         if (App::environment('demo')) {
@@ -138,6 +153,11 @@ class RolesController extends Controller
         }
         if ($role->is_system == 1) {
             return redirect()->back()->with('error', 'Cannot delete system role.');
+        }
+        // a role still held would leave its users without access and without warning
+        $held = DB::table('model_has_roles')->where('role_id', $role->id)->count();
+        if ($held > 0) {
+            return redirect()->back()->with('error', "The role is held by {$held} user(s). Move them to another role before deleting it.");
         }
         $role->delete();
         return redirect()->route('users.roles.index')->with('success', 'Role deleted successfully.');

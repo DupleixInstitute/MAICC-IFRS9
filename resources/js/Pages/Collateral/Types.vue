@@ -1,5 +1,5 @@
 <template>
-  <app-layout title="Collateral Types" description="The kinds of collateral the register may hold, each with the haircut and the time to realise it used in the allocation">
+  <app-layout title="Collateral Types" description="The kinds of collateral the register may hold: the share of its value recognised after the haircut, and the months to realise it, used in the allocation">
     <template #actions>
       <button type="button" @click="openNew" class="primary-btn">New collateral type</button>
     </template>
@@ -12,7 +12,7 @@
               <th>Code</th>
               <th>Name</th>
               <th>Description</th>
-              <th class="num">Haircut %</th>
+              <th class="num">Value recognised</th>
               <th class="num">Realisation (months)</th>
               <th class="text-right">Actions</th>
             </tr>
@@ -21,9 +21,9 @@
             <tr v-for="type in types?.data || []" :key="type.id">
               <td class="font-mono text-xs">{{ type.type_code }}</td>
               <td class="font-semibold text-gray-900">{{ type.type_name }}</td>
-              <td>{{ type.description || '-' }}</td>
-              <td class="num">{{ Number(type.standard_haircut).toFixed(2) }}</td>
-              <td class="num">{{ type.realisation_period }}</td>
+              <td>{{ type.description && type.description !== '0' ? type.description : '-' }}</td>
+              <td class="num"><span v-if="Number(type.standard_haircut) > 0">{{ (Number(type.standard_haircut) * 100).toFixed(0) }}%</span><span v-else class="maiic-badge maiic-badge-gold" title="No value is recognised for this type until it is set">Not set</span></td>
+              <td class="num">{{ Number(type.realisation_period) > 0 ? type.realisation_period : '-' }}</td>
               <td class="w-px">
                 <div class="flex items-center justify-end gap-1.5">
                   <button type="button" @click="editType(type)" class="maiic-action maiic-action-edit" title="Edit">
@@ -64,13 +64,14 @@
               <p v-if="errors.type_name" class="mt-1 text-xs text-red-600">{{ errors.type_name }}</p>
             </div>
             <div>
-              <label class="maiic-flabel" for="t-haircut">Haircut %</label>
-              <input id="t-haircut" v-model="form.standard_haircut" type="number" step="0.01" min="0" max="100" class="maiic-input" required/>
+              <label class="maiic-flabel" for="t-haircut">Value recognised (0 to 1)</label>
+              <input id="t-haircut" v-model="form.standard_haircut" type="number" step="0.01" min="0" max="1" class="maiic-input" required/>
+              <p class="mt-1 text-xs text-gray-500">The share of the value kept after the haircut: 0.70 for a 30 percent haircut, 1 for a guarantee counted in full.</p>
               <p v-if="errors.standard_haircut" class="mt-1 text-xs text-red-600">{{ errors.standard_haircut }}</p>
             </div>
             <div>
               <label class="maiic-flabel" for="t-months">Realisation (months)</label>
-              <input id="t-months" v-model="form.realisation_period" type="number" min="1" class="maiic-input" required/>
+              <input id="t-months" v-model="form.realisation_period" type="number" min="0" max="240" class="maiic-input" required/>
               <p v-if="errors.realisation_period" class="mt-1 text-xs text-red-600">{{ errors.realisation_period }}</p>
             </div>
             <div class="col-span-2">

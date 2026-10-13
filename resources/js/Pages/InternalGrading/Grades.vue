@@ -64,6 +64,14 @@
               >
                <i class="fas fa-edit "></i>
               </button>
+              <button
+                v-if="!profile.is_active"
+                @click.stop="deleteGrade(grade)"
+                class="text-sm text-gray-500 hover:text-red-600"
+                title="Delete grade"
+              >
+               <i class="fas fa-trash"></i>
+              </button>
 
               <button @click="toggleGrade(grade.id)">
                 <svg
@@ -111,6 +119,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { router } from '@inertiajs/vue3'
 import AddGradeModal from './AddGrade.vue'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 
@@ -137,6 +146,11 @@ function openCreate() {
 function openEdit(grade) {
   editGrade.value = grade
   showModal.value = true
+}
+
+function deleteGrade(grade) {
+  if (!confirm(`Delete grade ${grade.grade_code} and its PD curve? This cannot be undone.`)) return
+  router.delete(route('internal-grading.grade.destroy', [props.profile.id, grade.id]), { preserveScroll: true })
 }
 
 function closeModal() {

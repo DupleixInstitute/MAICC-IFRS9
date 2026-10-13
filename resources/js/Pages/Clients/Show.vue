@@ -30,6 +30,17 @@
                 </dl>
             </div>
         </div>
+
+        <div class="maiic-panel mt-5">
+            <div class="border-b border-gray-200 px-5 py-3"><span class="text-sm font-bold text-gray-900">Loans</span><span class="ml-2 text-xs text-gray-500">{{ loansPeriod ? 'in the loan book of ' + loansPeriod : 'none in the loan book' }}</span></div>
+            <div class="maiic-table-wrap"><table class="maiic-table">
+                <thead><tr><th>Contract</th><th>Product group</th><th class="num">Carrying amount</th><th class="num">Days overdue</th><th class="num">Stage</th><th class="num">ECL</th></tr></thead>
+                <tbody>
+                    <tr v-for="l in loans" :key="l.id"><td class="font-mono text-xs">{{ l.contract_id }}</td><td>{{ l.product_group || '-' }}</td><td class="num">{{ money(l.carrying_amount) }}</td><td class="num">{{ l.overdue_days ?? '-' }}</td><td class="num">{{ l.stage || '-' }}</td><td class="num">{{ money(l.ecl_value) }}</td></tr>
+                    <tr v-if="!(loans || []).length"><td colspan="6" class="maiic-empty">This client has no loan in the loan book.</td></tr>
+                </tbody>
+            </table></div>
+        </div>
     </app-layout>
 </template>
 
@@ -42,8 +53,11 @@ export default {
     components: { AppLayout, Link },
     props: {
         client: Object,
+        loans: { type: Array, default: () => [] },
+        loansPeriod: { type: String, default: null },
     },
     computed: {
+        money() { return (v) => (v === null || v === undefined ? '-' : Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })) },
         identity() {
             const c = this.client
             const statusBadge = { active: 'maiic-badge-green', pending: 'maiic-badge-gold', inactive: 'maiic-badge-grey', archived: 'maiic-badge-grey', deceased: 'maiic-badge-red' }[c.status] || 'maiic-badge-grey'

@@ -204,6 +204,7 @@ Route::prefix('scoring_attribute')->name('scoring_attributes.')->group(function 
 //clients
 Route::group(['prefix' => 'client', 'as' => 'clients.'], function () {
     Route::get('/', [ClientsController::class, 'index'])->name('index');
+    Route::post('/link-loan-book', [ClientsController::class, 'linkLoanBook'])->name('link-loan-book');
     Route::get('/create', [ClientsController::class, 'create'])->name('create');
     Route::get('/search', [ClientsController::class, 'search'])->name('search');
     Route::post('/store', [ClientsController::class, 'store'])->name('store');
@@ -562,6 +563,15 @@ Route::prefix('communication')->group(function () {
 // Settings. The whole group (including every update POST) requires the
 // settings permission: previously any logged-in user could rewrite e.g.
 // mail credentials.
+// Maintenance console: a fixed whitelist of artisan commands run from the
+// browser with live output. Viewing needs the settings permission; running,
+// which includes a full wipe-and-rebuild, needs the admin role.
+Route::middleware(['auth', 'permission:settings'])->prefix('maintenance')->name('maintenance.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\MaintenanceController::class, 'index'])->name('index');
+    Route::post('/run', [\App\Http\Controllers\MaintenanceController::class, 'run'])->name('run')->middleware('role:admin');
+    Route::get('/output/{id}', [\App\Http\Controllers\MaintenanceController::class, 'output'])->name('output')->where('id', '[A-Za-z0-9\-]+');
+});
+
 Route::group(['prefix' => 'setting', 'middleware' => ['auth', 'permission:settings']], function () {
     Route::get('/', [SettingsController::class, 'index'])->name('settings.index');
     Route::get('/organisation', [SettingsController::class, 'organisation'])->name('settings.organisation');
@@ -742,8 +752,9 @@ Route::get('/transition-profiles/create', [TransitionProfileDefinitionController
 
 // Separate route for DataTables AJAX request
 Route::get('/api/transition-profiles', [TransitionProfileDefinitionController::class, 'getProfiles']); // For DataTables data
-Route::get('/api/transition-profiles/tables', [TransitionProfileDefinitionController::class, 'getTables']); // For getting tables
-Route::get('/api/transition-profiles/columns', [TransitionProfileDefinitionController::class, 'getColumns']);
+// the create page reads tables and columns here, on the session (the /api copies need a Sanctum-stateful host)
+Route::get('/api/transition-profiles/tables', [TransitionProfileDefinitionController::class, 'getTables'])->middleware('permission:reports.ifrs9');
+Route::get('/api/transition-profiles/columns/{table}', [TransitionProfileDefinitionController::class, 'getColumns'])->middleware('permission:reports.ifrs9');
 
 
 // Transition Profile Options
@@ -800,7 +811,6 @@ Route::get('/loss-given-default/cummulative/reports',[LossGivenDefaultCummulativ
 // ECL Routes
 Route::get('/expected-credit-loss/list', [ExpectedCreditLossController::class, 'index'])->name('expected-credit-loss.index');
 Route::get('/expected-credit-loss/summary', [ExpectedCreditLossController::class, 'summary'])->name('expected-credit-loss.summary');
-Route::post('/collateral/allocations/allocate', [CollateralController::class, 'allocateCollateral'])->name('collateral.allocations.allocate');
 Route::get('/collateral/allocations/download-report', [CollateralController::class, 'downloadAllocationReport'])->name('collateral.allocations.download-report');
 
 // Auto Allocate (Inertia UI page)
@@ -884,9 +894,12 @@ Route::get('/expected-credit-loss/reports',[ExpectedCreditLossController::class,
 Route::get('/expected-credit-loss/projections',[\App\Http\Controllers\EclProjectionController::class,'index'])->name('expected-credit-loss.projections');
 
 // Stageing Rules Routes
-Route::group(['prefix' => 'stageing-rules', 'as' => 'stageing-rules.'], function () {
-    Route::get('/', [\App\Http\Controllers\StageingRulesController::class, 'index'])->name('index');
-    Route::post('/store', [\App\Http\Controllers\StageingRulesController::class, 'store'])->name('store');
+// The old "Quantitative Thresholds" screen edited finance_stageing_rules, which
+// no engine reads: loans are staged from staging_thresholds and the governed
+// settings. Retired 9 October 2026; the address opens Settings, Staging basis.
+Route::group(['prefix' => 'stageing-rules', 'as' => 'stageing-rules.', 'middleware' => 'auth'], function () {
+    Route::get('/', fn () => redirect()->route('settings.index', ['tab' => 'staging']))->name('index');
+    Route::post('/store', fn () => redirect()->route('settings.index', ['tab' => 'staging']))->name('store');
 });
 
 Route::group(['prefix' => 'sicr-groups', 'as' => 'sicr-groups.'], function () {
@@ -906,12 +919,14 @@ Route::group(['prefix' => 'sicr-items', 'as' => 'sicr-items.'], function () {
     Route::delete('/{item}/destroy', [\App\Http\Controllers\SicrItemController::class, 'destroy'])->name('destroy');
 });
 
+// The qualitative SICR register: raise, approve (a second person), reject,
+// close. The staging engine reads the approved triggers in force.
 Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function () {
     Route::get('/', [\App\Http\Controllers\SicrTriggerController::class, 'index'])->name('index');
     Route::post('/store', [\App\Http\Controllers\SicrTriggerController::class, 'store'])->name('store');
-    Route::post('/{trigger}/update-loan-book', [\App\Http\Controllers\SicrTriggerController::class, 'updateLoanBook'])->name('update-loan-book');
-    Route::post('/{trigger}/remove-alert', [\App\Http\Controllers\SicrTriggerController::class, 'removeAlert'])->name('remove-alert');
-    Route::get('/customers', [\App\Http\Controllers\SicrTriggerController::class, 'getCustomers'])->name('customers');
+    Route::post('/{trigger}/approve', [\App\Http\Controllers\SicrTriggerController::class, 'approve'])->whereNumber('trigger')->name('approve');
+    Route::post('/{trigger}/reject', [\App\Http\Controllers\SicrTriggerController::class, 'reject'])->whereNumber('trigger')->name('reject');
+    Route::post('/{trigger}/close', [\App\Http\Controllers\SicrTriggerController::class, 'close'])->whereNumber('trigger')->name('close');
 });
 
 // EIR module - schedule & fee intake (docs/EIR_Build.md Phase 2)
@@ -992,6 +1007,17 @@ Route::post('/macro-statistics/preview', [\App\Http\Controllers\MacroStatisticsC
 Route::post('/macro-statistics/commit', [\App\Http\Controllers\MacroStatisticsController::class, 'commit'])->name('macro-statistics.commit');
 Route::post('/macro-statistics/manual', [\App\Http\Controllers\MacroStatisticsController::class, 'manual'])->name('macro-statistics.manual');
 Route::get('/macro-statistics/export', [\App\Http\Controllers\MacroStatisticsController::class, 'export'])->name('macro-statistics.export');
+// Variables, observations, your own CSV and the scenario assumptions, all from the Macro Statistics screen
+Route::post('/macro-statistics/variables', [\App\Http\Controllers\MacroStatisticsController::class, 'variableStore'])->name('macro-statistics.variables.store');
+Route::put('/macro-statistics/variables/{id}', [\App\Http\Controllers\MacroStatisticsController::class, 'variableUpdate'])->name('macro-statistics.variables.update');
+Route::delete('/macro-statistics/variables/{id}', [\App\Http\Controllers\MacroStatisticsController::class, 'variableDestroy'])->name('macro-statistics.variables.destroy');
+Route::put('/macro-statistics/observations/{id}', [\App\Http\Controllers\MacroStatisticsController::class, 'observationUpdate'])->name('macro-statistics.observations.update');
+Route::delete('/macro-statistics/observations/{id}', [\App\Http\Controllers\MacroStatisticsController::class, 'observationDestroy'])->name('macro-statistics.observations.destroy');
+Route::post('/macro-statistics/csv-preview', [\App\Http\Controllers\MacroStatisticsController::class, 'csvPreview'])->name('macro-statistics.csv-preview');
+Route::post('/macro-statistics/csv-commit', [\App\Http\Controllers\MacroStatisticsController::class, 'csvCommit'])->name('macro-statistics.csv-commit');
+Route::post('/macro-statistics/assumptions/{set}', [\App\Http\Controllers\MacroStatisticsController::class, 'assumptionSave'])->name('macro-statistics.assumptions.save');
+Route::post('/macro-statistics/assumptions/{set}/weights', [\App\Http\Controllers\MacroStatisticsController::class, 'assumptionWeights'])->name('macro-statistics.assumptions.weights');
+Route::post('/macro-statistics/assumptions/{set}/version', [\App\Http\Controllers\MacroStatisticsController::class, 'assumptionVersion'])->name('macro-statistics.assumptions.version');
 Route::post('/macro-statistics', [MacroStatsController::class, 'store'])->name('macro-statistics.store');
 Route::put('/macro-statistics/{id}', [MacroStatsController::class, 'update'])->name('macro-statistics.update');
 Route::delete('/macro-statistics/{id}', [MacroStatsController::class, 'destroy'])->name('macro-statistics.destroy');
@@ -1015,12 +1041,14 @@ Route::prefix('scenarios')->group(function () {
 Route::get('/scenario-profiles', [ScenariosController::class, 'profiles'])->name('scenarios.profiles');
 Route::post('/scenario-profiles', [ScenariosController::class, 'storeProfile'])->name('scenarios.profiles.store');
 Route::put('/scenario-profiles/{profile}', [ScenariosController::class, 'updateProfile'])->name('scenarios.profiles.update');
+// FLI module: the standard profile, and a draft governed scenario set started from a profile
+Route::post('/scenario-profiles/standard', [ScenariosController::class, 'seedStandard'])->middleware('permission:eir.govern')->name('scenarios.profiles.seed');
+Route::post('/scenario-profiles/{profile}/start', [ScenariosController::class, 'startSet'])->middleware('permission:eir.govern')->name('scenarios.profiles.start');
 
 // Forecast Routes
 Route::get('/macro-forecast-weighted', [MacroForecastWeightedController::class, 'index'])->name('macro-forecast-weighted.index');
-Route::post('/macro-forecast-weighted', [MacroForecastWeightedController::class, 'store'])->name('macro-forecast-weighted.store');
+// the weighted path of a governed scenario set (FLI module); {id} is the set
 Route::post('/macro-forecast-weighted/calculate', [MacroForecastWeightedController::class, 'calculate'])->name('macro-forecast-weighted.calculate');
-Route::post('/macro-forecast-weighted/{id}/rerun', [MacroForecastWeightedController::class, 'rerun'])->name('macro-forecast-weighted.rerun');
 Route::delete('/macro-forecast-weighted/{id}', [MacroForecastWeightedController::class, 'destroy'])->name('macro-forecast-weighted.destroy');
 
 // Credit Loss Data Routes
@@ -1078,6 +1106,7 @@ Route::post('/collateral/allocate/auto', [CollateralController::class, 'allocate
 Route::prefix('groups')->name('groups.')->group(function () {
     Route::get('/', [LoanProductCategoriesController::class, 'index'])->name('index');
     Route::get('/create', [LoanProductCategoriesController::class, 'create'])->name('create');
+    Route::post('/sync', [LoanProductCategoriesController::class, 'sync'])->name('sync');
     Route::post('/store', [LoanProductCategoriesController::class, 'store'])->name('store');
     Route::get('/{group}/edit', [LoanProductCategoriesController::class, 'edit'])->name('edit');
     Route::put('/{group}/update', [LoanProductCategoriesController::class, 'update'])->name('update');
@@ -1099,24 +1128,14 @@ Route::prefix('fli-adj')->middleware(['auth'])->group(function () {
         Route::delete('/{scenarioSet}', [ScenarioSetController::class, 'destroy'])->name('destroy');
     });
 
-    // External Calculations: the legacy one-slope chain, retired in favour of FLI
-    // Adjustments and kept behind the reports permission (audit finding M6)
+    // External Calculations: an externally calibrated model, proposed and approved
+    // (FLI module); History: every month's run and the approvals behind it. The
+    // older one-slope endpoints that wrote fli_adj onto the loans outside
+    // maker-checker (audit finding M6) are replaced by the governed route.
     Route::prefix('external')->name('fli.external.')->middleware('permission:reports.ifrs9')->group(function () {
         Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
         Route::get('/list', [ExternalCalculationsController::class, 'list'])->name('list');
-        Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
-        Route::post('/generate-forecasts', [ExternalCalculationsController::class, 'generateForecasts'])->name('generate');
-        Route::post('/save-adjustments', [ExternalCalculationsController::class, 'saveAdjustments'])->name('save');
-        Route::post('/update-loanbook', [ExternalCalculationsController::class, 'updateLoanBook'])->name('update-loanbook');
-    });
-
-    // System Calculations (Regression Analysis) - Reuses ExternalCalculationsController (legacy, finding M6)
-    Route::prefix('regression')->name('fli.regression.')->middleware('permission:reports.ifrs9')->group(function () {
-        Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
-        Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
-        Route::post('/generate-forecasts', [ExternalCalculationsController::class, 'generateForecasts'])->name('generate');
-        Route::post('/save-adjustments', [ExternalCalculationsController::class, 'saveAdjustments'])->name('save');
-        Route::post('/update-loanbook', [ExternalCalculationsController::class, 'updateLoanBook'])->name('update-loanbook');
+        Route::post('/propose', [ExternalCalculationsController::class, 'propose'])->name('propose');
     });
 // Manual Forecasting Routes
 Route::prefix('forecasting')->group(function () {
@@ -1144,6 +1163,12 @@ Route::prefix('forecasting')->group(function () {
         
         Route::put('/internal-grading/{profile}/grade/{grade}', [InternalGradingController::class, 'updateGrade'])
             ->name('internal-grading.grade.update');
+        Route::delete('/internal-grading/{profile}/grade/{grade}', [InternalGradingController::class, 'destroyGrade'])
+            ->name('internal-grading.grade.destroy');
+        Route::put('/internal-grading/{profile}', [InternalGradingController::class, 'updateProfile'])
+            ->name('internal-grading.profile.update');
+        Route::delete('/internal-grading/{profile}', [InternalGradingController::class, 'destroyProfile'])
+            ->name('internal-grading.profile.destroy');
 
         
         Route::get( '/internal-grading/{profile}/matrix', [InternalGradingController::class, 'matrix'])
@@ -1265,6 +1290,11 @@ Route::group(['prefix' => 'eir-feed', 'as' => 'eir-feed.'], function () {
     Route::post('/build', [\App\Http\Controllers\EirFeedController::class, 'build'])->name('build');
     Route::post('/build/{build}/approve', [\App\Http\Controllers\EirFeedController::class, 'approve'])->name('approve');
 });
+// Finance's monthly trial balance, from the screen, through the landing zone's gates
+Route::group(['prefix' => 'eir-trial-balances', 'as' => 'eir-trial-balances.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirTrialBalanceController::class, 'index'])->name('index');
+    Route::post('/upload', [\App\Http\Controllers\EirTrialBalanceController::class, 'upload'])->name('upload');
+});
 Route::group(['prefix' => 'eir-takeon', 'as' => 'eir-takeon.'], function () {
     Route::get('/', [\App\Http\Controllers\EirTakeonController::class, 'index'])->name('index');
     Route::post('/upload', [\App\Http\Controllers\EirTakeonController::class, 'upload'])->name('upload');
@@ -1300,6 +1330,7 @@ Route::group(['prefix' => 'scenario-sets', 'as' => 'scenario-sets.'], function (
     Route::post('/{set}/approve', [\App\Http\Controllers\ScenarioSetController::class, 'approve'])->name('approve');
     Route::post('/{set}/lock', [\App\Http\Controllers\ScenarioSetController::class, 'lock'])->name('lock');
     Route::post('/{set}/version', [\App\Http\Controllers\ScenarioSetController::class, 'version'])->name('version');
+    Route::post('/{set}/discard', [\App\Http\Controllers\ScenarioSetController::class, 'discard'])->name('discard');
     // the editor: the proposer changes weights, scenarios and shocks until the set is approved (audit M5)
     Route::post('/{set}/update', [\App\Http\Controllers\ScenarioSetController::class, 'update'])->name('update');
     Route::post('/{set}/scenarios', [\App\Http\Controllers\ScenarioSetController::class, 'addScenario'])->name('add-scenario');
@@ -1313,6 +1344,21 @@ Route::group(['prefix' => 'fli-overlays', 'as' => 'fli-overlays.'], function () 
     Route::post('/{overlay}/approve', [\App\Http\Controllers\FliOverlayController::class, 'approve'])->name('approve');
     Route::post('/{overlay}/reject', [\App\Http\Controllers\FliOverlayController::class, 'reject'])->name('reject');
     Route::post('/{overlay}/expire', [\App\Http\Controllers\FliOverlayController::class, 'expire'])->name('expire');
+});
+
+// Forward-Looking Information (FLI module specification v1, 13 October 2026):
+// the month-end Overview, Impact Analysis, Model Versions.
+Route::middleware(['auth'])->group(function () {
+    Route::get('/fli', [\App\Http\Controllers\FliModuleController::class, 'overview'])->name('fli.overview');
+    Route::get('/fli/impact', [\App\Http\Controllers\FliModuleController::class, 'impact'])->name('fli.impact');
+    Route::post('/fli/run', [\App\Http\Controllers\FliModuleController::class, 'run'])->name('fli.run');
+    Route::get('/fli/run/{id}', [\App\Http\Controllers\FliModuleController::class, 'output'])->where('id', '[A-Za-z0-9\-]+')->name('fli.run.output');
+    Route::post('/fli/snapshots/{snapshot}/sign-off', [\App\Http\Controllers\FliModuleController::class, 'signOff'])->name('fli.sign-off');
+    Route::post('/fli/snapshots/{snapshot}/comment', [\App\Http\Controllers\FliModuleController::class, 'comment'])->name('fli.comment');
+    Route::get('/fli/models', [\App\Http\Controllers\FliModuleController::class, 'models'])->name('fli-models.index');
+    Route::post('/fli/models/{version}/retire', [\App\Http\Controllers\FliModuleController::class, 'retire'])->name('fli-models.retire');
+    Route::post('/fli/models/{version}/approve', [\App\Http\Controllers\FliModuleController::class, 'approveExternal'])->name('fli-models.approve-external');
+    Route::post('/fli/models/{version}/reject', [\App\Http\Controllers\FliModuleController::class, 'rejectExternal'])->name('fli-models.reject-external');
 });
 
 // FLI Adjustments: the fits, the approved one, the method cards, the route (spec v4 s.14.6 to 14.8).

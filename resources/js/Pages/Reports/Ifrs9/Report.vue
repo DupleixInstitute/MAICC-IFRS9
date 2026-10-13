@@ -136,7 +136,7 @@ const isTotal = (row) => /^(total|totals|grand total|net|closing)/i.test(String(
                     </div>
                     <p v-if="sec.note" class="px-4 pb-2 text-xs text-gray-500">{{ sec.note }}</p>
                     <div v-if="sec.rows.length" class="maiic-table-wrap">
-                        <table class="maiic-table">
+                        <table class="maiic-table" :class="{ 'maiic-table-compact': sec.columns.length > 6 }">
                             <thead>
                                 <tr>
                                     <th v-for="(c, ci) in sec.columns" :key="ci" :class="{ num: isNum(sec, ci) }">{{ c }}</th>
@@ -144,7 +144,7 @@ const isTotal = (row) => /^(total|totals|grand total|net|closing)/i.test(String(
                             </thead>
                             <tbody>
                                 <tr v-for="(row, ri) in pagedRows(sec, si)" :key="ri" :class="{ total: isTotal(row) }">
-                                    <td v-for="(cell, ci) in row" :key="ci" :class="isNum(sec, ci) ? 'num' : ''">{{ cell }}</td>
+                                    <td v-for="(cell, ci) in row" :key="ci" :class="isNum(sec, ci) ? 'num' : (ci === 0 && String(cell).length <= 12 ? 'whitespace-nowrap' : '')">{{ cell }}</td>
                                 </tr>
                             </tbody>
                         </table>

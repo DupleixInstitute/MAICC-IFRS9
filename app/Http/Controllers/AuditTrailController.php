@@ -97,6 +97,10 @@ class AuditTrailController extends Controller
             $union = $activity->unionAll($module);
         }
 
+        if ($request->query('export') === 'csv') {
+            return $this->export($union);
+        }
+
         $perPage = 15;
         $page = max(1, (int) $request->input('page', 1));
 
@@ -111,6 +115,7 @@ class AuditTrailController extends Controller
         $entries = collect($rows->items())->map(function ($row) use ($users) {
             return [
                 'source' => $row->source,
+                'kind' => self::kind($row),
                 'action' => $row->action,
                 'entity' => class_basename((string) $row->entity),
                 'entity_id' => $row->entity_id,
@@ -137,5 +142,40 @@ class AuditTrailController extends Controller
                 'module' => DB::table('audit_logs')->count(),
             ],
         ]);
+    }
+
+    /** A record change, an export or download, or a module action (a calculation, an approval, a setting). */
+    private static function kind(object $row): string
+    {
+        if ($row->source === 'activity') {
+            return 'Record change';
+        }
+
+        return preg_match('/export|download|pack|pdf|excel|csv/i', (string) $row->action) ? 'Export' : 'Module action';
+    }
+
+    /** The filtered trail as a CSV, newest first. */
+    private function export($union)
+    {
+        $users = DB::table('users')->pluck('name', 'id');
+        $file = 'audit_trail_' . now()->format('Y-m-d_His') . '.csv';
+
+        return response()->streamDownload(function () use ($union, $users) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['When', 'User', 'Type', 'Action', 'Record', 'Record ID', 'Details']);
+            DB::query()->fromSub($union, 'trail')->orderByDesc('created_at')->limit(100000)->get()
+                ->each(function ($row) use ($out, $users) {
+                    fputcsv($out, [
+                        $row->created_at,
+                        $row->user_id ? ($users[$row->user_id] ?? 'User #' . $row->user_id) : 'System',
+                        self::kind($row),
+                        $row->action,
+                        class_basename((string) $row->entity),
+                        $row->entity_id,
+                        $row->details,
+                    ]);
+                });
+            fclose($out);
+        }, $file, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }

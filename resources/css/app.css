@@ -46,8 +46,10 @@
    ============================================================ */
 @layer components {
     /* Card panel that wraps tables and content blocks */
+    /* overflow-x-auto (not hidden): a wide table scrolls inside the panel
+       instead of being clipped at its edge. */
     .maiic-panel {
-        @apply bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden;
+        @apply bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto;
     }
 
     /* Data table: brand header band, zebra, hover, right-aligned numerics */
@@ -69,11 +71,28 @@
     .maiic-table tbody tr:nth-child(even) {
         @apply bg-gray-50;
     }
+    /* many columns: tighter cells, so the table fits the panel at 1440 px */
+    .maiic-table-compact thead th {
+        @apply px-2.5 whitespace-normal;
+    }
+    .maiic-table-compact tbody td {
+        @apply px-2.5 text-[13px];
+    }
     .maiic-table tbody tr:hover {
         @apply bg-maiic-50/60;
     }
     .maiic-table tfoot th, .maiic-table tr.total td {
         @apply bg-gray-100 text-maiic-900 font-extrabold border-t-2 border-maiicgold-500;
+    }
+    /* footer cells sit under the body cells: same padding, numbers to the right */
+    .maiic-table tfoot th {
+        @apply px-4 py-2.5 text-left text-sm;
+    }
+    .maiic-table tfoot th.num {
+        @apply text-right;
+    }
+    .maiic-table-compact tfoot th {
+        @apply px-2.5;
     }
     .num {
         @apply text-right tabular-nums whitespace-nowrap;

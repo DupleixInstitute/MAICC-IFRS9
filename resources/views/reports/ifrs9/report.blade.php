@@ -53,6 +53,9 @@
     table.grid { width: 100%; border-collapse: collapse; }
     table.grid thead { display: table-header-group; }
     table.grid tr { page-break-inside: avoid; }
+    /* a short section stays on one page, so a heading or a table header is never left alone at the foot */
+    .sec.keep { page-break-inside: avoid; }
+    .sec h3 { page-break-after: avoid; }
     table.grid th { background: #14532d; color: #ffffff; font-size: 7px; font-weight: bold; padding: 4px 6px;
                     text-align: left; text-transform: uppercase; letter-spacing: .3px; }
     table.grid th.r { text-align: right; }
@@ -107,6 +110,8 @@
 
     @php $part = null; @endphp
     @forelse($report['sections'] as $sec)
+        {{-- the part banner sits inside its first section, so the two move to a new page together --}}
+        <div class="sec{{ count($sec['rows'] ?? []) <= 20 ? ' keep' : '' }}">
         @if(!empty($sec['part']) && $sec['part'] !== $part)
             @php $first = $part === null; $part = $sec['part']; @endphp
             <div class="part">
@@ -114,7 +119,6 @@
                 @if(!empty($sec['part_note']))<div class="pn">{{ $sec['part_note'] }}</div>@endif
             </div>
         @endif
-        <div class="sec">
             @if(!empty($sec['heading']))<h3>{{ $sec['heading'] }}</h3>@endif
             @if(!empty($sec['note']))<p class="note">{{ $sec['note'] }}</p>@endif
             @if(empty($sec['rows']))

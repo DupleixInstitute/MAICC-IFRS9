@@ -4,6 +4,7 @@ namespace App\Services\Scenario;
 
 use App\Services\AuditLoggerService;
 use App\Services\Eir\GovernanceService;
+use App\Support\Fli\AsAtSeries;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -370,6 +371,27 @@ class ScenarioSetService
             ->get(['id', 'scope', 'scope_value', 'adjustment', 'reason', 'owner_id', 'expiry_period', 'approved_by', 'approver_label'])->map(fn ($o) => array_merge((array) $o, ['adjustment' => (float) $o->adjustment, 'id' => (int) $o->id]))->all();
     }
 
+    /**
+     * Discard a draft that was never proposed: the set, its scenarios and their
+     * shocks go; the audit log keeps what was there. A proposed, approved or
+     * locked set is never deleted.
+     */
+    public function discardDraft(int $setId, ?int $userId): void
+    {
+        $set = DB::table('governed_scenario_sets')->where('id', $setId)->first() ?? throw new RuntimeException("No scenario set {$setId}.");
+        if ($set->status !== 'DRAFT') {
+            throw new RuntimeException("Set {$setId} is {$set->status}; only a draft that was never proposed can be discarded.");
+        }
+        $before = $this->snapshot($setId);
+        DB::transaction(function () use ($setId) {
+            $ids = DB::table('governed_scenarios')->where('set_id', $setId)->pluck('id');
+            DB::table('scenario_shocks')->whereIn('scenario_id', $ids)->delete();
+            DB::table('governed_scenarios')->where('set_id', $setId)->delete();
+            DB::table('governed_scenario_sets')->where('id', $setId)->delete();
+        });
+        AuditLoggerService::log('Scenario Set Draft Discarded', 'governed_scenario_sets', $setId, ['reporting_period' => $set->reporting_period, 'old_values' => $before, 'meta' => ['user' => $userId]]);
+    }
+
     /** A change after lock: a new version, the locked one stays attached to the period. */
     public function newVersion(int $setId, string $reason, ?int $userId): int
     {
@@ -386,22 +408,49 @@ class ScenarioSetService
 
     // ----- the paths, the back-test and the sensitivity ----------------------
 
-    /** The base path per series (annual, from macro_series) and each scenario's shocked path. */
+    /**
+     * The base path per series (annual, from macro_series) and each scenario's
+     * shocked path, as at the set's reporting period.
+     *
+     * Only what was knowable by the end of the period is read (IFRS 9
+     * 5.5.17(c), B5.5.49 to B5.5.51; AsAtSeries says when a row becomes
+     * knowable): an actual dated on or before the period, a forecast whose
+     * vintage is dated on or before it. Year offset o is the calendar year of
+     * the period plus o, valued at the latest knowable observation in that
+     * year. Where no value of that year is knowable (no published forecast
+     * held), the latest knowable value is carried forward and the path says
+     * so in base_source, so the no-change assumption is visible on the set and
+     * in the route's result, never silent.
+     */
     public function paths(int $setId): array
     {
         $set = DB::table('governed_scenario_sets')->where('id', $setId)->first();
         $year = (int) substr($set->reporting_period, 0, 4);
+        $asOf = AsAtSeries::ym((string) $set->reporting_period);
         $codes = DB::table('scenario_shocks')->join('governed_scenarios', 'governed_scenarios.id', '=', 'scenario_shocks.scenario_id')->where('set_id', $setId)->distinct()->pluck('statistic_code')->all();
         $codes = array_values(array_unique(array_merge(['GDP_GROWTH', 'CPI', 'MWK_USD', 'LENDING_RATE', 'PLR', 'AGRI_GROWTH'], $codes)));
+        $known = DB::getSchemaBuilder()->hasTable('macro_series') ? AsAtSeries::macroRows(null, $asOf, ['actual', 'estimate', 'forecast'], $codes) : [];
         $base = [];
+        $baseSource = [];
         foreach ($codes as $code) {
+            $rows = $known[$code] ?? [];
+            $latest = $rows === [] ? null : max(array_keys($rows));
             for ($o = 0; $o <= 2; $o++) {
-                $v = DB::getSchemaBuilder()->hasTable('macro_series') ? DB::table('macro_series')->where('statistic_code', $code)->where('observation_period', 'like', ($year + $o) . '%')->orderByDesc('observation_period')->value('value') : null;
-                $v ??= DB::getSchemaBuilder()->hasTable('macro_series') ? DB::table('macro_series')->where('statistic_code', $code)->orderByDesc('observation_period')->value('value') : null;
-                $base[$code][$o] = $v !== null ? (float) $v : null;
+                $inYear = array_filter(array_keys($rows), fn ($p) => str_starts_with((string) $p, (string) ($year + $o)));
+                if ($inYear !== []) {
+                    $p = max($inYear);
+                    $base[$code][$o] = $rows[$p]['value'];
+                    $baseSource[$code][$o] = $rows[$p]['type'] . ' ' . $p;
+                } elseif ($latest !== null) {
+                    $base[$code][$o] = $rows[$latest]['value'];
+                    $baseSource[$code][$o] = 'carried forward from ' . $rows[$latest]['type'] . ' ' . $latest . ': no value for ' . ($year + $o) . ' known at ' . $asOf;
+                } else {
+                    $base[$code][$o] = null;
+                    $baseSource[$code][$o] = 'no value known at ' . $asOf;
+                }
             }
         }
-        $out = ['base' => $base, 'scenarios' => []];
+        $out = ['base' => $base, 'base_source' => $baseSource, 'as_of' => $asOf, 'scenarios' => []];
         foreach (DB::table('governed_scenarios')->where('set_id', $setId)->orderBy('order_position')->get() as $s) {
             $path = $base;
             foreach (DB::table('scenario_shocks')->where('scenario_id', $s->id)->get() as $sh) {
@@ -429,9 +478,13 @@ class ScenarioSetService
         if ($prev !== null) {
             $prevPaths = $this->paths((int) $prev->id);
             $year = (int) substr($set->reporting_period, 0, 4);
+            $known = AsAtSeries::macro(null, (string) $set->reporting_period, ['actual'], array_keys($prevPaths['base']));
             foreach ($prevPaths['base'] as $code => $offsets) {
                 $predicted = $offsets[0] ?? null;
-                $actual = DB::table('macro_series')->where('statistic_code', $code)->where('value_type', 'actual')->where('observation_period', 'like', $year . '%')->orderByDesc('observation_period')->value('value');
+                // the actual known at this set's period, never a later one
+                $actuals = $known[$code] ?? [];
+                $inYear = array_filter(array_keys($actuals), fn ($p) => str_starts_with((string) $p, (string) $year));
+                $actual = $inYear === [] ? null : $actuals[max($inYear)];
                 if ($predicted === null || $actual === null) {
                     continue;
                 }
@@ -467,6 +520,24 @@ class ScenarioSetService
     }
 
     /**
+     * The inverse of stagePd: the twelve-month PD whose stage PD is $stagePd
+     * for this loan's stage and remaining life. Null for Stage 3, whose stage
+     * PD is 1 whatever the twelve-month PD (no inverse exists, and none is
+     * needed: the ECL of a Stage 3 loan does not move with the PD).
+     */
+    public static function pd12ForStagePd(object $l, float $stagePd): ?float
+    {
+        if ((string) $l->stage === '3') {
+            return null;
+        }
+        $stagePd = max(0.0, min(1.0, $stagePd));
+        $months = $l->remaining_tenor === null || (float) $l->remaining_tenor < 1 ? 12.0 : (float) $l->remaining_tenor;
+        $years = ((string) $l->stage === '2' ? $months : min(12.0, $months)) / 12;
+
+        return max(0.0, min(1.0, 1 - pow(1 - $stagePd, 1 / $years)));
+    }
+
+    /**
      * The ECL under each scenario, with 100 percent weight on each, and with ten
      * points moved from the base to the downside and to the upside. Until the
      * chain runs per scenario, each scenario's PD is the pre-FLI PD times its
@@ -492,9 +563,11 @@ class ScenarioSetService
         });
         $stagePd = fn (object $l, float $pd12): float => self::stagePd($l, $pd12);
         // Each loan's booked ECL (ecl_value, whichever engine wrote it) scaled by
-        // the ratio of the scenario's stage PD to the booked PD's stage PD, so the
-        // base scenario reconciles to the allowance exactly and the others move
-        // with the PD alone; a loan with no booked ECL is measured directly.
+        // the ratio of the scenario's stage PD to the booked PD's stage PD, so each
+        // scenario moves with the PD alone. The route books the PD whose stage PD
+        // is the weighted stage PD across the scenarios, so the weighted figure
+        // below reconciles to the allowance (to the rounding of the stored PDs);
+        // a loan with no booked ECL is measured directly.
         $eclUnder = function (string $name, float $mult) use ($loans, $fromChain, $stagePd): float {
             $ecl = 0.0;
             foreach ($loans as $l) {
@@ -532,13 +605,33 @@ class ScenarioSetService
         };
         $result = ['period' => $set->reporting_period, 'loans' => $loans->count(), 'note' => $loans->isEmpty() ? 'no loan of the period carries a PD: run the PD engine, then the sensitivity' : null, 'per_scenario' => $perScenario, 'weighted_ecl' => $weighted,
             'ten_points_to_downside' => $shift($down), 'ten_points_to_upside' => $shift($up),
-            'basis' => ($fromChain ? 'the per-scenario PD the route wrote on each loan' : 'the pre-FLI PD x the typed scenario multiplier (the route has not run for this set)') . ', applied to the booked ECL of each loan as the ratio of stage PDs (lifetime for Stage 2, 1 for Stage 3), so the base reconciles to the allowance; weighted once by the set'];
+            'basis' => ($fromChain ? 'the per-scenario PD the route wrote on each loan' : 'the pre-FLI PD x the typed scenario multiplier (the route has not run for this set)') . ', applied to the booked ECL of each loan as the ratio of stage PDs (lifetime for Stage 2, 1 for Stage 3), so the probability-weighted ECL reconciles to the allowance booked on the post-FLI PD; weighted once by the set'];
         DB::table('governed_scenario_sets')->where('id', $setId)->update(['sensitivity' => json_encode($result), 'updated_at' => now()]);
 
         return $result;
     }
 
     // ----- the first set ----------------------------------------------------
+
+    /**
+     * The four scenarios of spec 15.8 (Base 50, Upside 15, Downside 25, Severe
+     * 10), each anchored to a Malawi episode. The first set is built from them,
+     * and Scenario Profiles keeps them as the standard profile.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function firstSetDesign(): array
+    {
+        return [
+            ['name' => 'Base', 'weight' => 50, 'is_base' => true, 'anchored_to' => 'The IMF World Economic Outlook path, World Bank actuals, the RBM\'s stated policy path', 'pd_multiplier' => 1.0, 'calibration_note' => 'The sources of section 13 as they stand', 'shocks' => []],
+            ['name' => 'Upside', 'weight' => 15, 'anchored_to' => 'The 2021 to 2022 recovery: growth and the harvest above the base, inflation below', 'pd_multiplier' => 0.85, 'calibration_note' => '2021: real GDP growth 4.6 percent, agriculture up on a good harvest, inflation 9.3 percent (World Bank)',
+                'shocks' => [['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => 2.0, 'note' => 'growth two points above the base'], ['statistic_code' => 'AGRI_GROWTH', 'kind' => 'abs', 'value' => 4.0], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => -5.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => -2.0], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => -2.0]]],
+            ['name' => 'Downside', 'weight' => 25, 'anchored_to' => 'The 2023 devaluation year: the kwacha down by 44 percent, inflation and lending rates up', 'pd_multiplier' => 1.35, 'calibration_note' => 'November 2023: the RBM devalued the kwacha 44 percent; inflation rose to 34.5 percent for 2024; the policy rate reached 26 percent',
+                'shocks' => [['statistic_code' => 'MWK_USD', 'kind' => 'pct', 'value' => 44.0, 'note' => 'the November 2023 devaluation'], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => 10.0], ['statistic_code' => 'LENDING_RATE', 'kind' => 'abs', 'value' => 5.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => 5.0, 'note' => 'the PLR follows the policy rate'], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => 5.0], ['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => -1.5]]],
+            ['name' => 'Severe', 'weight' => 10, 'anchored_to' => 'The 2016 drought together with a devaluation: the harvest fails and the currency falls', 'pd_multiplier' => 1.80, 'calibration_note' => '2016: agriculture value added fell on the El Nino drought while growth fell to 2.3 percent; combined here with a 44 percent devaluation',
+                'shocks' => [['statistic_code' => 'AGRI_GROWTH', 'kind' => 'abs', 'value' => -15.0, 'note' => 'the 2016 harvest failure'], ['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => -3.0], ['statistic_code' => 'MWK_USD', 'kind' => 'pct', 'value' => 44.0], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => 15.0], ['statistic_code' => 'LENDING_RATE', 'kind' => 'abs', 'value' => 8.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => 8.0], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => 8.0]]],
+        ];
+    }
 
     /** The first set of spec 15.8, as a proposal for Dr Thom, for the period named. */
     public function seedFirstSet(string $period, ?int $userId = null): int
@@ -547,15 +640,7 @@ class ScenarioSetService
         if ($existing !== null) {
             return (int) $existing->id;
         }
-        $id = $this->create($period, 'First set, proposed for Dr Thom', [
-            ['name' => 'Base', 'weight' => 50, 'is_base' => true, 'anchored_to' => 'The IMF World Economic Outlook path, World Bank actuals, the RBM\'s stated policy path', 'pd_multiplier' => 1.0, 'calibration_note' => 'The sources of section 13 as they stand', 'shocks' => []],
-            ['name' => 'Upside', 'weight' => 15, 'anchored_to' => 'The 2021 to 2022 recovery: growth and the harvest above the base, inflation below', 'pd_multiplier' => 0.85, 'calibration_note' => '2021: real GDP growth 4.6 percent, agriculture up on a good harvest, inflation 9.3 percent (World Bank)',
-                'shocks' => [['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => 2.0, 'note' => 'growth two points above the base'], ['statistic_code' => 'AGRI_GROWTH', 'kind' => 'abs', 'value' => 4.0], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => -5.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => -2.0], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => -2.0]]],
-            ['name' => 'Downside', 'weight' => 25, 'anchored_to' => 'The 2023 devaluation year: the kwacha down by 44 percent, inflation and lending rates up', 'pd_multiplier' => 1.35, 'calibration_note' => 'November 2023: the RBM devalued the kwacha 44 percent; inflation rose to 34.5 percent for 2024; the policy rate reached 26 percent',
-                'shocks' => [['statistic_code' => 'MWK_USD', 'kind' => 'pct', 'value' => 44.0, 'note' => 'the November 2023 devaluation'], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => 10.0], ['statistic_code' => 'LENDING_RATE', 'kind' => 'abs', 'value' => 5.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => 5.0, 'note' => 'the PLR follows the policy rate'], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => 5.0], ['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => -1.5]]],
-            ['name' => 'Severe', 'weight' => 10, 'anchored_to' => 'The 2016 drought together with a devaluation: the harvest fails and the currency falls', 'pd_multiplier' => 1.80, 'calibration_note' => '2016: agriculture value added fell on the El Nino drought while growth fell to 2.3 percent; combined here with a 44 percent devaluation',
-                'shocks' => [['statistic_code' => 'AGRI_GROWTH', 'kind' => 'abs', 'value' => -15.0, 'note' => 'the 2016 harvest failure'], ['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => -3.0], ['statistic_code' => 'MWK_USD', 'kind' => 'pct', 'value' => 44.0], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => 15.0], ['statistic_code' => 'LENDING_RATE', 'kind' => 'abs', 'value' => 8.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => 8.0], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => 8.0]]],
-        ], $userId, 'The first scenario set of specification v4 section 15.8. The weights are a starting point and are Dr Thom\'s to set; the anchors are the answer to "why these".', 'World Bank actuals to 2025 (fetched 8 October 2026); IMF WEO path to be loaded; RBM policy path to be stated');
+        $id = $this->create($period, 'First set, proposed for Dr Thom', self::firstSetDesign(), $userId, 'The first scenario set of specification v4 section 15.8. The weights are a starting point and are Dr Thom\'s to set; the anchors are the answer to "why these".', 'World Bank actuals to 2025 (fetched 8 October 2026); IMF WEO path to be loaded; RBM policy path to be stated');
         $this->propose($id, $userId);
 
         return $id;

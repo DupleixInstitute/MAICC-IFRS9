@@ -1,41 +1,10 @@
 <template>
-    <app-layout>
-        <template #header>
-            <div class="flex justify-between items-center">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Payment Tracking Calculations
-                    <HelpManual />
-                </h2>
-
-                <div class="flex space-x-2 mt-2">
-                    <!-- New Calculation -->
-                    <Link
-                        :href="route('lgd-calculations.create')"
-                        class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
-                    >
-                        <i class="fa fa-calculator mr-2" aria-hidden="true"></i>
-                        New Calculation
-                    </Link>
-
-                    <!-- Filters -->
-                    <button
-                        @click="showFilters = !showFilters"
-                        class="inline-flex items-center bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
-                    >
-                        <i class="fas fa-filter mr-2"></i>
-                        Filters
-                    </button>
-
-                    <!-- Refresh -->
-                    <button
-                        @click="refreshData"
-                        class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
-                    >
-                        <i class="fas fa-sync-alt mr-2"></i>
-                        Refresh
-                    </button>
-                </div>
-            </div>
+    <app-layout title="LGD payment tracking" description="Runs that follow Stage 3 loans and their payments month by month: the cures and recoveries the loss given default is built from">
+        <template #actions>
+            <HelpManual />
+            <button type="button" class="secondary-btn" @click="refreshData"><i class="fas fa-sync-alt"></i> Refresh</button>
+            <button type="button" class="secondary-btn" @click="showFilters = !showFilters"><i class="fas fa-filter"></i> Filters</button>
+            <Link :href="route('lgd-calculations.create')" class="primary-btn"><i class="fa fa-calculator"></i> New calculation</Link>
         </template>
 
         <!-- Filters Panel -->
@@ -68,32 +37,32 @@
                 </div>
             </div>
             <div class="flex justify-end mt-4 space-x-2">
-                <button @click="clearFilters" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Reset</button>
-                <button @click="applyFilters" class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700">Apply</button>
+                <button type="button" @click="clearFilters" class="secondary-btn">Reset</button>
+                <button type="button" @click="applyFilters" class="primary-btn">Apply</button>
             </div>
         </div>
 
         <!-- Calculations Table -->
         <div class="overflow-x-auto mt-6">
             <div class="bg-white shadow-md rounded-lg">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-200">
+                <table class="maiic-table">
+                    <thead>
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Portfolio</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Duration</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Contracts</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Records</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Payments</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cured</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            <th>ID</th>
+                            <th>Portfolio</th>
+                            <th>Period</th>
+                            <th class="text-center">Status</th>
+                            <th class="num">Duration</th>
+                            <th class="num">Contracts</th>
+                            <th class="num">Records</th>
+                            <th class="num">Payments</th>
+                            <th class="num">Cured</th>
+                            <th>Source</th>
+                            <th>Created</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         <tr v-if="loading">
                             <td colspan="12" class="px-6 py-4 text-center text-gray-500">Loading data...</td>
                         </tr>

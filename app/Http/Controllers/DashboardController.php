@@ -318,8 +318,26 @@ private function dashboardState(Request $request): array
         'reporting_period' => $selectedPeriod,
     ];
 
+    // --- ECL build-up and breakdowns, from the saved loan book ------------
+    // ECL before FLI, the forward-looking effect, the overlays the route
+    // applied and the booked ECL; then ECL by product group, sector and RBM
+    // class. All read loan_books for the same period and portfolio, and the
+    // totals are checked against the saved runs the tiles show.
+    $buildUpService = app(\App\Services\Reports\EclBuildUpService::class);
+    $bookLoans = $buildUpService->loans($selectedPeriod, $portfolioId);
+    $eclBuildUp = $buildUpService->buildUp($bookLoans, $selectedPeriod);
+    $eclBuildUp['runs_total'] = round($totalECLAllowance, 2);
+    $eclBuildUp['ties_to_runs'] = abs($eclBuildUp['final'] - $totalECLAllowance) <= max(1.0, 0.01 * $eclBuildUp['loans']);
+    $eclBreakdown = [
+        'product' => $buildUpService->breakdown($bookLoans, 'product'),
+        'sector' => $buildUpService->breakdown($bookLoans, 'sector'),
+        'rbm' => $buildUpService->breakdown($bookLoans, 'rbm'),
+    ];
+
     return [
         'summary' => $summary,
+        'eclBuildUp' => $eclBuildUp,
+        'eclBreakdown' => $eclBreakdown,
         'compareSummary' => $compareSummary,
         'periods' => $periods,
         'portfolios' => $portfolios,
@@ -399,6 +417,8 @@ public function eclReportPdf(Request $request)
         'trendChart' => count($trend) ? \App\Support\PdfCharts::trend($trend, $period) : null,
         'mixChart' => \App\Support\PdfCharts::stageMix($s['total_eads'], $s['ecl_totals']),
         'monthEnd' => $state['monthEnd'],
+        'eclBuildUp' => $state['eclBuildUp'],
+        'eclBreakdown' => $state['eclBreakdown'],
     ])->setPaper('a4', 'portrait')->setOption('enable_font_subsetting', true);
 
     \App\Support\ReportDownload::stampPageNumbers($pdf);
@@ -450,16 +470,23 @@ private function pdfChange($now, $then, string $kind, bool $goodWhenUp, bool $ti
  */
 private function monthEndStatus(string $period): array
 {
-    $rp = ReportingPeriods::whereDate('period', $period . '-01')->first();
+    // read from the loans themselves, the same test the Workspace checklist uses:
+    // the legacy reporting_periods pointers are no longer written by the segment engines
+    $lb = LoanBook::where('reporting_period', $period)
+        ->selectRaw('count(*) n, sum(pd_prefli is not null) pd, sum(lgd_value is not null or collection_lgd is not null) lgd, sum(pd_post_fli is not null) fli, sum(ecl_value is not null) ecl, max(pd_segment_run_id) pd_run')
+        ->first();
+    $n = (int) ($lb->n ?? 0);
 
     return [
         'period' => $period,
-        'loan_book_rows' => (int) LoanBook::where('reporting_period', $period)->count(),
-        'pd_applied' => (bool) ($rp?->pd_id),
-        'pd_source' => $rp?->pd_calculation_source,
-        'lgd_applied' => (bool) ($rp?->lgd_id),
-        'lgd_source' => $rp?->lgd_calculation_source,
-        'ecl_calculated' => (bool) ($rp?->ecl_calculated),
+        'loan_book_rows' => $n,
+        'pd_applied' => $n > 0 && (int) $lb->pd === $n,
+        'pd_source' => $n > 0 ? number_format((int) $lb->pd) . ' of ' . number_format($n) . ' loans' . ($lb->pd_run ? ', PD by segment' : '') : null,
+        'lgd_applied' => $n > 0 && (int) $lb->lgd === $n,
+        'lgd_source' => $n > 0 ? number_format((int) $lb->lgd) . ' of ' . number_format($n) . ' loans' : null,
+        'fli_applied' => $n > 0 && (int) $lb->fli === $n,
+        'ecl_calculated' => $n > 0 && (int) $lb->ecl > 0,
+        'ecl_loans' => (int) ($lb->ecl ?? 0),
     ];
 }
 

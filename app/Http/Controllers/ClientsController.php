@@ -86,7 +86,7 @@ public function index(Request $request)
     {
         $request->validate([
             'name' => ['required', 'string'],
-            'customer_id' => ['required', 'string'],
+            'customer_id' => ['required', 'string', 'unique:clients,customer_id'],
         //     'mobile' => ['required', 'string', 'regex:/^07\d{8}$/'],
         // ], [
         //     'mobile.regex' => 'Phone number must be 10 digits starting with 07',
@@ -117,8 +117,16 @@ public function index(Request $request)
     public function show(Client $client)
     {
         $client->load(['country', 'province', 'district', 'ward', 'village', 'branch','industryType','legalType','mainBank','secondBank','thirdBank','registrationCountry']);
+        // the client's loans in the latest loan book that holds any of them
+        $latest = \Illuminate\Support\Facades\DB::table('loan_books')->where('client_id', $client->id)->max('reporting_period');
+        $loans = $latest ? \Illuminate\Support\Facades\DB::table('loan_books')->where('client_id', $client->id)->where('reporting_period', $latest)
+            ->orderByDesc('carrying_amount')->get(['id', 'contract_id', 'product_group', 'carrying_amount', 'overdue_days', 'ecl_value',
+                \Illuminate\Support\Facades\DB::raw('COALESCE(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative) as stage')]) : collect();
+
         return Inertia::render('Clients/Show', [
-            'client' => $client
+            'client' => $client,
+            'loans' => $loans,
+            'loansPeriod' => $latest,
         ]);
     }
 
@@ -133,7 +141,7 @@ public function index(Request $request)
     {
         $request->validate([
             'name' => ['required', 'string'],
-            'customer_id' => ['required', 'string'],
+            'customer_id' => ['required', 'string', 'unique:clients,customer_id,' . $client->id],
            // 'mobile' => ['required', 'string', 'regex:/^07\d{8}$/'],
         ]);
 
@@ -158,6 +166,15 @@ public function index(Request $request)
             ->log('Update Client');
 
         return redirect()->route('clients.index')->with('success', 'Client updated successfully.');
+    }
+
+    /** One client per loan-book customer number, and every loan linked to it. */
+    public function linkLoanBook(Request $request, \App\Services\ClientLinkService $service)
+    {
+        abort_unless($request->user()?->can('clients.create'), 403);
+        $r = $service->link((int) $request->user()->id);
+
+        return redirect()->route('clients.index')->with('success', "{$r['created']} new client(s) from the loan book; {$r['loans_linked']} loan(s) linked to their client.");
     }
 
     public function destroy(Client $client)
@@ -273,7 +290,7 @@ public function index(Request $request)
                 return Inertia::render('Clients/Import', [
                     'availableFields'   => array_keys($fields),
                     'fieldDescriptions' => $fields,
-                    'recentImports'     => Import::orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
+                    'recentImports'     => Import::where('kind', 'clients')->orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
                     'importCount'       => Import::count(),
                 ]);
             }
@@ -312,6 +329,7 @@ public function index(Request $request)
             }
 
             $import = Import::create([
+                'kind' => 'clients',
                 'status' => 'pending',
                 'name'   => $request->file('names_file')->getClientOriginalName(),
             ]);

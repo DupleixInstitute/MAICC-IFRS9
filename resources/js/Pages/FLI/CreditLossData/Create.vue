@@ -25,15 +25,14 @@
                             <!-- Portfolio, Period & Metric -->
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                                 <div>
-                                    <jet-label for="portfolio_id" value="Portfolio *" />
+                                    <jet-label for="portfolio_id" value="Portfolio" />
                                     <select
                                         id="portfolio_id"
                                         v-model="form.portfolio_id"
-                                        required
                                         class="mt-1 block w-full rounded-md border-gray-300 bg-white shadow-sm focus:border-maiic-500 focus:ring-maiic-500"
                                         :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.portfolio_id }"
                                     >
-                                        <option value="">Select a portfolio</option>
+                                        <option value="">External or industry series (no MAIIC portfolio)</option>
                                         <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">
                                             {{ portfolio.name }}
                                         </option>
@@ -97,7 +96,14 @@
                             </div>
 
                             <!-- Source & Notes -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                                <div>
+                                    <jet-label for="published_at" value="Published on" />
+                                    <input id="published_at" type="date" v-model="form.published_at"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-maiic-500 focus:ring-maiic-500" />
+                                    <p class="mt-1 text-xs text-gray-500">The date the publisher released the figure. The model does not read it for any month before that date.</p>
+                                    <jet-input-error :message="form.errors.published_at" class="mt-2" />
+                                </div>
                                 <div>
                                     <jet-label for="source" value="Data Source" />
                                     <select
@@ -185,11 +191,12 @@ export default {
             },
             form: useForm({
                 portfolio_id: this.editData ? this.editData.portfolio_id : '',
-                period: this.editData ? this.editData.period : '',
+                period: this.editData ? String(this.editData.period || '').slice(0, 7) : '',
                 definition_id: this.editData ? this.editData.definition_id : '',
                 value: this.editData ? this.editData.value : null,
                 source: this.editData ? this.editData.source : 'Manual Entry',
                 notes: this.editData ? this.editData.notes : '',
+                published_at: this.editData && this.editData.published_at ? String(this.editData.published_at).slice(0, 10) : '',
             }),
         }
     },
@@ -207,7 +214,7 @@ export default {
     },
     methods: {
         submit() {
-            if (!this.form.portfolio_id || !this.form.period || !this.form.definition_id) {
+            if (!this.form.period || !this.form.definition_id) {
                 notice('Please fill in all required fields.');
                 return;
             }

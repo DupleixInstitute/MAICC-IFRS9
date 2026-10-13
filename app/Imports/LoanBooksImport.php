@@ -406,7 +406,13 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                 }
                 Log::info("Successfully upserted {$inserted} records");
             } catch (\Exception $e) {
-                //Log::error("Bulk insert failed: " . $e->getMessage());
+                // the rows of the failed write are named in the failed-rows file, not lost
+                Log::error('Loan book import write failed: ' . $e->getMessage());
+                foreach ($bulkInsert as $failedRow) {
+                    $this->appendExceptionRow($failedRow, 'Could not be saved: ' . mb_substr($e->getMessage(), 0, 300));
+                }
+                $exceptions += count($bulkInsert);
+                $inserted = 0;
             }
         }
 
@@ -441,11 +447,14 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                 Log::info("Starting import for: " . $this->import->id);
             },
             AfterImport::class => function() {
-                $this->import->update(['status' => 'completed', 'completed_at' => now()]);
+                $failed = (int) (Import::find($this->import->id)?->failed_records ?? 0);
+                $this->import->update(['status' => 'completed', 'completed_at' => now(),
+                    'failed_file_path' => $failed > 0 ? 'failed_imports/' . basename($this->exceptionFilePath) : null]);
                 Log::info("Completed import for: " . $this->import->id);
             },
             ImportFailed::class => function(ImportFailed $event) {
-                $this->import->update(['status' => 'failed', 'completed_at' => now()]);
+                $this->appendExceptionRow([], 'The import stopped: ' . mb_substr($event->getException()->getMessage(), 0, 300));
+                $this->import->update(['status' => 'failed', 'completed_at' => now(), 'failed_file_path' => 'failed_imports/' . basename($this->exceptionFilePath)]);
                 Log::error("Import failed: " . $event->getException()->getMessage());
             }
         ];
