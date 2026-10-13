@@ -45,7 +45,14 @@ class SmokeIfrs9Reports extends Command
             // the manual PDF is the help centre's (HelpController::pdf) since ticket #010; render it as that route does
             $request = \Illuminate\Http\Request::create('/manual/pdf', 'GET');
             $response = app(\App\Http\Controllers\HelpController::class)->pdf($request);
-            if (! $response || strlen((string) $response->getContent()) < 1000) {
+            // the manual is sent from a file (a download response has no body in memory), so measure the file
+            $size = $response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse
+                ? (int) @filesize($response->getFile()->getPathname())
+                : strlen((string) ($response?->getContent() ?? ''));
+            if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse) {
+                @unlink($response->getFile()->getPathname());
+            }
+            if ($size < 1000) {
                 throw new \RuntimeException('empty manual PDF');
             }
             $this->info('  manual PDF = OK');

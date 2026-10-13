@@ -87,15 +87,18 @@ class LandingZoneReader
 
     /**
      * Ledger postings dated on or before the date, grouped by account, each in date then key order;
-     * one account's only when it is named. The Mega Farm ledger (MF_03) is not read: its GLs are not
-     * loan GLs here (the programme goes to the ECL module, decision D30), so every one of its rows
-     * would be decoded only to be dropped, which after pack 4 (298,259 rows) made each call take
-     * about a minute.
+     * one account's only when it is named (the EIR asks for one loan at a time). Only postings on
+     * the in-scope loan GLs are kept, so the Mega Farm ledger (MF_03, on the programme's GLs 1050301
+     * to 1050307) is left out unless asked for: the loan book's method B asks, because the Mega Farm
+     * accounts are in E-Banker's Loan Book Report (MF_05) and their carrying amount is derived from
+     * their own postings; the EIR and the other readers do not (the programme is outside the EIR,
+     * decision D30).
      */
-    public function ledgerByAccount(?string $toDate = null, ?string $account = null): array
+    public function ledgerByAccount(?string $toDate = null, ?string $account = null, bool $withMegaFarm = false): array
     {
+        $gls = self::LOAN_GLS + ($withMegaFarm ? array_flip(\App\Services\MegaFarm\MegaFarmEclService::GLS) : []);
         $by = [];
-        foreach ($this->family(array_values(array_diff(self::LEDGER, ['MF_03'])), $toDate, null, $account) as $row) {
+        foreach ($this->family(self::LEDGER, $toDate, null, $account) as $row) {
             $p = $row['payload'];
             if (($p['DELETE_FLAG'] ?? 'N') === 'Y' || $row['account'] === null || $row['account'] === '') {
                 continue;
@@ -104,7 +107,7 @@ class LandingZoneReader
             // the income GLs (4215, 4216) and the FInES suspense (3065), which are
             // not loans and have no account master row
             $gl = trim((string) ($p['AC_GLCODE'] ?? ($p['CB_GLCODE'] ?? '')));
-            if ($gl !== '' && ! isset(self::LOAN_GLS[$gl])) {
+            if ($gl !== '' && ! isset($gls[$gl])) {
                 continue;
             }
             $by[$row['account']][] = $row;

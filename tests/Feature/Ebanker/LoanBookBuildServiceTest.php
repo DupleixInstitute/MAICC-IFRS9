@@ -121,6 +121,26 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'Loan Book Built')->count());
     }
 
+    public function test_a_mega_farm_account_keeps_the_reported_carrying_amount_and_its_ledger_gap(): void
+    {
+        $m = '000104480000001';
+        $this->raw('MF_01', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'CUSTOMER_ID' => '734', 'ACCOUNT_NAME' => 'Mega Farm Grower', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '10.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_03', '900', $m, '2024-07-31', ['CUMVOUCH_DET_ID' => '900', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'TRANSACTION_DATE' => '7/31/2024', 'TRANSAMT' => '-5000000.00', 'TRANTYPE' => '301', 'DELETE_FLAG' => 'N']);
+        $this->raw('MF_05', '7000', $m, '2024-08-31', ['LOAN_BOOK_DET_ID_A' => '7000', 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'PRINCIPAL' => '5200000.00', 'CARRYING_AMOUNT' => '5200000.00']);
+
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104480000001')->first();
+        $this->assertNotNull($row);
+        $this->assertEquals(5200000, $row->carrying_amount);       // E-Banker's report stands for a Mega Farm account
+        $this->assertEquals(5200000, $row->stored_carrying_amount);
+        $this->assertStringContainsString('Mega Farm: carrying amount from the Loan Book Report; the MF_03 ledger derives 5,000,000.00 (difference -200,000.00)', $row->build_flag);
+        $this->assertEquals(5000000, json_decode($row->build_basis, true)['ledger_carrying']);
+        // the in-scope loan is still derived from its ledger
+        $this->assertEquals(8000000, DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->value('carrying_amount'));
+        // and the EIR's readers do not see the Mega Farm ledger
+        $this->assertArrayNotHasKey($m, (new LandingZoneReader())->ledgerByAccount('2024-08-31'));
+    }
+
     public function test_method_a_copies_the_stored_run_and_derives_marked_where_none_exists(): void
     {
         $this->service()->build('2024-07', '2024-08', 'A', 1, 2);
