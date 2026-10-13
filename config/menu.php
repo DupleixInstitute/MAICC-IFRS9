@@ -21,6 +21,16 @@
 |
 | 'color' on a top-level item tints its sidebar icon (bright on the dark
 | green). 'match' lists further route patterns that light the entry up.
+| 'heading' names the block of the sidebar the entry sits in (Data
+| foundation, Financial modelling, Risk & regulatory, Administration &
+| support: the Stress Testing suite's grouping, adapted for MAIIC; Dashboard,
+| Workspace and Reports carry none and stay at the top, always shown); the
+| sidebar prints it, in small capitals, above the first entry of each block.
+| It is on every entry, so a block keeps its heading when a permission
+| hides its first entry.
+| 'subheading' splits a block into smaller, unclickable sub-blocks the
+| same way (Administration & support: Governance, Access & setup, Support &
+| maintenance).
 | Every route named here must be registered (tests/Feature/NavigationTest).
 */
 
@@ -63,13 +73,13 @@ return [
             'ifrs9-reports.*', 'reports.*', 'stress-testing.*', 'rbm-return.*', 'auditor-pack.*',
         ]] + $leaf('Reports', 'ifrs9-reports.index', 'chart-bar'),
 
-        ['color' => '#38BDF8'] + $section('Portfolio Setup', [
+        ['color' => '#38BDF8', 'heading' => 'Data foundation'] + $section('Portfolio Setup', [
             $tab('Loan Portfolios', 'portfolios.index'),
             $tab('Product Groups', 'groups.index'),
             $tab('Sector Types', 'industry_types.index'),
         ], 'database'),
 
-        ['color' => '#5EEAD4'] + $group('Customer & Loan Data', 'users', [
+        ['color' => '#5EEAD4', 'heading' => 'Data foundation'] + $group('Customer & Loan Data', 'users', [
             $leaf('Clients', 'clients.index'),
             $leaf('Loan Book', 'loan_applications.loan-book'),
             // In the order the data comes in: the file imports, the E-Banker
@@ -87,7 +97,7 @@ return [
             ]),
         ], 2),
 
-        ['color' => '#FDBA74'] + $section('Collateral Management', [
+        ['color' => '#FDBA74', 'heading' => 'Data foundation'] + $section('Collateral Management', [
             $tab('Collateral Register', 'collateral.register.index'),
             $tab('Collateral Allocation', 'collateral.allocations.index'),
             $tab('Collateral Types', 'collateral.types.index'),
@@ -95,7 +105,7 @@ return [
 
         // One pipeline: rules suggest -> intake imports -> classification applies
         // maker/checker. Kept together (contract: EIR module).
-        ['color' => '#A3E635'] + $group('EIR & Revenue Recognition', 'percent', [
+        ['color' => '#A3E635', 'heading' => 'Financial modelling'] + $group('EIR & Revenue Recognition', 'percent', [
             // In the order the data comes in: the contracts, their cash flows,
             // the tranches drawn, the PLR they reprice from, then the schedule
             // check. The GL reconciliation sits with the EIR calculations.
@@ -122,10 +132,9 @@ return [
                 $tab('EIR as at a Date', 'eir-as-at.index', 'eir.view'),
                 $tab('GL Reconciliation', 'eir-reconciliation.index', 'eir.view'),
             ]),
-            $leaf('Governance Centre', 'eir-governance.index', permission: 'eir.govern'),
         ], 4),
 
-        ['color' => '#C084FC'] + $group('IFRS 9 Model Setup', 'chart-line', [
+        ['color' => '#C084FC', 'heading' => 'Financial modelling'] + $group('IFRS 9 Model Setup', 'chart-line', [
             $section('Staging & SICR Rules', [
                 $tab('SICR Groups', 'sicr-groups.index'),
                 $tab('SICR Alert Items', 'sicr-items.index'),
@@ -147,7 +156,7 @@ return [
         // 2026): one menu entry for the whole chain, in the order a month-end
         // runs it. The screens of the older platform are back in their places
         // and each is now a working step of the governed chain.
-        ['color' => '#7DD3FC'] + $group('Forward-Looking Information', 'binoculars', [
+        ['color' => '#7DD3FC', 'heading' => 'Financial modelling'] + $group('Forward-Looking Information', 'binoculars', [
             $section('FLI Month-End', [
                 $tab('Overview', 'fli.overview'),
                 $tab('Impact Analysis', 'fli.impact'),
@@ -178,36 +187,43 @@ return [
             ]),
         ], 6),
 
-        ['color' => '#F87171'] + $group('ECL Processing', 'calculator', [
+        ['color' => '#F87171', 'heading' => 'Risk & regulatory'] + $group('ECL Processing', 'calculator', [
             $leaf('ECL Calculation', 'expected-credit-loss.index'),
             $leaf('Mega Farm Programme', 'megafarm.index'),
         ], 7),
 
-        // Contract Schedule 1 deliverables 5, 6 and 7. The two manuals are
-        // database content (help centre); the technical manual and the
-        // installation guide are repository Markdown under docs/manuals.
-        ['color' => '#67E8F9'] + $group('System Documentation', 'book-open', [
+        // Administration & support, in three small sub-blocks ('subheading',
+        // printed by the sidebar, not clickable). The entries are the ones the
+        // Administration group held, with the same routes and permissions.
+        // Governance: the maker-checker centre for the governed settings (EIR
+        // and FLI), and the audit record.
+        ['color' => '#A3E635', 'heading' => 'Administration & support', 'subheading' => 'Governance'] + $leaf('Governance Centre', 'eir-governance.index', 'shield-alt', permission: 'eir.govern'),
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Governance'] + $section('Audit', [
+            $tab('Audit Trail', 'audit-trail.index'),
+            $tab('Audit Trace', 'audit-trace.index'),
+            $tab('Compliance Audits', 'compliance-audits.index'),
+        ], 'history'),
+
+        // Access & setup: who may use the system, its periods and settings.
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Access & setup'] + $section('Users & Roles', [
+            $tab('Users', 'users.index'),
+            $tab('Roles & Permissions', 'users.roles.index'),
+        ], 'user-lock'),
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Access & setup'] + $leaf('Financial Periods', 'accounting.financial_periods.index', 'calendar'),
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Access & setup'] + $leaf('Settings', 'settings.index', 'cog'),
+
+        // Support & maintenance. System Documentation is Contract Schedule 1
+        // deliverables 5, 6 and 7: the two manuals are database content (help
+        // centre); the technical manual and the installation guide are
+        // repository Markdown under docs/manuals.
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Support & maintenance'] + $leaf('Support Tickets', 'tickets.index', 'ticket-alt'),
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Support & maintenance'] + $leaf('Maintenance', 'maintenance.index', 'wrench', permission: 'settings'),
+        ['color' => '#67E8F9', 'heading' => 'Administration & support', 'subheading' => 'Support & maintenance'] + $group('System Documentation', 'book-open', [
             $leaf('User Manual', 'help.index'),
             $leaf('Administrator Manual', 'help.admin'),
             $leaf('Technical Manual', 'docs.technical'),
             $leaf('Installation Guide', 'docs.installation'),
         ], 8),
-
-        ['color' => '#C4B5FD'] + $group('Administration', 'cog', [
-            $section('Users & Roles', [
-                $tab('Users', 'users.index'),
-                $tab('Roles & Permissions', 'users.roles.index'),
-            ]),
-            $leaf('Financial Periods', 'accounting.financial_periods.index'),
-            $section('Audit', [
-                $tab('Audit Trail', 'audit-trail.index'),
-                $tab('Audit Trace', 'audit-trace.index'),
-                $tab('Compliance Audits', 'compliance-audits.index'),
-            ]),
-            $leaf('Support Tickets', 'tickets.index'),
-            $leaf('Settings', 'settings.index'),
-            $leaf('Maintenance', 'maintenance.index', permission: 'settings'),
-        ], 9),
 
     ],
     'member' => [],

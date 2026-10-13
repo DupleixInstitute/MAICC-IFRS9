@@ -12,22 +12,24 @@ class LoanProductCategoriesController extends Controller
 
     public function index()
     {
-        $groups = LoanProductCategory::filter(\request()->only('search'))
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString();
+        // The whole list (a short reference table): the page searches, sorts
+        // and pages it in the browser, 15 rows a page.
+        $groups = LoanProductCategory::orderBy('name')->get(['id', 'name', 'description', 'updated_at']);
         // the loans each group carries in the latest loan book, and the groups the book uses that are not listed here
         $latest = DB::table('loan_books')->max('reporting_period');
-        $inBook = DB::table('loan_books')->where('reporting_period', $latest)->whereNotNull('product_group')
-            ->selectRaw('product_group, count(*) n')->groupBy('product_group')->pluck('n', 'product_group');
+        $book = DB::table('loan_books')->where('reporting_period', $latest)->whereNotNull('product_group')
+            ->selectRaw('product_group, count(*) n, sum(carrying_amount) gross')->groupBy('product_group')->get();
+        $inBook = $book->pluck('n', 'product_group');
         $listed = LoanProductCategory::pluck('name')->map(fn ($n) => mb_strtolower(trim($n)))->all();
 
         return Inertia::render('LoanProductGroups/Index', [
             'filters' => \request()->all('search'),
             'groups' => $groups,
             'loansByGroup' => $inBook,
+            'grossByGroup' => $book->pluck('gross', 'product_group')->map(fn ($v) => (float) $v),
             'latestPeriod' => $latest,
             'unlisted' => $inBook->keys()->filter(fn ($g) => ! in_array(mb_strtolower(trim($g)), $listed, true))->values(),
+            'portfolioCount' => DB::table('loan_portfolios')->count(),
         ]);
     }
 

@@ -34,7 +34,9 @@ class NavigationTest extends TestCase
     public function test_the_contract_entries_are_in_order(): void
     {
         $entries = array_map(fn ($g) => $g['name'], config('menu.admin'));
-        $this->assertSame(['Dashboard', 'Workspace', 'Reports', 'Portfolio Setup', 'Customer & Loan Data', 'Collateral Management', 'EIR & Revenue Recognition', 'IFRS 9 Model Setup', 'Forward-Looking Information', 'ECL Processing', 'System Documentation', 'Administration'], $entries);
+        // in the sidebar blocks of 13 October 2026: Overview, Data foundation,
+        // Financial modelling, Risk & regulatory, Administration & support
+        $this->assertSame(['Dashboard', 'Workspace', 'Reports', 'Portfolio Setup', 'Customer & Loan Data', 'Collateral Management', 'EIR & Revenue Recognition', 'IFRS 9 Model Setup', 'Forward-Looking Information', 'ECL Processing', 'Governance Centre', 'Audit', 'Users & Roles', 'Financial Periods', 'Settings', 'Support Tickets', 'Maintenance', 'System Documentation'], $entries);
     }
 
     public function test_reports_is_one_entry_to_the_hub(): void
@@ -60,8 +62,8 @@ class NavigationTest extends TestCase
         $this->assertSame('Customer & Loan Data', $where['eir-feed.index']);
         $this->assertSame('Customer & Loan Data', $where['eir-takeon.index']);
         $this->assertSame('EIR & Revenue Recognition', $where['eir-as-at.index']);
-        $this->assertSame('EIR & Revenue Recognition', $where['eir-governance.index']);
-        $this->assertSame('Administration', $where['accounting.financial_periods.index']);
+        $this->assertSame('Governance Centre', $where['eir-governance.index']);
+        $this->assertSame('Financial Periods', $where['accounting.financial_periods.index']);
         $this->assertSame('ECL Processing', $where['expected-credit-loss.index']);
     }
 
@@ -82,8 +84,12 @@ class NavigationTest extends TestCase
         $this->assertSame(['fli.overview', 'fli.impact'], $sections['FLI Month-End']);
         $this->assertSame(['credit-loss-data.index', 'fli-correlation.index', 'fli-adjustments.index', 'fli-models.index', 'forecasting.manual', 'macro-forecast-weighted.index'], $sections['Forward-Looking Model']);
         $this->assertSame(['scenarios.profiles', 'scenario-sets.index', 'fli.scenarios.index', 'fli-overlays.index', 'fli.external.index', 'fli.external.list'], $sections['Scenarios & Overlays']);
-        $admin = collect(config('menu.admin'))->firstWhere('name', 'Administration');
-        $this->assertNotContains('Legacy FLI tools', array_column($admin['children'], 'name'));
+        // nothing forward-looking sits in the administration block (it was
+        // one Administration group until the split of 13 October 2026)
+        $admin = collect(config('menu.admin'))->where('heading', 'Administration & support');
+        $this->assertNotEmpty($admin);
+        $this->assertNotContains('Legacy FLI tools', $admin->pluck('name')->all());
+        $this->walk($admin->all(), fn (array $item) => $this->assertNotSame('Legacy FLI tools', $item['name']));
         foreach ($sections as $tabs) {
             $this->assertLessThanOrEqual(7, count($tabs), 'one tab row carries seven tabs at most');
         }

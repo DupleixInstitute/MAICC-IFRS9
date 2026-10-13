@@ -54,6 +54,10 @@
             </a>
         </template>
 
+        <!-- the filter bar and the PDF button (#actions) sit here, under the
+             header and above the KPI tiles they scope (AppLayout actions row) -->
+        <div data-actions-anchor></div>
+
         <!-- ============================ NO ECL YET ============================ -->
         <div v-if="error" class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 dark:border-amber-800 dark:bg-amber-900/30">
             <div class="flex items-start gap-3">
