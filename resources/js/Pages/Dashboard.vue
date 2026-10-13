@@ -121,6 +121,74 @@
                 </div>
             </div>
 
+            <!-- ============================ CHARTS ============================ -->
+            <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
+                <div class="maiic-panel p-6 lg:col-span-2">
+                    <div class="mb-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-slate-100">Exposure by stage</h3>
+                            <p class="text-xs text-gray-400">{{ periodLabel(selectedPeriod) }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span></p>
+                        </div>
+                        <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                            <button @click="pieView = 'chart'" :class="pieView === 'chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
+                            <button @click="pieView = 'table'" :class="pieView === 'table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                        </div>
+                    </div>
+                    <div v-show="pieView === 'chart'" class="relative h-72 w-full"><canvas ref="pieChart"></canvas></div>
+                    <table v-if="pieView === 'table'" class="maiic-table">
+                        <thead><tr><th>Stage</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">Share</th></tr></thead>
+                        <tbody>
+                            <tr v-for="(s, i) in stages" :key="i">
+                                <td>Stage {{ i + 1 }}</td>
+                                <td class="num">{{ formatAmount(s.ead) }}</td>
+                                <td class="num">{{ stageShare(i) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="maiic-panel p-6 lg:col-span-3">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-slate-100">ECL and coverage trend</h3>
+                            <p class="text-xs text-gray-400">{{ trendRangeLabel }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span></p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select v-model="filterForm.trend_from" @change="applyFilters"
+                                    class="rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
+                                <option :value="null">Last 12 months</option>
+                                <option value="all">From the start</option>
+                                <option v-for="p in periods" :key="'f' + p" :value="p">From {{ periodLabel(p) }}</option>
+                            </select>
+                            <select v-model="filterForm.trend_to" @change="applyFilters"
+                                    class="rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
+                                <option :value="null">To {{ periodLabel(selectedPeriod) }}</option>
+                                <option v-for="p in periods" :key="'t' + p" :value="p">To {{ periodLabel(p) }}</option>
+                            </select>
+                            <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                                <button @click="trendView = 'chart'" :class="trendView === 'chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
+                                <button @click="trendView = 'table'" :class="trendView === 'table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-show="trendView === 'chart'" class="h-72"><canvas ref="trendChart"></canvas></div>
+                    <div v-if="trendView === 'table'" class="maiic-table-wrap">
+                        <table class="maiic-table">
+                            <thead><tr><th>Period</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">ECL ({{ currencyCode }})</th><th class="num">Coverage</th></tr></thead>
+                            <tbody>
+                                <tr v-for="t in (eclTrends || [])" :key="t.period">
+                                    <td>{{ periodLabel(t.period) }}</td>
+                                    <td class="num">{{ formatAmount(t.total_ead) }}</td>
+                                    <td class="num">{{ formatAmount(t.total_ecl) }}</td>
+                                    <td class="num">{{ formatPct(t.ecl_percentage) }}</td>
+                                </tr>
+                                <tr v-if="!(eclTrends || []).length"><td colspan="4" class="maiic-empty">No calculated periods in this range.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- ============================ ECL BUILD-UP AND WHERE IT SITS ============================ -->
             <div v-if="eclBuildUp" class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <div class="maiic-panel lg:col-span-1">
@@ -202,74 +270,6 @@
                                     <td v-if="breakdownView === 'rbm'"></td>
                                     <td class="num text-xs" :class="breakdownTies ? 'text-maiic-700' : 'text-amber-700'" :title="breakdownTies ? 'The total ties to the total ECL on the tiles' : 'The total differs from the total ECL on the tiles'">{{ breakdownTies ? '100%, ties' : 'Differs' }}</td>
                                 </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ============================ CHARTS ============================ -->
-            <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-                <div class="maiic-panel p-6 lg:col-span-2">
-                    <div class="mb-4 flex items-center justify-between">
-                        <div>
-                            <h3 class="font-bold text-gray-900 dark:text-slate-100">Exposure by stage</h3>
-                            <p class="text-xs text-gray-400">{{ periodLabel(selectedPeriod) }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span></p>
-                        </div>
-                        <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
-                            <button @click="pieView = 'chart'" :class="pieView === 'chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
-                            <button @click="pieView = 'table'" :class="pieView === 'table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
-                        </div>
-                    </div>
-                    <div v-show="pieView === 'chart'" class="relative h-72 w-full"><canvas ref="pieChart"></canvas></div>
-                    <table v-if="pieView === 'table'" class="maiic-table">
-                        <thead><tr><th>Stage</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">Share</th></tr></thead>
-                        <tbody>
-                            <tr v-for="(s, i) in stages" :key="i">
-                                <td>Stage {{ i + 1 }}</td>
-                                <td class="num">{{ formatAmount(s.ead) }}</td>
-                                <td class="num">{{ stageShare(i) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="maiic-panel p-6 lg:col-span-3">
-                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <h3 class="font-bold text-gray-900 dark:text-slate-100">ECL and coverage trend</h3>
-                            <p class="text-xs text-gray-400">{{ trendRangeLabel }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span></p>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <select v-model="filterForm.trend_from" @change="applyFilters"
-                                    class="rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
-                                <option :value="null">Last 12 months</option>
-                                <option value="all">From the start</option>
-                                <option v-for="p in periods" :key="'f' + p" :value="p">From {{ periodLabel(p) }}</option>
-                            </select>
-                            <select v-model="filterForm.trend_to" @change="applyFilters"
-                                    class="rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
-                                <option :value="null">To {{ periodLabel(selectedPeriod) }}</option>
-                                <option v-for="p in periods" :key="'t' + p" :value="p">To {{ periodLabel(p) }}</option>
-                            </select>
-                            <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
-                                <button @click="trendView = 'chart'" :class="trendView === 'chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
-                                <button @click="trendView = 'table'" :class="trendView === 'table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div v-show="trendView === 'chart'" class="h-72"><canvas ref="trendChart"></canvas></div>
-                    <div v-if="trendView === 'table'" class="maiic-table-wrap">
-                        <table class="maiic-table">
-                            <thead><tr><th>Period</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">ECL ({{ currencyCode }})</th><th class="num">Coverage</th></tr></thead>
-                            <tbody>
-                                <tr v-for="t in (eclTrends || [])" :key="t.period">
-                                    <td>{{ periodLabel(t.period) }}</td>
-                                    <td class="num">{{ formatAmount(t.total_ead) }}</td>
-                                    <td class="num">{{ formatAmount(t.total_ecl) }}</td>
-                                    <td class="num">{{ formatPct(t.ecl_percentage) }}</td>
-                                </tr>
-                                <tr v-if="!(eclTrends || []).length"><td colspan="4" class="maiic-empty">No calculated periods in this range.</td></tr>
                             </tbody>
                         </table>
                     </div>
