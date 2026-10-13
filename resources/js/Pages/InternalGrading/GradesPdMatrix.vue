@@ -74,18 +74,47 @@
           <span class="font-semibold">Cumulative PD:</span>
           <span v-for="b in bands" :key="b.label" class="rounded-md px-2 py-0.5" :class="b.cls">{{ b.label }}</span>
         </div>
-        <p v-if="profile.description" class="text-gray-500 dark:text-slate-400"><span class="font-semibold text-gray-600 dark:text-slate-300">Source:</span> {{ profile.description }}</p>
+        <template v-if="profile.description">
+          <p class="text-gray-500 dark:text-slate-400"><span class="font-semibold text-gray-600 dark:text-slate-300">Source:</span> {{ source.text }}</p>
+          <p v-if="source.url" class="text-gray-500 dark:text-slate-400">
+            <span class="font-semibold text-gray-600 dark:text-slate-300">Link given in the workbook:</span>
+            <a :href="source.url" target="_blank" rel="noopener noreferrer" class="ml-1 inline-flex items-center gap-1 break-all text-maiic-700 underline decoration-dotted underline-offset-2 hover:text-maiic-800 dark:text-emerald-300 dark:hover:text-emerald-200">{{ source.label }} <i class="fas fa-external-link-alt text-[10px]"></i></a>
+          </p>
+          <div v-if="source.leftOut.length" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
+            <p class="font-semibold">Left out of this profile</p>
+            <ul class="mt-0.5 list-disc pl-5"><li v-for="(m, i) in source.leftOut" :key="i">{{ m }}</li></ul>
+          </div>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   show: Boolean,
   profile: Object,
   grades: Array,
   maxTenor: Number
+})
+
+// the profile's description, as the S&P import writes it: the source text, "Source: <link>" and "Left out: ..."
+const source = computed(() => {
+  let text = props.profile?.description || ''
+  let leftOut = []
+  const lo = text.indexOf('Left out:')
+  if (lo >= 0) {
+    leftOut = text.slice(lo + 9).split(/(?<=\.)\s+(?=Grade )/).map(t => t.trim()).filter(Boolean)
+    text = text.slice(0, lo).trim()
+  }
+  const m = text.match(/Source:\s*(https?:\/\/\S+)/)
+  const url = m ? m[1].replace(/[.,;]$/, '') : null
+  if (m) text = text.replace(m[0], '').trim()
+  let label = url
+  try { if (url) { const u = new URL(url); const slug = u.pathname.split('/').filter(Boolean).pop() || ''; label = u.hostname + ' - ' + slug.replace(/-\d+$/, '').replace(/^\d+-/, '').replace(/-/g, ' ') } } catch (e) { /* keep the raw link */ }
+  return { text, url, label, leftOut }
 })
 
 function formatPd(value) {
