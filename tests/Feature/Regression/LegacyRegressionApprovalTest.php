@@ -70,7 +70,8 @@ class LegacyRegressionApprovalTest extends TestCase
 
         $this->actingAs($user)->get('/regression')->assertForbidden();
         $this->actingAs($user)->get('/fli-adj/external')->assertForbidden();
-        foreach (['regression.index', 'regression.approve', 'fli.external.index', 'fli.external.update-loanbook', 'fli.regression.index'] as $name) {
+        // the one-slope endpoints that wrote onto the loans are gone (FLI module v1); External Calculations keeps the permission
+        foreach (['regression.index', 'regression.approve', 'fli.external.index', 'fli.external.list', 'fli.external.propose'] as $name) {
             $this->assertContains('permission:reports.ifrs9', Route::getRoutes()->getByName($name)->gatherMiddleware(), $name);
         }
     }

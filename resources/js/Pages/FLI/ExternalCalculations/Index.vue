@@ -40,9 +40,9 @@
         <p v-if="preview.problem" class="px-5 pb-3 text-sm text-red-700">{{ preview.problem }}</p>
         <div v-if="Object.keys(preview.scenarios || {}).length" class="maiic-table-wrap"><table class="maiic-table">
           <thead><tr><th>Scenario</th><th class="num">Weight</th><th class="num">Driver</th><th>Driver month</th><th class="num">Predicted measure</th><th class="num">Adjustment to the PD</th></tr></thead>
-          <tbody><tr v-for="(s, name) in preview.scenarios" :key="name"><td>{{ name }}</td><td class="num">{{ s.weight }}%</td><td class="num">{{ s.driver }}</td><td>{{ s.driver_period }}</td><td class="num">{{ s.predicted_proxy }}</td><td class="num font-semibold">{{ (s.adjustment * 100).toFixed(2) }}%</td></tr></tbody>
+          <tbody><tr v-for="(s, name) in preview.scenarios" :key="name"><td>{{ name }}</td><td class="num">{{ s.weight }}%</td><td class="num">{{ s.driver }}</td><td>{{ monthLabel(ym(s.driver_period)) }}</td><td class="num">{{ s.predicted_proxy }}</td><td class="num font-semibold">{{ (s.adjustment * 100).toFixed(2) }}%</td></tr></tbody>
         </table></div>
-        <p v-if="preview.base" class="px-5 py-2 text-xs text-gray-500">Base: {{ preview.base.statistic_code }} {{ preview.base.base_value }} for {{ preview.base.base_period }}, predicted measure {{ preview.base.predicted_base_proxy }}. Window driver: {{ preview.base.window_driver_source }}.</p>
+        <p v-if="preview.base" class="px-5 py-2 text-xs text-gray-500">Today's base: {{ preview.base.statistic_code }} {{ preview.base.base_value }} in {{ monthLabel(ym(preview.base.base_period)) }} (the model's lag), predicted measure {{ preview.base.predicted_base_proxy }}. Each scenario's driver is read {{ preview.fit ? preview.fit.lag_months : '' }} months before the end of the twelve-month window.</p>
       </div>
 
       <!-- the external versions -->
@@ -95,6 +95,7 @@ export default {
   computed: { paged() { return this.versions.slice((this.page - 1) * 15, this.page * 15) } },
   methods: {
     monthLabel(p) { if (!p) return '-'; const [y, m] = String(p).split('-'); return m ? `${MONTHS[Number(m) - 1]} ${y}` : p },
+    ym(v) { const t = String(v || ''); return t.length === 6 ? t.slice(0, 4) + '-' + t.slice(4) : t },
     go() { router.get(route('fli.external.index'), { period: this.periodSel }) },
     badge(s) { return { PUBLISHED: 'maiic-badge-green', PROPOSED: 'maiic-badge-gold', REJECTED: 'maiic-badge-red', RETIRED: 'maiic-badge-red' }[s] || 'maiic-badge-grey' },
     submit() { this.form.transform(d => ({ ...d, r_squared: d.r_squared === '' ? null : d.r_squared, n_obs: d.n_obs === '' ? null : d.n_obs })).post(route('fli.external.propose'), { preserveScroll: true, onSuccess: () => { this.showForm = false; this.form.reset() } }) },

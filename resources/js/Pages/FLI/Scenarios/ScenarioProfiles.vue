@@ -27,7 +27,7 @@
               <td class="num"><span class="maiic-badge" :class="Math.abs(profile.weights_sum - 100) < 0.01 ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ profile.weights_sum }}%</span></td>
               <td class="num">{{ profile.sets_started }}</td>
               <td><div class="flex justify-end gap-1.5">
-                <button v-if="canGovern" type="button" class="primary-btn !px-2.5 !py-1 text-xs" :disabled="!profile.scenarios.length" :title="'Start a draft scenario set for ' + monthLabel(period) + ' from this profile'" @click="start(profile)">Start a set</button>
+                <button v-if="canGovern" type="button" class="primary-btn whitespace-nowrap !px-2.5 !py-1 text-xs" :disabled="!profile.scenarios.length" :title="'Start a draft scenario set for ' + monthLabel(period) + ' from this profile'" @click="start(profile)">Start a set</button>
                 <button type="button" class="maiic-action maiic-action-view" title="Open the profile's scenarios" @click="viewProfile(profile)"><font-awesome-icon icon="eye" /></button>
                 <button type="button" class="maiic-action maiic-action-edit" title="Edit the profile" @click="openProfileForm(profile)"><font-awesome-icon icon="pen" /></button>
               </div></td>
@@ -60,10 +60,10 @@ import ScenarioForm from './ScenarioForm.vue'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const props = defineProps({ profiles: Array, periods: Array, setsByPeriod: Object, canGovern: Boolean })
+const props = defineProps({ profiles: Array, periods: Array, defaultPeriod: String, setsByPeriod: Object, canGovern: Boolean })
 
 const page = ref(1)
-const period = ref(props.periods?.[0] || '')
+const period = ref(props.defaultPeriod || props.periods?.[0] || '')
 const pagedProfiles = computed(() => (props.profiles || []).slice((page.value - 1) * 15, page.value * 15))
 const showProfileForm = ref(false)
 const currentProfile = ref(null)

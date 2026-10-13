@@ -1130,7 +1130,7 @@ Route::prefix('fli-adj')->middleware(['auth'])->group(function () {
     // (FLI module); History: every month's run and the approvals behind it. The
     // older one-slope endpoints that wrote fli_adj onto the loans outside
     // maker-checker (audit finding M6) are replaced by the governed route.
-    Route::prefix('external')->name('fli.external.')->group(function () {
+    Route::prefix('external')->name('fli.external.')->middleware('permission:reports.ifrs9')->group(function () {
         Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
         Route::get('/list', [ExternalCalculationsController::class, 'list'])->name('list');
         Route::post('/propose', [ExternalCalculationsController::class, 'propose'])->name('propose');

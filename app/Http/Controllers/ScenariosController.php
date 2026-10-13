@@ -32,6 +32,7 @@ class ScenariosController extends Controller
             return Inertia::render('FLI/Scenarios/ScenarioProfiles', [
                 'profiles' => $profiles,
                 'periods' => $next ? $periods->prepend($next)->values() : $periods,
+                'defaultPeriod' => $latest,
                 'setsByPeriod' => \Illuminate\Support\Facades\DB::table('governed_scenario_sets')->selectRaw('reporting_period, max(status) status, count(*) n')->groupBy('reporting_period')->pluck('n', 'reporting_period'),
                 'canGovern' => (bool) auth()->user()?->can('eir.govern'),
             ]);
@@ -47,7 +48,7 @@ class ScenariosController extends Controller
         $design = \App\Services\Scenario\ScenarioSetService::firstSetDesign();
         \Illuminate\Support\Facades\DB::transaction(function () use ($design) {
             $profile = ScenarioProfiles::create(['name' => 'MAIIC four scenarios', 'profile_code' => 'MAIIC4', 'created_by' => auth()->id(), 'complete' => 1,
-                'description' => 'Base 50, Upside 15, Downside 25 and Severe 10, each anchored to a Malawi episode (specification v4 section 15.8). The weights are a starting point; Dr Thom sets them.',
+                'description' => 'Base 50, Upside 15, Downside 25 and Severe 10, each anchored to a Malawi episode: the 2021 recovery, the 2023 devaluation and the 2016 drought. The weights are a starting point for the CFO to set.',
                 'data' => ['scenarios' => $design]]);
             foreach ($design as $d) {
                 Scenarios::create(['profile_id' => $profile->id, 'name' => $d['name'], 'description' => $d['anchored_to'] ?? null, 'probability' => $d['weight'] / 100,
