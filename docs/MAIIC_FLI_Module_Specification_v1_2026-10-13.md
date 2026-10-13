@@ -222,3 +222,20 @@ Each phase lands with its tests, its screens, the user and administrator manuals
 ## 11. Where the current figures stand
 
 For August 2026 on the demonstration database: ECL before FLI MWK 11.76 billion, forward-looking effect MWK (0.44) billion, manual overlays nil, ECL booked MWK 11.31 billion. The approved fit is the prime lending rate to the Stage 3 share at a nine-month lag (R-squared 0.74 on 26 monthly points), under the first scenario set. Every approval on that database is labelled "Demo, not a MAIIC approval". The fall in the ECL from the forward-looking effect follows the PLR's decline from a peak of 25.4 percent to 20.8 percent in August 2026; with 26 points and one driver, it is model output to be challenged, not yet a conclusion, which is the case for phases 1 and 5.
+
+## 12. What is built (13 October 2026)
+
+Built on branch eir_revenue_recognition and run end to end on the demonstration database:
+
+| Decision | Built as | Proof |
+|---|---|---|
+| D-F1, D-F2 cadence and registry | `fli_models`, `fli_model_versions`; approving a fit publishes a version in force from its month; Model Versions screen; three Governance Centre settings (cadence, horizon, movement tolerance) | The eight approved fits of January to August 2026 became versions 1 to 8; a version governs later months without a new fit (test) |
+| D-F3 per-scenario ECL | `ecl_scenario_results`, `FliCloseService` | August 2026: weighted ECL 11,314,579,806.37 against booked 11,314,579,806.97 |
+| D-F4 term structure | `FliProjectionService` into `ecl_projection_runs` and `ecl_pd_term_structures`; Adjusted Forecast screen | Six portfolios, four scenarios, five to seven years |
+| D-F7 external series | Credit Loss Data external records bridged as EXT_ measures, knowable from their release month | Tested with an entered series |
+| D-F9 double counting | `risk_driver` and the review on overlays; approval refused on the model's own driver | Test |
+| D-F10 vintages | `published_at` on macro and credit-loss rows; the as-at reader honours it | Existing as-at tests pass |
+| D-F11 run snapshot | `fli_run_snapshots`, Calculation History | Each month recorded with its inputs and sign-off |
+| D-F12 month-end gate | `FliMonthEnd` steps; the Overview and `fli:month-end`; Maintenance job `maiic:task month-end` | A full month-end from the console reproduced the booked August ECL |
+
+Not built yet: the scenario-sensitive LGD (D-F8, awaiting question 4 of section 10), the current-EIR discounting of floating-rate loans (D-F6, awaiting question 5), the credit-cycle method on an industry series (D-F7, awaiting question 2) and the calibration and scenario workbooks (section 8).
