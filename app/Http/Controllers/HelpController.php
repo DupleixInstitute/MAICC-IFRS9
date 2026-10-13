@@ -117,7 +117,12 @@ class HelpController extends Controller
             'categories' => $this->publishedTree($manual),
         ])->setPaper('a4', 'portrait');
 
-        return PdfPageNumbers::stamp($pdf)->download($meta['file']);
+        // served from a file in chunks: a manual runs to several megabytes, and one large in-memory
+        // body was cut short at the end by some servers
+        $tmp = tempnam(sys_get_temp_dir(), 'manual');
+        file_put_contents($tmp, PdfPageNumbers::stamp($pdf)->output());
+
+        return response()->download($tmp, $meta['file'], ['Content-Type' => 'application/pdf'])->deleteFileAfterSend(true);
     }
 
     private function publishedTree(string $manual)
@@ -146,7 +151,7 @@ class HelpController extends Controller
 
                                 return [
                                     'src' => str_starts_with($i->path, 'http') ? $i->path : asset(ltrim($i->path, '/')),
-                                    'file' => public_path(ltrim($i->path, '/')),
+                                    'file' => self::pdfImage(public_path(ltrim($i->path, '/'))),
                                     'caption' => 'Figure ' . $figureNo . '. ' . ($i->caption ?: ''),
                                 ];
                             })->values(),
@@ -154,6 +159,44 @@ class HelpController extends Controller
                     })->values(),
                 ];
             })->values();
+    }
+
+    /**
+     * The copy of a screenshot the PDF embeds: at most 1400 pixels wide (about 200 dpi across the
+     * printed page), JPEG at quality 75, cached by path and modification time. The screen manual
+     * keeps the full-size file. Without GD, or for anything but a PNG or JPEG, the original is used.
+     */
+    private static function pdfImage(string $file): string
+    {
+        if (! is_file($file) || ! function_exists('imagecreatefromjpeg') || ! preg_match('/\.(jpe?g|png)$/i', $file)) {
+            return $file;
+        }
+        [$w, $h] = @getimagesize($file) ?: [0, 0];
+        if ($w <= 1400) {
+            return $file;
+        }
+        $dir = storage_path('app/manual-pdf-images');
+        $out = $dir . '/' . md5($file . '|' . filemtime($file)) . '.jpg';
+        if (is_file($out)) {
+            return $out;
+        }
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $src = preg_match('/\.png$/i', $file) ? @imagecreatefrompng($file) : @imagecreatefromjpeg($file);
+        if (! $src) {
+            return $file;
+        }
+        $nw = 1400;
+        $nh = (int) round($h * $nw / $w);
+        $dst = imagecreatetruecolor($nw, $nh);
+        imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+        $ok = imagejpeg($dst, $out, 75);
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        return $ok ? $out : $file;
     }
 
     private function company(): string

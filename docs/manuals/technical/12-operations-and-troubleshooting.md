@@ -26,6 +26,8 @@ Application logs go to `storage/logs/laravel.log` (daily rotation when `LOG_CHAN
 | Restart workers after a deploy | `php artisan queue:restart` |
 | Refresh manual screenshots after UI changes | `php artisan manual:screenshots` with the app running locally |
 | Regenerate the schema appendix of this manual | Nothing to do; it is read live |
+| Run the month-end calculations | Administration, Maintenance, Run the month-end calculations, or `php artisan maiic:task month-end {period} --user={id}` (chapter 9.5); a second person then signs the month off on Forward-Looking Information, FLI Month-End, Overview |
+| Apply a release's database updates and seeders | Administration, Maintenance, Update the system after a new release, or `php artisan maiic:task update` |
 
 ### 12.5 Common failures and fixes
 
@@ -35,8 +37,13 @@ Application logs go to `storage/logs/laravel.log` (daily rotation when `LOG_CHAN
 | Error "permission does not exist" on a typed URL | Legacy route whose permission was removed | Expected until ticket #009 deletes the route; not reachable from the menu |
 | "An ECL calculation is already running" | Another run holds the period lock | Wait for it to finish; if a worker died, clear the lock row for the period |
 | Import stays `pending` | No queue worker running or `QUEUE_CONNECTION=sync` in a web context | Start the worker service; check `.env` |
-| Import shows failed rows | See the exception CSV from the Imports page | Fix the source rows and re-import; EIR intake dedups on external ids so a re-run does not duplicate |
-| EIR contract stays BLOCKED | Readiness issue | Read the blocker code on the Coverage and Blockers page (chapter 6.6) and resolve the data or approval it names |
+| Import shows failed rows | See the exception CSV from the Imports tab (Customer & Loan Data, Imports & Feeds) | Fix the source rows and re-import; EIR intake dedups on external ids so a re-run does not duplicate |
+| EIR contract stays BLOCKED | Readiness issue | Read the blocker code on EIR Calculations, Blockers (chapter 6.6) and resolve the data or approval it names |
+| `fli:month-end --all` or the month-end job stops before the route | The loan book, model version, scenario set or overlays step needs a person | Do what the step names on its screen (publish a model version, approve the scenario set, review the overlays), then run it again |
+| The forward-looking route fails for a month | No actual of the model's driver is known for the lagged base month, or a scenario has no path value for the year the window needs | Load the series on Macro Statistics or extend the set's path; the PD is not adjusted until then |
+| The month cannot be recorded | The ECL is not on the post-FLI PD, was calculated before the route last ran, or the loans ran under more than one scenario set | Apply the route again if needed, run `ifrs9:segment-ecl {period} --pd=pd_post_fli`, then record |
+| Sign-off refused | The weighted ECL does not reconcile to the booked ECL, the movement exceeds `fli_movement_commentary` without a commentary, or the signer recorded the month | Record the month again after the ECL run, add the commentary, or have a second person sign |
+| "... is still running" on Maintenance or the FLI Overview | One background command runs at a time | Wait for it to finish; its output is under `storage/app/command-runs` |
 | GL reconciliation shows NOT_CALCULATED for a posting | No locked EIR or no revenue run for that month | Lock the EIR, run `eir:run-revenue` for the month |
 | Trial balance file rejected | Grand total does not tie or period stamp missing | Check the file's grand total row; pass `--period` for the AFS sheet |
 | PDF download blank or missing glyphs | DomPDF font cache or memory limit | Ensure `storage/fonts` is writable and `memory_limit` is at least 1G |

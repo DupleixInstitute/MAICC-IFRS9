@@ -1,14 +1,9 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                License
-            </h2>
-        </template>
+    <app-layout title="Licence" description="The licence key for this installation and what it covers">
 
-        <div class=" mx-auto">
-            <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-4">
-                <div class="grid grid-cols-2 gap-2">
+        <div>
+            <div class="maiic-panel p-5">
+                <div class="grid grid-cols-1 gap-6" :class="{ 'lg:grid-cols-2': decodedPurchaseCode }">
                     <div class="mt-2">
                         <div v-if="decodedPurchaseCode">
                             <table class="w-full whitespace-no-wrap">
@@ -57,7 +52,7 @@
                     </div>
                     <div>
                         <div v-if="!decodedPurchaseCode">
-                            <p>No license found on this account. Please enter your licence</p>
+                            <p>No licence key is held for this installation. Enter the key you were given.</p>
                         </div>
                         <form @submit.prevent="submit">
                             <div class="grid grid-cols-1 gap-2 mt-2">

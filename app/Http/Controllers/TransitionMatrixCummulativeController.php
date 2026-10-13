@@ -325,7 +325,7 @@ class TransitionMatrixCummulativeController extends Controller
 
             if(!$cummulative){
                 Log::error('Cumulative Matrix not found');
-                return back()->with('error','Cummulative Matrix not found');
+                return back()->with('error','Cumulative matrix not found');
             }
 
             // Delete related cumulative matrix data
@@ -339,7 +339,7 @@ class TransitionMatrixCummulativeController extends Controller
             DB::commit();
 
             return redirect()->route('transition-matrix-cummulative.index')
-                ->with('success', 'Cummulative Matrix and all related data deleted successfully.');
+                ->with('success', 'Cumulative matrix and all related data deleted successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();

@@ -193,11 +193,10 @@
               <thead>
                 <tr>
                   <th class="th">Contract</th><th class="th">Basis</th>
-                  <th class="th text-right">Expected interest</th><th class="th text-right">GL posted</th>
-                  <th class="th text-right">Expected less posted</th><th class="th">Cause</th>
+                  <th class="th text-right">Expected interest</th><th class="th text-right" title="Under the amount posted: expected less posted">GL posted</th>
+                  <th class="th">Cause</th>
                   <th class="th text-right">EIR accrued</th><th class="th text-right">Variance</th>
-                  <th class="th text-right">Carrying amount</th><th class="th text-right">Rate effect</th>
-                  <th class="th text-right">Impairment</th><th class="th">Status</th>
+                  <th class="th text-right" title="The variance split into the carrying amount, rate and impairment effects">Variance split</th><th class="th">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -206,7 +205,7 @@
                     <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
                     <div class="text-xs text-gray-500">{{ r.customer_name || r.portfolio || '-' }}{{ r.gl_account_code ? ' · ' + r.gl_account_code + (r.gl_account_name ? ' ' + r.gl_account_name : '') : '' }}</div>
                   </td>
-                  <td class="td text-xs text-gray-600">
+                  <td class="td max-w-[13rem] text-xs text-gray-600">
                     <div v-if="r.expected_opening_balance !== null">
                       Opening {{ money(r.expected_opening_balance) }}
                       <span v-if="r.expected_rate !== null">&nbsp;at {{ (r.expected_rate * 100).toFixed(2) }}%</span>
@@ -218,26 +217,28 @@
                     <div v-if="r.capitalising_moratorium_month" class="font-medium text-amber-700">Capitalising moratorium</div>
                   </td>
                   <td class="td text-right tabular-nums">{{ r.expected_interest === null ? '-' : money(r.expected_interest) }}</td>
-                  <td class="td text-right tabular-nums">{{ r.has_posting ? money(r.gl_posted) : 'nothing posted' }}</td>
-                  <td class="td text-right tabular-nums" :class="toneFor(r.expected_difference)">
-                    {{ r.expected_difference === null ? '-' : money(r.expected_difference) }}
+                  <td class="td text-right tabular-nums">
+                    {{ r.has_posting ? money(r.gl_posted) : 'nothing posted' }}
+                    <div v-if="r.expected_difference !== null" class="text-xs" :class="toneFor(r.expected_difference)">Expected less posted {{ money(r.expected_difference) }}</div>
                   </td>
                   <td class="td">
                     <span :class="causeClass(r.cause)">{{ causeLabel(r.cause) }}</span>
-                    <div class="mt-1 max-w-sm text-xs text-gray-500">{{ r.cause_detail }}</div>
+                    <div class="mt-1 max-w-[14rem] text-xs text-gray-500">{{ r.cause_detail }}</div>
                   </td>
                   <td class="td text-right tabular-nums">{{ r.eir_accrued === null ? '-' : money(r.eir_accrued) }}</td>
                   <td class="td text-right tabular-nums" :class="toneFor(r.variance)">
                     {{ r.variance === null ? '-' : money(r.variance) }}
                     <div v-if="r.variance_percent !== null" class="text-xs text-gray-500">{{ r.variance_percent }}%</div>
                   </td>
-                  <td class="td text-right tabular-nums text-gray-600">{{ r.carrying_amount_effect === null ? '-' : money(r.carrying_amount_effect) }}</td>
-                  <td class="td text-right tabular-nums text-gray-600">{{ r.rate_effect === null ? '-' : money(r.rate_effect) }}</td>
-                  <td class="td text-right tabular-nums text-gray-600">{{ r.impairment_effect === null ? '-' : money(r.impairment_effect) }}</td>
+                  <td class="td whitespace-nowrap text-right text-xs tabular-nums text-gray-600">
+                    <div>Carrying {{ r.carrying_amount_effect === null ? '-' : money(r.carrying_amount_effect) }}</div>
+                    <div>Rate {{ r.rate_effect === null ? '-' : money(r.rate_effect) }}</div>
+                    <div>Impairment {{ r.impairment_effect === null ? '-' : money(r.impairment_effect) }}</div>
+                  </td>
                   <td class="td"><span :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td>
                 </tr>
                 <tr v-if="!rows.length">
-                  <td colspan="12" class="p-10 text-center text-sm text-gray-500">No GL postings or live loan-book rows for this period and portfolio.</td>
+                  <td colspan="9" class="p-10 text-center text-sm text-gray-500">No GL postings or live loan-book rows for this period and portfolio.</td>
                 </tr>
               </tbody>
             </table>
@@ -379,7 +380,7 @@ const statusClass = (s) => {
 .form-input{@apply block rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-maiic-500 focus:outline-none focus:ring-2 focus:ring-maiic-500}
 .primary-btn{@apply inline-flex items-center justify-center rounded-md bg-maiic-600 px-4 py-2 text-sm font-semibold text-white hover:bg-maiic-700 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2}
 .secondary-btn{@apply inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-maiic-500 focus:ring-offset-2}
-.th{@apply whitespace-nowrap bg-maiic-700 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-white}
-.td{@apply border-t border-gray-100 px-4 py-3 align-top text-sm text-gray-700}
+.th{@apply bg-maiic-700 px-2.5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-white}
+.td{@apply border-t border-gray-100 px-2.5 py-3 align-top text-sm text-gray-700}
 tbody tr:nth-child(even){@apply bg-gray-50}
 </style>

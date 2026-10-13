@@ -1,7 +1,7 @@
 <template>
     <div v-if="show" class="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
         <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-            <h2 class="text-lg font-semibold">Manual Cummulative LGD Calculation</h2>
+            <h2 class="text-lg font-semibold">Manual cumulative LGD calculation</h2>
 
             <!-- Toggle between Modes -->
             <div class="mt-4">

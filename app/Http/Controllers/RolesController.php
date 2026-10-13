@@ -55,7 +55,7 @@ class RolesController extends Controller
     {
 
         return Inertia::render('Roles/Create', [
-            'permissions' => Permission::all()->groupBy('module'),
+            'permissions' => $this->permissionGroups(),
         ]);
     }
 
@@ -89,7 +89,7 @@ class RolesController extends Controller
         });
         return Inertia::render('Roles/Show', [
             'role' => $role,
-            'permissions' => Permission::all()->groupBy('module'),
+            'permissions' => $this->permissionGroups(),
         ]);
     }
     public function edit(Role $role)
@@ -100,7 +100,7 @@ class RolesController extends Controller
         });
         return Inertia::render('Roles/Edit', [
             'role' => $role,
-            'permissions' => Permission::all()->groupBy('module'),
+            'permissions' => $this->permissionGroups(),
         ]);
     }
 
@@ -131,6 +131,19 @@ class RolesController extends Controller
         $role->syncPermissions($request->permissions);
 
         return redirect()->route('users.roles.index')->with('success', 'Role updated successfully.');
+    }
+
+    /**
+     * The permission matrix by module, IFRS 9 modules first; the banks, branches and legal types
+     * screens are left from the platform's earlier life and are listed last, marked as such.
+     */
+    private function permissionGroups()
+    {
+        $legacy = ['Banks', 'Branches', 'Legal Types'];
+        $groups = Permission::all()->groupBy('module')->toBase();
+
+        return $groups->reject(fn ($p, $m) => in_array($m, $legacy, true))
+            ->merge($groups->only($legacy)->mapWithKeys(fn ($p, $m) => [$m . ' (legacy screen, not in the menu)' => $p]));
     }
 
     public function destroy(Role $role)

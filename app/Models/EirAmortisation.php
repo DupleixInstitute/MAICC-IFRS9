@@ -13,6 +13,8 @@ class EirAmortisation extends Model
         'contract_id',
         'reporting_period',
         'opening_gross',
+        'advances',
+        'opening_basis',
         'interest_accrued',
         'interest_basis',
         'unwind_amount',
@@ -25,6 +27,7 @@ class EirAmortisation extends Model
 
     protected $casts = [
         'opening_gross'          => 'float',
+        'advances'               => 'float',
         'interest_accrued'       => 'float',
         'unwind_amount'          => 'float',
         'cash_received'          => 'float',

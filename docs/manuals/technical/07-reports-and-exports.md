@@ -20,6 +20,8 @@ The Early Warning System is rule-based SQL: stage 1 accounts in arrears, high ut
 
 The former Sensitivity tile redirects to the Stress Testing module (ticket #003).
 
+The Forward-Looking reports read the forward-looking month-end (chapter 5.5): the macro scenario report shows the macro data held in `macro_series` up to the month, the macro vintage of the month record, and the scenario set the record used (else the month's approved set) with its weights and shocks, and the Scenario-Weighted ECL report shows the ECL under each scenario, the probability-weighted ECL, the booked ECL, their difference and the close status from the month's `fli_run_snapshots` record. Until the month is recorded the report says so and points to Forward-Looking Information, FLI Month-End.
+
 ### 7.2 Excel export
 
 `Ifrs9ReportExport` consumes the same payload as the page and PDF, so every hub report exports without per-report code. The sheet carries the company, title, subtitle with period and generation line, a KPI row on a green band, then each section with a gold-ruled heading, a dark green column header band and zebra rows, with the pane frozen below the header. Display strings are coerced back to typed numbers: parenthesised negatives, thousands-separated decimals and integers, and percentages, each with an accounting number format so figures remain summable and right-aligned.

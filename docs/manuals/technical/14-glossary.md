@@ -13,17 +13,21 @@
 | EIR | Effective interest rate: the rate that exactly discounts contractual cash flows including integral fees to the initial net investment |
 | Extract A, B, C | The E-Banker extracts: contract master, transactions and remaining schedules, GL interest postings |
 | Financial period | An accounting period that can be opened and closed |
-| FLI | Forward-looking information: macro scenarios and regression that adjust PD |
+| FLI | Forward-looking information: the governed chain that moves each loan's PD for the economy, from the macro series through an approved model version and scenario set to the post-FLI PD (chapter 5.5) |
+| FLI month record | The `fli_run_snapshots` row of a month-end: the ECL under each scenario, the weighted ECL reconciled to the booked ECL, what the month ran under, and the second person's sign-off |
 | Golden number | A fixed expected result that a test pins so a calculation change is noticed |
 | Integral fee | A fee or cost directly attributable to origination and therefore part of the EIR (IFRS 9 B5.4.1) |
 | LGD | Loss given default: share of exposure not recovered after collateral and recoveries |
 | Maker and checker | A control where the person who records a decision cannot be the one who approves it |
+| Model version | A forward-looking model published from an approved fit, or an approved external calibration, with its coefficients and an effective month; never edited after publication |
+| Model version in force | The latest published model version whose effective month is on or before the reporting period |
 | NPL | Non-performing loan: Substandard, Doubtful and Loss under the RBM directive, 90 or more days past due |
 | PD | Probability of default over twelve months (stage 1) or lifetime (stages 2 and 3) |
 | RBM classification | Reserve Bank of Malawi prudential classes: Pass, Special Mention, Substandard, Doubtful, Loss |
 | Readiness gate | The set of named conditions a contract must meet before its EIR can be solved |
 | Recovery rate | Share of defaulted exposure recovered |
 | Reporting period | A month-end loan book snapshot identified as YYYY-MM |
+| Scenario set | The governed set of economic scenarios of a period, with weights summing to 100 and shocks on the base path, proposed by one person and approved by another |
 | SICR | Significant increase in credit risk: the trigger that moves an exposure from stage 1 to stage 2 |
 | Spool | The individual ledger entries that make up a control total |
 | Stage 1, 2, 3 | Performing (12-month ECL), underperforming after SICR (lifetime ECL), credit-impaired (lifetime ECL on the net carrying amount) |

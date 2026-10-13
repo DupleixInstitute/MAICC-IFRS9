@@ -1,6 +1,6 @@
 ## 4. Data Onboarding
 
-Two import stacks coexist. The loan book, collateral and client imports use maatwebsite/excel importer classes with per-import exception files. The EIR extracts use a generic mapped reader and one queued job. Both record progress in the `imports` table and both are visible on the Imports page.
+Two import stacks coexist. The loan book, collateral and client imports use maatwebsite/excel importer classes with per-import exception files. The EIR extracts use a generic mapped reader and one queued job. Both record progress in the `imports` table, which records the `kind` of each import (chapter 3.3), and both are visible under Customer & Loan Data, Imports & Feeds, on the Imports tab.
 
 ### 4.1 Loan book import
 
@@ -12,7 +12,7 @@ The E-Banker grouped export import (`importGroup()`) accepts the positional core
 
 ### 4.2 Collateral and client imports
 
-`CollateralController::importCollateralRegister()` mirrors the loan book path with `app/Imports/CollateralRegisterImport.php`, an exception file named `collateral_register_exception_{id}.csv`, and the same status transitions. Client imports use `ClientsImport` and set `failed_file_path` so the Imports page can offer the download.
+`CollateralController::importCollateralRegister()` mirrors the loan book path with `app/Imports/CollateralRegisterImport.php`, an exception file named `collateral_register_exception_{id}.csv`, and the same status transitions. Client imports use `ClientsImport` and set `failed_file_path` so the Imports tab can offer the download.
 
 ### 4.3 The mapped file reader
 
@@ -51,4 +51,4 @@ These come from the client deliveries received between August and September 2026
 
 ### 4.6 Reconciliation after a load
 
-Contract Schedule 3 requires record counts to reconcile one hundred percent and aggregate values within 0.1 percent. After a loan book load, compare the `imports` row counts against the source file, then the Loan Book page totals for the period against the core banking control total. After EIR loads, use the EIR Data page tabs (contracts, cash flows, schedules, GL) and the Coverage and Blockers page to confirm that every tape contract has a profile and to see the named blockers.
+Contract Schedule 3 requires record counts to reconcile one hundred percent and aggregate values within 0.1 percent. After a loan book load, compare the `imports` row counts against the source file, then the Loan Book page totals for the period against the core banking control total. After EIR loads, use the tabs of EIR & Revenue Recognition, EIR Data (Contract Master, Cash Flows, Drawdowns, Reference Rates, Schedule Review) and of EIR Calculations (Blockers, Coverage by Portfolio, Largest Facilities, GL Reconciliation) to confirm that every tape contract has a profile and to see the named blockers.

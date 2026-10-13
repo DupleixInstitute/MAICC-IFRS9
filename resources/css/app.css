@@ -84,6 +84,16 @@
     .maiic-table tfoot th, .maiic-table tr.total td {
         @apply bg-gray-100 text-maiic-900 font-extrabold border-t-2 border-maiicgold-500;
     }
+    /* footer cells sit under the body cells: same padding, numbers to the right */
+    .maiic-table tfoot th {
+        @apply px-4 py-2.5 text-left text-sm;
+    }
+    .maiic-table tfoot th.num {
+        @apply text-right;
+    }
+    .maiic-table-compact tfoot th {
+        @apply px-2.5;
+    }
     .num {
         @apply text-right tabular-nums whitespace-nowrap;
     }

@@ -69,7 +69,14 @@ class EirRevenueService
 
                 $previous = EirAmortisation::where('contract_id', $contractId)
                     ->where('reporting_period', '<', $period)->orderByDesc('reporting_period')->first();
-                $opening = $previous ? (float) $previous->closing_gross : $this->initialOpening($contract, $period);
+                // The first month opens on the schedule's present value or on the ledger's drawn balance;
+                // every later month carries that basis forward with the closing balance.
+                if ($previous) {
+                    $opening = (float) $previous->closing_gross;
+                    $openingBasis = $previous->opening_basis ?: 'SCHEDULE';
+                } else {
+                    [$opening, $openingBasis] = $this->initialOpening($contract, $period);
+                }
                 $loan = $this->loanSnapshot($contractId, $period);
                 if (! $loan) throw new RuntimeException("No loan-book snapshot exists for {$period}.");
 
@@ -85,13 +92,26 @@ class EirRevenueService
                 $interest = $monthlyRate * ($basis === 'NET' ? $netOpening : $opening);
                 $unwind = $basis === 'NET' ? $monthlyRate * min($allowance, $opening) : 0.0;
                 $cash = $this->cashReceived($contractId, $period);
+                // A tranche drawn in the month raises the gross, and earns interest from the day it is
+                // drawn, but only on a ledger basis: a schedule's present value already counts every
+                // tranche, so adding the advance there would count it twice.
+                $advances = 0.0;
+                if ($openingBasis === 'LEDGER') {
+                    // the advance raises the net carrying amount as much as the gross, so it accrues on either basis
+                    foreach ($cash['advances'] as $adv) {
+                        $advances += $adv['amount'];
+                        $interest += $monthlyRate * $adv['amount'] * $adv['share_of_month'];
+                    }
+                }
                 // a write-off or a settlement in kind leaves the gross without being cash
-                $closing = max(0.0, $opening + $interest + $unwind - $cash['amount'] - $cash['derecognised']);
+                $closing = max(0.0, $opening + $advances + $interest + $unwind - $cash['amount'] - $cash['derecognised']);
 
                 $row = EirAmortisation::create([
                     'contract_id' => $contractId,
                     'reporting_period' => $period,
                     'opening_gross' => round($opening, 2),
+                    'advances' => round($advances, 2),
+                    'opening_basis' => $openingBasis,
                     'interest_accrued' => round($interest, 2),
                     'interest_basis' => $basis,
                     'unwind_amount' => round($unwind, 2),
@@ -109,7 +129,8 @@ class EirRevenueService
         }
     }
 
-    private function initialOpening(ContractEir $contract, string $period): float
+    /** @return array{0: float, 1: string} the opening and its basis, SCHEDULE or LEDGER */
+    private function initialOpening(ContractEir $contract, string $period): array
     {
         $snapshot = $contract->input_snapshot ?? [];
         $opening = (float) ($snapshot['initial_net_investment'] ?? $contract->opening_amortised_cost ?? 0);
@@ -117,8 +138,22 @@ class EirRevenueService
 
         $origination = $snapshot['metadata']['origination_date'] ?? $contract->origination_date?->toDateString();
         $flows = $snapshot['cash_flows'] ?? [];
-        $asOf = CarbonImmutable::createFromFormat('Y-m-d', $period . '-01')->endOfMonth();
-        if (! $origination || $asOf->lessThan(CarbonImmutable::parse($origination)->endOfMonth()) || $flows === []) return $opening;
+        // The opening of a month is the amortised cost at the end of the month before: the present
+        // value at that date of the flows still to come. (Taking it at the end of the month itself,
+        // as before 13 October 2026, counted that month's interest twice: once in the present value
+        // and again in the month's accrual.)
+        $start = CarbonImmutable::createFromFormat('Y-m-d', $period . '-01');
+        $asOf = $start->subDay();
+        if ($origination && CarbonImmutable::parse($origination)->greaterThan($asOf)) {
+            // Lent within the month: nothing was owed at its start. Where the ledger shows the
+            // advances, the month opens at nil and each one is added from the day it was drawn;
+            // without them the initial net investment stands in, as before.
+            $drawn = DB::table('eir_actual_transactions')->where('contract_id', $contract->contract_id)->whereIn('transaction_type', self::ADVANCE_TYPES)
+                ->whereBetween('transaction_date', [$start->toDateString(), $start->endOfMonth()->toDateString()])->exists();
+
+            return $drawn ? [0.0, 'LEDGER'] : [$opening, 'SCHEDULE'];
+        }
+        if (! $origination || $flows === []) return [$opening, 'SCHEDULE'];
 
         $pv = 0.0;
         foreach ($flows as $flow) {
@@ -146,7 +181,7 @@ class EirRevenueService
      * value, the opening is the ledger balance (never below nil), and the
      * substitution is written to the audit log with both figures.
      */
-    private function prepaidOpening(ContractEir $contract, string $period, float $pv): float
+    private function prepaidOpening(ContractEir $contract, string $period, float $pv): array
     {
         $priorEnd = CarbonImmutable::createFromFormat('Y-m-d', $period . '-01')->subDay()->toDateString();
         $account = DB::table('loan_books')->where('contract_id', $contract->contract_id)->whereNotNull('external_identity_id')
@@ -154,28 +189,28 @@ class EirRevenueService
         try {
             $ledger = app(\App\Services\Ebanker\LandingZoneReader::class)->ledgerByAccount($priorEnd)[$account] ?? [];
         } catch (\Throwable) {
-            return $pv;
+            return [$pv, 'SCHEDULE'];
         }
         if ($ledger === []) {
-            return $pv;
+            return [$pv, 'SCHEDULE'];
         }
         $gross = -array_sum(array_map(fn ($p) => (float) str_replace(',', '', (string) ($p['payload']['TRANSAMT'] ?? 0)), $ledger));
-        if ($gross >= 0.5 * $pv) {
-            return $pv;
-        }
-        // a facility still drawing down is not prepaid: its schedule carries the tranches to come,
-        // and the roll-forward does not add a later advance, so the schedule's value stands
-        $laterAdvance = DB::table('eir_actual_transactions')->where('contract_id', $contract->contract_id)->where('transaction_type', 'Disbursement')
+        // A facility still drawing down: the schedule assumes every tranche was advanced at the
+        // start, so its present value counts money not yet lent. The opening is the drawn balance
+        // and each later tranche is added in the month it is drawn.
+        $laterAdvance = DB::table('eir_actual_transactions')->where('contract_id', $contract->contract_id)->whereIn('transaction_type', self::ADVANCE_TYPES)
             ->where('transaction_date', '>', $priorEnd)->exists();
-        if ($laterAdvance) {
-            return $pv;
+        if (! $laterAdvance && $gross >= 0.5 * $pv) {
+            return [$pv, 'SCHEDULE'];
         }
         $opening = max(0.0, round($gross, 2));
         \App\Services\AuditLoggerService::log('EIR Opening From Ledger', 'eir_amortisation', null, ['reporting_period' => $period,
             'new_values' => ['contract_id' => $contract->contract_id, 'schedule_present_value' => round($pv, 2), 'ledger_balance' => round($gross, 2), 'opening' => $opening,
-                'reason' => 'prepaid ahead of the schedule: the ledger balance at ' . $priorEnd . ' is below half the present value of the remaining schedule']]);
+                'reason' => $laterAdvance
+                    ? 'still drawing down: the opening is the drawn balance at ' . $priorEnd . ' and each later tranche is added in the month it is drawn'
+                    : 'prepaid ahead of the schedule: the ledger balance at ' . $priorEnd . ' is below half the present value of the remaining schedule']]);
 
-        return $opening;
+        return [$opening, 'LEDGER'];
     }
 
     private function yearFraction(CarbonImmutable $from, CarbonImmutable $to, string $basis): float
@@ -261,7 +296,7 @@ class EirRevenueService
             && $end->toDateString() >= $contractStart;
 
         if (! $covered) {
-            return ['amount' => $this->scheduledCash($contractId, $start, $end), 'source' => 'DERIVED', 'unclassified' => 0.0, 'derecognised' => 0.0];
+            return ['amount' => $this->scheduledCash($contractId, $start, $end), 'source' => 'DERIVED', 'unclassified' => 0.0, 'derecognised' => 0.0, 'advances' => []];
         }
 
         $collected = 0.0;
@@ -281,7 +316,14 @@ class EirRevenueService
             }
         }
 
-        return ['amount' => $collected, 'source' => 'IMPORTED', 'unclassified' => $unclassified, 'derecognised' => $derecognised];
+        // each advance with the share of the month it is outstanding for (drawn on the 1st: all of it)
+        $days = $start->daysInMonth;
+        $advances = DB::table('eir_actual_transactions')->where('contract_id', $contractId)->whereIn('transaction_type', self::ADVANCE_TYPES)
+            ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])->get(['transaction_date', 'total_amount'])
+            ->map(fn ($a) => ['amount' => (float) $a->total_amount,
+                'share_of_month' => ($days - (int) CarbonImmutable::parse($a->transaction_date)->day + 1) / $days])->all();
+
+        return ['amount' => $collected, 'source' => 'IMPORTED', 'unclassified' => $unclassified, 'derecognised' => $derecognised, 'advances' => $advances];
     }
 
     /** The contractual promise for the period — used only where no actuals cover it. */
@@ -323,6 +365,8 @@ class EirRevenueService
                 'contract_id' => $row->contract_id,
                 'reporting_period' => $row->reporting_period,
                 'opening_gross' => $row->opening_gross,
+                'advances' => $row->advances,
+                'opening_basis' => $row->opening_basis,
                 'interest_accrued' => $row->interest_accrued,
                 'interest_basis' => $row->interest_basis,
                 'unwind_amount' => $row->unwind_amount,

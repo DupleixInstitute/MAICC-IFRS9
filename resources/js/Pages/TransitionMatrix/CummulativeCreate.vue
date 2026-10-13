@@ -1,14 +1,12 @@
 <template>
-    <app-layout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Create Cummulative Transition Matrix
-            </h2>
+    <app-layout title="Create cumulative transition matrix" description="Compound closed monthly matrices into the PD term structure for a window">
+        <template #actions>
+            <Link href="/transition-matrix-cummulative" class="secondary-btn">Back</Link>
         </template>
 
-        <div class="py-12">
+        <div>
             <div class="w-full">
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
+                <div class="maiic-panel p-6">
                     <!-- Main Form -->
                     <form @submit.prevent="submitForm">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -127,10 +125,6 @@
                             <jet-button :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
                                 Proceed to Matrix Entry
                             </jet-button>
-
-                            <Link href="/transition-matrix-cummulative" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md">
-                                Back
-                            </Link>
                         </div>
                     </form>
 

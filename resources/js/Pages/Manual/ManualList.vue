@@ -1,32 +1,25 @@
 <template>
-  <app-layout>
-    <template #header>
-      <div class="flex justify-between items-center">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Manuals Management</h2>
-        <Link :href="route('manuals.create')"
-          class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300 mt-2">
-          Add New Manual
-          <i class="fas fa-plus ml-2"></i>  
-        </Link>
-      </div>
-    </template>
+  <app-layout title="Page help text" description="Short help shown by the ? button on a particular screen. The User and Administrator manuals are under System Documentation; a screen without its own help text opens the manual article for it.">
+        <template #actions>
+            <Link :href="route('manuals.create')" class="primary-btn"><i class="fas fa-plus"></i> Add page help</Link>
+        </template>
 
-    <div class="overflow-x-auto mt-6">
-      <div class="bg-white shadow-md rounded-lg">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-200">
+    <div class="maiic-panel">
+      <div class="maiic-table-wrap">
+        <table class="maiic-table">
+          <thead>
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th>Title</th>
+              <th>Route</th>
+              <th>Actions</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody>
             <tr v-if="loading">
               <td colspan="3" class="px-6 py-4 text-center text-gray-500">Loading manuals...</td>
             </tr>
             <tr v-else-if="manuals.length === 0">
-              <td colspan="3" class="px-6 py-4 text-center text-gray-500">No manuals found.</td>
+              <td colspan="3" class="px-6 py-4 text-center text-gray-500">No screen has its own help text yet: the ? button on every screen opens the matching manual article.</td>
             </tr>
             <tr v-for="manual in manuals" :key="manual.id">
               <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ manual.title }}</td>

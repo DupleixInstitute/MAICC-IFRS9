@@ -84,20 +84,9 @@
                 </table>
             </div>
 
-            <!-- Numbered pager in the Pagination.vue style; this list merges two logs, so it pages here -->
-            <div v-if="pagination.last_page > 1" class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
-                <span class="text-xs text-gray-500">Page {{ pagination.current_page }} of {{ pagination.last_page }}, {{ pagination.total.toLocaleString('en-GB') }} entries</span>
-                <nav class="flex flex-wrap items-center gap-1" aria-label="Pages">
-                    <button type="button" :disabled="pagination.current_page <= 1" @click="go(pagination.current_page - 1)"
-                            class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-maiic-50 disabled:cursor-default disabled:text-gray-400 disabled:hover:bg-white">&laquo; Previous</button>
-                    <template v-for="(n, k) in pageWindow" :key="k">
-                        <span v-if="n === '...'" class="px-1 text-gray-400">...</span>
-                        <button v-else type="button" @click="go(n)" class="rounded-lg border px-3 py-1.5 text-sm font-semibold"
-                                :class="n === pagination.current_page ? 'border-maiic-600 bg-maiic-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-maiic-300 hover:bg-maiic-50'">{{ n }}</button>
-                    </template>
-                    <button type="button" :disabled="pagination.current_page >= pagination.last_page" @click="go(pagination.current_page + 1)"
-                            class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-maiic-50 disabled:cursor-default disabled:text-gray-400 disabled:hover:bg-white">Next &raquo;</button>
-                </nav>
+            <!-- The standard pager; this list merges two logs, so it pages on the server -->
+            <div v-if="pagination.last_page > 1" class="border-t border-gray-100 px-4 py-3">
+                <ClientPager :model-value="pagination.current_page" :total="pagination.total" :per-page="pagination.per_page" @update:model-value="go"/>
             </div>
         </div>
     </app-layout>
@@ -106,9 +95,10 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import pickBy from 'lodash/pickBy'
+import ClientPager from '@/Components/ClientPager.vue'
 
 export default {
-    components: { AppLayout },
+    components: { AppLayout, ClientPager },
     props: {
         entries: Array,
         filters: Object,
@@ -144,16 +134,6 @@ export default {
         },
         hasFilters() {
             return Object.values(this.form).some(v => v !== null && v !== '' && v !== undefined)
-        },
-        // Page numbers around the current page, with the first and last.
-        pageWindow() {
-            const cur = this.pagination.current_page, last = this.pagination.last_page
-            const pages = []
-            for (let n = 1; n <= last; n++) {
-                if (n === 1 || n === last || Math.abs(n - cur) <= 2) pages.push(n)
-                else if (pages[pages.length - 1] !== '...') pages.push('...')
-            }
-            return pages
         },
     },
     methods: {

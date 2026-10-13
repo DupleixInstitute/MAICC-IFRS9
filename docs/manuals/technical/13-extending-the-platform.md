@@ -6,7 +6,7 @@
 2. Create the controller action returning `Inertia::render('Folder/Page', [...])` with database-driven props; whitelist any filter values against the database.
 3. Create the Vue page under `resources/js/Pages/Folder/Page.vue` using `AppLayout`, `maiic-panel`, `maiic-table` and `RowActions` (chapter 2.5). Format numbers in accounting style and right-align them with `.num`.
 4. Seed the permission with a `module` and `display_name` in the relevant seeder and grant it to the admin role.
-5. Add a leaf to `config/menu.php` in the group that matches the contract component; pass `true` as the download flag for file responses.
+5. Add the screen to `config/menu.php` in the group that matches the contract component (chapter 2.3): a `$leaf`, or a `$tab` in the `$section` of the screens it works with, rather than a new entry beside them. Pass the permission the controller enforces so the entry is hidden from users who lack it, and `true` as the download flag for file responses. `tests/Feature/NavigationTest.php` fails if the route is not registered.
 6. Add the route name to the screenshot list in `app/Console/Commands/CaptureManualScreenshotsCommand.php` and document the page in the User or Administrator Manual through the help centre.
 7. Write a feature test that renders the page as an admin and asserts a guest is redirected.
 
@@ -32,7 +32,7 @@ For a new EIR extract type, add the required and optional field lists to `Mapped
 
 | Document | Source | How to update |
 |---|---|---|
-| User Manual, Administrator Manual | Help centre tables | Edit in the application under System Documentation, Edit manual; refresh figures with `manual:screenshots`; PDF is generated from the same rows |
+| User Manual, Administrator Manual | Help centre tables | Edit in the application from System Documentation, User Manual or Administrator Manual, with the Edit manual button (`settings` permission); refresh figures with `manual:screenshots`; PDF is generated from the same rows |
 | Technical Manual (this document) | `docs/manuals/technical/*.md` | Edit the chapter file in the same commit as the code change; the in-app page and PDF pick it up immediately |
 | Installation Guide | `docs/manuals/installation/*.md` | Same as above |
 | EIR specification and build log | `docs/MAIIC_EIR_Revenue_Recognition_Engine_Spec.md`, `docs/Development_of_EIR.md` | Update the build status table when a phase changes state |

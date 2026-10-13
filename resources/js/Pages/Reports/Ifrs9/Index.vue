@@ -51,7 +51,6 @@ function href(r) {
     return route(r.route, r.period && period.value ? { period: period.value } : {})
 }
 
-const badge = { PDF: 'maiic-badge-red', Excel: 'maiic-badge-green', CSV: 'maiic-badge-grey', ZIP: 'maiic-badge-gold' }
 </script>
 
 <template>
@@ -113,7 +112,7 @@ const badge = { PDF: 'maiic-badge-red', Excel: 'maiic-badge-green', CSV: 'maiic-
                             <span class="mt-0.5 block text-sm leading-snug text-gray-500">{{ r.description }}</span>
                             <span class="mt-2 flex flex-wrap items-center gap-1.5">
                                 <span v-if="r.group" class="maiic-badge maiic-badge-grey">{{ r.group }}</span>
-                                <span v-for="f in r.formats" :key="f" class="maiic-badge" :class="badge[f] || 'maiic-badge-grey'">{{ f }}</span>
+                                <span v-if="r.formats && r.formats.length" class="text-xs text-gray-500">Downloads as {{ r.formats.join(', ') }}</span>
                             </span>
                         </span>
                     </Link>

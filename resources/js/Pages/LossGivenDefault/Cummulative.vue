@@ -36,7 +36,7 @@
           </form>
         </div>
         <div class="maiic-table-wrap overflow-x-auto">
-          <table class="maiic-table">
+          <table class="maiic-table maiic-table-compact">
             <thead>
               <tr>
                 <th>Window</th>
@@ -53,13 +53,7 @@
             <tbody>
               <tr v-for="lgdC in lgdCummulatives.data" :key="lgdC.id">
                 <td class="whitespace-nowrap" :title="'Created ' + formatDate(lgdC.created_at) + (lgdC.created_by ? ' by ' + lgdC.created_by : '')">{{ formatDate(lgdC.start_period) }} to {{ formatDate(lgdC.reporting_period) }}</td>
-                <td>
-                  <span class="maiic-badge maiic-badge-grey">{{ lgdC.lgd_calculation_level ? lgdC.lgd_calculation_level.charAt(0).toUpperCase() + lgdC.lgd_calculation_level.slice(1) : '-' }}</span>
-                  <div class="mt-0.5 text-sm">
-                    <template v-if="lgdC.lgd_calculation_level === 'portfolio'">{{ lgdC.portfolio_group ? lgdC.portfolio_group.name : 'Portfolio ' + lgdC.lgd_calculation_id }}</template>
-                    <template v-else-if="lgdC.lgd_calculation_level === 'sector'">{{ lgdC.sector ? lgdC.sector.code + ' - ' + lgdC.sector.name : 'Sector ' + lgdC.lgd_calculation_code }}</template>
-                  </div>
-                </td>
+                <td class="min-w-[11rem]"><SegmentCell :level="lgdC.lgd_calculation_level" :name="lgdC.lgd_calculation_level === 'portfolio' ? (lgdC.portfolio_group?.name || '') : (lgdC.lgd_calculation_level === 'sector' ? (lgdC.sector?.name || '') : '')" :code="lgdC.lgd_calculation_level === 'sector' ? (lgdC.sector?.code || lgdC.lgd_calculation_code) : lgdC.lgd_calculation_id"/></td>
                 <td class="num font-bold">{{ round(lgdC.lgd_cummulative * 100, 2) }}</td>
                 <td class="num">{{ round(lgdC.cure_rate_cummulative * 100, 2) }}</td>
                 <td class="num">{{ round(lgdC.recovery_rate_cummulative * 100, 2) }}</td>
@@ -302,12 +296,14 @@ import { notice } from '@/Components/Maiic/notice'
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import SegmentCell from '@/Components/Maiic/SegmentCell.vue';
 import Pagination from '@/Shared/Pagination.vue'
 import '@fortawesome/fontawesome-free/css/all.css';
 import HelpManual from '../../Components/HelpManual.vue';
 
 export default {
     components: {
+        SegmentCell,
         AppLayout,
         HelpManual,
         Pagination,
