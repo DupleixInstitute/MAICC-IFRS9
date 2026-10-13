@@ -54,7 +54,10 @@ class EirAsAtService
         $rows = DB::table('eir_amortisation')->where('contract_id', $c->contract_id)->orderBy('reporting_period')->get();
         $thisMonth = $rows->firstWhere('reporting_period', $period);
         $prior = $rows->where('reporting_period', '<=', $priorEnd->format('Y-m'))->last();
-        $eir = $c->eir_effective_annual !== null ? (float) $c->eir_effective_annual : null;
+        // the EIR in force for the month: the row's (moved with the rate charged for a floating-rate loan), else the locked one
+        $inForce = $thisMonth ?? $prior;
+        $eir = $inForce && isset($inForce->eir_annual) && $inForce->eir_annual !== null ? (float) $inForce->eir_annual
+            : ($c->eir_effective_annual !== null ? (float) $c->eir_effective_annual : null);
 
         $ledger = $this->postings($account, $asAt->toDateString());
         $gross = round(-array_sum(array_map(fn ($p) => $p['amount'], $ledger)), 2);

@@ -22,11 +22,11 @@ class EirRevenueServiceTest extends TestCase
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
         Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->double('eir_effective_annual')->nullable(); $t->json('input_snapshot')->nullable(); $t->double('opening_amortised_cost')->nullable(); $t->string('origination_date')->nullable(); $t->string('source_day_count_basis')->nullable(); $t->string('locked_at')->nullable(); $t->timestamps(); });
-        Schema::create('eir_amortisation', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period', 7); $t->double('opening_gross'); $t->double('advances')->default(0); $t->string('opening_basis', 12)->nullable(); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->timestamps(); $t->unique(['contract_id', 'reporting_period']); });
+        Schema::create('eir_amortisation', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period', 7); $t->double('opening_gross'); $t->double('advances')->default(0); $t->string('opening_basis', 12)->nullable(); $t->double('eir_annual')->nullable(); $t->double('opening_arrears')->default(0); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->timestamps(); $t->unique(['contract_id', 'reporting_period']); });
         Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->integer('calculated_ifrs9_stage')->nullable(); $t->integer('ifrs9stage_post_qualitative')->nullable(); $t->integer('ifrs9_stage')->nullable(); $t->double('expected_loss_provision')->default(0); $t->double('ecl_value')->nullable(); });
         Schema::create('eir_actual_transactions', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('transaction_date'); $t->string('transaction_type', 50)->nullable(); $t->double('principal_component')->default(0); $t->double('interest_component')->default(0); $t->double('fee_component')->default(0); $t->double('total_amount')->default(0); });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->smallInteger('schedule_version')->default(1); $t->string('due_date'); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); });
-        Schema::create('eir_amortisation_history', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period', 7); $t->double('opening_gross'); $t->double('advances')->default(0); $t->string('opening_basis', 12)->nullable(); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->string('originally_created_at')->nullable(); $t->string('superseded_at')->nullable(); $t->integer('superseded_by')->nullable(); $t->string('supersession_reason', 500); $t->timestamps(); });
+        Schema::create('eir_amortisation_history', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period', 7); $t->double('opening_gross'); $t->double('advances')->default(0); $t->string('opening_basis', 12)->nullable(); $t->double('eir_annual')->nullable(); $t->double('opening_arrears')->default(0); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->string('originally_created_at')->nullable(); $t->string('superseded_at')->nullable(); $t->integer('superseded_by')->nullable(); $t->string('supersession_reason', 500); $t->timestamps(); });
         // The Stage 3 basis is the governed setting stage3_interest_basis, not a constant.
         $this->createGovernanceSchema();
         $this->seedGovernanceDefaults();
@@ -397,5 +397,63 @@ class EirRevenueServiceTest extends TestCase
         $this->assertSame('SCHEDULE', $row->opening_basis);
         $this->assertEqualsWithDelta(0, $row->advances, 0.01);
         $this->assertEqualsWithDelta(1010, $row->closing_gross, 0.01);
+    }
+
+    private function ratesSchema(): void
+    {
+        Schema::table('contract_eir', function (Blueprint $t) { $t->string('rate_type')->nullable(); $t->double('contractual_rate')->nullable(); });
+        Schema::table('loan_books', function (Blueprint $t) { $t->double('interest_rate')->nullable(); $t->string('external_identity_id')->nullable(); });
+    }
+
+    public function test_a_floating_rate_loan_accrues_at_the_eir_moved_with_the_rate_charged(): void
+    {
+        $this->ratesSchema();
+        // locked at 12.6825 percent effective (1 percent a month) on a schedule built at 12 percent;
+        // E-Banker charged 18 percent in the month, so the EIR moves up six points
+        DB::table('contract_eir')->insert(['contract_id' => 'FL', 'eir_effective_annual' => 0.126825, 'rate_type' => 'FLOATING', 'contractual_rate' => 0.12,
+            'input_snapshot' => json_encode(['initial_net_investment' => 1000]), 'locked_at' => '2025-01-01', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('loan_books')->insert(['contract_id' => 'FL', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 1, 'interest_rate' => 18]);
+
+        (new EirRevenueService())->run('FL', '2025-01');
+        $row = DB::table('eir_amortisation')->where('contract_id', 'FL')->first();
+
+        $nominal = 12 * (pow(1.126825, 1 / 12) - 1) + 0.06;
+        $this->assertEqualsWithDelta(pow(1 + $nominal / 12, 12) - 1, $row->eir_annual, 1e-6);
+        $this->assertEqualsWithDelta(1000 * $nominal / 12, $row->interest_accrued, 0.01);
+    }
+
+    public function test_a_fixed_rate_loan_keeps_its_locked_eir(): void
+    {
+        $this->ratesSchema();
+        DB::table('contract_eir')->insert(['contract_id' => 'FX', 'eir_effective_annual' => 0.126825, 'rate_type' => 'FIXED', 'contractual_rate' => 0.12,
+            'input_snapshot' => json_encode(['initial_net_investment' => 1000]), 'locked_at' => '2025-01-01', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('loan_books')->insert(['contract_id' => 'FX', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 1, 'interest_rate' => 18]);
+
+        (new EirRevenueService())->run('FX', '2025-01');
+
+        $this->assertEqualsWithDelta(10, DB::table('eir_amortisation')->where('contract_id', 'FX')->value('interest_accrued'), 0.01);
+    }
+
+    public function test_arrears_at_the_month_before_are_added_to_the_opening(): void
+    {
+        $this->ratesSchema();
+        DB::table('contract_eir')->insert(['contract_id' => 'AR', 'eir_effective_annual' => 0.126825, 'rate_type' => 'FIXED', 'contractual_rate' => 0.12, 'origination_date' => '2024-06-01',
+            'source_day_count_basis' => 'ACT/365', 'input_snapshot' => json_encode(['initial_net_investment' => 1000, 'cash_flows' => [
+                ['due_date' => '2025-06-30', 'amount' => 1000],
+            ]]), 'locked_at' => '2024-06-01', 'created_at' => now(), 'updated_at' => now()]);
+        $this->loan('AR', '2025-01', 1);
+        // the schedule expects about 942.6 owed at 31 December; the ledger owes 1,042.60
+        $this->mock(\App\Services\Ebanker\LandingZoneReader::class, fn ($m) => $m->shouldReceive('ledgerByAccount')
+            ->andReturn([str_pad('AR', 15, '0', STR_PAD_LEFT) => [['payload' => ['TRANSAMT' => '-1042.60']]]]));
+
+        (new EirRevenueService())->run('AR', '2025-01');
+        $row = DB::table('eir_amortisation')->where('contract_id', 'AR')->first();
+
+        $this->assertSame('SCHEDULE', $row->opening_basis);
+        $this->assertGreaterThan(95, $row->opening_arrears);
+        $this->assertLessThan(105, $row->opening_arrears);
+        // the schedule and the contractual rate agree, so the opening is the ledger's balance
+        $this->assertEqualsWithDelta(1042.60, $row->opening_gross, 0.5);
+        $this->assertSame(1, DB::table('audit_logs')->where('action', 'EIR Opening Arrears')->count());
     }
 }

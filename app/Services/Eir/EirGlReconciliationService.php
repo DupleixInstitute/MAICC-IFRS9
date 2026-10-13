@@ -495,8 +495,10 @@ class EirGlReconciliationService
         $carryingEffect = $contractualOnEngine === null || $expected->interest === null
             ? null : $contractualOnEngine - $expected->interest;
 
-        $effectiveMonthly = $contract && $contract->eir_effective_annual !== null
-            ? pow(1 + (float) $contract->eir_effective_annual, 1 / 12) - 1 : null;
+        // the EIR the month accrued at (a floating-rate loan's moves with the rate charged), else the locked one
+        $annual = isset($accrual->eir_annual) && $accrual->eir_annual !== null ? (float) $accrual->eir_annual
+            : ($contract && $contract->eir_effective_annual !== null ? (float) $contract->eir_effective_annual : null);
+        $effectiveMonthly = $annual !== null ? pow(1 + $annual, 1 / 12) - 1 : null;
         $rateEffect = $impairmentEffect = null;
         if ($effectiveMonthly !== null && $contractualOnEngine !== null) {
             // The yield uplift from fees integral to the EIR, plus any

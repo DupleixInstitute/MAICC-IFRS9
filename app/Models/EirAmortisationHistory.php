@@ -16,6 +16,8 @@ class EirAmortisationHistory extends Model
         'opening_gross',
         'advances',
         'opening_basis',
+        'eir_annual',
+        'opening_arrears',
         'interest_accrued',
         'interest_basis',
         'unwind_amount',
@@ -33,6 +35,8 @@ class EirAmortisationHistory extends Model
     protected $casts = [
         'opening_gross'          => 'float',
         'advances'               => 'float',
+        'eir_annual'             => 'float',
+        'opening_arrears'        => 'float',
         'interest_accrued'       => 'float',
         'unwind_amount'          => 'float',
         'cash_received'          => 'float',

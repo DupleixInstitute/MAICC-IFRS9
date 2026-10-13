@@ -56,7 +56,7 @@ class EirReconciliationRevenueRunTest extends TestCase
             $t->string('reporting_period', 7);
             $t->double('opening_gross')->default(0);
             $t->double('advances')->default(0);
-            $t->string('opening_basis', 12)->nullable();
+            $t->string('opening_basis', 12)->nullable(); $t->double('eir_annual')->nullable(); $t->double('opening_arrears')->default(0);
             $t->double('interest_accrued')->default(0);
             $t->string('interest_basis')->default('GROSS');
             $t->double('unwind_amount')->default(0);
