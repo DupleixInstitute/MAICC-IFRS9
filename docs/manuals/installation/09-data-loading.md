@@ -82,3 +82,29 @@ On the build machine the whole run takes about 80 seconds. Anything the bootstra
 **The EIR at any date.** `php artisan eir:as-at <YYYY-MM-DD> [--contract=<id>]`, or Report Hub, EIR as at a Date: a month-end reads the locked roll-forward row; a date inside a month accrues the EIR on the actual days from the prior month-end less the cash received; a date after the last loaded posting is refused with that date named.
 
 **Interim scripts.** The Python scripts under `docs/build-files/` (`demo_load_loan_books.py`, `demo_contract_master.py`, `demo_schemes.py`, `demo_stage.py`) were the interim load of the 8 October demo and are kept as a record; the bootstrap replaces them.
+
+### 9.9 The month-end run, in order (from 12 October 2026)
+
+Section 9.8 describes the one-off bootstrap. Every month-end after that follows the steps below, in this order, for the month being closed (September 2026 in the examples). Each step can be run from its screen or by the command shown; a step that lacks its input refuses with the reason named rather than writing a partial result. Anything that changes a governed figure (a loan book build, a fit, a scenario set, a qualitative trigger, an overlay) is proposed by one person and approved by another.
+
+| # | Step | Screen | Command |
+|---|---|---|---|
+| 1 | Land the E-Banker pack (dates in `yyyy-mm-dd`, row counts in the manifest) | Customer & Loan Data, Imports & Feeds, E-Banker Loads | `php artisan eir:land-pack <folder> --user=<id>` (route 2: the scheduler polls the feed folder at 06:30 each day) |
+| 2 | Build the month's loan book; a second person approves | Imports & Feeds, Loan Book Builds | `php artisan eir:build-loan-books 2026-09` |
+| 3 | Trial balance and any change to the prime lending rate | Imports & Feeds; EIR Data, Reference Rates | `php artisan eir:import-trial-balances <folder>`; `php artisan eir:import-reference-rates <file> --user=<id>` |
+| 4 | Raise or close qualitative SICR triggers for the month (watch-list, restructuring, drought, covenant breach...) | IFRS 9 Model Setup, Staging & SICR Rules, SICR Trigger Alerts | (screen only, maker-checker) |
+| 5 | Stage the book: days past due against the governed thresholds, the missed-instalment trigger, then the approved qualitative triggers | Staging & SICR Rules | `php artisan eir:stage 2026-09 --user=<id>` |
+| 6 | PD and LGD by segment on the governed basis (Governance Centre, PD & LGD segments) | PD Model; LGD Model | `php artisan ifrs9:segment-parameters 2026-09 --user=<id>` |
+| 7 | Scenario set for the period (quarterly, or when the outlook changes): seed, review, approve, lock | Scenarios & Overlays, Scenario Sets | `php artisan scenario:sets 2026-09 --seed`, then approve on the screen |
+| 8 | Forward-looking model: the correlation sweep as at the month-end, a fit proposed and approved, the route applied to every loan | Forward-Looking Model, Correlation Finder and Regression (FLI Adjustments) | `php artisan fli:correlate 2026-09`; propose and approve the fit on the Regression screen; `php artisan fli:apply 2026-09 --user=<id>` |
+| 9 | Expected credit loss for every portfolio, on the post-FLI PD | ECL Processing, ECL Calculation | `php artisan ifrs9:segment-ecl 2026-09 --pd=pd_post_fli` |
+| 10 | EIR revenue roll-forward | EIR & Revenue Recognition, EIR Calculations | `php artisan eir:run-revenue 2026-09 --user=<id>` |
+| 11 | Mega Farm programme | ECL Processing, Mega Farm Programme | `php artisan megafarm:ecl 2026-09 --user=<id>` |
+| 12 | Review: the Workspace close checklist, the dashboard (ECL build-up), the Reports hub (IFRS 9 note, RBM return, reconciliations) | Workspace; Dashboard; Reports | (screens) |
+| 13 | Management sign-off and the period lock: no later build restates a locked month | Workspace | `php artisan eir:lock-period 2026-09 --user=<id> --reason="September 2026 close"` |
+
+**Order matters.** A new PD run (step 6) clears the post-FLI PD of the month, because that PD was built on the old one; steps 8 and 9 must follow it. Re-staging a month (step 5) likewise requires steps 6, 8 and 9 again. The ECL run (step 9) refuses when any loan with exposure has no stage, PD or LGD, and names the loans.
+
+**The scheduler.** Run `php artisan schedule:run` every minute (Windows Task Scheduler or cron, chapter 7). It polls the E-Banker feed folder each morning and imports the World Bank macro series on the second day of each month.
+
+**Before a month is presented.** The forward-looking result rests on a short history (the PLR against the Stage 3 share, about two years of monthly data); the segment PDs on small portfolios take the pooled book's PD under the governed thin-segment rule, recorded per cell; sectors coded 4290 by E-Banker are held apart as an unverified default code; write-offs follow specification v4 section 3.8 (status H and the 29 June 2026 transfer to GL 1064).
