@@ -127,18 +127,18 @@
 
             <!-- ============================ CHARTS ============================ -->
             <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-                <div class="maiic-panel p-6 lg:col-span-2">
+                <div class="maiic-panel min-w-0 p-6 lg:col-span-2">
                     <div class="mb-4 flex items-center justify-between">
                         <div>
                             <h3 class="font-bold text-gray-900 dark:text-slate-100">Exposure by stage</h3>
                             <p class="text-xs text-gray-400">{{ periodLabel(selectedPeriod) }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span></p>
                         </div>
                         <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
-                            <button @click="pieView = 'chart'" :class="pieView === 'chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
-                            <button @click="pieView = 'table'" :class="pieView === 'table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                            <button @click="pieView = 'chart'" :class="tgl(pieView === 'chart')" class="px-3 py-1">Chart</button>
+                            <button @click="pieView = 'table'" :class="tgl(pieView === 'table')" class="px-3 py-1">Table</button>
                         </div>
                     </div>
-                    <div v-show="pieView === 'chart'" class="relative h-72 w-full"><canvas ref="pieChart"></canvas></div>
+                    <div v-show="pieView === 'chart'" class="relative h-72 w-full min-w-0"><canvas ref="pieChart"></canvas></div>
                     <table v-if="pieView === 'table'" class="maiic-table">
                         <thead><tr><th>Stage</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">Share</th></tr></thead>
                         <tbody>
@@ -151,7 +151,7 @@
                     </table>
                 </div>
 
-                <div class="maiic-panel p-6 lg:col-span-3">
+                <div class="maiic-panel min-w-0 p-6 lg:col-span-3">
                     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h3 class="font-bold text-gray-900 dark:text-slate-100">ECL and coverage trend</h3>
@@ -159,23 +159,23 @@
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <select v-model="filterForm.trend_from" @change="applyFilters"
-                                    class="rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
+                                    :class="rangeSelect">
                                 <option :value="null">Last 12 months</option>
                                 <option value="all">From the start</option>
                                 <option v-for="p in periods" :key="'f' + p" :value="p">From {{ periodLabel(p) }}</option>
                             </select>
                             <select v-model="filterForm.trend_to" @change="applyFilters"
-                                    class="rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500">
+                                    :class="rangeSelect">
                                 <option :value="null">To {{ periodLabel(selectedPeriod) }}</option>
                                 <option v-for="p in periods" :key="'t' + p" :value="p">To {{ periodLabel(p) }}</option>
                             </select>
                             <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
-                                <button @click="trendView = 'chart'" :class="trendView === 'chart' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Chart</button>
-                                <button @click="trendView = 'table'" :class="trendView === 'table' ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">Table</button>
+                                <button @click="trendView = 'chart'" :class="tgl(trendView === 'chart')" class="px-3 py-1">Chart</button>
+                                <button @click="trendView = 'table'" :class="tgl(trendView === 'table')" class="px-3 py-1">Table</button>
                             </div>
                         </div>
                     </div>
-                    <div v-show="trendView === 'chart'" class="h-72"><canvas ref="trendChart"></canvas></div>
+                    <div v-show="trendView === 'chart'" class="relative h-72 w-full min-w-0"><canvas ref="trendChart"></canvas></div>
                     <div v-if="trendView === 'table'" class="maiic-table-wrap">
                         <table class="maiic-table">
                             <thead><tr><th>Period</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">ECL ({{ currencyCode }})</th><th class="num">Coverage</th></tr></thead>
@@ -229,18 +229,27 @@
                     </div>
                 </div>
 
-                <div class="maiic-panel lg:col-span-2">
+                <div class="maiic-panel min-w-0 lg:col-span-2">
                     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
                         <div>
                             <h3 class="font-bold text-gray-900 dark:text-slate-100">Where the ECL sits</h3>
                             <p class="text-xs text-gray-400">{{ breakdownCaption }}</p>
                         </div>
-                        <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
-                            <button v-for="o in breakdownViews" :key="o.key" @click="breakdownView = o.key"
-                                    :class="breakdownView === o.key ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600'" class="px-3 py-1">{{ o.label }}</button>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                                <button v-for="o in breakdownViews" :key="o.key" @click="breakdownView = o.key"
+                                        :class="tgl(breakdownView === o.key)" class="px-3 py-1">{{ o.label }}</button>
+                            </div>
+                            <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                                <button @click="breakdownMode = 'chart'" :class="tgl(breakdownMode === 'chart')" class="px-3 py-1">Chart</button>
+                                <button @click="breakdownMode = 'table'" :class="tgl(breakdownMode === 'table')" class="px-3 py-1">Table</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="maiic-table-wrap">
+                    <div v-show="breakdownMode === 'chart'" class="px-4 py-3">
+                        <div class="relative w-full min-w-0" :style="{ height: breakdownChartHeight + 'px' }"><canvas ref="breakdownChart"></canvas></div>
+                    </div>
+                    <div v-if="breakdownMode === 'table'" class="maiic-table-wrap">
                         <table class="maiic-table text-[13px] [&_td]:!py-2 [&_td]:!px-2.5 [&_th]:!px-2.5">
                             <thead>
                                 <tr>
@@ -320,86 +329,172 @@
                     </table>
                 </div>
             </div>
-        </template>
 
-        <!-- ============================ OPERATIONS ROW ============================ -->
-        <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <!-- month-end status -->
-            <div class="maiic-panel">
-                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
-                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-maiic-800 dark:text-maiic-200">Month-end status</h3>
-                    <span v-if="monthEnd" class="maiic-badge maiic-badge-green">{{ periodLabel(monthEnd.period) }}</span>
+            <!-- ============================ ECL BY PORTFOLIO OVER MONTHS ============================ -->
+            <div class="maiic-panel mb-6 min-w-0 p-6">
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-bold text-gray-900 dark:text-slate-100">{{ mixTitle }}</h3>
+                        <p class="text-xs text-gray-400">{{ rangeLabel(eclMixTrend && eclMixTrend.periods) }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span> &middot; the six largest in the last month, the rest as one line</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select v-model="filterForm.pf_from" @change="applyChartRange('eclMixTrend')" :class="rangeSelect" title="First period of this chart">
+                            <option :value="null">Last 12 months</option>
+                            <option value="all">From the start</option>
+                            <option v-for="p in periods" :key="'pf' + p" :value="p">From {{ periodLabel(p) }}</option>
+                        </select>
+                        <select v-model="filterForm.pf_to" @change="applyChartRange('eclMixTrend')" :class="rangeSelect" title="Last period of this chart">
+                            <option :value="null">To {{ periodLabel(selectedPeriod) }}</option>
+                            <option v-for="p in periods" :key="'pt' + p" :value="p">To {{ periodLabel(p) }}</option>
+                        </select>
+                        <span v-if="mixHasData" :class="['maiic-badge', eclMixTrend.ties ? 'maiic-badge-green' : 'maiic-badge-gold']"
+                              :title="eclMixTrend.ties ? 'Every month adds back to the total ECL of the trend' : mixDiffersTitle">
+                            {{ eclMixTrend.ties ? 'Each month ties to the total ECL' : 'Differs from the total ECL in ' + eclMixTrend.differs.length + ' month' + (eclMixTrend.differs.length === 1 ? '' : 's') }}
+                        </span>
+                        <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                            <button @click="mixView = 'chart'" :class="tgl(mixView === 'chart')" class="px-3 py-1">Chart</button>
+                            <button @click="mixView = 'table'" :class="tgl(mixView === 'table')" class="px-3 py-1">Table</button>
+                        </div>
+                    </div>
                 </div>
-                <ul v-if="monthEnd" class="divide-y divide-gray-100 dark:divide-slate-700">
-                    <li v-for="step in monthEndSteps" :key="step.label" class="flex items-center justify-between gap-3 px-4 py-3">
-                        <div class="flex items-center gap-3">
-                            <span :class="['flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs font-bold',
-                                           step.done ? 'bg-maiic-600 text-white' : 'bg-gray-100 text-gray-400']">
-                                <font-awesome-icon :icon="step.done ? 'check' : 'minus'"/>
-                            </span>
-                            <div>
-                                <p class="text-sm font-semibold text-gray-800 dark:text-slate-200">{{ step.label }}</p>
-                                <p class="text-xs text-gray-500 dark:text-slate-400">{{ step.detail }}</p>
+                <template v-if="mixHasData">
+                    <div v-show="mixView === 'chart'" class="relative h-80 w-full min-w-0"><canvas ref="mixChart"></canvas></div>
+                    <div v-if="mixView === 'table'" class="maiic-table-wrap">
+                        <table class="maiic-table text-[13px]">
+                            <thead>
+                                <tr>
+                                    <th>Period</th>
+                                    <th v-for="s in eclMixTrend.series" :key="s.label" class="num">{{ s.label }}</th>
+                                    <th class="num">Total ({{ currencyCode }})</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(p, i) in eclMixTrend.periods" :key="p">
+                                    <td>{{ periodLabel(p) }}</td>
+                                    <td v-for="s in eclMixTrend.series" :key="s.label" class="num">{{ formatAmount(s.values[i]) }}</td>
+                                    <td class="num font-semibold">{{ formatAmount(eclMixTrend.totals[i]) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
+                <p v-else class="maiic-empty">No calculated ECL in the selected range.</p>
+            </div>
+
+            <!-- ============================ SCENARIOS AND DEFAULTS ============================ -->
+            <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div class="maiic-panel min-w-0 p-6">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <h3 class="font-bold text-gray-900 dark:text-slate-100">Base and stressed ECL</h3>
+                            <p class="text-xs text-gray-400">{{ rangeLabel(scenarioEcl && scenarioEcl.range_periods) }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }}</span> &middot; {{ stageOptions.find(o => o.value === scenarioStage).label.toLowerCase() }}</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select v-model="filterForm.st_from" @change="applyChartRange('scenarioEcl')" :class="rangeSelect" title="First period of this chart">
+                                <option :value="null">Last 12 months</option>
+                                <option value="all">From the start</option>
+                                <option v-for="p in periods" :key="'sf' + p" :value="p">From {{ periodLabel(p) }}</option>
+                            </select>
+                            <select v-model="filterForm.st_to" @change="applyChartRange('scenarioEcl')" :class="rangeSelect" title="Last period of this chart">
+                                <option :value="null">To {{ periodLabel(selectedPeriod) }}</option>
+                                <option v-for="p in periods" :key="'st' + p" :value="p">To {{ periodLabel(p) }}</option>
+                            </select>
+                            <select v-model="scenarioStage" :class="rangeSelect" title="The stage the bars show">
+                                <option v-for="o in stageOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                            </select>
+                            <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                                <button @click="scenarioView = 'chart'" :class="tgl(scenarioView === 'chart')" class="px-3 py-1">Chart</button>
+                                <button @click="scenarioView = 'table'" :class="tgl(scenarioView === 'table')" class="px-3 py-1">Table</button>
                             </div>
                         </div>
-                        <Link v-if="step.href" :href="step.href" class="text-xs font-bold text-maiic-600 hover:text-maiic-800">Open</Link>
-                    </li>
-                </ul>
-                <p v-else class="maiic-empty">No loan book has been loaded yet.</p>
-            </div>
-
-            <!-- latest loan book -->
-            <div class="maiic-panel">
-                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
-                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-maiic-800 dark:text-maiic-200">Latest loan book</h3>
-                    <span v-if="loanBookSnapshot" class="maiic-badge maiic-badge-green">{{ periodLabel(loanBookSnapshot.period) }}</span>
-                </div>
-                <div v-if="loanBookSnapshot" class="p-4">
-                    <div class="mb-3 flex items-baseline justify-between">
-                        <span class="text-sm text-gray-500 dark:text-slate-400">Carrying amount</span>
-                        <span class="text-lg font-extrabold tabular-nums text-maiic-900 dark:text-slate-100">{{ currencyCode }} {{ formatAmount(loanBookSnapshot.total_balance) }}</span>
                     </div>
-                    <div class="mb-4 flex h-3 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
-                        <div v-for="(b, i) in loanBookSnapshot.balance_by_stage" :key="i" :class="stageBar[i]"
-                             :style="{ width: (loanBookSnapshot.total_balance ? (b / loanBookSnapshot.total_balance) * 100 : 0) + '%' }"></div>
-                    </div>
-                    <table class="maiic-table">
-                        <thead><tr><th>Stage</th><th class="num">Loans</th><th class="num">Balance ({{ currencyCode }})</th></tr></thead>
-                        <tbody>
-                            <tr v-for="(b, i) in loanBookSnapshot.balance_by_stage" :key="i">
-                                <td><span :class="['maiic-badge', stageBadge[i]]">Stage {{ i + 1 }}</span></td>
-                                <td class="num">{{ formatCount(loanBookSnapshot.loans_by_stage[i]) }}</td>
-                                <td class="num">{{ formatAmount(b) }}</td>
-                            </tr>
-                            <tr class="total">
-                                <td>Total</td>
-                                <td class="num">{{ formatCount(loanBookSnapshot.total_loans) }}</td>
-                                <td class="num">{{ formatAmount(loanBookSnapshot.total_balance) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p v-else class="maiic-empty">No loan book has been loaded yet.</p>
-            </div>
-
-            <!-- recent imports -->
-            <div class="maiic-panel">
-                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-slate-700">
-                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-maiic-800 dark:text-maiic-200">Recent imports</h3>
-                    <Link :href="route('imports.index')" class="text-xs font-bold text-maiic-600 hover:text-maiic-800">View all</Link>
-                </div>
-                <ul class="divide-y divide-gray-100 dark:divide-slate-700">
-                    <li v-for="imp in (recentImports || [])" :key="imp.id" class="flex items-center justify-between gap-3 px-4 py-3">
-                        <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold text-gray-800 dark:text-slate-200">{{ imp.name }}</p>
-                            <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatCount(imp.records) }} rows &middot; {{ formatDate(imp.completed_at || imp.created_at) }}</p>
+                    <template v-if="scenarioHasData">
+                        <div class="mb-2 flex flex-wrap items-center gap-2">
+                            <span v-if="scenarioTies !== null" :class="['maiic-badge', scenarioTies.ok ? 'maiic-badge-green' : 'maiic-badge-gold']"
+                                  :title="scenarioTies.ok ? 'In every period shown, the probability-weighted ECL equals the total ECL of that period' : 'The record of ' + scenarioTies.differs.map(periodLabel).join(', ') + ' was taken on an ECL that differs from the total ECL now held'">
+                                {{ scenarioTies.ok ? 'Weighted ties to the total ECL' : 'Differs from the total ECL in ' + scenarioTies.differs.length + ' period' + (scenarioTies.differs.length === 1 ? '' : 's') }}
+                            </span>
+                            <span v-if="scenarioMissing" class="text-[11px] text-gray-500 dark:text-slate-400">No stress run for {{ scenarioMissing }}.</span>
                         </div>
-                        <span :class="['maiic-badge', importBadge(imp.status)]">{{ imp.status }}</span>
-                    </li>
-                    <li v-if="!(recentImports || []).length" class="maiic-empty">No imports yet.</li>
-                </ul>
+                        <div v-show="scenarioView === 'chart'" class="relative h-72 w-full min-w-0"><canvas ref="scenarioChart"></canvas></div>
+                        <div v-if="scenarioView === 'table'" class="maiic-table-wrap">
+                            <table class="maiic-table text-[13px]">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th v-for="name in scenarioNames" :key="name" class="num">{{ name }}<span v-if="scenarioWeights[name] != null" class="font-normal"> ({{ scenarioWeights[name].toFixed(0) }}%)</span></th>
+                                        <th class="num" title="Loans in the record for the stage shown">Loans</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="p in scenarioEcl.periods" :key="p">
+                                        <td :title="sourceLabel(scenarioEcl.by_period[p])">{{ periodLabel(p) }}</td>
+                                        <td v-for="name in scenarioNames" :key="name" class="num">{{ scenarioCell(p, name) }}</td>
+                                        <td class="num text-gray-500">{{ formatCount((scenarioEcl.by_period[p].loans || [])[scenarioStage]) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mt-3 text-[11px] text-gray-500 dark:text-slate-400">{{ scenarioSourceLine }}</p>
+                        <p v-for="line in scenarioSetLines" :key="line" class="mt-1 text-[11px] text-gray-500 dark:text-slate-400">{{ line }}</p>
+                        <p v-for="n in (scenarioEcl.notes || [])" :key="n" class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">{{ n }}</p>
+                    </template>
+                    <p v-else class="maiic-empty">No stress run for {{ scenarioMissing || periodLabel(selectedPeriod) }}{{ selectedPortfolioName ? ' for this portfolio' : '' }}. Close the forward-looking month or run the scenario set on the Stress Testing screen.</p>
+                </div>
+
+                <div class="maiic-panel min-w-0 p-6">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <h3 class="font-bold text-gray-900 dark:text-slate-100">Observed default rate</h3>
+                            <p class="text-xs text-gray-400">{{ rangeLabel((defaultRates && defaultRates.rows || []).map(r => r.period)) }}<span v-if="selectedPortfolioName"> &middot; {{ selectedPortfolioName }} against the whole book</span> &middot; share of the Stage 1 and 2 balance that defaulted or left the book unpaid</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select v-model="filterForm.dr_from" @change="applyChartRange('defaultRates')" :class="rangeSelect" title="First period of this chart">
+                                <option :value="null">Last 12 months</option>
+                                <option value="all">From the start</option>
+                                <option v-for="p in periods" :key="'df' + p" :value="p">From {{ periodLabel(p) }}</option>
+                            </select>
+                            <select v-model="filterForm.dr_to" @change="applyChartRange('defaultRates')" :class="rangeSelect" title="Last period of this chart">
+                                <option :value="null">To {{ periodLabel(selectedPeriod) }}</option>
+                                <option v-for="p in periods" :key="'dt' + p" :value="p">To {{ periodLabel(p) }}</option>
+                            </select>
+                            <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-slate-600">
+                                <button @click="defaultView = 'chart'" :class="tgl(defaultView === 'chart')" class="px-3 py-1">Chart</button>
+                                <button @click="defaultView = 'table'" :class="tgl(defaultView === 'table')" class="px-3 py-1">Table</button>
+                            </div>
+                        </div>
+                    </div>
+                    <template v-if="defaultHasData">
+                        <div v-show="defaultView === 'chart'" class="relative h-72 w-full min-w-0"><canvas ref="defaultChart"></canvas></div>
+                        <div v-if="defaultView === 'table'" class="maiic-table-wrap">
+                            <table class="maiic-table text-[13px]">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th class="num" title="Defaults over performing loans at the start of the month">Book, month</th>
+                                        <th class="num" title="Defaults over performing loans twelve months earlier">Book, 12 months</th>
+                                        <th v-if="selectedPortfolioId" class="num">Portfolio, month</th>
+                                        <th v-if="selectedPortfolioId" class="num">Portfolio, 12 months</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="r in defaultRates.rows" :key="r.period">
+                                        <td>{{ periodLabel(r.period) }}</td>
+                                        <td class="num" :title="rateTitle(r.monthly.book)">{{ rateCell(r.monthly.book) }}</td>
+                                        <td class="num" :title="rateTitle(r.annual.book)">{{ rateCell(r.annual.book) }}</td>
+                                        <td v-if="selectedPortfolioId" class="num" :title="rateTitle(r.monthly.portfolio)">{{ rateCell(r.monthly.portfolio) }}</td>
+                                        <td v-if="selectedPortfolioId" class="num" :title="rateTitle(r.annual.portfolio)">{{ rateCell(r.annual.portfolio) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mt-3 text-[11px] text-gray-500 dark:text-slate-400">Balance-weighted, from the PD engine's own observation of the loan books (one-month window, and the twelve-month window of the observed one-year PD). A gap means no performing loan at the start of the window.</p>
+                        <p v-for="n in (defaultRates.notes || [])" :key="n" class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">Not measured: {{ n }}</p>
+                    </template>
+                    <p v-else class="maiic-empty">No default rate can be observed in this range: the loan books hold no month-to-month transition.</p>
+                </div>
             </div>
-        </div>
+        </template>
     </app-layout>
 </template>
 
@@ -431,9 +526,9 @@ const props = defineProps({
     trendFrom: String,
     trendTo: String,
     eclTrends: { type: Array, default: () => [] },
-    monthEnd: Object,
-    loanBookSnapshot: Object,
-    recentImports: { type: Array, default: () => [] },
+    eclMixTrend: Object,
+    scenarioEcl: Object,
+    defaultRates: Object,
     eclBuildUp: Object,
     eclBreakdown: Object,
     error: String,
@@ -457,7 +552,15 @@ const filterForm = ref({
     compare: props.comparePeriod ?? null,
     trend_from: props.trendFrom ?? null,
     trend_to: props.trendTo ?? null,
+    // each chart below the summary keeps its own range
+    pf_from: props.eclMixTrend?.range?.from ?? null,
+    pf_to: props.eclMixTrend?.range?.to ?? null,
+    st_from: props.scenarioEcl?.range?.from ?? null,
+    st_to: props.scenarioEcl?.range?.to ?? null,
+    dr_from: props.defaultRates?.range?.from ?? null,
+    dr_to: props.defaultRates?.range?.to ?? null,
 })
+const rangeSelect = 'rounded-md border border-maiic-200 bg-maiic-50 py-1 pl-2 pr-7 text-xs font-semibold text-maiic-800 focus:border-maiic-500 focus:ring-maiic-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200'
 
 // Only months before the reporting month can be compared with it.
 const comparablePeriods = computed(() => (props.periods || []).filter(p => p < filterForm.value.period))
@@ -496,6 +599,31 @@ function applyFilters() {
     router.get(route('dashboard'), query, { preserveState: false, preserveScroll: true })
 }
 
+// One chart's own from / to: reload that chart's prop alone, keep the page
+// where it is (the other charts and the scroll position do not move).
+function applyChartRange(prop) {
+    const query = {}
+    Object.entries(filterForm.value).forEach(([k, v]) => { if (v) query[k] = v })
+    router.get(route('dashboard'), query, { preserveState: true, preserveScroll: true, replace: true, only: [prop] })
+}
+
+// "Jan 2026 to Aug 2026" for a list of periods (oldest first)
+function rangeLabel(list) {
+    const l = (list || []).filter(Boolean)
+    if (!l.length) return 'No calculated periods in the selected range'
+    return l.length === 1 ? periodLabel(l[0]) : `${periodLabel(l[0])} to ${periodLabel(l[l.length - 1])}`
+}
+// consecutive runs of the range's periods: "Jan 2026 to Jul 2026, Sep 2026"
+function runsLabel(all, subset) {
+    const want = new Set(subset)
+    const runs = []
+    let cur = null
+    for (const p of all) {
+        if (want.has(p)) { cur ? cur.push(p) : runs.push(cur = [p]) } else { cur = null }
+    }
+    return runs.map(r => r.length === 1 ? periodLabel(r[0]) : periodLabel(r[0]) + ' to ' + periodLabel(r[r.length - 1])).join(', ')
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 function periodLabel(p) {
     if (!p) return ''
@@ -512,11 +640,6 @@ function formatCount(n) {
 }
 function formatPct(v) {
     return Number(v || 0).toFixed(2) + '%'
-}
-function formatDate(d) {
-    if (!d) return ''
-    const dt = new Date(d)
-    return isNaN(dt) ? d : dt.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 // Compact currency so KPI tiles never overflow: 66.40B / 8.62M / 950.0K
 function money(v) {
@@ -539,10 +662,9 @@ function stageShare(i) {
     return tot ? ((e[i] / tot) * 100).toFixed(1) + '%' : '0%'
 }
 
-const stageBar = ['bg-maiic-600', 'bg-amber-500', 'bg-red-600']
-const stageBadge = ['maiic-badge-green', 'maiic-badge-gold', 'maiic-badge-red']
-function importBadge(status) {
-    return { completed: 'maiic-badge-green', processing: 'maiic-badge-gold', failed: 'maiic-badge-red' }[status] || 'maiic-badge-grey'
+// a Chart/Table (or view) toggle button, readable in light and dark
+function tgl(active) {
+    return active ? 'bg-maiic-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
 }
 
 // Signed change vs the compare-to period. Money compares as % change,
@@ -690,124 +812,409 @@ const breakdownCaption = computed(() => breakdownView.value === 'rbm'
 // the breakdown and the tiles must agree: the same loans, the same total
 const breakdownTies = computed(() => Math.abs(Number(breakdown.value.total.ecl || 0) - Number(summary.value.total_ecl || 0)) <= Math.max(1, 0.01 * Number(breakdown.value.total.loans || 0)))
 
-const monthEndSteps = computed(() => {
-    const m = props.monthEnd
-    if (!m) return []
-    return [
-        { label: 'Loan book loaded', done: m.loan_book_rows > 0, detail: m.loan_book_rows > 0 ? `${formatCount(m.loan_book_rows)} loans` : 'Not loaded', href: route('loan_applications.loan-book') },
-        { label: 'PD applied', done: m.pd_applied, detail: m.pd_source || 'Not yet applied', href: route('transition-matrices.index') },
-        { label: 'LGD applied', done: m.lgd_applied, detail: m.lgd_source || 'Not yet applied', href: route('loss-given-default.index') },
-        { label: 'Forward-looking applied', done: m.fli_applied, detail: m.fli_applied ? 'Every loan carries a post-FLI PD' : 'Not yet applied for every loan', href: route('fli.overview', { period: m.period }) },
-        { label: 'ECL calculated', done: m.ecl_calculated, detail: m.ecl_calculated ? `${formatCount(m.ecl_loans)} loans` : 'Not yet calculated', href: route('expected-credit-loss.index') },
-    ]
+const breakdownMode = ref('table')
+const breakdownChartHeight = computed(() => Math.max(180, (breakdown.value.rows || []).length * 38 + 70))
+
+// ---- the three charts in place of the operations row ----------------------
+const mixView = ref('chart')
+const scenarioView = ref('chart')
+const defaultView = ref('chart')
+
+const mixHasData = computed(() => !!(props.eclMixTrend && (props.eclMixTrend.periods || []).length && (props.eclMixTrend.series || []).length))
+const mixTitle = computed(() => props.eclMixTrend?.dimension === 'product' ? 'ECL by product group over months' : 'ECL by portfolio over months')
+const mixDiffersTitle = computed(() => (props.eclMixTrend?.differs || [])
+    .map(d => periodLabel(d.period) + ': ' + formatAmount(d.series_total) + ' against ' + formatAmount(d.trend_total)).join('; '))
+
+const scenarioStage = ref(3)
+const stageOptions = [{ value: 3, label: 'All stages' }, { value: 0, label: 'Stage 1' }, { value: 1, label: 'Stage 2' }, { value: 2, label: 'Stage 3' }]
+const scenarioHasData = computed(() => !!(props.scenarioEcl && (props.scenarioEcl.periods || []).length))
+// mild to severe, then the weighted figure; a name outside the four keeps its place after them
+const SCEN_RANK = { Upside: 0, Base: 1, Downside: 2, Severe: 3 }
+const scenarioNames = computed(() => {
+    const names = []
+    Object.values(props.scenarioEcl?.by_period || {}).forEach(r => (r.series || []).forEach(x => { if (!names.includes(x.name)) names.push(x.name) }))
+    const w = (n) => n === 'Probability-weighted' ? 9 : (SCEN_RANK[n] ?? 5)
+    return names.sort((a, b) => w(a) - w(b))
 })
+const scenarioWeights = computed(() => {
+    const out = {}
+    Object.values(props.scenarioEcl?.by_period || {}).forEach(r => (r.series || []).forEach(x => { if (x.weight != null) out[x.name] = x.weight }))
+    return out
+})
+function scenarioValue(p, name) {
+    const x = (props.scenarioEcl?.by_period?.[p]?.series || []).find(s => s.name === name)
+    return x ? x.values[scenarioStage.value] : null
+}
+function scenarioCell(p, name) {
+    const v = scenarioValue(p, name)
+    return v === null ? '-' : formatAmount(v)
+}
+const scenarioMissing = computed(() => {
+    const s = props.scenarioEcl
+    if (!s || !(s.missing || []).length) return null
+    return runsLabel(s.range_periods || [], s.missing)
+})
+const scenarioTies = computed(() => {
+    const rows = Object.entries(props.scenarioEcl?.by_period || {}).filter(([, r]) => r.ties !== null && r.ties !== undefined)
+    if (!rows.length) return null
+    const differs = rows.filter(([, r]) => !r.ties).map(([p]) => p)
+    return { ok: differs.length === 0, differs }
+})
+function sourceLabel(r) {
+    if (!r) return ''
+    if (r.source === 'month_end') return 'Forward-looking month-end record ' + r.record.id + ' (' + (r.record.status === 'SIGNED_OFF' ? 'signed off' : 'recorded, not yet signed off') + ')'
+    return 'Saved stress runs of the scenario set'
+}
+const scenarioSourceLine = computed(() => {
+    const by = props.scenarioEcl?.by_period || {}
+    const groups = {}
+    Object.entries(by).forEach(([p, r]) => { const k = sourceLabel(r); (groups[k] = groups[k] || []).push(p) })
+    return Object.entries(groups).map(([k, ps]) => k + ': ' + runsLabel(props.scenarioEcl.range_periods || [], ps)).join('; ') + '.'
+})
+const scenarioSetLines = computed(() => {
+    const seen = {}
+    Object.values(props.scenarioEcl?.by_period || {}).forEach(r => { if (r.set) seen[r.set.id] = r.set })
+    return Object.values(seen).map(set => {
+        const who = set.bootstrap
+            ? 'approved under the system bootstrap label (automated data-readiness, not a MAIIC approval)'
+            : set.status === 'APPROVED' || set.status === 'LOCKED'
+                ? 'approved' + (set.approver ? ' by ' + set.approver : '')
+                : String(set.status || '').toLowerCase()
+        return 'Scenario set ' + set.id + ' v' + set.version + ', ' + set.name + ': ' + who + '.'
+    })
+})
+
+const defaultHasData = computed(() => (props.defaultRates?.rows || []).some(r => ['monthly', 'annual'].some(k => r[k]?.book?.rate != null || r[k]?.portfolio?.rate != null)))
+function rateCell(x) {
+    if (!x || x.rate === null || x.rate === undefined) return '-'
+    return x.rate.toFixed(2) + '% (' + formatCount(x.defaults) + ' of ' + formatCount(x.loans) + ')'
+}
+function rateTitle(x) {
+    if (!x) return 'No performing loan at the start of the window'
+    return x.window + ' (' + x.months + (x.months === 1 ? ' month' : ' months') + '): ' + formatCount(x.defaults) + ' of ' + formatCount(x.loans) + ' loans, '
+        + formatAmount(x.default_balance) + ' of ' + formatAmount(x.balance)
+}
+
+// Categorical hues in a fixed order (validated for colour-blind separation in
+// light and dark); "Other" is always the neutral grey.
+const CAT = () => theme.isDark.value
+    ? ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767']
+    : ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948']
+const OTHER = () => theme.isDark.value ? '#64748b' : '#94a3b8'
+// Scenario colours follow the scenario, from mild to severe.
+const SCEN = () => theme.isDark.value
+    ? { Upside: '#199e70', Base: '#3987e5', Downside: '#c98500', Severe: '#d55181' }
+    : { Upside: '#1baf7a', Base: '#2a78d6', Downside: '#eda100', Severe: '#e34948' }
 
 const pieView = ref('chart')
 const trendView = ref('chart')
 const pieChart = ref(null)
 const trendChart = ref(null)
-let pieInstance = null
-let trendInstance = null
+const breakdownChart = ref(null)
+const mixChart = ref(null)
+const scenarioChart = ref(null)
+const defaultChart = ref(null)
+const instances = {}
 
 const tooltip = { backgroundColor: '#0b2b1a', titleColor: '#fbbf24', bodyColor: '#ffffff', padding: 12, cornerRadius: 10 }
+const animation = () => reducedMotion() ? false : { duration: 700 }
+const legend = (n) => ({ position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 14, color: n.legend, font: { size: 11 } } })
+const moneyTick = (v) => money(v).replace(currencyCode.value + ' ', '')
+
+function make(key, canvas, config) {
+    if (instances[key]) { instances[key].destroy(); delete instances[key] }
+    if (canvas) instances[key] = new Chart(canvas.getContext('2d'), config)
+}
+
+function renderPie(n) {
+    const e = summary.value.total_eads || [0, 0, 0]
+    const loans = summary.value.loans_by_stage || [0, 0, 0]
+    make('pie', pieChart.value, {
+        type: 'doughnut',
+        data: {
+            labels: ['Stage 1', 'Stage 2', 'Stage 3'],
+            datasets: [{ data: e, backgroundColor: [C.green, C.gold, C.red], borderWidth: 3, borderColor: n.surface, hoverOffset: 10 }],
+        },
+        options: {
+            maintainAspectRatio: false,
+            animation: animation(),
+            cutout: '62%',
+            plugins: {
+                legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: n.legend, font: { size: 12 } } },
+                tooltip: {
+                    ...tooltip,
+                    callbacks: {
+                        label: (item) => {
+                            const total = e[0] + e[1] + e[2]
+                            const share = total ? ((item.parsed / total) * 100).toFixed(1) : 0
+                            return ' ' + formatAmount(item.parsed) + ' (' + share + '%)'
+                        },
+                        afterLabel: (item) => ' ' + formatCount(loans[item.dataIndex] || 0) + ' loan' + (Number(loans[item.dataIndex]) === 1 ? '' : 's'),
+                    },
+                },
+            },
+        },
+    })
+}
+
+function renderTrend(n) {
+    const t = props.eclTrends || []
+    const coverage = t.map(i => Number(i.ecl_percentage || 0))
+    const peak = coverage.length ? Math.max(...coverage) : 0
+    // Two bands: the stacked ECL bars use the lower ~60% of the chart and
+    // the coverage line rides above them, so the line never runs through
+    // the bars. Each keeps its own scale (left currency, right %). The
+    // exposure is a light area on its own (hidden) scale behind both; its
+    // value is in the tooltip and the table.
+    const barPeak = t.length ? Math.max(...t.map(i => (i.ecl_by_stage || []).reduce((a, b) => a + Number(b || 0), 0))) : 0
+    const eadPeak = t.length ? Math.max(...t.map(i => Number(i.total_ead || 0))) : 0
+    const eadLine = theme.isDark.value ? '#64748b' : '#94a3b8'
+    make('trend', trendChart.value, {
+        data: {
+            labels: t.map(i => periodLabel(i.period)),
+            datasets: [
+                { type: 'bar', order: 1, label: 'Stage 1 ECL', data: t.map(i => (i.ecl_by_stage || [])[0] || 0), backgroundColor: C.green, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
+                { type: 'bar', order: 1, label: 'Stage 2 ECL', data: t.map(i => (i.ecl_by_stage || [])[1] || 0), backgroundColor: C.gold, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
+                { type: 'bar', order: 1, label: 'Stage 3 ECL', data: t.map(i => (i.ecl_by_stage || [])[2] || 0), backgroundColor: C.red, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
+                {
+                    type: 'line', label: 'Coverage %', data: coverage, yAxisID: 'y1', order: 0,
+                    borderColor: n.line, backgroundColor: n.line, borderWidth: 3, tension: 0.35,
+                    pointRadius: t.map(i => i.period === props.selectedPeriod ? 6 : 3.5),
+                    pointBackgroundColor: t.map(i => i.period === props.selectedPeriod ? '#fbbf24' : n.surface),
+                    pointBorderColor: n.line, pointBorderWidth: 2,
+                },
+                {
+                    type: 'line', label: 'Exposure (EAD)', data: t.map(i => Number(i.total_ead || 0)), yAxisID: 'y2', order: 2,
+                    borderColor: eadLine, backgroundColor: theme.isDark.value ? 'rgba(100, 116, 139, 0.16)' : 'rgba(148, 163, 184, 0.16)',
+                    fill: 'origin', borderWidth: 1.5, borderDash: [4, 3], tension: 0.35, pointRadius: 0, pointHoverRadius: 4,
+                },
+            ],
+        },
+        options: {
+            maintainAspectRatio: false,
+            animation: animation(),
+            layout: { padding: { right: 14 } },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: {
+                    stacked: true, beginAtZero: true, suggestedMax: barPeak > 0 ? barPeak * 1.65 : undefined,
+                    border: { display: false }, grid: { color: n.grid },
+                    ticks: { color: n.text, font: { size: 11 }, callback: moneyTick },
+                },
+                y1: {
+                    position: 'right', beginAtZero: true, suggestedMax: peak > 0 ? Math.ceil(peak * 1.1) : 10,
+                    border: { display: false }, grid: { display: false },
+                    ticks: { color: n.line, font: { size: 11 }, callback: (v) => v + '%' },
+                },
+                y2: { display: false, beginAtZero: true, suggestedMax: eadPeak > 0 ? eadPeak * 1.08 : undefined },
+                x: { stacked: true, border: { display: false }, grid: { display: false }, ticks: { color: n.text, font: { size: 11 }, maxRotation: 40 } },
+            },
+            plugins: {
+                legend: legend(n),
+                tooltip: {
+                    ...tooltip,
+                    callbacks: {
+                        label: (item) => item.dataset.yAxisID === 'y1'
+                            ? ' Coverage: ' + Number(item.parsed.y).toFixed(2) + '%'
+                            : ' ' + item.dataset.label + ': ' + formatAmount(item.parsed.y),
+                    },
+                },
+            },
+        },
+    })
+}
+
+// "Where the ECL sits" as horizontal bars: ECL per row on the bottom axis,
+// coverage (and the RBM minimum on the RBM view) as markers on the top axis.
+function renderBreakdown(n) {
+    const rows = breakdown.value.rows || []
+    const datasets = [
+        { type: 'bar', label: 'ECL', data: rows.map(r => Number(r.ecl || 0)), xAxisID: 'x', backgroundColor: rows.map(r => r.other ? OTHER() : C.green), borderRadius: 4, maxBarThickness: 22, order: 1 },
+        { type: 'line', label: 'Coverage %', data: rows.map(r => r.coverage === null ? null : Number(r.coverage)), xAxisID: 'x1', showLine: false,
+          pointStyle: 'rectRot', pointRadius: 6, pointHoverRadius: 8, pointBackgroundColor: n.line, pointBorderColor: n.surface, pointBorderWidth: 2, borderColor: n.line, backgroundColor: n.line, order: 0 },
+    ]
+    if (breakdownView.value === 'rbm') {
+        datasets.push({ type: 'line', label: 'RBM minimum %', data: rows.map(r => r.minimum == null ? null : Number(r.minimum) * 100), xAxisID: 'x1', showLine: false,
+            pointStyle: 'line', rotation: 90, pointRadius: 9, pointBorderWidth: 3, borderColor: C.gold, backgroundColor: C.gold, pointBorderColor: C.gold, order: 0 })
+    }
+    const covPeak = Math.max(0, ...rows.map(r => Number(r.coverage || 0)), ...(breakdownView.value === 'rbm' ? rows.map(r => Number(r.minimum || 0) * 100) : []))
+    make('breakdown', breakdownChart.value, {
+        data: { labels: rows.map(r => r.label.length > 34 ? r.label.slice(0, 33) + '...' : r.label), datasets },
+        options: {
+            indexAxis: 'y',
+            maintainAspectRatio: false,
+            animation: animation(),
+            interaction: { mode: 'index', intersect: false, axis: 'y' },
+            scales: {
+                x: { beginAtZero: true, position: 'bottom', border: { display: false }, grid: { color: n.grid }, ticks: { color: n.text, font: { size: 11 }, callback: moneyTick } },
+                x1: { beginAtZero: true, position: 'top', suggestedMax: covPeak > 0 ? Math.min(100, Math.ceil(covPeak * 1.1)) : 10, border: { display: false }, grid: { display: false },
+                      ticks: { color: n.line, font: { size: 11 }, callback: (v) => v + '%' } },
+                y: { border: { display: false }, grid: { display: false }, ticks: { color: n.text, font: { size: 11 } } },
+            },
+            plugins: {
+                legend: legend(n),
+                tooltip: {
+                    ...tooltip,
+                    callbacks: {
+                        title: (items) => rows[items[0].dataIndex]?.label,
+                        label: (item) => item.dataset.xAxisID === 'x1'
+                            ? ' ' + item.dataset.label.replace(' %', '') + ': ' + Number(item.parsed.x).toFixed(2) + '%'
+                            : ' ECL: ' + formatAmount(item.parsed.x) + ' (' + formatCount(rows[item.dataIndex]?.loans) + ' loans)',
+                    },
+                },
+            },
+        },
+    })
+}
+
+function renderMix(n) {
+    const m = props.eclMixTrend
+    if (!mixHasData.value) return make('mix', null)
+    const cat = CAT()
+    let slot = 0
+    make('mix', mixChart.value, {
+        type: 'line',
+        data: {
+            labels: m.periods.map(periodLabel),
+            datasets: m.series.map(s => {
+                const colour = s.other ? OTHER() : cat[slot++ % cat.length]
+                return { label: s.label, data: s.values, borderColor: colour, backgroundColor: colour, borderWidth: 2, tension: 0.3,
+                    borderDash: s.other ? [5, 4] : [], pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: colour, pointBorderColor: n.surface, pointBorderWidth: 2 }
+            }),
+        },
+        options: {
+            maintainAspectRatio: false,
+            animation: animation(),
+            layout: { padding: { right: 14 } },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { beginAtZero: true, border: { display: false }, grid: { color: n.grid }, ticks: { color: n.text, font: { size: 11 }, callback: moneyTick } },
+                x: { offset: true, border: { display: false }, grid: { display: false }, ticks: { color: n.text, font: { size: 11 }, maxRotation: 40 } },
+            },
+            plugins: {
+                legend: legend(n),
+                tooltip: {
+                    ...tooltip,
+                    itemSort: (a, b) => b.parsed.y - a.parsed.y,
+                    callbacks: {
+                        label: (item) => ' ' + item.dataset.label + ': ' + formatAmount(item.parsed.y),
+                        footer: (items) => items.length ? 'Total ECL: ' + formatAmount(m.totals[items[0].dataIndex]) : '',
+                    },
+                },
+            },
+        },
+    })
+}
+
+function renderScenario(n) {
+    const s = props.scenarioEcl
+    if (!scenarioHasData.value) return make('scenario', null)
+    const sc = SCEN()
+    const cat = CAT()
+    let spare = 6
+    const st = scenarioStage.value
+    const loansAt = (i) => (s.by_period[s.periods[i]]?.loans || [])[st]
+    make('scenario', scenarioChart.value, {
+        type: 'bar',
+        data: {
+            labels: s.periods.map(periodLabel),
+            datasets: scenarioNames.value.map(name => {
+                const weighted = name === 'Probability-weighted'
+                const colour = weighted ? n.line : (sc[name] || cat[spare++ % cat.length])
+                const w = scenarioWeights.value[name]
+                return { label: weighted ? name : name + (w != null ? ' (' + w.toFixed(0) + '%)' : ''), data: s.periods.map(p => scenarioValue(p, name)),
+                    backgroundColor: colour, borderColor: n.surface, borderWidth: { left: 1, right: 1, top: 0, bottom: 0 }, borderRadius: 4, borderSkipped: 'bottom', maxBarThickness: 30 }
+            }),
+        },
+        options: {
+            maintainAspectRatio: false,
+            animation: animation(),
+            layout: { padding: { right: 14 } },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { beginAtZero: true, border: { display: false }, grid: { color: n.grid }, ticks: { color: n.text, font: { size: 11 }, callback: moneyTick } },
+                x: { border: { display: false }, grid: { display: false }, ticks: { color: n.text, font: { size: 11 } } },
+            },
+            plugins: {
+                legend: legend(n),
+                tooltip: {
+                    ...tooltip,
+                    callbacks: {
+                        label: (item) => item.parsed.y === null ? null : ' ' + item.dataset.label + ': ' + formatAmount(item.parsed.y),
+                        footer: (items) => items.length && loansAt(items[0].dataIndex) != null ? formatCount(loansAt(items[0].dataIndex)) + ' loans' : '',
+                    },
+                },
+            },
+        },
+    })
+}
+
+function renderDefaults(n) {
+    const d = props.defaultRates
+    if (!defaultHasData.value) return make('default', null)
+    const rows = d.rows
+    const cat = CAT()
+    const pick = (k, w) => rows.map(r => r[w]?.[k]?.rate ?? null)
+    const line = (label, data, colour, dashed) => ({ label, data, borderColor: colour, backgroundColor: colour, borderWidth: 2, tension: 0.25, spanGaps: false,
+        borderDash: dashed ? [6, 4] : [], pointRadius: 3.5, pointHoverRadius: 6, pointBackgroundColor: dashed ? n.surface : colour, pointBorderColor: colour, pointBorderWidth: 2 })
+    const datasets = []
+    if (props.selectedPortfolioId) {
+        datasets.push(line((selectedPortfolioName.value || 'Portfolio') + ', month', pick('portfolio', 'monthly'), cat[1], false))
+        datasets.push(line((selectedPortfolioName.value || 'Portfolio') + ', 12 months', pick('portfolio', 'annual'), cat[1], true))
+    }
+    datasets.push(line('Whole book, month', pick('book', 'monthly'), cat[0], false))
+    datasets.push(line('Whole book, 12 months', pick('book', 'annual'), cat[0], true))
+    const detail = (w, k, i) => rows[i]?.[w]?.[k]
+    make('default', defaultChart.value, {
+        type: 'line',
+        data: { labels: rows.map(r => periodLabel(r.period)), datasets },
+        options: {
+            maintainAspectRatio: false,
+            animation: animation(),
+            layout: { padding: { right: 14 } },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { beginAtZero: true, border: { display: false }, grid: { color: n.grid }, ticks: { color: n.text, font: { size: 11 }, callback: (v) => v + '%' } },
+                x: { offset: true, border: { display: false }, grid: { display: false }, ticks: { color: n.text, font: { size: 11 }, maxRotation: 40 } },
+            },
+            plugins: {
+                legend: legend(n),
+                tooltip: {
+                    ...tooltip,
+                    callbacks: {
+                        label: (item) => {
+                            const w = item.dataset.label.endsWith('12 months') ? 'annual' : 'monthly'
+                            const k = item.dataset.label.startsWith('Whole book') ? 'book' : 'portfolio'
+                            const x = detail(w, k, item.dataIndex)
+                            return ' ' + item.dataset.label + ': ' + Number(item.parsed.y).toFixed(2) + '%' + (x ? ' (' + formatCount(x.defaults) + ' of ' + formatCount(x.loans) + ' loans)' : '')
+                        },
+                    },
+                },
+            },
+        },
+    })
+}
 
 function renderCharts() {
-    const n = N()
-    if (pieInstance) { pieInstance.destroy(); pieInstance = null }
-    if (trendInstance) { trendInstance.destroy(); trendInstance = null }
+    Object.keys(instances).forEach(k => { instances[k].destroy(); delete instances[k] })
     if (props.error) return
-
-    if (pieChart.value) {
-        const e = summary.value.total_eads || [0, 0, 0]
-        pieInstance = new Chart(pieChart.value.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Stage 1', 'Stage 2', 'Stage 3'],
-                datasets: [{ data: e, backgroundColor: [C.green, C.gold, C.red], borderWidth: 3, borderColor: n.surface, hoverOffset: 10 }],
-            },
-            options: {
-                maintainAspectRatio: false,
-                animation: reducedMotion() ? false : { duration: 700 },
-                cutout: '62%',
-                plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: n.legend, font: { size: 12 } } },
-                    tooltip: {
-                        ...tooltip,
-                        callbacks: {
-                            label: (item) => {
-                                const total = e[0] + e[1] + e[2]
-                                const share = total ? ((item.parsed / total) * 100).toFixed(1) : 0
-                                return ' ' + formatAmount(item.parsed) + ' (' + share + '%)'
-                            },
-                        },
-                    },
-                },
-            },
-        })
-    }
-
-    if (trendChart.value) {
-        const t = props.eclTrends || []
-        const coverage = t.map(i => Number(i.ecl_percentage || 0))
-        const peak = coverage.length ? Math.max(...coverage) : 0
-        // Two bands: the stacked ECL bars use the lower ~60% of the chart and
-        // the coverage line rides above them, so the line never runs through
-        // the bars. Each keeps its own scale (left currency, right %).
-        const barPeak = t.length ? Math.max(...t.map(i => (i.ecl_by_stage || []).reduce((a, b) => a + Number(b || 0), 0))) : 0
-        trendInstance = new Chart(trendChart.value.getContext('2d'), {
-            data: {
-                labels: t.map(i => periodLabel(i.period)),
-                datasets: [
-                    { type: 'bar', order: 1, label: 'Stage 1 ECL', data: t.map(i => (i.ecl_by_stage || [])[0] || 0), backgroundColor: C.green, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
-                    { type: 'bar', order: 1, label: 'Stage 2 ECL', data: t.map(i => (i.ecl_by_stage || [])[1] || 0), backgroundColor: C.gold, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
-                    { type: 'bar', order: 1, label: 'Stage 3 ECL', data: t.map(i => (i.ecl_by_stage || [])[2] || 0), backgroundColor: C.red, stack: 'ecl', yAxisID: 'y', borderRadius: 3, maxBarThickness: 56 },
-                    {
-                        type: 'line', label: 'Coverage %', data: coverage, yAxisID: 'y1', order: 0,
-                        borderColor: n.line, backgroundColor: n.line, borderWidth: 3, tension: 0.35,
-                        pointRadius: t.map(i => i.period === props.selectedPeriod ? 6 : 3.5),
-                        pointBackgroundColor: t.map(i => i.period === props.selectedPeriod ? '#fbbf24' : n.surface),
-                        pointBorderColor: n.line, pointBorderWidth: 2,
-                    },
-                ],
-            },
-            options: {
-                maintainAspectRatio: false,
-                animation: reducedMotion() ? false : { duration: 700 },
-                interaction: { mode: 'index', intersect: false },
-                scales: {
-                    y: {
-                        stacked: true, beginAtZero: true, suggestedMax: barPeak > 0 ? barPeak * 1.65 : undefined,
-                        border: { display: false }, grid: { color: n.grid },
-                        ticks: { color: n.text, font: { size: 11 }, callback: (v) => money(v).replace(currencyCode.value + ' ', '') },
-                    },
-                    y1: {
-                        position: 'right', beginAtZero: true, suggestedMax: peak > 0 ? Math.ceil(peak * 1.1) : 10,
-                        border: { display: false }, grid: { display: false },
-                        ticks: { color: n.line, font: { size: 11 }, callback: (v) => v + '%' },
-                    },
-                    x: { stacked: true, border: { display: false }, grid: { display: false }, ticks: { color: n.text, font: { size: 11 }, maxRotation: 40 } },
-                },
-                plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 14, color: n.legend, font: { size: 11 } } },
-                    tooltip: {
-                        ...tooltip,
-                        callbacks: {
-                            label: (item) => item.dataset.yAxisID === 'y1'
-                                ? ' Coverage: ' + Number(item.parsed.y).toFixed(2) + '%'
-                                : ' ' + item.dataset.label + ': ' + formatAmount(item.parsed.y),
-                        },
-                    },
-                },
-            },
-        })
-    }
+    const n = N()
+    renderPie(n)
+    renderTrend(n)
+    renderBreakdown(n)
+    renderMix(n)
+    renderScenario(n)
+    renderDefaults(n)
 }
 
 onMounted(renderCharts)
 watch(() => [props.summary, props.eclTrends], renderCharts)
 watch(theme.isDark, renderCharts)
+watch(breakdownView, () => renderBreakdown(N()))
+watch(() => props.eclMixTrend, () => renderMix(N()), { flush: 'post' })
+watch(() => [props.scenarioEcl, scenarioStage.value], () => renderScenario(N()), { flush: 'post' })
+watch(() => props.defaultRates, () => renderDefaults(N()), { flush: 'post' })
 onBeforeUnmount(() => {
-    if (pieInstance) pieInstance.destroy()
-    if (trendInstance) trendInstance.destroy()
+    Object.keys(instances).forEach(k => { instances[k].destroy(); delete instances[k] })
 })
 </script>
