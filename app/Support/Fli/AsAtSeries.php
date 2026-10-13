@@ -19,7 +19,9 @@ use InvalidArgumentException;
  * When a row became knowable ("known from", a YYYYMM):
  *  - an actual or estimate: its observation period plus its publication lag
  *    (macro_series.lag_months, months after the period before the figure is
- *    published; 0 when the source states none);
+ *    published; 0 when the source states none), or the publisher's release
+ *    date when the vintage records one ("published YYYY-MM-DD"), whichever
+ *    is later;
  *  - an interpolated month (the bridge interpolates between two annual
  *    observations): the month the LATER of the two observations became
  *    knowable, because the interpolated value depends on it. With no later
@@ -139,8 +141,11 @@ final class AsAtSeries
     public static function proxies(?string $connection, string $asOf): array
     {
         $p = self::ym($asOf);
-        $rows = DB::connection($connection ?? DB::getDefaultConnection())->table('credit_loss_series')
+        $conn = $connection ?? DB::getDefaultConnection();
+        $rows = DB::connection($conn)->table('credit_loss_series')
             ->where('observation_period', '<=', $p)
+            // an external series is knowable from its release month (FLI module D-F7, D-F10)
+            ->when(self::hasColumn($conn, 'credit_loss_series', 'known_from'), fn ($q) => $q->where(fn ($w) => $w->whereNull('known_from')->orWhere('known_from', '<=', $p)))
             ->orderBy('proxy_code')->orderBy('observation_period')
             ->get(['proxy_code', 'observation_period', 'value']);
         $out = [];
@@ -163,8 +168,14 @@ final class AsAtSeries
             return $m[1] . $m[2];
         }
         $lag = isset($r->lag_months) ? max(0, (int) $r->lag_months) : 0;
+        $known = $lag === 0 ? $period : SeriesAligner::shiftPeriod($period, -$lag);
+        // FLI module D-F10: an actual whose publisher's release date is recorded
+        // ("published YYYY-MM-DD" in its vintage) is knowable from that date
+        if (isset($r->vintage) && preg_match('/^published (\d{4})-(\d{2})-\d{2}/', (string) $r->vintage, $m) && $m[1] . $m[2] > $known) {
+            return $m[1] . $m[2];
+        }
 
-        return $lag === 0 ? $period : SeriesAligner::shiftPeriod($period, -$lag);
+        return $known;
     }
 
     private static function hasColumn(string $connection, string $table, string $column): bool

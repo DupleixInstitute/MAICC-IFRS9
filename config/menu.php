@@ -139,7 +139,18 @@ return [
                 $tab('Monthly LGD', 'loss-given-default.index'),
                 $tab('Cumulative LGD', 'lgd-cummulative.index'),
             ]),
-            // The macro inputs first, then the model that uses them.
+        ], 5),
+
+        // Forward-Looking Information (FLI module specification v1, 13 October
+        // 2026): one menu entry for the whole chain, in the order a month-end
+        // runs it. The screens of the older platform are back in their places
+        // and each is now a working step of the governed chain.
+        ['color' => '#7DD3FC'] + $group('Forward-Looking Information', 'binoculars', [
+            $section('FLI Month-End', [
+                $tab('Overview', 'fli.overview'),
+                $tab('Impact Analysis', 'fli.impact'),
+            ]),
+            // The economic data, then the model that uses it.
             $section('Macro Statistics', [
                 $tab('Dashboard', 'macro-statistics.index', 'macro.view', ['tab' => 'dashboard']),
                 $tab('Variables', 'macro-statistics.index', 'macro.view', ['tab' => 'variables']),
@@ -147,25 +158,28 @@ return [
                 $tab('Scenario Assumptions', 'macro-statistics.index', 'macro.view', ['tab' => 'scenarios']),
                 $tab('Import / Export', 'macro-statistics.index', 'macro.view', ['tab' => 'import']),
             ]),
-            // The governed chain in its order: the finder ranks the drivers
-            // against the credit-loss proxies the bridge derives from the
-            // staged loan books, the regression runs on FLI Adjustments under
-            // maker-checker, then the scenario set and the overlays reach
-            // every loan's PD. The legacy tools sit under Administration.
             $section('Forward-Looking Model', [
+                $tab('Credit Loss Data', 'credit-loss-data.index'),
                 $tab('Correlation Finder', 'fli-correlation.index'),
-                $tab('Regression (FLI Adjustments)', 'fli-adjustments.index'),
+                $tab('Regression', 'fli-adjustments.index'),
+                $tab('Model Versions', 'fli-models.index'),
+                $tab('Adjusted Forecast', 'forecasting.manual'),
+                $tab('Weighted Forecast', 'macro-forecast-weighted.index'),
             ]),
             $section('Scenarios & Overlays', [
+                $tab('Scenario Profiles', 'scenarios.profiles'),
                 $tab('Scenario Sets', 'scenario-sets.index'),
+                $tab('Economic Scenarios', 'fli.scenarios.index'),
                 $tab('Manual Overlays', 'fli-overlays.index'),
+                $tab('External Calculations', 'fli.external.index'),
+                $tab('Calculation History', 'fli.external.list'),
             ]),
-        ], 5),
+        ], 6),
 
         ['color' => '#F87171'] + $group('ECL Processing', 'calculator', [
             $leaf('ECL Calculation', 'expected-credit-loss.index'),
             $leaf('Mega Farm Programme', 'megafarm.index'),
-        ], 6),
+        ], 7),
 
         // Contract Schedule 1 deliverables 5, 6 and 7. The two manuals are
         // database content (help centre); the technical manual and the
@@ -175,7 +189,7 @@ return [
             $leaf('Administrator Manual', 'help.admin'),
             $leaf('Technical Manual', 'docs.technical'),
             $leaf('Installation Guide', 'docs.installation'),
-        ], 7),
+        ], 8),
 
         ['color' => '#C4B5FD'] + $group('Administration', 'cog', [
             $section('Users & Roles', [
@@ -191,21 +205,7 @@ return [
             $leaf('Support Tickets', 'tickets.index'),
             $leaf('Settings', 'settings.index'),
             $leaf('Maintenance', 'maintenance.index', permission: 'settings'),
-            // The forward-looking screens inherited from the older platform.
-            // None of them is an input of the governed chain (it reads
-            // credit_loss_series, fli_fits, governed_scenario_sets and
-            // fli_overlays); kept reachable for reference only. External
-            // Calculations can still write fli_adj onto loan_books.
-            $section('Legacy FLI tools', [
-                $tab('Weighted Forecast', 'macro-forecast-weighted.index'),
-                $tab('Credit Loss Data', 'credit-loss-data.index'),
-                $tab('Adjusted Forecast', 'forecasting.manual'),
-                $tab('Scenario Profiles', 'scenarios.profiles'),
-                $tab('Economic Scenarios', 'fli.scenarios.index'),
-                $tab('External Calculations', 'fli.external.index', 'reports.ifrs9'),
-                $tab('History', 'fli.external.list', 'reports.ifrs9'),
-            ]),
-        ], 8),
+        ], 9),
 
     ],
     'member' => [],

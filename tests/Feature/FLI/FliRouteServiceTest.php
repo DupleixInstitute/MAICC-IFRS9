@@ -39,6 +39,9 @@ class FliRouteServiceTest extends TestCase
         Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->decimal('pd_prefli', 16, 8)->nullable(); $t->decimal('pd_value', 16, 8)->nullable(); $t->decimal('12m_pd', 8, 2)->nullable(); $t->decimal('fli_adj', 16, 8)->nullable(); $t->decimal('pd_post_fli', 16, 8)->nullable(); $t->string('fli_route')->nullable(); $t->string('fli_method')->nullable(); $t->integer('fli_fit_id')->nullable(); $t->integer('fli_set_id')->nullable(); $t->text('fli_by_scenario')->nullable(); $t->decimal('lgd_value', 16, 8)->nullable(); $t->decimal('ead', 18, 2)->nullable(); $t->decimal('carrying_amount', 20, 2)->default(0); $t->string('calculated_ifrs9_stage')->nullable(); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->decimal('ecl_value', 18, 2)->nullable(); $t->decimal('remaining_tenor', 8, 2)->nullable(); $t->decimal('commitments', 18, 2)->nullable(); $t->decimal('facility_utilisation_rate', 5, 2)->nullable(); });
         // the overlay register, with the lineage column it adds to the loan (audit M3)
         (require base_path('database/migrations/2026_10_09_300000_create_fli_overlays.php'))->up();
+        // the model registry (FLI module D-F2): an approved fit is published as the version in force
+        (require base_path('database/migrations/2026_10_13_100000_fli_module_registry_and_snapshots.php'))->up();
+        (require base_path('database/migrations/2026_10_13_120000_fli_model_versions_external.php'))->up();
         // the route is a Governance Centre setting; the table so a test can put "Manual overlay" in force
         Schema::create('governance_settings', function (Blueprint $t) { $t->increments('id'); $t->string('key', 60); $t->string('value', 60); $t->text('options'); $t->string('label'); $t->text('description'); $t->string('effective_from'); $t->integer('set_by')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approved_at')->nullable(); $t->string('reason', 500)->nullable(); $t->string('status', 20)->default('PROPOSED'); $t->timestamps(); });
         DB::table('users')->insert([['id' => 1, 'name' => 'Maker', 'created_at' => now(), 'updated_at' => now()], ['id' => 2, 'name' => 'Checker', 'created_at' => now(), 'updated_at' => now()]]);
@@ -283,5 +286,72 @@ class FliRouteServiceTest extends TestCase
         }
         $sens = (new ScenarioSetService(new GovernanceService()))->sensitivity($setId);
         $this->assertEqualsWithDelta((float) DB::table('loan_books')->where('reporting_period', '2026-08')->sum('ecl_value'), $sens['weighted_ecl'], 0.02);
+    }
+
+    /** FLI module D-F1, D-F2: approving a fit publishes a version that governs its month and every later one until replaced. */
+    public function test_an_approved_fit_is_a_version_in_force_from_its_month_until_a_later_one(): void
+    {
+        $this->service()->proposeFit(10, 1);
+        $this->service()->approveFit(10, 2);
+        $registry = new \App\Services\Fli\FliModelRegistry();
+        $this->assertNull($registry->inForce('2026-07'), 'a version never governs a month before its own');
+        $this->assertSame(10, (int) $registry->inForce('2026-08')->fli_fit_id);
+        $this->assertSame(10, (int) $registry->inForce('2027-03')->fli_fit_id, 'the month-end applies the version without a new fit');
+        $v = $this->service()->approvedFit('2026-11');
+        $this->assertSame('2026-08', $v->effective_from);
+        $this->assertNotNull($v->model_version_id);
+    }
+
+    /** External Calculations: a model calibrated outside needs a second person, and retiring it sends its months back to the version before. */
+    public function test_an_external_model_needs_a_second_person_and_retiring_it_falls_back(): void
+    {
+        Schema::create('macro_statistics', function (Blueprint $t) { $t->increments('id'); $t->string('statistic_code'); $t->string('statistic_name')->nullable(); });
+        DB::table('macro_statistics')->insert(['statistic_code' => 'PLR', 'statistic_name' => 'Prime lending rate']);
+        DB::table('credit_loss_series')->insert(['proxy_code' => 'STAGE3_SHARE', 'proxy_name' => 'Stage 3 share', 'observation_period' => '202608', 'value' => 0.3]);
+        $this->service()->proposeFit(10, 1);
+        $this->service()->approveFit(10, 2);
+        $registry = new \App\Services\Fli\FliModelRegistry();
+        $id = $registry->proposeExternal(['statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'lag_months' => 3, 'slope' => 0.02, 'intercept' => 0.05,
+            'calibrated_period' => '2026-08', 'effective_from' => '2026-10', 'evidence' => 'validation workbook'], 1);
+        $this->assertSame(10, (int) $registry->inForce('2026-10')->fli_fit_id, 'a proposal governs nothing');
+        try {
+            $registry->approveExternal($id, 1);
+            $this->fail('the proposer approved their own model');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('different person', $e->getMessage());
+        }
+        $registry->approveExternal($id, 2);
+        $this->assertSame($id, (int) $registry->inForce('2026-10')->id);
+        $this->assertSame(10, (int) $registry->inForce('2026-09')->fli_fit_id, 'the month before it keeps the earlier version');
+        $registry->retire($id, 2, 'test');
+        $this->assertSame(10, (int) $registry->inForce('2026-10')->fli_fit_id);
+        try {
+            $registry->proposeExternal(['statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'lag_months' => 0, 'slope' => 1, 'intercept' => 0,
+                'calibrated_period' => '2026-08', 'effective_from' => '2026-07', 'evidence' => 'x'], 1);
+            $this->fail('a model governed a month before its data');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('B5.5.49', $e->getMessage());
+        }
+    }
+
+    /** FLI module D-F9: an overlay on the model's own driver is refused unless the proposer says why it is not counted twice. */
+    public function test_an_overlay_on_the_models_driver_needs_a_double_count_review(): void
+    {
+        $sets = new ScenarioSetService(new GovernanceService());
+        $this->approvedSet();
+        $this->service()->proposeFit(10, 1);
+        $this->service()->approveFit(10, 2);
+        $overlays = new \App\Services\Fli\OverlayService($sets);
+        $bare = $overlays->propose(['reporting_period' => '2026-08', 'scope' => 'book', 'adjustment' => 0.05, 'reason' => 'rates', 'expiry_period' => '2026-08', 'risk_driver' => 'PLR'], 1);
+        try {
+            $overlays->approve($bare, 2);
+            $this->fail('an overlay on the driver of the model in force was approved without a review');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('count that risk twice', $e->getMessage());
+        }
+        $reviewed = $overlays->propose(['reporting_period' => '2026-08', 'scope' => 'book', 'adjustment' => 0.05, 'reason' => 'rates', 'expiry_period' => '2026-08', 'risk_driver' => 'PLR',
+            'double_count_review' => 'the model reads the PLR with a nine-month lag; the overlay covers the rate rise announced after the month-end'], 1);
+        $overlays->approve($reviewed, 2);
+        $this->assertSame('APPROVED', DB::table('fli_overlays')->where('id', $reviewed)->value('status'));
     }
 }

@@ -35,7 +35,7 @@
             <select id="m-period" v-model="period" class="rounded-lg border-gray-300 py-1.5 pl-3 pr-8 text-sm font-semibold">
                 <option v-for="p in periodChoices" :key="p" :value="p">{{ periodLabel(p) }}</option>
             </select>
-            <span class="text-xs text-gray-500">Run the steps in order. A new PD run (step 3) clears the month's post-FLI PD, so steps 5 and 6 follow it.</span>
+            <span class="text-xs text-gray-500">Build the loan book, have the build approved, then run the month-end calculations. Each job runs its steps in order and stops at the first that cannot run.</span>
         </div>
 
         <!-- command cards -->
@@ -121,16 +121,15 @@ export default {
     components: { AppLayout },
     props: { catalog: Array, recent: Array, periods: Array, status: Object, can: Object },
     data() {
-        return { tab: 'setup', period: this.periods[0] || null, typed: {}, run: null, timer: null, page: 1 }
+        return { tab: 'month', period: this.periods[0] || null, typed: {}, run: null, timer: null, page: 1 }
     },
     computed: {
         tabs() {
             const n = (g) => this.catalog.filter(c => c.group === g).length
             return [
-                { key: 'setup', label: 'First-time setup', count: n('setup') },
                 { key: 'month', label: 'Month-end', count: n('month') },
-                { key: 'imports', label: 'Imports', count: n('imports') },
-                { key: 'diagnostics', label: 'Diagnostics', count: n('diagnostics') },
+                { key: 'imports', label: 'Data and checks', count: n('imports') },
+                { key: 'setup', label: 'Install and update', count: n('setup') },
                 { key: 'history', label: 'Run history', count: this.recent.length },
             ]
         },

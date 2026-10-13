@@ -1006,6 +1006,17 @@ Route::post('/macro-statistics/preview', [\App\Http\Controllers\MacroStatisticsC
 Route::post('/macro-statistics/commit', [\App\Http\Controllers\MacroStatisticsController::class, 'commit'])->name('macro-statistics.commit');
 Route::post('/macro-statistics/manual', [\App\Http\Controllers\MacroStatisticsController::class, 'manual'])->name('macro-statistics.manual');
 Route::get('/macro-statistics/export', [\App\Http\Controllers\MacroStatisticsController::class, 'export'])->name('macro-statistics.export');
+// Variables, observations, your own CSV and the scenario assumptions, all from the Macro Statistics screen
+Route::post('/macro-statistics/variables', [\App\Http\Controllers\MacroStatisticsController::class, 'variableStore'])->name('macro-statistics.variables.store');
+Route::put('/macro-statistics/variables/{id}', [\App\Http\Controllers\MacroStatisticsController::class, 'variableUpdate'])->name('macro-statistics.variables.update');
+Route::delete('/macro-statistics/variables/{id}', [\App\Http\Controllers\MacroStatisticsController::class, 'variableDestroy'])->name('macro-statistics.variables.destroy');
+Route::put('/macro-statistics/observations/{id}', [\App\Http\Controllers\MacroStatisticsController::class, 'observationUpdate'])->name('macro-statistics.observations.update');
+Route::delete('/macro-statistics/observations/{id}', [\App\Http\Controllers\MacroStatisticsController::class, 'observationDestroy'])->name('macro-statistics.observations.destroy');
+Route::post('/macro-statistics/csv-preview', [\App\Http\Controllers\MacroStatisticsController::class, 'csvPreview'])->name('macro-statistics.csv-preview');
+Route::post('/macro-statistics/csv-commit', [\App\Http\Controllers\MacroStatisticsController::class, 'csvCommit'])->name('macro-statistics.csv-commit');
+Route::post('/macro-statistics/assumptions/{set}', [\App\Http\Controllers\MacroStatisticsController::class, 'assumptionSave'])->name('macro-statistics.assumptions.save');
+Route::post('/macro-statistics/assumptions/{set}/weights', [\App\Http\Controllers\MacroStatisticsController::class, 'assumptionWeights'])->name('macro-statistics.assumptions.weights');
+Route::post('/macro-statistics/assumptions/{set}/version', [\App\Http\Controllers\MacroStatisticsController::class, 'assumptionVersion'])->name('macro-statistics.assumptions.version');
 Route::post('/macro-statistics', [MacroStatsController::class, 'store'])->name('macro-statistics.store');
 Route::put('/macro-statistics/{id}', [MacroStatsController::class, 'update'])->name('macro-statistics.update');
 Route::delete('/macro-statistics/{id}', [MacroStatsController::class, 'destroy'])->name('macro-statistics.destroy');
@@ -1029,12 +1040,14 @@ Route::prefix('scenarios')->group(function () {
 Route::get('/scenario-profiles', [ScenariosController::class, 'profiles'])->name('scenarios.profiles');
 Route::post('/scenario-profiles', [ScenariosController::class, 'storeProfile'])->name('scenarios.profiles.store');
 Route::put('/scenario-profiles/{profile}', [ScenariosController::class, 'updateProfile'])->name('scenarios.profiles.update');
+// FLI module: the standard profile, and a draft governed scenario set started from a profile
+Route::post('/scenario-profiles/standard', [ScenariosController::class, 'seedStandard'])->middleware('permission:eir.govern')->name('scenarios.profiles.seed');
+Route::post('/scenario-profiles/{profile}/start', [ScenariosController::class, 'startSet'])->middleware('permission:eir.govern')->name('scenarios.profiles.start');
 
 // Forecast Routes
 Route::get('/macro-forecast-weighted', [MacroForecastWeightedController::class, 'index'])->name('macro-forecast-weighted.index');
-Route::post('/macro-forecast-weighted', [MacroForecastWeightedController::class, 'store'])->name('macro-forecast-weighted.store');
+// the weighted path of a governed scenario set (FLI module); {id} is the set
 Route::post('/macro-forecast-weighted/calculate', [MacroForecastWeightedController::class, 'calculate'])->name('macro-forecast-weighted.calculate');
-Route::post('/macro-forecast-weighted/{id}/rerun', [MacroForecastWeightedController::class, 'rerun'])->name('macro-forecast-weighted.rerun');
 Route::delete('/macro-forecast-weighted/{id}', [MacroForecastWeightedController::class, 'destroy'])->name('macro-forecast-weighted.destroy');
 
 // Credit Loss Data Routes
@@ -1113,24 +1126,14 @@ Route::prefix('fli-adj')->middleware(['auth'])->group(function () {
         Route::delete('/{scenarioSet}', [ScenarioSetController::class, 'destroy'])->name('destroy');
     });
 
-    // External Calculations: the legacy one-slope chain, retired in favour of FLI
-    // Adjustments and kept behind the reports permission (audit finding M6)
-    Route::prefix('external')->name('fli.external.')->middleware('permission:reports.ifrs9')->group(function () {
+    // External Calculations: an externally calibrated model, proposed and approved
+    // (FLI module); History: every month's run and the approvals behind it. The
+    // older one-slope endpoints that wrote fli_adj onto the loans outside
+    // maker-checker (audit finding M6) are replaced by the governed route.
+    Route::prefix('external')->name('fli.external.')->group(function () {
         Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
         Route::get('/list', [ExternalCalculationsController::class, 'list'])->name('list');
-        Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
-        Route::post('/generate-forecasts', [ExternalCalculationsController::class, 'generateForecasts'])->name('generate');
-        Route::post('/save-adjustments', [ExternalCalculationsController::class, 'saveAdjustments'])->name('save');
-        Route::post('/update-loanbook', [ExternalCalculationsController::class, 'updateLoanBook'])->name('update-loanbook');
-    });
-
-    // System Calculations (Regression Analysis) - Reuses ExternalCalculationsController (legacy, finding M6)
-    Route::prefix('regression')->name('fli.regression.')->middleware('permission:reports.ifrs9')->group(function () {
-        Route::get('/', [ExternalCalculationsController::class, 'index'])->name('index');
-        Route::post('/save-parameters', [ExternalCalculationsController::class, 'saveParameters'])->name('save-parameters');
-        Route::post('/generate-forecasts', [ExternalCalculationsController::class, 'generateForecasts'])->name('generate');
-        Route::post('/save-adjustments', [ExternalCalculationsController::class, 'saveAdjustments'])->name('save');
-        Route::post('/update-loanbook', [ExternalCalculationsController::class, 'updateLoanBook'])->name('update-loanbook');
+        Route::post('/propose', [ExternalCalculationsController::class, 'propose'])->name('propose');
     });
 // Manual Forecasting Routes
 Route::prefix('forecasting')->group(function () {
@@ -1314,6 +1317,7 @@ Route::group(['prefix' => 'scenario-sets', 'as' => 'scenario-sets.'], function (
     Route::post('/{set}/approve', [\App\Http\Controllers\ScenarioSetController::class, 'approve'])->name('approve');
     Route::post('/{set}/lock', [\App\Http\Controllers\ScenarioSetController::class, 'lock'])->name('lock');
     Route::post('/{set}/version', [\App\Http\Controllers\ScenarioSetController::class, 'version'])->name('version');
+    Route::post('/{set}/discard', [\App\Http\Controllers\ScenarioSetController::class, 'discard'])->name('discard');
     // the editor: the proposer changes weights, scenarios and shocks until the set is approved (audit M5)
     Route::post('/{set}/update', [\App\Http\Controllers\ScenarioSetController::class, 'update'])->name('update');
     Route::post('/{set}/scenarios', [\App\Http\Controllers\ScenarioSetController::class, 'addScenario'])->name('add-scenario');
@@ -1327,6 +1331,21 @@ Route::group(['prefix' => 'fli-overlays', 'as' => 'fli-overlays.'], function () 
     Route::post('/{overlay}/approve', [\App\Http\Controllers\FliOverlayController::class, 'approve'])->name('approve');
     Route::post('/{overlay}/reject', [\App\Http\Controllers\FliOverlayController::class, 'reject'])->name('reject');
     Route::post('/{overlay}/expire', [\App\Http\Controllers\FliOverlayController::class, 'expire'])->name('expire');
+});
+
+// Forward-Looking Information (FLI module specification v1, 13 October 2026):
+// the month-end Overview, Impact Analysis, Model Versions.
+Route::middleware(['auth'])->group(function () {
+    Route::get('/fli', [\App\Http\Controllers\FliModuleController::class, 'overview'])->name('fli.overview');
+    Route::get('/fli/impact', [\App\Http\Controllers\FliModuleController::class, 'impact'])->name('fli.impact');
+    Route::post('/fli/run', [\App\Http\Controllers\FliModuleController::class, 'run'])->name('fli.run');
+    Route::get('/fli/run/{id}', [\App\Http\Controllers\FliModuleController::class, 'output'])->where('id', '[A-Za-z0-9\-]+')->name('fli.run.output');
+    Route::post('/fli/snapshots/{snapshot}/sign-off', [\App\Http\Controllers\FliModuleController::class, 'signOff'])->name('fli.sign-off');
+    Route::post('/fli/snapshots/{snapshot}/comment', [\App\Http\Controllers\FliModuleController::class, 'comment'])->name('fli.comment');
+    Route::get('/fli/models', [\App\Http\Controllers\FliModuleController::class, 'models'])->name('fli-models.index');
+    Route::post('/fli/models/{version}/retire', [\App\Http\Controllers\FliModuleController::class, 'retire'])->name('fli-models.retire');
+    Route::post('/fli/models/{version}/approve', [\App\Http\Controllers\FliModuleController::class, 'approveExternal'])->name('fli-models.approve-external');
+    Route::post('/fli/models/{version}/reject', [\App\Http\Controllers\FliModuleController::class, 'rejectExternal'])->name('fli-models.reject-external');
 });
 
 // FLI Adjustments: the fits, the approved one, the method cards, the route (spec v4 s.14.6 to 14.8).

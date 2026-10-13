@@ -37,6 +37,9 @@ class FliOverlayController extends Controller
             'periods' => DB::table('fli_overlays')->distinct()->orderByDesc('reporting_period')->pluck('reporting_period'),
             'productGroups' => DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('product_group')->distinct()->orderBy('product_group')->pluck('product_group'),
             'users' => DB::table('users')->orderBy('name')->get(['id', 'name']),
+            // the double-counting check (FLI module D-F9): the drivers an overlay can name, and the one the model in force already carries
+            'drivers' => DB::table('macro_statistics')->orderBy('statistic_name')->get(['statistic_code', 'statistic_name']),
+            'modelDriver' => (new \App\Services\Fli\FliModelRegistry())->inForce($period)?->statistic_code,
             'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
         ]);
     }
@@ -52,11 +55,14 @@ class FliOverlayController extends Controller
             'evidence' => ['nullable', 'string', 'max:2000'],
             'owner_id' => ['nullable', 'integer', 'exists:users,id'],
             'expiry_period' => ['required', 'regex:/^\d{4}-\d{2}$/'],
+            'risk_driver' => ['nullable', 'string', 'max:64'],
+            'double_count_review' => ['nullable', 'string', 'max:2000'],
         ]);
         try {
             $id = $overlays->propose(['reporting_period' => $data['reporting_period'], 'scope' => $data['scope'], 'scope_value' => $data['scope_value'] ?? null,
                 'adjustment' => (float) $data['adjustment_pct'] / 100, 'reason' => $data['reason'], 'evidence' => $data['evidence'] ?? null,
-                'owner_id' => $data['owner_id'] ?? $request->user()->id, 'expiry_period' => $data['expiry_period']], $request->user()->id);
+                'owner_id' => $data['owner_id'] ?? $request->user()->id, 'expiry_period' => $data['expiry_period'],
+                'risk_driver' => $data['risk_driver'] ?? null, 'double_count_review' => $data['double_count_review'] ?? null], $request->user()->id);
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }

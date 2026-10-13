@@ -205,6 +205,8 @@ class CreditLossDataImport implements ToCollection, WithHeadingRow, ShouldQueue,
                             'value' => $value,
                             'source' => $normalizedRow['source'] ?? 'CSV Import',
                             'notes' => $normalizedRow['notes'] ?? null,
+                            // the publisher's release date, when the file gives one (FLI module D-F10)
+                            'published_at' => $this->parseDate($normalizedRow['published_at'] ?? $normalizedRow['release_date'] ?? $normalizedRow['published'] ?? '') ?: null,
                             'created_by' => $this->userId,
                             'created_at' => now(),
                             'updated_at' => now(),

@@ -315,6 +315,25 @@ class GovernanceService
                 'options' => ['Weight the ECL across scenarios', 'Weight the macro path, one ECL'],
                 'default' => 'Weight the ECL across scenarios',
             ],
+            // The forward-looking module (FLI module specification v1, 13 October 2026)
+            'fli_model_cadence' => [
+                'label' => 'How often the forward-looking model is recalibrated',
+                'description' => 'The model (the driver, the lag and the coefficients) is recalibrated and approved as a new version, and each month-end applies the version in force at its date. Under the seeded option a version stays in force until the next annual review, or until an event breaks the relationship (a devaluation, a drought, a change of policy regime); the month-end does not re-fit it, and a version older than twelve months is flagged as due for review. Under the other option a version must be published for every month (FLI module decision D-F1).',
+                'options' => ['Once a year, and when an event breaks the relationship', 'Every month-end'],
+                'default' => 'Once a year, and when an event breaks the relationship',
+            ],
+            'fli_forecast_horizon' => [
+                'label' => 'Reasonable and supportable forecast horizon',
+                'description' => 'How far the scenario paths are used before the projection reverts to the long-run PD (IFRS 9 B5.5.50). Inside the horizon each forecast year takes the scenario\'s own path; after it the adjustment falls in equal steps to nil over the reversion years, so a long Stage 2 loan is measured on the long-run PD for the years nobody can forecast (FLI module decision D-F4).',
+                'options' => ['3 years, then 2 years back to the long-run PD', '2 years, then 1 year back to the long-run PD', '5 years, then 2 years back to the long-run PD'],
+                'default' => '3 years, then 2 years back to the long-run PD',
+            ],
+            'fli_movement_commentary' => [
+                'label' => 'ECL movement that needs a commentary',
+                'description' => 'When the booked ECL moves by more than this against the previous month-end, the month cannot be closed on the forward-looking Overview until a reviewer records why (FLI module section 7).',
+                'options' => ['10 percent month on month', '5 percent month on month', '20 percent month on month'],
+                'default' => '10 percent month on month',
+            ],
             'scenario_minimum_count' => [
                 'label' => 'Minimum scenarios in a set',
                 'description' => 'A scenario set cannot be proposed with fewer scenarios than this (spec v4 section 15.6). Three is the practice: a base, an upside and a downside.',

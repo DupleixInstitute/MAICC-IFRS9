@@ -1,209 +1,102 @@
 <template>
-  <app-layout>
-    <template #header>
-      <div>
-        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-          <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">Credit Loss Data</span>
-        </div>
-        <h2 class="text-xl font-semibold text-gray-800">Credit Loss Data</h2>
-        <p class="mt-1 text-sm text-gray-600">The historical loss measures (default rates, losses and similar) the forward-looking model is fitted to</p>
-      </div>
-    </template>
+  <app-layout title="Credit Loss Data" description="The credit-loss history the forward-looking model is calibrated on: the measures derived from MAIIC's own staged loan books, and external series such as the industry NPL ratio">
     <template #actions>
-      <Link :href="route('credit-loss-data.importView')" class="secondary-btn">Import CSV</Link>
-      <Link :href="route('credit-loss-data.create')" class="primary-btn">Add record</Link>
+      <Link :href="route('credit-loss-data.definition')" class="secondary-btn text-sm"><font-awesome-icon icon="plus" class="mr-1" />Measure</Link>
+      <Link :href="route('credit-loss-data.importView')" class="secondary-btn text-sm"><font-awesome-icon icon="upload" class="mr-1" />Import CSV</Link>
+      <Link :href="route('credit-loss-data.create')" class="primary-btn text-sm"><font-awesome-icon icon="plus" class="mr-1" />Add record</Link>
     </template>
 
-    <LegacyNotice class="mb-4" />
     <div class="w-full space-y-4">
-        <KpiRow :cards="[
-            { label: 'Records', value: Number(totalRecords || 0) },
-            { label: 'Portfolios', value: portfolios.length },
-            { label: 'Periods', value: uniquePeriods.length },
-            { label: 'Metrics', value: definitions.length },
-        ]" />
+      <KpiRow :cards="[
+        { label: 'Months derived from the books', value: derived.length, accent: '#15803d', sub: derived.length ? 'latest ' + derived[0].period : 'run the correlation sweep' },
+        { label: 'External series', value: externalSeries.length, accent: '#0284c7', sub: externalSeries.length ? '' : 'none entered yet' },
+        { label: 'Records entered here', value: Number(totalRecords || 0), accent: '#d97706' },
+        { label: 'Measures defined', value: definitions.length, accent: '#7c3aed' },
+      ]" />
 
-        <div class="maiic-filterbar !mb-0">
-          <div class="flex flex-wrap items-end gap-2">
-            <label class="block"><span class="maiic-flabel">Period</span><input v-model="form.period" type="month" class="maiic-input !w-44" /></label>
-            <label class="block"><span class="maiic-flabel">Portfolio</span>
-              <select v-model="form.portfolio_id" class="maiic-select !w-56">
-                <option value="">All portfolios</option>
-                <option v-for="portfolio in portfolios" :key="portfolio.id" :value="portfolio.id">{{ portfolio.name }}</option>
-              </select>
-            </label>
-            <label class="block"><span class="maiic-flabel">Metric</span>
-              <select v-model="form.definition_id" class="maiic-select !w-56">
-                <option value="">All metrics</option>
-                <option v-for="definition in definitions" :key="definition.id" :value="definition.id">{{ definition.name }}</option>
-              </select>
-            </label>
-            <button type="button" class="primary-btn" @click="applyFilters">Apply</button>
-            <button type="button" class="secondary-btn" @click="resetFilters">Reset</button>
-          </div>
+      <!-- derived from the books -->
+      <div class="maiic-panel">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-3 dark:border-slate-700">
+          <div><h3 class="font-semibold text-gray-900">Derived from MAIIC's staged loan books</h3><p class="text-xs text-gray-500">Refreshed by the correlation sweep each month-end, never typed in. Book level.</p></div>
+          <Link :href="route('fli.overview')" class="secondary-btn !px-3 !py-1 text-xs"><font-awesome-icon icon="sync-alt" class="mr-1" />Refresh from the Overview</Link>
         </div>
+        <div class="maiic-table-wrap"><table class="maiic-table">
+          <thead><tr><th>Month</th><th class="num">NPL ratio (Stage 3 carrying amount)</th><th class="num">Stage 3 share of accounts</th><th class="num">12-month default rate</th></tr></thead>
+          <tbody>
+            <tr v-for="d in pagedDerived" :key="d.period"><td class="font-semibold">{{ d.period }}</td><td class="num">{{ pct(d.NPL_RATIO) }}</td><td class="num">{{ pct(d.STAGE3_SHARE) }}</td><td class="num">{{ pct(d.DEFAULT_RATE_12M) }}</td></tr>
+            <tr v-if="!derived.length"><td colspan="4" class="maiic-empty">Nothing derived yet: run the correlation sweep (Overview, step 3).</td></tr>
+          </tbody></table></div>
+        <RowPager v-model="derivedPage" :total="derived.length" class="border-t border-gray-100" />
+      </div>
 
-        <!-- Portfolios -->
-        <div v-for="portfolio in portfolios" :key="portfolio.id" class="maiic-panel">
-            <div class="px-5 py-4 border-b flex justify-between items-center">
-                <h3 class="font-semibold text-gray-900">{{ portfolio.name }}</h3>
-                <span class="text-xs text-gray-500">
-                    {{ portfolioData[portfolio.id]?.total ?? 0 }} total records
-                </span>
-            </div>
+      <!-- external series as the model reads them -->
+      <div v-if="externalSeries.length" class="maiic-panel">
+        <div class="border-b border-gray-200 px-5 py-3 dark:border-slate-700"><h3 class="font-semibold text-gray-900">External series the model can use</h3><p class="text-xs text-gray-500">Built from the records below at each correlation sweep; a series with a release date is not read for any month before it.</p></div>
+        <div class="maiic-table-wrap"><table class="maiic-table">
+          <thead><tr><th>Code</th><th>Series</th><th class="num">Months</th><th>From</th><th>To</th><th>Latest release</th></tr></thead>
+          <tbody><tr v-for="e in externalSeries" :key="e.proxy_code"><td class="font-mono text-xs">{{ e.proxy_code }}</td><td>{{ e.name }}</td><td class="num">{{ e.n }}</td><td>{{ ym(e.first) }}</td><td>{{ ym(e.last) }}</td><td>{{ e.known ? ym(e.known) : 'end of each month' }}</td></tr></tbody>
+        </table></div>
+      </div>
 
-            <div v-if="portfolioData[portfolio.id]?.data?.length" class="overflow-x-auto">
-                <table class="maiic-table">
-                    <thead>
-                        <tr><th>Period</th><th>Metric</th><th class="num">Value</th><th>Source</th><th class="text-right">Actions</th></tr>
-                    </thead>
-
-                    <tbody>
-                        <tr v-for="record in portfolioData[portfolio.id].data" :key="record.id">
-                            <td class="px-6 py-4 text-sm text-gray-900">{{ formatPeriod(record.period) }}</td>
-                            <td class="whitespace-nowrap text-gray-900">
-                                <span :class="getMetricBadgeClass(record.definition?.code)"
-                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                                    {{ record.definition?.name || 'N/A' }}
-                                </span>
-                            </td>
-                            <td class="num whitespace-nowrap font-medium"
-                                :class="getValueColor(record.definition?.code, record.value)">
-                                {{ formatValue(record.definition?.code, record.value) }}
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-500">{{ record.source || 'Manual' }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex justify-end gap-1.5">
-                                    <button type="button" class="maiic-action maiic-action-edit" title="Edit record" @click="editRecord(record)"><font-awesome-icon icon="pen" /></button>
-                                    <button type="button" class="maiic-action maiic-action-delete" title="Delete record" @click="deleteRecord(record)"><font-awesome-icon icon="trash" /></button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div v-if="portfolioData[portfolio.id].links && portfolioData[portfolio.id].links.length > 3" class="border-t border-gray-100 px-4 pb-4">
-                    <Pagination :links="portfolioData[portfolio.id].links" />
-                </div>
-            </div>
-
-            <div v-else class="maiic-empty">
-                No credit loss data for this portfolio yet. Use <strong>Import CSV</strong> or <strong>Add record</strong> at the top right.
-            </div>
+      <!-- every record entered -->
+      <div class="maiic-panel">
+        <div class="flex flex-wrap items-end gap-2 border-b border-gray-200 px-5 py-3 dark:border-slate-700">
+          <h3 class="mr-auto self-center font-semibold text-gray-900">Records entered or imported</h3>
+          <label class="block"><span class="maiic-flabel">Month</span><input v-model="form.period" type="month" class="maiic-input !w-40" /></label>
+          <label class="block"><span class="maiic-flabel">Portfolio</span>
+            <select v-model="form.portfolio_id" class="maiic-select !w-56"><option value="">All</option><option value="external">External or industry</option><option v-for="p in portfolios" :key="p.id" :value="p.id">{{ p.name }}</option></select>
+          </label>
+          <label class="block"><span class="maiic-flabel">Measure</span>
+            <select v-model="form.definition_id" class="maiic-select !w-48"><option value="">All</option><option v-for="d in definitions" :key="d.id" :value="d.id">{{ d.name }}</option></select>
+          </label>
+          <button type="button" class="primary-btn text-sm" @click="filter">Filter</button>
+          <button type="button" class="secondary-btn text-sm" @click="reset">Reset</button>
         </div>
-
+        <div class="maiic-table-wrap"><table class="maiic-table">
+          <thead><tr><th>Month</th><th>Measure</th><th>Portfolio</th><th class="num">Value</th><th>Published</th><th>Source</th><th>Entered by</th><th></th></tr></thead>
+          <tbody>
+            <tr v-for="r in rows.data" :key="r.id">
+              <td class="whitespace-nowrap">{{ String(r.period).slice(0, 7) }}</td>
+              <td>{{ r.definition ? r.definition.name : '-' }} <span class="text-xs text-gray-400">{{ r.definition ? r.definition.code : '' }}</span></td>
+              <td>{{ r.portfolio ? r.portfolio.name : 'External or industry' }}</td>
+              <td class="num">{{ r.value === null ? '-' : Number(r.value).toLocaleString() }}</td>
+              <td class="whitespace-nowrap">{{ r.published_at ? String(r.published_at).slice(0, 10) : '-' }}</td>
+              <td class="text-xs">{{ r.source || '-' }}</td>
+              <td class="text-xs">{{ r.creator ? r.creator.name : '-' }}</td>
+              <td class="num whitespace-nowrap">
+                <Link :href="route('credit-loss-data.edit', r.id)" class="maiic-action maiic-action-edit" title="Edit"><font-awesome-icon icon="pen" /></Link>
+                <button type="button" class="maiic-action maiic-action-delete ml-1" title="Delete" @click="destroy(r)"><font-awesome-icon icon="trash" /></button>
+              </td>
+            </tr>
+            <tr v-if="!rows.data.length"><td colspan="8" class="maiic-empty">No record. Add one, or import a CSV of an external series (a period column, a value column named after the measure, and optionally published_at).</td></tr>
+          </tbody></table></div>
+        <div class="px-4 pb-3"><Pagination :links="rows.links" /></div>
+      </div>
     </div>
   </app-layout>
 </template>
 
 <script>
-import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
-import { Inertia } from '@inertiajs/inertia'
-import { Link } from '@inertiajs/vue3'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
+import Pagination from '@/Components/Pagination.vue'
+import { Link, router } from '@inertiajs/vue3'
+import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
-  components: { AppLayout, LegacyNotice, Link, KpiRow },
-  props: {
-    totalRecords: Number,
-    portfolios: Array,
-    portfolioData: Object,
-    definitions: Array,
-    uniquePeriods: Array,
-    filters: Object
-  },
-  data() {
-    return {
-      form: {
-        period: this.filters.period || '',
-        definition_id: this.filters.definition_id || '',
-        portfolio_id: this.filters.portfolio_id || ''
-      }
-    }
-  },
+  components: { AppLayout, KpiRow, RowPager, Pagination, Link },
+  props: { rows: Object, derived: Array, externalSeries: Array, totalRecords: Number, portfolios: Array, definitions: Array, filters: Object, canGovern: Boolean },
+  data() { return { derivedPage: 1, form: { period: this.filters?.period || '', portfolio_id: this.filters?.portfolio_id || '', definition_id: this.filters?.definition_id || '' } } },
+  computed: { pagedDerived() { return this.derived.slice((this.derivedPage - 1) * 15, this.derivedPage * 15) } },
   methods: {
-    applyFilters() {
-      const params = {}
-      if (this.form.period) params.period = this.form.period
-      if (this.form.definition_id) params.definition_id = this.form.definition_id
-      if (this.form.portfolio_id) params.portfolio_id = this.form.portfolio_id
-
-      Inertia.get(route('credit-loss-data.index'), params, {
-        preserveState: true,
-        preserveScroll: true
-      })
+    pct(v) { return v === null || v === undefined ? '-' : (Number(v) * 100).toFixed(2) + '%' },
+    ym(v) { return v ? String(v).slice(0, 4) + '-' + String(v).slice(4, 6) : '-' },
+    filter() { router.get(route('credit-loss-data.index'), Object.fromEntries(Object.entries(this.form).filter(([, v]) => v !== '')), { preserveScroll: true }) },
+    reset() { this.form = { period: '', portfolio_id: '', definition_id: '' }; router.get(route('credit-loss-data.index')) },
+    async destroy(r) {
+      if (await confirmDialog({ title: 'Delete this record?', message: `${r.definition ? r.definition.name : 'Record'} for ${String(r.period).slice(0, 7)}. The model stops reading it at the next correlation sweep.`, confirmLabel: 'Delete', tone: 'danger' })) router.delete(route('credit-loss-data.destroy', r.id), { preserveScroll: true })
     },
-
-     resetFilters() {
-        this.form.period = '';
-        this.form.definition_id = '';
-        this.form.portfolio_id = '';
-
-        this.applyFilters();
-    },
-
-    formatPeriod(period) {
-      if (!period) return 'N/A'
-      const [year, month] = period.split('-')
-      return new Date(year, month - 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-    },
-    formatValue(metricCode, value) {
-      if (value == null) return '-'
-      const percentageMetrics = ['PD', 'LGD']
-      const currencyMetrics = ['ECL', 'NPL', 'EAD']
-      if (percentageMetrics.includes(metricCode))
-        return (value * 100).toFixed(2) + '%'
-      if (currencyMetrics.includes(metricCode))
-        return new Intl.NumberFormat().format(value)
-      return value
-    },
-
-    getMetricBadgeClass(metricCode) {
-            const classes = {
-                'ECL': 'bg-maiic-100 text-maiic-800',
-                'PD': 'bg-maiic-100 text-maiic-800',
-                'LGD': 'bg-amber-100 text-amber-800',
-                'EAD': 'bg-maiic-100 text-maiic-800',
-                'NPL': 'bg-red-100 text-red-800',
-                'STAGE': 'bg-gray-100 text-gray-800',
-                'CREDIT_RATING': 'bg-maiic-100 text-maiic-800'
-            };
-            return classes[metricCode] || 'bg-gray-100 text-gray-800';
-        },
-
-        getValueColor(metricCode, value) {
-            if (value === null || value === undefined) return 'text-gray-500';
-
-            if (['PD', 'LGD', 'NPL'].includes(metricCode)) {
-                if (value > 0.1) return 'text-red-600';
-                if (value > 0.05) return 'text-amber-600';
-                return 'text-maiic-600';
-            }
-            return 'text-gray-900';
-        },
-
-        getInputClass(metricCode) {
-            const percentageMetrics = ['PD', 'LGD'];
-            if (percentageMetrics.includes(metricCode)) {
-                return 'pr-10';
-            }
-            return '';
-        },
-
-
-        editRecord(creditLossData) {
-            this.$inertia.get(route('credit-loss-data.edit', creditLossData.id));
-        },
-
-        async deleteRecord(creditLossData) {
-            if (await confirmDialog({ title: 'Delete this record?', message: 'The credit loss figure is removed. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' })) {
-                Inertia.delete(route('credit-loss-data.destroy', creditLossData.id));
-            }
-        }
-    },
-
-
-  }
+  },
+}
 </script>

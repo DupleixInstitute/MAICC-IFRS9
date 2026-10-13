@@ -19,7 +19,7 @@ class ScenarioSetController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('permission:eir.govern')->only(['seed', 'propose', 'approve', 'lock', 'version', 'update', 'addScenario', 'removeScenario']);
+        $this->middleware('permission:eir.govern')->only(['seed', 'propose', 'approve', 'lock', 'version', 'update', 'addScenario', 'removeScenario', 'discard']);
     }
 
     /** The shape of one scenario as the editor posts it (system audit of 9 October 2026, finding M5). */
@@ -142,6 +142,11 @@ class ScenarioSetController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:255']]);
 
         return $this->act(fn () => $service->newVersion($set, $data['reason'], $request->user()->id), "A new version of set {$set} was created as a draft.");
+    }
+
+    public function discard(Request $request, int $set, ScenarioSetService $service)
+    {
+        return $this->act(fn () => $service->discardDraft($set, $request->user()->id), "Draft set {$set} discarded.");
     }
 
     private function act(callable $fn, string $ok)

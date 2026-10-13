@@ -48,6 +48,8 @@ class ImportSampleController extends Controller
             'sicr-items' => [['group', 'name', 'active', 'stage', 'description', 'evidence_required', 'standard_reference'], 'sicr_items_sample.csv'],
             'rbm-policy-rate' => [['date', 'rate'], 'rbm_policy_rate_sample.csv'],
             'imf-weo' => [null, 'imf_weo_sample.tsv'],
+            // any variable the system holds, the layout the Macro Statistics export writes
+            'macro-series' => [['series_code', 'period', 'value', 'is_forecast', 'source', 'published_at'], 'macro_series_sample.csv'],
             default => abort(404),
         };
 

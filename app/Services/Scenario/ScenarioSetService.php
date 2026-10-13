@@ -371,6 +371,27 @@ class ScenarioSetService
             ->get(['id', 'scope', 'scope_value', 'adjustment', 'reason', 'owner_id', 'expiry_period', 'approved_by', 'approver_label'])->map(fn ($o) => array_merge((array) $o, ['adjustment' => (float) $o->adjustment, 'id' => (int) $o->id]))->all();
     }
 
+    /**
+     * Discard a draft that was never proposed: the set, its scenarios and their
+     * shocks go; the audit log keeps what was there. A proposed, approved or
+     * locked set is never deleted.
+     */
+    public function discardDraft(int $setId, ?int $userId): void
+    {
+        $set = DB::table('governed_scenario_sets')->where('id', $setId)->first() ?? throw new RuntimeException("No scenario set {$setId}.");
+        if ($set->status !== 'DRAFT') {
+            throw new RuntimeException("Set {$setId} is {$set->status}; only a draft that was never proposed can be discarded.");
+        }
+        $before = $this->snapshot($setId);
+        DB::transaction(function () use ($setId) {
+            $ids = DB::table('governed_scenarios')->where('set_id', $setId)->pluck('id');
+            DB::table('scenario_shocks')->whereIn('scenario_id', $ids)->delete();
+            DB::table('governed_scenarios')->where('set_id', $setId)->delete();
+            DB::table('governed_scenario_sets')->where('id', $setId)->delete();
+        });
+        AuditLoggerService::log('Scenario Set Draft Discarded', 'governed_scenario_sets', $setId, ['reporting_period' => $set->reporting_period, 'old_values' => $before, 'meta' => ['user' => $userId]]);
+    }
+
     /** A change after lock: a new version, the locked one stays attached to the period. */
     public function newVersion(int $setId, string $reason, ?int $userId): int
     {
@@ -592,14 +613,16 @@ class ScenarioSetService
 
     // ----- the first set ----------------------------------------------------
 
-    /** The first set of spec 15.8, as a proposal for Dr Thom, for the period named. */
-    public function seedFirstSet(string $period, ?int $userId = null): int
+    /**
+     * The four scenarios of spec 15.8 (Base 50, Upside 15, Downside 25, Severe
+     * 10), each anchored to a Malawi episode. The first set is built from them,
+     * and Scenario Profiles keeps them as the standard profile.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function firstSetDesign(): array
     {
-        $existing = DB::table('governed_scenario_sets')->where('reporting_period', $period)->orderByDesc('version')->first();
-        if ($existing !== null) {
-            return (int) $existing->id;
-        }
-        $id = $this->create($period, 'First set, proposed for Dr Thom', [
+        return [
             ['name' => 'Base', 'weight' => 50, 'is_base' => true, 'anchored_to' => 'The IMF World Economic Outlook path, World Bank actuals, the RBM\'s stated policy path', 'pd_multiplier' => 1.0, 'calibration_note' => 'The sources of section 13 as they stand', 'shocks' => []],
             ['name' => 'Upside', 'weight' => 15, 'anchored_to' => 'The 2021 to 2022 recovery: growth and the harvest above the base, inflation below', 'pd_multiplier' => 0.85, 'calibration_note' => '2021: real GDP growth 4.6 percent, agriculture up on a good harvest, inflation 9.3 percent (World Bank)',
                 'shocks' => [['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => 2.0, 'note' => 'growth two points above the base'], ['statistic_code' => 'AGRI_GROWTH', 'kind' => 'abs', 'value' => 4.0], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => -5.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => -2.0], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => -2.0]]],
@@ -607,7 +630,17 @@ class ScenarioSetService
                 'shocks' => [['statistic_code' => 'MWK_USD', 'kind' => 'pct', 'value' => 44.0, 'note' => 'the November 2023 devaluation'], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => 10.0], ['statistic_code' => 'LENDING_RATE', 'kind' => 'abs', 'value' => 5.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => 5.0, 'note' => 'the PLR follows the policy rate'], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => 5.0], ['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => -1.5]]],
             ['name' => 'Severe', 'weight' => 10, 'anchored_to' => 'The 2016 drought together with a devaluation: the harvest fails and the currency falls', 'pd_multiplier' => 1.80, 'calibration_note' => '2016: agriculture value added fell on the El Nino drought while growth fell to 2.3 percent; combined here with a 44 percent devaluation',
                 'shocks' => [['statistic_code' => 'AGRI_GROWTH', 'kind' => 'abs', 'value' => -15.0, 'note' => 'the 2016 harvest failure'], ['statistic_code' => 'GDP_GROWTH', 'kind' => 'abs', 'value' => -3.0], ['statistic_code' => 'MWK_USD', 'kind' => 'pct', 'value' => 44.0], ['statistic_code' => 'CPI', 'kind' => 'abs', 'value' => 15.0], ['statistic_code' => 'LENDING_RATE', 'kind' => 'abs', 'value' => 8.0], ['statistic_code' => 'PLR', 'kind' => 'abs', 'value' => 8.0], ['statistic_code' => 'POLICY_RATE', 'kind' => 'abs', 'value' => 8.0]]],
-        ], $userId, 'The first scenario set of specification v4 section 15.8. The weights are a starting point and are Dr Thom\'s to set; the anchors are the answer to "why these".', 'World Bank actuals to 2025 (fetched 8 October 2026); IMF WEO path to be loaded; RBM policy path to be stated');
+        ];
+    }
+
+    /** The first set of spec 15.8, as a proposal for Dr Thom, for the period named. */
+    public function seedFirstSet(string $period, ?int $userId = null): int
+    {
+        $existing = DB::table('governed_scenario_sets')->where('reporting_period', $period)->orderByDesc('version')->first();
+        if ($existing !== null) {
+            return (int) $existing->id;
+        }
+        $id = $this->create($period, 'First set, proposed for Dr Thom', self::firstSetDesign(), $userId, 'The first scenario set of specification v4 section 15.8. The weights are a starting point and are Dr Thom\'s to set; the anchors are the answer to "why these".', 'World Bank actuals to 2025 (fetched 8 October 2026); IMF WEO path to be loaded; RBM policy path to be stated');
         $this->propose($id, $userId);
 
         return $id;

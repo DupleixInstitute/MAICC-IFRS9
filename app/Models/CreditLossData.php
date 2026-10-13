@@ -18,7 +18,8 @@ class CreditLossData extends Model
         'value',
         'created_by',
         'source',
-        'notes'
+        'notes',
+        'published_at',
     ];
 
     public function definition()

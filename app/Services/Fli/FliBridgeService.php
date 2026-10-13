@@ -47,22 +47,26 @@ class FliBridgeService
     public function refresh(?string $asOf = null): array
     {
         return ['macro_rows' => $this->macro(), 'macro_series' => DB::table('macro_series')->distinct()->count('statistic_code'),
-            'proxy_rows' => $this->proxies(), 'proxies' => DB::table('credit_loss_series')->distinct()->count('proxy_code'),
+            'proxy_rows' => $this->proxies() + $this->externalProxies(), 'proxies' => DB::table('credit_loss_series')->distinct()->count('proxy_code'),
             'parameters' => $this->parameters($asOf), 'definitions' => $this->definitions(), 'events' => $this->events()];
     }
 
     private function macro(): int
     {
         $series = DB::table('macro_statistics')->get(['id', 'statistic_code', 'statistic_name', 'frequency']);
+        $hasPublished = DB::getSchemaBuilder()->hasColumn('macro_statistics_data', 'published_at');
         $n = 0;
         foreach ($series as $s) {
-            $rows = DB::table('macro_statistics_data')->where('macro_stat_definition_id', $s->id)->orderBy('period')->get(['period', 'value', 'is_forecast', 'source']);
+            $rows = DB::table('macro_statistics_data')->where('macro_stat_definition_id', $s->id)->orderBy('period')->get(array_merge(['period', 'value', 'is_forecast', 'source'], $hasPublished ? ['published_at'] : []));
             if ($rows->isEmpty()) {
                 continue;
             }
             $points = [];
             foreach ($rows as $r) {
-                $points[substr(str_replace('-', '', $r->period), 0, 6)] = ['value' => (float) $r->value, 'type' => (int) $r->is_forecast ? 'forecast' : 'actual', 'source' => $r->source];
+                // FLI module D-F10: a forecast is knowable from the date its publisher released it,
+                // when that is recorded; otherwise from the date the bridge first held it
+                $points[substr(str_replace('-', '', $r->period), 0, 6)] = ['value' => (float) $r->value, 'type' => (int) $r->is_forecast ? 'forecast' : 'actual', 'source' => $r->source,
+                    'vintage' => ! empty($r->published_at) ? 'published ' . substr((string) $r->published_at, 0, 10) : null];
             }
             $out = [];
             if ($s->frequency === 'yearly') {
@@ -77,7 +81,7 @@ class FliBridgeService
                         $months = $from->diffInMonths($to);
                         for ($m = 1; $m < $months; $m++) {
                             $p = $from->addMonths($m)->format('Ym');
-                            $out[$p] = ['value' => $a + ($b - $a) * $m / $months, 'type' => $points[$keys[$i + 1]]['type'], 'source' => 'interpolated from the annual observations', 'note' => 'interpolated'];
+                            $out[$p] = ['value' => $a + ($b - $a) * $m / $months, 'type' => $points[$keys[$i + 1]]['type'], 'source' => 'interpolated from the annual observations', 'note' => 'interpolated', 'vintage' => $points[$keys[$i + 1]]['vintage'] ?? null];
                         }
                     }
                 }
@@ -89,7 +93,7 @@ class FliBridgeService
             $batch = [];
             foreach ($out as $period => $p) {
                 $batch[] = ['statistic_code' => $s->statistic_code, 'statistic_name' => $s->statistic_name, 'observation_period' => $period, 'value' => round($p['value'], 6),
-                    'source' => substr((string) $p['source'], 0, 64), 'value_type' => $p['type'], 'vintage' => 'bridge ' . now()->toDateString(), 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()];
+                    'source' => substr((string) $p['source'], 0, 64), 'value_type' => $p['type'], 'vintage' => $p['vintage'] ?? $this->firstHeld($s->statistic_code, $period), 'imported_at' => now(), 'created_at' => now(), 'updated_at' => now()];
             }
             foreach (array_chunk($batch, 500) as $chunk) {
                 DB::table('macro_series')->upsert($chunk, ['statistic_code', 'observation_period'], ['value', 'source', 'value_type', 'vintage', 'imported_at', 'updated_at']);
@@ -115,6 +119,21 @@ class FliBridgeService
 
         return $n;
     }
+
+    /**
+     * The vintage of an observation with no release date: the date the bridge
+     * first held it, kept across refreshes so that re-running the bridge never
+     * makes an old forecast look newer (or a new one look older) than it is.
+     */
+    private function firstHeld(string $code, string $period): string
+    {
+        $this->held ??= DB::table('macro_series')->where('vintage', 'like', 'bridge %')->get(['statistic_code', 'observation_period', 'vintage'])
+            ->mapWithKeys(fn ($r) => [$r->statistic_code . '|' . $r->observation_period => $r->vintage])->all();
+
+        return $this->held[$code . '|' . $period] ?? 'bridge ' . now()->toDateString();
+    }
+
+    private ?array $held = null;
 
     private function proxies(): int
     {
@@ -160,6 +179,42 @@ class FliBridgeService
         foreach (array_chunk($batch, 500) as $chunk) {
             DB::table('credit_loss_series')->upsert($chunk, ['proxy_code', 'observation_period'], ['value', 'proxy_name', 'updated_at']);
         }
+
+        return count($batch);
+    }
+
+    /**
+     * The external credit-loss series entered on Credit Loss Data (FLI module
+     * D-F7): an industry or peer measure such as the Reserve Bank's NPL ratio,
+     * which gives the model a longer history than MAIIC's own books. Each
+     * definition becomes the proxy EXT_<code> (EXT_<code>_P<portfolio> when the
+     * row belongs to one MAIIC portfolio), knowable from the month its
+     * publisher released it. The EXT_ rows are rebuilt from the register on
+     * every refresh, so a row deleted there leaves the sweep too.
+     */
+    private function externalProxies(): int
+    {
+        if (! DB::getSchemaBuilder()->hasTable('macro_credit_loss_data') || ! DB::getSchemaBuilder()->hasColumn('credit_loss_series', 'known_from')) {
+            return 0;
+        }
+        $hasPublished = DB::getSchemaBuilder()->hasColumn('macro_credit_loss_data', 'published_at');
+        $rows = DB::table('macro_credit_loss_data as d')->join('macro_credit_loss_definitions as c', 'c.id', '=', 'd.definition_id')
+            ->leftJoin('loan_portfolios as p', 'p.id', '=', 'd.portfolio_id')->whereNotNull('d.value')->whereNotNull('d.period')
+            ->get(array_merge(['d.portfolio_id', 'd.period', 'd.value', 'd.source', 'c.code', 'c.name', 'p.name as portfolio'], $hasPublished ? ['d.published_at'] : []));
+        $batch = [];
+        foreach ($rows as $r) {
+            $code = 'EXT_' . strtoupper(preg_replace('/[^A-Z0-9]+/i', '_', trim((string) $r->code))) . ($r->portfolio_id ? '_P' . (int) $r->portfolio_id : '');
+            $ym = substr(str_replace('-', '', (string) $r->period), 0, 6);
+            $published = $hasPublished && ! empty($r->published_at) ? substr(str_replace('-', '', (string) $r->published_at), 0, 6) : null;
+            $batch[$code . '|' . $ym] = $this->row($code, trim($r->name . ($r->portfolio ? ", {$r->portfolio}" : '') . ' (external)'), $ym, (float) $r->value)
+                + ['known_from' => $published !== null && $published > $ym ? $published : null, 'source' => mb_substr((string) $r->source, 0, 64)];
+        }
+        DB::transaction(function () use ($batch) {
+            DB::table('credit_loss_series')->where('proxy_code', 'like', 'EXT\_%')->delete();
+            foreach (array_chunk(array_values($batch), 500) as $chunk) {
+                DB::table('credit_loss_series')->insert($chunk);
+            }
+        });
 
         return count($batch);
     }

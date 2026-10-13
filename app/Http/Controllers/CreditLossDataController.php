@@ -33,34 +33,29 @@ class CreditLossDataController extends Controller
                 ->reverse()
                 ->values();
 
+            // one table of every entered row (below); kept for the screens that still read it
             $portfolioData = [];
 
-            foreach ($portfolios as $portfolio) {
-                $query = CreditLossData::with(['definition', 'creator'])
-                    ->where('portfolio_id', $portfolio->id)
-                    ->orderBy('period', 'desc')
-                    ->orderBy('definition_id');
-                    
-                if ($period) {
-                    [$year, $month] = explode('-', $period);
-                    $query->whereYear('period', $year)
-                        ->whereMonth('period', $month);
-                }
-
-
-                if ($definitionId) {
-                    $query->where('definition_id', $definitionId);
-                }
-
-                if ($request->has('portfolio_id')) {
-                    $query->where('portfolio_id', $request->input('portfolio_id'));
-                }
-
-                $portfolioData[$portfolio->id] = $query->paginate(15, ['*'], "portfolio_{$portfolio->id}_page")
-                                                    ->withQueryString();
-            }
+            // The measures the model is calibrated on: those derived from MAIIC's own staged
+            // loan books (the bridge refreshes them with the correlation sweep), and the
+            // external series entered here, which the bridge adds as EXT_ measures.
+            $derivedCodes = ['NPL_RATIO', 'STAGE3_SHARE', 'DEFAULT_RATE_12M'];
+            $derived = DB::table('credit_loss_series')->whereIn('proxy_code', $derivedCodes)->orderByDesc('observation_period')->get(['proxy_code', 'observation_period', 'value'])
+                ->groupBy('observation_period')->map(fn ($g, $p) => ['period' => substr($p, 0, 4) . '-' . substr($p, 4, 2)] + $g->pluck('value', 'proxy_code')->map(fn ($v) => (float) $v)->all())->values();
+            $external = DB::table('credit_loss_series')->where('proxy_code', 'like', 'EXT\_%')
+                ->selectRaw('proxy_code, max(proxy_name) name, count(*) n, min(observation_period) first, max(observation_period) last, max(known_from) known')->groupBy('proxy_code')->get();
+            $rows = CreditLossData::with(['definition', 'creator', 'portfolio'])
+                ->when($period, function ($q) use ($period) { [$y, $m] = explode('-', $period); $q->whereYear('period', $y)->whereMonth('period', $m); })
+                ->when($definitionId, fn ($q) => $q->where('definition_id', $definitionId))
+                ->when($request->filled('portfolio_id'), fn ($q) => $request->input('portfolio_id') === 'external' ? $q->whereNull('portfolio_id') : $q->where('portfolio_id', $request->input('portfolio_id')))
+                ->orderByDesc('period')->orderBy('definition_id')->paginate(15)->withQueryString();
 
             return Inertia::render('FLI/CreditLossData/Index', [
+                'rows' => $rows,
+                'derived' => $derived,
+                'externalSeries' => $external,
+                'lastSweep' => DB::table('audit_logs')->where('action', 'FLI Step Launched')->where('new_values', 'like', '%fli:correlate%')->max('created_at'),
+                'canGovern' => (bool) $request->user()?->can('eir.govern'),
                 'totalRecords' => $totalRecords,
                 'portfolios' => $portfolios,
                 'portfolioData' => $portfolioData,
@@ -109,7 +104,7 @@ class CreditLossDataController extends Controller
     public function storeDefinition(Request $request)
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'max:50', 'unique:credit_loss_definitions,code'], // Fixed: added code field
+            'code' => ['required', 'string', 'max:50', 'unique:macro_credit_loss_definitions,code'], // Fixed: added code field
             'name' => ['required', 'string', 'max:100'], // Fixed: max 100 to match migration
             'description' => ['nullable', 'string'],
         ]);
@@ -142,8 +137,10 @@ class CreditLossDataController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'portfolio_id' => ['required', 'exists:loan_portfolios,id'],
+            // empty = an external or industry series (FLI module D-F7), not one MAIIC portfolio
+            'portfolio_id' => ['nullable', 'exists:loan_portfolios,id'],
             'period' => ['required', 'date'], // We validate it's a date first
+            'published_at' => ['nullable', 'date'],
             'definition_id' => ['required', 'exists:macro_credit_loss_definitions,id'],
             'value' => ['nullable', 'numeric'],
             'source' => ['nullable', 'string'],
@@ -187,6 +184,7 @@ class CreditLossDataController extends Controller
             'value' => ['nullable', 'numeric'],
             'source' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
+            'published_at' => ['nullable', 'date'],
         ]);
 
         $creditLossData->update($validated);
@@ -198,7 +196,7 @@ class CreditLossDataController extends Controller
     {
         $request->validate([
             'file' => 'required|file|mimes:csv,txt,xlsx|max:2048',
-            'portfolio_id' => ['required', 'exists:loan_portfolios,id'],
+            'portfolio_id' => ['nullable', 'exists:loan_portfolios,id'],
         ]);
 
         try {

@@ -15,8 +15,10 @@
       <!-- The fit in use, pinned: what the route applies to every loan of the period. -->
       <div v-if="approved" class="maiic-panel border-l-4 !border-l-maiic-600 bg-maiic-50/60 px-5 py-3">
         <div class="flex flex-wrap items-center gap-2">
-          <span class="maiic-badge maiic-badge-solid-green">Approved for use</span>
-          <span class="font-semibold text-gray-900">Fit {{ approved.id }}: {{ approved.driver_name }} drives the {{ approved.proxy_name }}, {{ approved.lag_months == 0 ? 'in the same month' : approved.lag_months + ' months later' }}</span>
+          <span class="maiic-badge maiic-badge-solid-green">Model version {{ approved.version }} in force</span>
+          <span class="font-semibold text-gray-900">{{ approved.id ? 'Fit ' + approved.id + ': ' : 'External model: ' }}{{ approved.driver_name }} drives the {{ approved.proxy_name }}, {{ approved.lag_months == 0 ? 'in the same month' : approved.lag_months + ' months later' }}</span>
+          <span class="text-xs text-gray-500">since {{ approved.effective_from }}{{ approved.effective_from !== period ? ': this month applies it without a new fit' : '' }}</span>
+          <a :href="route('fli-models.index', { period })" class="text-xs font-semibold text-maiic-700 underline dark:text-maiic-300">all versions</a>
         </div>
         <div class="mt-1.5 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-600">
           <span>Slope <strong class="text-gray-900">{{ n(approved.slope, 6) }}</strong></span>
@@ -31,7 +33,7 @@
         </div>
       </div>
       <div v-else class="maiic-panel border-l-4 !border-l-maiicgold-500 px-5 py-3 text-sm text-gray-700">
-        <span class="font-semibold">No fit approved for {{ period }}:</span> the PD holds (overlay at zero). Propose an applied fit below; a second person approves it.
+        <span class="font-semibold">No model version is in force for {{ period }}:</span> the PD holds (overlay at zero). Propose an applied fit below; when a second person approves it, it is published as the model version from this month.
       </div>
 
       <div class="maiic-panel">

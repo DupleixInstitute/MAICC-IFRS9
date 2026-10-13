@@ -1,152 +1,72 @@
 <template>
-    <app-layout>
-      <template #header>
-        <div>
-          <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-            <span>Administration</span><span>/</span><span>Legacy FLI tools</span><span>/</span><span class="font-medium text-maiic-700">Weighted Forecast</span>
-          </div>
-          <h2 class="text-xl font-semibold text-gray-800">Weighted Forecast</h2>
-          <p class="mt-1 text-sm text-gray-600">Each macro variable's forecast weighted across the scenarios of a profile</p>
-        </div>
-      </template>
-      <template #actions>
-        <button type="button" class="primary-btn" @click="showForecastForm = true">Calculate forecast</button>
-      </template>
+  <app-layout title="Weighted Forecast" description="The probability-weighted path of every driver under a scenario set, beside each scenario's path and the spread between them">
+    <template #actions>
+      <select v-model="sel.period" @change="go(false)" class="maiic-input !w-36" aria-label="Month">
+        <option v-for="p in periods" :key="p" :value="p">{{ monthLabel(p) }}</option>
+      </select>
+      <select v-if="sets.length" v-model="sel.set" @change="go(true)" class="maiic-input !w-64" aria-label="Scenario set">
+        <option v-for="s in sets" :key="s.id" :value="s.id">{{ s.name }}, v{{ s.version }} ({{ s.status }})</option>
+      </select>
+      <button v-if="canGovern && setId" type="button" class="primary-btn text-sm" @click="calculate"><font-awesome-icon icon="sync-alt" class="mr-1" />{{ saved.count ? 'Recalculate and store' : 'Calculate and store' }}</button>
+      <button v-if="canGovern && saved.count" type="button" class="secondary-btn text-sm" @click="remove" title="Remove the stored path of this set"><font-awesome-icon icon="trash" /></button>
+    </template>
 
-      <LegacyNotice class="mb-4" />
-      <div class="w-full space-y-4">
-        <div class="maiic-panel">
-          <div class="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h3 class="font-semibold text-gray-900">Weighted forecasts</h3>
-              <p class="text-xs text-gray-500">{{ forecasts.total ?? forecasts.data.length }} value(s). The filters narrow this page.</p>
-            </div>
-            <div class="flex flex-wrap items-end gap-2">
-              <label class="block"><span class="maiic-flabel">Macro variable</span>
-                <select v-model="filters.macro_stat_id" class="maiic-select !w-56">
-                  <option value="">All variables</option>
-                  <option v-for="stat in macroVariable" :key="stat.id" :value="stat.id">{{ stat.statistic_name }}</option>
-                </select>
-              </label>
-              <label class="block"><span class="maiic-flabel">From</span><input v-model="filters.start_period" type="month" class="maiic-input !w-40" /></label>
-              <label class="block"><span class="maiic-flabel">To</span><input v-model="filters.end_period" type="month" class="maiic-input !w-40" /></label>
-            </div>
-          </div>
-          <div class="maiic-table-wrap overflow-x-auto">
-            <table class="maiic-table">
-              <thead>
-                <tr><th>Period</th><th>Scenario profile</th><th>Macro variable</th><th class="num">Weighted value</th><th class="text-right">Actions</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="forecast in filteredForecasts" :key="forecast.id">
-                  <td class="whitespace-nowrap">{{ forecast.reporting_period?.period ? new Date(forecast.reporting_period.period).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '-' }}</td>
-                  <td>{{ forecast.scenario_profile?.name || '-' }}</td>
-                  <td>{{ forecast.macro_statistic?.statistic_name || '-' }}</td>
-                  <td class="num">{{ forecast.weighted_value }}</td>
-                  <td>
-                    <div class="flex justify-end gap-1.5">
-                      <button type="button" class="maiic-action maiic-action-neutral" title="Re-run this forecast" @click="rerunForecast(forecast)"><font-awesome-icon icon="calculator" /></button>
-                      <button type="button" class="maiic-action maiic-action-delete" title="Delete this forecast" @click="deleteForecast(forecast.id)"><font-awesome-icon icon="trash" /></button>
-                    </div>
-                  </td>
-                </tr>
-                <tr v-if="!filteredForecasts.length">
-                  <td colspan="5" class="maiic-empty">
-                    <template v-if="forecasts.data.length">No forecasts on this page match the filters.</template>
-                    <template v-else>No weighted forecasts yet. Use <strong>Calculate forecast</strong> at the top right.</template>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-if="forecasts.links && forecasts.links.length > 3" class="border-t border-gray-100 px-4 pb-4">
-            <Pagination :links="forecasts.links" />
-          </div>
-        </div>
+    <div class="space-y-4">
+      <p class="text-xs text-gray-500">
+        IFRS 9 weights the loss, not the economy: the booked ECL is the weighted ECL of the scenarios (see Impact Analysis). This path is for reading the set, and is the input of the "weight the macro path" method kept for reproducing earlier months.
+        <span v-if="asOf"> Values as known at {{ asOf }}.</span>
+        <span v-if="saved.count"> Stored: revision {{ saved.revision }}, {{ saved.count }} values, {{ String(saved.at).slice(0, 16) }}.</span><span v-else-if="setId"> Not stored yet for this set.</span>
+      </p>
+      <p v-if="error" class="maiic-panel px-5 py-3 text-sm text-red-700">{{ error }}</p>
+      <div v-if="!sets.length" class="maiic-panel maiic-empty">No scenario set for {{ monthLabel(period) }}. Start one from Scenario Profiles or on Scenario Sets.</div>
+
+      <div v-else class="maiic-panel">
+        <div class="maiic-table-wrap"><table class="maiic-table">
+          <thead>
+            <tr><th rowspan="2">Driver</th><th v-for="o in offsets" :key="o" :colspan="scenarios.length + 2" class="text-center">{{ year + o }}</th></tr>
+            <tr><template v-for="o in offsets" :key="'h' + o"><th v-for="s in scenarios" :key="s.name + o" class="num">{{ s.name }} <span class="text-gray-400">{{ s.weight }}%</span></th><th class="num">Weighted</th><th class="num">Spread</th></template></tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in pagedRows" :key="r.statistic_code">
+              <td class="min-w-[12rem]"><div class="font-semibold">{{ r.name }}</div><div class="text-xs text-gray-500">{{ r.statistic_code }}<span v-if="!r.shocked"> · no scenario moves it</span></div></td>
+              <template v-for="o in offsets" :key="r.statistic_code + o">
+                <td v-for="s in scenarios" :key="s.name" class="num" :class="s.is_base ? '' : (diff(r, o, s.name) ? 'text-maiic-800 font-semibold' : 'text-gray-400')" :title="r.years[o] ? r.years[o].source : ''">{{ n(r.years[o]?.scenarios[s.name]) }}</td>
+                <td class="num font-bold">{{ n(r.years[o]?.weighted) }}</td>
+                <td class="num text-xs text-gray-500">{{ n(r.years[o]?.spread) }}</td>
+              </template>
+            </tr>
+            <tr v-if="!rows.length"><td :colspan="1 + offsets.length * (scenarios.length + 2)" class="maiic-empty">The set has no paths.</td></tr>
+          </tbody>
+        </table></div>
+        <RowPager v-model="page" :total="rows.length" class="border-t border-gray-100" />
       </div>
-
-    <div v-if="showForecastForm" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="absolute inset-0 bg-gray-500 bg-opacity-75" @click="closeForm"></div>
-          <div class="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
-          <CreateForecast
-            :profiles="profiles"
-            @close="closeForm"
-          />
-          </div>
     </div>
-    </app-layout>
+  </app-layout>
 </template>
 
-
-<script setup>
-import { confirmDialog } from '@/Components/confirmDialog'
-import { notice } from '@/Components/Maiic/notice'
-import { router } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+<script>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import LegacyNotice from '@/Components/Maiic/LegacyNotice.vue'
-import Pagination from '@/Components/Pagination.vue';
-import CreateForecast from './CreateForecast.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
+import { router } from '@inertiajs/vue3'
+import { confirmDialog } from '@/Components/confirmDialog'
 
-const props = defineProps({
-  forecasts: Object,
-  profiles: Array,
-  macroVariable: Array
-})
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-const filters = ref({
-  macro_stat_id: '',
-  start_period: '',
-  end_period: ''
-})
-
-const filteredForecasts = computed(() => {
-  return props.forecasts.data.filter(forecast => {
-    const statMatch = !filters.value.macro_stat_id || forecast.macro_statistic?.id === filters.value.macro_stat_id;
-
-    const periodDate = new Date(forecast.reporting_period?.period);
-    const startDate = filters.value.start_period ? new Date(filters.value.start_period) : null;
-    const endDate = filters.value.end_period ? new Date(filters.value.end_period) : null;
-
-    const periodMatch =
-      (!startDate || periodDate >= startDate) &&
-      (!endDate || periodDate <= endDate);
-
-    return statMatch && periodMatch;
-  });
-});
-
-const period = ref(null)
-
-const showForecastForm = ref(false)
-
-function showForm() {
-  showForecastForm.value = true
-}
-
-function closeForm() {
-  showForecastForm.value = false
-}
-
-// const reload = () => {
-//   router.reload('macro.forecast.weighted.index')
-// }
-
-function editForecast(forecast) {
-  // Implement edit logic here
-  notice(`Edit forecast ID: ${forecast.id}`)
-}
-
-async function rerunForecast(id){
-  if(await confirmDialog({ title: 'Re-run this forecast?', message: 'The weighted value is recalculated from the current scenario forecasts.', confirmLabel: 'Re-run' })){
-    // Implement rerun logic here
-    router.post(route('macro-forecast-weighted.rerun', id))
-  }
-}
-
-async function deleteForecast(id) {
-  if (await confirmDialog({ title: 'Delete this forecast?', message: 'The weighted forecast is removed. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' })) {
-    router.delete(route('macro-forecast-weighted.destroy', id))
-  }
+export default {
+  components: { AppLayout, RowPager },
+  props: { period: String, periods: Array, sets: Array, setId: Number, rows: Array, scenarios: Array, year: Number, asOf: String, error: String, saved: Object, canGovern: Boolean },
+  data() { return { sel: { period: this.period, set: this.setId }, page: 1 } },
+  computed: {
+    offsets() { const first = this.rows[0]; return first ? Object.keys(first.years).map(Number) : [0, 1, 2] },
+    pagedRows() { return this.rows.slice((this.page - 1) * 15, this.page * 15) },
+  },
+  methods: {
+    monthLabel(p) { if (!p) return '-'; const [y, m] = String(p).split('-'); return m ? `${MONTHS[Number(m) - 1]} ${y}` : p },
+    go(withSet) { router.get(route('macro-forecast-weighted.index'), withSet ? { period: this.sel.period, set: this.sel.set } : { period: this.sel.period }) },
+    n(v) { return v === null || v === undefined ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+    diff(r, o, name) { const y = r.years[o]; return y && y.scenarios[name] !== null && y.base !== null && Math.abs(y.scenarios[name] - y.base) > 1e-9 },
+    calculate() { router.post(route('macro-forecast-weighted.calculate'), { set_id: this.setId }, { preserveScroll: true }) },
+    async remove() { if (await confirmDialog({ title: 'Remove the stored weighted path?', message: 'The set itself is unchanged; the path can be stored again at any time.', confirmLabel: 'Remove', tone: 'danger' })) router.delete(route('macro-forecast-weighted.destroy', this.setId), { preserveScroll: true }) },
+  },
 }
 </script>

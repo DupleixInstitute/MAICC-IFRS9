@@ -21,7 +21,7 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import {
     faArrowAltCircleLeft, faArrowAltCircleRight, faBarcode, faBolt, faBook,
     faBookOpen, faBookmark, faBuilding, faCalculator, faCalendar, faChartBar,
-    faChartLine, faCheck, faCheckCircle, faChevronDown, faChevronRight,
+    faChartLine, faBinoculars, faTimes, faSyncAlt, faBan, faUpload, faCheck, faCheckCircle, faChevronDown, faChevronRight,
     faCircle, faCog, faCogs, faDatabase, faDollarSign, faDownload, faEdit,
     faEnvelope, faExchangeAlt, faExclamationCircle, faExclamationTriangle,
     faEye, faFileDownload, faFileExport, faFilePdf, faFolder,
@@ -50,7 +50,7 @@ import numeral from 'numeral';
 library.add(
     faArrowAltCircleLeft, faArrowAltCircleRight, faBarcode, faBolt, faBook,
     faBookOpen, faBookmark, faBuilding, faCalculator, faCalendar, faChartBar,
-    faChartLine, faCheck, faCheckCircle, faChevronDown, faChevronRight,
+    faChartLine, faBinoculars, faTimes, faSyncAlt, faBan, faUpload, faCheck, faCheckCircle, faChevronDown, faChevronRight,
     faCircle, faCog, faCogs, faDatabase, faDollarSign, faDownload, faEdit,
     faEnvelope, faExchangeAlt, faExclamationCircle, faExclamationTriangle,
     faEye, faFileDownload, faFileExport, faFilePdf, faFolder,

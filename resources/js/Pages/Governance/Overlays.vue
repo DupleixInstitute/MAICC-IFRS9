@@ -31,6 +31,9 @@
           <label class="text-sm"><span class="maiic-flabel">Owner</span><select v-model="form.owner_id" class="maiic-select w-full"><option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option></select></label>
           <label class="text-sm md:col-span-3"><span class="maiic-flabel">Reason: the event the statistics cannot see</span><textarea v-model="form.reason" rows="2" class="maiic-input w-full" required></textarea></label>
           <label class="text-sm md:col-span-3"><span class="maiic-flabel">Evidence: a reference or the text</span><textarea v-model="form.evidence" rows="2" class="maiic-input w-full"></textarea></label>
+          <label class="text-sm"><span class="maiic-flabel">Risk it covers (a driver, if any)</span>
+            <select v-model="form.risk_driver" class="maiic-input w-full"><option value="">A sector, an event or a borrower, not a driver</option><option v-for="d in drivers" :key="d.statistic_code" :value="d.statistic_code">{{ d.statistic_name }}{{ d.statistic_code === modelDriver ? ' (the model already uses it)' : '' }}</option></select></label>
+          <label v-if="form.risk_driver && form.risk_driver === modelDriver" class="text-sm md:col-span-2"><span class="maiic-flabel text-red-700">The model in force already moves the PD with this driver: say why the overlay is not counting it twice</span><textarea v-model="form.double_count_review" rows="2" class="maiic-input w-full" required></textarea></label>
           <div class="md:col-span-3 flex gap-2"><button type="submit" class="primary-btn text-sm">Propose</button><button type="button" @click="showForm = false" class="secondary-btn text-sm">Cancel</button></div>
         </form>
       </div>
@@ -43,7 +46,7 @@
               <td class="font-mono text-xs">{{ o.id }}</td>
               <td>{{ scopeLabel(o) }}</td>
               <td class="num">{{ pct(o.adjustment) }}</td>
-              <td class="text-xs"><div>{{ o.reason }}</div><div v-if="o.evidence" class="text-gray-500">Evidence: {{ o.evidence }}</div><div v-if="o.rejected_reason" class="text-red-700">Rejected: {{ o.rejected_reason }}</div></td>
+              <td class="text-xs"><div>{{ o.reason }}</div><div v-if="o.risk_driver" :class="o.risk_driver === modelDriver && !o.double_count_review ? 'font-semibold text-red-700' : 'text-gray-500'">{{ coversText(o) }}</div><div v-if="o.evidence" class="text-gray-500">Evidence: {{ o.evidence }}</div><div v-if="o.rejected_reason" class="text-red-700">Rejected: {{ o.rejected_reason }}</div></td>
               <td class="text-xs">{{ o.owner || '-' }}</td>
               <td class="text-xs">{{ o.reporting_period }} to {{ o.expiry_period }}</td>
               <td><span class="maiic-badge" :class="badge(o.status)">{{ statusLabel(o.status) }}</span><div class="text-xs text-gray-500">Proposed by {{ o.proposer || '-' }}<span v-if="o.approver || o.approver_label">, approved by {{ o.approver || o.approver_label }}</span><span v-if="o.rejecter">, rejected by {{ o.rejecter }}</span></div></td>
@@ -71,10 +74,10 @@ import { promptReason } from '@/Components/Maiic/promptReason'
 
 export default {
   components: { AppLayout },
-  props: { period: String, overlays: Array, rules: Object, approvedSet: Object, summary: Object, periods: Array, productGroups: Array, users: Array, canGovern: Boolean },
+  props: { period: String, overlays: Array, rules: Object, approvedSet: Object, summary: Object, periods: Array, productGroups: Array, users: Array, drivers: Array, modelDriver: String, canGovern: Boolean },
   data() {
     const me = this.$page.props.user ? this.$page.props.user.id : null
-    return { view: { period: this.period }, showForm: false, form: { reporting_period: this.period, scope: 'book', scope_value: '', adjustment_pct: '', expiry_period: this.period, owner_id: me, reason: '', evidence: '' } }
+    return { view: { period: this.period }, showForm: false, form: { reporting_period: this.period, scope: 'book', scope_value: '', adjustment_pct: '', expiry_period: this.period, owner_id: me, reason: '', evidence: '', risk_driver: '', double_count_review: '' } }
   },
   methods: {
     fmt(v) { return v == null ? '-' : Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
@@ -83,6 +86,10 @@ export default {
     badge(s) { return s === 'APPROVED' ? 'maiic-badge-green' : (s === 'PROPOSED' ? 'maiic-badge-gold' : (s === 'REJECTED' ? 'maiic-badge-red' : 'maiic-badge-grey')) },
     go() { router.get(route('fli-overlays.index'), { period: this.view.period }) },
     post(name, id, data = {}) { router.post(route(name, id), data, { preserveScroll: true }) },
+    coversText(o) {
+      if (o.risk_driver !== this.modelDriver) return 'Covers ' + o.risk_driver
+      return o.double_count_review ? 'Covers ' + o.risk_driver + ", the model's own driver: " + o.double_count_review : 'Covers ' + o.risk_driver + ", the model's own driver: it cannot be approved without a review"
+    },
     propose() { router.post(route('fli-overlays.propose'), { ...this.form, scope_value: this.form.scope === 'book' ? null : this.form.scope_value }, { preserveScroll: true, onSuccess: (page) => { if (!(page.props.flash && page.props.flash.error)) this.showForm = false } }) },
     statusLabel(s) { return { APPROVED: 'Approved', PROPOSED: 'Proposed', REJECTED: 'Rejected', EXPIRED: 'Expired' }[s] || s },
     async reject(id) { const reason = await promptReason({ title: 'Reject this overlay?', message: 'The reason is written to the register and the audit log.', label: 'Why is it rejected?', confirmLabel: 'Reject', tone: 'danger' }); if (reason) this.post('fli-overlays.reject', id, { reason }) },
