@@ -10,7 +10,7 @@
             </div>
         </template>
         <template #actions>
-            <button type="button" class="primary-btn" @click="showModal = true">New profile</button>
+            <button type="button" class="primary-btn" @click="openCreateProfile">New profile</button>
         </template>
 
         <div class="w-full">
@@ -40,6 +40,12 @@
 
                             <!-- Actions -->
                             <div class="flex items-center space-x-2">
+                                <button v-if="!profile.is_active" @click.stop="openEditProfile(profile)" class="text-gray-500 hover:text-maiic-600 transition" title="Edit profile">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button v-if="!profile.is_active" @click.stop="deleteProfile(profile)" class="text-gray-500 hover:text-red-600 transition" title="Delete profile">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                                 <!-- View Matrix -->
                                 <button
                                 @click.stop="openMatrix(profile)"
@@ -139,20 +145,27 @@
 
     <!-- Modal Content -->
     <div class="relative z-10 bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold mb-4">Create Grading Profile</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ editingId ? 'Edit Grading Profile' : 'Create Grading Profile' }}</h3>
 
         <form @submit.prevent="submit" class="space-y-4">
-            <input
-                v-model="form.name"
-                placeholder="Profile Name"
-                class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-maiic-200"
-            />
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Profile name</label>
+                <input
+                    v-model="form.name"
+                    placeholder="e.g., MAIIC corporate grades"
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-maiic-200"
+                />
+                <p v-if="formErrors.name" class="text-xs text-red-600 mt-1">{{ formErrors.name }}</p>
+            </div>
 
-            <textarea
-                v-model="form.description"
-                placeholder="Description"
-                class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-maiic-200"
-            />
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                    v-model="form.description"
+                    placeholder="What the grades are for and where they come from"
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-maiic-200"
+                />
+            </div>
 
             <!-- Max Tenor Years -->
             <div>
@@ -168,6 +181,7 @@
                 <p class="text-xs text-gray-500 mt-1">
                     Maximum number of years for PD curves. All grades in this profile will follow this limit.
                 </p>
+                <p v-if="formErrors.max_tenor_years" class="text-xs text-red-600 mt-1">{{ formErrors.max_tenor_years }}</p>
             </div>
 
             <div class="flex justify-end space-x-2 pt-2">
@@ -326,8 +340,29 @@ const showLoanBookModal = ref(false)
 const form = ref({
     name: '',
     description: '',
-     max_tenor_years: '' ?? 5,
+    max_tenor_years: 5,
 })
+const editingId = ref(null)
+const formErrors = ref({})
+
+const openCreateProfile = () => {
+    editingId.value = null
+    formErrors.value = {}
+    form.value = { name: '', description: '', max_tenor_years: 5 }
+    showModal.value = true
+}
+
+const openEditProfile = (profile) => {
+    editingId.value = profile.id
+    formErrors.value = {}
+    form.value = { name: profile.name, description: profile.description || '', max_tenor_years: profile.max_tenor_years }
+    showModal.value = true
+}
+
+const deleteProfile = (profile) => {
+    if (!confirm(`Delete the profile ${profile.name} and its ${profile.mappings_count || 0} grade(s)? This cannot be undone.`)) return
+    router.delete(route('internal-grading.profile.destroy', profile.id), { preserveScroll: true })
+}
 
 const goToGrades = (id) => {
     router.visit(route('internal-grading.grades', id))
@@ -346,12 +381,20 @@ const toggleStatus = (profile) => {
 }
 
 const submit = () => {
-    router.post(route('internal-grading.profile.store'), form.value, {
+    const opts = {
+        preserveScroll: true,
         onSuccess: () => {
             showModal.value = false
-            form.value = { name: '', description: '' }
-        }
-    })
+            editingId.value = null
+            form.value = { name: '', description: '', max_tenor_years: 5 }
+        },
+        onError: (e) => { formErrors.value = e },
+    }
+    if (editingId.value) {
+        router.put(route('internal-grading.profile.update', editingId.value), form.value, opts)
+    } else {
+        router.post(route('internal-grading.profile.store'), form.value, opts)
+    }
 }
 
 const openMatrix = async (profile) => {

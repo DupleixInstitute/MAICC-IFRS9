@@ -170,12 +170,12 @@ class DisbursementReportService
             fputcsv($file, ['Loan Disbursement Export Report']);
             fputcsv($file, ['Period Range: ' . $startPeriod . ' to ' . $endPeriod]);
             fputcsv($file, ['Export Mode: ' . ucfirst($mode)]);
-            fputcsv($file, ['Portfolio : ' . $portfolioName]);
+            fputcsv($file, ['Portfolio: ' . $portfolioName]);
             fputcsv($file, ['Export Date: ' . now()->format('Y-m-d H:i:s')]);
             fputcsv($file, []); // Empty row for spacing
 
             fputcsv($file, ['DISBURSEMENT SUMMARY']);
-            fputcsv($file, ['reporting_period', 'Total Disbursement', 'No Of Contacts', 'Average Disbursement', 'Movement 30days', 'Movement 60 Days', 'Movement 90days']);
+            fputcsv($file, ['Reporting Period', 'Total Disbursement', 'Number of Contracts', 'Average Disbursement', 'Movement 30 Days', 'Movement 60 Days', 'Movement 90 Days']);
 
             foreach ($data['summary'] as $summary) {
                 fputcsv($file, [

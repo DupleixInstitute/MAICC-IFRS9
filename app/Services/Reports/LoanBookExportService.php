@@ -168,7 +168,7 @@ class LoanBookExportService
             }
 
             fclose($handle);
-        }, $filename);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /**

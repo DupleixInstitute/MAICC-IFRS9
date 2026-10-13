@@ -120,7 +120,7 @@
             </div>
 
             <main>
-                <div class="py-6">
+                <div class="pt-6 pb-20"><!-- the bottom clears the floating help button -->
                     <div class="mx-auto px-4 sm:px-6 md:px-4">
                         <!-- Page Heading -->
                         <header class="" v-if="$slots.header || $slots.actions || description">

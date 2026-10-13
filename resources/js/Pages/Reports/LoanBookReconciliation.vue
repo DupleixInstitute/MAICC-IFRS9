@@ -55,28 +55,37 @@ const figures = computed(() => props.report ? [
         </template>
 
         <template #actions>
-            <select v-model="form.portfolio_id" @change="onPortfolioChange" class="maiic-select w-40" aria-label="Portfolio">
-                <option value="">Portfolio</option>
-                <option v-for="p in portfolios" :key="p.value" :value="p.value">{{ p.label }}</option>
-            </select>
-            <select v-model="form.start_period" class="maiic-select w-36" aria-label="Start period" :disabled="!periods.length">
-                <option value="">From</option>
-                <option v-for="p in periods" :key="'s' + p.value" :value="p.value">From {{ p.label }}</option>
-            </select>
-            <select v-model="form.end_period" class="maiic-select w-36" aria-label="End period" :disabled="!periods.length">
-                <option value="">To</option>
-                <option v-for="p in periods" :key="'e' + p.value" :value="p.value">To {{ p.label }}</option>
-            </select>
-            <button type="button" @click="reload({ generate: 1 })" :disabled="!canRun"
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-maiic-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-maiic-700 disabled:opacity-50">
-                <ReportIcon name="play" class="h-4 w-4"/> Run
-            </button>
             <DownloadButton format="CSV" :href="downloadUrl('csv')" :disabled="!report"/>
             <DownloadButton format="Excel" :href="downloadUrl('xlsx')" :disabled="!report"/>
             <DownloadButton format="PDF" label="Download PDF" :href="downloadUrl('pdf')" :disabled="!report"/>
         </template>
 
         <div class="w-full space-y-4">
+            <div class="maiic-panel flex flex-wrap items-end gap-3 px-4 py-3">
+                <label class="flex flex-col gap-1 text-xs font-semibold text-gray-600">Portfolio
+                    <select v-model="form.portfolio_id" @change="onPortfolioChange" class="maiic-select w-56" aria-label="Portfolio">
+                        <option value="">Choose a portfolio</option>
+                        <option v-for="p in portfolios" :key="p.value" :value="p.value">{{ p.label }}</option>
+                    </select>
+                </label>
+                <label class="flex flex-col gap-1 text-xs font-semibold text-gray-600">From
+                    <select v-model="form.start_period" class="maiic-select w-36" aria-label="Start period" :disabled="!periods.length">
+                        <option value="">Opening month</option>
+                        <option v-for="p in periods" :key="'s' + p.value" :value="p.value">{{ p.label }}</option>
+                    </select>
+                </label>
+                <label class="flex flex-col gap-1 text-xs font-semibold text-gray-600">To
+                    <select v-model="form.end_period" class="maiic-select w-36" aria-label="End period" :disabled="!periods.length">
+                        <option value="">Closing month</option>
+                        <option v-for="p in periods" :key="'e' + p.value" :value="p.value">{{ p.label }}</option>
+                    </select>
+                </label>
+                <button type="button" @click="reload({ generate: 1 })" :disabled="!canRun"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-maiic-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-maiic-700 disabled:opacity-50">
+                    <ReportIcon name="play" class="h-4 w-4"/> Run
+                </button>
+            </div>
+
             <div v-if="error" class="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
                 <ReportIcon name="alert" class="h-5 w-5"/> {{ error }}
             </div>

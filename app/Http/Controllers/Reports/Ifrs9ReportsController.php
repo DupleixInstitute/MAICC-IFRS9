@@ -296,17 +296,20 @@ class Ifrs9ReportsController extends Controller
     {
         $period = $this->period($request);
 
+        // each row names the portfolio (or the segment) it was calculated for
+        $portfolios = DB::table('loan_portfolios')->pluck('name', 'id');
         $rows = DB::table('expected_credit_loss')
             ->where('reporting_period', $period)
-            ->orderBy('ecl_calculation_level')->orderBy('ifrs9_stage')
+            ->orderBy('ecl_calculation_level')->orderBy('ecl_calculation_id')->orderBy('ifrs9_stage')
             ->get()
             ->map(fn ($r) => [
-                ucfirst($r->ecl_calculation_level ?? '-'),
+                ($r->ecl_calculation_level === 'portfolio' ? ($portfolios[$r->ecl_calculation_id] ?? null) : null)
+                    ?? ($r->ecl_calculation_code ?: ucfirst($r->ecl_calculation_level ?? '-') . ' ' . $r->ecl_calculation_id),
                 'Stage ' . $r->ifrs9_stage,
                 number_format($r->total_loans),
                 $this->money($r->total_ead),
-                $this->num($r->pd_value_used, 6),
-                $this->num($r->lgd_value_used, 6),
+                $this->pct($r->pd_value_used),
+                $this->pct($r->lgd_value_used),
                 $this->money($r->total_ecl),
                 $this->pct((float) $r->total_ead != 0.0 ? $r->total_ecl / $r->total_ead : 0),
             ])->all();
@@ -314,8 +317,8 @@ class Ifrs9ReportsController extends Controller
         return $this->respond(['key' => 'ecl', 'period' => $period,
             'kpis' => $this->totalsKpis($period),
             'sections' => [[
-                'heading' => 'Expected Credit Loss by Stage',
-                'columns' => ['Level', 'Stage', 'Loans', 'EAD', 'Avg PD', 'Avg LGD', 'ECL', 'Coverage %'],
+                'heading' => 'Expected Credit Loss by Portfolio and Stage',
+                'columns' => ['Portfolio', 'Stage', 'Loans', 'EAD', 'Avg PD', 'Avg LGD', 'ECL', 'Coverage %'],
                 'align' => ['l', 'l', 'r', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $rows,
             ]]]);
@@ -331,7 +334,7 @@ class Ifrs9ReportsController extends Controller
             ->where('reporting_period', $period)
             ->orderByDesc(DB::raw(self::EAD_SQL))->limit(200)->get()
             ->map(fn ($r) => [$r->contract_id, $r->customer_name ?: '(Unnamed)', 'Stage ' . $r->stage,
-                $this->money($r->ead), $this->num($r->pd, 6), $this->num($r->lgd, 6),
+                $this->money($r->ead), $this->pct($r->pd), $this->pct($r->lgd),
                 $this->money($r->ead * $r->pd * $r->lgd), $this->money($r->ecl)])->all();
 
         return $this->respond(['key' => 'account-ecl', 'period' => $period,
@@ -561,7 +564,7 @@ class Ifrs9ReportsController extends Controller
             ->where('reporting_period', $period)
             ->groupBy('ifrs9stage_post_qualitative')->orderBy('ifrs9stage_post_qualitative')->get()
             ->map(fn ($r) => ['Stage ' . $r->s, number_format($r->n),
-                $this->num($r->pdpre, 6), $this->num($r->pdlt, 6), $this->num($r->pdpost, 6)])->all();
+                $this->pct($r->pdpre), $this->pct($r->pdlt), $this->pct($r->pdpost)])->all();
 
         return $this->respond(['key' => 'pd-report', 'period' => $period,
             'subtitle' => '12-month vs lifetime PD, pre and post forward-looking adjustment',
@@ -587,7 +590,7 @@ class Ifrs9ReportsController extends Controller
                     SUM(' . self::EAD_SQL . ') ead,
                     SUM(COALESCE(lb.allocated_gross_value,0)) coll_gross,
                     SUM(COALESCE(lb.allocated_discounted_value,0)) coll_disc,
-                    AVG(COALESCE(lb.customer_lgd,0)) clgd, AVG(COALESCE(lb.collection_lgd,0)) collgd');
+                    AVG(lb.customer_lgd) clgd, AVG(lb.collection_lgd) collgd');
         } else {
             [$y, $m] = array_map('intval', explode('-', (string) $period) + [0, 0]);
             $alloc = DB::table('collateral_allocations')
@@ -600,7 +603,7 @@ class Ifrs9ReportsController extends Controller
                     SUM(' . self::EAD_SQL . ') ead,
                     SUM(COALESCE(ca.gross,0)) coll_gross,
                     SUM(COALESCE(ca.disc,0)) coll_disc,
-                    AVG(COALESCE(lb.customer_lgd,0)) clgd, AVG(COALESCE(lb.collection_lgd,0)) collgd');
+                    AVG(lb.customer_lgd) clgd, AVG(lb.collection_lgd) collgd');
         }
 
         $rows = $query->where('lb.reporting_period', $period)
@@ -609,7 +612,7 @@ class Ifrs9ReportsController extends Controller
                 $netUnsec = max(0, $r->ead - $r->coll_disc);
                 return ['Stage ' . $r->s, number_format($r->n), $this->money($r->ead),
                     $this->money($r->coll_gross), $this->money($r->coll_disc),
-                    $this->money($netUnsec), $this->num($r->clgd, 6), $this->num($r->collgd, 6)];
+                    $this->money($netUnsec), $r->clgd === null ? '-' : $this->pct($r->clgd), $r->collgd === null ? '-' : $this->pct($r->collgd)];
             })->all();
 
         return $this->respond(['key' => 'lgd-collateral', 'period' => $period,
@@ -653,74 +656,114 @@ class Ifrs9ReportsController extends Controller
     public function macroScenarioPart(Request $request)
     {
         $period = $this->period($request);
+        $snap = $this->fliSnapshot($period);
+        $set = $this->fliSet($period, $snap);
 
+        // the latest observation of each variable the bridge held for the month (what the FLI read)
         $macro = [];
-        foreach (['macro_economic_variables', 'macro_economic_data', 'macroeconomic_variables', 'macro_variables'] as $tbl) {
-            if (Schema::hasTable($tbl)) {
-                try {
-                    $macro = DB::table($tbl)->orderByDesc('id')->limit(40)->get()
-                        ->map(fn ($r) => [$r->name ?? $r->variable ?? '-',
-                            $r->period ?? $r->reporting_period ?? '-',
-                            isset($r->value) ? $this->num($r->value, 4) : '-'])->all();
-                } catch (\Throwable $e) {
-                    $macro = [];
-                }
-                break;
-            }
-        }
-        if (empty($macro)) {
-            $macro = [['No macro-economic variables table found for this install', '-', '-']];
+        if ($period && Schema::hasTable('macro_series')) {
+            $ym = str_replace('-', '', $period);
+            $latest = DB::table('macro_series')->where('observation_period', '<=', $ym)
+                ->selectRaw('statistic_code, MAX(observation_period) p')->groupBy('statistic_code');
+            $names = DB::table('macro_statistics')->pluck('statistic_name', 'statistic_code');
+            $macro = DB::table('macro_series as m')
+                ->joinSub($latest, 'l', fn ($j) => $j->on('l.statistic_code', '=', 'm.statistic_code')->on('l.p', '=', 'm.observation_period'))
+                ->orderBy('m.statistic_code')->get(['m.statistic_code', 'm.statistic_name', 'm.observation_period', 'm.value', 'm.value_type', 'm.source'])
+                ->map(fn ($r) => [$names[$r->statistic_code] ?? $r->statistic_name ?? $r->statistic_code, $r->statistic_code,
+                    substr($r->observation_period, 0, 4) . '-' . substr($r->observation_period, 4, 2), ucfirst($r->value_type),
+                    $this->num($r->value, 4), $r->source ?: '-'])->all();
         }
 
         $scenarios = [];
-        if (Schema::hasTable('scenario_sets')) {
-            $scenarios = DB::table('scenario_sets')
-                ->leftJoin('scenario_probabilities as sp', 'sp.scenario_set_id', '=', 'scenario_sets.id')
-                ->selectRaw('scenario_sets.name set_name, sp.scenario_name, sp.probability')
-                ->orderBy('scenario_sets.id')->get()
-                ->map(fn ($r) => [$r->set_name, $r->scenario_name ?? '-',
-                    $this->pct(($r->probability ?? 0) / 100)])->all();
+        $shocks = [];
+        if ($set) {
+            $sc = DB::table('governed_scenarios')->where('set_id', $set->id)->orderBy('order_position')->orderBy('id')->get();
+            $scenarios = $sc->map(fn ($r) => [$r->name . ($r->is_base && strcasecmp($r->name, 'Base') ? ' (base)' : ''), $this->pct($r->weight / 100),
+                $r->anchored_to ?: '-', $r->pd_multiplier !== null ? $this->num($r->pd_multiplier, 4) : '-'])->all();
+            $byId = $sc->pluck('name', 'id');
+            $shocks = DB::table('scenario_shocks')->whereIn('scenario_id', $byId->keys())->orderBy('scenario_id')->orderBy('statistic_code')->orderBy('year_offset')->get()
+                ->map(fn ($r) => [$byId[$r->scenario_id], $r->statistic_code, 'Year ' . ($r->year_offset + 1),
+                    ['pct' => 'Percent change', 'abs' => 'Add', 'replace' => 'Replace', 'mult' => 'Multiply'][$r->kind] ?? $r->kind,
+                    $this->num($r->value, 4)])->all();
         }
+        $setLabel = $set ? $set->name . ' v' . $set->version . ' (' . strtolower($set->status) . ')' : null;
 
         return $this->respond(['key' => 'macro-scenario', 'period' => $period,
-            'subtitle' => 'Forward-looking macro assumptions and economic scenarios',
-            'kpis' => $this->totalsKpis($period),
+            'subtitle' => 'The macro-economic data and the governed scenario set the forward-looking adjustment used for ' . ($period ?: 'the month'),
+            'kpis' => array_merge($this->totalsKpis($period), [
+                ['label' => 'Scenario set', 'value' => $setLabel ?? 'None approved', 'tone' => $set ? 'emerald' : 'amber'],
+                ['label' => 'Macro vintage', 'value' => $snap->macro_vintage ?? '-', 'tone' => 'grey'],
+            ]),
             'sections' => [
-                ['heading' => 'Macro-Economic Assumptions',
-                 'columns' => ['Variable', 'Period', 'Value'], 'align' => ['l', 'l', 'r'], 'rows' => $macro],
-                ['heading' => 'Economic Scenarios & Weights',
-                 'columns' => ['Scenario Set', 'Scenario', 'Probability'], 'align' => ['l', 'l', 'r'],
-                 'rows' => $scenarios ?: [['No scenario sets defined', '-', '-']]],
+                ['heading' => 'Macro-Economic Data Held for the Month',
+                 'columns' => ['Variable', 'Code', 'Latest period', 'Type', 'Value', 'Source'], 'align' => ['l', 'l', 'l', 'l', 'r', 'l'],
+                 'rows' => $macro ?: [['No macro-economic data held up to this month', '-', '-', '-', '-', '-']]],
+                ['heading' => 'Economic Scenarios & Weights' . ($setLabel ? ' - ' . $setLabel : ''),
+                 'columns' => ['Scenario', 'Weight', 'Anchored to', 'PD multiplier'], 'align' => ['l', 'r', 'l', 'r'],
+                 'rows' => $scenarios ?: [['No approved scenario set for this month', '-', '-', '-']]],
+                ['heading' => 'Scenario Shocks',
+                 'columns' => ['Scenario', 'Variable', 'Forecast year', 'Shock', 'Value'], 'align' => ['l', 'l', 'l', 'l', 'r'],
+                 'rows' => $shocks ?: [['No shocks recorded on the set', '-', '-', '-', '-']]],
             ]]);
     }
 
     public function scenarioEcl(Request $request)
     {
         $period = $this->period($request);
-        $sets = [];
-        if (Schema::hasTable('scenario_sets')) {
-            $sets = DB::table('scenario_sets')
-                ->leftJoin('scenario_probabilities as sp', 'sp.scenario_set_id', '=', 'scenario_sets.id')
-                ->selectRaw('scenario_sets.name, sp.scenario_name, sp.probability')
-                ->orderBy('scenario_sets.id')->get()
-                ->map(fn ($r) => [$r->name, $r->scenario_name ?? '-', $this->pct(($r->probability ?? 0) / 100)])->all();
+        $snap = $this->fliSnapshot($period);
+        $set = $this->fliSet($period, $snap);
+
+        $rows = [];
+        foreach (json_decode($snap->per_scenario ?? '[]', true) ?: [] as $r) {
+            $rows[] = [($r['scenario'] ?? '-') . (! empty($r['is_base']) && strcasecmp($r['scenario'] ?? '', 'Base') ? ' (base)' : ''), $this->pct(($r['weight'] ?? 0) / 100),
+                $this->money($r['ecl'] ?? 0), $this->money($r['contribution'] ?? 0)];
+        }
+        if ($snap) {
+            $rows[] = ['Probability-weighted', $this->pct(1), '', $this->money($snap->weighted_ecl)];
         }
 
-        $fli = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw("SUM(COALESCE(ecl_value,0)) ecl, AVG(COALESCE(fli_adj,0)) fli")->first();
+        $kpis = $snap ? [
+            ['label' => 'Booked ECL', 'value' => $this->money($snap->booked_ecl), 'tone' => 'rose'],
+            ['label' => 'Probability-Weighted ECL', 'value' => $this->money($snap->weighted_ecl), 'tone' => 'amber'],
+            ['label' => 'Difference', 'value' => $this->money($snap->difference), 'tone' => $snap->reconciles ? 'emerald' : 'rose'],
+            ['label' => 'Close status', 'value' => $snap->status === 'SIGNED_OFF' ? 'Signed off' : 'Recorded, awaiting sign-off', 'tone' => 'grey'],
+        ] : [
+            ['label' => 'FLI close', 'value' => 'Not recorded for this month', 'tone' => 'amber'],
+        ];
 
         return $this->respond(['key' => 'scenario-ecl', 'period' => $period,
-            'subtitle' => 'Probability-weighted forward-looking scenarios',
-            'kpis' => [
-                ['label' => 'Probability-Weighted ECL', 'value' => $this->money($fli->ecl ?? 0), 'tone' => 'rose'],
-                ['label' => 'Avg FLI Adjustment', 'value' => $this->num($fli->fli ?? 0, 6), 'tone' => 'amber'],
-            ],
+            'subtitle' => 'ECL under each governed scenario and the probability-weighted result, from the FLI month-end close'
+                . ($set ? ' (' . $set->name . ' v' . $set->version . ')' : ''),
+            'kpis' => $kpis,
             'sections' => [[
-                'heading' => 'Scenario Sets & Weights',
-                'columns' => ['Scenario Set', 'Scenario', 'Probability'],
-                'align' => ['l', 'l', 'r'],
-                'rows' => $sets ?: [['No scenario sets defined', '-', '-']],
+                'heading' => 'ECL by Scenario',
+                'columns' => ['Scenario', 'Weight', 'ECL under the scenario', 'Weighted contribution'],
+                'align' => ['l', 'r', 'r', 'r'],
+                'rows' => $rows ?: [['Run the FLI month-end close for this month (FLI Month-End, Overview)', '-', '-', '-']],
             ]]]);
+    }
+
+    /** The FLI month-end close of the month that stands (recorded or signed off), or null. */
+    private function fliSnapshot(?string $period): ?object
+    {
+        if (! $period || ! Schema::hasTable('fli_run_snapshots')) {
+            return null;
+        }
+
+        return DB::table('fli_run_snapshots')->where('reporting_period', $period)->whereIn('status', ['RECORDED', 'SIGNED_OFF'])->orderByDesc('id')->first();
+    }
+
+    /** The scenario set the close used, else the approved set of the month. */
+    private function fliSet(?string $period, ?object $snap): ?object
+    {
+        if (! $period || ! Schema::hasTable('governed_scenario_sets')) {
+            return null;
+        }
+        if ($snap && $snap->set_id) {
+            return DB::table('governed_scenario_sets')->where('id', $snap->set_id)->first();
+        }
+
+        return DB::table('governed_scenario_sets')->where('reporting_period', $period)->whereIn('status', ['APPROVED', 'LOCKED'])->orderByDesc('version')->first();
     }
 
     /* ===================================================================== */
@@ -822,7 +865,7 @@ class Ifrs9ReportsController extends Controller
             ],
             'sections' => [[
                 'heading' => 'IFRS 9 ECL vs RBM Prudential Provision (by DPD class)',
-                'columns' => ['RBM Class', 'EAD', 'RBM Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL − RBM'],
+                'columns' => ['RBM Class', 'EAD', 'RBM Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL - RBM'],
                 'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $out,
             ]]]);
@@ -1007,6 +1050,8 @@ class Ifrs9ReportsController extends Controller
         foreach ($rowsRaw as $r) {
             $pivot[$r->rp][$r->name] = (float) $r->ecl;
         }
+        // a month with no portfolio-level ECL (an old sector-level test run) is not a point on the trend
+        $periods = $periods->filter(fn ($p) => isset($pivot[$p]))->values();
 
         $rows = [];
         foreach ($periods as $p) {
@@ -1048,7 +1093,7 @@ class Ifrs9ReportsController extends Controller
                 AVG(COALESCE(lgd_value,0)) lgd, SUM(COALESCE(ecl_value,0)) ecl")
             ->orderByDesc(DB::raw('SUM(COALESCE(ecl_value,0))'))->get()
             ->map(fn ($r) => [$r->sec, number_format($r->n), $this->money($r->ead),
-                $this->num($r->pd, 6), $this->num($r->lgd, 6), $this->money($r->ecl),
+                $this->pct($r->pd), $this->pct($r->lgd), $this->money($r->ecl),
                 $this->pct((float) $r->ead != 0.0 ? $r->ecl / $r->ead : 0)])->all();
 
         return $this->respond(['key' => 'sector-ecl', 'period' => $period,
@@ -1205,7 +1250,7 @@ class Ifrs9ReportsController extends Controller
             $ead = (float) ($r->ead ?? 0);
             $ecl = (float) ($r->ecl ?? 0);
             $rows[] = [$g, $band, number_format((int) ($r->n ?? 0)),
-                $this->money($ead), $this->num($r->pd ?? 0, 6), $this->num($r->lgd ?? 0, 6),
+                $this->money($ead), $this->pct($r->pd ?? 0), $this->pct($r->lgd ?? 0),
                 $this->money($ecl), $this->pct($ead ? $ecl / $ead : 0)];
         }
 
@@ -1544,8 +1589,10 @@ class Ifrs9ReportsController extends Controller
 
     private function rbmBuild(string $period): array
     {
+        // the directive's minimum rates apply to the gross balance (carrying amount), as on the RBM Return;
+        // undrawn commitments are not a classified balance
         $raw = DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw($this->rbmClassCase() . " rbm, COUNT(*) n, SUM(" . self::EAD_SQL . ") ead,
+            ->selectRaw($this->rbmClassCase() . " rbm, COUNT(*) n, SUM(COALESCE(carrying_amount,0)) ead,
                 SUM(COALESCE(ecl_value,0)) ecl")
             ->groupBy('rbm')->get()->keyBy('rbm');
 
@@ -1572,16 +1619,16 @@ class Ifrs9ReportsController extends Controller
         }
 
         return [
-            'subtitle' => 'Prudential classification by days past due under the directive\'s bands by term: 30/90/180/365 days for a facility of 12 months or less, 90/180/365/746 otherwise (RBM Credit Risk Management for DFIs Directive, 2018, section 10 and the Schedule); the same bands and rates as the RBM Return',
+            'subtitle' => 'Prudential classification by days past due under the directive\'s bands by term: 30/90/180/365 days for a facility of 12 months or less, 90/180/365/746 otherwise (RBM Credit Risk Management for DFIs Directive, 2018, section 10 and the Schedule); the same bands, rates and gross-balance basis as the RBM Return',
             'kpis' => [
                 ['label' => 'NPL Ratio (substandard and below)', 'value' => $this->pct($totEad ? $nplEad / $totEad : 0), 'tone' => 'rose'],
                 ['label' => 'RBM Provision', 'value' => $this->money($totProv), 'tone' => 'amber'],
                 ['label' => 'IFRS 9 ECL', 'value' => $this->money($totEcl), 'tone' => 'rose'],
-                ['label' => 'ECL − RBM', 'value' => $this->money($totEcl - $totProv), 'tone' => ($totEcl - $totProv) >= 0 ? 'emerald' : 'rose'],
+                ['label' => 'ECL - RBM', 'value' => $this->money($totEcl - $totProv), 'tone' => ($totEcl - $totProv) >= 0 ? 'emerald' : 'rose'],
             ],
             'sections' => [[
                 'heading' => 'RBM Asset Classification (by days past due and term of facility)',
-                'columns' => ['RBM Class', 'Loans', 'Exposure (EAD)', 'Minimum Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL − RBM'],
+                'columns' => ['RBM Class', 'Loans', 'Gross balance', 'Minimum Rate', 'RBM Provision', 'IFRS 9 ECL', 'ECL - RBM'],
                 'align' => ['l', 'r', 'r', 'r', 'r', 'r', 'r'],
                 'rows' => $rows,
             ]],

@@ -21,7 +21,7 @@
           <p class="text-xs text-gray-500">{{ lossGivenDefaults.length }} run(s). A closed run is locked for use in the ECL; amounts in MWK.</p>
         </div>
         <div class="maiic-table-wrap overflow-x-auto">
-          <table class="maiic-table">
+          <table class="maiic-table maiic-table-compact">
             <thead>
               <tr>
                 <th>Window</th>

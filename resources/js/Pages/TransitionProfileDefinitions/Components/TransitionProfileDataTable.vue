@@ -5,7 +5,7 @@
       <p class="text-xs text-gray-500">{{ total }} profile(s). A profile says which table and column hold the grade at the start and end of each period.</p>
     </div>
     <div class="maiic-table-wrap overflow-x-auto">
-      <table class="maiic-table">
+      <table class="maiic-table maiic-table-compact">
         <thead>
           <tr>
             <th>Profile code</th>
@@ -22,8 +22,8 @@
           <tr v-for="profile in rows" :key="profile.id">
             <td class="font-semibold text-gray-900">{{ profile.profile_code }}</td>
             <td>{{ profile.short_name }}<div v-if="profile.description && profile.description !== profile.short_name" class="text-xs text-gray-500">{{ profile.description }}</div></td>
-            <td><span class="font-mono text-xs">{{ profile.start_table }}.{{ profile.start_grading_col }}</span><div class="text-xs text-gray-500">{{ profile.start_value_type }}</div></td>
-            <td><span class="font-mono text-xs">{{ profile.end_table }}.{{ profile.end_grading_col }}</span><div class="text-xs text-gray-500">{{ profile.end_value_type }}</div></td>
+            <td class="max-w-[16rem]"><span class="font-mono text-xs break-all">{{ profile.start_table }}.{{ profile.start_grading_col }}</span><div class="text-xs text-gray-500">{{ profile.start_value_type }}</div></td>
+            <td class="max-w-[16rem]"><span class="font-mono text-xs break-all">{{ profile.end_table }}.{{ profile.end_grading_col }}</span><div class="text-xs text-gray-500">{{ profile.end_value_type }}</div></td>
             <td class="font-mono text-xs">{{ profile.start_client_id_col || '-' }}</td>
             <td>{{ profile.aggregation_criteria || '-' }}</td>
             <td class="whitespace-nowrap">{{ formatDate(profile.created_at) }}</td>

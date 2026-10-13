@@ -319,7 +319,13 @@ class UsersController extends Controller
 
     public function destroy(User $user)
     {
-
+        if ($user->id === auth()->id()) {
+            return redirect()->back()->with('error', 'You cannot delete your own account. Ask another administrator.');
+        }
+        // the system must keep someone who can manage users
+        if ($user->hasRole('admin') && User::role('admin')->where('id', '!=', $user->id)->count() === 0) {
+            return redirect()->back()->with('error', 'This is the last administrator. Give another user the admin role first.');
+        }
         $user->delete();
         return redirect()->route('users.index')->with('success', 'User deleted successfully.');
     }

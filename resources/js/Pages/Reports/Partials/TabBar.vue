@@ -12,7 +12,7 @@ const fmt = (n) => Number(n || 0).toLocaleString()
 
 <template>
     <div class="border-b border-gray-200 px-5 pt-4">
-        <nav class="flex gap-6 overflow-x-auto" role="tablist">
+        <nav class="flex flex-wrap gap-x-6 gap-y-1" role="tablist">
             <button v-for="tab in tabs" :key="tab.key" type="button" role="tab"
                     :aria-selected="modelValue === tab.key"
                     class="whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold"

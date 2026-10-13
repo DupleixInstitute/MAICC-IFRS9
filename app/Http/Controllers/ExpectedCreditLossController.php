@@ -655,8 +655,6 @@ class ExpectedCreditLossController extends Controller
                 'remaining_tenor',
                 'industry_code',
                 'collateral_id',
-                'allocated_gross_value',
-                'allocated_discounted_value',
                 'commitments',
                 'collection_lgd',
                 'customer_lgd',
@@ -689,8 +687,8 @@ class ExpectedCreditLossController extends Controller
                     ->selectRaw('
                         COALESCE(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative) as stage,
                         SUM(carrying_amount) as total_ead,
-                        AVG(pd_value_used) as avg_pd,
-                        AVG(lgd_value_used) as avg_lgd,
+                        AVG(COALESCE(pd_post_fli, pd_prefli, pd_value)) as avg_pd,
+                        AVG(lgd_value) as avg_lgd,
                         SUM(ecl_value) as total_ecl
                     ')
                     ->where('loan_portfolio_id', $portfolioId)
@@ -735,7 +733,7 @@ class ExpectedCreditLossController extends Controller
                 $selected = !empty($columns) ? $columns : $exportable;
 
                 $data = DB::table('loan_books')
-                    ->select($selected)
+                    ->select(array_map(fn ($c) => $c === 'pd_value' ? DB::raw('COALESCE(pd_post_fli, pd_prefli, pd_value) as pd_value') : $c, $selected))
                     ->where('loan_portfolio_id', $portfolioId)
                     ->where('reporting_period', $period)
                     ->get();

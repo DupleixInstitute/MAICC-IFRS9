@@ -502,7 +502,7 @@ class Ifrs9NoteService
 
         $p['write_offs'] = 'The loan book has no write-off marker for a loan that leaves the book, so amounts written off are shown as nil and contracts leaving the book are shown as derecognised.';
 
-        return ['paragraphs' => $p, 'thresholds' => [$s1, $s3]];
+        return ['paragraphs' => $p, 'thresholds' => $bands];
     }
 
     // -----------------------------------------------------------------

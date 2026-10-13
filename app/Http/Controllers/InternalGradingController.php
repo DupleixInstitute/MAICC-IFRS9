@@ -166,6 +166,59 @@ class InternalGradingController extends Controller
         return back()->with('success', 'Grade updated successfully');
     }
 
+    /**
+     * Rename or re-describe a draft profile; an active profile is locked
+     */
+    public function updateProfile(Request $request, InternalGradeProfile $profile)
+    {
+        if ($profile->is_active) {
+            return back()->with('error', 'The profile is active. Deactivate it before editing.');
+        }
+        $validated = $request->validate([
+            'name'            => 'required|string|max:255',
+            'description'     => 'nullable|string',
+            'max_tenor_years' => 'required|integer|min:1|max:30',
+        ]);
+        $profile->update($validated);
+
+        return back()->with('success', 'Profile updated');
+    }
+
+    /**
+     * Delete a draft profile with its grades and PD curves
+     */
+    public function destroyProfile(InternalGradeProfile $profile)
+    {
+        if ($profile->is_active) {
+            return back()->with('error', 'The profile is active. Deactivate it before deleting.');
+        }
+        $grades = $profile->mappings()->count();
+        DB::transaction(function () use ($profile) {
+            $profile->mappings()->delete(); // the PD curves go with their grade (cascade)
+            $profile->delete();
+        });
+        AuditLoggerService::log(action: 'Internal Grade Profile Deleted', entityType: 'InternalGradeProfile', entityId: $profile->id,
+            data: ['name' => $profile->name, 'grades' => $grades]);
+
+        return redirect()->route('internal-grading.profiles')->with('success', "Profile {$profile->name} deleted with its {$grades} grade(s)");
+    }
+
+    /**
+     * Delete a grade of a draft profile with its PD curve
+     */
+    public function destroyGrade(InternalGradeProfile $profile, InternalGradeMapping $grade)
+    {
+        abort_unless($grade->profile_id === $profile->id, 403);
+        if ($profile->is_active) {
+            return back()->with('error', 'The profile is active. Deactivate it before deleting a grade.');
+        }
+        $grade->delete();
+        AuditLoggerService::log(action: 'Internal Grade Deleted', entityType: 'InternalGradeMapping', entityId: $grade->id,
+            data: ['profile_id' => $profile->id, 'grade_code' => $grade->grade_code]);
+
+        return back()->with('success', "Grade {$grade->grade_code} deleted");
+    }
+
         public function toggle(InternalGradeProfile $profile)
         {
             DB::transaction(function () use ($profile) {

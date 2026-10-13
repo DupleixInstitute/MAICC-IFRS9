@@ -222,7 +222,7 @@ const endTableColumns = ref([]);
 // Fetch available tables when component is mounted
 const fetchTables = async () => {
   try {
-    const response = await axios.get('/api/get-tables');
+    const response = await axios.get('/api/transition-profiles/tables');
     tables.value = response.data.tables;
   } catch (error) {
     console.error('Error fetching tables:', error);
@@ -233,7 +233,7 @@ const fetchTables = async () => {
 const fetchStartTableColumns = async () => {
   if (!form.start_table) return;
   try {
-    const response = await axios.get(`/api/get-columns/${form.start_table}`);
+    const response = await axios.get(`/api/transition-profiles/columns/${form.start_table}`);
     startTableColumns.value = response.data;
   } catch (error) {
     console.error('Error fetching start table columns:', error);
@@ -243,7 +243,7 @@ const fetchStartTableColumns = async () => {
 const fetchEndTableColumns = async () => {
   if (!form.end_table) return;
   try {
-    const response = await axios.get(`/api/get-columns/${form.end_table}`);
+    const response = await axios.get(`/api/transition-profiles/columns/${form.end_table}`);
     endTableColumns.value = response.data;
   } catch (error) {
     console.error('Error fetching end table columns:', error);

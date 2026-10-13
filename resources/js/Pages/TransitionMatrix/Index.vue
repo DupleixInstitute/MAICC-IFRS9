@@ -29,7 +29,7 @@
                 </div>
 
                 <div class="maiic-table-wrap overflow-x-auto">
-                    <table class="maiic-table">
+                    <table class="maiic-table maiic-table-compact">
                         <thead>
                             <tr>
                                 <th>Matrix</th>
@@ -58,10 +58,10 @@
                                     </div>
                                 </td>
                                 <td class="whitespace-nowrap">{{ calculationSourceLabels[matrix.calculation_source] || matrix.calculation_source }}<div v-if="matrix.pd_start_stage_total_type" class="text-xs text-gray-500">Payments: {{ matrix.pd_start_stage_total_type }}</div></td>
-                                <td class="whitespace-nowrap">{{ matrix.start_reporting_period }} to {{ matrix.end_reporting_period }}<div class="text-xs text-gray-500">{{ matrix.reporting_periods_count ?? '-' }} reporting period(s)</div></td>
+                                <td class="whitespace-nowrap">{{ matrix.start_reporting_period }} to {{ matrix.end_reporting_period }}<div v-if="Number(matrix.reporting_periods_count) > 0" class="text-xs text-gray-500">{{ matrix.reporting_periods_count }} reporting period(s)</div></td>
                                 <td class="num">{{ matrix.transition_years }}</td>
-                                <td class="num whitespace-nowrap">{{ matrix.records_count_transitioned ?? '-' }}<div class="text-xs text-gray-500">{{ matrix.records_count_updated ?? 0 }} updated</div></td>
-                                <td class="num whitespace-nowrap">{{ formatCurrency(matrix.transition_balance) }}<div v-if="matrix.updated_balance" class="text-xs text-gray-500">{{ formatCurrency(matrix.updated_balance) }} updated</div></td>
+                                <td class="num whitespace-nowrap">{{ matrix.records_count_transitioned ?? '-' }}<div v-if="Number(matrix.records_count_updated) > 0" class="text-xs text-gray-500">{{ matrix.records_count_updated }} updated</div></td>
+                                <td class="num whitespace-nowrap">{{ formatCurrency(matrix.transition_balance) }}<div v-if="Number(matrix.updated_balance) > 0" class="text-xs text-gray-500">{{ formatCurrency(matrix.updated_balance) }} updated</div></td>
                                 <td>
                                     <span class="maiic-badge" :class="matrix.status === 'closed' ? 'maiic-badge-green' : 'maiic-badge-gold'" :title="matrix.comments || null">{{ matrix.status === 'closed' ? 'Closed' : 'Draft' }}</span>
                                 </td>

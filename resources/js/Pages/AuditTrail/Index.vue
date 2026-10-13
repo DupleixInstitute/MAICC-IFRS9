@@ -1,5 +1,10 @@
 <template>
-    <app-layout title="Audit Trail" description="Every recorded change and engine run in the system, newest first, with who made it">
+    <app-layout title="Audit Trail" description="Every recorded change, module action and export in the system, newest first, with who made it">
+        <template #actions>
+            <a :href="exportUrl" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
+                <font-awesome-icon icon="download"/> Export CSV
+            </a>
+        </template>
         <div class="maiic-panel">
             <!-- One slim filter row, with the two log sizes on the right -->
             <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3">
@@ -8,7 +13,7 @@
                 <select v-model="form.source" aria-label="Source" title="Source" class="maiic-select w-36 py-1.5">
                     <option :value="null">All sources</option>
                     <option value="activity">Record changes</option>
-                    <option value="module">Engine runs</option>
+                    <option value="module">Module actions and exports</option>
                 </select>
                 <select v-model="form.user_id" aria-label="User" title="User" class="maiic-select w-36 py-1.5">
                     <option :value="null">All users</option>
@@ -22,7 +27,7 @@
                 <div class="ml-auto flex items-center gap-3 text-xs text-gray-500">
                     <span><b class="text-sm text-gray-900">{{ counts.activity.toLocaleString('en-GB') }}</b> record changes</span>
                     <span class="text-gray-300">|</span>
-                    <span><b class="text-sm text-gray-900">{{ counts.module.toLocaleString('en-GB') }}</b> engine runs</span>
+                    <span><b class="text-sm text-gray-900">{{ counts.module.toLocaleString('en-GB') }}</b> module actions</span>
                 </div>
             </div>
 
@@ -48,8 +53,8 @@
                                 {{ humanise(e.entity) }}<span v-if="e.entity_id" class="text-gray-400"> #{{ e.entity_id }}</span>
                             </td>
                             <td>
-                                <span class="maiic-badge" :class="e.source === 'module' ? 'maiic-badge-gold' : 'maiic-badge-green'">
-                                    {{ e.source === 'module' ? 'Engine run' : 'Record change' }}
+                                <span class="maiic-badge" :class="e.kind === 'Export' ? 'maiic-badge-grey' : e.source === 'module' ? 'maiic-badge-gold' : 'maiic-badge-green'">
+                                    {{ e.kind }}
                                 </span>
                             </td>
                             <td class="num">
@@ -132,6 +137,11 @@ export default {
         },
     },
     computed: {
+        // the filters on screen, as a CSV of the whole filtered trail
+        exportUrl() {
+            const query = pickBy({ ...this.form, export: 'csv' }, (v) => v !== null && v !== '' && v !== undefined)
+            return this.route('audit-trail.index') + '?' + new URLSearchParams(query).toString()
+        },
         hasFilters() {
             return Object.values(this.form).some(v => v !== null && v !== '' && v !== undefined)
         },

@@ -752,8 +752,9 @@ Route::get('/transition-profiles/create', [TransitionProfileDefinitionController
 
 // Separate route for DataTables AJAX request
 Route::get('/api/transition-profiles', [TransitionProfileDefinitionController::class, 'getProfiles']); // For DataTables data
-Route::get('/api/transition-profiles/tables', [TransitionProfileDefinitionController::class, 'getTables']); // For getting tables
-Route::get('/api/transition-profiles/columns', [TransitionProfileDefinitionController::class, 'getColumns']);
+// the create page reads tables and columns here, on the session (the /api copies need a Sanctum-stateful host)
+Route::get('/api/transition-profiles/tables', [TransitionProfileDefinitionController::class, 'getTables'])->middleware('permission:reports.ifrs9');
+Route::get('/api/transition-profiles/columns/{table}', [TransitionProfileDefinitionController::class, 'getColumns'])->middleware('permission:reports.ifrs9');
 
 
 // Transition Profile Options
@@ -1162,6 +1163,12 @@ Route::prefix('forecasting')->group(function () {
         
         Route::put('/internal-grading/{profile}/grade/{grade}', [InternalGradingController::class, 'updateGrade'])
             ->name('internal-grading.grade.update');
+        Route::delete('/internal-grading/{profile}/grade/{grade}', [InternalGradingController::class, 'destroyGrade'])
+            ->name('internal-grading.grade.destroy');
+        Route::put('/internal-grading/{profile}', [InternalGradingController::class, 'updateProfile'])
+            ->name('internal-grading.profile.update');
+        Route::delete('/internal-grading/{profile}', [InternalGradingController::class, 'destroyProfile'])
+            ->name('internal-grading.profile.destroy');
 
         
         Route::get( '/internal-grading/{profile}/matrix', [InternalGradingController::class, 'matrix'])

@@ -560,7 +560,7 @@ export default {
             params.append('lgd_calculation_level', reportCalculationLevel.value);
         }
 
-        window.location.href = route('loss-given-default.report-by-period') + '?' + params.toString();
+        window.location.href = route('lgd-cummulative.report-by-period') + '?' + params.toString();
 
         setTimeout(() => {
             reportLoading.value = false;

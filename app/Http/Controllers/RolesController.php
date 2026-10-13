@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\DB;
+
 use App\Models\Event;
 use App\Models\Consultation;
 use App\Models\InvoicePayment;
@@ -138,6 +140,11 @@ class RolesController extends Controller
         }
         if ($role->is_system == 1) {
             return redirect()->back()->with('error', 'Cannot delete system role.');
+        }
+        // a role still held would leave its users without access and without warning
+        $held = DB::table('model_has_roles')->where('role_id', $role->id)->count();
+        if ($held > 0) {
+            return redirect()->back()->with('error', "The role is held by {$held} user(s). Move them to another role before deleting it.");
         }
         $role->delete();
         return redirect()->route('users.roles.index')->with('success', 'Role deleted successfully.');

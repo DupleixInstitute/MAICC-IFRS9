@@ -25,7 +25,7 @@
 
             <div class="maiic-panel">
                 <div class="maiic-table-wrap">
-                    <table class="maiic-table">
+                    <table class="maiic-table maiic-table-compact">
                         <thead>
                             <tr>
                                 <th>Group</th>
@@ -39,14 +39,14 @@
                         </thead>
                         <tbody>
                             <tr v-for="item in items.data" :key="item.id" class="align-top">
-                                <td class="whitespace-nowrap text-sm text-gray-600">{{ item.group?.name }}</td>
-                                <td class="min-w-[26rem] max-w-2xl">
+                                <td class="max-w-[9rem] text-sm text-gray-600">{{ item.group?.name }}</td>
+                                <td class="min-w-[20rem] max-w-xl">
                                     <div class="font-semibold text-gray-900">{{ item.name }}</div>
                                     <div v-if="item.description" class="mt-0.5 text-xs text-gray-500">{{ item.description }}</div>
                                 </td>
                                 <td class="whitespace-nowrap"><span class="maiic-badge" :class="Number(item.stage_implied) === 3 ? 'maiic-badge-red' : 'maiic-badge-gold'">{{ stageLabel(item.stage_implied) }}</span></td>
                                 <td class="whitespace-nowrap text-xs">{{ item.evidence_required ? 'Required' : 'Not required' }}</td>
-                                <td class="whitespace-nowrap text-xs text-gray-600">{{ item.standard_reference || '-' }}</td>
+                                <td class="max-w-[8rem] text-xs text-gray-600">{{ item.standard_reference || '-' }}</td>
                                 <td class="whitespace-nowrap">
                                     <button type="button" class="maiic-badge" :class="item.active ? 'maiic-badge-green' : 'maiic-badge-grey'" :title="item.active ? 'Switch off: no new triggers on this item' : 'Switch on'" @click="toggle(item)">{{ item.active ? 'On' : 'Off' }}</button>
                                 </td>

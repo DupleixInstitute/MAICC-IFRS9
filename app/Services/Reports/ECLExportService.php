@@ -144,9 +144,12 @@ class ECLExportService
 
         // "Principal balance" resolves to the carrying_amount column.
         $select = array_map(function ($column) {
-            return $column === 'principal_balance'
-                ? DB::raw('carrying_amount as principal_balance')
-                : $column;
+            return match ($column) {
+                'principal_balance' => DB::raw('carrying_amount as principal_balance'),
+                // the PD the ECL used: after FLI where the route ran, else before FLI; pd_value is the legacy column
+                'pd_value' => DB::raw('COALESCE(pd_post_fli, pd_prefli, pd_value) as pd_value'),
+                default => $column,
+            };
         }, $selected);
 
         $data = DB::table('loan_books')

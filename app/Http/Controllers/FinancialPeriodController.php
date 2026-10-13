@@ -46,7 +46,10 @@ class FinancialPeriodController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'start_date' => ['required'],
+            'name' => ['required', 'string', 'max:255'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after:start_date'],
+            'description' => ['nullable', 'string'],
         ]);
         $financialPeriod = new FinancialPeriod();
         $financialPeriod->created_by_id = Auth::id();
@@ -64,16 +67,14 @@ class FinancialPeriodController extends Controller
         activity()
             ->performedOn($financialPeriod)
             ->log('Create  Financial Period');
-        return redirect()->route('accounting.financial_periods.index')->with('success', 'Financial Period successfully.');
+        return redirect()->route('accounting.financial_periods.index')->with('success', 'Financial Period created successfully.');
 
     }
 
     public function show(FinancialPeriod $financialPeriod)
     {
-        $financialPeriod->load(['closedBy']);
-        return Inertia::render('FinancialPeriods/Show', [
-            'financialPeriod' => $financialPeriod
-        ]);
+        // there is no separate view page: the edit page shows the whole period
+        return redirect()->route('accounting.financial_periods.edit', $financialPeriod);
     }
 
     public function edit(FinancialPeriod $financialPeriod)
@@ -89,7 +90,10 @@ class FinancialPeriodController extends Controller
             return redirect()->back()->with('error', 'Updating the demo period is not allowed.');
         }
         $request->validate([
-            'start_date' => ['required'],
+            'name' => ['required', 'string', 'max:255'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after:start_date'],
+            'description' => ['nullable', 'string'],
         ]);
         $financialPeriod->name = $request->name;
         $financialPeriod->start_date = $request->start_date;

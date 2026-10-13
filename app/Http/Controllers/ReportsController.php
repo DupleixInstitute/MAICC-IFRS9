@@ -85,6 +85,19 @@ class ReportsController extends Controller
         $report = null;
         $error = null;
 
+        // opened without a choice: the largest portfolio of the latest month, against the month before
+        if (! $request->hasAny(['portfolio_id', 'start_period', 'end_period'])) {
+            $latest = DB::table('loan_books')->max('reporting_period');
+            $portfolioId = $latest ? DB::table('loan_books')->where('reporting_period', $latest)->whereNotNull('loan_portfolio_id')
+                ->groupBy('loan_portfolio_id')->orderByRaw('SUM(COALESCE(carrying_amount,0)) DESC')->value('loan_portfolio_id') : null;
+            if ($portfolioId) {
+                $held = array_column(LoanBookReconciliationService::getAvailablePeriods((int) $portfolioId), 'value');
+                if (count($held) >= 2) {
+                    [$endPeriod, $startPeriod] = [$held[0], $held[1]];
+                }
+            }
+        }
+
         if ($portfolioId && $startPeriod && $endPeriod) {
             if ($startPeriod >= $endPeriod) {
                 $error = 'The end period must be after the start period.';

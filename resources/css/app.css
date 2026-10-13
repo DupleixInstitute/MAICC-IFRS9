@@ -71,6 +71,13 @@
     .maiic-table tbody tr:nth-child(even) {
         @apply bg-gray-50;
     }
+    /* many columns: tighter cells, so the table fits the panel at 1440 px */
+    .maiic-table-compact thead th {
+        @apply px-2.5 whitespace-normal;
+    }
+    .maiic-table-compact tbody td {
+        @apply px-2.5 text-[13px];
+    }
     .maiic-table tbody tr:hover {
         @apply bg-maiic-50/60;
     }
