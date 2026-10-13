@@ -2,9 +2,6 @@
     <app-layout>
         <template #header>
             <div>
-                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                    <span>IFRS 9 Model Setup</span><span>/</span><span>PD Model</span><span>/</span><span class="font-medium text-maiic-700">Internal Grades</span>
-                </div>
                 <h2 class="text-xl font-semibold text-gray-800">Internal Grades</h2>
                 <p class="mt-1 text-sm text-gray-600">Internal grading profiles: the grades and the PD term structure for each</p>
             </div>

@@ -3,9 +3,6 @@
     <template #header>
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-            <span>EIR &amp; Revenue Recognition</span><span>/</span><span class="font-medium text-maiic-700">Drawdowns</span>
-          </div>
           <h2 class="text-xl font-semibold text-gray-800">Drawdowns</h2>
           <p class="mt-1 text-sm text-gray-600">Every tranche paid out on a facility, and the commitment still undrawn</p>
         </div>

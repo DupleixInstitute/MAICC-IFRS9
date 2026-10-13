@@ -36,7 +36,7 @@ class NavigationTest extends TestCase
         $entries = array_map(fn ($g) => $g['name'], config('menu.admin'));
         // in the sidebar blocks of 13 October 2026: Overview, Data foundation,
         // Financial modelling, Risk & regulatory, Administration & support
-        $this->assertSame(['Dashboard', 'Workspace', 'Reports', 'Portfolio Setup', 'Customer & Loan Data', 'Collateral Management', 'EIR & Revenue Recognition', 'IFRS 9 Model Setup', 'Forward-Looking Information', 'ECL Processing', 'Governance Centre', 'Audit', 'Users & Roles', 'Financial Periods', 'Settings', 'Support Tickets', 'Maintenance', 'System Documentation'], $entries);
+        $this->assertSame(['Dashboard', 'Workspace', 'Reports', 'Portfolio Setup', 'Customer & Loan Data', 'Collateral Management', 'EIR & Revenue Recognition', 'IFRS 9 Model Setup', 'Forward-Looking Information', 'ECL Processing', 'Governance', 'Access & Setup', 'Support & Maintenance'], $entries);
     }
 
     public function test_reports_is_one_entry_to_the_hub(): void
@@ -62,8 +62,9 @@ class NavigationTest extends TestCase
         $this->assertSame('Customer & Loan Data', $where['eir-feed.index']);
         $this->assertSame('Customer & Loan Data', $where['eir-takeon.index']);
         $this->assertSame('EIR & Revenue Recognition', $where['eir-as-at.index']);
-        $this->assertSame('Governance Centre', $where['eir-governance.index']);
-        $this->assertSame('Financial Periods', $where['accounting.financial_periods.index']);
+        $this->assertSame('Governance', $where['eir-governance.index']);
+        $this->assertSame('Access & Setup', $where['accounting.financial_periods.index']);
+        $this->assertSame('Support & Maintenance', $where['help.index']);
         $this->assertSame('ECL Processing', $where['expected-credit-loss.index']);
     }
 
@@ -104,6 +105,49 @@ class NavigationTest extends TestCase
             }
         });
         $this->assertSame([], $tiles, 'Hub tiles listed in the menu: ' . implode(', ', $tiles));
+    }
+
+    /**
+     * Breadcrumbs (13 October 2026): the layout prints the trail the menu
+     * gives the page in view (App\Support\Breadcrumbs, shared as
+     * props.breadcrumbs), every crumb but the last a link.
+     */
+    public function test_a_menu_page_has_its_breadcrumb_trail(): void
+    {
+        $trail = \App\Support\Breadcrumbs::trail(config('menu.admin'), 'eir-trial-balances.index');
+        $this->assertSame(['Financial modelling', 'EIR & Revenue Recognition', 'EIR Data', 'Trial Balances'], array_column($trail['crumbs'], 'label'));
+        $this->assertTrue($trail['exact']);
+        foreach ($trail['crumbs'] as $crumb) {
+            $this->assertNotNull($crumb['href'], $crumb['label'] . ' has no link');
+        }
+        $this->assertSame(route('eir-trial-balances.index', [], false), end($trail['crumbs'])['href']);
+        // the heading and the group open their first entry
+        $this->assertSame(route('eir-data.index', ['tab' => 'contracts'], false), $trail['crumbs'][0]['href']);
+
+        // a view inside a screen is named by its tab param
+        $trail = \App\Support\Breadcrumbs::trail(config('menu.admin'), 'eir-data.index', ['tab' => 'cashflows']);
+        $this->assertSame('Cash Flows', end($trail['crumbs'])['label']);
+
+        // an entry of the top block has no heading crumb; a section's tab follows it
+        $this->assertSame(['Dashboard'], array_column(\App\Support\Breadcrumbs::trail(config('menu.admin'), 'dashboard')['crumbs'], 'label'));
+        $this->assertSame(['Administration & support', 'Governance', 'Governance Centre'], array_column(\App\Support\Breadcrumbs::trail(config('menu.admin'), 'eir-governance.index')['crumbs'], 'label'));
+        $this->assertSame(['Administration & support', 'Governance', 'Audit', 'Audit Trail'], array_column(\App\Support\Breadcrumbs::trail(config('menu.admin'), 'audit-trail.index')['crumbs'], 'label'));
+    }
+
+    public function test_a_page_under_an_entry_closes_the_trail_with_its_title(): void
+    {
+        // an edit screen sits under its list; a report under the hub; a detail
+        // route beside its list route sits under the list
+        $edit = \App\Support\Breadcrumbs::trail(config('menu.admin'), 'users.edit');
+        $this->assertSame(['Administration & support', 'Access & Setup', 'Users & Roles', 'Users'], array_column($edit['crumbs'], 'label'));
+        $this->assertFalse($edit['exact']);
+        $this->assertSame(['Reports'], array_column(\App\Support\Breadcrumbs::trail(config('menu.admin'), 'ifrs9-reports.sector-ecl')['crumbs'], 'label'));
+        $grades = \App\Support\Breadcrumbs::trail(config('menu.admin'), 'internal-grading.grades');
+        $this->assertSame('Internal Grades', end($grades['crumbs'])['label']);
+        $this->assertFalse($grades['exact']);
+
+        // a page the menu does not hold has no trail; the layout reads Dashboard > its title
+        $this->assertSame([], \App\Support\Breadcrumbs::trail(config('menu.admin'), 'profile.show')['crumbs']);
     }
 
     private function walk(array $items, callable $fn): void

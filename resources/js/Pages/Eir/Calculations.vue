@@ -2,11 +2,6 @@
   <app-layout>
     <template #header>
       <div>
-        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-          <span>EIR &amp; Revenue Recognition</span>
-          <span>/</span>
-          <span class="font-medium text-maiic-700">Calculations</span>
-        </div>
         <h2 class="font-semibold text-xl text-gray-800">EIR Calculations</h2>
         <p class="mt-1 text-sm text-gray-600">Calculate each contract's original effective interest rate, then have it approved and locked by someone else</p>
       </div>

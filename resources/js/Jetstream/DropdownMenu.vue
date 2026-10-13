@@ -60,6 +60,28 @@
 import { Link } from '@inertiajs/vue3'
 import { isCurrent, containsCurrent } from '@/Jetstream/menuMatch'
 
+// Which groups the user left open, per user in this browser (the blocks of
+// SidebarNav are kept the same way). The group holding the page in view
+// opens on every page load.
+function groupsKey(user) {
+    return 'maiic.sidebar.groups.' + ((user && user.id) || 'guest')
+}
+function readGroups(user) {
+    try {
+        const v = JSON.parse(localStorage.getItem(groupsKey(user)) || '{}')
+        return v && typeof v === 'object' ? v : {}
+    } catch (e) {
+        return {}
+    }
+}
+function writeGroup(user, name, open) {
+    try {
+        localStorage.setItem(groupsKey(user), JSON.stringify({ ...readGroups(user), [name]: open }))
+    } catch (e) {
+        /* storage unavailable: the group folds for this page only */
+    }
+}
+
 export default {
     name: 'DropdownMenu',
     components: { Link },
@@ -77,7 +99,7 @@ export default {
     },
     emits: ['expand'],
     data() {
-        return { open: this.startOpen || containsCurrent(this.item) }
+        return { open: this.startOpen || containsCurrent(this.item) || readGroups(this.$page.props.user)[this.item.name] === true }
     },
     computed: {
         active() {
@@ -108,6 +130,7 @@ export default {
                 return
             }
             this.open = !this.open
+            writeGroup(this.$page.props.user, this.item.name, this.open)
         },
     },
 }

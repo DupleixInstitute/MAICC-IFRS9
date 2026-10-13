@@ -3,9 +3,6 @@
         <template #header>
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                        <Link :href="route('eir-data.index')" class="hover:text-maiic-700">EIR Data</Link><span>/</span><span class="font-medium text-maiic-700">Data Intake</span>
-                    </div>
                     <h2 class="text-xl font-semibold text-gray-800">EIR Data Intake</h2>
                     <p class="mt-1 text-sm text-gray-600">Load contract terms, transactions, fees, drawdowns, reference rates and the interest the ledger posted</p>
                 </div>

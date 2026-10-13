@@ -2,8 +2,7 @@
   <app-layout>
     <template #header>
       <div class="pb-1">
-        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-maiicgold-600 dark:text-amber-300">Administration &amp; Support &middot; Configuration</div>
-        <h2 class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">Governance Centre</h2>
+        <h2 class="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">Governance Centre</h2>
         <p class="mt-1 text-sm text-gray-600 dark:text-slate-400">Every calculation setting the engines use: its value in force, its options, who proposed and who approved it, and from when.</p>
         <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
           <span class="rounded-full border border-gray-300 bg-white px-2.5 py-1 font-semibold text-gray-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">{{ settings.length }} settings</span>

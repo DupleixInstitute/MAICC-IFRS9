@@ -124,6 +124,8 @@
             <main ref="main">
                 <div class="pt-6 pb-20"><!-- the bottom clears the floating help button -->
                     <div class="mx-auto px-4 sm:px-6 md:px-4">
+                        <!-- Breadcrumbs: the page's place in the menu, above every page header -->
+                        <Breadcrumbs :title="title" :extra="extraCrumbs"/>
                         <!-- Page Heading -->
                         <header class="" v-if="$slots.header || $slots.actions || description">
                             <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -248,6 +250,7 @@ import SidebarNav from "@/Jetstream/SidebarNav.vue"
 import { currentSection, activeTab } from "@/Jetstream/menuMatch"
 import NotificationBell from "@/Jetstream/NotificationBell.vue"
 import FlashMessages from '@/Jetstream/FlashMessages.vue'
+import Breadcrumbs from '@/Components/Maiic/Breadcrumbs.vue'
 import ApplicationMark from '@/Jetstream/ApplicationMark.vue'
 import { router } from '@inertiajs/vue3'
 import { markRaw } from 'vue'
@@ -303,6 +306,7 @@ export default {
         SidebarNav,
         NotificationBell,
         FlashMessages,
+        Breadcrumbs,
         ApplicationMark,
         MagnifyingGlassIcon,
         Dialog,
@@ -322,7 +326,10 @@ export default {
     props: {
         title: String,
         description: String,
-        menu: [Object, Array]
+        menu: [Object, Array],
+        // a detail page's own crumbs after its menu trail, e.g.
+        // [{ label: 'S&P Emerging Markets', href: null }]; the last is the page
+        extraCrumbs: { type: Array, default: () => [] },
     },
     computed: {
         section() {

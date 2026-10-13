@@ -95,11 +95,7 @@
                     <!-- a foldable block: text entries hung off a thin guide line in the block's colour -->
                     <div v-else v-show="blockOpen(block)" :id="'menu-block-' + b"
                          class="ml-7 mr-2 border-l" :style="{ borderColor: tint(block.colour, 0.3) }">
-                        <template v-for="(item, j) in block.items" :key="item.name">
-                            <!-- sub-heading inside a block ('subheading'), not clickable -->
-                            <div v-if="item.subheading && item.subheading !== (block.items[j - 1] || {}).subheading"
-                                 class="mb-1 pl-[15px] pr-3 text-[11px] font-semibold uppercase leading-4 tracking-wider text-white/45"
-                                 :class="j === 0 ? 'pt-1' : 'pt-3'">{{ item.subheading }}</div>
+                        <template v-for="item in block.items" :key="item.name">
 
                             <DropdownMenu v-if="item.dropdown" :item="item" plain :accent="block.colour" :start-open="railOpened === item.name"/>
 

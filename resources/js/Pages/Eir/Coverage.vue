@@ -2,9 +2,6 @@
   <app-layout>
     <template #header>
       <div>
-        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-          <span>EIR &amp; Revenue Recognition</span><span>/</span><span>EIR Calculations</span><span>/</span><span class="font-medium text-maiic-700">{{ view.label }}</span>
-        </div>
         <h2 class="text-xl font-semibold text-gray-800">{{ view.label }}</h2>
         <p class="mt-1 text-sm text-gray-600">{{ view.description }}</p>
       </div>

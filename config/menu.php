@@ -28,9 +28,6 @@
 | sidebar prints it, in small capitals, above the first entry of each block.
 | It is on every entry, so a block keeps its heading when a permission
 | hides its first entry.
-| 'subheading' splits a block into smaller, unclickable sub-blocks the
-| same way (Administration & support: Governance, Access & setup, Support &
-| maintenance).
 | Every route named here must be registered (tests/Feature/NavigationTest).
 */
 
@@ -192,38 +189,44 @@ return [
             $leaf('Mega Farm Programme', 'megafarm.index'),
         ], 7),
 
-        // Administration & support, in three small sub-blocks ('subheading',
-        // printed by the sidebar, not clickable). The entries are the ones the
-        // Administration group held, with the same routes and permissions.
+        // Administration & support: three groups, each folding like the
+        // other entries. The entries are the ones the old Administration group
+        // held, with the same routes and permissions.
         // Governance: the maker-checker centre for the governed settings (EIR
         // and FLI), and the audit record.
-        ['color' => '#A3E635', 'heading' => 'Administration & support', 'subheading' => 'Governance'] + $leaf('Governance Centre', 'eir-governance.index', 'shield-alt', permission: 'eir.govern'),
-        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Governance'] + $section('Audit', [
-            $tab('Audit Trail', 'audit-trail.index'),
-            $tab('Audit Trace', 'audit-trace.index'),
-            $tab('Compliance Audits', 'compliance-audits.index'),
-        ], 'history'),
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support'] + $group('Governance', 'shield-alt', [
+            $leaf('Governance Centre', 'eir-governance.index', 'shield-alt', permission: 'eir.govern'),
+            $section('Audit', [
+                $tab('Audit Trail', 'audit-trail.index'),
+                $tab('Audit Trace', 'audit-trace.index'),
+                $tab('Compliance Audits', 'compliance-audits.index'),
+            ], 'history'),
+        ], 9),
 
         // Access & setup: who may use the system, its periods and settings.
-        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Access & setup'] + $section('Users & Roles', [
-            $tab('Users', 'users.index'),
-            $tab('Roles & Permissions', 'users.roles.index'),
-        ], 'user-lock'),
-        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Access & setup'] + $leaf('Financial Periods', 'accounting.financial_periods.index', 'calendar'),
-        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Access & setup'] + $leaf('Settings', 'settings.index', 'cog'),
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support'] + $group('Access & Setup', 'user-lock', [
+            $section('Users & Roles', [
+                $tab('Users', 'users.index'),
+                $tab('Roles & Permissions', 'users.roles.index'),
+            ], 'user-lock'),
+            $leaf('Financial Periods', 'accounting.financial_periods.index', 'calendar'),
+            $leaf('Settings', 'settings.index', 'cog'),
+        ], 10),
 
         // Support & maintenance. System Documentation is Contract Schedule 1
         // deliverables 5, 6 and 7: the two manuals are database content (help
         // centre); the technical manual and the installation guide are
         // repository Markdown under docs/manuals.
-        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Support & maintenance'] + $leaf('Support Tickets', 'tickets.index', 'ticket-alt'),
-        ['color' => '#C4B5FD', 'heading' => 'Administration & support', 'subheading' => 'Support & maintenance'] + $leaf('Maintenance', 'maintenance.index', 'wrench', permission: 'settings'),
-        ['color' => '#67E8F9', 'heading' => 'Administration & support', 'subheading' => 'Support & maintenance'] + $group('System Documentation', 'book-open', [
-            $leaf('User Manual', 'help.index'),
-            $leaf('Administrator Manual', 'help.admin'),
-            $leaf('Technical Manual', 'docs.technical'),
-            $leaf('Installation Guide', 'docs.installation'),
-        ], 8),
+        ['color' => '#C4B5FD', 'heading' => 'Administration & support'] + $group('Support & Maintenance', 'wrench', [
+            $leaf('Support Tickets', 'tickets.index', 'ticket-alt'),
+            $leaf('Maintenance', 'maintenance.index', 'wrench', permission: 'settings'),
+            $group('System Documentation', 'book-open', [
+                $leaf('User Manual', 'help.index'),
+                $leaf('Administrator Manual', 'help.admin'),
+                $leaf('Technical Manual', 'docs.technical'),
+                $leaf('Installation Guide', 'docs.installation'),
+            ], 8),
+        ], 11),
 
     ],
     'member' => [],
