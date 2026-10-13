@@ -204,6 +204,7 @@ Route::prefix('scoring_attribute')->name('scoring_attributes.')->group(function 
 //clients
 Route::group(['prefix' => 'client', 'as' => 'clients.'], function () {
     Route::get('/', [ClientsController::class, 'index'])->name('index');
+    Route::post('/link-loan-book', [ClientsController::class, 'linkLoanBook'])->name('link-loan-book');
     Route::get('/create', [ClientsController::class, 'create'])->name('create');
     Route::get('/search', [ClientsController::class, 'search'])->name('search');
     Route::post('/store', [ClientsController::class, 'store'])->name('store');

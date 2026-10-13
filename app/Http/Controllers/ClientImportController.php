@@ -179,6 +179,7 @@ class ClientImportController extends Controller
             }
 
             $import = Import::create([
+                'kind' => 'clients',
                 'status' => 'pending',
                 'name'   => $request->file('names_file')->getClientOriginalName(),
             ]);

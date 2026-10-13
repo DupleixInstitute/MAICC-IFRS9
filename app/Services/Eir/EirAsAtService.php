@@ -230,7 +230,9 @@ class EirAsAtService
         foreach ($contracts as $c) {
             $v = $this->contract($c->contract_id, $asAt->toDateString());
             $lines[] = ['contract_id' => $c->contract_id, 'customer_name' => $c->customer_name, 'product' => $c->product_type ?? '-', 'gl' => $c->gl_account_code ?? '-',
-                'eir_ytd' => $v['interest']['eir_year_to_date'], 'contractual_ytd' => $v['interest']['contractual_year_to_date'], 'difference' => $v['interest']['difference_year_to_date'], 'amortised_cost' => $v['amortised_cost'], 'gross' => $v['gross_carrying_amount']];
+                'eir_ytd' => $v['interest']['eir_year_to_date'], 'contractual_ytd' => $v['interest']['contractual_year_to_date'], 'difference' => $v['interest']['difference_year_to_date'], 'amortised_cost' => $v['amortised_cost'], 'gross' => $v['gross_carrying_amount'],
+                // a credit balance: the customer has paid more than the ledger says is owed; it is owed back, not a negative loan
+                'credit_balance' => $v['gross_carrying_amount'] < 0 ? round(-$v['gross_carrying_amount'], 2) : 0.0];
         }
         $group = function (string $key) use ($lines) {
             $out = [];
@@ -251,7 +253,19 @@ class EirAsAtService
             $total[$f] = round(array_sum(array_column($lines, $f)), 2);
         }
 
+        // the months of the year before the date with no revenue run: their EIR interest is rolled here, not locked
+        $held = DB::table('eir_amortisation')->where('reporting_period', 'like', $year . '-%')->where('reporting_period', '<', $period)->distinct()->pluck('reporting_period')->all();
+        $missing = [];
+        for ($m = CarbonImmutable::parse($year . '-01-01'); $m->format('Y-m') < $period; $m = $m->addMonth()) {
+            if (! in_array($m->format('Y-m'), $held, true) && DB::table('loan_books')->where('reporting_period', $m->format('Y-m'))->exists()) {
+                $missing[] = $m->format('Y-m');
+            }
+        }
+        $total['credit_balances'] = round(array_sum(array_column($lines, 'credit_balance')), 2);
+        $total['credit_balance_contracts'] = count(array_filter($lines, fn ($l) => $l['credit_balance'] > 0));
+
         return ['as_at' => $asAt->toDateString(), 'year' => $year, 'period' => $period, 'by_product' => $group('product'), 'by_gl' => $group('gl'), 'total' => $total, 'contracts' => $lines,
+            'missing_revenue_months' => $missing,
             'note' => 'Contracts with a locked EIR only; the revenue shift for the year to the date is the difference column (section 6.11).'];
     }
 

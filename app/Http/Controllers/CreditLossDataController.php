@@ -202,6 +202,7 @@ class CreditLossDataController extends Controller
         try {
             // Create an import record for tracking
             $import = Import::create([
+                'kind' => 'credit_loss',
                 'name' => $request->file('file')->getClientOriginalName(),
                 'status' => 'pending',
             ]);

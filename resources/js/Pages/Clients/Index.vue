@@ -1,7 +1,8 @@
 <template>
-    <app-layout title="Clients" description="The borrower records kept for credit assessment: added here or imported. The loan book carries each borrower's name and customer number from E-Banker">
+    <app-layout title="Clients" description="Every borrower in the loan book, one client per E-Banker customer number, and those added here or imported. Each loan is linked to its client">
         <template #actions>
             <input v-model="form.search" type="text" class="maiic-input w-64" placeholder="Search ID, name or phone" aria-label="Search clients"/>
+            <button v-if="can.create" type="button" class="secondary-btn" @click="linkLoanBook" title="Create a client for every loan-book customer not yet held, and link every loan to its client">Link the loan book</button>
             <Link v-if="can.create" :href="route('clients.import.create')" class="secondary-btn">Import clients</Link>
             <Link v-if="can.create" :href="route('clients.create')" class="primary-btn">New client</Link>
         </template>
@@ -73,7 +74,9 @@ export default {
                 router.delete(route('clients.destroy', client.id), { preserveScroll: true })
         }
 
-        return { form, destroy }
+        const linkLoanBook = () => router.post(route('clients.link-loan-book'), {}, { preserveScroll: true })
+
+        return { form, destroy, linkLoanBook }
     },
 }
 </script>

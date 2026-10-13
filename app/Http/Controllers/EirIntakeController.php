@@ -219,6 +219,7 @@ class EirIntakeController extends Controller
 
             $file = $request->file('file');
             $import = Import::create([
+                'kind' => 'eir_intake',
                 'name' => "EIR {$importType}: " . $file->getClientOriginalName(),
                 'status' => 'pending',
             ]);

@@ -34,6 +34,7 @@
                     <thead>
                     <tr>
                         <th>File name</th>
+                        <th>Kind</th>
                         <th>Status</th>
                         <th>Uploaded</th>
                         <th class="num">Records inserted</th>
@@ -45,6 +46,7 @@
                     <tbody>
                     <tr v-for="result in results.data" :key="result.id">
                         <td class="min-w-[12rem] font-semibold text-gray-900">{{ result.name }}</td>
+                        <td class="whitespace-nowrap text-xs">{{ ({ loan_book: 'Loan book', clients: 'Clients', collateral: 'Collateral', credit_loss: 'Credit loss', eir_intake: 'EIR intake' })[result.kind] || '-' }}</td>
                         <td><span class="maiic-badge capitalize" :class="statusBadge(result.status)">{{ result.status }}</span></td>
                         <td class="whitespace-nowrap">{{ result.created_at ? $filters.time(result.created_at) : '' }}</td>
                         <td class="num">{{ formatCount(result.records) }}</td>
@@ -59,7 +61,7 @@
                         </td>
                     </tr>
                     <tr v-if="results.data.length === 0">
-                        <td class="maiic-empty" colspan="7">{{ form.search || form.status ? 'No import matches these filters.' : 'No file has been imported yet. Use Import loan book (top right) to upload the first one.' }}</td>
+                        <td class="maiic-empty" colspan="8">{{ form.search || form.status ? 'No import matches these filters.' : 'No file has been imported yet. Use Import loan book (top right) to upload the first one.' }}</td>
                     </tr>
                     </tbody>
                 </table>

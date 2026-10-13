@@ -549,7 +549,7 @@ class LoanBookController extends Controller
 
         return Inertia::render('LoanBooks/Import', [
             'portfolios' => LoanPortfolio::all(),
-            'recentImports' => Import::orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
+            'recentImports' => Import::where('kind', 'loan_book')->orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
             'importCount' => Import::count(),
             'availableFields'   => array_keys($fields),
             'fieldDescriptions' => $fields,
@@ -566,6 +566,7 @@ class LoanBookController extends Controller
         ]);
 
         $import = Import::create([
+            'kind' => 'loan_book',
             'name' => $request->file('file')->getClientOriginalName(),
             'status' => 'pending',
         ]);
@@ -602,6 +603,7 @@ class LoanBookController extends Controller
         try {
             // Create Import record first
             $import = Import::create([
+                'kind' => 'loan_book',
                 'name' => $request->file('file')->getClientOriginalName(),
                 'status' => 'pending',
             ]);

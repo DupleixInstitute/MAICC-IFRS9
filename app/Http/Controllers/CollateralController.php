@@ -39,7 +39,7 @@ class CollateralController extends Controller
     public function importView()
     {
         return Inertia::render('Collateral/Import', [
-            'recentImports' => Import::orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
+            'recentImports' => Import::where('kind', 'collateral')->orderByDesc('id')->limit(15)->get(['id', 'name', 'status', 'records', 'failed_records', 'failed_file_path', 'created_at']),
         ]);
     }
 
@@ -287,6 +287,7 @@ class CollateralController extends Controller
 
             try {
                 $import = Import::create([
+                    'kind' => 'collateral',
                     'name' => $request->file('file')->getClientOriginalName(),
                     'status' => 'pending',
                     'settings' => [

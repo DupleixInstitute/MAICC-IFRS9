@@ -41,9 +41,11 @@ class MaintenanceTask extends Command
                 ['Qualitative SICR factors (additive)', 'db:seed', ['--class' => 'SicrQualitativeFactorsSeeder', '--force' => true]],
             ],
             'month-end' => [
+                ['Clients for new loan-book customers', 'clients:link-loan-book', $u],
                 ['Stage the book', 'eir:stage', ['from' => $period] + $u],
                 ['PD and LGD by segment', 'ifrs9:segment-parameters', ['from' => $period] + $u],
                 ['Forward-looking route, projection, ECL and the month record', 'fli:month-end', ['period' => $period, '--all' => true] + $u],
+                ['Actual cash from the E-Banker ledger', 'eir:load-ledger-cash', $u],
                 ['EIR revenue', 'eir:run-revenue', ['period' => $period] + $u],
                 ['Mega Farm programme (when the month has Mega Farm loans)', 'megafarm:ecl', ['period' => $period] + $u, true],
             ],

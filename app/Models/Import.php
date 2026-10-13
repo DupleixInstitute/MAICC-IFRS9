@@ -10,6 +10,7 @@ class Import extends Model
     use HasFactory;
 
     protected $fillable = [
+        'kind',
         'status',
         'records',
         'failed_records',
