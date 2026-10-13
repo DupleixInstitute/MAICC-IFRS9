@@ -175,23 +175,10 @@ class CollateralController extends Controller
         return back()->with('success', 'Collateral type deleted successfully.');
     }
 
+    /** The register's sample file, from the import spec registry (key collateral). */
     public function downloadSample()
     {
-        $headers = ['Content-Type' => 'text/csv'];
-        // Every heading CollateralRegisterImport reads in its standard layout
-        // (location, market_value and status were missing from the sample).
-        $columns = [
-            'customer_id', 'customer_name', 'collateral_type', 'property_use', 'description', 'location',
-            'registration_date', 'expiry_date', 'valuation_date', 'nominal_value', 'market_value', 'execution_value', 'status',
-        ];
-
-        $callback = function () use ($columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-            fclose($file);
-        };
-
-       return response()->streamDownload($callback, 'collateral_registry_sample.csv', $headers);
+        return app(ImportTemplateController::class)->template('collateral', app(\App\Support\Imports\ImportTemplateBuilder::class));
     }
 
     
@@ -284,6 +271,14 @@ class CollateralController extends Controller
                 'mapping' => ['nullable', 'array'],
                 'import_type' => ['nullable', 'string', 'in:custom,legacy'],
             ]);
+
+            // the file against the column spec before anything is written (key collateral)
+            $file = $request->file('file');
+            $check = (new \App\Support\Imports\ImportSpecValidator())->checkFile('collateral', $file->getRealPath(), $file->getClientOriginalName(),
+                $request->input('import_type', 'custom') === 'custom' && array_filter((array) $request->input('mapping', [])) !== [] ? ['mapping' => (array) $request->input('mapping', [])] : []);
+            if (! $check['ok']) {
+                return \App\Support\Imports\ImportSpecValidator::refuse($check);
+            }
 
             try {
                 $import = Import::create([

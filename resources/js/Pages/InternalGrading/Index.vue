@@ -237,6 +237,7 @@
     <div class="absolute inset-0 bg-black bg-opacity-50"></div>
     <div class="relative z-10 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white p-6 shadow-lg dark:bg-slate-800">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Import the S&amp;P grading of an ECL model</h3>
+        <ImportSpecPanel class="mt-3" spec-key="sp-grades" :collapsed="false"/>
         <div class="mt-3 grid gap-4 md:grid-cols-2">
             <div class="rounded-lg bg-maiic-50 p-3 text-sm text-gray-700 dark:bg-slate-900/60 dark:text-slate-300">
                 <p class="font-semibold text-maiic-800 dark:text-emerald-300">What to upload</p>
@@ -307,6 +308,7 @@ import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import GradesPdMatrix from './GradesPdMatrix.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import axios from 'axios'
 import '@fortawesome/fontawesome-free/css/all.css';
 

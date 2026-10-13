@@ -9,6 +9,8 @@ use App\Jobs\ProcessEirImportJob;
 use App\Services\Eir\EirSampleFileService;
 use App\Services\Eir\ScheduleImportService;
 use App\Services\Imports\MappedFileReader;
+use App\Support\Imports\ImportSpecs;
+use App\Support\Imports\ImportSpecValidator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Throwable;
@@ -116,9 +118,16 @@ class EirIntakeController extends Controller
         ]);
 
         try {
-            return response()->json(
-                $reader->analyze($request->file('file')->getPathname(), $request->input('import_type'))
-            );
+            $path = $request->file('file')->getPathname();
+            $analysis = $reader->analyze($path, $request->input('import_type'));
+            // the whole file against the column spec, through the mapping found, so
+            // the screen lists every problem by row before the import is started
+            // (a file still missing a required column is named by missing_required instead)
+            $analysis['check'] = $analysis['missing_required'] === []
+                ? $this->checkFile($reader, $path, $analysis['import_type'], $analysis['mapping'], $this->suggestedTransforms($analysis), $request->file('file')->getClientOriginalName())
+                : null;
+
+            return response()->json($analysis);
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
@@ -194,6 +203,35 @@ class EirIntakeController extends Controller
         ]);
     }
 
+    /** The transforms the screen applies by default: the one read from each column's values. */
+    private function suggestedTransforms(array $analysis): array
+    {
+        $out = [];
+        foreach ($analysis['mapping'] as $header => $field) {
+            // as Intake.vue defaultTransformFor() fills in where the values were inconclusive
+            $t = $analysis['profile'][$header]['suggested_transform'] ?? (in_array($field, ['due_date', 'transaction_date'], true) ? 'date' : null);
+            if ($t !== null) {
+                $out[$field] = $t;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * The rows as read with no transforms (so a stray value cannot be cleaned
+     * to zero before it is seen), checked against the type's spec; dates are
+     * judged on the value the reader resolves with the chosen transforms,
+     * which is the value the import stores.
+     */
+    private function checkFile(MappedFileReader $reader, string $path, string $importType, array $mapping, array $transforms, string $name): array
+    {
+        $raw = $reader->read($path, $importType, $mapping, []);
+        $resolved = $reader->read($path, $importType, $mapping, $transforms)['rows'];
+
+        return (new ImportSpecValidator())->checkRows(ImportSpecs::eirKey($importType), $raw['rows'], array_values($raw['report']['mapped_headers']), $name, 2, $resolved);
+    }
+
     /**
      * Validate the mapping, persist the upload and dispatch the same tracked
      * queue lifecycle used by the application's other data imports.
@@ -216,6 +254,13 @@ class EirIntakeController extends Controller
         try {
             // Fail fast on invalid mappings before a job is queued.
             $reader->read($request->file('file')->getPathname(), $importType, $mapping, $transforms);
+
+            // then every row against the column spec: any error refuses the file and
+            // nothing is queued (App\Support\Imports\ImportSpecs, key eir-...)
+            $check = $this->checkFile($reader, $request->file('file')->getPathname(), $importType, $mapping, $transforms, $request->file('file')->getClientOriginalName());
+            if (! $check['ok']) {
+                return response()->json(['error' => ImportSpecValidator::summary($check), 'check' => $check], 422);
+            }
 
             $file = $request->file('file');
             $import = Import::create([

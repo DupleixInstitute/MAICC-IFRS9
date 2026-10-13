@@ -1,13 +1,14 @@
 <template>
   <app-layout title="Import Collateral Register" description="Upload the collateral register for a month-end: one row per item of collateral with its values">
     <template #actions>
-      <a :href="route('collateral.register.sample')" class="secondary-btn" title="A CSV with the exact column headers the standard collateral import reads">Download sample CSV</a>
       <Link :href="route('collateral.register.index')" class="secondary-btn">Back to the register</Link>
     </template>
 
     <div class="space-y-5">
-      <form @submit.prevent="submit" class="maiic-panel grid gap-6 p-5 lg:grid-cols-3">
-        <div class="space-y-5 lg:col-span-2">
+      <div class="maiic-panel space-y-5 p-5">
+      <ImportSpecPanel spec-key="collateral" :file="selectedFile" :check-data="importType === 'custom' ? { mapping } : {}"/>
+      <form @submit.prevent="submit" class="grid gap-6">
+        <div class="space-y-5">
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label class="maiic-flabel" for="period">Period</label>
@@ -64,18 +65,8 @@
             <button type="submit" class="primary-btn" :disabled="form.processing || !selectedFile">{{ form.processing ? 'Uploading...' : 'Start import' }}</button>
           </div>
         </div>
-
-        <aside class="rounded-lg border border-maiic-100 bg-maiic-50/60 p-4 text-sm text-gray-700">
-          <div class="mb-2 font-semibold text-maiic-800">How to import the register</div>
-          <ol class="list-decimal space-y-1.5 pl-5">
-            <li>Choose the month-end the register is for.</li>
-            <li>For the standard layout, download the sample CSV (top right) and keep its column headers. To use another file as it is, pick Match columns.</li>
-            <li>collateral_type must be a code listed on the Collateral Types tab. Dates may be day/month/year or year-month-day.</li>
-            <li>A row without a customer_id or a known collateral type is set aside in the failed rows file.</li>
-            <li>After the import, run the allocation on the Collateral Allocation tab.</li>
-          </ol>
-        </aside>
       </form>
+      </div>
 
       <div class="maiic-panel">
         <div class="border-b border-gray-200 px-5 py-3 text-sm font-bold text-gray-900">Recent imports</div>
@@ -88,10 +79,11 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ImportHistoryTable from '@/Components/Data/ImportHistoryTable.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { Link } from '@inertiajs/vue3'
 
 export default {
-    components: { AppLayout, Link, ImportHistoryTable },
+    components: { AppLayout, Link, ImportHistoryTable, ImportSpecPanel },
 
     props: {
         recentImports: { type: Array, default: () => [] },

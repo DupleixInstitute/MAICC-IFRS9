@@ -19,6 +19,29 @@ use Maatwebsite\Excel\Events\ImportFailed;
 
 class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithChunkReading, ShouldQueue
 {
+    /**
+     * A loan_books column chosen on the Match columns screen => the key this
+     * importer reads it under. Without it a column matched to create_date was
+     * read nowhere and every row failed for a missing value_date.
+     */
+    public const MAPPED_FIELDS = [
+        'create_date' => 'value_date',
+        'due_date' => 'maturity_date',
+        'principal_balance' => 'principal',
+        'customer_name' => 'name',
+        'disbursed_amount' => 'disbursed',
+        'loan_type' => 'product_group',
+        'type' => 'product_group',
+    ];
+
+    /** The arrears columns, read from the row under their standard headings. */
+    public const ARREARS_FIELDS = [
+        'arrears_1_to_30' => '1_30_days',
+        'arrears_30_to_90' => '31_90_days',
+        'arrears_91_to_180' => '91_180_days',
+        'arrears_180_to_270' => '181_270_days',
+    ];
+
     protected Import $import;
     protected array $mapping;
     protected string $importType;
@@ -173,7 +196,9 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                     $data['repayments']     = $normalizedRow['repayments'] ?? null;
                     $data['product_group']  = $normalizedRow['type'] ?? null;
                     $data['industry_code']  = $normalizedRow['industry_code'] ?? null;
-                    $data['internal_grade_code']  = $normalizedRow['internal_grade_code'] ?? null;
+                    // the sample file (App\Support\Imports\ImportSpecs) heads these internal_grade and industry_type
+                    $data['industry_type']  = $normalizedRow['industry_type'] ?? null;
+                    $data['internal_grade_code']  = $normalizedRow['internal_grade'] ?? $normalizedRow['internal_grade_code'] ?? null;
                 } else {
                     // Custom import type with mapping
                    // Log::info("Using custom mapping", ['mapping' => $this->mapping]);
@@ -205,7 +230,13 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
                         // ]);
                         
                         if (isset($normalizedRow[$normalizedCsvKey])) {
-                            $data[$db] = $normalizedRow[$normalizedCsvKey];
+                            // the screen offers the loan_books column names; read them under the
+                            // names this importer uses below (create_date is the value_date ...)
+                            if (isset(self::ARREARS_FIELDS[$db])) {
+                                $normalizedRow[self::ARREARS_FIELDS[$db]] = $normalizedRow[$normalizedCsvKey];
+                                continue;
+                            }
+                            $data[self::MAPPED_FIELDS[$db] ?? $db] = $normalizedRow[$normalizedCsvKey];
                             // Log::debug("Mapped successfully", [
                             //     'csv_key' => $csv,
                             //     'normalized_key' => $normalizedCsvKey,

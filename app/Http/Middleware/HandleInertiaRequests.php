@@ -67,6 +67,8 @@ class HandleInertiaRequests extends Middleware
                     'error' => $request->session()->get('error'),
                     'warning' => $request->session()->get('warning'),
                     'info' => $request->session()->get('info'),
+                    // the row-by-row result of a refused import (App\Support\Imports\ImportSpecValidator)
+                    'import_check' => $request->session()->get('import_check'),
                 ];
             },
             // Slim user payload: the full model serialized 174 permission

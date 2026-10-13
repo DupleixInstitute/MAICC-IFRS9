@@ -199,6 +199,12 @@ class CreditLossDataController extends Controller
             'portfolio_id' => ['nullable', 'exists:loan_portfolios,id'],
         ]);
 
+        // the file against the column spec before anything is written (key credit-loss-data)
+        $check = (new \App\Support\Imports\ImportSpecValidator())->checkFile('credit-loss-data', $request->file('file')->getRealPath(), $request->file('file')->getClientOriginalName());
+        if (! $check['ok']) {
+            return \App\Support\Imports\ImportSpecValidator::refuse($check);
+        }
+
         try {
             // Create an import record for tracking
             $import = Import::create([

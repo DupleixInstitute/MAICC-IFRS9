@@ -80,7 +80,8 @@ return [
                 . '<li><code>Import failed: ...</code> shown at the top of the page: the file could not be accepted (wrong file type, or <b>Period</b> missing). The period must be a month and year.</li>'
                 . '<li>Allocation later reports no collateral for customers you know are covered: the type code in the file does not exist on <b>Collateral Types</b>, or the <b>Period</b> chosen here differs from the loan book month.</li>'
                 . '<li>The import completes but values are zero: the amount columns were not mapped, or contain text rather than numbers.</li>'
-                . '</ul>',
+                . '</ul>'
+                . '<h4>Sample file, column guide and the check</h4><p>The <b>How to import</b> panel on the import screen lists every column with its type, whether it is required, its format and allowed values, a description and an example. <b>Download sample file</b> gives a file in exactly the format the import reads, with one or two illustrative rows (identifiers start with 8 and names with Sample, so they are never mistaken for real data); <b>Download column guide</b> gives the same as an Excel workbook. <b>Check file</b> tests a chosen file without saving it; collateral_type must be a code held on Collateral Types. Before anything is saved the whole file is checked: every required column present, the type of each value, the allowed values and no key repeated. If any row breaks a rule, nothing is imported and the problems are listed by row and column with how to fix each one.</p>',
             'steps' => [
                 'Open Data Foundation, Collateral Register and click Import Register.',
                 'Click Download Sample File or Download Legacy Template and lay your data out in those columns.',

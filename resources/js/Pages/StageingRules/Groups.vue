@@ -77,20 +77,13 @@
         </jet-modal>
 
         <!-- Bulk import: how to, sample CSV, upload -->
-        <jet-modal :show="showImportModal" @close="closeImportModal" max-width="2xl">
+        <jet-modal :show="showImportModal" @close="closeImportModal" max-width="5xl">
             <div class="p-6">
                 <h3 class="text-lg font-semibold text-gray-900">Import SICR groups from a CSV file</h3>
                 <p class="mt-1 text-sm text-gray-500">Add many groups at once. A group that already exists, by name, is left as it is.</p>
-                <div class="mt-5 grid gap-5 md:grid-cols-5">
-                    <div class="md:col-span-3">
-                        <FileDrop :key="importKey" :error="importError" :disabled="processing" @file="onFile"/>
-                    </div>
-                    <ImportHowTo class="md:col-span-2" title="How to import" :sample-url="route('import-samples.show', 'sicr-groups')">
-                        <li>Download the sample CSV: two columns, name and description, headings in lower case.</li>
-                        <li>One row per group. Rows without a name are skipped.</li>
-                        <li>A name that already exists is not added again and its description is not changed.</li>
-                        <li>Choose the file and press Start import. The message at the top says how many rows were read.</li>
-                    </ImportHowTo>
+                <ImportSpecPanel class="mt-4" spec-key="sicr-groups" :file="csvFile"/>
+                <div class="mt-4">
+                    <FileDrop :key="importKey" :error="importError" :disabled="processing" @file="onFile"/>
                 </div>
                 <div class="mt-6 flex justify-end gap-2 border-t border-gray-200 pt-4">
                     <button type="button" class="secondary-btn" :disabled="processing" @click="closeImportModal">Cancel</button>
@@ -105,7 +98,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetModal from '@/Jetstream/Modal.vue'
 import FileDrop from '@/Components/Data/FileDrop.vue'
-import ImportHowTo from '@/Components/Data/ImportHowTo.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import Pagination from '@/Components/Pagination.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
 import HowSicrWorks from './Partials/HowSicrWorks.vue'
@@ -116,7 +109,7 @@ const blank = () => ({ name: '', description: '', sort_order: 0 })
 
 export default {
     props: { groups: Object, totals: Object },
-    components: { AppLayout, JetModal, FileDrop, ImportHowTo, Pagination, KpiRow, HowSicrWorks, Link },
+    components: { AppLayout, JetModal, FileDrop, ImportSpecPanel, Pagination, KpiRow, HowSicrWorks, Link },
     data() {
         return { form: blank(), processing: false, editingId: null, csvFile: null, showModal: false, showImportModal: false, importError: '', importKey: 0 }
     },
@@ -154,7 +147,7 @@ export default {
             data.append('file', this.csvFile)
             this.$inertia.post(this.route('sicr-groups.import'), data, {
                 onFinish: () => { this.processing = false },
-                onSuccess: () => this.closeImportModal(),
+                onSuccess: () => { const c = this.$page.props.flash?.import_check; if (!(c && c.key === 'sicr-groups' && !c.ok)) this.closeImportModal() },
                 onError: (errors) => { this.importError = Object.values(errors || {})[0] || 'The file could not be imported. Check it against the sample CSV.' },
             })
         },

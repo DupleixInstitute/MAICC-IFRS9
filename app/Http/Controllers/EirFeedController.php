@@ -104,6 +104,17 @@ class EirFeedController extends Controller
         if ($request->boolean('dry_run')) {
             $failed = array_filter($r['gates']['files'] ?? [], fn ($f) => ($f['failures'] ?? []) !== []);
             $packFails = array_filter($r['gates']['pack'] ?? [], fn ($g) => is_array($g) && ($g['result'] ?? '') === 'FAIL');
+            // the failures file by file, as the import screens list a refused file (key ebanker-pack)
+            $issues = [];
+            foreach ($failed as $file => $f) {
+                foreach ($f['failures'] as $m) {
+                    $issues[] = ['row' => preg_match('/\brow (\d+)/', (string) $m, $mm) ? (int) $mm[1] : null, 'column' => (string) $file, 'message' => (string) $m, 'fix' => 'Correct the file or the manifest entry and zip the pack again.', 'severity' => 'error'];
+                }
+            }
+            foreach ($packFails as $gate => $g) {
+                $issues[] = ['row' => null, 'column' => 'Pack: ' . str_replace('_', ' ', (string) $gate), 'message' => implode('; ', array_slice((array) ($g['failures'] ?? [$g['detail'] ?? 'failed']), 0, 5)), 'fix' => 'See the pack check on the E-Banker Loads tab after landing, or correct the files named.', 'severity' => 'error'];
+            }
+            $request->session()->flash('import_check', \App\Support\Imports\ImportSpecValidator::fromGates('ebanker-pack', $request->file('pack')->getClientOriginalName(), count($r['gates']['files'] ?? []), $issues));
 
             return back()->with($failed === [] && $packFails === [] ? 'success' : 'error', 'Check only, nothing kept: '
                 . ($failed === [] && $packFails === [] ? 'every check passed; load the pack to keep it.' : count($failed) . ' file(s) and ' . count($packFails) . ' pack check(s) failed: '

@@ -1056,6 +1056,13 @@ Route::get('/credit-loss-data', [CreditLossDataController::class, 'index'])->nam
 Route::get('/credit-loss-data/import', [CreditLossDataController::class, 'importView'])->name('credit-loss-data.importView');
 // Blank sample CSVs (header row from each importer) for the import screens that had none.
 Route::get('/import-samples/{kind}', [\App\Http\Controllers\ImportSampleController::class, 'show'])->name('import-samples.show');
+// Every import's sample file, column guide, spec and check-only test, from one registry (App\Support\Imports\ImportSpecs).
+Route::prefix('import-templates/{key}')->name('import-templates.')->where(['key' => '[a-z0-9-]+'])->group(function () {
+    Route::get('/', [\App\Http\Controllers\ImportTemplateController::class, 'template'])->name('download');
+    Route::get('/guide', [\App\Http\Controllers\ImportTemplateController::class, 'guide'])->name('guide');
+    Route::get('/spec', [\App\Http\Controllers\ImportTemplateController::class, 'spec'])->name('spec');
+    Route::post('/check', [\App\Http\Controllers\ImportTemplateController::class, 'check'])->name('check');
+});
 Route::post('/credit-loss-data/import', [CreditLossDataController::class, 'import'])->name('credit-loss-data.import');
 Route::get('/credit-loss-data/definition', [CreditLossDataController::class, 'createDefinition'])->name('credit-loss-data.definition');
 Route::post('/credit-loss-data/definition/store', [CreditLossDataController::class, 'storeDefinition'])->name('credit-loss-data.definition.store');

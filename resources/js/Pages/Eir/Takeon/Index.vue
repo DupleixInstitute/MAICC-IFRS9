@@ -137,18 +137,11 @@
         </div>
       </div>
     </div>
-    <jet-modal :show="uploadOpen" max-width="3xl" @close="uploadOpen = false">
-      <form class="p-6" @submit.prevent="upload">
+    <jet-modal :show="uploadOpen" max-width="5xl" @close="uploadOpen = false">
+      <form class="p-6" @submit.prevent="upload(false)">
         <h3 class="text-lg font-semibold text-gray-900">Load the take-on workbook</h3>
-        <div class="mt-3 grid gap-4 md:grid-cols-2">
-          <div class="rounded-lg bg-maiic-50 p-3 text-sm text-gray-700">
-            <p class="font-semibold text-maiic-800">The two files</p>
-            <ul class="mt-1 list-disc space-y-0.5 pl-5">
-              <li><strong>The original workbook</strong>: Finance's amortisation schedules at 31 October 2024, exactly as received (sheets Loan Book and Amortisation and Repayments).</li>
-              <li><strong>The mapping workbook</strong>: the same schedules with each facility's E-Banker account (sheet Mapping, Finance's Y or N in column X) and the fees in the yellow columns of Upload summary (arrangement, legal, other, the fee date, whether deducted, the source).</li>
-            </ul>
-            <p class="mt-2">Load both as received: do not re-save them in another program.</p>
-          </div>
+        <ImportSpecPanel class="mt-3" spec-key="takeon" :collapsed="false"/>
+        <div class="mt-3">
           <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
             <p class="font-semibold text-gray-800">What happens</p>
             <ul class="mt-1 list-disc space-y-0.5 pl-5">
@@ -164,7 +157,8 @@
         </div>
         <div class="mt-6 flex justify-end gap-2">
           <button type="button" class="secondary-btn" :disabled="uploading" @click="uploadOpen = false">Cancel</button>
-          <button type="submit" class="primary-btn" :disabled="!files.original || !files.mapping || uploading">{{ uploading ? 'Loading...' : 'Load the workbook' }}</button>
+          <button type="button" class="secondary-btn" :disabled="!files.original || !files.mapping || uploading" title="Read both workbooks and gate every block; nothing is kept" @click="upload(true)">{{ uploading === 'check' ? 'Checking...' : 'Check only' }}</button>
+          <button type="submit" class="primary-btn" :disabled="!files.original || !files.mapping || uploading">{{ uploading === true ? 'Loading...' : 'Load the workbook' }}</button>
         </div>
       </form>
     </jet-modal>
@@ -175,11 +169,12 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import LocalPager from '@/Components/Data/LocalPager.vue'
 import JetModal from '@/Jetstream/Modal.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { router } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
-  components: { AppLayout, LocalPager, JetModal },
+  components: { AppLayout, LocalPager, JetModal, ImportSpecPanel },
   props: { tab: { type: String, default: 'blocks' }, tabCounts: Object, load: Object, blocks: Array, population: Array, basisInForce: String, canGovern: Boolean },
   data() {
     return {
@@ -200,9 +195,10 @@ export default {
   methods: {
     pageOf(rows, key) { const p = this.page[key]; return rows.slice((p - 1) * 15, p * 15) },
     fmt(v) { return v == null ? '' : Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-    upload() {
-      this.uploading = true
-      router.post(route('eir-takeon.upload'), { original: this.files.original, mapping: this.files.mapping }, { forceFormData: true, onFinish: () => { this.uploading = false; this.uploadOpen = false } })
+    upload(checkOnly = false) {
+      this.uploading = checkOnly ? 'check' : true
+      // a check keeps the window open, so its block-by-block result is read beside the files
+      router.post(route('eir-takeon.upload'), { original: this.files.original, mapping: this.files.mapping, check_only: checkOnly ? 1 : 0 }, { forceFormData: true, preserveScroll: true, onFinish: () => { this.uploading = false; if (!checkOnly) this.uploadOpen = false } })
     },
     async build() {
       if (!(await confirmDialog({ title: 'Build the take-on population?', message: 'It is built under the basis in force and replaces the previous build.', confirmLabel: 'Build' }))) return

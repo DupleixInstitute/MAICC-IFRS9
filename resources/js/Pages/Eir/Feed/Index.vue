@@ -157,9 +157,10 @@
     </div>
 
     <!-- Load a pack -->
-    <jet-modal :show="packOpen" max-width="3xl" @close="packOpen = false">
+    <jet-modal :show="packOpen" max-width="5xl" @close="packOpen = false">
       <form class="p-6" @submit.prevent="landPack">
         <h3 class="text-lg font-semibold text-gray-900">Load an E-Banker pack</h3>
+        <ImportSpecPanel class="mt-3" spec-key="ebanker-pack" :collapsed="true"/>
         <div class="mt-3 grid gap-4 md:grid-cols-2">
           <div class="rounded-lg bg-maiic-50 p-3 text-sm text-gray-700">
             <p class="font-semibold text-maiic-800">What a pack is</p>
@@ -227,11 +228,12 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetModal from '@/Jetstream/Modal.vue'
 import LocalPager from '@/Components/Data/LocalPager.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { router } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
-  components: { AppLayout, JetModal, LocalPager },
+  components: { AppLayout, JetModal, LocalPager, ImportSpecPanel },
   props: { tab: { type: String, default: 'loads' }, tabCounts: Object, loads: Array, queries: Array, builds: Array, periods: Array, routeInForce: String, methodInForce: String, locks: Array, lastLedgerDate: String, canGovern: Boolean },
   data() {
     return {
@@ -255,7 +257,7 @@ export default {
     landPack() {
       if (!this.packFile) return
       this.landing = true
-      router.post(route('eir-feed.land'), { pack: this.packFile, dry_run: this.packDryRun ? 1 : 0 }, { forceFormData: true, onFinish: () => { this.landing = false; this.packFile = null; this.packOpen = false } })
+      router.post(route('eir-feed.land'), { pack: this.packFile, dry_run: this.packDryRun ? 1 : 0 }, { forceFormData: true, preserveScroll: true, onFinish: () => { this.landing = false; if (!this.packDryRun) { this.packFile = null; this.packOpen = false } } })
     },
     requestBuild() {
       this.building = true

@@ -111,7 +111,8 @@ return [
                 . '<li><code>Missing headers: name, description</code>: the CSV first row does not contain those two headings (case does not matter). Fix the headings and upload again.</li>'
                 . '<li><code>Failed to import CSV. Please check the file format.</code>: the file was not a .csv or .txt, or exceeded 10 MB.</li>'
                 . '<li><code>Please check your input and try again.</code>: the name exceeded 255 characters or was blank.</li>'
-                . '</ul>',
+                . '</ul>'
+                . '<h4>Sample file, column guide and the check</h4><p>The <b>How to import</b> panel on the import screen lists every column with its type, whether it is required, its format and allowed values, a description and an example. <b>Download sample file</b> gives a file in exactly the format the import reads, with one or two illustrative rows (identifiers start with 8 and names with Sample, so they are never mistaken for real data); <b>Download column guide</b> gives the same as an Excel workbook. The panel sits in the import window. Before anything is saved the whole file is checked: every required column present, the type of each value, the allowed values and no key repeated. If any row breaks a rule, nothing is imported and the problems are listed by row and column with how to fix each one.</p>',
             'steps' => [
                 'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then Staging & SICR Rules, and choose SICR Groups Setup.',
                 'Click Add New Group.',
@@ -167,7 +168,8 @@ return [
                 . '<li><code>Missing headers: group, name, active</code>: one of the three headings is absent from the first row of the CSV.</li>'
                 . '<li><b>The Create Item button is greyed out</b>: both the group and the item name must be filled in.</li>'
                 . '<li><b>The item list is empty although items exist</b>: a group filter is on. Click <b>Clear</b> or choose <code>All Groups</code>.</li>'
-                . '</ul>',
+                . '</ul>'
+                . '<h4>Sample file, column guide and the check</h4><p>The <b>How to import</b> panel on the import screen lists every column with its type, whether it is required, its format and allowed values, a description and an example. <b>Download sample file</b> gives a file in exactly the format the import reads, with one or two illustrative rows (identifiers start with 8 and names with Sample, so they are never mistaken for real data); <b>Download column guide</b> gives the same as an Excel workbook. The panel sits in the import window; active and evidence_required are yes or no, and stage is 2 or 3. Before anything is saved the whole file is checked: every required column present, the type of each value, the allowed values and no key repeated. If any row breaks a rule, nothing is imported and the problems are listed by row and column with how to fix each one.</p>',
             'steps' => [
                 'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then Staging & SICR Rules, and choose SICR Alert Items.',
                 'Click Add New Item.',
@@ -493,7 +495,8 @@ return [
                 . '<li><code>The grade code has already been taken.</code>: codes are unique per profile; edit the existing grade instead.</li>'
                 . '<li><b>Rows updated is smaller than the segment</b>: only loans in that reporting period and portfolio or sector are touched; loans with no grade code still count as updated but receive 0.</li>'
                 . '<li><b>+ Add Grade and the pencil are missing</b>: the profile is active. Deactivate it to change grades, then activate it again.</li>'
-                . '</ul>',
+                . '</ul>'
+                . '<h4>Column guide for the S&P import</h4><p>The <b>How to import</b> panel in the import window lists the two sheets of the ECL model workbook that are read and the columns of each; <b>Download column guide</b> gives the same as an Excel workbook. There is no blank template, because the file is the ECL model workbook itself. <b>Preview</b> reads the workbook and shows the grades and cumulative PDs found, and any grade left out with the reason, before anything is saved.</p>',
             'steps' => [
                 'Open the sidebar, expand Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation), then PD Model Setup, and choose Internal Grades.',
                 'Click + New Profile, enter the Profile Name, a Description and Max Tenor Years, and click Save.',

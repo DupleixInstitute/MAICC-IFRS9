@@ -1,8 +1,6 @@
 <template>
     <app-layout title="Import Loan Book" description="Upload one month-end loan book file for a portfolio. It is processed in the background; follow it on the History tab or in Imports">
         <template #actions>
-            <a :href="route('loan_applications.loan-book.sample')" class="secondary-btn" title="A CSV with the exact column headers the standard import reads">Download sample CSV</a>
-            <a :href="route('loan_applications.loan-book.download-ebanker-template')" class="secondary-btn" title="A CSV laid out like the E-Banker loan book report">Download E-Banker template</a>
             <Link :href="route('loan_applications.loan-book')" class="secondary-btn">Back to Loan Book</Link>
         </template>
 
@@ -12,8 +10,11 @@
                 <div class="maiic-panel rounded-t-none">
 
                     <!-- Upload -->
-                    <form v-if="tab === 'upload'" @submit.prevent="submit" class="grid gap-6 p-5 lg:grid-cols-3">
-                        <div class="space-y-5 lg:col-span-2">
+                    <div v-if="tab === 'upload'" class="space-y-5 p-5">
+                    <ImportSpecPanel :spec-key="importType === 'group' ? 'loan-book-ebanker' : 'loan-book'" :also-keys="['loan-book', 'loan-book-ebanker']"
+                                     :file="form.file" :check-data="importType === 'custom' ? { mapping } : {}"/>
+                    <form @submit.prevent="submit" class="grid gap-6">
+                        <div class="space-y-5">
                             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
                                     <label class="maiic-flabel" for="loan_portfolio_id">Portfolio</label>
@@ -83,19 +84,8 @@
                                 <button type="submit" class="primary-btn" :disabled="form.processing || !form.file">{{ form.processing ? 'Uploading...' : 'Start import' }}</button>
                             </div>
                         </div>
-
-                        <!-- How to -->
-                        <aside class="rounded-lg border border-maiic-100 bg-maiic-50/60 p-4 text-sm text-gray-700">
-                            <div class="mb-2 font-semibold text-maiic-800">How to import a loan book</div>
-                            <ol class="list-decimal space-y-1.5 pl-5">
-                                <li>Choose the portfolio and the month-end the file reports.</li>
-                                <li>Pick the file layout. For the standard layout, download the sample CSV (top right) and keep its column headers.</li>
-                                <li>Dates may be day/month/year or year-month-day. Amounts may carry thousands commas.</li>
-                                <li>Each row needs a customer_id, a value_date and a maturity_date; a row without them is set aside in the failed rows file.</li>
-                                <li>Start the import, then follow it on the History tab.</li>
-                            </ol>
-                        </aside>
                     </form>
+                    </div>
 
                     <!-- History -->
                     <ImportHistoryTable v-else :imports="recentImports"/>
@@ -109,10 +99,11 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import InPageTabs from '@/Components/Data/InPageTabs.vue'
 import ImportHistoryTable from '@/Components/Data/ImportHistoryTable.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { Link } from '@inertiajs/vue3'
 
 export default {
-    components: { AppLayout, InPageTabs, ImportHistoryTable, Link },
+    components: { AppLayout, InPageTabs, ImportHistoryTable, ImportSpecPanel, Link },
 
     props: {
         portfolios: [Array, Object],

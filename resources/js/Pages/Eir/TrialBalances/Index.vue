@@ -1,11 +1,12 @@
 <template>
   <app-layout title="Trial Balances" description="Finance's monthly trial balance from E-Banker: loaded through the landing zone's gates, read by the GL reconciliation and the AFS bridge">
-    <template #actions>
-      <button v-if="canUpload" type="button" class="primary-btn" @click="open = true"><font-awesome-icon icon="upload" /> Upload trial balance</button>
-    </template>
-
     <div class="w-full space-y-5">
       <KpiRow :cards="cards" />
+
+      <!-- the action sits right-aligned above the table it fills -->
+      <div v-if="canUpload" class="flex justify-end">
+        <button type="button" class="primary-btn" @click="open = true"><font-awesome-icon icon="upload" /> Upload trial balance</button>
+      </div>
 
       <div class="maiic-panel">
         <div class="border-b border-gray-200 p-4 dark:border-slate-700">
@@ -25,7 +26,7 @@
                 <td class="num" :class="Math.abs(p.difference) > 0.01 ? 'font-semibold text-red-600' : 'text-gray-500'">{{ money(p.difference) }}</td>
                 <td class="max-w-[16rem] truncate text-xs text-gray-600" :title="p.source_file">{{ p.source_file || '-' }}</td>
               </tr>
-              <tr v-if="!periods.length"><td colspan="7" class="maiic-empty">No trial balance is held yet. Use <strong>Upload trial balance</strong> at the top right.</td></tr>
+              <tr v-if="!periods.length"><td colspan="7" class="maiic-empty">No trial balance is held yet. Use <strong>Upload trial balance</strong> above the table.</td></tr>
             </tbody>
           </table>
         </div>
@@ -62,18 +63,11 @@
       </div>
     </div>
 
-    <jet-modal :show="open" max-width="2xl" @close="open = false">
+    <jet-modal :show="open" max-width="5xl" @close="open = false">
       <form class="p-6" @submit.prevent="submit">
         <h3 class="text-lg font-semibold text-gray-900">Upload a trial balance</h3>
-        <div class="mt-3 rounded-lg bg-maiic-50 p-3 text-sm text-gray-700">
-          <p class="font-semibold text-maiic-800">What to upload</p>
-          <ul class="mt-1 list-disc space-y-0.5 pl-5">
-            <li>The E-Banker trial balance for one month, as Finance exports it (the <code>Trial Balance_*.xls</code> report), xls or xlsx, one month per file.</li>
-            <li>The month is read from the report's own date; give it below only if the file carries none.</li>
-            <li>The file is checked before anything is kept: a known month, debits equal to credits, and the report's grand total. A file that fails is refused and shown under Loads with the reason.</li>
-            <li>Loading the same file twice changes nothing. A corrected file for a month already held replaces that month's lines, and the old version is kept in the landing zone.</li>
-          </ul>
-        </div>
+        <ImportSpecPanel class="mt-3" spec-key="trial-balance" :file="form.file" :check-data="{ period: form.period, sheet: form.sheet }"
+                         :extra-steps="tbSteps" />
         <div class="mt-4 space-y-4">
           <div>
             <label class="maiic-flabel" for="tb-file">File</label>
@@ -115,6 +109,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import JetModal from '@/Jetstream/Modal.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
 import ClientPager from '@/Components/ClientPager.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 
 const props = defineProps({
   periods: { type: Array, default: () => [] },
@@ -124,6 +119,7 @@ const props = defineProps({
 })
 
 const open = ref(false)
+const tbSteps = ["Loading the same file twice changes nothing. A corrected file for a month already held replaces that month's lines; the old version is kept in the landing zone."]
 const page = ref(1)
 const loadPage = ref(1)
 const pagedPeriods = computed(() => props.periods.slice((page.value - 1) * 15, page.value * 15))

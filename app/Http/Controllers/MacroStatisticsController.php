@@ -65,6 +65,9 @@ class MacroStatisticsController extends Controller
         try {
             if ($data['source'] === 'rbm_file') {
                 $request->validate(['file' => ['required', 'file']]);
+                if ($refused = $this->specRefusal('rbm-policy-rate', $request)) {
+                    return $refused;
+                }
 
                 return response()->json($this->rbmPreview($request->file('file')->getRealPath(), $request->file('file')->getClientOriginalName()));
             }
@@ -76,6 +79,9 @@ class MacroStatisticsController extends Controller
                 return response()->json($wb->fetch($series, $data['country'] ?? null, $data['from'] ?? null, $data['to'] ?? null));
             }
             $request->validate(['file' => ['required', 'file']]);
+            if ($refused = $this->specRefusal('imf-weo', $request)) {
+                return $refused;
+            }
 
             return response()->json($imf->parse($request->file('file')->getRealPath(), $series, $data['country'] ?? null, $data['from'] ?? null, $data['to'] ?? null));
         } catch (Throwable $e) {
@@ -244,6 +250,9 @@ class MacroStatisticsController extends Controller
     public function csvPreview(Request $request): JsonResponse
     {
         $request->validate(['file' => ['required', 'file', 'max:5120']]);
+        if ($refused = $this->specRefusal('macro-series', $request)) {
+            return $refused;
+        }
         $fh = fopen($request->file('file')->getRealPath(), 'r');
         $bom = "\xEF\xBB\xBF";
         $head = array_map(fn ($h) => strtolower(trim(str_replace($bom, '', (string) $h))), fgetcsv($fh) ?: []);
@@ -412,6 +421,19 @@ class MacroStatisticsController extends Controller
         return back()->with($v['ok'] ? 'success' : 'warning', 'Assumptions saved.' . ($v['ok'] ? '' : ' The set cannot be proposed yet: ' . implode('; ', $v['problems'])));
     }
 
+    /**
+     * The file against its column spec (App\Support\Imports\ImportSpecs) before
+     * any preview is made: with an error on any row, the problems come back by
+     * row and nothing can be committed.
+     */
+    private function specRefusal(string $key, Request $request): ?JsonResponse
+    {
+        $file = $request->file('file');
+        $check = (new \App\Support\Imports\ImportSpecValidator())->checkFile($key, $file->getRealPath(), $file->getClientOriginalName());
+
+        return $check['ok'] ? null : response()->json(['error' => \App\Support\Imports\ImportSpecValidator::summary($check), 'check' => $check], 422);
+    }
+
     private function rbmPreview(string $path, string $name): array
     {
         $fh = fopen($path, 'r');
@@ -421,6 +443,9 @@ class MacroStatisticsController extends Controller
             $i++;
             if ($i === 1 && ! is_numeric(str_replace(['%', ' '], '', (string) ($r[1] ?? '')))) {
                 continue; // a header
+            }
+            if (array_filter($r, fn ($v) => trim((string) $v) !== '') === []) {
+                continue; // a blank line, such as the one a spreadsheet leaves at the end
             }
             $date = trim((string) ($r[0] ?? ''));
             $rate = str_replace(['%', ' ', ','], '', (string) ($r[1] ?? ''));
