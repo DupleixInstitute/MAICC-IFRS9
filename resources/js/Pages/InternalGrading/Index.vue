@@ -15,113 +15,44 @@
         </template>
 
         <div class="w-full">
-            <div v-if="profiles && profiles.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div
-                    v-for="profile in profiles"
-                    :key="profile.id"
-                    @click="goToGrades(profile.id)"
-                    class="bg-white rounded-xl shadow hover:shadow-lg transition cursor-pointer border border-gray-200"
-                >
-                    <div class="p-6">
-                        <!-- Header -->
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                                {{ profile.name }}
-
-                                <span
-                                    class="px-2 py-0.5 rounded-full text-xs font-medium"
-                                    :class="profile.is_active ? activeClass : draftClass"
-                                >
-                                    {{ profile.is_active ? 'Active' : 'Draft' }}
-                                </span>
-                            </h3>
-
-                            </div>
-
-                            <!-- Actions -->
-                            <div class="flex items-center space-x-2">
-                                <button v-if="!profile.is_active" @click.stop="openEditProfile(profile)" class="text-gray-500 hover:text-maiic-600 transition" title="Edit profile">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button v-if="!profile.is_active" @click.stop="deleteProfile(profile)" class="text-gray-500 hover:text-red-600 transition" title="Delete profile">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                <!-- View Matrix -->
-                                <button
-                                @click.stop="openMatrix(profile)"
-                                class="text-maiic-500 hover:text-maiic-600 transition"
-                                title="View PD Matrix"
-                                >
-                                <i class="fas fa-eye"></i>
-                                </button>
-
-                                <!-- Lock / Unlock -->
-                                <button
-                                    @click.stop="toggleStatus(profile)"
-                                    class="transition"
-                                    :title="profile.is_active ? 'Deactivate profile' : 'Activate profile'"
-                                >
-                                    <span v-if="profile.is_active" class="text-maiic-600">
-                                        <i class="fas fa-unlock"></i>
-                                    </span>
-                                    <span v-else class="text-red-600">
-                                        <li class="fas fa-lock"></li>
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-
-
-                        <!-- Stats -->
-                        <div class="flex items-center justify-between text-sm mb-4">
-                            <div class="text-gray-600">Grades</div>
-                            <div class="font-semibold text-gray-800">{{ profile.mappings_count || 0 }}</div>
-                        </div>
-
-                        <!-- Grade Preview -->
-                        <div v-if="profile.mappings && profile.mappings.length" class="flex flex-wrap gap-2 mb-4">
-                            <span
-                                v-for="grade in profile.mappings.slice(0, 5)"
-                                :key="grade.id"
-                                class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded"
-                            >
-                                {{ grade.grade_code }}
-                            </span>
-                            <span
-                                v-if="profile.mappings.length > 5"
-                                class="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded"
-                            >
-                                +{{ profile.mappings.length - 5 }}
-                            </span>
-
-                        </div>
-
-                        <!-- Footer -->
-                        <div class="pt-4 border-t flex justify-between items-center text-sm">
-                            <span class="font-medium flex items-center gap-2">
-                                <template v-if="profile.is_active">
-                                    <!-- <span class="text-gray-400">Locked (Active)</span> -->
-                                    <button
-                                            @click.stop="openLoanBookModal(profile)"
-                                            class="bg-maiic-500 hover:bg-maiic-600 text-white text-xs px-2 py-1 rounded ml-2"
-                                            title="Update loan book for this profile"
-                                        >
-                                            Update Loan Book
-                                        </button>
-                                </template>
-                                <template v-else>
-                                    <span class="text-maiic-600 cursor-pointer" @click="goToGrades(profile.id)">
-                                        Manage Grades →
-                                    </span>
-                                </template>
-                            </span>
-
-                            <span class="text-gray-400">ID {{ profile.id }}</span>
-                        </div>
-
-                    </div>
-                </div>
+            <div v-if="profiles && profiles.length" class="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <table class="maiic-table">
+                    <thead>
+                        <tr>
+                            <th>Profile</th>
+                            <th class="num">Grades</th>
+                            <th class="num">Max tenor</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="profile in profiles" :key="profile.id" class="cursor-pointer" @click="openMatrix(profile)">
+                            <td class="max-w-xl">
+                                <p class="font-semibold text-gray-900 dark:text-slate-100">{{ profile.name }}</p>
+                                <p v-if="profile.description" class="mt-0.5 line-clamp-2 text-xs text-gray-500 dark:text-slate-400" :title="profile.description">{{ profile.description }}</p>
+                            </td>
+                            <td class="num">{{ profile.mappings_count || 0 }}</td>
+                            <td class="num whitespace-nowrap">{{ profile.max_tenor_years }} years</td>
+                            <td class="whitespace-nowrap">
+                                <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="profile.is_active ? activeClass : draftClass">{{ profile.is_active ? 'Active' : 'Draft' }}</span>
+                            </td>
+                            <td class="whitespace-nowrap text-right" @click.stop>
+                                <div class="inline-flex items-center gap-3">
+                                    <button type="button" class="text-maiic-600 hover:text-maiic-700 dark:text-emerald-400" title="View the PD matrix" @click="openMatrix(profile)"><i class="fas fa-table"></i></button>
+                                    <button v-if="!profile.is_active" type="button" class="text-gray-500 hover:text-maiic-600 dark:text-slate-400" title="Manage grades" @click="goToGrades(profile.id)"><i class="fas fa-list"></i></button>
+                                    <button v-if="!profile.is_active" type="button" class="text-gray-500 hover:text-maiic-600 dark:text-slate-400" title="Edit profile" @click="openEditProfile(profile)"><i class="fas fa-edit"></i></button>
+                                    <button v-if="!profile.is_active" type="button" class="text-gray-500 hover:text-red-600 dark:text-slate-400" title="Delete profile" @click="deleteProfile(profile)"><i class="fas fa-trash"></i></button>
+                                    <button type="button" :title="profile.is_active ? 'Deactivate profile' : 'Activate profile'" @click="toggleStatus(profile)">
+                                        <i v-if="profile.is_active" class="fas fa-unlock text-maiic-600 dark:text-emerald-400"></i>
+                                        <i v-else class="fas fa-lock text-red-600 dark:text-red-400"></i>
+                                    </button>
+                                    <button v-if="profile.is_active" type="button" class="rounded bg-maiic-500 px-2 py-1 text-xs text-white hover:bg-maiic-600" title="Update the loan book with this profile's PDs" @click="openLoanBookModal(profile)">Update loan book</button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <!-- Empty State -->
@@ -539,6 +470,6 @@ const updateLoanBookWithPD = () => {
     )
 }
 
-const activeClass = 'bg-maiic-100 text-maiic-700'
-const draftClass = 'bg-amber-100 text-amber-700'
+const activeClass = 'bg-maiic-100 text-maiic-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+const draftClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200'
 </script>
