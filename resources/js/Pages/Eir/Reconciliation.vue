@@ -11,7 +11,6 @@
           <DownloadButton format="Excel" :href="period ? downloadUrl('xlsx') : ''" :disabled="!period"/>
           <DownloadButton format="PDF" label="Download PDF" :href="period ? downloadUrl('pdf') : ''" :disabled="!period"/>
           <Link :href="route('eir-data.index', { tab: 'gl' })" class="secondary-btn">GL Postings</Link>
-          <Link :href="route('eir-calculations.index')" class="primary-btn">EIR Calculations</Link>
         </div>
       </div>
     </template>
@@ -143,7 +142,10 @@
               </tr>
             </tbody>
           </table>
-          <p v-if="Math.abs(bridge.unexplained) < 1" class="border-t border-gray-200 px-4 py-3 text-xs text-emerald-700">
+          <p v-if="!Number(bridge.eir_total)" class="border-t border-gray-200 px-4 py-3 text-xs text-amber-700">
+            No EIR interest is calculated for this month yet, so nothing is reconciled: the whole posting is unmatched. Run the EIR revenue for the month first.
+          </p>
+          <p v-else-if="Math.abs(bridge.unexplained) < 1" class="border-t border-gray-200 px-4 py-3 text-xs text-emerald-700">
             The four effects account for the variance in full: no unexplained residual.
           </p>
           <p v-else class="border-t border-gray-200 px-4 py-3 text-xs text-amber-700">
@@ -199,7 +201,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in sortedRows" :key="r.contract_id">
+                <tr v-for="r in pagedRows" :key="r.contract_id">
                   <td class="td">
                     <div class="font-semibold text-gray-900">{{ r.contract_id }}</div>
                     <div class="text-xs text-gray-500">{{ r.customer_name || r.portfolio || '-' }}{{ r.gl_account_code ? ' · ' + r.gl_account_code + (r.gl_account_name ? ' ' + r.gl_account_name : '') : '' }}</div>
@@ -207,8 +209,8 @@
                   <td class="td text-xs text-gray-600">
                     <div v-if="r.expected_opening_balance !== null">
                       Opening {{ money(r.expected_opening_balance) }}
-                      <span v-if="r.expected_rate !== null">at {{ (r.expected_rate * 100).toFixed(2) }}%</span>
-                      <span v-if="r.expected_days !== null">for {{ r.expected_days }} day(s)</span>
+                      <span v-if="r.expected_rate !== null">&nbsp;at {{ (r.expected_rate * 100).toFixed(2) }}%</span>
+                      <span v-if="r.expected_days !== null">&nbsp;for {{ r.expected_days }} day(s)</span>
                     </div>
                     <div v-if="r.opening_gross !== null">Amortised {{ money(r.opening_gross) }}</div>
                     <div v-if="r.gl_implied_base !== null">Ledger implies {{ money(r.gl_implied_base) }}</div>
@@ -240,6 +242,7 @@
               </tbody>
             </table>
           </div>
+          <RowPager v-model="facilityPage" :total="sortedRows.length" class="border-t border-gray-100" />
         </div>
       </template>
     </div>
@@ -252,6 +255,7 @@ import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import BackToReports from '@/Pages/Reports/Partials/BackToReports.vue'
 import DownloadButton from '@/Pages/Reports/Partials/DownloadButton.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
   period: { type: String, default: null },
@@ -349,6 +353,9 @@ const sortedRows = computed(() => [...props.rows].sort((a, b) => {
   if (b.variance === null) return -1
   return Math.abs(b.variance) - Math.abs(a.variance)
 }))
+// fifteen facilities a page, like every other list
+const facilityPage = ref(1)
+const pagedRows = computed(() => sortedRows.value.slice((facilityPage.value - 1) * 15, facilityPage.value * 15))
 
 function toneFor (v) {
   if (v === null || v === undefined || Math.abs(Number(v)) < 1) return 'text-gray-900'

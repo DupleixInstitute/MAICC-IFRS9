@@ -1,5 +1,5 @@
 <template>
-    <app-layout title="Clients" description="The borrowers loans are booked to, created by the loan book import or added here">
+    <app-layout title="Clients" description="The borrower records kept for credit assessment: added here or imported. The loan book carries each borrower's name and customer number from E-Banker">
         <template #actions>
             <input v-model="form.search" type="text" class="maiic-input w-64" placeholder="Search ID, name or phone" aria-label="Search clients"/>
             <Link v-if="can.create" :href="route('clients.import.create')" class="secondary-btn">Import clients</Link>
@@ -26,7 +26,8 @@
                         <td class="whitespace-nowrap">{{ client.updated_at }}</td>
                         <td class="w-px">
                             <row-actions :view-href="route('clients.show', client.id)"
-                                         :edit-href="can.edit ? route('clients.edit', client.id) : null"/>
+                                         :edit-href="can.edit ? route('clients.edit', client.id) : null"
+                                         :deletable="!!can.delete" @delete="destroy(client)"/>
                         </td>
                     </tr>
                     <tr v-if="!(clients?.data || []).length">
@@ -45,6 +46,7 @@
 import { ref, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import RowActions from '@/Shared/RowActions.vue'
+import { confirmDialog } from '@/Components/confirmDialog'
 import HelpManual from '@/Components/HelpManual.vue'
 import Pagination from '@/Components/Pagination.vue'
 import { Link, router } from '@inertiajs/vue3'
@@ -66,7 +68,12 @@ export default {
             router.get(route('clients.index'), pickBy(form.value), { preserveState: true, preserveScroll: true, replace: true })
         }, 400), { deep: true })
 
-        return { form }
+        const destroy = async (client) => {
+            if (await confirmDialog({ title: `Delete ${client.name || 'this client'}?`, message: 'The client record and its notes and files are removed. Loans in the loan book are not affected.', confirmLabel: 'Delete', tone: 'danger' }))
+                router.delete(route('clients.destroy', client.id), { preserveScroll: true })
+        }
+
+        return { form, destroy }
     },
 }
 </script>

@@ -470,16 +470,23 @@ private function pdfChange($now, $then, string $kind, bool $goodWhenUp, bool $ti
  */
 private function monthEndStatus(string $period): array
 {
-    $rp = ReportingPeriods::whereDate('period', $period . '-01')->first();
+    // read from the loans themselves, the same test the Workspace checklist uses:
+    // the legacy reporting_periods pointers are no longer written by the segment engines
+    $lb = LoanBook::where('reporting_period', $period)
+        ->selectRaw('count(*) n, sum(pd_prefli is not null) pd, sum(lgd_value is not null or collection_lgd is not null) lgd, sum(pd_post_fli is not null) fli, sum(ecl_value is not null) ecl, max(pd_segment_run_id) pd_run')
+        ->first();
+    $n = (int) ($lb->n ?? 0);
 
     return [
         'period' => $period,
-        'loan_book_rows' => (int) LoanBook::where('reporting_period', $period)->count(),
-        'pd_applied' => (bool) ($rp?->pd_id),
-        'pd_source' => $rp?->pd_calculation_source,
-        'lgd_applied' => (bool) ($rp?->lgd_id),
-        'lgd_source' => $rp?->lgd_calculation_source,
-        'ecl_calculated' => (bool) ($rp?->ecl_calculated),
+        'loan_book_rows' => $n,
+        'pd_applied' => $n > 0 && (int) $lb->pd === $n,
+        'pd_source' => $n > 0 ? number_format((int) $lb->pd) . ' of ' . number_format($n) . ' loans' . ($lb->pd_run ? ', PD by segment' : '') : null,
+        'lgd_applied' => $n > 0 && (int) $lb->lgd === $n,
+        'lgd_source' => $n > 0 ? number_format((int) $lb->lgd) . ' of ' . number_format($n) . ' loans' : null,
+        'fli_applied' => $n > 0 && (int) $lb->fli === $n,
+        'ecl_calculated' => $n > 0 && (int) $lb->ecl > 0,
+        'ecl_loans' => (int) ($lb->ecl ?? 0),
     ];
 }
 

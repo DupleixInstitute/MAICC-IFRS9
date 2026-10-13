@@ -54,10 +54,13 @@ class CollateralController extends Controller
                 ->pluck('registration_date');
 
             $collateralList = CollateralRegister::all();
+            // the month the form opens on: the latest loan book, not today's month
+            $latest = \Illuminate\Support\Facades\DB::table('loan_books')->max('reporting_period');
             return Inertia::render('Collateral/Components/Allocate',
                 [
                 'collateralList' => $collateralList,
-                 'registerDates' => $registerDates]
+                 'registerDates' => $registerDates,
+                 'latestPeriod' => $latest]
                 );
         }
 
@@ -136,8 +139,8 @@ class CollateralController extends Controller
         $request->validate([
             'type_code' => 'required|unique:collateral_types,type_code',
             'type_name' => 'required|string|max:255',
-            'standard_haircut' => 'required|numeric|min:0|max:100',
-            'realisation_period' => 'required|integer|min:1',
+            'standard_haircut' => 'required|numeric|min:0|max:1',
+            'realisation_period' => 'required|integer|min:0|max:240',
             'description' => 'nullable|string',
         ]);
 
@@ -153,8 +156,8 @@ class CollateralController extends Controller
         $request->validate([
             'type_code' => 'required|unique:collateral_types,type_code,' . $collateralType->id,
             'type_name' => 'required|string|max:255',
-            'standard_haircut' => 'required|numeric|min:0|max:100',
-            'realisation_period' => 'required|integer|min:1',
+            'standard_haircut' => 'required|numeric|min:0|max:1',
+            'realisation_period' => 'required|integer|min:0|max:240',
             'description' => 'nullable|string',
         ]);
         
@@ -320,14 +323,15 @@ class CollateralController extends Controller
                 'allocation_basis' => 'required|string|in:proportional,equal,descending,ascending',
                 'reporting_year' => 'required|integer|min:2000|max:' . now()->year,
                 'reporting_month' => 'required|integer|min:1|max:12',
-                'period' => 'nullable|date',
+                'registration_date' => 'nullable|date',
             ]);
 
             
             $reportingYear = $request->input('reporting_year');
             $reportingMonth = $request->input('reporting_month');
             $reportingPeriod = date('Y-m-d', strtotime("{$reportingYear}-{$reportingMonth}-01"));
-            $period = $request->input('period') ?: $reportingPeriod;
+            // the register date chosen on the screen; with none, every register date counts
+            $period = $request->input('registration_date') ?: null;
 
             // Fetch clients who have at least one loan and one collateral
           // Step 1: try via Client model (if it exists)
@@ -337,7 +341,7 @@ class CollateralController extends Controller
                 ->where('reporting_month', $reportingMonth);
             })->whereHas('collateralRegisters', function ($q) use ($period) {
                 if ($period) {
-                    $q->whereDate('period', $period);
+                    $q->whereDate('registration_date', $period);
                 }
             })->get();
 
@@ -379,7 +383,7 @@ class CollateralController extends Controller
 
                     // fetch collaterals directly
                     $collaterals = CollateralRegister::where('customer_id', $customer->customer_id)
-                        ->when($period, fn($q) => $q->whereDate('period', $period))
+                        ->when($period, fn($q) => $q->whereDate('registration_date', $period))
                         ->get();
                 } else {
                     // existing Client-based relationships

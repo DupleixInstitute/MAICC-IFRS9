@@ -21,9 +21,9 @@ const ACCENT = { maiic: '#15803d', emerald: '#15803d', amber: '#d97706', rose: '
 <template>
     <div v-if="items.length" class="grid gap-3" :class="cols">
         <div v-for="(k, i) in items" :key="i" class="maiic-kpi min-w-0 px-4 py-3" :style="{ '--accent': ACCENT[k.tone] || ACCENT.maiic }">
-            <div class="maiic-kpi-label truncate" :title="k.label">{{ k.label }}</div>
+            <div class="maiic-kpi-label leading-tight" :title="k.label">{{ k.label }}</div>
             <div class="truncate text-xl font-extrabold leading-tight text-gray-900 tabular-nums" :title="String(k.value)">{{ k.value }}</div>
-            <div v-if="k.sub" class="mt-0.5 truncate text-xs text-gray-500">{{ k.sub }}</div>
+            <div v-if="k.sub" class="mt-0.5 text-xs leading-tight text-gray-500">{{ k.sub }}</div>
         </div>
     </div>
 </template>

@@ -43,7 +43,7 @@ class DisbursementReportService
         $mode = $params['mode'] ?? 'summary';
         $portfolioName = DB::table('loan_portfolios')
             ->where('id', $params['portfolio_id'])
-            ->value('name') ?? 'Unknown Portfolio';
+            ->value('name') ?? 'All portfolios';
 
         return self::createCsvResponse($data, $startPeriod, $endPeriod, $portfolioName, $mode);
     }
@@ -134,7 +134,7 @@ class DisbursementReportService
                 'lb.external_identity_id',
                 DB::raw('lb.carrying_amount as principal_balance'),
                 'lb.create_date',
-                'lb.portfolio_group',
+                DB::raw('(SELECT name FROM loan_portfolios p WHERE p.id = lb.loan_portfolio_id) as portfolio_group'),
             ])
             ->whereBetween('lb.reporting_period', [$startPeriod, $endPeriod])
             ->whereRaw("DATE_FORMAT(lb.create_date, '%Y-%m') = lb.reporting_period")

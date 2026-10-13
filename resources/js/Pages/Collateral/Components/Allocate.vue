@@ -54,13 +54,16 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 export default {
   props: {
     registerDates: { type: Array, default: () => [] },
+    latestPeriod: { type: String, default: null },
   },
   components: {
     AppLayout,
     Link,
   },
-  setup() {
-    const currentDate = new Date()
+  setup(props) {
+    // open on the latest loan book month; today's month has no loan book until it is built
+    const [ly, lm] = (props.latestPeriod || '').split('-').map(Number)
+    const currentDate = ly && lm ? new Date(ly, lm - 1, 1) : new Date()
 
     const form = useForm({
       allocation_basis: 'proportional',

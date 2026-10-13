@@ -80,7 +80,7 @@
                             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                  stroke-linecap="round" stroke-linejoin="round"><path :d="k.icon"/></svg>
                         </span>
-                        <p class="maiic-kpi-label !mb-0 truncate">{{ k.label }}</p>
+                        <p class="maiic-kpi-label !mb-0 leading-tight">{{ k.label }}</p>
                     </div>
                     <p class="mt-1.5 truncate text-xl font-extrabold leading-tight tabular-nums text-gray-900 dark:text-slate-100">{{ k.value }}</p>
                     <p v-if="k.full" class="mt-0.5 truncate text-[11px] tabular-nums text-gray-400">{{ k.full }}</p>
@@ -691,9 +691,10 @@ const monthEndSteps = computed(() => {
     if (!m) return []
     return [
         { label: 'Loan book loaded', done: m.loan_book_rows > 0, detail: m.loan_book_rows > 0 ? `${formatCount(m.loan_book_rows)} loans` : 'Not loaded', href: route('loan_applications.loan-book') },
-        { label: 'PD applied', done: m.pd_applied, detail: m.pd_applied ? `Source: ${m.pd_source || 'system'}` : 'Cumulative PD not yet applied', href: route('transition-matrix-cummulative.index') },
-        { label: 'LGD applied', done: m.lgd_applied, detail: m.lgd_applied ? `Source: ${m.lgd_source || 'system'}` : 'Cumulative LGD not yet applied', href: route('lgd-cummulative.index') },
-        { label: 'ECL calculated', done: m.ecl_calculated, detail: m.ecl_calculated ? 'Results available' : 'Not yet calculated', href: route('expected-credit-loss.index') },
+        { label: 'PD applied', done: m.pd_applied, detail: m.pd_source || 'Not yet applied', href: route('transition-matrices.index') },
+        { label: 'LGD applied', done: m.lgd_applied, detail: m.lgd_source || 'Not yet applied', href: route('loss-given-default.index') },
+        { label: 'Forward-looking applied', done: m.fli_applied, detail: m.fli_applied ? 'Every loan carries a post-FLI PD' : 'Not yet applied for every loan', href: route('fli.overview', { period: m.period }) },
+        { label: 'ECL calculated', done: m.ecl_calculated, detail: m.ecl_calculated ? `${formatCount(m.ecl_loans)} loans` : 'Not yet calculated', href: route('expected-credit-loss.index') },
     ]
 })
 

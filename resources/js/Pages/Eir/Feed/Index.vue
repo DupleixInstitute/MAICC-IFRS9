@@ -36,7 +36,7 @@
                     <tr>
                       <td class="font-mono text-xs" :title="'Pack fingerprint ' + l.hash">{{ l.id }}</td>
                       <td class="max-w-xs truncate" :title="l.pack">{{ l.pack }}</td>
-                      <td class="text-xs whitespace-nowrap">{{ l.route }}</td>
+                      <td class="text-xs whitespace-nowrap">{{ $filters.plain(l.route) }}</td>
                       <td class="whitespace-nowrap">{{ l.period || 'History' }}</td>
                       <td><span class="maiic-badge" :class="statusBadge(l.status)">{{ l.status }}</span></td>
                       <td class="num">{{ l.files }}<span v-if="l.failed" class="text-red-600"> ({{ l.failed }} failed)</span></td>
@@ -96,7 +96,7 @@
                 <label><span class="maiic-flabel">Method</span>
                   <select v-model="build.method" class="maiic-select"><option value="">In force on each period end</option><option value="A">A: from the stored run</option><option value="B">B: derived from the ledger</option></select>
                 </label>
-                <label class="flex items-center gap-2 pb-2 text-sm text-gray-700"><input v-model="build.retire_stale" type="checkbox"/> Retire old test rows</label>
+                <label class="flex items-center gap-2 pb-2 text-sm text-gray-700" title="Retires rows of this month that came from older file imports, not from any build, and that this build does not produce. Mega Farm and out-of-scope rows are never touched."><input v-model="build.retire_stale" type="checkbox"/> Retire rows from older imports</label>
                 <button type="submit" class="primary-btn" :disabled="building">{{ building ? 'Proposing...' : 'Propose a build' }}</button>
               </form>
             </div>

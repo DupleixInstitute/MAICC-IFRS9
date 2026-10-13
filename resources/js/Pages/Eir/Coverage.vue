@@ -168,7 +168,7 @@ const tab = computed(() => props.activeTab || 'blockers')
 const VIEWS = {
   blockers: { label: 'Blockers', description: 'What is holding back the contracts that do not yet carry a locked EIR, ranked by exposure' },
   portfolios: { label: 'Coverage by Portfolio', description: 'How much of each portfolio carries a locked EIR' },
-  facilities: { label: 'Largest Facilities', description: 'The largest facilities still without a locked EIR, and what blocks each one' },
+  facilities: { label: 'Largest Facilities', description: 'The largest facilities by exposure, their EIR state, and what still blocks those not yet locked' },
 }
 const view = computed(() => VIEWS[tab.value] || VIEWS.blockers)
 const compact = (v) => {

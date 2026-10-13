@@ -27,7 +27,7 @@ class LoanPortfolio extends Model
 
     public function loanBooks()
     {
-        return $this->hasMany(LoanBook::class, 'portfolio_group');
+        return $this->hasMany(LoanBook::class, 'loan_portfolio_id');
     }
 
     public function creditLossData()

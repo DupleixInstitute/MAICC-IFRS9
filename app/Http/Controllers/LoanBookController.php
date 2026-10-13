@@ -571,15 +571,15 @@ class LoanBookController extends Controller
         ]);
 
         Excel::import(
+            // the column mapping the user chose is read flat (CSV header => field), beside
+            // the portfolio and the period; the import type selects the standard or mapped reader
             new LoanBooksImport(
                 $import,
                 array_merge(
-                    $request->only(['loan_portfolio_id','reporting_period','reporting_year','reporting_month']),
-                    [
-                        'import_type' => $request->import_type,
-                        'mapping' => $request->input('mapping', []),
-                    ]
-                )
+                    array_filter((array) $request->input('mapping', []), fn ($v) => is_string($v) && $v !== ''),
+                    $request->only(['loan_portfolio_id', 'reporting_period', 'reporting_year', 'reporting_month'])
+                ),
+                (string) $request->import_type
             ),
             $request->file('file')
         );

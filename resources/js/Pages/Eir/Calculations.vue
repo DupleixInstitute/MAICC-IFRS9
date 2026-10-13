@@ -184,7 +184,9 @@ export default {
   computed: {
     cards() {
       const accents = { PENDING: '#d97706', REOPENED: '#c69b2c', BLOCKED: '#dc2626', CALCULATED: '#0f766e', LOCKED: '#15803d' }
-      return this.statuses.map(s => ({ label: this.statusLabel(s), value: Number(this.summary[s]?.contract_count || 0), sub: 'contracts', accent: accents[s] }))
+      // the workflow state of each contract; the Blockers tab says why a pending one cannot be calculated yet
+      const subs = { PENDING: 'not calculated yet (see Blockers)', REOPENED: 'reopened for recalculation', BLOCKED: 'stopped by a calculation run', CALCULATED: 'awaiting approval', LOCKED: 'approved and locked' }
+      return this.statuses.map(s => ({ label: this.statusLabel(s), value: Number(this.summary[s]?.contract_count || 0), sub: subs[s] || 'contracts', accent: accents[s] }))
     },
     bulkTitle() {
       const a = this.approvalSummary

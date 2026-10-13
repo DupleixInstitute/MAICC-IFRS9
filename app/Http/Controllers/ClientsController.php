@@ -86,7 +86,7 @@ public function index(Request $request)
     {
         $request->validate([
             'name' => ['required', 'string'],
-            'customer_id' => ['required', 'string'],
+            'customer_id' => ['required', 'string', 'unique:clients,customer_id'],
         //     'mobile' => ['required', 'string', 'regex:/^07\d{8}$/'],
         // ], [
         //     'mobile.regex' => 'Phone number must be 10 digits starting with 07',
@@ -133,7 +133,7 @@ public function index(Request $request)
     {
         $request->validate([
             'name' => ['required', 'string'],
-            'customer_id' => ['required', 'string'],
+            'customer_id' => ['required', 'string', 'unique:clients,customer_id,' . $client->id],
            // 'mobile' => ['required', 'string', 'regex:/^07\d{8}$/'],
         ]);
 

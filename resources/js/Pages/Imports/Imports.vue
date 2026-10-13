@@ -38,22 +38,18 @@
                         <th>Uploaded</th>
                         <th class="num">Records inserted</th>
                         <th class="num">Failed rows</th>
-                        <th>Started</th>
-                        <th>Completed</th>
-                        <th class="num">Duration</th>
+                        <th>Ran</th>
                         <th class="text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr v-for="result in results.data" :key="result.id">
-                        <td class="min-w-[16rem] font-semibold text-gray-900">{{ result.name }}</td>
+                        <td class="min-w-[12rem] font-semibold text-gray-900">{{ result.name }}</td>
                         <td><span class="maiic-badge capitalize" :class="statusBadge(result.status)">{{ result.status }}</span></td>
                         <td class="whitespace-nowrap">{{ result.created_at ? $filters.time(result.created_at) : '' }}</td>
                         <td class="num">{{ formatCount(result.records) }}</td>
                         <td class="num"><span :class="result.failed_records > 0 ? 'font-semibold text-red-600' : ''">{{ formatCount(result.failed_records) }}</span></td>
-                        <td class="whitespace-nowrap">{{ result.started_at ? $filters.time(result.started_at) : '' }}</td>
-                        <td class="whitespace-nowrap">{{ result.completed_at ? $filters.time(result.completed_at) : '' }}</td>
-                        <td class="num">{{ result.started_at && result.completed_at ? calculateDuration(result.started_at, result.completed_at) : '' }}</td>
+                        <td class="whitespace-nowrap text-xs">{{ result.started_at ? $filters.time(result.started_at) : '-' }}<div v-if="result.started_at && result.completed_at" class="text-gray-500">took {{ calculateDuration(result.started_at, result.completed_at) }}</div></td>
                         <td class="text-right">
                             <a v-if="result.failed_records > 0 && result.failed_file_path"
                                :href="route('imports.failed-download', result.id)" target="_blank"
@@ -63,7 +59,7 @@
                         </td>
                     </tr>
                     <tr v-if="results.data.length === 0">
-                        <td class="maiic-empty" colspan="9">{{ form.search || form.status ? 'No import matches these filters.' : 'No file has been imported yet. Use Import loan book (top right) to upload the first one.' }}</td>
+                        <td class="maiic-empty" colspan="7">{{ form.search || form.status ? 'No import matches these filters.' : 'No file has been imported yet. Use Import loan book (top right) to upload the first one.' }}</td>
                     </tr>
                     </tbody>
                 </table>

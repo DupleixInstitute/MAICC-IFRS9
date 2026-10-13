@@ -3,12 +3,12 @@
          there are cards, small padding, sentence-case labels. -->
     <div class="grid gap-3" :class="gridClass">
         <div v-for="card in cards" :key="card.label" class="maiic-kpi !py-3" :style="card.accent ? { '--accent': card.accent } : null" :title="card.hint || null">
-            <div class="maiic-kpi-label truncate">{{ card.label }}</div>
+            <div class="maiic-kpi-label leading-tight">{{ card.label }}</div>
             <div class="text-xl font-bold leading-tight text-gray-900 tabular-nums truncate" :class="card.valueClass || ''">{{ display(card) }}</div>
             <div v-if="card.bar !== undefined && card.bar !== null" class="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200">
                 <div class="h-full rounded-full bg-maiic-600" :style="{ width: Math.max(0, Math.min(100, Number(card.bar))) + '%' }"></div>
             </div>
-            <div v-if="card.sub" class="mt-0.5 text-[11px] text-gray-500 truncate">{{ card.sub }}</div>
+            <div v-if="card.sub" class="mt-0.5 text-[11px] leading-tight text-gray-500">{{ card.sub }}</div>
         </div>
     </div>
 </template>

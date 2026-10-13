@@ -18,7 +18,7 @@
                 <tr v-for="row in imports" :key="row.id">
                     <td class="min-w-[16rem] font-semibold text-gray-900">{{ row.name }}</td>
                     <td><span class="maiic-badge capitalize" :class="badge(row.status)">{{ row.status }}</span></td>
-                    <td class="whitespace-nowrap">{{ String(row.created_at || '').replace('T', ' ').slice(0, 16) }}</td>
+                    <td class="whitespace-nowrap">{{ row.created_at ? $filters.time(row.created_at) : '' }}</td>
                     <td class="num">{{ count(row.records) }}</td>
                     <td class="num"><span :class="row.failed_records > 0 ? 'font-semibold text-red-600' : ''">{{ count(row.failed_records) }}</span></td>
                     <td class="text-right">

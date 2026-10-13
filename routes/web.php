@@ -809,7 +809,6 @@ Route::get('/loss-given-default/cummulative/reports',[LossGivenDefaultCummulativ
 // ECL Routes
 Route::get('/expected-credit-loss/list', [ExpectedCreditLossController::class, 'index'])->name('expected-credit-loss.index');
 Route::get('/expected-credit-loss/summary', [ExpectedCreditLossController::class, 'summary'])->name('expected-credit-loss.summary');
-Route::post('/collateral/allocations/allocate', [CollateralController::class, 'allocateCollateral'])->name('collateral.allocations.allocate');
 Route::get('/collateral/allocations/download-report', [CollateralController::class, 'downloadAllocationReport'])->name('collateral.allocations.download-report');
 
 // Auto Allocate (Inertia UI page)
@@ -1105,6 +1104,7 @@ Route::post('/collateral/allocate/auto', [CollateralController::class, 'allocate
 Route::prefix('groups')->name('groups.')->group(function () {
     Route::get('/', [LoanProductCategoriesController::class, 'index'])->name('index');
     Route::get('/create', [LoanProductCategoriesController::class, 'create'])->name('create');
+    Route::post('/sync', [LoanProductCategoriesController::class, 'sync'])->name('sync');
     Route::post('/store', [LoanProductCategoriesController::class, 'store'])->name('store');
     Route::get('/{group}/edit', [LoanProductCategoriesController::class, 'edit'])->name('edit');
     Route::put('/{group}/update', [LoanProductCategoriesController::class, 'update'])->name('update');

@@ -36,8 +36,8 @@ class ImportsController extends Controller
     {
         $filePath = storage_path('app/public/' . $import->failed_file_path);
 
-        if (!file_exists($filePath)) {
-            abort(404, 'File not found.');
+        if (! $import->failed_file_path || ! is_file($filePath)) {
+            return back()->with('error', 'No failed-rows file was kept for this import (it predates the file being recorded). Import the file again to get one.');
         }
 
         return response()->download($filePath);

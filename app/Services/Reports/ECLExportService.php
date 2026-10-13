@@ -39,7 +39,7 @@ class ECLExportService
         $mode = $params['mode'] ?? 'summary';
         $portfolioName = DB::table('loan_portfolios')
             ->where('id', $params['portfolio_id'])
-            ->value('name') ?? 'Unknown Portfolio';
+            ->value('name') ?? 'All portfolios';
 
         $filename = sprintf(
             'ecl_export_%s_%s_%s.csv',
