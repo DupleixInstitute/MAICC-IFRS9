@@ -116,6 +116,7 @@ class SectionTabCounts
         $special = [
             'eir-feed.index?tab=periods' => fn () => Schema::hasTable('loan_books') ? DB::table('loan_books')->distinct()->count('reporting_period') : null,
             'eir-as-at.index' => fn () => Schema::hasTable('contract_eir') ? DB::table('contract_eir')->where('calculation_status', 'LOCKED')->count() : null,
+            'eir-trial-balances.index' => fn () => Schema::hasTable('gl_trial_balance_lines') ? DB::table('gl_trial_balance_lines')->where('basis', 'POSTCLOSING')->distinct()->count('period') : null,
         ];
         if (isset($special[$route])) {
             return self::$memo[$route] = $special[$route]();

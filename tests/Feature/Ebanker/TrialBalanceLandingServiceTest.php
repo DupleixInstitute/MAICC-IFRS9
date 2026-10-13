@@ -253,4 +253,16 @@ class TrialBalanceLandingServiceTest extends TestCase
         $this->assertSame(0, $this->service()->derive()['lines']);
         $this->assertSame(1, GlTrialBalanceLine::count());
     }
+
+    public function test_landing_one_month_leaves_months_loaded_before_the_landing_zone_alone(): void
+    {
+        // a month held from before the landing zone existed (the demo database's 20 months came that way)
+        GlTrialBalanceLine::create(['period' => '2024-12-01', 'gl_code' => '1050101', 'gl_title' => 'Loans', 'debit' => 7, 'credit' => 0, 'basis' => 'POSTCLOSING', 'source_file' => 'legacy.xls']);
+        $r = $this->service()->landFile($this->january(), GlTrialBalanceLine::BASIS_POSTCLOSING, null, null, 1);
+        $this->assertSame('LANDED', $r['status']);
+        $this->service()->derive();
+
+        $this->assertSame(1, GlTrialBalanceLine::whereDate('period', '2024-12-01')->count());
+        $this->assertSame(3, GlTrialBalanceLine::whereDate('period', '2025-01-01')->count());
+    }
 }

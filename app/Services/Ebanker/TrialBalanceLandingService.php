@@ -208,8 +208,11 @@ class TrialBalanceLandingService
     /**
      * gl_trial_balance_lines from the current landed TB_01 rows: one line per
      * period, basis and GL code, the attributes TrialBalanceImportService
-     * wrote. A line the zone no longer holds is removed, so the GL side is
-     * always exactly the landed files. Idempotent.
+     * wrote. Within a month and basis the zone holds, a line the zone no
+     * longer holds is removed, so that month is exactly its landed file; a
+     * month the zone does not hold at all (loaded before the landing zone
+     * existed) is left as it is, so landing one month from the screen never
+     * empties the others. Idempotent.
      *
      * @return array{lines:int,imported:int,updated:int,removed:int,periods:list<string>}
      */
@@ -247,8 +250,12 @@ class TrialBalanceLandingService
                 $imported++;
             }
             $periods[substr((string) $p['PERIOD'], 0, 7)] = true;
+            $held[substr((string) $p['PERIOD'], 0, 10) . '|' . $attributes['basis']] = [substr((string) $p['PERIOD'], 0, 10), $attributes['basis']];
         }
-        $removed = GlTrialBalanceLine::whereNotIn('id', array_unique($keep))->delete();
+        $removed = 0;
+        foreach ($held ?? [] as [$period, $basis]) {
+            $removed += GlTrialBalanceLine::whereDate('period', $period)->where('basis', $basis)->whereNotIn('id', array_unique($keep))->delete();
+        }
 
         return ['lines' => count($keep), 'imported' => $imported, 'updated' => $updated, 'removed' => (int) $removed, 'periods' => array_keys($periods)];
     }

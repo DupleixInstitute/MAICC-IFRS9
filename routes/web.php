@@ -1290,6 +1290,11 @@ Route::group(['prefix' => 'eir-feed', 'as' => 'eir-feed.'], function () {
     Route::post('/build', [\App\Http\Controllers\EirFeedController::class, 'build'])->name('build');
     Route::post('/build/{build}/approve', [\App\Http\Controllers\EirFeedController::class, 'approve'])->name('approve');
 });
+// Finance's monthly trial balance, from the screen, through the landing zone's gates
+Route::group(['prefix' => 'eir-trial-balances', 'as' => 'eir-trial-balances.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirTrialBalanceController::class, 'index'])->name('index');
+    Route::post('/upload', [\App\Http\Controllers\EirTrialBalanceController::class, 'upload'])->name('upload');
+});
 Route::group(['prefix' => 'eir-takeon', 'as' => 'eir-takeon.'], function () {
     Route::get('/', [\App\Http\Controllers\EirTakeonController::class, 'index'])->name('index');
     Route::post('/upload', [\App\Http\Controllers\EirTakeonController::class, 'upload'])->name('upload');
