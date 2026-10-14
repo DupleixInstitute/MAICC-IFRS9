@@ -1,4 +1,4 @@
-## 6. Web Server and TLS
+## 6. Web server and TLS
 
 The application's document root is the `public` folder only. Never expose the repository root.
 
@@ -32,7 +32,7 @@ server {
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.2-fpm.sock;
-        fastcgi_read_timeout 300;
+        fastcgi_read_timeout 1800;
     }
 
     location ~ /\.(?!well-known) {
@@ -40,6 +40,8 @@ server {
     }
 }
 ```
+
+`client_max_body_size 64M` matches `upload_max_filesize` and `post_max_size` in chapter 5.3. It bounds every upload: a trial balance (the screen accepts up to 50 MB), the take-on workbook and a zipped E-Banker pack on the E-Banker Loads screen. A pack larger than that is landed from the shared feed folder (route 2) or on the console with `php artisan eir:land-pack <folder> --user=<id>`. `fastcgi_read_timeout 1800` lets the screens that read the whole E-Banker ledger (a loan book build, Write-offs, EIR as at a Date, the RBM return) finish: each raises its own limits to 4 GB and 1,800 seconds for that request (`app/Support/LedgerReadLimits.php`). The month-end and bootstrap jobs run as console processes, not in the web request.
 
 Enable and reload:
 
@@ -68,6 +70,7 @@ sudo a2enconf php8.2-fpm
         AllowOverride All
         Require all granted
     </Directory>
+    ProxyTimeout 1800
     ErrorLog ${APACHE_LOG_DIR}/maiic-error.log
     CustomLog ${APACHE_LOG_DIR}/maiic-access.log combined
 </VirtualHost>

@@ -1,4 +1,4 @@
-## 5. Environment Configuration
+## 5. Environment configuration
 
 ### 5.1 The environment file
 
@@ -15,23 +15,30 @@
 | `LOG_CHANNEL` | `daily` |
 | `LOG_LEVEL` | `warning` in production, `debug` while diagnosing |
 | `DB_CONNECTION` | `mysql` |
-| `DB_HOST`, `DB_PORT` | `127.0.0.1`, `3306` |
+| `DB_HOST`, `DB_PORT` | `127.0.0.1`, `3306`. Always set both: the fallback in `config/database.php` is port `3308` and database `ifrs9_maiic` |
 | `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | From chapter 3.2 |
 | `CACHE_DRIVER` | `file` (or `redis` if Redis is installed) |
 | `QUEUE_CONNECTION` | `database` |
 | `SESSION_DRIVER` | `database` |
 | `SESSION_LIFETIME` | `120` minutes, or MAIIC's policy |
 | `SESSION_SECURE_COOKIE` | `true` after TLS is live |
-| `FILESYSTEM_DISK` | `local` |
+| `FILESYSTEM_DRIVER` | `local` (this project's `config/filesystems.php` reads `FILESYSTEM_DRIVER`, not the newer `FILESYSTEM_DISK`) |
 | `MAIL_MAILER` | `smtp` |
 | `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION` | MAIIC's relay; `587` with `tls` is typical |
 | `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | A monitored MAIIC address and "MAIIC IFRS 9" |
 | `FORCE_HTTPS` | `true` after TLS is live |
 | `HSTS_ENABLED` | `true` after TLS is verified for at least a day |
-| `CAPTCHA_ENABLED` | `true` |
+| `CAPTCHA_ENABLED` | `true`; `CAPTCHA_LENGTH` (default 5 characters) and `CAPTCHA_TTL` (default 300 seconds) are optional |
+| `HSTS_MAX_AGE`, `HSTS_INCLUDE_SUBDOMAINS`, `HSTS_PRELOAD` | Optional; defaults one year, `true`, `false` (`config/security.php`) |
+| `EBANKER_FEED_FOLDER` | The shared folder (or SFTP mount) MAIIC's scheduled E-Banker export writes packs to (route 2). The scheduler polls it at 06:30 each day; empty means nothing is polled |
+| `EBANKER_FEED_TOKEN` | A long random secret, given to MAIIC ICT, if the export posts packs to `/api/ebanker-feed/pack` (route 3) with `Authorization: Bearer <token>`. Empty refuses every post (401). The posted packs wait in `storage/app/ebanker-inbox` until the 06:30 poll lands them, and the poll returns before reading the inbox when `EBANKER_FEED_FOLDER` is not an existing folder, so route 3 needs that variable set as well |
+| `WORLDBANK_COUNTRY` | `MWI` (the default) |
+| `HELP_SEED_REFRESH` | Leave unset. Set it only for a one-off seeder run that refreshes the shipped manual text (chapter 11.6) |
+| `FLI_SIDECAR_URL` | Leave empty; an optional statistics service for the forward-looking model, not part of the MAIIC installation |
 | `MANUAL_SHOT_EMAIL`, `MANUAL_SHOT_PASSWORD`, `MANUAL_SHOT_CAPTCHA` | Leave empty in production; used only on a local workstation |
 | `MAIIC_BROWSER_PATH` | Leave empty |
-| `BROADCAST_DRIVER`, `MEMCACHED_HOST`, `REDIS_*`, `AWS_*`, `VITE_*` | Not needed; leave at the example values |
+| `BROADCAST_DRIVER` | `log`. `.env.example` says `pusher`, which needs Pusher keys MAIIC does not have; the loan book import broadcasts its progress and would fail without them (`.env.bootstrap.example` and `.env.demo.example` use `log`) |
+| `MEMCACHED_HOST`, `REDIS_*`, `AWS_*`, `PUSHER_*`, `LARAVEL_WEBSOCKETS_PORT`, `VITE_*` | Not needed; leave at the example values |
 
 ### 5.2 Settings inside the application
 
@@ -40,10 +47,12 @@ After installation, an administrator sets these in the application (see the Admi
 | Setting | Where |
 |---|---|
 | Organisation name, logo, address and contacts | Settings, Organisation |
-| Organisation currency (MWK) | Settings, Organisation, Currencies; seeded by `MaiicCurrencySeeder` |
+| Organisation currency (MWK) | Settings, Currencies; seeded by `MaiicCurrencySeeder` |
 | Email server details (if not in `.env`) | Settings, Email |
-| Financial periods | Administration, Financial Periods |
-| Users and roles | Administration, User Management and Roles and Permissions |
+| Financial periods | Administration & support, Access & Setup, Financial Periods |
+| Users and roles | Administration & support, Access & Setup, Users & Roles (Users; Roles & Permissions) |
+| Governed settings (the EIR, E-Banker feed, loan book build method and forward-looking settings) | Administration & support, Governance, Governance Centre; each change is proposed by one person and approved by another |
+| Staging thresholds (days past due for each stage) | Settings, Staging basis; changed under maker-checker |
 | Licence | Settings, Licence |
 
 ### 5.3 PHP settings
@@ -63,6 +72,8 @@ date.timezone = Africa/Blantyre
 ```
 
 Restart PHP-FPM after changes: `sudo systemctl restart php8.2-fpm`.
+
+The long console jobs need more memory than the web pages. The Maintenance screen starts each job with `php -d memory_limit=4096M`; on the console pass the same when running the bootstrap or the month-end by hand (`php -d memory_limit=4096M artisan eir:bootstrap ...`), because they read the whole E-Banker ledger, Mega Farm included (about 300,000 postings). The CLI has no execution time limit, and the bootstrap, `ifrs9:segment-ecl` and `ifrs9:smoke-reports` lift the limit again after each step that lowers it.
 
 ### 5.4 Configuration checks
 

@@ -5,56 +5,245 @@
  * suite's group name, 'ECL Processing' until the system audit of 9 October
  * 2026, finding M16).
  * Loaded by HelpContentSeeder from database/seeders/data/help_user_content.
+ * Documentation audit of 14 October 2026: the three ECL screens re-read
+ * against the code, and the Mega Farm Programme article added.
  */
 return [
 
     'Financial Modelling: the ECL' => [
 
         'Running an ECL calculation' => [
-            'body' => '<p>The expected credit loss (ECL) calculation is the step that turns the loan book, the models and the forward-looking adjustment into a provision figure. It reads every loan in the reporting period you choose, multiplies exposure by probability of default and loss given default, optionally discounts the result at the loan\'s effective interest rate, and writes the answer to each loan and to a summary row per stage. Open the sidebar, expand <b>Financial Modelling</b>, choose <b>ECL Calculation</b>, then press <b>Calculate ECL</b>. The page that opens is titled <b>ECL - Input Essentials</b>.</p><p>Run this only after the loan book for the period is imported and reconciled, staging is settled, and the PD and LGD models for the period are calculated and applied. If any of those are missing the run still completes, but it measures the wrong thing.</p><h4>What you see on the screen</h4><ul><li><b>Loan Book Period</b>. A month picker. Choose the month-end snapshot you are measuring, for example November 2025.</li><li><b>ECL Calculation Level</b>. Either <b>Portfolio Level</b> or <b>Sector Level</b>. This decides how the results are grouped and stored.</li><li><b>Portfolio Group</b>. Shown only when the level is Portfolio. A list of the portfolios you set up under Data Foundation. Leave it on <b>Select Portfolio</b> to run every portfolio, or pick one.</li><li><b>Sector</b>. Shown only when the level is Sector. Each entry shows the sector code and name, for example <code>1 - Agriculture, forestry and fishing</code>.</li><li><b>PD Type</b>. <b>PD Before FLI</b> uses the probability of default straight from the transition matrix. <b>PD After FLI</b> uses the probability after the forward-looking adjustment. Use PD After FLI for a reported figure; use PD Before FLI to see what the adjustment contributed.</li><li><b>LGD Type</b>. <b>Customer LGD</b>, <b>Collection LGD</b>, or <b>Both (customer x collection)</b>, which multiplies the two.</li><li><b>ECL Measurement Basis</b>. Two cards you choose between. <b>Discounted ECL, EIR present value</b> discounts the expected loss using the approved, locked effective interest rate and keeps the undiscounted amount as a control. <b>Undiscounted ECL, no present-value adjustment</b> calculates exposure times probability times loss rate with no interest rate applied, which is useful for comparison and transition analysis. When you pick the discounted basis the page warns you in amber that loans without a locked EIR or a usable discount horizon will remain visible as unresolved exceptions.</li><li><b>Calculate ECL</b> starts the run. <b>Back</b> returns to the results list without running anything.</li></ul><h4>What happens next</h4><ul><li>Each loan in scope receives its own ECL value, and, on the discounted basis, a discounted value, a discounting effect, the rate used, the rate source and a discount status.</li><li>A summary row is written for each IFRS 9 stage with the total exposure, the total ECL and the average probability and loss rate used, tagged with the level and the identifier you chose.</li><li>The reporting period is marked as having a calculated ECL, which is what makes it appear in the dashboard and the IFRS 9 Reports hub period lists.</li><li>The run is recorded in the audit trail with your name and the options you chose.</li></ul><h4>Common problems</h4><ul><li><b>An ECL calculation is already running.</b> The system takes a lock for each period and scope so two people cannot write the same figures at once. Wait for the other run to finish and try again. If a run was interrupted and the message will not clear, ask Dupleix to release the lock.</li><li><b>Records could not be discounted.</b> Expected on the discounted basis when a contract has no approved and locked EIR. The count appears on the results page. Resolve the contracts on the EIR Coverage and Blockers screen, then run again.</li><li><b>Every figure is zero.</b> The PD or LGD model for the period has not been applied to the loan book. Apply the transition matrix and the LGD run first.</li></ul>',
+            'body' => '<p>The expected credit loss (ECL) calculation turns the loan book, the PD, the LGD and the forward-looking adjustment into a provision. For every loan of the month and scope you choose it works out exposure at default (EAD) times the PD over the stage horizon times the LGD, writes the result to the loan, and saves a summary row per stage. On the discounted basis it also runs the time-phased engine, which discounts each month\'s expected shortfall at the loan\'s locked effective interest rate (EIR): that discounted figure is the allowance MAIIC books at the month-end. To reach the form, open the sidebar and choose <b>Risk &amp; regulatory</b>, then <b>ECL Processing</b>, then <b>ECL Calculation</b>, and click <b>Run ECL calculation</b>. The page is titled <b>Run ECL calculation</b>.</p>'
+                . '<p>Run it only after the month is built, staged, and the PD and LGD are applied (and the forward-looking route has run, for the PD after FLI). A run with a missing input is refused, never filled with zero.</p>'
+                . '<h4>What you see on the screen</h4>'
+                . '<ul>'
+                . '<li>The line <code>Choose the month, the portfolio or sector, and the PD, LGD and measurement basis, then run the calculation</code> and, at the top right, <b>Back to ECL results</b>.</li>'
+                . '<li><b>What to calculate</b>: <b>Loan book month</b> (a month picker, required), <b>Calculate by</b> (<code>Portfolio</code> or <code>Sector</code>), then <b>Portfolio</b> (<code>Select a portfolio</code>) or <b>Sector</b> (<code>Select a sector</code>, listed as code and name). One run covers one portfolio or one sector; run each in turn.</li>'
+                . '<li><b>Inputs</b>: <b>PD to use</b> (<code>PD before forward-looking adjustment</code>, the default, or <code>PD after forward-looking adjustment</code>, the reported basis) and <b>LGD to use</b> (<code>Customer LGD</code>, <code>Collection LGD</code>, the default, or <code>Both (customer x collection)</code>).</li>'
+                . '<li><b>Measurement basis</b>: two cards. <b>Discounted ECL, at the EIR</b> (<code>Discounts the expected loss at the approved, locked effective interest rate. The undiscounted amount is kept as a check.</code>) and <b>Undiscounted ECL</b> (<code>PD x LGD x exposure with no interest rate applied. Use it for comparison and transition analysis.</code>, the default). With the discounted card chosen, an amber note reads <code>Loans without a locked EIR or a usable remaining term stay visible as unresolved exceptions.</code></li>'
+                . '</ul>'
+                . '<h4>Buttons and icons</h4>'
+                . '<ul>'
+                . '<li><b>Run ECL calculation</b> (calculator icon; <code>Calculating...</code> with a spinner while it runs): starts the run.</li>'
+                . '<li><b>Cancel</b> and <b>Back to ECL results</b>: return to the results without running.</li>'
+                . '</ul>'
+                . '<p>Who may run it: any signed-in user; the page checks no permission. Two controls protect the figures: a locked reporting period refuses the run, and only one run per month, level and scope can be in progress at a time.</p>'
+                . '<h4>How the figures are built</h4>'
+                . '<ul>'
+                . '<li><b>Stage</b>: the post-qualitative stage the staging run wrote.</li>'
+                . '<li><b>PD used</b>: Stage 1 carries the 12-month PD over the shorter of twelve months and the remaining term; Stage 2 carries the lifetime PD, 1 minus (1 minus PD) to the power of the remaining months over 12; Stage 3 is 100 percent. A loan with no remaining term is given twelve months.</li>'
+                . '<li><b>EAD</b>: carrying amount plus undrawn commitment times utilisation, never below nil.</li>'
+                . '<li><b>Discounted basis</b>: the time-phased engine projects each loan month by month under the approved scenario set, discounts each month at the locked EIR, weights the scenarios, and writes the discounted ECL beside the undiscounted one. A defaulted (Stage 3) loan with no approved recovery plan is measured at the reporting date, so it needs no rate. A loan with no locked EIR is left unresolved and named; it is never given a rate.</li>'
+                . '</ul>'
+                . '<h4>To run the ECL</h4>'
+                . '<ol>'
+                . '<li>Choose the <b>Loan book month</b>, for example the month-end being reported.</li>'
+                . '<li>Choose <b>Calculate by</b> and the portfolio or sector.</li>'
+                . '<li>Choose <b>PD to use</b> and <b>LGD to use</b> as the approved methodology says.</li>'
+                . '<li>Choose <b>Discounted ECL, at the EIR</b> for the booked figure, or <b>Undiscounted ECL</b> for comparison.</li>'
+                . '<li>Click <b>Run ECL calculation</b> and wait for the results page.</li>'
+                . '</ol>'
+                . '<h4>What happens next</h4>'
+                . '<ul>'
+                . '<li>Each loan in scope gets its ECL and, on the discounted basis, its discounted ECL, discounting effect, rate, rate source, horizon and discount status. An undiscounted run clears any discounted figure an earlier run left on those loans.</li>'
+                . '<li>A summary row per stage is saved with the loans, EAD, average PD and LGD used, undiscounted and discounted ECL and the basis; it shows on the <b>Run summary by stage</b> tab.</li>'
+                . '<li>The month is marked as having an ECL, which puts it in the dashboard and the IFRS 9 Reports period lists, and the run is written to the audit trail.</li>'
+                . '<li>The banner reads <code>ECL calculated at portfolio level in N minutes for (yyyy-mm).</code>, followed on the discounted basis by <code>Discounted ECL calculated for N loan(s); N remain unresolved.</code></li>'
+                . '</ul>'
+                . '<h4>Empty states and messages</h4>'
+                . '<ul>'
+                . '<li><code>ECL not calculated for (yyyy-mm): N loan(s) with exposure have no stage, PD (pd_prefli) or LGD, for example (contracts). Run staging, the PD and LGD engines (and the forward-looking route for pd_post_fli) first.</code></li>'
+                . '<li><code>An ECL calculation for (yyyy-mm) (portfolio) is already running. Please try again once it finishes.</code></li>'
+                . '<li><code>Discounted ECL not calculated for (yyyy-mm): no approved scenario set covers the reporting period ... no proxy is applied.</code></li>'
+                . '<li><code>Reporting period (yyyy-mm) is locked: the ECL cannot be written. ...</code></li>'
+                . '</ul>'
+                . '<h4>Common problems</h4>'
+                . '<ul>'
+                . '<li><b>The run is refused for missing PD or LGD</b>: apply the PD (monthly matrix or internal grades) and the cumulative LGD for the month and scope, and for the PD after FLI run the forward-looking route.</li>'
+                . '<li><b>Many loans unresolved on the discounted basis</b>: they have no approved and locked EIR. Resolve them on EIR Calculations (Blockers), then run again.</li>'
+                . '<li><b>The Mega Farm portfolio</b>: do not run it here. The programme is measured on the Mega Farm Programme screen with its own PD and LGD.</li>'
+                . '</ul>',
             'steps' => [
-                'Open Financial Modelling, then ECL Calculation, and press Calculate ECL.',
-                'Choose the Loan Book Period, for example the month-end you are reporting.',
-                'Choose the ECL Calculation Level, then the portfolio or sector, or leave it blank to run them all.',
-                'Choose PD Type and LGD Type to match the approved methodology for the period.',
-                'Choose the ECL Measurement Basis: Discounted for the reported figure, Undiscounted for comparison.',
-                'Press Calculate ECL and wait for the results page to open.',
-                'Check the unresolved-records banner and the stage totals before using the figures.',
+                'Open the sidebar, choose Risk & regulatory, then ECL Processing, then ECL Calculation, and click Run ECL calculation.',
+                'Choose the Loan book month.',
+                'Choose Calculate by and the portfolio or sector.',
+                'Choose PD to use and LGD to use to match the approved methodology.',
+                'Choose the measurement basis: Discounted ECL, at the EIR for the booked figure, Undiscounted ECL for comparison.',
+                'Click Run ECL calculation and wait for the results page.',
+                'Check the banner for unresolved loans, then the stage totals on Run summary by stage.',
             ],
             'images' => [
-                'ecl-create' => 'The ECL Input Essentials form with the calculation level, PD and LGD types and the two measurement-basis cards',
+                'ecl-create' => 'Run ECL calculation: Loan book month, Calculate by, the portfolio or sector, PD to use, LGD to use and the two measurement-basis cards',
             ],
-            'routes' => ['expected-credit-loss.create'],
+            'routes' => ['expected-credit-loss.create', 'expected-credit-loss.calculation'],
         ],
 
         'ECL results' => [
-            'body' => '<p>The <b>Expected Credit Loss Management</b> screen lists what the calculation produced, loan by loan, and lets you export it. Open the sidebar, expand <b>Financial Modelling</b> and choose <b>ECL Calculation</b>.</p><h4>What you see on the screen</h4><ul><li>Four buttons across the header. <b>Projection Audit</b> opens the time-phased projection evidence. <b>Calculate ECL</b> starts a new run. <b>ECL Reconciliation</b> opens a modal that takes you to the movement report. <b>Export Report</b> opens the export modal.</li><li>Two measurement-basis tabs: <b>Discounted ECL (EIR present value)</b> and <b>Undiscounted ECL</b>. The tab you choose changes the three summary cards and which columns the table shows.</li><li>Three summary cards. On the discounted tab they read <b>Records discounted</b> (with the count of records in the filtered population), <b>Discounted ECL</b>, and <b>Discounting effect</b>, which is the reduction that applying present value produced. On the undiscounted tab they read <b>Records calculated</b>, <b>Undiscounted ECL</b> and <b>ECL coverage of exposure</b>, which is the ECL divided by the carrying exposure.</li><li>An amber banner appears on the discounted tab when some records could not be discounted, telling you how many and asking you to review their discount status, approved EIR and remaining horizon.</li><li>A collapsible <b>Filters</b> panel, headed "Year, month, stage and contract or customer search", with <b>Show filters</b> and <b>Hide filters</b>. The stage list offers All Stages, Stage 1, Stage 2 and Stage 3.</li><li>The results table. Columns are <b>Contract ID</b>, <b>Reporting Period</b>, <b>IFRS Stage</b>, <b>EAD (MWK)</b>, <b>PD</b>, <b>LGD</b>, <b>Undiscounted ECL (MWK)</b> and <b>ECL Coverage</b>. On the discounted tab you also see <b>Original EIR</b>, <b>Discount Horizon (Months)</b>, <b>Discounted ECL (MWK)</b>, <b>Discounting Effect (MWK)</b> and <b>Discount Status</b>. The last column is <b>Updated</b>.</li><li><b>Original EIR</b> shows the solved effective annual rate as a percentage, and the basis beside it tells you where the rate came from. There are four values: <b>Fixed, original</b> means the contract is fixed rate and the original rate applies; <b>Floating, original as proxy</b> means the contract floats but no reset history has been recorded, so the original rate stands in and is labelled as a proxy; <b>Calculated, not approved</b> means a rate was solved but nobody has approved and locked it, so it is not used; <b>No EIR</b> means no rate exists for that contract. A blank rate is informative: it says the provision was measured with no solved rate behind it.</li><li><b>Discount Status</b> explains each row on the discounted basis, including a floating-rate proxy label and a calculated-horizon proxy label where those apply.</li></ul><h4>To export the results</h4><ol><li>Press <b>Export Report</b>.</li><li>Choose the portfolio and the reporting period.</li><li>Choose <b>Summary</b> for the stage-level totals with exposure, average probability, average loss rate and ECL, or <b>Total Loan Book</b> for a loan-level extract.</li><li>On the loan-level extract, tick the columns you want; the contract identifier is always included.</li><li>Press the download button. The file arrives as a CSV.</li></ol><h4>What happens next</h4><p>These figures are what the dashboard, the IFRS 9 Reports hub and the financial statement disclosure tables read. Nothing is posted to a ledger by the platform; the reports are the evidence a preparer uses to raise the provision journal.</p><h4>Common problems</h4><ul><li><b>The list is empty.</b> No ECL has been calculated for the period and scope in the filters. Clear the filters or run the calculation.</li><li><b>Coverage looks wrong on one loan.</b> Check the stage, the probability and the loss rate on that row before questioning the total; a single mis-staged loan moves a portfolio figure.</li><li><b>Discounted and undiscounted totals differ a lot.</b> That difference is the discounting effect card. A large effect usually means long remaining horizons or high effective rates, both of which are worth confirming.</li></ul>',
+            'body' => '<p>The <b>ECL Calculation</b> page shows how each loan\'s ECL was built and what the saved run recorded, and exports it. Open the sidebar and choose <b>Risk &amp; regulatory</b>, then <b>ECL Processing</b>, then <b>ECL Calculation</b>. It opens on the latest month that has an ECL, and on the discounted tab when that month was discounted. Any signed-in user can open it; the page checks no permission.</p>'
+                . '<h4>What you see on the screen</h4>'
+                . '<ul>'
+                . '<li><b>Page title</b> ECL Calculation, with the line <code>How each loan\'s ECL was built: EAD x PD over the horizon x LGD, with the PD before and after the forward-looking adjustment</code>.</li>'
+                . '<li><b>Six figure cards</b> for the filtered loans, in MWK (millions as <code>m</code>, billions as <code>bn</code>; hover for the full figure): <b>EAD (MWK)</b>; <b>ECL before FLI</b>; <b>FLI effect</b> (signed, with overlays in the tooltip); <b>ECL undiscounted</b>; <b>ECL booked (discounted)</b>, the allowance MAIIC books at the month-end, which becomes <b>ECL discounted (part of the book)</b> with <code>N of N loans</code> when not every loan with an ECL in view is discounted (unresolved loans, or Mega Farm programme loans, which carry their own undiscounted figure), and shows a dash when the run was undiscounted; and <b>Coverage</b> (<code>booked</code> ECL over EAD when every loan is discounted, otherwise <code>undiscounted</code>).</li>'
+                . '<li><b>Three tabs</b>, each with a count: <b>Undiscounted ECL</b>, <b>Discounted ECL</b> and <b>Run summary by stage</b>.</li>'
+                . '<li>An information line under the filters: what the tab shows, <code>Amounts in MWK.</code>, then the month\'s saved run (for example <code>December 2025 run:</code> with a <code>Portfolio: (name)</code> badge, <code>Discounted at EIR</code> or <code>Undiscounted</code>, and the time), or gold <code>No ECL run saved for (month)</code>; and, in amber, why the ECL before FLI is not shown, or <code>N loan(s) could not be discounted: check their approved EIR and remaining term.</code></li>'
+                . '<li><b>Undiscounted ECL tab</b> columns: <b>Contract / stage</b> (contract, stage badge, customer), <b>EAD</b>, <b>PD before FLI</b>, <b>FLI adj.</b> (red when it raises the PD, green when it lowers it), <b>PD after FLI</b>, <b>PD used</b> (hover for the horizon, for example <code>Stage 2: lifetime PD over 48 months</code>), <b>LGD</b>, <b>ECL before FLI</b>, <b>ECL</b> (amber when it no longer equals EAD x PD used x LGD, tooltip <code>... run the ECL again</code>) and <b>Coverage</b>.</li>'
+                . '<li><b>Discounted ECL tab</b> columns: <b>Contract / stage</b>, <b>EAD</b>, <b>PD after FLI</b>, <b>LGD</b>, <b>Undiscounted ECL</b>, <b>EIR</b> (the locked effective annual rate; hover for its basis: <code>Fixed, original rate</code>, <code>Floating, original rate used as proxy</code>, <code>Calculated, not approved</code>, <code>Not calculated</code> or <code>No EIR</code>), <b>Horizon</b> (in months), <b>Discounted ECL</b>, <b>Discounting effect</b> and <b>Discount status</b>. The time-phased engine writes the status <code>CALCULATED_TIME_PHASED</code> (discounted) or <code>TIME_PHASED_UNRESOLVED</code> (could not be discounted); the badge shows these codes as they are. <code>Not requested</code> means the run was undiscounted.</li>'
+                . '<li>Both loan tabs end with a <b>Total, N loans</b> row and are paged fifteen loans at a time.</li>'
+                . '<li><b>Run summary by stage</b> tab columns: <b>Calculated for</b> (<code>Portfolio: (name)</code> or <code>Sector: (name)</code>), <b>Stage</b>, <b>Loans</b>, <b>EAD (MWK)</b>, <b>Average PD</b>, <b>Average LGD</b>, <b>Undiscounted ECL (MWK)</b>, <b>Discounted ECL (MWK)</b>, <b>Coverage</b>, <b>Basis</b> (<code>Undiscounted</code>, <code>Discounted</code> or <code>Discounted, some unresolved</code>) and <b>Run at</b>, with a <b>Total</b> row.</li>'
+                . '</ul>'
+                . '<h4>Filters</h4>'
+                . '<p>One row: <b>Year</b>, <b>Month</b>, <b>Portfolio</b> (<code>All portfolios</code>), <b>Stage</b> (<code>All stages</code>, Stage 1 to 3), <b>Product group</b> and <b>Sector</b> (those present in the month shown), and the search box <code>Search contract or customer</code> with the magnifier (<code>Search</code>) or Enter. <b>Clear</b> resets them. The figure cards and totals follow the filters.</p>'
+                . '<h4>Buttons and icons</h4>'
+                . '<ul>'
+                . '<li>Round <b>?</b> (<code>Help for this screen</code>): opens this article.</li>'
+                . '<li><b>Run ECL calculation</b> (calculator): opens the run form.</li>'
+                . '<li><b>ECL reconciliation</b> (scales, gold): opens a window with <b>Portfolio</b>, <b>Start period</b>, <b>End period</b>, <b>Movement of</b> (<code>ECL</code> or <code>Carrying amount</code>), <b>Report type</b> (<code>Summary</code> or <code>Detailed</code>), <b>Detailed section</b> (<code>New loans</code>, <code>Derecognised loans</code>, <code>Stage transitions</code>), <b>Cancel</b> and <b>Generate report</b> (<code>Preparing...</code>). The movement report opens in a new tab.</li>'
+                . '<li><b>Export report</b> (file icon): opens <b>Export ECL report</b>.</li>'
+                . '<li><b>Projection audit</b> (chart icon): opens the time-phased projection evidence.</li>'
+                . '</ul>'
+                . '<h4>To export the results</h4>'
+                . '<ol>'
+                . '<li>Click <b>Export report</b>.</li>'
+                . '<li>Choose the <b>Portfolio</b> (<code>All portfolios</code>) and the <b>Reporting period</b> (it starts on the month in view).</li>'
+                . '<li>Choose the <b>Mode</b>: <code>Summary by stage</code> (stage, total EAD, PD, LGD and total ECL) or <code>Total loan book (loan level)</code>, then tick the <b>Columns</b> wanted (<b>Select all</b>, <b>Clear all</b>).</li>'
+                . '<li>Click <b>Export</b>. A CSV named <code>ecl_report_(yyyy-mm)_(mode).csv</code> opens in a new tab. <b>Cancel</b> or the x closes the window.</li>'
+                . '</ol>'
+                . '<h4>The discounted month-end ECL</h4>'
+                . '<p>The booked allowance is the discounted ECL (IFRS 9 5.5.17): the time-phased engine\'s expected shortfalls discounted at each loan\'s locked EIR and weighted by the approved scenarios. The undiscounted ECL stays on every loan as the engine measure and the check. The difference between the two is the discounting effect (Discounted ECL tab), and the time-phased projection also runs the exposure down the repayment schedule, so the projected undiscounted shortfall on the Projection audit can differ from the ECL undiscounted card here. Reports and the dashboard read the discounted figure where it exists.</p>'
+                . '<h4>Empty states and messages</h4>'
+                . '<ul>'
+                . '<li><code>No ECL results for this period and these filters. Pick another month, clear the filters, or run the ECL calculation.</code></li>'
+                . '<li><code>No ECL run has been saved for (month). Use Run ECL calculation to create one.</code></li>'
+                . '<li><code>Choose the reporting period to export.</code>; <code>Choose a portfolio, a start period and an end period.</code>; <code>The end period must be after the start period.</code>; <code>Choose which detailed section to produce.</code></li>'
+                . '<li>Amber reasons for a missing build-up, for example <code>The saved ECL was run on the PD before FLI, so no forward-looking effect is booked. Run the ECL on the PD after FLI to include it.</code></li>'
+                . '</ul>'
+                . '<h4>Common problems</h4>'
+                . '<ul>'
+                . '<li><b>The discounted card reads part of the book</b>: some loans in view were not discounted (check the amber count) or the view includes Mega Farm programme loans. Filter to a MAIIC portfolio to see its booked total.</li>'
+                . '<li><b>ECL before FLI shows a dash</b>: the PD, LGD or book changed after the last run; the amber line says how many loans no longer match. Run the ECL again.</li>'
+                . '</ul>',
             'steps' => [
-                'Open Financial Modelling, then ECL Calculation.',
-                'Choose the measurement basis tab: Discounted ECL or Undiscounted ECL.',
-                'Press Show filters and narrow the list by year, month, stage or contract.',
-                'Read the three summary cards, then check the amber banner for records that could not be discounted.',
-                'Press Export Report, choose Summary or Total Loan Book, and download the CSV.',
+                'Open the sidebar, choose Risk & regulatory, then ECL Processing, then ECL Calculation.',
+                'Choose the Year and Month, and narrow by portfolio, stage, product group, sector or contract.',
+                'Read the six figure cards, especially ECL booked (discounted) and Coverage.',
+                'Open the Discounted ECL tab to check the EIR, horizon and discount status of each loan.',
+                'Open Run summary by stage to see what the saved run recorded.',
+                'Click Export report, choose the mode and click Export to download the CSV.',
             ],
             'images' => [
-                'ecl' => 'The ECL results screen with the measurement-basis tabs, summary cards and the loan-level table',
+                'ecl' => 'ECL Calculation: the six figure cards, the Undiscounted, Discounted and Run summary tabs, the filter row and the loan table',
             ],
-            'routes' => ['expected-credit-loss.index'],
+            'routes' => ['expected-credit-loss.index', 'expected-credit-loss.reports', 'expected-credit-loss.summary'],
         ],
 
         'ECL projections (time-phased)' => [
-            'body' => '<p>The <b>Time-phased ECL Projection Audit</b> shows the month-by-month working behind a discounted ECL figure, so a reviewer or an auditor can see how the number was built rather than taking it on trust. Open <b>Financial Modelling</b>, choose <b>ECL Calculation</b>, then press <b>Projection Audit</b>.</p><p>The engine projects a monthly curve for each contract across the approved economic scenarios, works out the cash shortfall expected in each month, discounts it at the contract\'s locked effective interest rate, and weights the scenarios by their approved probabilities. This screen shows both the answer and every step.</p><h4>What you see on the screen</h4><ul><li><b>Contract totals</b>. One row per contract, with columns <b>Contract</b>, <b>Stage</b>, <b>Undiscounted</b>, <b>Discounted</b> and <b>Horizon</b>. The horizon is how many months the projection ran for.</li><li><b>Projection evidence</b>. The detail table, with columns <b>Contract</b>, <b>Scenario</b>, <b>Period</b>, <b>Date</b>, <b>Opening EAD</b>, <b>Marginal PD</b>, <b>LGD</b>, <b>Shortfall</b>, <b>Factor</b> and <b>Weighted discounted</b>. One row per contract, scenario and month.</li></ul><h4>How to read a row</h4><ul><li><b>Opening EAD</b> is the exposure at the start of that month. For a performing loan it falls as the contractual schedule repays; for a defaulted (stage 3) loan it does not amortise, because a borrower in default is not making those instalments.</li><li><b>Marginal PD</b> is the chance of default in that month alone, not the cumulative chance. Summed with survival across the horizon it reproduces the lifetime probability.</li><li><b>LGD</b> is the loss rate applied to that month.</li><li><b>Shortfall</b> is the cash the platform expects not to receive in that month.</li><li><b>Factor</b> is the discount factor for that month, derived from the contract\'s effective interest rate.</li><li><b>Weighted discounted</b> is the shortfall multiplied by the discount factor and by the scenario weight. The sum of this column for a contract is its discounted ECL.</li></ul><h4>Behaviour worth knowing</h4><ul><li><b>Stage 1</b> projects twelve months. <b>Stage 2</b> projects the remaining life, and the monthly hazard is anchored to the twelve-month probability the loan tape carries, so a longer life compounds to a higher lifetime probability rather than staying flat.</li><li><b>Stage 3</b> exposure does not amortise. Where a reviewed recovery plan exists for the contract, the shortfall is placed on the dates the plan names instead of at the end of the schedule.</li><li>Contracts the engine cannot resolve, because no locked EIR exists, keep the undiscounted figure and are reported as unresolved rather than being given a default rate.</li></ul><h4>Common problems</h4><ul><li><b>A contract is missing from the list.</b> It was not discounted, so there is no projection to show. Check its discount status on the ECL results screen and its blockers on the EIR Coverage screen.</li><li><b>Only one scenario appears.</b> Only the approved scenario assumptions are used. If the base, upside and downside weights have not been approved, the projection runs on what exists.</li></ul>',
+            'body' => '<p>The <b>ECL Projection Audit</b> shows the month-by-month working behind a discounted ECL run, so a reviewer or auditor can see how each discounted figure was built. For each contract the engine projects the exposure, the marginal PD and the LGD month by month under each approved scenario, works out the expected shortfall, discounts it at the contract\'s locked EIR and weights it by the scenario weight. Open <b>Risk &amp; regulatory</b>, then <b>ECL Processing</b>, then <b>ECL Calculation</b>, and click <b>Projection audit</b>. Any signed-in user may open it.</p>'
+                . '<h4>What you see on the screen</h4>'
+                . '<ul>'
+                . '<li><b>Page title</b> ECL Projection Audit, with the line <code>The month-by-month working behind a discounted ECL run: marginal PD x LGD x exposure, scenario weights and discounting at the locked EIR</code>, and <b>Back to ECL results</b> at the top right.</li>'
+                . '<li><b>Four figure cards</b> for the run shown: <b>Contracts calculated</b>, <b>Unresolved</b>, <b>Undiscounted ECL (MWK)</b> and <b>Discounted ECL (MWK)</b>.</li>'
+                . '<li><b>Contract totals</b> tab (with a count): <b>Contract</b>, <b>Stage</b>, <b>Undiscounted ECL (MWK)</b> (the scenario-weighted projected shortfall), <b>Discounted ECL (MWK)</b> and <b>Horizon</b> (years). Fifteen per page.</li>'
+                . '<li><b>Projection evidence</b> tab (with a count): <b>Contract</b>, <b>Scenario</b>, <b>Month</b>, <b>Date</b>, <b>Opening EAD</b>, <b>Marginal PD</b>, <b>LGD</b>, <b>Shortfall</b>, <b>Discount factor</b> and <b>Weighted, discounted</b>. One row per contract, scenario and month, fifteen per page.</li>'
+                . '</ul>'
+                . '<h4>Filters</h4>'
+                . '<p><b>Run</b> (the last twenty discounted runs, shown as <code>(yyyy-mm) - run (first 8 characters)</code>; the newest by default), <b>Scenario</b> (<code>All scenarios</code>, or one with its weight), <b>Contract</b> (<code>Contract number</code>) and the <b>Apply</b> button.</p>'
+                . '<h4>Buttons and icons</h4>'
+                . '<ul>'
+                . '<li><b>Back to ECL results</b>, <b>Apply</b>, the two tab names, and the page links. On the empty page, <b>Run ECL calculation</b> opens the run form.</li>'
+                . '</ul>'
+                . '<h4>How to read a row</h4>'
+                . '<ul>'
+                . '<li><b>Opening EAD</b> is the exposure at the start of the month; for a performing loan it falls as the schedule repays, for a Stage 3 loan it does not amortise.</li>'
+                . '<li><b>Marginal PD</b> is the chance of default in that month alone.</li>'
+                . '<li><b>Shortfall</b> is the cash expected not to be received that month; <b>Discount factor</b> comes from the locked EIR; <b>Weighted, discounted</b> is shortfall times factor times the scenario weight. The sum of that column for a contract is its discounted ECL.</li>'
+                . '<li>Stage 1 projects twelve months; Stage 2 the remaining life; a Stage 3 loan with an approved recovery plan places its shortfall on the plan dates, otherwise it is measured at the reporting date.</li>'
+                . '</ul>'
+                . '<h4>What happens next</h4>'
+                . '<p>Nothing is written from this page; it is evidence. The discounted ECL it explains is the figure on the Discounted ECL tab and in the reports.</p>'
+                . '<h4>Empty states and messages</h4>'
+                . '<ul>'
+                . '<li><code>No time-phased ECL run yet</code> and <code>This page fills in after an ECL calculation is run on the discounted basis with approved scenario assumptions. Run one from the ECL Calculation page, choosing "Discounted ECL, at the EIR".</code></li>'
+                . '<li><code>No contracts in this run.</code> and <code>No projection lines match these filters.</code></li>'
+                . '</ul>'
+                . '<h4>Common problems</h4>'
+                . '<ul>'
+                . '<li><b>A contract is missing</b>: it was unresolved (no locked EIR), so there is no projection. Check its discount status on the ECL results.</li>'
+                . '<li><b>Undiscounted here differs from ECL undiscounted on the results page</b>: the projection runs the exposure down the schedule; the results page shows the engine measure at the reporting date.</li>'
+                . '</ul>',
             'steps' => [
-                'Open Financial Modelling, then ECL Calculation, and press Projection Audit.',
-                'Find the contract in the Contract totals table and note its stage and horizon.',
-                'Scroll to Projection evidence and read that contract\'s rows scenario by scenario.',
-                'Check that Opening EAD behaves as expected for the stage, and that Marginal PD falls over time.',
-                'Add the Weighted discounted column for the contract and confirm it equals the discounted total.',
+                'Open Risk & regulatory, then ECL Processing, then ECL Calculation, and click Projection audit.',
+                'Choose the Run (and a Scenario or Contract if wanted) and click Apply.',
+                'On Contract totals, find the contract and note its stage, discounted ECL and horizon.',
+                'Open Projection evidence and read the contract\'s rows scenario by scenario.',
+                'Add the Weighted, discounted column for the contract and confirm it equals its discounted ECL.',
             ],
             'images' => [
-                'ecl-projections' => 'The time-phased projection audit with contract totals and the month-by-month evidence table',
+                'ecl-projections' => 'ECL Projection Audit: the four run figures, the Run, Scenario and Contract filters and the Contract totals and Projection evidence tabs',
             ],
             'routes' => ['expected-credit-loss.projections'],
+        ],
+
+        'Mega Farm Programme' => [
+            'body' => '<p>The Mega Farm programme is Government money that MAIIC runs on the Government\'s behalf. Its loans sit on the programme\'s own general ledger codes (1050301 to 1050307) and most of them are in default, so they are kept out of MAIIC\'s own models: the PD segmentation leaves the programme\'s portfolio out (a portfolio that mixes programme and MAIIC loans stops the PD run until the book is split), the forward-looking build-up shows the programme as its own line, and the programme is staged, given a PD and an LGD, and provided on this screen. MAIIC\'s allowance is its share of the programme ECL, as the governed scope states it (as shipped, 5 percent on net). To reach the screen, open the sidebar and choose <b>Risk &amp; regulatory</b>, then <b>ECL Processing</b>, then <b>Mega Farm Programme</b>.</p>'
+                . '<p>Who may act: any signed-in user can view the screen; only users with the <b>eir.govern</b> permission see and may use <b>Run programme ECL</b>. The three programme settings change only in the Governance Centre, where one person proposes and a second approves.</p>'
+                . '<h4>What you see on the screen</h4>'
+                . '<ul>'
+                . '<li><b>Page title</b> Mega Farm Programme, with the line <code>Government money MAIIC manages on its behalf: the programme\'s loans, their staging and PD, and MAIIC\'s share of the ECL</code>.</li>'
+                . '<li><b>Settings line</b>: a green <code>Settings approved</code> or gold <code>Settings not yet approved</code> badge; <b>Scope</b> (for example <code>Out of EIR engine; in ECL module; 5 percent share on net</code>), <b>PD method</b> (for example <code>Agricultural-sector PD scaled to the programme</code>) and <b>Scalar ceiling</b> (for example <code>40 times the sector PD</code>); while not approved, in amber, <code>Runs use the seeded settings and are system figures, not a MAIIC approval.</code>; and the link <b>Change in the Governance Centre</b>.</li>'
+                . '<li><b>Four figure cards</b> for the month chosen: <b>Loans in (yyyy-mm)</b>, <b>Gross carrying amount (MWK)</b>, <b>Stage 3 (N loans)</b> (the Stage 3 carrying amount) and <b>MAIIC\'s ECL, last run</b> (the share written to the loans by the last successful run; a declined run changes nothing). Amounts show in millions (<code>m</code>) or billions (<code>bn</code>); hover for the full figure.</li>'
+                . '<li><b>By scheme</b> tab: <b>Scheme</b> (product group), <b>GL</b>, <b>Loans</b>, <b>Carrying (MWK)</b>, <b>Stage 3 (MWK)</b>, <b>Average PD</b>, <b>MAIIC ECL (MWK)</b> and a <b>Total</b> row.</li>'
+                . '<li><b>By stage</b> tab: <b>Stage</b> (green Stage 1, gold Stage 2, red Stage 3, grey <code>Not staged</code>), <b>Loans</b>, <b>Carrying (MWK)</b>, <b>MAIIC ECL (MWK)</b> and <b>Coverage</b> (MAIIC ECL over carrying amount).</li>'
+                . '<li><b>Runs</b> tab (the last twenty runs, every month): the note <code>Each run records its scope, method, scalar, LGD and share, or why it was declined. Nothing is filled in when a method\'s conditions are not met.</code> and the columns <b>Run</b>, <b>Period</b>, <b>Scope</b>, <b>Method</b>, <b>Loans</b>, <b>Gross (MWK)</b>, <b>Programme ECL</b>, <b>Share</b>, <b>MAIIC ECL</b>, <b>Basis</b> and <b>Run by</b> (name, or <code>System</code>, with the time). <b>Basis</b> shows a red <code>Declined</code> badge and the reason, or <code>PD: Stage 1 N%, Stage 2 N%, Stage 3 100.00%</code>, the scalar applied with the measured scalar and the ceiling, and the LGD. Fifteen per page.</li>'
+                . '</ul>'
+                . '<h4>Buttons and icons</h4>'
+                . '<ul>'
+                . '<li><b>Period</b> drop-down (top right): the months that hold programme loans, newest first. Choosing one reloads the screen for it.</li>'
+                . '<li><b>Run programme ECL</b> (calculator, eir.govern only): asks <code>Run the Mega Farm ECL for (yyyy-mm)?</code> (<code>The programme ECL is calculated under the settings in force and saved as a new run.</code>) with <b>Cancel</b> and <b>Run</b>. There is no second approval of a run; the control sits on the settings, which are maker-checker in the Governance Centre, and on the locked period, which refuses a run.</li>'
+                . '<li><b>Change in the Governance Centre</b>: opens the Governance Centre (eir.govern).</li>'
+                . '<li>The tab names <b>By scheme</b>, <b>By stage</b> and <b>Runs</b>, each with a count.</li>'
+                . '</ul>'
+                . '<h4>How the programme ECL is measured</h4>'
+                . '<ul>'
+                . '<li><b>Loans</b>: those on the programme GLs (or a product group starting Mega Farm) in the month. Every loan must carry a stage; the Mega Farm staging class puts a loan in Stage 3 from 91 days past due.</li>'
+                . '<li><b>PD</b> by the governed method. <code>Agricultural-sector PD scaled to the programme</code>: the average PD before FLI of MAIIC\'s own agricultural loans for each stage, times a measured scalar (the share of last year\'s non-defaulted programme balance that is now in Stage 3, over the sector Stage 1 PD), capped at the ceiling; Stage 3 is 100 percent. <code>Seasonal cohort default rate with a benchmark prior</code> needs two or more seasons of books; <code>Transition matrix on the programme history</code> needs twelve or more months; <code>Expert judgement with overlay</code> needs an approved overlay. A method whose condition is not met is declined with the reason; nothing is invented.</li>'
+                . '<li><b>LGD</b>: the programme\'s own cohort workout, following the Stage 3 programme loans of twelve months earlier to the month. With no programme portfolio or no Stage 3 cohort, the run is declined.</li>'
+                . '<li><b>ECL</b>: for each loan, EAD times the stage PD times the LGD is the programme ECL; MAIIC\'s ECL is that times the share. The run writes the PD (before and after FLI, the same), the LGD, the EAD and MAIIC\'s ECL to each loan, marked as the Mega Farm programme route. The programme ECL is not discounted, so on the ECL Calculation page these loans appear with an undiscounted ECL only.</li>'
+                . '</ul>'
+                . '<h4>To run the programme ECL</h4>'
+                . '<ol>'
+                . '<li>Make sure the month is built and staged, and the PD is applied to MAIIC\'s own agricultural book for the month.</li>'
+                . '<li>Choose the month in the <b>Period</b> drop-down.</li>'
+                . '<li>Click <b>Run programme ECL</b> and confirm.</li>'
+                . '<li>Read the banner and the new line on the <b>Runs</b> tab; check <b>By scheme</b> and <b>By stage</b>.</li>'
+                . '</ol>'
+                . '<h4>What happens next</h4>'
+                . '<p>Every run, declined or not, is saved with its basis and written to the audit trail (<code>Mega Farm ECL Run</code>). MAIIC\'s share on the loans is included in the month\'s ECL totals and reports as the programme line. No run is a MAIIC approval until the CFO confirms the programme settings in the Governance Centre (the gold badge turns green).</p>'
+                . '<h4>Empty states and messages</h4>'
+                . '<ul>'
+                . '<li><code>No Mega Farm loans in any loan book yet</code> with <code>The programme\'s loans arrive with the monthly E-Banker extracts. Once a month is loaded, its loans, staging and ECL appear here.</code></li>'
+                . '<li><code>No programme loans in (yyyy-mm).</code> and <code>No run yet. Use Run programme ECL to calculate the selected month.</code></li>'
+                . '<li>Success: <code>Mega Farm (yyyy-mm): programme ECL N, MAIIC share 5% = N.</code></li>'
+                . '<li>Declined (red banner): <code>Declined: (reason)</code>, for example <code>N programme loans carry no stage for (yyyy-mm): run staging first</code>, <code>no PD on MAIIC\'s own agricultural book for the period: run the PD engine first</code>, <code>the programme\'s default rate cannot be measured: no earlier Mega Farm book to compare with</code> or <code>the programme has no portfolio of its own: run ifrs9:segment-portfolios so its LGD can be measured on its own loans</code>.</li>'
+                . '<li>A locked month: <code>Reporting period (yyyy-mm) is locked: the Mega Farm programme ECL cannot be written. ...</code></li>'
+                . '</ul>'
+                . '<h4>Common problems</h4>'
+                . '<ul>'
+                . '<li><b>No Run programme ECL button</b>: your role lacks eir.govern, or no month holds programme loans.</li>'
+                . '<li><b>Every run is declined</b>: read the reason in the Basis column; it names the step to run first.</li>'
+                . '<li><b>Do not run the programme portfolio from ECL Calculation</b>: that screen would overwrite the programme figures with MAIIC\'s own PD and LGD.</li>'
+                . '</ul>',
+            'steps' => [
+                'Open the sidebar, choose Risk & regulatory, then ECL Processing, then Mega Farm Programme.',
+                'Read the settings line: scope, PD method, scalar ceiling and whether they are approved.',
+                'Choose the month in the Period drop-down.',
+                'With the eir.govern right, click Run programme ECL and confirm.',
+                'Read the banner and the Basis of the new line on the Runs tab.',
+                'Check the By scheme and By stage tabs for MAIIC ECL and coverage.',
+            ],
+            'images' => [
+                'megafarm' => 'Mega Farm Programme: the settings line, the four figure cards and the By scheme, By stage and Runs tabs with the Period drop-down and Run programme ECL',
+            ],
+            'routes' => ['megafarm.index', 'megafarm.run'],
         ],
 
     ],

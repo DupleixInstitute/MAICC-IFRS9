@@ -16,11 +16,41 @@ spatie/laravel-permission provides roles and permissions with the `web` guard. P
 $this->middleware(['permission:tickets.index'])->only(['index', 'show']);
 ```
 
-The roles matrix groups permissions by their `module` column and labels them by `display_name`; seeders backfill both so no checkbox renders unlabelled. Permissions are owned by seeders: `PermissionsTableSeeder` (base set, inserts only when missing), `TicketsPermissionsSeeder`, `MaiicAdminPermissionsSeeder` (financial periods, currencies) and `LegacyPermissionsCleanupSeeder`, which removed the 56 credit-scoring permissions and the borrower `client` role in August 2026. The admin role is granted every remaining permission. Preparer, reviewer, approver and read-only IFRS 9 roles are planned under ticket #008 and not yet seeded.
+The roles matrix groups permissions by their `module` column and labels them by `display_name`; seeders backfill both so no checkbox renders unlabelled. Permissions are owned by seeders: `PermissionsTableSeeder` (base set, inserts only when missing), `RolesTableSeeder` (the `admin` role, synced to every permission that exists when it runs), `TicketsPermissionsSeeder` (`tickets`, `tickets.index`, `tickets.create`, `tickets.update`, `tickets.destroy`), `MaiicAdminPermissionsSeeder` (financial periods, currencies, and the EIR and macro permissions below) and `LegacyPermissionsCleanupSeeder`, which removed the 56 credit-scoring permissions and the borrower `client` role in August 2026. `TicketsPermissionsSeeder` and `MaiicAdminPermissionsSeeder` are idempotent and grant their permissions to every role except the portal roles `client`, `member` and `patient`. Both run in `php artisan eir:bootstrap` and in `maiic:task update`, which clears the permission cache first (until 14 October 2026 a fresh install gave 403 on Support Tickets). Preparer, reviewer, approver and read-only IFRS 9 roles are planned under ticket #008 and not yet seeded.
 
-Maker and checker controls exist in code independent of roles. A fee classification cannot be reviewed by its classifier, and an EIR cannot be locked by its calculator; both accept an override by a user holding the `admin` role, recorded in the audit meta. Reopening a locked EIR is admin-only. The forward-looking chain (chapter 5.5) adds five: a fit cannot be approved by its proposer (approval publishes the model version), an external model version cannot be published by its proposer, a scenario set cannot be approved by its proposer, an overlay cannot be approved by its proposer, and a month record cannot be signed off by the person who recorded it. These carry no admin override; the console's `--bootstrap` option on `fli:apply` and `scenario:sets` records the approval under the label "System Bootstrap (automated data-readiness, not a MAIIC approval)" so that a demonstration approval is never mistaken for a MAIIC one.
+EIR and forward-looking permissions are seeded by `MaiicAdminPermissionsSeeder`:
 
-EIR and forward-looking permissions are seeded by `MaiicAdminPermissionsSeeder`: `eir.view`, `eir.run`, `eir.export`, `eir.govern` and `eir.fees.import`, and `macro.view` and `macro.manage` for Macro Statistics. The EIR rules, classification and calculation screens and the settings area still use `settings` (chapter 6.2). On the forward-looking screens proposing, approving, applying the route, running a month-end step, signing off and retiring a model version need `eir.govern` (the view permissions are listed in chapter 5.5). The Maintenance console needs `settings` to open and the `admin` role to run a command (chapter 9.5). Legacy routes whose permissions were deleted now raise a permission-does-not-exist error rather than a clean 403 until ticket #009 removes them.
+| Permission | What it opens |
+|---|---|
+| `eir.view` | The read-only EIR screens: EIR Data and its tabs, Imports & Feeds, Take-on, coverage, EIR as at a Date, GL Reconciliation; the Macro Statistics screen as an alternative to `macro.view` |
+| `eir.govern` | The Governance Centre; landing packs, loan book builds, period lock and unlock, trial balance upload, take-on actions, write-offs, restructures and rate resets, tying a held GL fee line, staging thresholds, the compliance audit sign-off and the Mega Farm run; on the forward-looking screens proposing, approving, applying the route, running a month-end step, signing off and retiring a model version (the view permissions are listed in chapter 5.5); committing macro data as an alternative to `macro.manage` |
+| `eir.export` | The GL reconciliation export and the auditor pack |
+| `eir.run` | Running the forward-looking correlation analysis |
+| `eir.fees.import` | Finance loading fees by loan without `settings`: EIR Data Intake for the fee type only, and reading Fee Classification and its fee GL check |
+| `macro.view`, `macro.manage` | Macro Statistics: the screen, previews and export; a commit, a manual entry or a variable change |
+
+The EIR rules, classification, schedule and calculation screens and the settings area still use `settings` (chapter 6.2). The IFRS 9 reports hub tiles and the RBM return use `reports.ifrs9`; the hub index also opens to `reports` or `eir.view`. The Maintenance console needs `settings` to open and the `admin` role to run a command (chapter 9.5). Legacy routes whose permissions were deleted now raise a permission-does-not-exist error rather than a clean 403 until ticket #009 removes them.
+
+Maker and checker controls exist in code independent of roles: the person who proposes cannot approve. Where a governed administrator override is shown, a user with the `admin` role may approve their own work only while the Governance Centre setting `maker_checker_admin_override` is "Allowed for administrators" (`GovernanceService::adminOverrideAllowed`); its default is "Not allowed", and the override is recorded in the audit meta.
+
+| Control | Rule | Override |
+|---|---|---|
+| Fee classification review | The reviewer is not the classifier | Governed administrator override |
+| EIR lock | The approver is not the calculator, and the calculation has a named maker | Governed administrator override; the bootstrap label (`contract_eir.locked_label`) |
+| EIR reopening | A reason of at least ten characters; no month the contract reached may be locked | Requires the governed administrator override |
+| Governance setting change | The approver is not the proposer | Governed administrator override |
+| Version 1 schedule approval | Under `schedule_approval_control` "Second person must approve" (default), the approver is named and is not the preparer | The bootstrap label |
+| Loan book build | The approver is not the requester; locked periods are refused | The bootstrap label |
+| Take-on build | Approved by a different named person from the proposer, for the workbook still landed last | The bootstrap label |
+| Write-off register | The approver is not the proposer; the period lock is checked at proposal, approval and reversal | None |
+| Restructure register and rate resets | The approver is not the proposer; only the proposer withdraws; the period must be open | Governed administrator override |
+| Staging thresholds | Proposer and approver are named and different; a change takes effect after any locked period | None |
+| Qualitative SICR trigger | The approver is not the person who raised it | Governed administrator override; the bootstrap label |
+| Forward-looking chain (chapter 5.5) | A fit, an external model version, a scenario set and an overlay are not approved by their proposer; a month record is not signed off by the person who recorded it | None; the console's `--bootstrap` option on `fli:apply` and `scenario:sets` records the approval under the label |
+
+The bootstrap label is "System Bootstrap (automated data-readiness, not a MAIIC approval)" (`LoanBookBuildService::BOOTSTRAP_LABEL`, `ScenarioSetService::BOOTSTRAP_LABEL`), stored on the approved row so that a demonstration approval is never mistaken for a MAIIC one; any other label is refused. EIR accounting rule approval has no maker and checker gate. The Workspace "Awaiting approval" panel counts what waits for a second person in most of these workflows and links to each screen; restructures, rate resets, take-on builds and staging thresholds are not yet listed there.
+
+A locked reporting period (`eir:lock-period`, or Imports & Feeds, Periods Built, needing `eir.govern`) is never restated: every engine that writes a period calls `ReportingPeriodLock::assertOpen` first (chapter 6.16). Locking and unlocking each need a reason and are audit-logged; unlocking is one person's act with no second approval.
 
 ### 8.3 Transport security and headers
 
@@ -32,7 +62,7 @@ Sessions use the database driver (`SESSION_DRIVER=database`) so they survive res
 
 ### 8.5 Audit logging
 
-Two stores exist. spatie/laravel-activitylog records model events and explicit `activity()->log()` calls in controllers (for example ticket creation and updates, loan book edits, internal grading). `app/Services/AuditLoggerService.php` writes to `audit_logs` with an action, entity type and id, user and JSON meta; imports, settings changes, EIR rule, fee, schedule, calculation and revenue actions use it. `AuditTrailController` unions the two into one filterable timeline (search, source, user, date range) with a JSON detail viewer. EIR append-only histories (`eir_fee_classification_events`, `eir_calculation_history`, `eir_amortisation_history`) add object-level traceability.
+Two stores exist. spatie/laravel-activitylog records model events and explicit `activity()->log()` calls in controllers (for example ticket creation and updates, loan book edits, internal grading). `app/Services/AuditLoggerService.php` writes to `audit_logs` with an action, entity type and id, user and JSON meta; imports, settings changes, EIR rule, fee, schedule, calculation and revenue actions use it, as do the governed registers (write-offs, restructure classifications and confirmations, restructures applied by the revenue run, rate resets), take-on and loan book build proposals and approvals, GL fee lines tied by hand, and period locks and unlocks. `AuditTrailController` unions the two into one filterable timeline (search, source, user, date range) with a JSON detail viewer. EIR append-only histories (`eir_fee_classification_events`, `eir_calculation_history`, `eir_amortisation_history`) add object-level traceability.
 
 ### 8.6 Notifications
 

@@ -12,173 +12,202 @@ return [
     'Portfolio Setup' => [
 
         'Loan portfolios' => [
-            'body' => '<p>A loan portfolio is the top-level basket that every loan in the platform belongs to (for example Agricultural Loans, Industrial Loans or simply Loans). Every loan book you import must be assigned to a portfolio, so at least one portfolio has to exist before any loan data can be loaded. Portfolios are set up by the risk or finance administrator and are rarely changed afterwards. To open the page, open the sidebar, expand <b>Data Foundation</b> and choose <b>Loan Portfolios</b>.</p>'
-                . '<p>Portfolios drive the rest of the system. The <b>Portfolio Group</b> box on the loan book import page lists them, the <b>Select Portfolio (Optional)</b> box on the loan book export and disbursement report lists them, the dashboard portfolio filter uses them, and portfolio-level ECL and coverage reports are grouped by them. If a portfolio is set to Inactive it is kept for history but should not be used for new imports.</p>'
+            'body' => '<p>A loan portfolio is the top-level basket every loan in the platform belongs to (for example Agricultural Loans or Industrial Loans). Every loan book you import is imported into a portfolio, so at least one portfolio must exist before any loan data can be loaded. Portfolios are set up by the risk or finance administrator and rarely change afterwards. To open the page, find the <b>Data foundation</b> block in the sidebar and choose <b>Portfolio Setup</b>; the page opens on the <b>Loan Portfolios</b> tab (breadcrumbs: <b>Data foundation &gt; Portfolio Setup &gt; Loan Portfolios</b>). The other two tabs of the section are <b>Product Groups</b> and <b>Sector Types</b>; each tab carries a small grey chip with the number of records it lists.</p>'
+                . '<p>Portfolios are used in the <b>Portfolio</b> box of the loan book import, in the <b>Portfolio</b> box of the <b>Export summary</b> and <b>Disbursements</b> windows on the Loan Book, and in the <b>Loan portfolios</b> card on the Product Groups tab. A portfolio set to Inactive is kept for history.</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
-                . '<li><b>Page title</b>: Loan Portfolios.</li>'
-                . '<li><b>Search box</b> (placeholder <code>Search...</code>): type any part of a portfolio name; the list refreshes as you type.</li>'
-                . '<li><b>Status drop-down</b>: <code>All Status</code>, <code>Active</code> or <code>Inactive</code>. Narrows the list to portfolios in that state.</li>'
-                . '<li><b>Create Portfolio</b> button (green, top right): opens the new portfolio form.</li>'
-                . '<li><b>Table columns</b> in order: <b>Name</b>, <b>Description</b>, <b>Status</b>, <b>Created By</b>, <b>Created At</b>, <b>Actions</b>. The list shows the newest portfolio first, twenty per page.</li>'
-                . '<li><b>Status badge</b>: a green <code>Active</code> chip means the portfolio can be used; a red <code>Inactive</code> chip means it is retired.</li>'
-                . '<li><b>Row actions</b>: the gold pencil (tooltip <code>Edit</code>) opens the edit form; the red bin (tooltip <code>Delete</code>) removes the portfolio after a confirmation.</li>'
-                . '<li><b>Empty state</b>: <code>No portfolios found.</code> is shown when nothing matches the search or status filter.</li>'
-                . '<li><b>Pagination</b>: page links appear under the table when there are more than twenty portfolios.</li>'
+                . '<li><b>Page title</b>: <b>Loan Portfolios</b>, with the line <code>The portfolios a loan book is imported into and the ECL is calculated for</code>.</li>'
+                . '<li><b>Table columns</b> in order: <b>Name</b> (bold), <b>Description</b> (a dash when blank), <b>Status</b>, <b>Created by</b> (the user who added it), <b>Created</b> (date and time), <b>Actions</b>. The newest portfolio is listed first, fifteen to a page.</li>'
+                . '<li><b>Status badge</b>: green <code>Active</code> means the portfolio can be used; grey <code>Inactive</code> means it is retired.</li>'
+                . '<li><b>Pagination</b>: page links appear under the table when there are more than fifteen portfolios.</li>'
                 . '</ul>'
-                . '<h4>Field by field</h4>'
+                . '<h4>Buttons and icons</h4>'
                 . '<ul>'
-                . '<li><b>Name</b>: required, up to 255 characters. Use the name your reports should show, for example <code>Agricultural Loans</code>. If it is left blank the form shows <code>The name field is required.</code></li>'
-                . '<li><b>Description</b>: optional free text describing what belongs in the portfolio, for example <code>All MAJIC agricultural facilities</code>.</li>'
-                . '<li><b>Active</b> tick box: ticked by default. Untick it to retire a portfolio without deleting it.</li>'
-                . '<li><b>Save Portfolio</b> button: saves the record. While saving the label changes to <code>Saving...</code>. You are returned to the list with the message <code>Portfolio created successfully.</code> or <code>Portfolio updated successfully.</code></li>'
+                . '<li><b>Search portfolios</b> box (in the button row above the table): type any part of a name; the list refreshes as you type.</li>'
+                . '<li><b>Status</b> drop-down: <code>All statuses</code>, <code>Active</code> or <code>Inactive</code>.</li>'
+                . '<li><b>New portfolio</b> (green): opens the <b>New Portfolio</b> form.</li>'
+                . '<li><b>Gold pencil</b> (tooltip <code>Edit</code>): opens the <b>Edit Portfolio</b> form for that row.</li>'
+                . '<li><b>Red bin</b> (tooltip <code>Delete</code>): asks <b>Delete the (name) portfolio?</b> with the note <code>A portfolio that holds loan books cannot be deleted; mark it inactive instead.</code> Press <b>Delete</b> to confirm or <b>Cancel</b> to keep it.</li>'
+                . '<li><b>Green round help button</b> (bottom right, tooltip <code>Help for this screen</code>): opens this article.</li>'
+                . '<li>Who may press them: the page, the form and the delete are open to every signed-in user; no permission or second approval is asked. Keep portfolio changes to the administrator by agreement.</li>'
                 . '</ul>'
-                . '<h4>To edit a portfolio</h4>'
+                . '<h4>The New Portfolio and Edit Portfolio forms</h4>'
+                . '<ul>'
+                . '<li><b>Name</b>: required, up to 255 characters. Use the name your reports should show.</li>'
+                . '<li><b>Description</b>: optional free text on what belongs in the portfolio.</li>'
+                . '<li><b>Active</b> tick box: ticked by default. Untick it to retire a portfolio without deleting it.</li>'
+                . '<li><b>Back to portfolios</b> (above the form) and <b>Cancel</b> return to the list without saving; <b>Save portfolio</b> saves (it reads <code>Saving...</code> while it works).</li>'
+                . '</ul>'
+                . '<h4>To add a portfolio</h4>'
                 . '<ol>'
-                . '<li>Find the portfolio in the list (use the search box if needed).</li>'
-                . '<li>Click the gold pencil in the <b>Actions</b> column. The page header changes to <b>Portfolios / (name)</b>.</li>'
-                . '<li>Change the <b>Name</b>, <b>Description</b> or <b>Active</b> tick box.</li>'
-                . '<li>Click <b>Save Portfolio</b>.</li>'
+                . '<li>Press <b>New portfolio</b>.</li>'
+                . '<li>Type the <b>Name</b> and, if useful, a <b>Description</b>. Leave <b>Active</b> ticked.</li>'
+                . '<li>Press <b>Save portfolio</b>. You return to the list with <code>Portfolio created successfully.</code></li>'
+                . '</ol>'
+                . '<h4>To edit or retire a portfolio</h4>'
+                . '<ol>'
+                . '<li>Find the portfolio (use <b>Search portfolios</b> or the <b>Status</b> drop-down).</li>'
+                . '<li>Press the gold pencil. The page title reads <b>Edit Portfolio</b>.</li>'
+                . '<li>Change the <b>Name</b> or <b>Description</b>, or untick <b>Active</b> to retire it.</li>'
+                . '<li>Press <b>Save portfolio</b>. You see <code>Portfolio updated successfully.</code></li>'
                 . '</ol>'
                 . '<h4>To delete a portfolio</h4>'
                 . '<ol>'
-                . '<li>Click the red bin in the <b>Actions</b> column.</li>'
-                . '<li>Answer <b>OK</b> to the browser question <code>Are you sure you want to delete this portfolio?</code></li>'
-                . '<li>The list refreshes with the message <code>Portfolio deleted successfully.</code></li>'
+                . '<li>Press the red bin on the row.</li>'
+                . '<li>Press <b>Delete</b> in the confirmation window.</li>'
+                . '<li>The list shows <code>Portfolio deleted successfully.</code> A portfolio that holds loan books is refused (see below).</li>'
                 . '</ol>'
                 . '<h4>What happens next</h4>'
-                . '<p>New portfolios appear immediately in the <b>Portfolio Group</b> list on the loan book import page and in the portfolio filters on the dashboard and reports. Loans imported under a portfolio carry its identifier, so changing a portfolio name later renames it everywhere without touching the loans.</p>'
+                . '<p>A new portfolio appears at once in the <b>Portfolio</b> box of the loan book import. Loans carry the portfolio\'s identifier, so renaming a portfolio later renames it everywhere without touching the loans.</p>'
+                . '<h4>Empty states and messages</h4>'
+                . '<ul>'
+                . '<li><code>No portfolio yet. Use New portfolio (top right) to add the first one.</code>: nothing has been set up.</li>'
+                . '<li><code>No portfolio matches these filters.</code>: clear the search box or set the status to <code>All statuses</code>.</li>'
+                . '<li><code>This portfolio holds loan books, so it cannot be deleted. Mark it inactive instead.</code>: loans have been imported under it.</li>'
+                . '</ul>'
                 . '<h4>Common problems</h4>'
                 . '<ul>'
-                . '<li><code>Cannot delete portfolio with associated loan books.</code> The portfolio already has loans imported under it. Set it to Inactive instead of deleting it.</li>'
-                . '<li><code>The name field is required.</code> Enter a name before saving.</li>'
-                . '<li>The portfolio you expect is missing from the import page: check that it is not filtered out as Inactive, and if it is, edit it and tick <b>Active</b>.</li>'
+                . '<li><code>The name field is required.</code>: enter a name before saving.</li>'
+                . '<li>The portfolio you expect is missing from the import page: check it has not been deleted, and set its <b>Active</b> tick box if it was retired.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Data Foundation and choose Loan Portfolios.',
-                'Click the green Create Portfolio button at the top right.',
-                'Type the portfolio Name (required) and an optional Description.',
-                'Leave the Active box ticked so the portfolio can be used for imports.',
-                'Click Save Portfolio. You return to the list and see Portfolio created successfully.',
-                'Repeat for each portfolio you need before importing loan books.',
+                'In the Data foundation block of the sidebar choose Portfolio Setup; the Loan Portfolios tab opens.',
+                'Press New portfolio in the button row above the table.',
+                'Type the Name (required) and an optional Description; leave Active ticked.',
+                'Press Save portfolio. You return to the list with Portfolio created successfully.',
+                'To retire a portfolio later, press its gold pencil, untick Active and save.',
             ],
             'images' => [
-                'portfolios' => 'The Loan Portfolios list with search, status filter, Active badge and the gold pencil and red bin row actions',
-                'portfolios-create' => 'The Create Portfolio form: Name, Description, Active tick box and Save Portfolio',
+                'portfolios' => 'The Loan Portfolios tab with Search portfolios, the Status filter, New portfolio, the Active badge and the gold pencil and red bin',
+                'portfolios-create' => 'The New Portfolio form: Name, Description, the Active tick box, Cancel and Save portfolio',
             ],
             'routes' => ['portfolios.index', 'portfolios.create', 'portfolios.store', 'portfolios.edit', 'portfolios.update', 'portfolios.destroy'],
         ],
 
         'Sector types' => [
-            'body' => '<p>Sector types (the page itself is titled <b>Industry Types</b>) are the economic-sector classification used for sector concentration and sector ECL reporting, for example Agriculture, forestry and fishing; Mining; Manufacturing. Each sector has a short numeric <b>Code</b> and a <b>Name</b>. The loan book file carries a sector code or sector name for every contract (the importer recognises headings such as <code>Industry Code</code>, <code>Sector Code</code>, <code>Sector</code> or <code>Segmentation</code>), and the client profile shows the sector under <b>Industrial Sector</b>. The codes in your loan book must match the codes on this page, so set the sectors up before the first loan book is loaded. To open the page, open the sidebar, expand <b>Data Foundation</b> and choose <b>Sector Types</b>.</p>'
-                . '<p>Only users whose role includes the industry types permissions see the create, edit and delete controls. If you can see the list but not the buttons, ask your administrator to extend your role.</p>'
+            'body' => '<p>Sector types are the economic-sector classification used for sector concentration and sector ECL reporting. Each sector has a <b>Sector code</b> and a <b>Name</b>. The loan book carries a sector code for every contract (the <code>industry_code</code> column of the standard loan book file), and the code must match a code on this page for the sector name to show. The Loan Book shows the sector under <b>Product group / sector</b> and filters by it, and the client page shows it as <b>Sector</b>. Set the sectors up before the first loan book is loaded. To open the page, choose <b>Portfolio Setup</b> in the <b>Data foundation</b> block and click the <b>Sector Types</b> tab (breadcrumbs: <b>Data foundation &gt; Portfolio Setup &gt; Sector Types</b>).</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
-                . '<li><b>Page title</b>: Industry Types.</li>'
-                . '<li><b>Filter</b> button with a small arrow: opens an (empty) filter panel; there are no extra filters on this page.</li>'
-                . '<li><b>Search box</b> (placeholder <code>Search…</code>): type part of a code or name; the list refreshes half a second after you stop typing.</li>'
-                . '<li><b>Reset</b> link: clears the search box.</li>'
-                . '<li><b>Create Category</b> button (green, top right; on a narrow screen it reads just <b>Create</b>): opens the new sector form.</li>'
-                . '<li><b>Table columns</b> in order: <b>Code</b>, <b>Name</b>, <b>Actions</b>.</li>'
-                . '<li><b>Row actions</b>: gold pencil (tooltip <code>Edit</code>) and red bin (tooltip <code>Delete</code>). Each is shown only if your role allows it.</li>'
-                . '<li><b>Empty state</b>: <code>No types found.</code></li>'
-                . '<li><b>Delete confirmation window</b>: titled <b>Delete Record</b> with the text <code>Are you sure you want to delete record?</code> and the buttons <b>Nevermind</b> (cancel) and <b>Delete Record</b> (confirm).</li>'
-                . '<li><b>Pagination</b>: <b>Previous</b>, page numbers and <b>Next</b> under the table.</li>'
+                . '<li><b>Page title</b>: <b>Sector Types</b>, with the line <code>The economic sectors loans are classified under, matched to the loan book by sector code</code>.</li>'
+                . '<li><b>Table columns</b> in order: <b>Code</b>, <b>Name</b> (bold), <b>Description</b> (a dash when blank), <b>Actions</b>. Rows are sorted by code in number order, fifteen to a page, with page links under the table.</li>'
                 . '</ul>'
-                . '<h4>Field by field</h4>'
+                . '<h4>Buttons and icons</h4>'
                 . '<ul>'
-                . '<li><b>Code</b>: the short sector code that appears in your loan book file, for example <code>1</code> for Agriculture, forestry and fishing. Required by the form. Keep it unique.</li>'
-                . '<li><b>Name</b>: the sector description shown on reports, for example <code>Wholesale and Retail, Accommodation and Food Services</code>. Required; if blank the message <code>The name field is required.</code> appears.</li>'
-                . '<li><b>Description</b>: optional notes (shown on the create form only).</li>'
-                . '<li><b>Save</b> button: saves and returns to the list with <code>Industry Type created successfully.</code> or <code>Industry Type updated successfully.</code></li>'
+                . '<li><b>Search code or name</b> box: type part of a code or name; the list refreshes shortly after you stop typing.</li>'
+                . '<li><b>New sector type</b> (green): opens the <b>New Sector Type</b> form. Shown only with the permission <code>industry_types.create</code>.</li>'
+                . '<li><b>Gold pencil</b> (tooltip <code>Edit</code>): opens <b>Edit Sector Type</b>. Shown only with <code>industry_types.update</code>.</li>'
+                . '<li><b>Red bin</b> (tooltip <code>Delete</code>): asks <b>Delete the (name) sector type?</b> with <code>The sector type is removed from the list. This cannot be undone.</code> Press <b>Delete</b> or <b>Cancel</b>. Shown only with <code>industry_types.destroy</code>.</li>'
+                . '<li>The page itself needs <code>industry_types.index</code>; a user without it is refused. No second approval is asked for any change.</li>'
                 . '</ul>'
-                . '<h4>To edit a sector</h4>'
+                . '<h4>The New Sector Type and Edit Sector Type forms</h4>'
+                . '<ul>'
+                . '<li><b>Sector code</b>: the code as it appears in the loan book, with the hint <code>As it appears in the loan book\'s industry_code column.</code> The form does not insist on it, but a sector without a code matches no loan. Keep codes unique.</li>'
+                . '<li><b>Name</b>: required; the sector name shown on reports.</li>'
+                . '<li><b>Description</b>: optional notes.</li>'
+                . '<li><b>Back to sector types</b> and <b>Cancel</b> leave without saving; <b>Save sector type</b> saves (it reads <code>Saving...</code> while it works).</li>'
+                . '</ul>'
+                . '<h4>To add a sector</h4>'
                 . '<ol>'
-                . '<li>Click the gold pencil on the row. The header reads <b>Industry Types / Edit</b>.</li>'
-                . '<li>Change the <b>Code</b> or the <b>Name</b> (on the edit form the name is a multi-line box).</li>'
-                . '<li>Click <b>Save</b>.</li>'
+                . '<li>Press <b>New sector type</b>.</li>'
+                . '<li>Enter the <b>Sector code</b> exactly as the loan book file carries it, then the <b>Name</b> and an optional <b>Description</b>.</li>'
+                . '<li>Press <b>Save sector type</b>. You return to the list with <code>Industry Type created successfully.</code></li>'
                 . '</ol>'
-                . '<h4>To delete a sector</h4>'
+                . '<h4>To edit or delete a sector</h4>'
                 . '<ol>'
-                . '<li>Click the red bin on the row.</li>'
-                . '<li>In the <b>Delete Record</b> window click <b>Delete Record</b>, or <b>Nevermind</b> to keep it.</li>'
-                . '<li>The list shows <code>Industry Type deleted successfully.</code></li>'
+                . '<li>Press the gold pencil, change the code, name or description, and press <b>Save sector type</b> (<code>Industry Type updated successfully.</code>).</li>'
+                . '<li>Or press the red bin and confirm with <b>Delete</b> (<code>Industry Type deleted successfully.</code>).</li>'
                 . '</ol>'
                 . '<h4>What happens next</h4>'
-                . '<p>Every create, update and delete is written to the audit trail. Loan book rows imported with a sector code are grouped under that sector in the sector concentration and sector ECL reports, and a client whose sector code matches shows the sector name on the <b>Basic Profile</b> page. Deleting a sector does not change loans already imported; they keep the code but will show no name until a sector with that code exists again.</p>'
+                . '<p>Every create, update and delete is written to the activity log. Loans imported with a sector code are grouped under that sector in the sector reports. Deleting a sector does not change loans already imported; they keep the code but show no sector name until a sector with that code exists again.</p>'
+                . '<h4>Empty states and messages</h4>'
+                . '<ul>'
+                . '<li><code>No sector type yet. Use New sector type (top right) to add one.</code></li>'
+                . '<li><code>No sector type matches the search.</code>: clear the search box.</li>'
+                . '</ul>'
                 . '<h4>Common problems</h4>'
                 . '<ul>'
-                . '<li>Sector reports show blank or unknown sectors: the codes in the loan book file do not match the <b>Code</b> column here. Add the missing codes or correct the file and re-import.</li>'
-                . '<li>You cannot see <b>Create Category</b> or the row icons: your role lacks the create, update or destroy permission for industry types.</li>'
-                . '<li>Two sectors with the same code: the platform does not stop you, but reports will merge them. Keep codes unique.</li>'
+                . '<li>Sector reports show blank or unknown sectors: the codes in the loan book do not match the <b>Code</b> column here. Add the missing codes.</li>'
+                . '<li>You cannot see <b>New sector type</b> or the row icons: your role lacks the create, update or destroy permission for sector types; ask your administrator.</li>'
+                . '<li>Two sectors with the same code: the platform does not stop you, but reports will merge them.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Data Foundation and choose Sector Types.',
-                'Click Create Category at the top right.',
-                'Enter the sector Code exactly as it appears in your loan book file.',
-                'Enter the sector Name and, if helpful, a Description.',
-                'Click Save. You return to the list and see Industry Type created successfully.',
+                'In the Data foundation block choose Portfolio Setup, then the Sector Types tab.',
+                'Press New sector type.',
+                'Enter the Sector code exactly as the loan book carries it in industry_code.',
+                'Enter the Name and, if helpful, a Description.',
+                'Press Save sector type. You return to the list with Industry Type created successfully.',
                 'Repeat until every sector code used in the loan book exists.',
             ],
             'images' => [
-                'sector-types' => 'The Industry Types list showing Code, Name and the edit and delete row actions',
-                'sector-types-create' => 'The Industry Types / Create form with Code, Name and Description',
+                'sector-types' => 'The Sector Types tab with Search code or name, New sector type and the Code, Name and Description columns',
+                'sector-types-create' => 'The New Sector Type form with Sector code, Name, Description and Save sector type',
             ],
             'routes' => ['industry_types.index', 'industry_types.create', 'industry_types.store', 'industry_types.show', 'industry_types.edit', 'industry_types.update', 'industry_types.destroy'],
         ],
 
         'Product groups' => [
-            'body' => '<p>Product groups describe the lending product a contract belongs to (for example MAJIC Agricultural Loans or MAJIC Industrial Loans). They sit one level below portfolios: a portfolio is the reporting basket you choose at import time, while the product group is read from the loan data itself. When an E-Banker loan book is imported, each <code>Loan Type :</code> heading row in the file sets the product group and product code for the contracts beneath it, and the legacy and custom formats read a <code>type</code> or <code>loan_type</code> column. The product-group ECL report then breaks expected credit loss down by these names. Set the groups up here so the names on reports match the names in your files. To open the page, open the sidebar, expand <b>Data Foundation</b> and choose <b>Product Groups</b>.</p>'
+            'body' => '<p>Product groups are the lending products loans are reported and staged under (for example a term loan or working capital). They sit below portfolios: the portfolio is chosen at import time, while the product group is read from the loan data itself. In an E-Banker loan book report each <code>Loan Type :</code> row sets the product group of the loans beneath it; the standard loan book file carries it in the <code>type</code> column. This tab lists the groups, shows how the latest loan book uses them, and adds any group the loan book uses that is not yet listed. To open it, choose <b>Portfolio Setup</b> in the <b>Data foundation</b> block and click the <b>Product Groups</b> tab (breadcrumbs: <b>Data foundation &gt; Portfolio Setup &gt; Product Groups</b>).</p>'
                 . '<h4>What you see on the screen</h4>'
                 . '<ul>'
-                . '<li><b>Page title</b>: Product Groups.</li>'
-                . '<li><b>Filter</b> button: opens an empty filter panel; there are no extra filters on this page.</li>'
-                . '<li><b>Search box</b> (placeholder <code>Search…</code>): type part of a group name; the list refreshes shortly after you stop typing.</li>'
-                . '<li><b>Reset</b> link: clears the search.</li>'
-                . '<li><b>Create Product Group</b> button (green, top right; <b>Create</b> on narrow screens): opens the new group form.</li>'
-                . '<li><b>Table columns</b> in order: <b>Name</b>, <b>Description</b>, <b>Actions</b>.</li>'
-                . '<li><b>Row actions</b>: gold pencil (tooltip <code>Edit</code>) and red bin (tooltip <code>Delete</code>).</li>'
-                . '<li><b>Empty state</b>: <code>No groups found.</code></li>'
-                . '<li><b>Delete confirmation window</b>: <b>Delete Record</b> with <code>Are you sure you want to delete record?</code>, buttons <b>Nevermind</b> and <b>Delete Record</b>.</li>'
-                . '<li><b>Pagination</b>: <b>Previous</b>, page numbers and <b>Next</b>.</li>'
+                . '<li><b>Page title</b>: <b>Product Groups</b>, with the line <code>The loan product groups that loans are reported and staged under</code>.</li>'
+                . '<li><b>Four cards</b> (live counts): <b>Product groups</b> (the number listed, with <code>N with no loans in</code> the latest month, or <code>No loan book loaded</code>); <b>Loan portfolios</b> (the number of portfolios, <code>The portfolios loans are grouped into</code>); <b>Loan book groups listed</b> (for example <code>5 of 6</code>: how many of the groups used by the latest loan book are listed here, amber when some are missing, with <code>N used in (month) but not listed</code> or <code>Every group used in (month) is listed</code>); and <b>Facilities in (month)</b> (the number of loans in the latest loan book, with the gross carrying amount in short form; hover for the full figure).</li>'
+                . '<li><b>Amber notice</b> (only when needed): <code>The loan book of (month) uses N product group(s) not listed here:</code> followed by the names.</li>'
+                . '<li><b>Table columns</b> in order: <b>Name</b> (bold), <b>Description</b>, <b>Loans in (month)</b> (loans of the latest loan book in the group), <b>Gross carrying amount</b> (their total, with the currency code; a dash when the group has no loans), <b>Actions</b>.</li>'
+                . '<li><b>Sorting</b>: click any column heading to sort by it; click again to reverse. The small arrow icon beside the heading shows the order (faint when the column is not the one sorted). Name and Description sort A to Z first, the two number columns largest first.</li>'
+                . '<li><b>Pager</b> (bottom right): fifteen rows a page with <b>Previous</b>, page numbers, <b>Next</b> and <code>X to Y of Z</code>.</li>'
                 . '</ul>'
-                . '<h4>Field by field</h4>'
+                . '<h4>Buttons and icons</h4>'
                 . '<ul>'
-                . '<li><b>Name</b>: required. Use the product name as it appears in the loan file heading, for example <code>MAJIC Agricultural Loans</code>. If left blank you see <code>The name field is required.</code></li>'
-                . '<li><b>Description</b>: optional explanation of what the group covers, for example <code>Seasonal input finance for smallholder co-operatives</code>.</li>'
-                . '<li><b>Save</b> button: saves and returns to the list. The confirmation message reads <code>Loan Category created successfully.</code> (the platform calls a product group a loan category internally) or <code>Loan Category updated successfully.</code></li>'
+                . '<li><b>Search product groups</b> box: filters by name or description as you type.</li>'
+                . '<li><b>Add the N from the loan book</b>: appears only when the loan book uses groups not listed here. It adds every missing group, named as in the loan book, with the description <code>From the loan book (E-Banker product group)</code>. Shown only with the permission <code>loans.products.create</code>.</li>'
+                . '<li><b>New product group</b> (green): opens the <b>New Product Group</b> form. Shown only with <code>loans.products.create</code>.</li>'
+                . '<li><b>Gold pencil</b> (tooltip <code>Edit</code>): opens <b>Edit Product Group</b>.</li>'
+                . '<li><b>Red bin</b> (tooltip <code>Delete</code>): asks <b>Delete the (name) product group?</b> with <code>The product group is removed from the list. This cannot be undone.</code> Press <b>Delete</b> or <b>Cancel</b>.</li>'
+                . '<li>The pencil and the bin are shown to every user who can open the tab; no second approval is asked.</li>'
                 . '</ul>'
-                . '<h4>To edit a product group</h4>'
+                . '<h4>The New Product Group and Edit Product Group forms</h4>'
+                . '<ul>'
+                . '<li><b>Name</b>: required. Use the product name exactly as the loan book carries it; names are matched ignoring capitals and spaces at either end.</li>'
+                . '<li><b>Description</b>: optional.</li>'
+                . '<li><b>Back to product groups</b> and <b>Cancel</b> leave without saving; <b>Save product group</b> saves (<code>Saving...</code> while it works).</li>'
+                . '</ul>'
+                . '<h4>To list every group the loan book uses</h4>'
                 . '<ol>'
-                . '<li>Click the gold pencil on the row. The header reads <b>Product Groups / Edit</b>.</li>'
-                . '<li>Change the <b>Name</b> or <b>Description</b>.</li>'
-                . '<li>Click <b>Save</b>.</li>'
+                . '<li>Read the amber notice and the <b>Loan book groups listed</b> card.</li>'
+                . '<li>Press <b>Add the N from the loan book</b>.</li>'
+                . '<li>The list shows <code>N product group(s) added from the loan book.</code> Edit any description you want to improve.</li>'
                 . '</ol>'
-                . '<h4>To delete a product group</h4>'
+                . '<h4>To add, edit or delete a group by hand</h4>'
                 . '<ol>'
-                . '<li>Click the red bin on the row.</li>'
-                . '<li>Click <b>Delete Record</b> in the confirmation window, or <b>Nevermind</b> to keep it.</li>'
-                . '<li>The list shows <code>Loan Category deleted successfully.</code></li>'
+                . '<li>Press <b>New product group</b>, type the <b>Name</b> and an optional <b>Description</b>, and press <b>Save product group</b> (<code>Product group created.</code>).</li>'
+                . '<li>To change one, press its gold pencil and save (<code>Product group updated.</code>).</li>'
+                . '<li>To remove one, press its red bin and confirm (<code>Product group deleted.</code>).</li>'
                 . '</ol>'
                 . '<h4>What happens next</h4>'
-                . '<p>Each change is recorded in the audit trail. Product group names are matched by text, so a group named here exactly as it appears in the loan file will be reported under that name in the product-group ECL and disbursement (vintage) reports. Loans whose group is not listed still import; they simply show the raw text from the file (or <code>Unknown</code> for E-Banker files without a Loan Type heading).</p>'
+                . '<p>Each change is written to the activity log. Loans keep the product group text they were imported with; the list here describes those names and drives the counts. A loan whose group is not listed still imports and reports under its own text (or <code>Unknown</code> for an E-Banker report with no Loan Type rows).</p>'
+                . '<h4>Empty states and messages</h4>'
+                . '<ul>'
+                . '<li><code>No product group yet. Use New product group to add one.</code></li>'
+                . '<li><code>No product group matches the search.</code></li>'
+                . '<li><code>Every product group in the loan book is already listed.</code>: the sync found nothing to add.</li>'
+                . '</ul>'
                 . '<h4>Common problems</h4>'
                 . '<ul>'
-                . '<li>The list is empty: no groups have been created yet. This is normal on a fresh installation; click <b>Create Product Group</b>.</li>'
-                . '<li>A report shows a product group you did not create: the name came from the loan file. Add it here with the same spelling if you want to describe it.</li>'
+                . '<li>The cards read <code>No loan book loaded</code> and dashes: no loan book has been imported or built yet.</li>'
+                . '<li>A group shows 0 loans: the name here differs from the loan book text. Edit the name to match.</li>'
                 . '<li><code>The name field is required.</code>: enter a name before saving.</li>'
                 . '</ul>',
             'steps' => [
-                'Open the sidebar, expand Data Foundation and choose Product Groups.',
-                'Click Create Product Group at the top right.',
-                'Type the product Name exactly as it appears in your loan book file headings.',
-                'Add an optional Description.',
-                'Click Save. You return to the list and see Loan Category created successfully.',
+                'In the Data foundation block choose Portfolio Setup, then the Product Groups tab.',
+                'Read the four cards and any amber notice of groups the loan book uses that are not listed.',
+                'Press Add the N from the loan book to list every missing group in one go.',
+                'Or press New product group, type the Name as the loan book carries it, add a Description and press Save product group.',
+                'Click a column heading to sort, for example by Gross carrying amount.',
             ],
             'images' => [
-                'product-groups' => 'The Product Groups list with search, the Create Product Group button and the Name and Description columns',
+                'product-groups' => 'The Product Groups tab with the four cards, the sortable Name, Description, Loans and Gross carrying amount columns, and New product group',
             ],
-            'routes' => ['groups.index', 'groups.create', 'groups.store', 'groups.edit', 'groups.update', 'groups.destroy'],
+            'routes' => ['groups.index', 'groups.create', 'groups.store', 'groups.sync', 'groups.edit', 'groups.update', 'groups.destroy'],
         ],
 
     ],

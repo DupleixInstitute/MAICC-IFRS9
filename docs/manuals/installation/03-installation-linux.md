@@ -10,9 +10,9 @@ sudo apt install -y software-properties-common ca-certificates curl git unzip
 sudo add-apt-repository -y ppa:ondrej/php
 sudo apt update
 sudo apt install -y php8.2-fpm php8.2-cli php8.2-mysql php8.2-mbstring php8.2-xml php8.2-bcmath \
-  php8.2-curl php8.2-zip php8.2-gd php8.2-intl php8.2-opcache
+  php8.2-curl php8.2-zip php8.2-gd php8.2-opcache
 sudo apt install -y nginx mariadb-server
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 sudo php composer-setup.php --install-dir=/usr/local/bin --filename=composer
@@ -38,11 +38,21 @@ sudo chown $USER:www-data /var/www/maiic-ifrs9
 git clone --branch master https://github.com/DupleixInstitute/MAICC-IFRS9.git /var/www/maiic-ifrs9
 cd /var/www/maiic-ifrs9
 composer install --no-dev --optimize-autoloader --no-interaction
-npm ci
+PUPPETEER_SKIP_DOWNLOAD=true npm ci
 npm run build
 ```
 
 Production deploys from `master`. Feature work happens on branches (for example `eir_revenue_recognition`) and reaches master through pull requests, so a production clone should never check out a feature branch.
+
+`public/build` is not committed, so the assets are always built on the server. `PUPPETEER_SKIP_DOWNLOAD=true` stops puppeteer (used only for the manual screenshots on a workstation) from downloading a browser.
+
+The client inputs under `docs/bootstrap` must arrive byte for byte as committed, because every manifest records the SHA-256 of each file and the landing gates refuse a file whose hash differs. `docs/bootstrap/.gitattributes` turns line-ending conversion off for the CSV, JSON and SQL files there (`-text`), so a clone on Linux gets the same bytes as one on Windows whatever `core.autocrlf` says. Check it after cloning:
+
+```bash
+git check-attr text -- docs/bootstrap/manifest.json
+```
+
+The answer must be `text: unset`. Never open and re-save those files in Excel or an editor.
 
 ### 3.4 Environment file
 
@@ -51,7 +61,7 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Edit `.env` following chapter 5. At minimum set `APP_NAME`, `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL`, the `DB_*` values, `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database` and the mail settings. Leave `FORCE_HTTPS` and `HSTS_ENABLED` at `false` until the certificate is installed (chapter 6).
+Edit `.env` following chapter 5. At minimum set `APP_NAME`, `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL`, the `DB_*` values, `BROADCAST_DRIVER=log`, `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database` and the mail settings. Leave `FORCE_HTTPS` and `HSTS_ENABLED` at `false` until the certificate is installed (chapter 6).
 
 ### 3.5 Permissions and storage
 
@@ -70,13 +80,15 @@ php artisan migrate --force
 php artisan db:seed --force
 ```
 
-`DatabaseSeeder` runs, in order: countries, permissions, roles, ticket permissions, admin module permissions (financial periods, currencies), the legacy permission cleanup, the User Manual and Administrator Manual content, the administrator user, currencies, timezones, settings, branches, legal types, sector types, chart of accounts, credit loss definitions and scenario sets. Every seeder used here is idempotent: rerunning `db:seed` does not duplicate rows and never overwrites manual content that has been edited in the application. After seeding, set MWK as the organisation currency:
+`DatabaseSeeder` runs, in order: countries, permissions, roles, ticket permissions, admin module permissions (financial periods, currencies), the legacy permission cleanup, the Governance Centre defaults, the User Manual and Administrator Manual content, the administrator user, currencies, timezones, settings, branches, SMS gateways, campaign rules, legal types, the two sector type seeders, chart of accounts, scoring attributes, credit loss definitions and scenario sets. Run it once, on an empty database. It is not safe to rerun: the administrator user, settings, branches and several legacy tables are inserted without a check, so a second `db:seed` stops on the existing administrator or duplicates rows. To add what a release brings, run the named seeders instead (chapter 11.6). The manual seeders never overwrite manual content that has been edited in the application. After seeding, set MWK as the organisation currency:
 
 ```bash
 php artisan db:seed --class=MaiicCurrencySeeder --force
 ```
 
 If MAIIC's existing database is being migrated rather than starting empty, follow chapter 10.3 (restore) instead of seeding a fresh database, then run `migrate` and the seeders listed there.
+
+To load MAIIC's E-Banker data, continue with the bootstrap in chapter 9.8 once the services are running. Note that `eir:bootstrap --fresh` drops every table, including what `db:seed` wrote here, and seeds only its own list; chapter 9.8 says what to seed again afterwards.
 
 ### 3.7 Caches
 

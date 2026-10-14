@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Administrator Manual chapter 1 (Ticket #011 depth rewrite).
+ * Administrator Manual chapter 1 (Ticket #011 depth rewrite; documentation audit 14 October 2026).
  * Loaded by HelpAdminContentSeeder from database/seeders/data/help_admin_content.
  */
 return [
@@ -9,27 +9,89 @@ return [
     'Administering the Platform' => [
 
         'Role of the administrator' => [
-            'body' => '<p>The administrator owns everything that is not a calculation. Analysts run the IFRS 9 workflow described in the User Manual; you keep the environment in which they do it correct, controlled and auditable. That covers six things: who may sign in and what they may do, the organisation settings and reference data every screen reads, the periods that scope the figures, the governance of imports and locked results, the monitoring trail, and the documentation.</p><h4>What you are accountable for</h4><ul><li><b>Access.</b> Every account, every role and every permission. If someone can see a figure they should not, or cannot do work they should, that is an access question.</li><li><b>Configuration.</b> The organisation name, logo and currency that appear on every report and every manual cover; the reference data (currencies, chart of accounts, branches, sector types) that the reports group by.</li><li><b>Periods.</b> Creating the financial year, closing it after sign-off, and running the period close checklist in the Workspace.</li><li><b>Data governance.</b> Approving the things the platform deliberately refuses to decide for itself: fee rules, fee classifications, original schedules and effective interest rates. Each is a two-person control.</li><li><b>Evidence.</b> The audit trail, the support ticket record and the documentation, which together are what an auditor examines when they ask how a figure was controlled.</li></ul><h4>What you are not accountable for</h4><p>The platform is a calculation and reporting tool. MAIIC owns its accounting policies, IFRS 9 judgements, model methodology, assumptions, scenarios and overlays, and the figures it adopts in its financial statements and regulatory returns. Approving a rule in this platform records a decision; it does not make the decision for you.</p><h4>Where the work happens</h4><p>Most of it is under the <b>Administration</b> group in the sidebar, with the <b>Settings</b> hub inside it. The governance approvals sit on the working screens themselves: the EIR pages under <b>EIR and Revenue Recognition</b>, and the lock actions on the transition matrix and loss given default screens. Server-side work, backups, the queue worker, TLS certificates and upgrades, is in the <b>Installation and Configuration Guide</b>. How the engines calculate is in the <b>Technical Manual</b>.</p><h4>A month in the life</h4><ol><li>Confirm the loan book for the month is imported and the import shows no unexplained failures.</li><li>Watch the Workspace checklist fill as the analysts work through staging, PD, LGD, the forward-looking adjustment and the ECL run.</li><li>Approve what needs a second pair of eyes: fee classifications, schedules, effective interest rates.</li><li>Review the audit trail for anything unexpected.</li><li>When the reports are reviewed and signed off, tick the manual steps in the Workspace and close the financial period.</li></ol>',
+            'body' => '<p>The administrator owns everything that is not a calculation. Analysts run the IFRS 9 and EIR workflow described in the User Manual; you keep the environment in which they do it correct, controlled and auditable. Almost all of your screens sit in the last block of the sidebar, <b>Administration &amp; support</b>, in three groups: <b>Governance</b>, <b>Access &amp; Setup</b> and <b>Support &amp; Maintenance</b>.</p>'
+                . '<h4>What you are accountable for</h4><ul>'
+                . '<li><b>Access.</b> Every account, every role and every permission (<b>Access &amp; Setup</b>, then <b>Users &amp; Roles</b>). If someone can see a figure they should not, or cannot do work they should, that is an access question.</li>'
+                . '<li><b>Governed settings.</b> Every calculation convention the engines use (the EIR conventions, the staging basis, the PD and LGD segments, the forward-looking settings, the Mega Farm programme) is a governed setting in the <b>Governance Centre</b>. One person proposes a change and a second approves it, from an effective date.</li>'
+                . '<li><b>Configuration.</b> The organisation name, logos, reporting currency and outgoing email on <b>Settings</b>, which appear on every report and every manual cover.</li>'
+                . '<li><b>Periods.</b> The financial period shown in the top bar, the month-end close checklist in the <b>Workspace</b>, and the lock that stops a signed-off reporting month from being restated.</li>'
+                . '<li><b>Data governance.</b> The approvals the platform deliberately refuses to make on its own: loan book builds, fee rules and classifications, schedules, effective interest rates, write-offs, restructures and the forward-looking month. Each is a two-person control.</li>'
+                . '<li><b>Running the system.</b> The month-end jobs, the data refresh, the health check and the release update on the <b>Maintenance</b> console.</li>'
+                . '<li><b>Evidence.</b> The <b>Audit Trail</b>, the per-contract <b>Audit Trace</b>, the <b>Compliance Audits</b> register, the support tickets and the documentation, which together are what an auditor examines when they ask how a figure was controlled.</li>'
+                . '</ul>'
+                . '<h4>What you are not accountable for</h4><p>The platform is a calculation and reporting tool. MAIIC owns its accounting policies, IFRS 9 judgements, model methodology, assumptions, scenarios and overlays, and the figures it adopts in its financial statements and regulatory returns. Approving a setting or a rule in this platform records a decision; it does not make the decision for you.</p>'
+                . '<h4>Where the work happens</h4><ul>'
+                . '<li><b>Administration &amp; support</b>, then <b>Governance</b>: the Governance Centre and the Audit section (Audit Trail, Audit Trace, Compliance Audits).</li>'
+                . '<li><b>Administration &amp; support</b>, then <b>Access &amp; Setup</b>: Users &amp; Roles, Financial Periods and Settings.</li>'
+                . '<li><b>Administration &amp; support</b>, then <b>Support &amp; Maintenance</b>: Support Tickets, Maintenance and System Documentation.</li>'
+                . '<li>The approvals of the working screens (builds, schedules, fees, EIR locks, write-offs, restructures, scenario sets, overlays) stay on those screens; the Workspace tab <b>Awaiting approval</b> lists every one of them with a count and a link.</li>'
+                . '<li>Server work (backups, the queue worker, the scheduler, TLS certificates, upgrades) is in the <b>Installation Guide</b>. How the engines calculate is in the <b>Technical Manual</b>.</li>'
+                . '</ul>'
+                . '<h4>A month in the life</h4><ol>'
+                . '<li>Confirm the month\'s E-Banker pack has landed and its loan book build is proposed and approved (Imports &amp; Feeds).</li>'
+                . '<li>Run the month-end calculations from Maintenance, or watch the analysts run them.</li>'
+                . '<li>Open the Workspace, choose the month, and clear what waits on the <b>Awaiting approval</b> tab, as the second person where you are not the proposer.</li>'
+                . '<li>Read the Audit Trail for governed-setting and account changes you did not expect.</li>'
+                . '<li>When the reports are reviewed and signed off, tick the two manual steps in the Workspace and lock the reporting month.</li>'
+                . '</ol>',
             'steps' => [
                 'Each month, open the Workspace and select the reporting period being closed.',
-                'Check Imports for the period: records loaded, failures explained.',
-                'Work through the approvals waiting for you on the EIR screens.',
-                'Review the Audit Trail for settings or permission changes you did not expect.',
-                'Tick the manual checklist steps once the reports have been reviewed, then close the financial period.',
+                'Check Imports & Feeds: the pack landed, the loan book build approved.',
+                'Run the month-end calculations from Maintenance, or confirm the analysts have.',
+                'Clear the Awaiting approval tab as the second person, never on your own proposals.',
+                'Review the Audit Trail for governed-setting and account changes you did not expect.',
+                'Tick Review and Sign-off in the Workspace, then lock the reporting month.',
             ],
             'images' => [
                 'dashboard' => 'The dashboard, where an administrator confirms the latest period has calculated results',
-                'workspace' => 'The period close checklist, which shows how far the month has progressed',
+                'workspace' => 'The Workspace close checklist, which shows how far the month has progressed',
             ],
-            'routes' => ['dashboard', 'workspace.index'],
+            'routes' => [],
         ],
 
         'Administration menu map' => [
-            'body' => '<p>The <b>Administration</b> group holds six items. Each opens a list page using the standard controls: a filter bar, a table, and row actions shown as a green eye to view, a gold pencil to edit and a red bin to delete, with amber chips for state changes such as Close.</p><ul><li><b>User Management</b>. Accounts, their roles and their active status. Columns: Name, Email, Mobile, Gender, Role, Actions.</li><li><b>Roles and Permissions</b>. The roles and the permission matrix behind each. Columns: Name, System, Group Email, Send Group Email To All In Role?, Actions.</li><li><b>Financial Periods</b>. Accounting periods and their open or closed state. Columns: ID, Name, Date Created, Date Closed, Active, Actions.</li><li><b>Audit Trail</b>. The unified timeline over both audit stores, with filters for search, source, user and date range. Each entry is tagged <b>Record change</b>, <b>Module action</b> (a calculation, approval or setting) or <b>Export</b> (a report, download or pack), and <b>Export CSV</b> at the top right downloads the whole filtered trail.</li><li><b>Support Tickets</b>. The agreed record of enhancements, issues and changes between MAIIC and Dupleix.</li><li><b>Settings</b>. The configuration hub, described in its own chapter.</li></ul><h4>Above Administration</h4><p><b>System Documentation</b> holds the four contractual documents: the <b>User Manual</b> and this <b>Administrator Manual</b>, which are content in the database and editable in the application, and the <b>Technical Manual</b> and <b>Installation Guide</b>, which are versioned with the source code and maintained by developers.</p><h4>Approvals that live outside Administration</h4><ul><li><b>EIR and Revenue Recognition</b>: Accounting Rules (approve a rule), Fee Classification (review a classification), EIR Data then Schedules (approve a schedule), EIR Calculations (approve and lock a rate, or reopen one).</li><li><b>Financial Modelling (the staging and SICR rules under Governance Centre; Macro Statistics under Data Foundation)</b>: locking a transition matrix or a loss given default run, and applying a matrix to the loan book.</li><li><b>Workspace</b>: ticking the manual close steps.</li></ul><h4>Common problems</h4><ul><li><b>A menu item is missing for you.</b> Administration items are permission-gated like everything else. Check your own role carries the permission.</li><li><b>A permission-does-not-exist error on a typed URL.</b> Some routes left over from the credit-scoring era reference permissions that were deleted. They are not reachable from the menu and their removal is tracked as a ticket.</li></ul>',
+            'body' => '<p>The sidebar is the same for everyone; what each person sees in it depends on their permissions. An entry whose permission you do not hold is hidden, and a group with nothing left in it disappears. This article describes the sidebar as a whole and then the administrator\'s block in detail.</p>'
+                . '<h4>The sidebar in blocks</h4><ul>'
+                . '<li><b>Dashboard</b>, <b>Workspace</b> and <b>Reports</b> sit at the top with no heading and are always shown.</li>'
+                . '<li>Four blocks follow, each under a small-capitals heading with its own icon and colour: <b>Data foundation</b>, <b>Financial modelling</b>, <b>Risk &amp; regulatory</b> and <b>Administration &amp; support</b>.</li>'
+                . '<li>Each block folds from its heading: click the heading to open or close it. The block holding the page in view opens by itself. Which blocks you left open is remembered for your account in this browser.</li>'
+                . '<li>An entry that opens a screen with tabs shows a small number beside its name, the count of its tabs; hover over it to read their names.</li>'
+                . '<li>The entry for the page in view is marked with a solid bar and a light tint.</li>'
+                . '</ul>'
+                . '<h4>The collapsed rail</h4><p>At the foot of the sidebar, <b>Collapse menu</b> (a left chevron) folds the sidebar to a narrow icon rail and the page widens with it. On the rail every entry shows only its icon, with its name as a tooltip, and the blocks are drawn as thin rules. Clicking a group icon opens the full sidebar on that group. The right chevron, <b>Expand the menu</b>, restores the full sidebar. The choice is remembered in this browser. On a phone the sidebar is a drawer instead and has no rail.</p>'
+                . '<h4>Breadcrumbs</h4><p>Above every page title a breadcrumb trail shows where the page sits in the menu: block, then group, then entry, then tab, for example <b>Administration &amp; support</b> &gt; <b>Governance</b> &gt; <b>Audit</b> &gt; <b>Audit Trace</b>. Every crumb but the last is a link. A detail page adds its own crumbs after the menu trail; a page the menu does not hold (a profile, the help centre) reads <b>Dashboard</b> &gt; its title. On a phone the middle crumbs fold into "...".</p>'
+                . '<h4>The Administration &amp; support block</h4>'
+                . '<p><b>Governance</b></p><ul>'
+                . '<li><b>Governance Centre</b>. Every governed calculation setting under maker-checker. Visible only with the <code>eir.govern</code> permission.</li>'
+                . '<li><b>Audit</b>, a section with three tabs: <b>Audit Trail</b> (every recorded change, module action and export; needs <code>settings</code>), <b>Audit Trace</b> (one contract\'s full history) and <b>Compliance Audits</b> (the register of compliance workbooks with reviewer sign-off).</li>'
+                . '</ul>'
+                . '<p><b>Access &amp; Setup</b></p><ul>'
+                . '<li><b>Users &amp; Roles</b>, a section with two tabs: <b>Users</b> and <b>Roles &amp; Permissions</b>.</li>'
+                . '<li><b>Financial Periods</b>. The accounting period shown in the top bar.</li>'
+                . '<li><b>Settings</b>. Organisation details, reporting currency, email, the staging basis and links to further administration screens.</li>'
+                . '</ul>'
+                . '<p><b>Support &amp; Maintenance</b></p><ul>'
+                . '<li><b>Support Tickets</b>. The agreed record of enhancements, issues and changes; needs <code>tickets.index</code>.</li>'
+                . '<li><b>Maintenance</b>. The console that runs the setup, month-end, data and check jobs with live output; needs <code>settings</code> to see and the admin role to run.</li>'
+                . '<li><b>System Documentation</b>, a group of four: <b>User Manual</b>, <b>Administrator Manual</b>, <b>Technical Manual</b> and <b>Installation Guide</b>.</li>'
+                . '</ul>'
+                . '<h4>Page furniture you will meet everywhere</h4><ul>'
+                . '<li>The page title with a one-line description under it, and the page\'s own buttons at the top right.</li>'
+                . '<li>Row actions as small coloured icons: a green eye to view, a gold pencil to edit, a red bin to delete (always with a confirmation dialog), and grey icons for state changes such as a padlock.</li>'
+                . '<li>A round green question mark at the bottom right, <b>Help for this screen</b>, on the screens that carry it. It opens the User Manual at the article mapped to that screen, or at its contents when none is mapped.</li>'
+                . '<li>The bell in the top bar, which holds your notifications.</li>'
+                . '</ul>'
+                . '<h4>Common problems</h4><ul>'
+                . '<li><b>A menu entry is missing.</b> Your role lacks its permission (for example <code>eir.govern</code> for the Governance Centre). Check the role under Roles &amp; Permissions.</li>'
+                . '<li><b>A whole block seems empty.</b> It is folded. Click its heading.</li>'
+                . '<li><b>The sidebar shows only icons.</b> It is collapsed to the rail. Press the right chevron at its foot.</li>'
+                . '<li><b>A typed address answers with a permission error.</b> Some routes kept from the platform\'s earlier life are not on the menu and need permissions MAIIC roles do not hold. Use the menu.</li>'
+                . '</ul>',
             'images' => [
-                'users' => 'The Administration group expanded in the sidebar, with User Management open',
+                'sidebar-blocks' => 'The sidebar in its blocks, with Administration & support open',
+                'sidebar-collapsed' => 'The sidebar folded to the icon rail',
             ],
-            'routes' => ['users.index', 'users.roles.index', 'accounting.financial_periods.index', 'audit-trail.index', 'tickets.index', 'settings.index'],
+            'routes' => [],
         ],
 
     ],

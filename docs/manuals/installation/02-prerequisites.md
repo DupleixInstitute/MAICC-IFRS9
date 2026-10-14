@@ -13,16 +13,16 @@ Schedule 2 of the agreement proposed the specification in the first column; MAII
 | Database | MySQL 8.0 or later, or MariaDB 10.6 or later | As proposed |
 | Web server | Nginx or Apache 2.4 or later with PHP-FPM and a valid TLS certificate | As proposed |
 
-Disk usage today is small (the database is under 100 MB and the application with dependencies about 500 MB), so the storage figure is mostly for backups, logs and growth in loan book snapshots.
+A database built by the bootstrap from the committed E-Banker packs (chapter 9.8) is about 1 GB. The application checkout is about 1 GB with its dependencies: the committed client inputs under `docs/bootstrap` (about 100 MB), the Git history (about 100 MB), `vendor` (about 150 MB) and `node_modules` (about 400 MB). The bootstrap also unzips pack 4 (143 MB of CSV files) into `storage/app/bootstrap-packs`. The storage figure is therefore mostly for backups, logs and growth in monthly packs and loan book snapshots.
 
 ### 2.2 Software
 
 | Software | Version | Purpose |
 |---|---|---|
-| PHP | 8.2 or later (8.1 is the composer minimum) | Application runtime |
-| PHP extensions | bcmath, ctype, curl, dom, fileinfo, json, mbstring, openssl, pdo, pdo_mysql, tokenizer, xml, gd (or imagick), zip, intl, plus opcache | CAPTCHA (gd), Excel (zip), locale formatting (intl), performance (opcache) |
+| PHP | 8.2 or later (8.2 is what CI and the Docker image use). `composer.json` still says `^8.1`, but the locked packages (the Symfony 7 components in `composer.lock`) need 8.2 | Application runtime |
+| PHP extensions | bcmath, ctype, curl, dom, fileinfo, gd, iconv, json, mbstring, openssl, pdo, pdo_mysql, simplexml, tokenizer, xml, xmlreader, xmlwriter, zip, zlib, plus opcache | The login security code image (gd), Excel and the zipped E-Banker packs (zip, xmlreader, xmlwriter, gd), PDF (dom, mbstring), performance (opcache). `intl` is not needed |
 | Composer | 2.x | PHP dependency manager |
-| Node.js and npm | Node 18 or later (20 used in CI, 24 works) | Building the front-end assets |
+| Node.js and npm | Node 22.12 or later (22 is used in CI and in the Docker image) | Building the front-end assets with Vite. `npm ci` also installs puppeteer 25 (for the manual screenshots), which declares Node 22.12 or later |
 | MariaDB or MySQL | as above | Database |
 | Nginx or Apache | Nginx 1.18 or later, Apache 2.4 or later | Web server |
 | Git | any recent | Cloning and Git-based deployment |
@@ -32,7 +32,7 @@ Disk usage today is small (the database is under 100 MB and the application with
 Check the extensions after installing PHP:
 
 ```bash
-php -m | grep -Ei '^(bcmath|ctype|curl|dom|fileinfo|gd|intl|json|mbstring|openssl|pdo|pdo_mysql|tokenizer|xml|zip)$'
+php -m | grep -Ei '^(bcmath|ctype|curl|dom|fileinfo|gd|iconv|json|mbstring|openssl|pdo|pdo_mysql|simplexml|tokenizer|xml|xmlreader|xmlwriter|zip|zlib)$'
 php -i | grep -i 'opcache.enable '
 ```
 
@@ -43,10 +43,11 @@ Every listed extension must appear, and `opcache.enable` must read `On`.
 | Need | Detail |
 |---|---|
 | Inbound | TCP 443 (https) from MAIIC's network; TCP 80 only to redirect to https |
-| Outbound during installation and deployment | HTTPS to github.com (repository), packagist.org (Composer), registry.npmjs.org (npm); these can be closed once installed if manual deployment is chosen |
-| Outbound in operation | SMTP to MAIIC's mail relay for password resets and notifications |
+| Outbound during installation and deployment | HTTPS to github.com (repository), packagist.org (Composer), registry.npmjs.org (npm) and storage.googleapis.com (the Chrome build that puppeteer downloads during `npm ci`; set `PUPPETEER_SKIP_DOWNLOAD=true` on a server, which never takes screenshots); these can be closed once installed if manual deployment is chosen. `scripts/deploy.sh` runs `composer install` and `npm ci` on every deployment, so Git-based deployment needs them open |
+| Outbound in operation | SMTP to MAIIC's mail relay for password resets and notifications; HTTPS to api.worldbank.org for the monthly macro series (optional: without it the committed snapshot in `docs/bootstrap/macro` is used) |
 | Remote access for Dupleix | VPN access as requested on 5 August 2026 (clone, Git pull and UAT on the MAIIC host), for the implementation and warranty period |
-| Not required | Any path to the E-Banker database; integration is by file extract |
+| Inbound from MAIIC's E-Banker export (optional) | HTTPS to `/api/ebanker-feed/pack` if route 3 is used (chapter 5.1, `EBANKER_FEED_TOKEN`); route 2 instead needs the shared feed folder mounted on the server (`EBANKER_FEED_FOLDER`) |
+| Not required | Any path to the E-Banker database; integration is by file (chapter 1.4) |
 
 ### 2.4 Accounts and credentials to prepare
 
