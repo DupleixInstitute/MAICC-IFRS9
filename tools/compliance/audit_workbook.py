@@ -39,7 +39,7 @@ STATUS_DEFS = {
     NA: "Does not apply to MAIIC by a recorded decision or fact (reason and reference given); revisit if the facts change.",
     EVID: "The system is ready; MAIIC must supply a document, minute or dataset before the row can be closed.",
 }
-CONTEXT = "Malawi Agricultural and Industrial Investment Company (MAIIC) - IFRS 9 EIR and ECL system - build of 8 October 2026 against specification v4."
+CONTEXT = "Malawi Agricultural and Industrial Investment Company (MAIIC) - IFRS 9 EIR and ECL system - build of 14 October 2026 (branch eir_revenue_recognition, commit abe140d) against specification v4."
 FONT = "Arial"
 GOLD = "B8860B"; PRIMARY = "0B2B1A"; CREAM = "FBF0E4"; GREY = "595959"; LINK = "0563C1"
 _thin = Side(style="thin", color="BFBFBF")
@@ -196,7 +196,11 @@ def build_xlsx(meta, rows, findings, baselines, out):
         for i, v in enumerate(f, start=1):
             c = fs.cell(row=j, column=i, value=v); c.font = Font(name=FONT, size=9); c.alignment = Alignment(wrap_text=True, vertical="top"); c.border = BORDER
             if i == 2:
-                first = str(v).split(",")[0].split("(")[0].strip()
+                first = str(v).split(",")[0].strip()
+                if first not in ref_rows:
+                    first = first.split(" ")[0].strip()
+                if first not in ref_rows:
+                    first = first.split("(")[0].strip()
                 if first in ref_rows:
                     _link(c, "Audit", f"A{ref_rows[first]}")
     fs.freeze_panes = "A5"
@@ -253,6 +257,7 @@ def build_markdown(meta, rows, findings, baselines, out):
          f"{CONTEXT} {meta['basis']} Reviewer: {meta['reviewer']}. The Excel workbook of the same name is the working copy "
          "(drop-down statuses, hyperlinked contents, reviewer sign-off column, a live Baselines sheet); this document is its printable twin.", "",
          f"Source: {meta['source']}", "",
+         f"Generated {meta.get('generated_at', '')}; the Baselines were read from the database `{meta.get('database', '?')}`.", "",
          "## Status summary", "",
          "| Status | Meaning | Sections |", "|---|---|---|"]
     for st in STATUSES:

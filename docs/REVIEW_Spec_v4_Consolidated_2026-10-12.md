@@ -69,3 +69,47 @@ Overlaps: Cp8 = R01 (the fee rule); Cp7 = R05 (the 44 percent evidence); Cp1 is 
 2. Section B in the specification, with each change recorded in section 1 against its finding ID.
 3. Section C written into the specification as rules with their acceptance cases, and built in P4b.
 4. Section D sent to Dr Thom as a short decision note.
+
+## Status 14 October 2026
+
+This section records each finding as it stands in the code at HEAD `abe140d` on `eir_revenue_recognition` (14 October 2026). Commit `216aee2` built the GL fee route (`GlFeeBuildService`, `FeeSourcePrecedence`, the fee GL gate), the tranche register and the take-on EIR check; commit `220a5a6` built the write-off classifier and register. The specification wording of sections B and C is being applied to spec v4 on 14 October. Status words: BUILT, PARTLY, NOT BUILT, WAITING ON MAIIC; N-A means a wording-only item.
+
+| ID | Built or applied? | Evidence | Spec wording |
+|---|---|---|---|
+| R01, Cp8 | BUILT | A type-301 line is a fee debit only in a batch whose loan legs equal its fee-GL legs, or when its narration names a fee; a gross drawdown stays a drawdown (`GlFeeBuildService.php:155-176`, `ContractInputsBuildService.php:202-232`; `GlFeeRouteTest::test_fee_debits_join_their_drawdown_and_the_takeon_opening_is_not_a_tranche`) | being applied 14 Oct |
+| R02 | PARTLY | Each fee line keeps its transaction date and source id, and a reversal is kept as its own negative line (`GlFeeBuildService.php:37-38,365-366`). A locked EIR keeps its fee lines in `input_snapshot` (`EirContractInputService.php:146-162`) and cannot be recomputed. There is no effective date, no known-at date and no reversal link | being applied 14 Oct |
+| R03 | NOT BUILT | Precedence is applied per contract, not per fee event and coverage period (`FeeSourcePrecedence.php:88-110`). Differences between sources are listed as exceptions (`:131-140`) but not quarantined | being applied 14 Oct |
+| R04 | BUILT | The fee GL gate leaves out year-end closing vouchers (batch YRCLO, types 800 and 801) and reads the trial balance pre-closing (`GlFeeBuildService.php:286-325`). It is reported on every `eir:build-gl-fees` and bootstrap run (`Bootstrap.php:251`) | being applied 14 Oct |
+| R05, Cp7 | BUILT (batch link) | The batch link replaces the date-and-amount match (`GlFeeBuildService::assign`, `GlFeeRouteTest::test_fees_are_tied_to_their_loans_through_the_batch_and_the_rest_held_with_the_reason`). `docs/build-files/fee_gl_recon_2026-10-11.py` is not repaired (unchanged since `f395942`) | being applied 14 Oct |
+| Cp1 | NOT BUILT | The GL spools and Finance's 2025 fee workbook are not under `docs/bootstrap/`. The script still reads them from OneDrive | N-A |
+| R06 | NOT BUILT | No fee deferral roll-forward. Its journal waits on the true-up account (O10) and the fee journal (O21) | being applied 14 Oct |
+| R07, Cp2 | N-A (wording) | The code dates a write-off from its posting, never from status H (`WriteOffClassifier.php:45-66`) | being applied 14 Oct |
+| R08 | NOT BUILT | Classification is still batch-level: every credit in a batch that debits GL 1064 is a write-off (`WriteOffClassifier.php:55-58,73-92`). The amount is not limited to the confirmed 1064 leg, and partial write-offs and the Imani exception are not handled | being applied 14 Oct |
+| R09 | PARTLY | One classifier is used by the loan-book build (method B), the contract inputs, the EIR ledger cash and the instalment chart (`WriteOffClassifier`, `InstalmentChartHistory`). The PD counts the write-offs the build records (`PdSegmentationService.php:340,413`). It is not used by the as-at report, the LGD (which infers write-off from absence), the RBM return or the intake | being applied 14 Oct |
+| R10, Cp3 | NOT BUILT | No reschedule register and no classification of events. RS_02a is read only to know the chart in force at each month-end (`InstalmentChartHistory`) | being applied 14 Oct |
+| Cp5 | N-A (wording) | `GlInterestImportService` remains the writer of the ledger's 303 and 120 interest | being applied 14 Oct |
+| Cp6, R21 | N-A (wording) | A route status matrix and the split of P4b are wording | being applied 14 Oct |
+| R11 | PARTLY | The EIR's `input_snapshot` pins the cash flows, the fee lines, schedule version 1 and the day count (`EirContractInputService.php:128-162`). Source-row versions and governance history are not pinned, and an as-at request does not reproduce the locked view | being applied 14 Oct |
+| R12 | NOT BUILT | The part month is still accrued at the contractual rate and returned as `eir_period_to_date` (`EirAsAtService.php:123-127,188`). `EirAsAtServiceTest::test_a_date_inside_a_month_accrues_the_part_month_at_the_contractual_rate_on_actual_days_less_cash_received` asserts that behaviour. No change since 12 October | being applied 14 Oct |
+| R13 | WAITING ON MAIIC | Dr Thom and Deloitte (the 181-day point) | being applied 14 Oct |
+| R14 | WAITING ON MAIIC | Dr Thom (O16, O17); `rate_change_classification` and `modification_threshold` are read by no code | being applied 14 Oct |
+| R15 | WAITING ON MAIIC | Dr Thom (D20); `contractual_record` is read by no code | being applied 14 Oct |
+| R16 | PARTLY | A blank fee row is not taken as nil: it is flagged "fees not supplied" and is not evidenced (`TakeonLandingService.php:212-216`). No label marks an origination reconstruction as an approved estimate | being applied 14 Oct |
+| R17 | PARTLY | `fli:month-end` refuses to run without an approved model and set (`FliMonthEndCommand.php:66-73`). The period lock and the auditor export do not check that the result is more than a bootstrap demonstration (`AuditorPackController`) | being applied 14 Oct |
+| R18 | N-A (wording) | Baseline labels | being applied 14 Oct |
+| R19 | NOT BUILT | A derived month carries a row flag (`LoanBookBuildService.php:353`), but coverage is not stated per field and month, and official runs are not refused for July to November 2024 | being applied 14 Oct |
+| R20 | PARTLY | Seeder effective from 1900-01-01. No test checks that the spec 4.2 table matches `GovernanceService::catalogue()` (61 settings) | being applied 14 Oct |
+| R22 | PARTLY | Section A was done: pack 4 queries carry `cb_branch_mst_id`, `pass_flag`, `delete_flag` and `modify_delete_flag` (`docs/bootstrap/queries/Pack 4 - 11 Oct 2026.sql:129-177`), and the GL fee route drops deleted and unposted legs (`GlFeeBuildService.php:347`). Neither batch key includes the branch (`WriteOffClassifier.php:96-104`, `GlFeeBuildService.php:359`). The change feed for older rows is not built | being applied 14 Oct |
+| R23 | N-A (wording) | Non-linearity wording | being applied 14 Oct |
+| R24 | WAITING ON MAIIC | The programme agreement and D30. The programme is kept out of the main PD, LGD and ECL (`MegaFarmProgrammeSeparationTest`), but its ECL is still EAD x PD x LGD x share (`MegaFarmEclService.php:166`) | being applied 14 Oct |
+| Cp4 | N-A (not accepted) | `fee_source_precedence` has since been built and is in the catalogue (`GovernanceService.php:241`, `FeeSourcePrecedence`) | being applied 14 Oct |
+
+Count (27 distinct findings):
+
+| Status | Count | Findings |
+|---|---|---|
+| BUILT | 3 | R01, R04, R05 |
+| PARTLY | 7 | R02, R09, R11, R16, R17, R20, R22 |
+| NOT BUILT | 7 | R03, R06, R08, R10, R12, R19, Cp1 |
+| WAITING ON MAIIC | 4 | R13, R14, R15, R24 |
+| N-A (wording or not accepted) | 6 | R07, R18, R21, R23, Cp5, Cp4 |

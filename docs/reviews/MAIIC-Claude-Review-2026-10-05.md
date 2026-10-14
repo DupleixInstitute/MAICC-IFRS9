@@ -52,3 +52,25 @@ Claude's analysis is useful and its main figures reproduce, but several claims n
 ## Suggested response from Claude
 
 Address each comment as accepted, qualified or disputed, with supporting source/data evidence. Update the report and query pack as appropriate. Separate reproduced observations from assumptions and pending vendor confirmations. The reproduced numbers support the diagnosis; they do not yet establish a completed income reconciliation or validated contractual cash-flow schedule.
+
+## Status 14 October 2026
+
+Dupleix added this section on 14 October 2026. It records how each item stands against the code at HEAD `abe140d` on `eir_revenue_recognition`. Since this review, the extract approach it covered (Extracts A, B and C) has been replaced by the E-Banker landing zone: the ledger, the balance history and the stored loan book land with their packs. Several items are therefore answered by a different design rather than by a change to the old import services.
+
+Status words: BUILT, PARTLY, NOT BUILT, WAITING ON MAIIC, N-A (superseded).
+
+| Item | Status on 14 Oct | Evidence |
+|---|---|---|
+| 1 Scheduled rows are not the remainder | N-A (superseded) | Remaining cash flows are no longer taken from CASHFLOW_REGISTER. The schedule is the generated or imported version 1, and the cash is the ledger's (`EirLedgerCashService`) |
+| 2 Running balance correctness | PARTLY | Method B ties to the stored report on every in-scope account-month (`BaselineService.php:38-42`). But the balance-history tie at the door only warns (`PackGates.php:228`), and `--verify` ties the loan GLs to the trial balance for December 2025 only (`BaselineService.php:59-81`) |
+| 3 No interest is not a verified zero | PARTLY | Interest comes from the ledger's 303 and 120 postings. There is still no state that tells "no postings found" from "verified zero", and the ten accounts are not explained |
+| 4 Final-day date handling | BUILT | The landing zone keeps each posting's row date, and ledger reads filter by date and account (`LandingZoneReader`) |
+| 5 Adjustment semantics | PARTLY | Raw signed postings are landed (GL_03, GL_04, GL_05). Reversal pairing is not built: a reversal only nets the month's cash (`EirLedgerCashService.php:85`) |
+| 6 Schema owner and privileges | BUILT | The intended schema is established: each pack manifest names it (E-Banker, schema VGCBS), and the queries run in that session. Only the OD_01 query qualifies its tables with the owner. The read-only database account waits on MAIIC's ICT |
+| 7 Repayment-frequency provenance | N-A (superseded) | Frequency is read from the account master. An unknown code still becomes MONTHLY without a flag (`ContractInputsBuildService.php:78`), and that should be flagged |
+| 8 Export contract | PARTLY | Each pack manifest declares its date format, hashes and counts. Dates still arrive as m/d/yyyy, and the ISO gate only warns (`PackGates.php:144`). Since `7a2a96f` the screen imports each have a sample file and a fail-closed check, but the E-Banker export has no written contract for identifiers, encoding or numbers |
+| A1 GlInterestImportService wording | NOT BUILT | The class docblock still calls Extract C what the ledger "actually posted as interest income" (`GlInterestImportService.php:9-10`). It is still the writer of the ledger's interest, fed from 303 and 120 |
+| A2 Estimated principal and interest splits | N-A (superseded) | Extract B was not used. Cash comes from the ledger postings classified by type, with write-offs taken out (`WriteOffClassifier`). The comment at `EirLedgerCashService.php:16` saying Extract B "was never delivered" does not match this review |
+| A3 Composite facility keys | NOT BUILT | Everything is keyed by account number alone (`LandingZoneReader`) |
+
+Count: BUILT 2, PARTLY 4, NOT BUILT 2, N-A 3.

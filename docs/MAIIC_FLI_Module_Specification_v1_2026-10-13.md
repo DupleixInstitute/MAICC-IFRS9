@@ -5,7 +5,7 @@ subtitle: How the economy enters MAIIC's expected credit loss: what is built, wh
 date: 13 October 2026
 prepared: Prepared by Dupleix Institute for the Malawi Agricultural and Industrial Investment Corporation plc (MAIIC)
 people: Project sponsor Dr Thomson Kumwenda, CFO | Engagement lead Edward Mazibuko CA(SA) | Build lead Kundai Muriwo
-status: Draft for review, updated 13 October 2026 evening (decisions D-F13 to D-F16: the earlier screens kept and improved, the macro statistics screens, the reports that read the month record, the month-end job). Builds on specification version 4, sections 13 (macro statistics), 14 (forward-looking adjustments) and 15 (economic scenarios), which stay in force; where this document decides something new, it says so and it governs for the forward-looking module.
+status: Draft for review, status-checked against the code on 14 October 2026 (abe140d plus the uncommitted working tree; dated 'Status 14 October 2026' notes, nothing earlier deleted). Earlier status: Draft for review, updated 13 October 2026 evening (decisions D-F13 to D-F16: the earlier screens kept and improved, the macro statistics screens, the reports that read the month record, the month-end job). Builds on specification version 4, sections 13 (macro statistics), 14 (forward-looking adjustments) and 15 (economic scenarios), which stay in force; where this document decides something new, it says so and it governs for the forward-looking module.
 ---
 
 ## 0. Why this document, and how to read it
@@ -33,17 +33,17 @@ IFRS 9 does not prescribe a model, a number of scenarios, or a formula for the a
 | The proposal asks for | In the MAIIC system today | Status |
 |---|---|---|
 | Macroeconomic variables, observations, sources and import batches | Macro Statistics (`macro_statistics`, `macro_statistics_data`, `macro_source_import_batches`), World Bank fetch with an offline snapshot, IMF WEO and RBM policy-rate files, the bridge to monthly series (`macro_series`) | Built (spec v4 section 13) |
-| Forecast vintages: a value as known on a date | Every FLI read goes through `AsAtSeries` (commit ac12c36): a period sees only what was knowable by its end, with a governed publication lag per series | Built in the engine; **gap:** the vintage is the load date, not the publisher's release date |
+| Forecast vintages: a value as known on a date | Every FLI read goes through `AsAtSeries` (commit ac12c36): a period sees only what was knowable by its end, with a governed publication lag per series | Built in the engine; **gap:** the vintage is the load date, not the publisher's release date. **Status 14 October 2026:** a `published_at` column now exists on `macro_statistics_data` and `macro_credit_loss_data` and the bridge honours it (FliBridgeService.php:57-69, 197-203), but 0 of 261 observations carry a release date in maiic_ifrs9_demo or maiic_ifrs9_results2, and a revision still replaces the earlier value (D-F10). |
 | Scenario sets, versioned, approved, immutable once published | `governed_scenario_sets`, `governed_scenarios`, `scenario_shocks`; proposed by one person, approved by another, locked with the period; rules (at least 3 scenarios, base at least 40 percent, no weight above 60 percent, a calibration note on every downside); back-test and sensitivity | Built (spec v4 section 15) |
-| Model calibration with diagnostics | Correlation Finder (`fli_suggestions`, `analysis_runs`), Regression (`fli_relationships`, `fli_fits`) under the guardrail (sign, R-squared, p-value, minimum observations), maker-checker approval, method cards | Built; **gap:** no model registry: a fit is re-estimated and re-approved every month instead of once a year |
+| Model calibration with diagnostics | Correlation Finder (`fli_suggestions`, `analysis_runs`), Regression (`fli_relationships`, `fli_fits`) under the guardrail (sign, R-squared, p-value, minimum observations), maker-checker approval, method cards | Built; **gap:** no model registry: a fit is re-estimated and re-approved every month instead of once a year. **Status 14 October 2026:** the registry is built (`fli_models`, `fli_model_versions`, FliModelRegistry): a published version governs later months without a new fit (FliRouteServiceTest::test_an_approved_fit_is_a_version_in_force_from_its_month_until_a_later_one); the demonstration database still has one version per month (versions 1 to 8, January to August 2026). |
 | Segment-specific models | PD and LGD by segment on a governed basis (portfolio, RBM sector, both), with a thin-segment rule (commit 67087b1) | Built for PD and LGD; **gap:** the FLI fit is book-level only |
-| Separately approved expert overlays | Manual Overlays register (`fli_overlays`): scope, reason, evidence, owner, expiry, maker-checker, shown as its own line | Built; **gap:** no check that an overlay does not repeat a risk the model already carries |
-| Scenario-level ECL, then weighted | The route weights the stage PD so that the booked ECL equals the scenario-weighted ECL (commit ac12c36) | Built while FLI moves the PD alone; **gap:** once LGD or EAD vary by scenario, the ECL must be computed per scenario and then weighted |
-| A marginal PD term structure per scenario for lifetime ECL | Tables exist and are empty (`ecl_projection_runs`, `ecl_pd_term_structures`, `ecl_cashflow_projections`, `ecl_recovery_cashflows`); the Stage 2 lifetime PD is 1 - (1 - PD12)^(months/12) with one 12-month adjustment | **Gap** |
+| Separately approved expert overlays | Manual Overlays register (`fli_overlays`): scope, reason, evidence, owner, expiry, maker-checker, shown as its own line | Built; **gap:** no check that an overlay does not repeat a risk the model already carries. **Status 14 October 2026:** built (D-F9): `risk_driver` and a double-count review on the register (OverlayServiceTest::test_an_overlay_on_the_models_driver_needs_a_double_count_review). |
+| Scenario-level ECL, then weighted | The route weights the stage PD so that the booked ECL equals the scenario-weighted ECL (commit ac12c36) | Built while FLI moves the PD alone; **gap:** once LGD or EAD vary by scenario, the ECL must be computed per scenario and then weighted. **Status 14 October 2026:** the month record (FliCloseService::record) now stores each loan's ECL per scenario in `ecl_scenario_results` on the undiscounted engine measure; the discounted allowance (TimePhasedEclService) weights its per-scenario shortfalls inside each loan and keeps no per-scenario row (D-F3). |
+| A marginal PD term structure per scenario for lifetime ECL | Tables exist and are empty (`ecl_projection_runs`, `ecl_pd_term_structures`, `ecl_cashflow_projections`, `ecl_recovery_cashflows`); the Stage 2 lifetime PD is 1 - (1 - PD12)^(months/12) with one 12-month adjustment | **Gap**. **Status 14 October 2026:** the tables are now written: FliProjectionService puts a per-portfolio, per-scenario, year-by-year PD with reversion into `ecl_projection_runs` and `ecl_pd_term_structures` (evidence only, source `fli-projection`), and TimePhasedEclService writes loan-level monthly marginal PDs and shortfalls for the discounted allowance, on one constant hazard per scenario (D-F4). |
 | FLI on LGD and EAD | FLI moves the PD only | **Gap** (and a decision, section 3) |
-| ECL discounted at the EIR, separate from FLI | `EclDiscountingService` and `EclDiscountRateService`: the locked original EIR, no fallback rate, unresolved loans named | Built; **gap:** PLR-linked floating loans use the original EIR as a labelled proxy, not the current effective rate |
-| A guided monthly close | Workspace close checklist; Maintenance, Month-end (the steps in order); Installation Guide 9.9 | Built; **gap:** no FLI readiness gate in the checklist |
-| A run snapshot for reproducibility | Lineage on each loan (`fli_route`, `fli_method`, `fli_fit_id`, `fli_set_id`, `pd_segment_run_id`) and on each ECL row | Partly; **gap:** no single snapshot record per ECL run |
+| ECL discounted at the EIR, separate from FLI | `EclDiscountingService` and `EclDiscountRateService`: the locked original EIR, no fallback rate, unresolved loans named | Built; **gap:** PLR-linked floating loans use the original EIR as a labelled proxy, not the current effective rate. **Status 14 October 2026:** until commit 216aee2 (14 October) the month-end booked the ECL undiscounted. The month-end now runs `ifrs9:segment-ecl --discounting=discounted` (FliMonthEndCommand.php:85; discounted is also the command's default, SegmentEcl.php:42): `ecl_value` keeps the engine's undiscounted measure and `ecl_value_discounted` holds the time-phased allowance discounted at the locked EIR (TimePhasedEclService.php:41-49). The month record, the FLI reports, the build-up and the IFRS 9 note (Ifrs9NoteService.php:192, 220) still read the undiscounted `ecl_value`; only the dashboard (when every row is discounted) and the ECL screen (uncommitted change) show the discounted figure. In the committed controller the time-phased engine runs only when legacy `ecl_scenario_assumptions` are approved, else the single-horizon proxy EclDiscountingService (ExpectedCreditLossController.php:525 at HEAD); the change that also runs it on the governed set written on the loans is uncommitted. Neither database yet holds a discounted month from the new code (maiic_ifrs9_demo August 2026: 0 loans discounted; maiic_ifrs9_results2, built before 216aee2: 62 of 3,826 loans in September 2026). |
+| A guided monthly close | Workspace close checklist; Maintenance, Month-end (the steps in order); Installation Guide 9.9 | Built; **gap:** no FLI readiness gate in the checklist. **Status 14 October 2026:** the checklist has the FLI step (WorkspaceController.php:35, 113-127), done only when the month is recorded and signed off; the ECL run itself is not gated on it (D-F12). |
+| A run snapshot for reproducibility | Lineage on each loan (`fli_route`, `fli_method`, `fli_fit_id`, `fli_set_id`, `pd_segment_run_id`) and on each ECL row | Partly; **gap:** no single snapshot record per ECL run. **Status 14 October 2026:** one `fli_run_snapshots` row per recorded month (FliCloseService.php:144-155), without the staging run, the EIR lock or the discounting basis (D-F11). |
 | ECL movement reconciliation | The IFRS 9 note for the annual financial statements (allowance and gross carrying amount by stage, the charge, the basis) | Built; **gap:** no line for the FLI movement on its own |
 | Audit workbooks | The compliance workbooks, the auditor's pack, branded exports of every report | Partly; **gap:** the model calibration and scenario workbooks |
 
@@ -61,23 +61,33 @@ Each decision has a number so the build, the tests and the screens can refer to 
 
 Today the regression is re-estimated and re-approved every month. That changes: the month-end **applies** the model version in force at the reporting date; it does not re-fit it. A month-end that finds no approved model or scenario set in force for its date stops with the reason; it never falls back to the pre-FLI PD for an official run.
 
+**Status 14 October 2026:** the month-end job (`fli:month-end --all`) stops when the model version or the scenario set is not in force (FliMonthEndCommand.php:67-74), and the route reads the version in force rather than re-fitting (FliRouteService.php:90-102). The fallback is not removed everywhere: `FliRouteService::apply` still lets the PD hold when no version is approved (FliRouteService.php:214-219) and `ifrs9:segment-ecl` accepts that PD, so a run outside the month-end job can book the pre-FLI PD. The fresh bootstrap database maiic_ifrs9_results2 ran that way (0 model versions; every month on "the PD holds").
+
 ### D-F2. The model registry
 
 The fits stay the calibration evidence. An approved fit is promoted into a **model version** with an effective date, its coefficients, its diagnostics and its segment assignment. The route reads the version in force at the reporting date. A recalibration creates a new version; old versions are never edited, so a December 2025 result stays reproducible after a 2026 model is published.
 
 Lifecycle: Draft, Calibrated, Validated, Approved, Published, Retired. Moving to Approved needs a second person; moving to Published sets the effective date.
 
+**Status 14 October 2026:** the registry is built with the states PROPOSED (an external model), PUBLISHED, SUPERSEDED, REJECTED and RETIRED (FliModelRegistry.php:46-161); approving a fit on Regression publishes it at once, so there is no Calibrated or Validated step, and the second person is the fit's approver (FliRouteService.php:63-80). There is one book-level model (`segment_basis` book); no segment assignment is built.
+
 ### D-F3. Weight the loss, scenario by scenario
 
 The ECL is computed once per scenario and then weighted: ECL = sum over scenarios of weight x ECL(scenario). Today the weighted stage PD reproduces this exactly because only the PD moves. As soon as the LGD, the EAD or the cash flows vary by scenario, the per-scenario computation is the only correct one. The per-scenario results are stored, so the sensitivity table and the booked allowance come from the same rows.
+
+**Status 14 October 2026:** FliCloseService::record stores each loan's ECL per scenario in `ecl_scenario_results` and checks the weighted total against the booked one (FliCloseService.php:77-113), on the engine's undiscounted `ecl_value`. Since commit 216aee2 the month-end also writes the discounted allowance (`ecl_value_discounted`) from TimePhasedEclService, which computes and weights the scenarios inside each loan (TimePhasedEclService.php:100-152) and keeps no per-scenario row, so the month record and the sensitivity do not yet read the discounted figure. FliCloseService has no automated test.
 
 ### D-F4. A lifetime term structure per scenario
 
 For Stage 2 the engine builds, per scenario, a marginal PD for each future year of the remaining life, with the survival probability to that year, from the scenario path and the approved model; the path reverts to the long-run average beyond the reasonable forecast horizon (B5.5.50), with the horizon a governed setting (three years proposed). Lifetime ECL = sum over years of marginal PD x LGD x EAD x discount factor. Stage 1 uses the first year only. The tables built for this (`ecl_pd_term_structures`, `ecl_projection_runs`) are used rather than new ones.
 
+**Status 14 October 2026:** partly built, in two places that do not meet. FliProjectionService projects per portfolio and per scenario the year-by-year PD, survival and marginal PD, with reversion after the governed horizon (`fli_forecast_horizon`), as evidence only: the booked Stage 2 ECL does not use it (FliProjectionService.php:14-38). TimePhasedEclService measures the discounted allowance loan by loan, month by month, with survival, but from one constant hazard per scenario derived from the scenario's twelve-month PD (TimePhasedEclService.php:109-120), not a year-by-year path from the model with reversion. The undiscounted `ecl_value` still uses 1 - (1 - PD12)^(months/12).
+
 ### D-F5. Stage 3
 
 Stage 3 is not given a PD. Its loss is the shortfall of expected recoveries, discounted at the EIR, where recoveries are modelled loan by loan; otherwise EAD x LGD at the reporting date. Scenarios may move the size and the timing of recoveries (the LGD and the time to realise collateral), never the fact of default. A collateral benefit counted in the LGD is not deducted again.
+
+**Status 14 October 2026:** built for the discounted allowance in TimePhasedEclService::stageThree (the shortfall of approved recoveries in `ecl_recovery_cashflows`, each discounted at the EIR from its own date; with no plan, EAD x LGD at the reporting date and no EIR needed), tested in TimePhasedEclServiceTest (the three Stage 3 tests); the month record holds Stage 3 at its booked ECL in every scenario (FliCloseService.php:91-94). No recovery plan is held in either database, so every Stage 3 loan is EAD x LGD. Scenario-dependent recoveries wait on question 4 (D-F8).
 
 ### D-F6. The discount rate
 
@@ -95,6 +105,8 @@ MAIIC has about two years of monthly loan-level history from E-Banker (July 2024
 
 Whichever method is in force, the guardrail adds a **stationarity check** (levels that trend together are fitted on their changes, or refused), because two series rising over two years will always look related.
 
+**Status 14 October 2026:** the stationarity check is evidence, not a gate: Diagnostics runs a Dickey-Fuller test on each side and recommends first differences (Diagnostics.php:105-135), but the Guardrail declines a fit only on observations, sign, R-squared and p-value (Guardrail.php:95-106), so a non-stationary levels fit can still be applied. The external (industry) series route is built in the bridge (EXT_ measures), with no automated test and no external series held in either database.
+
 ### D-F8. FLI on LGD and EAD
 
 Phase 1 moves the PD only. The LGD may be made scenario-sensitive where there is evidence: for agricultural lending, the price of the financed crop and the realisable value of warehouse-receipt collateral. The EAD follows the contractual repayment schedule and, for undrawn commitments, the governed utilisation; it is not stressed in phase 1. Each extension is a governed decision with its own method card.
@@ -107,17 +119,25 @@ An overlay names the risk it covers (a driver, a sector, an event). The system r
 
 Each macro observation keeps the date its publisher released it, not only the date it was loaded. A forecast revised in October never replaces the one that was available at a March close; both are kept, and the ECL run records which vintage it read. Where a release date is unknown, the governed publication lag of the series applies and the value is labelled as an estimate of availability.
 
+**Status 14 October 2026:** partly built. `published_at` exists on `macro_statistics_data` and `macro_credit_loss_data` (migration 2026_10_13_100000) and the as-at reader honours it, with the publication lag where it is blank. A revised value still replaces the earlier one in place (MacroImportService.php:82-84; a correction on screen, MacroStatisticsController.php:223-227, keeps the old value only in the audit log), so the October forecast does overwrite the March one. 0 of 261 observations carry a release date in maiic_ifrs9_demo or maiic_ifrs9_results2.
+
 ### D-F11. A snapshot per ECL run
 
 Each official ECL run records, in one row: the loan book build, the staging run, the segment PD/LGD run, the FLI model version, the scenario set and version, the overlays applied, the EIR lock, the discounting basis and the macro vintage. A reviewer of 31 October 2026 can then rebuild that month's figure with nothing revised later.
+
+**Status 14 October 2026:** partly built. One `fli_run_snapshots` row per recorded month holds the model version, the scenario set and version, the overlays, a macro vintage label, the PD segment runs, the ECL runs and the loan-book loads (FliCloseService.php:128-155). It does not record the staging run, the EIR lock or the discounting basis, and its booked figure is the undiscounted `ecl_value`. Because revisions overwrite (D-F10), the vintage it names cannot be re-read. maiic_ifrs9_demo holds one current record (August 2026, RECORDED, not signed off); maiic_ifrs9_results2 holds none.
 
 ### D-F12. The month-end gate
 
 The Workspace close checklist gains an FLI step that is done only when an approved model version and an approved scenario set are in force for the period and have been applied to every loan. The ECL run already refuses a loan without a stage, PD or LGD (commit 70b7333); it also refuses an official run without the FLI step done.
 
+**Status 14 October 2026:** partly built. The checklist step is built (WorkspaceController.php:35, 113-127), the month-end job stops before the ECL without a version and a set (FliMonthEndCommand.php:67-74), and the month record refuses an ECL not on the post-FLI PD or older than the route (FliCloseService.php:47-55). The ECL run itself does not refuse: `ifrs9:segment-ecl` checks only that each exposed loan has a stage, a post-FLI PD and an LGD (SegmentEcl.php:113-141), not that the route ran under the version and the set in force, and the ECL screen's calculation has no FLI check.
+
 ### D-F13. Keep the earlier screens and improve them, not replace them (agreed 13 October 2026)
 
 The proposal of section 4 drew a new set of tabs. Edward's direction on 13 October was not to remove what MAIIC already uses: every earlier forward-looking screen (Macro Statistics, Credit Loss Data, Correlation Finder, Regression, Adjusted Forecast, Weighted Forecast, Scenario Profiles, Scenario Sets, Economic Scenarios, Manual Overlays, External Calculations, Calculation History) comes back to its place, out of the old Legacy section, and the new pieces (Overview, Impact Analysis, Model Versions) join them. Each screen became a working step of the governed chain rather than a separate tool, and a user can start and finish the month from the screens alone. Section 4 is updated to the menu as built.
+
+**Status 14 October 2026:** the menu is built and tested (NavigationTest::test_the_forward_looking_menu_is_one_entry_in_month_end_order). No month has yet been finished, that is signed off, on either database.
 
 ### D-F14. The macro statistics screens (agreed 13 October 2026)
 
@@ -131,9 +151,13 @@ The proposal of section 4 drew a new set of tabs. Edward's direction on 13 Octob
 
 The forward-looking report and the scenario-weighted ECL report read what the ECL actually used for the chosen month: the macro data the bridge held for it, the approved scenario set with its weights and shocks, and the month record (`fli_run_snapshots`): ECL per scenario, weighted against booked, and the sign-off status. A month with no record says so. The ECL Projection Audit lists contract-level discounted runs only; the portfolio PD projection of D-F4 is shown on FLI Month-End.
 
+**Status 14 October 2026:** built (Ifrs9ReportsController reads `fli_run_snapshots`; EclProjectionController.php:14 leaves out the `fli-projection` runs). Since the month-end became discounted (commit 216aee2), the "booked" ECL these reports show is the undiscounted engine measure, not the discounted allowance.
+
 ### D-F16. One month-end job (agreed 13 October 2026)
 
-Maintenance is reduced to seven jobs (specification version 4, decision D37). The month-end job runs, in order: link clients to the loan book, stage, PD by segment, the forward-looking month-end of D-F12 (`fli:month-end --all`), the ledger cash, the EIR revenue run, and the Mega Farm ECL where there are such loans. The Overview's own Run buttons start the same steps one at a time in the background.
+Maintenance is reduced to seven jobs (specification version 4, decision D37). The month-end job runs, in order: link clients to the loan book, stage, PD by segment, the forward-looking month-end of D-F12 (`fli:month-end --all`), the ledger cash, the EIR revenue run, and the Mega Farm ECL where there are such loans. The Overview's own Run buttons start the forward-looking steps one at a time in the background (corrected 14 October 2026; it said "start the same steps"): the correlation sweep, the route, the projection, the ECL, the record and the whole forward-looking chain (FliModuleController.php:32-39), not the staging, PD, ledger cash, revenue or Mega Farm steps.
+
+**Status 14 October 2026:** commit 216aee2 added a step after linking the clients, "Programme portfolios" (`ifrs9:segment-portfolios`, which keeps the Mega Farm schemes apart from the MAIIC book), and the ECL inside `fli:month-end --all` is now discounted at the EIR (MaintenanceTask.php:43-52; FliMonthEndCommand.php:85). The seven Maintenance jobs are bootstrap, update, build the loan book, month-end, recalibrate the forward-looking model, fetch new data and check the system (MaintenanceController.php:37-87).
 
 ## 4. The screens
 
@@ -169,17 +193,17 @@ The rule is reuse. New tables are added only where nothing exists.
 | Purpose | Table | Change |
 |---|---|---|
 | Variables | `macro_statistics` | Keep |
-| Observations and vintages | `macro_statistics_data`, `macro_series` | Add `published_at` (publisher's release date), `vintage` and `value_type` (actual, estimate, forecast) where missing |
+| Observations and vintages | `macro_statistics_data`, `macro_series` | Add `published_at` (publisher's release date), `vintage` and `value_type` (actual, estimate, forecast) where missing. **Status 14 October 2026:** `published_at` added to `macro_statistics_data` and `macro_credit_loss_data`; `macro_series` carries `vintage` and `value_type`; no earlier vintage is kept on a revision |
 | Sources and imports | `macro_source_import_batches` | Keep |
 | Scenario sets, scenarios, paths | `governed_scenario_sets`, `governed_scenarios`, `scenario_shocks` | Keep; add the narrative and the trajectory per year where not held |
 | Calibration evidence | `analysis_runs`, `fli_suggestions`, `fli_relationships`, `fli_fits` | Keep (duplicates are no longer written, commit b6e6baf) |
-| Model registry | `fli_models`, `fli_model_versions` | **New:** model (target metric, segment, method), version (coefficients, lags, diagnostics, lifecycle status, effective date, approvals), linked to the fit it came from |
-| Segment assignment | `fli_model_assignments` | **New:** segment to model version, effective date |
-| Overlays | `fli_overlays` | Add the risk covered and the double-counting review |
-| Term structures and cash flows | `ecl_projection_runs`, `ecl_pd_term_structures`, `ecl_cashflow_projections`, `ecl_recovery_cashflows` | Use (they exist, empty) |
-| Per-scenario ECL | `ecl_scenario_results` | **New:** loan, run, scenario, stage, ECL undiscounted and discounted |
-| Weighted ECL | `loan_books`, `expected_credit_loss` | Keep |
-| Run snapshot | `ecl_run_snapshots` | **New** (D-F11) |
+| Model registry | `fli_models`, `fli_model_versions` | **New:** model (target metric, segment, method), version (coefficients, lags, diagnostics, lifecycle status, effective date, approvals), linked to the fit it came from. **Status 14 October 2026:** built (migration 2026_10_13_100000), with one book-level model |
+| Segment assignment | `fli_model_assignments` | **New:** segment to model version, effective date. **Status 14 October 2026:** not built; no such table or migration |
+| Overlays | `fli_overlays` | Add the risk covered and the double-counting review. **Status 14 October 2026:** built (`risk_driver`, double-count review) |
+| Term structures and cash flows | `ecl_projection_runs`, `ecl_pd_term_structures`, `ecl_cashflow_projections`, `ecl_recovery_cashflows` | Use (they exist, empty). **Status 14 October 2026:** written by FliProjectionService (portfolio evidence) and TimePhasedEclService (loan-level, discounted run); `ecl_recovery_cashflows` is still empty |
+| Per-scenario ECL | `ecl_scenario_results` | **New:** loan, run, scenario, stage, ECL undiscounted and discounted. **Status 14 October 2026:** built with one ECL column, the undiscounted engine measure (plus weight, pd12 and stage_pd), keyed to the month record (`snapshot_id`); no discounted column |
+| Weighted ECL | `loan_books`, `expected_credit_loss` | Keep. **Status 14 October 2026:** both now carry the undiscounted and the discounted figure (`ecl_value` and `ecl_value_discounted`; `total_ecl` and `total_ecl_discounted`) |
+| Run snapshot | `ecl_run_snapshots` | **New** (D-F11). **Status 14 October 2026:** built as `fli_run_snapshots`, not `ecl_run_snapshots` |
 
 For a large book the per-scenario and term-structure tables are partitioned by reporting period, with the aggregates kept apart from the loan-level evidence.
 
@@ -189,15 +213,15 @@ The existing services are extended, not replaced:
 
 | Service | Role in the module |
 |---|---|
-| `MacroImportService`, `AsAtSeries` | Observations and vintages as known at the reporting date (D-F10) |
+| `MacroImportService`, `AsAtSeries` | Observations and vintages as known at the reporting date (D-F10). **Status 14 October 2026:** AsAtSeries honours `published_at` and the lag; MacroImportService still overwrites a revised value (MacroImportService.php:82-84), so it keeps no vintages |
 | `ScenarioSetService` | Scenario sets, weights, approval, sensitivity (unchanged role) |
-| `CorrelationFinder`, `RegressionEngine`, `Guardrail` | Calibration evidence, with the stationarity check (D-F7) |
-| `FliModelRegistry` (new) | Promotes an approved fit to a model version; resolves the version in force for a segment and date (D-F2) |
-| `FliProjectionService` (new) | Per scenario: the PD term structure, and the LGD where in scope (D-F4, D-F8) |
+| `CorrelationFinder`, `RegressionEngine`, `Guardrail` | Calibration evidence, with the stationarity check (D-F7). **Status 14 October 2026:** the stationarity test is reported by Diagnostics; the Guardrail does not decline on it |
+| `FliModelRegistry` (new) | Promotes an approved fit to a model version; resolves the version in force for a segment and date (D-F2). **Status 14 October 2026:** built for the book as a whole; no segment |
+| `FliProjectionService` (new) | Per scenario: the PD term structure, and the LGD where in scope (D-F4, D-F8). **Status 14 October 2026:** built for the PD per portfolio, as evidence; no LGD |
 | `FliRouteService` | Writes the post-FLI parameters and the lineage to each loan |
-| `EclDiscountRateService`, `EclDiscountingService` | The EIR basis, including the floating-rate current EIR (D-F6) |
-| `TimePhasedEclService` | The per-scenario, per-year ECL, then the weighting (D-F3) |
-| `EclBuildUpService`, the IFRS 9 note | The build-up and the movement reconciliation with an FLI line |
+| `EclDiscountRateService`, `EclDiscountingService` | The EIR basis, including the floating-rate current EIR (D-F6). **Status 14 October 2026:** the floating-rate current EIR is not built (the original EIR, labelled EIR_ORIGINAL_FLOATING_PROXY); the month-end discounted allowance comes from TimePhasedEclService, EclDiscountingService being the single-horizon proxy used when the time-phased engine cannot run |
+| `TimePhasedEclService` | The per-scenario, per-year ECL, then the weighting (D-F3). **Status 14 October 2026:** the per-scenario rows and the weighted-against-booked check of the month record are FliCloseService (undiscounted). TimePhasedEclService computes the discounted allowance per scenario, month by month, and weights it inside each loan; since commit 216aee2 it runs on every month-end and leaves `ecl_value` alone |
+| `EclBuildUpService`, the IFRS 9 note | The build-up and the movement reconciliation with an FLI line. **Status 14 October 2026:** the build-up has the FLI lines (ECL before FLI, model effect, overlays; EclBuildUpService, read by FliCloseService.php:47-49). The IFRS 9 note's movement reconciliation has no FLI line (it only counts the loans with an FLI-adjusted PD, Ifrs9NoteService.php:222-238, 491), and both read the undiscounted `ecl_value` |
 
 ## 7. Controls
 
@@ -227,6 +251,8 @@ Each carries the reporting date and the run identifier, so it can be reproduced 
 
 Built so far (D-F15): the forward-looking report (macro data held for the month, the scenario set, its weights and shocks) and the scenario-weighted ECL report (ECL per scenario, weighted against booked, sign-off status), both in PDF, Excel and CSV, read from the month record. The calibration workbook and the FLI line in the IFRS 9 note are still to build.
 
+**Status 14 October 2026:** also still to build: the FLI scenario workbook and the FLI impact workbook (the two reports above are single branded exports, not the workbooks of this section). The two reports show the undiscounted engine measure as "booked", while the month-end now books the discounted allowance.
+
 ## 9. Order of work
 
 | Phase | Content | Acceptance |
@@ -254,7 +280,9 @@ Each phase lands with its tests, its screens, the user and administrator manuals
 
 ## 11. Where the current figures stand
 
-For August 2026 on the demonstration database: ECL before FLI MWK 11.76 billion, forward-looking effect MWK (0.44) billion, manual overlays nil, ECL booked MWK 11.31 billion. The approved fit is the prime lending rate to the Stage 3 share at a nine-month lag (R-squared 0.74 on 26 monthly points), under the first scenario set. Every approval on that database is labelled "Demo, not a MAIIC approval". The fall in the ECL from the forward-looking effect follows the PLR's decline from a peak of 25.4 percent to 20.8 percent in August 2026; with 26 points and one driver, it is model output to be challenged, not yet a conclusion, which is the case for phases 1 and 5.
+For August 2026 on the demonstration database: ECL before FLI MWK 11.76 billion, forward-looking effect MWK (0.44) billion, manual overlays nil, ECL booked MWK 11.31 billion. The approved fit is the prime lending rate to the Stage 3 share at a nine-month lag (R-squared 0.74 on 26 monthly points), under the first scenario set. Every approval on that database is labelled as not a MAIIC approval: "Demo, not a MAIIC approval" on the fits and model versions, "System Bootstrap (automated data-readiness, not a MAIIC approval)" on the scenario sets (corrected 14 October 2026; it said every approval is labelled "Demo, not a MAIIC approval"). The fall in the ECL from the forward-looking effect follows the PLR's decline from a peak of 25.4 percent to 20.8 percent in August 2026; with 26 points and one driver, it is model output to be challenged, not yet a conclusion, which is the case for phases 1 and 5.
+
+**Status 14 October 2026:** the figures tie to database maiic_ifrs9_demo (the application's database): month record `fli_run_snapshots` id 3 of 13 October, 11:59 (ECL before FLI 11,755,464,420.89, model effect (440,884,613.92), overlays nil, booked 11,314,579,806.97; model version 8, PLR to STAGE3_SHARE, lag 9, R-squared 0.738 on 26 points; PLR peak 25.4 percent in September 2024, 20.8 percent in August 2026). They are on the undiscounted measure: August 2026 on that database has no discounted value, and the record was made before commit 216aee2 made the month-end discounted. The fresh bootstrap database maiic_ifrs9_results2 (13 October, 23:23, also before 216aee2) is not comparable: it has no model version and no month record, and its months ran with the PD held.
 
 ## 12. What is built (13 October 2026)
 
@@ -262,17 +290,19 @@ Built on branch eir_revenue_recognition and run end to end on the demonstration 
 
 | Decision | Built as | Proof |
 |---|---|---|
-| D-F1, D-F2 cadence and registry | `fli_models`, `fli_model_versions`; approving a fit publishes a version in force from its month; Model Versions screen; three Governance Centre settings (cadence, horizon, movement tolerance) | The eight approved fits of January to August 2026 became versions 1 to 8; a version governs later months without a new fit (test) |
-| D-F3 per-scenario ECL | `ecl_scenario_results`, `FliCloseService` | August 2026: weighted ECL 11,314,579,806.37 against booked 11,314,579,806.97 |
-| D-F4 term structure | `FliProjectionService` into `ecl_projection_runs` and `ecl_pd_term_structures`; Adjusted Forecast screen | Six portfolios, four scenarios, five to seven years |
-| D-F7 external series | Credit Loss Data external records bridged as EXT_ measures, knowable from their release month | Tested with an entered series |
+| D-F1, D-F2 cadence and registry | `fli_models`, `fli_model_versions`; approving a fit publishes a version in force from its month; Model Versions screen; three Governance Centre settings (cadence, horizon, movement tolerance) | The eight approved fits of January to August 2026 became versions 1 to 8; a version governs later months without a new fit (test). **Status 14 October 2026:** the lifecycle built is PROPOSED, PUBLISHED, SUPERSEDED, REJECTED, RETIRED (no Calibrated or Validated); the route can still let the PD hold outside the month-end job (D-F1 note) |
+| D-F3 per-scenario ECL | `ecl_scenario_results`, `FliCloseService` | August 2026: weighted ECL 11,314,579,806.37 against booked 11,314,579,806.97. **Status 14 October 2026:** on the undiscounted measure; no automated test of FliCloseService |
+| D-F4 term structure | `FliProjectionService` into `ecl_projection_runs` and `ecl_pd_term_structures`; Adjusted Forecast screen | Six portfolios, four scenarios, five to seven years. **Status 14 October 2026:** evidence only; the booked Stage 2 ECL does not use it; no automated test of FliProjectionService |
+| D-F7 external series | Credit Loss Data external records bridged as EXT_ measures, knowable from their release month | Tested with an entered series. **Status 14 October 2026:** there is no automated test of the EXT_ route and no external series is held in either database; the stationarity check is not a gate |
 | D-F9 double counting | `risk_driver` and the review on overlays; approval refused on the model's own driver | Test |
-| D-F10 vintages | `published_at` on macro and credit-loss rows; the as-at reader honours it | Existing as-at tests pass |
-| D-F11 run snapshot | `fli_run_snapshots`, Calculation History | Each month recorded with its inputs and sign-off |
-| D-F13 earlier screens kept | Every earlier screen back in its place in the Forward-Looking Information menu, out of the Legacy section | The navigation test; a month started and finished from the screens on the demonstration database |
-| D-F14 macro statistics screens | Variables, observations, credit loss data and assumptions with create, edit and delete; WB: and IMF: codes; one approved assumption set; actions on the right; import as a modal with a preview | Clicked through on the demonstration database; tests |
+| D-F10 vintages | `published_at` on macro and credit-loss rows; the as-at reader honours it | Existing as-at tests pass. **Status 14 October 2026:** revisions still replace the earlier value (MacroImportService.php:82-84); 0 of 261 observations have a release date |
+| D-F11 run snapshot | `fli_run_snapshots`, Calculation History | August 2026 recorded on maiic_ifrs9_demo (record id 3), not signed off; no staging run, EIR lock or discount basis in the record (corrected 14 October 2026; it said "Each month recorded with its inputs and sign-off") |
+| D-F13 earlier screens kept | Every earlier screen back in its place in the Forward-Looking Information menu, out of the Legacy section | The navigation test; a month started and finished from the screens on the demonstration database. **Status 14 October 2026:** no month is signed off on either database, so no month has been finished |
+| D-F14 macro statistics screens | Variables, observations, credit loss data and assumptions with create, edit and delete; WB: and IMF: codes; one approved assumption set; actions on the right; import as a modal with a preview | Clicked through on the demonstration database; page-open test (AuditFindingM16ScreensTest) and the macro file check (ImportValidationTest), no test of create, edit or delete (corrected 14 October 2026; it said "tests") |
 | D-F15 reports | Forward-looking and scenario-weighted ECL reports from `fli_run_snapshots` and the approved set; ECL Projection Audit limited to contract-level runs | August 2026: Base 11,052,982,549.26 at 50 percent, Upside 10,709,643,059.93 at 15, Downside 11,828,244,520.96 at 25, Severe 12,245,809,425.13 at 10; weighted 11,314,579,806.37 against booked 11,314,579,806.97 |
-| D-F16 month-end job | `maiic:task month-end` and the Overview's background steps | Run end to end from the console |
-| D-F12 month-end gate | `FliMonthEnd` steps; the Overview and `fli:month-end`; Maintenance job `maiic:task month-end` | A full month-end from the console reproduced the booked August ECL |
+| D-F16 month-end job | `maiic:task month-end` and the Overview's background steps | Run end to end from the console. **Status 14 October 2026:** the job now also segments the programme portfolios and runs the ECL discounted (216aee2); no automated test of `maiic:task` or `fli:month-end` |
+| D-F12 month-end gate | `FliMonthEnd` steps; the Overview and `fli:month-end`; Maintenance job `maiic:task month-end` | A full month-end from the console reproduced the booked August ECL. **Status 14 October 2026:** the checklist step and the month-end job's stop are built; `ifrs9:segment-ecl` and the ECL screen do not refuse a run without the FLI step |
 
 Not built yet: the scenario-sensitive LGD (D-F8, awaiting question 4 of section 10), the current-EIR discounting of floating-rate loans (D-F6, awaiting question 5), the credit-cycle method on an industry series (D-F7, awaiting question 2) and the calibration and scenario workbooks (section 8).
+
+**Status 14 October 2026:** also not built: the refusal of an ECL run without the FLI step (D-F12), the stationarity gate (D-F7), segment assignment (`fli_model_assignments`), the keeping of revised vintages (D-F10), the staging run, EIR lock and discount basis in the month record (D-F11), the report of capped scenario PDs, the refusal of mixed monthly and annual units in a series (section 7), the FLI impact workbook and the FLI line in the IFRS 9 note (section 8), the Calibrated and Validated lifecycle states (D-F2), and a month record and FLI reports on the discounted allowance. FliCloseService, FliProjectionService, FliMonthEnd, `fli:month-end` and `maiic:task` have no automated tests.
