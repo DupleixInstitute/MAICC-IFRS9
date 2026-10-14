@@ -162,6 +162,19 @@ class Bootstrap extends Command
                 throw new \RuntimeException('A committed trial balance did not pass its gates.');
             }
         }
+        // the S&P grading of MAIIC's December 2025 ECL model (14 October 2026): the two sheets the Internal
+        // Grades import reads, kept as values, loaded by the same service as a draft profile that changes no
+        // PD until someone activates it; a profile of the same name already held is left as it is
+        $sp = glob($inputs . '/models/*S&P grading*.xlsx') ?: [];
+        if ($sp !== []) {
+            $name = 'S&P Emerging Markets (ECL model, December 2025)';
+            if (DB::table('internal_grade_profiles')->where('name', $name)->exists()) {
+                $this->note('3c S&P grading', 'already held: ' . $name);
+            } else {
+                $profile = app(\App\Services\Ifrs9\SpGradesImportService::class)->import($sp[0], 'MAIIC & FInES ECL Model - 14th December 2025_Final.xlsx (the two sheets as values, docs/bootstrap/models)', $name, $user);
+                $this->note('3c S&P grading', "draft profile \"{$name}\": " . $profile->mappings()->count() . ' grades, not active');
+            }
+        }
     }
 
     /**

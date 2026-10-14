@@ -14,7 +14,10 @@ class SettingsTableSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('settings')->insert([
+        // A key already held is left as it is (14 October 2026): MaiicCurrencySeeder runs first in the
+        // bootstrap and sets "currency" to MWK, and the one bulk insert used to fail on that key, so a fresh
+        // install came up with no company name, timezone, date format or page size.
+        $rows = [
             [
                 'name' => 'Company Name',
                 'setting_key' => 'company_name',
@@ -498,6 +501,11 @@ class SettingsTableSeeder extends Seeder
                 'displayed' => '1',
                 'rules' => ''
             ],
-        ]);
+        ];
+        $held = DB::table('settings')->pluck('setting_key')->all();
+        $new = array_values(array_filter($rows, fn ($r) => ! in_array($r['setting_key'], $held, true)));
+        if ($new !== []) {
+            DB::table('settings')->insert($new);
+        }
     }
 }

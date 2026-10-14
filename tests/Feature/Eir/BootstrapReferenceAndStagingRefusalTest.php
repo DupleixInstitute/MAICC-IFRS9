@@ -84,4 +84,30 @@ class BootstrapReferenceAndStagingRefusalTest extends TestCase
         $this->assertStringContainsString("'CollateralTypesSeeder'", file_get_contents(app_path('Console/Commands/Bootstrap.php')));
         $this->assertStringContainsString('CollateralTypesSeeder::class', file_get_contents(database_path('seeders/DatabaseSeeder.php')));
     }
+
+    public function test_the_settings_seed_in_full_after_the_currency_seeder_has_set_the_currency(): void
+    {
+        // the bootstrap runs MaiicCurrencySeeder before SettingsTableSeeder; the one bulk insert used to fail
+        // on "currency" and leave a fresh install with no company name, timezone or date format
+        DB::table('settings')->delete();
+        DB::table('settings')->insert(['name' => 'Currency', 'setting_key' => 'currency', 'setting_value' => '37', 'category' => 'general', 'type' => 'text', 'options' => '', 'class' => '', 'required' => '1', 'db_columns' => '', 'displayed' => '1', 'rules' => '']);
+        (new \Database\Seeders\SettingsTableSeeder())->run();
+        $this->assertSame('Malawi Agricultural and Industrial Investment Corporation plc', DB::table('settings')->where('setting_key', 'company_name')->value('setting_value'));
+        $this->assertSame('37', DB::table('settings')->where('setting_key', 'currency')->value('setting_value'));
+        $this->assertSame('YYYY-mm-dd', DB::table('settings')->where('setting_key', 'date_format')->value('setting_value'));
+        $count = DB::table('settings')->count();
+        (new \Database\Seeders\SettingsTableSeeder())->run();
+        $this->assertSame($count, DB::table('settings')->count());
+    }
+
+    public function test_the_bootstrap_loads_the_s_and_p_grading_of_the_ecl_model_as_a_draft(): void
+    {
+        $files = glob(base_path('docs/bootstrap/models/*S&P grading*.xlsx')) ?: [];
+        $this->assertCount(1, $files);
+        $profile = app(\App\Services\Ifrs9\SpGradesImportService::class)->import($files[0], basename($files[0]), 'S&P test', null);
+        $this->assertFalse((bool) $profile->is_active);
+        $this->assertSame(8, $profile->mappings()->count());
+        $this->assertSame(80, DB::table('grade_tenor_pd')->whereIn('grade_mapping_id', $profile->mappings()->pluck('id'))->count());
+        $this->assertStringContainsString("'3c S&P grading'", file_get_contents(app_path('Console/Commands/Bootstrap.php')));
+    }
 }

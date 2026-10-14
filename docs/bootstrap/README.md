@@ -25,6 +25,7 @@ The committed copy is read first; a OneDrive path is only a local fallback.
 | `golden.json` | The golden numbers a clean install must reproduce, each recomputed from the database by `BaselineService::goldenActuals()` when it was set, with the date, commit and database | `eir:bootstrap --verify` (and `eir:baselines`) |
 | `.gitattributes` | No line-ending conversion for the CSV, JSON and SQL files here, so a clone on any machine gets the bytes the manifests hash (added 14 October 2026) | git |
 | `macro/` | `worldbank-MWI.json`, the World Bank macro series snapshot (added 14 October 2026; the folder was not listed) | `macro:import-worldbank --offline` |
+| `models/` | The two S&P grading sheets of MAIIC's December 2025 ECL model ("ASS1-Internal Grades" and "PDs-S&P", taken as values from MAIIC & FInES ECL Model - 14th December 2025_Final.xlsx, received 13 Oct 2026) (added 14 October 2026) | `eir:bootstrap` step 3c (`SpGradesImportService`, the same import as Internal Grades: a draft profile, 8 grades, 80 tenor PDs, not active) |
 | `manifest.json` | Every file with its query id, row count and SHA-256; the accepted exceptions the gates allow | the gates |
 
 Every file is exactly as received. None is opened or re-saved in Excel. A replacement (for example the
