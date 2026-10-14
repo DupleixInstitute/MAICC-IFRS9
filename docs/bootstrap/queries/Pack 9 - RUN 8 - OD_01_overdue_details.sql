@@ -28,6 +28,30 @@ ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '.,';
 --      the overlap at 91 and the ceiling at 360); the directive's bands run
 --      to 365 and 746 by term. A per-account day count from this table lets
 --      the RBM return be checked without the buckets.
+-- GOAL, and what to do with the file once it is back (for whoever lands it):
+--   a. Land it as query id OD_01 (registered in EbankerQuerySeeder, key
+--      OVERDUE_DET_ID, account NEW_AC_NUMBER, date OVD_CALC_DATE, incremental)
+--      through the feed like any extract: eir:land-pack, or the Feed screen.
+--   b. Per account and month-end, compare the days past due the overdue run
+--      implies (its calculation date less the oldest unpaid instalment date,
+--      or its own overdue-days column if it has one) with loan_books.overdue_days
+--      from the Loan Book Report. Report the count that agree and list the
+--      rest. A systematic difference means one of the two bases is wrong.
+--   c. Compare EXPECTED_NO_INST against the instalments actually received
+--      (ACTUAL_RECOVERY_AMT, PRINCIPLE/INTEREST_RECOVERY_AMT) with the
+--      four-missed-instalments trigger StagingService rebuilds from P2_10 and
+--      the ledger: the loans the trigger lifts to Stage 3 should be the loans
+--      this table shows four or more instalments behind.
+--   d. If RESCHEDULEMENT_DATE / RESCHEDULEMENT_AMOUNT are populated for any of
+--      our accounts, that is the restructure history: list the accounts with
+--      the dates and amounts, and raise it as the input for the restructured
+--      loan register (directive s.15) and the 10 percent modification test
+--      (spec 3.3.2); then tell Barry the vendor's Reschedule Report is no
+--      longer needed. If they are empty on every row, say so and the
+--      vendor request stands.
+--   e. Record the outcome in the pack review note (as Pack 7 results review
+--      does): rows, accounts, date range, the tie counts of b and c, the
+--      answer to d.
 -- The 18 MAIIC schemes, every calculation date, oldest first. If the table
 -- is large, SPOOL it (see the BIG FILES note in the pack 3 folder) rather
 -- than export the grid.
