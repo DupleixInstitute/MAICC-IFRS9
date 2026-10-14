@@ -31,23 +31,27 @@ class BootstrapReferenceAndStagingRefusalTest extends TestCase
         $this->assertSame(0, DB::table('audit_logs')->where('action', 'Loan Book Staged')->count(), 'nothing recorded as staged');
     }
 
-    public function test_the_collateral_types_are_seeded_without_a_value_and_the_sample_passes_its_check(): void
+    public function test_the_collateral_types_carry_the_ecl_models_policy_values_and_the_sample_passes_its_check(): void
     {
         // db:seed (the test database is seeded) holds them already; from empty, as a bootstrap database was
-        $this->assertSame(19, DB::table('collateral_types')->count());
+        $this->assertSame(28, DB::table('collateral_types')->count());
         DB::table('collateral_types')->delete();
         (new CollateralTypesSeeder())->run();
-        $this->assertSame(19, DB::table('collateral_types')->count());
+        $this->assertSame(28, DB::table('collateral_types')->count());
         $this->assertSame('Bank Guarantee', DB::table('collateral_types')->where('type_code', '101')->value('type_name'));
-        // MAIIC's policy is not seeded: no value is recognised until a person sets it
-        $this->assertSame(0, DB::table('collateral_types')->where('standard_haircut', '>', 0)->count());
-        $this->assertSame(0, DB::table('collateral_types')->where('realisation_period', '>', 0)->count());
+        // the ten types MAIIC's ECL model of December 2025 prices (ASS4-Security, "Per Collateral Policy")
+        // carry its realisation months and the share kept; the rest are not set (MAIIC's policy to set)
+        $this->assertSame(10, DB::table('collateral_types')->where('standard_haircut', '>', 0)->count());
+        $this->assertEqualsWithDelta(0.70, (float) DB::table('collateral_types')->where('type_code', '109')->value('standard_haircut'), 1e-9);
+        $this->assertSame(18, (int) DB::table('collateral_types')->where('type_code', '109')->value('realisation_period'));
+        $this->assertSame(CollateralTypesSeeder::SOURCE, DB::table('collateral_types')->where('type_code', '108')->value('description'));
+        $this->assertEqualsWithDelta(0.0, (float) DB::table('collateral_types')->where('type_code', '111')->value('standard_haircut'), 1e-9);
 
         // a type MAIIC has set is never overwritten, and a second run adds nothing
-        DB::table('collateral_types')->where('type_code', '109')->update(['standard_haircut' => 0.7, 'realisation_period' => 18]);
+        DB::table('collateral_types')->where('type_code', '111')->update(['standard_haircut' => 0.6, 'realisation_period' => 12]);
         (new CollateralTypesSeeder())->run();
-        $this->assertSame(19, DB::table('collateral_types')->count());
-        $this->assertEqualsWithDelta(0.7, (float) DB::table('collateral_types')->where('type_code', '109')->value('standard_haircut'), 1e-9);
+        $this->assertSame(28, DB::table('collateral_types')->count());
+        $this->assertEqualsWithDelta(0.6, (float) DB::table('collateral_types')->where('type_code', '111')->value('standard_haircut'), 1e-9);
 
         // the sample file of the collateral import now passes its own Check file
         $spec = ImportSpecs::get('collateral');
