@@ -126,7 +126,7 @@ Figure 4 follows one real payment through the four books. It is MUSECO's K200,00
 | Was any file short or altered? | The files book. Compare records promised with records stored, and check the fingerprint |
 | Which E-Banker record is behind a figure in a report? | The records book, which gives the E-Banker record number, its delivery and its version |
 | Has E-Banker changed a record already received? | The records book. Look for any record with a second version, and when the first was replaced |
-| What exactly did we ask E-Banker for? | The register, which shows each question with its version and fingerprint |
+| What exactly did we ask E-Banker for? | The register, which shows each question and its version; the exact wording is in the approved query file for that version |
 
 The four books already exist in the system's test copies and hold the data received so far. The test copy has 88,977 records from 23 deliveries. When the system is set up for real on MAIIC's server, the books start empty.
 
@@ -140,7 +140,7 @@ In plain words, this says: "give me the account, the date and the amount of ever
 
 **What Oracle does with a question.** When a question arrives, Oracle first checks that the login is allowed to read that table. Those are the permissions set up in section 6. Next it works out the quickest way to find the rows, using its indexes much as you would use the index of a book. Then it reads the rows and sends back the answer as rows and columns. Oracle answers from the records **as they stood at the moment the question started**. So the answer hangs together even while staff are posting. A reading question also **locks nothing**, which means E-Banker's users carry on as normal. The questions run early in the morning and fetch only what is new, so they finish quickly.
 
-**What the register is.** The register is the IFRS 9 system's controlled list of **every SQL question it is allowed to ask E-Banker**. After the tenth batch there are 114. Each entry is like a library card for one question.
+**What the register is.** The register is the IFRS 9 system's controlled list of **every SQL question it accepts answers to from E-Banker**. After the tenth batch there are 114. Each entry is like a library card for one question. Today the card describes the question and its version; the exact wording of each version is kept in the approved query files that are part of the system's code.
 
 | On the card | Example (the ledger question) | Why it is there |
 |---|---|---|
@@ -150,9 +150,9 @@ In plain words, this says: "give me the account, the date and the amount of ever
 | The account and date columns | NEW_AC_NUMBER, TRANSACTION_DATE | They file each record under its loan and its month |
 | Everything, or only what is new | Only what is new | It tells the system to ask only for records after the last one received, which is the watermark |
 | Version | 1 | The number goes up whenever the question is changed |
-| The SQL text and its fingerprint | The exact question, and a code calculated from it | It proves that the question being run is the approved one |
+| The SQL text and its fingerprint | Not on the card yet: today the exact question is in the approved query file | When the direct read (way 4) is built, the exact question and a code calculated from it go on the card, so the system runs only the approved wording and any change shows |
 
-**Why the register matters.** The same question is asked every month, so the answers can be compared. If a file comes from a question that is not in the register, or from an out-of-date version, the checkpoint refuses it. The fingerprint lets anyone confirm that the SQL run at MAIIC is the SQL in the register. The register also lives in the system's controlled code, so a question can only be changed through the release steps in section 2.2. Under the hand method, the register's questions are what gets printed on each batch sheet for MAIIC ICT to run. Under the automatic read, the system will take each question from the register and add "only records after the watermark". It will then send the question to Oracle itself and bring the answer in through the checkpoint.
+**Why the register matters.** The same question is asked every month, so the answers can be compared. If a file comes from a question that is not in the register, or from an out-of-date version, the checkpoint refuses it. Today the check is on the question's name and version; the exact wording MAIIC ICT runs is the approved query file for that version. The register also lives in the system's controlled code, so a question can only be changed through the release steps in section 2.2. Under the hand method, the approved query files are what gets printed on each batch sheet for MAIIC ICT to run. Under the automatic read, the system will take each question from the register and add "only records after the watermark". It will then send the question to Oracle itself and bring the answer in through the checkpoint.
 
 ## 5. What the login will and will not do
 
@@ -266,7 +266,7 @@ This assumes approval by **Friday 23 October 2026**. Each week of delay pushes b
 
 ## 10. How the data is kept up to date
 
-Every question the system asks E-Banker is written down in the register (section 4.2), with a version number and a fingerprint. The register is kept in the system's code. To change a question you change the code, not a worksheet. There are two kinds of table.
+Every question the system asks E-Banker is written down in the register (section 4.2), with a version number, and its exact wording is kept in an approved query file. The register is kept in the system's code. To change a question you change the code, not a worksheet. There are two kinds of table.
 
 - **Reference tables are read in full each time.** These are the list of accounts, the loan terms, the repayment schedules in force, security and rates. They are small, and only new or changed records are stored.
 - **History tables are read from where the last delivery stopped.** These are payments, balances, the monthly loan book report, the overdue calculation and interest. The watermark records the last record received, so the next read fetches only what is new. Under the hand method the watermark is printed on the batch sheet. Under the automatic read the system applies it itself.
