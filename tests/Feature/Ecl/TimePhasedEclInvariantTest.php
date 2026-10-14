@@ -119,6 +119,34 @@ class TimePhasedEclInvariantTest extends TestCase
         $this->assertGreaterThan($by['Base']['discounted'], $by['Severe']['discounted']);
     }
 
+    /**
+     * No approved fit: the route holds the PD in each scenario of the set
+     * (FliRouteService::heldScenarios). Each scenario is measured under the
+     * set's name, the figures are equal, and they weight back to the allowance;
+     * one "Overlay" scenario left the set's names unmeasured on the loan.
+     */
+    public function test_a_pd_held_in_every_scenario_is_measured_under_each_of_the_sets_names(): void
+    {
+        $held = json_encode(['Base' => ['weight' => 50, 'pd' => .10], 'Upside' => ['weight' => 15, 'pd' => .10], 'Downside' => ['weight' => 25, 'pd' => .10], 'Severe' => ['weight' => 10, 'pd' => .10]]);
+        $this->loan('H1', 1, ['fli_by_scenario' => $held]);
+        $this->schedule('H1', 24);
+        $this->loan('H2', 2, ['fli_by_scenario' => $held, 'remaining_tenor' => 36]);
+        $this->schedule('H2', 36);
+        $this->loan('H3', 3);
+        $r = $this->measure();
+        $this->assertSame(3, $r['calculated'], json_encode($r['exceptions']));
+        foreach (DB::table('loan_books')->get() as $l) {
+            $by = json_decode($l->ecl_by_scenario, true);
+            $this->assertSame(['Base', 'Upside', 'Downside', 'Severe'], array_keys($by), $l->contract_id);
+            $weighted = 0.0;
+            foreach ($by as $s) {
+                $this->assertEqualsWithDelta($by['Base']['discounted'], $s['discounted'], 1e-6, $l->contract_id);
+                $weighted += $s['weight'] * $s['discounted'];
+            }
+            $this->assertEqualsWithDelta((float) $l->ecl_value_discounted, $weighted, 0.006, $l->contract_id);
+        }
+    }
+
     public function test_the_stage_is_the_one_the_engine_measures_post_qualitative(): void
     {
         // calculated Stage 1, moved to Stage 2 by a qualitative trigger: lifetime, as the ECL engine measures it

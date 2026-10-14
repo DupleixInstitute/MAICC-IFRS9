@@ -79,6 +79,49 @@ class RestructureRegisterTest extends TestCase
         return new RestructureCandidateService(new LandingZoneReader());
     }
 
+    /**
+     * The detector reads the ledger once (bootstrap step 5i took about 30 minutes
+     * at a query per account and date) and must see exactly what the per-account
+     * read returned: a source key landed in two families, one dated after the
+     * date, keeps the earlier one at that date; a later load wins; deleted, non-
+     * loan GL, undated, superseded and quarantined rows are left out as before.
+     */
+    public function test_the_ledger_read_once_gives_what_the_per_account_read_gives_at_every_date(): void
+    {
+        DB::table('ebanker_loads')->insert([['id' => 2, 'pack_hash' => str_repeat('s', 64), 'pack_name' => 'later', 'manifest' => '{}', 'status' => 'LANDED', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'pack_hash' => str_repeat('q', 64), 'pack_name' => 'refused', 'manifest' => '{}', 'status' => 'QUARANTINED', 'created_at' => now(), 'updated_at' => now()]]);
+        $post = fn (string $type, string $amount, string $gl = '1050102', string $deleted = 'N') => ['TRANTYPE' => $type, 'TRANSAMT' => $amount, 'AC_GLCODE' => $gl, 'DELETE_FLAG' => $deleted];
+        $this->raw('P1_01', 'K1', $this->a, '2026-02-01', $post('305', '50.00'));
+        $this->raw('M09_01', 'K1', $this->a, '2026-05-01', $post('305', '70.00'));           // the same key in another family, later
+        $this->raw('P1_01', 'K2', $this->a, '2026-03-01', $post('305', '10.00', '1050102', 'Y')); // deleted
+        $this->raw('P1_01', 'K3', $this->a, '2026-03-02', $post('305', '5.00', '4215'));    // a contra leg on an income GL
+        $this->raw('P1_01', 'K4', $this->a, null, $post('305', '1.00'));                   // undated
+        $this->raw('P1_01', 'K5', '000104460000059', '2026-01-15', $post('301', '-90.00'));
+        DB::table('ebanker_raw_rows')->insert(['load_id' => 2, 'query_id' => 'P1_01', 'source_key' => 'K5', 'account' => '000104460000059', 'row_date' => '2026-01-16',
+            'payload' => json_encode($post('301', '-95.00')), 'row_hash' => 'h2', 'version' => 2, 'created_at' => now(), 'updated_at' => now()]);   // a later load restates it
+        DB::table('ebanker_raw_rows')->insert(['load_id' => 3, 'query_id' => 'P1_01', 'source_key' => 'K6', 'account' => $this->a, 'row_date' => '2026-01-20',
+            'payload' => json_encode($post('305', '999.00')), 'row_hash' => 'h3', 'version' => 1, 'created_at' => now(), 'updated_at' => now()]);  // quarantined
+        DB::table('ebanker_raw_rows')->insert(['load_id' => 1, 'query_id' => 'P1_01', 'source_key' => 'K7', 'account' => $this->a, 'row_date' => '2026-01-21', 'superseded_at' => now(),
+            'payload' => json_encode($post('305', '888.00')), 'row_hash' => 'h4', 'version' => 1, 'created_at' => now(), 'updated_at' => now()]);  // superseded
+
+        $zone = new LandingZoneReader();
+        $reader = $zone->ledgerReader();
+        $checked = 0;
+        foreach ([$this->a, '000104460000059', '000999999999999'] as $account) {
+            foreach ([null, '2024-12-31', '2025-01-05', '2026-01-15', '2026-02-01', '2026-03-01', '2026-04-30', '2026-05-01', '2026-12-31'] as $date) {
+                $this->assertSame($zone->ledgerByAccount($date, $account)[$account] ?? [], $reader($account, $date), "{$account} at " . ($date ?? 'no date'));
+                $checked++;
+            }
+        }
+        $this->assertSame(27, $checked);
+        $this->assertSame(['L1', 'K1'], array_column($reader($this->a, '2026-04-30'), 'source_key'));
+        $this->assertSame('50.00', $reader($this->a, '2026-04-30')[1]['payload']['TRANSAMT'], 'at April the key is the February posting');
+        $all = $reader($this->a, null);
+        $this->assertSame(['K4', 'L1', 'K1'], array_column($all, 'source_key'), 'with no date the undated row is read, first');
+        $this->assertSame('70.00', $all[2]['payload']['TRANSAMT'], 'with no date the key is the May posting');
+        $this->assertSame('2026-01-16', $reader('000104460000059', null)[0]['row_date'], 'the later load wins');
+    }
+
     public function test_a_chart_that_capitalises_arrears_off_a_rate_date_is_a_candidate_and_is_never_confirmed_by_the_detector(): void
     {
         $this->twoVersions();

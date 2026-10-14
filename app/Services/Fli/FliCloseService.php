@@ -90,6 +90,8 @@ class FliCloseService
         $weightedDisc = 0.0;
         $bookedDisc = 0.0;
         $discMissing = [];
+        // a performing loan with no PD for a scenario of the set: that scenario was not measured on it
+        $pdMissing = [];
         $versionIds = DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('fli_model_version_id')->distinct()->pluck('fli_model_version_id');
         $version = $versionIds->count() === 1 ? DB::table('fli_model_versions')->where('id', $versionIds->first())->first() : null;
 
@@ -119,10 +121,17 @@ class FliCloseService
             $hPost = $x['horizon_pd_post'];
             $by = json_decode((string) ($byScenarioRaw[$l->id] ?? ''), true) ?: [];
             $loanWeighted = 0.0;
+            $loanWeightedDisc = 0.0;
             $stage = $x['stage'] === null ? '-' : (string) $x['stage'];
             $portfolio = (int) ($l->loan_portfolio_id ?? 0);
             foreach ($weights as $name => $w) {
                 $pd = isset($by[$name]['pd']) ? (float) $by[$name]['pd'] : null;
+                if ($pd === null && $stage !== '3' && $hPost > 0) {
+                    // Never the booked ECL in its place (that made the weighted figure tie by
+                    // construction while the scenario was never measured): named, and the
+                    // month does not reconcile until the route writes the set's scenarios.
+                    $pdMissing[] = (string) $l->contract_id . " ({$name})";
+                }
                 if ($stage === '3' || $pd === null || $hPost <= 0) {
                     // Stage 3 is measured on the default that has happened: no scenario moves it
                     $ecl = (float) $x['ecl'];
@@ -141,7 +150,7 @@ class FliCloseService
                         $discMissing[] = (string) $l->contract_id . " ({$name})";
                     }
                     $perDisc[$name] += (float) $eclDisc;
-                    $weightedDisc += (float) $eclDisc * $w / 100;
+                    $loanWeightedDisc += (float) $eclDisc * $w / 100;
                 }
                 $byStage[$stage][$name] = ($byStage[$stage][$name] ?? 0.0) + $ecl;
                 $byPortfolio[$portfolio][$name] = ($byPortfolio[$portfolio][$name] ?? 0.0) + $ecl;
@@ -151,13 +160,19 @@ class FliCloseService
             }
             $booked += (float) $x['ecl'];
             $weighted += $loanWeighted;
+            if ($isDisc) {
+                // the allowance is booked per loan to the cent (TimePhasedEclService), so the
+                // weighted figure is taken per loan to the cent too: like for like, it ties exactly
+                $weightedDisc += round($loanWeightedDisc, 2);
+            }
             $byStage[$stage]['_booked'] = ($byStage[$stage]['_booked'] ?? 0.0) + (float) $x['ecl'];
             $byPortfolio[$portfolio]['_booked'] = ($byPortfolio[$portfolio]['_booked'] ?? 0.0) + (float) $x['ecl'];
         }
         $difference = round($weighted - $booked, 2);
         // the post-FLI PD is stored to eight decimals, so the weighted figure ties to the booked one to that rounding
-        $reconciles = abs($difference) <= max(1.0, 1e-6 * abs($booked));
-        // each loan's discounted allowance is stored to the cent, so the weighted figure ties to half a cent a loan
+        $reconciles = $pdMissing === [] && abs($difference) <= max(1.0, 1e-6 * abs($booked));
+        // each loan's weighted figure is taken to the cent as its allowance is; the tolerance only absorbs a
+        // half cent that floating point puts on the other side of the rounding
         $discDifference = round($weightedDisc - $bookedDisc, 2);
         $discReconciles = $disc['discounted_loans'] === 0 ? null : ($discMissing === [] && abs($discDifference) <= max(1.0, 0.005 * $disc['discounted_loans'] + 1e-6 * abs($bookedDisc)));
         $unresolvedNamed = $this->unresolved($loans);
@@ -185,6 +200,7 @@ class FliCloseService
             'ecl_calculated_at' => $calculated, 'fli_applied_at' => $applied,
             'discount_basis' => 'TimePhasedEclService at the locked original EIR (EIR_ORIGINAL); a floating-rate loan at its current EIR at the month-end (EIR_CURRENT_FLOATING, IFRS 9 B5.5.44, D-F6), unresolved and named where it cannot be determined',
             'macro' => $this->vintage($period, $version?->statistic_code),
+            'without_scenario_pd' => ['loans' => count(array_unique(array_map(fn ($m) => strstr($m, ' (', true), $pdMissing))), 'first' => array_slice($pdMissing, 0, 20)],
         ];
 
         $perScenarioDisc = [];
@@ -242,7 +258,10 @@ class FliCloseService
             throw new RuntimeException("The record of {$s->reporting_period} is {$s->status}; only a recorded month can be signed off.");
         }
         if (! $s->reconciles) {
-            throw new RuntimeException("The weighted ECL of {$s->reporting_period} differs from the booked ECL by {$s->difference}; record the month again after the ECL run before signing it off.");
+            $missing = (int) (json_decode((string) ($s->inputs ?? ''), true)['without_scenario_pd']['loans'] ?? 0);
+            throw new RuntimeException($missing > 0
+                ? "{$missing} performing loan(s) of {$s->reporting_period} carry no PD for a scenario of the set (named on the record), so the weighted ECL is not measured on them: apply the forward-looking route again, run the ECL, then record the month."
+                : "The weighted ECL of {$s->reporting_period} differs from the booked ECL by {$s->difference}; record the month again after the ECL run before signing it off.");
         }
         if (property_exists($s, 'discounted_reconciles') && $s->discounted_reconciles !== null && ! $s->discounted_reconciles) {
             throw new RuntimeException("The discounted allowance of {$s->reporting_period} weighted over the scenarios differs from the one booked by {$s->discounted_difference}, or a loan carries no per-scenario figures: run the ECL again, record the month again, then sign it off.");

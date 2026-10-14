@@ -169,4 +169,55 @@ class FliCloseDiscountedRecordTest extends TestCase
         $this->expectExceptionMessage('discounted allowance');
         $close->signOff((int) $s['id'], 3, 'commentary');
     }
+
+    /**
+     * No approved fit: the route holds the PD in each scenario of the set
+     * (maiic_ifrs9_fliall, December 2025 and September 2026). Every scenario
+     * carries the same PD, the time-phased engine measures each, and the
+     * record weights the discounted figures back to the allowance booked to
+     * the cent; a second person signs it off.
+     */
+    public function test_a_month_whose_pd_holds_in_every_scenario_weights_back_and_is_signed_off(): void
+    {
+        $held = json_encode(['Base' => ['weight' => 50, 'pd' => 0.13], 'Severe' => ['weight' => 50, 'pd' => 0.13]]);
+        DB::table('loan_books')->whereIn('contract_id', ['A', 'C'])->update(['pd_prefli' => 0.13, 'fli_by_scenario' => $held]);
+        DB::table('loan_books')->where('contract_id', 'A')->update(['ecl_by_scenario' => json_encode(['Base' => ['weight' => .5, 'undiscounted' => 64, 'discounted' => 60], 'Severe' => ['weight' => .5, 'undiscounted' => 64, 'discounted' => 60]])]);
+        $close = app(FliCloseService::class);
+        $s = $close->record('2026-09', 2);
+
+        $this->assertTrue((bool) $s['reconciles']);
+        $this->assertSame(0, (int) $s['inputs']['without_scenario_pd']['loans']);
+        $this->assertEqualsWithDelta(0.0, (float) $s['model_effect'], 0.005);
+        $this->assertSame(round((float) $s['booked_ecl_discounted'], 2), round((float) $s['weighted_ecl_discounted'], 2));
+        $this->assertEqualsWithDelta(860, (float) $s['weighted_ecl_discounted'], 0.005);
+        $this->assertTrue((bool) $s['discounted_reconciles']);
+        foreach ($s['per_scenario'] as $row) {
+            $this->assertEqualsWithDelta(860, $row['ecl_discounted'], 0.005, $row['scenario']);
+        }
+        $close->signOff((int) $s['id'], 3, 'C waits for its EIR to be locked.');
+        $this->assertSame('SIGNED_OFF', DB::table('fli_run_snapshots')->where('id', $s['id'])->value('status'));
+    }
+
+    /**
+     * A performing loan measured on one "Overlay" scenario, as the route wrote
+     * it before 14 October 2026: the set's scenarios were never measured on it.
+     * Its booked ECL is not put in their place: the record names it, neither
+     * figure reconciles, and sign-off is refused with the reason.
+     */
+    public function test_a_loan_without_the_sets_scenarios_is_named_and_the_month_is_refused(): void
+    {
+        DB::table('loan_books')->where('contract_id', 'A')->update(['pd_prefli' => 0.13,
+            'fli_by_scenario' => json_encode(['Overlay' => ['weight' => 100, 'pd' => 0.13]]),
+            'ecl_by_scenario' => json_encode(['Overlay' => ['weight' => 1, 'undiscounted' => 64, 'discounted' => 60]])]);
+        $close = app(FliCloseService::class);
+        $s = $close->record('2026-09', 2);
+
+        $this->assertFalse((bool) $s['reconciles']);
+        $this->assertSame(1, (int) $s['inputs']['without_scenario_pd']['loans']);
+        $this->assertSame(['A (Base)', 'A (Severe)'], $s['inputs']['without_scenario_pd']['first']);
+        $this->assertFalse((bool) $s['discounted_reconciles']);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('carry no PD for a scenario of the set');
+        $close->signOff((int) $s['id'], 3, 'commentary');
+    }
 }

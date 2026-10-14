@@ -87,6 +87,9 @@ class RestructureCandidateService
     /** @var array<string, list<array>>|null */
     private ?array $chart = null;
 
+    /** @var \Closure(string, ?string): list<array>|null the ledger, read once per detection (LandingZoneReader::ledgerReader) */
+    private ?\Closure $ledger = null;
+
     public function __construct(private LandingZoneReader $zone)
     {
     }
@@ -629,7 +632,7 @@ class RestructureCandidateService
     /** Everything the ledger says the borrower owes at the end of a date (drawn and charged, less repaid), or null with no posting. */
     private function ledgerBalance(string $account, string $date): ?float
     {
-        $rows = $this->zone->ledgerByAccount($date, $account)[$account] ?? [];
+        $rows = $this->ledgerOf($account, $date);
 
         return $rows === [] ? null : -array_sum(array_map(fn ($p) => self::num($p['payload']['TRANSAMT'] ?? 0), $rows));
     }
@@ -638,7 +641,7 @@ class RestructureCandidateService
     private function advanced(string $account, ?string $after, string $upTo): float
     {
         $sum = 0.0;
-        foreach ($this->zone->ledgerByAccount($upTo, $account)[$account] ?? [] as $p) {
+        foreach ($this->ledgerOf($account, $upTo) as $p) {
             if ($after !== null && $p['row_date'] <= $after) {
                 continue;
             }
@@ -653,13 +656,27 @@ class RestructureCandidateService
 
     private function firstDrawdown(string $account): ?string
     {
-        foreach ($this->zone->ledgerByAccount(null, $account)[$account] ?? [] as $p) {
+        foreach ($this->ledgerOf($account, null) as $p) {
             if (in_array((string) ($p['payload']['TRANTYPE'] ?? ''), LoanBookBuildService::TYPE_DISBURSEMENT, true) && self::num($p['payload']['TRANSAMT'] ?? 0) < 0) {
                 return (string) $p['row_date'];
             }
         }
 
         return null;
+    }
+
+    /**
+     * One account's ledger to a date, as ledgerByAccount(date, account) returns it, from the ledger
+     * read once: the detector asks at every regeneration of every chart, and a query each time
+     * (some 1,500) made bootstrap step 5i take about 30 minutes.
+     *
+     * @return list<array>
+     */
+    private function ledgerOf(string $account, ?string $toDate): array
+    {
+        $this->ledger ??= $this->zone->ledgerReader();
+
+        return ($this->ledger)($account, $toDate);
     }
 
     /** @return array<string,true> the dates the PLR changed (P2_06) */

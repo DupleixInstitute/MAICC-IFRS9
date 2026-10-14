@@ -96,12 +96,58 @@ class LandingZoneReader
      */
     public function ledgerByAccount(?string $toDate = null, ?string $account = null, bool $withMegaFarm = false): array
     {
-        $gls = self::LOAN_GLS + ($withMegaFarm ? array_flip(\App\Services\MegaFarm\MegaFarmEclService::GLS) : []);
-        $by = [];
+        return $this->loanPostings($this->family(self::ledgerFamilies($withMegaFarm), $toDate, null, $account), $withMegaFarm);
+    }
+
+    /**
+     * The ledger read once, for a caller that asks for one account at a time at many dates (the
+     * restructure detector asks at every regeneration of every chart: some 1,500 reads, about
+     * 30 minutes of bootstrap step 5i). The returned function gives, for an account and a date,
+     * exactly what ledgerByAccount(date, account)[account] gives: the account's rows of the
+     * current landed loads in load order, those dated after the date (and the undated, when a
+     * date is given) left out as the query leaves them out, de-duplicated on the source key with
+     * the latest load winning as family() does, then the same posting filter and order.
+     *
+     * @return \Closure(string, ?string): list<array>
+     */
+    public function ledgerReader(bool $withMegaFarm = false): \Closure
+    {
+        $byAccount = [];
+        foreach ($this->current()->whereIn('query_id', self::ledgerFamilies($withMegaFarm))->whereNotNull('account')->orderBy('load_id')->orderBy('id')
+            ->get(['load_id', 'query_id', 'source_key', 'account', 'row_date', 'payload']) as $r) {
+            $byAccount[$r->account][] = [
+                'load_id' => (int) $r->load_id, 'query_id' => $r->query_id, 'source_key' => $r->source_key,
+                'account' => $r->account, 'row_date' => $r->row_date, 'payload' => json_decode($r->payload, true) ?: [],
+            ];
+        }
+
+        return function (string $account, ?string $toDate) use ($byAccount, $withMegaFarm): array {
+            $keyed = [];
+            foreach ($byAccount[$account] ?? [] as $row) {
+                if ($toDate !== null && ($row['row_date'] === null || $row['row_date'] > $toDate)) {
+                    continue;
+                }
+                $keyed[$row['source_key']] = $row;
+            }
+
+            return $this->loanPostings($keyed, $withMegaFarm)[$account] ?? [];
+        };
+    }
+
+    /** The ledger families read: MF_03 only when Mega Farm is asked for. */
+    private static function ledgerFamilies(bool $withMegaFarm): array
+    {
         // every MF_03 row is on a programme GL (1050301 to 1050307), so without Mega Farm the family is
         // left unread rather than decoded and dropped: some 300,000 rows that stopped whole-ledger screens
-        $families = $withMegaFarm ? self::LEDGER : array_values(array_diff(self::LEDGER, ['MF_03']));
-        foreach ($this->family($families, $toDate, null, $account) as $row) {
+        return $withMegaFarm ? self::LEDGER : array_values(array_diff(self::LEDGER, ['MF_03']));
+    }
+
+    /** The postings on the loan GLs, not deleted, grouped by account, each in date then key order. */
+    private function loanPostings(array $read, bool $withMegaFarm): array
+    {
+        $gls = self::LOAN_GLS + ($withMegaFarm ? array_flip(\App\Services\MegaFarm\MegaFarmEclService::GLS) : []);
+        $by = [];
+        foreach ($read as $row) {
             $p = $row['payload'];
             if (($p['DELETE_FLAG'] ?? 'N') === 'Y' || $row['account'] === null || $row['account'] === '') {
                 continue;

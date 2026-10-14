@@ -158,6 +158,39 @@ class FliRouteServiceTest extends TestCase
     }
 
     /**
+     * The PD holds in every scenario of the set, not in one "Overlay" scenario
+     * (D-F3; maiic_ifrs9_fliall, December 2025): the time-phased engine measures
+     * each loan under the scenarios it carries and the month record weights the
+     * set's, so a performing loan carrying only "Overlay" had no figures under
+     * Base, Up or Down and its discounted allowance could not weight back.
+     */
+    public function test_with_no_approved_fit_each_scenario_of_the_set_carries_the_held_pd(): void
+    {
+        $setId = $this->approvedSet();
+        $r = $this->service()->apply('2026-08', 1);
+        $this->assertSame(['Base', 'Up', 'Down'], array_keys($r['scenarios']));
+        $this->assertStringContainsString("in each scenario of set {$setId}", $r['note']);
+        $a = DB::table('loan_books')->where('contract_id', 'A')->first();
+        $this->assertSame($setId, (int) $a->fli_set_id);
+        $by = json_decode($a->fli_by_scenario, true);
+        $this->assertSame(['Base', 'Up', 'Down'], array_keys($by));
+        $this->assertEqualsWithDelta(100.0, array_sum(array_column($by, 'weight')), 1e-9);
+        foreach ($by as $name => $s) {
+            $this->assertEqualsWithDelta(0.30, $s['pd'], 1e-9, $name);
+        }
+        $this->assertSame([], json_decode(DB::table('loan_books')->where('contract_id', 'B')->value('fli_by_scenario'), true)); // Stage 3: no scenario PD
+    }
+
+    /** With no set in force there is no scenario to name: the one Overlay row, and the PD holds. */
+    public function test_with_no_set_and_no_fit_the_pd_holds_on_one_overlay_row(): void
+    {
+        $r = $this->service()->apply('2026-08', 1);
+        $this->assertSame(['Overlay'], array_keys($r['scenarios']));
+        $this->assertNull($r['set']);
+        $this->assertEqualsWithDelta(0.30, (float) DB::table('loan_books')->where('contract_id', 'A')->value('pd_post_fli'), 1e-9);
+    }
+
+    /**
      * The manual-overlay route reads the register, not the legacy fli_adj row
      * (system audit of 9 October 2026, finding M3): each loan takes the sum
      * of the approved, unexpired overlays whose scope covers it, and its
@@ -184,7 +217,11 @@ class FliRouteServiceTest extends TestCase
         $this->assertNull($r['fit']);
         $this->assertSame([$book, $agri], array_column($r['overlays'], 'id'));
         $this->assertStringContainsString('2 overlays in force from the register', $r['note']);
-        $this->assertEqualsWithDelta(0.10, $r['scenarios']['Overlay']['adjustment'], 1e-9);   // the book-wide overlay on the scenario row
+        // the book-wide overlay on each scenario row of the set
+        $this->assertSame(['Base', 'Up', 'Down'], array_keys($r['scenarios']));
+        foreach ($r['scenarios'] as $name => $s) {
+            $this->assertEqualsWithDelta(0.10, $s['adjustment'], 1e-9, $name);
+        }
         $a = DB::table('loan_books')->where('contract_id', 'A')->first();
         $d = DB::table('loan_books')->where('contract_id', 'D')->first();
         $this->assertEqualsWithDelta(0.30 * 1.35, (float) $a->pd_post_fli, 1e-6);   // book + AGRI

@@ -434,10 +434,11 @@ class FliRouteService
         if ($fit !== null && $set !== null) {
             [$baseDriver, $scenarios] = $this->regressionAdjustments($period, $fit, $this->sets->paths((int) $set->id));
         } elseif ($fit === null && ! str_contains($route, 'overlay')) {
-            // the regression route with nothing approved: the PD holds
-            $scenarios = ['Overlay' => ['weight' => 100.0, 'driver' => null, 'predicted_proxy' => null, 'adjustment' => 0.0]];
-            $note = 'no approved fit for the period: manual overlay at zero, the PD holds';
+            // the regression route with nothing approved: the PD holds, in every scenario of the set
+            $scenarios = $this->heldScenarios($set, 0.0);
+            $note = 'no approved fit for the period: manual overlay at zero' . ($set !== null ? " in each scenario of set {$set->id}" : '') . ', the PD holds';
         }
+        $fromFit = $fit !== null && $scenarios !== [] && $set !== null;
 
         // The overlay register (spec 14.6; system audit of 9 October 2026,
         // finding M3): under "Manual overlay" the approved, unexpired entries
@@ -449,14 +450,14 @@ class FliRouteService
         if (str_contains($route, 'overlay')) {
             $bookAdj = round((float) $overlays->where('scope', 'book')->sum('adjustment'), 8);
             if ($scenarios === []) {
-                $scenarios = ['Overlay' => ['weight' => 100.0, 'driver' => null, 'predicted_proxy' => null, 'adjustment' => $bookAdj]];
+                $scenarios = $this->heldScenarios($set, $bookAdj);
             } elseif ($bookAdj != 0.0) {
                 foreach ($scenarios as $name => $s) {
                     $scenarios[$name]['adjustment'] = round($s['adjustment'] + $bookAdj, 6);
                     $scenarios[$name]['overlay'] = $bookAdj;
                 }
             }
-            $fitStands = $fit !== null && $scenarios !== [] && ! isset($scenarios['Overlay']);
+            $fitStands = $fromFit;
             $note = $overlays->isEmpty()
                 ? ($fitStands ? 'no overlay in force for the period: the regression adjustment stands alone' : (str_starts_with($route, 'Regression') ? 'no approved fit and no overlay in force for the period: the PD holds' : 'no overlay in force for the period: the PD holds'))
                 : $overlays->count() . ' overlay' . ($overlays->count() === 1 ? '' : 's') . ' in force from the register (ids ' . $overlays->pluck('id')->implode(', ') . ')' . ($fit === null && str_starts_with($route, 'Regression') ? '; no approved fit' : ($fitStands ? '; on top of the regression adjustment' : ''));
@@ -537,6 +538,41 @@ class FliRouteService
         AuditLoggerService::log('FLI Route Applied', 'loan_books', null, ['reporting_period' => $period, 'rows_affected' => $loans->count(), 'new_values' => array_diff_key($result, ['scenarios' => 1]) + ['scenarios' => array_map(fn ($s) => $s['adjustment'], $scenarios)], 'meta' => ['user' => $userId]]);
 
         return $result;
+    }
+
+    /**
+     * The scenarios when no approved fit moves them: the PD holds, or a book-wide
+     * overlay moves it alike, in every scenario of the set in force.
+     *
+     * D-F3 measures the loss once per scenario of the governed set and weights
+     * it; the time-phased engine reads each loan's per-scenario PD under the
+     * set's names and weights, and the month record weights the per-scenario
+     * figures over the same names. A single "Overlay" scenario on a performing
+     * loan left the set's scenarios unmeasured on it, so its discounted
+     * allowance could not weight back to the one booked (maiic_ifrs9_fliall,
+     * December 2025: weighted 2,565,806,380.57 against booked 3,015,683,463.14).
+     * Each scenario of the set therefore carries the same adjustment, so each
+     * has its own figures and the weights give back the booked allowance. With
+     * no set in force there is no scenario to name: the one "Overlay" row
+     * stays, and the month record refuses the month for want of a set.
+     *
+     * @return array<string,array<string,mixed>>
+     */
+    private function heldScenarios(?object $set, float $adjustment): array
+    {
+        if ($set === null) {
+            return ['Overlay' => ['weight' => 100.0, 'driver' => null, 'predicted_proxy' => null, 'adjustment' => $adjustment]];
+        }
+        $rows = DB::table('governed_scenarios')->where('set_id', $set->id)->orderBy('order_position')->get(['name', 'weight']);
+        if ($rows->isEmpty() || (float) $rows->sum('weight') <= 0) {
+            throw new RuntimeException("Scenario set {$set->id} holds no weighted scenario; the forward-looking route cannot measure the loans under it.");
+        }
+        $out = [];
+        foreach ($rows as $r) {
+            $out[$r->name] = ['weight' => (float) $r->weight, 'driver' => null, 'predicted_proxy' => null, 'adjustment' => $adjustment];
+        }
+
+        return $out;
     }
 
     /**
