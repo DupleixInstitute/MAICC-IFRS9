@@ -210,6 +210,33 @@ class ScheduleShapeGovernanceTest extends TestCase
         $workflow->generate($withoutShape);
     }
 
+    /**
+     * A take-on loan's version 1 schedule comes from Tamanda's workbook (spec
+     * 6.9). The generator refuses to write a second version 1 beside it (which
+     * doubled the scheduled principal of 41 take-on loans and blocked their
+     * EIR on the fresh bootstrap of 13 October 2026) and labels the contract
+     * with the source it holds.
+     */
+    public function test_the_generator_never_writes_over_a_take_on_workbook_schedule(): void
+    {
+        $this->createScheduleSchema();
+        Scheme::create([
+            'scheme_code' => 'MAIIC-IND', 'interest_calc_base' => 'B', 'installment_based_on' => 'disbursement',
+            'emi_calc_type' => 'E', 'default_moratorium_type' => null, 'effective_from' => '2024-01-01',
+        ]);
+        $contract = $this->seedContract('C-TAKEON', ['schedule_source' => null, 'schedule_approval_status' => 'NOT_GENERATED']);
+        DB::table('contract_cashflow_schedule')->insert(['contract_id' => 'C-TAKEON', 'schedule_version' => 1, 'effective_from' => '2024-02-24', 'due_date' => '2024-03-31',
+            'principal_due' => 108_431_000, 'interest_due' => 900_000, 'fee_due' => 0, 'schedule_source' => 'TAKEON_WORKBOOK', 'source_system' => 'TAKEON_WORKBOOK', 'created_at' => now(), 'updated_at' => now()]);
+
+        $result = app(ScheduleWorkflowService::class)->generateEligible();
+
+        $this->assertSame(0, $result['generated']);
+        $this->assertStringContainsString('holds its version 1 schedule from TAKEON_WORKBOOK', $result['exceptions']['C-TAKEON']);
+        $this->assertSame(1, DB::table('contract_cashflow_schedule')->where('contract_id', 'C-TAKEON')->count());
+        $this->assertEqualsWithDelta(108_431_000, (float) DB::table('contract_cashflow_schedule')->where('contract_id', 'C-TAKEON')->sum('principal_due'), 0.01);
+        $this->assertSame('TAKEON_WORKBOOK', ContractEir::where('contract_id', 'C-TAKEON')->value('schedule_source'));
+    }
+
     private function seedContract(string $contractId, array $overrides = []): ContractEir
     {
         return ContractEir::create(array_merge([
@@ -294,5 +321,85 @@ class ScheduleShapeGovernanceTest extends TestCase
             $t->double('interest_due')->default(0);
             $t->timestamps();
         });
+    }
+
+    /**
+     * Results review of 13 October 2026, E1: a facility drawn in tranches is
+     * generated on its drawdown profile. Neither the contract nor its scheme
+     * states the interest basis, so it is read from the interest E-Banker
+     * posted while the facility was partly drawn ("IntDR Fm 08-AUG-25 To
+     * 31-AUG-25 @ 29%"), and the schedule retires exactly what was drawn.
+     */
+    public function test_a_tranche_facility_is_generated_on_its_drawdowns_with_the_basis_read_from_the_postings(): void
+    {
+        $this->createTrancheSchema();
+        $contract = $this->seedTranche();
+        $this->interestPosting('2025-08-31', 397653000 * 0.29 * 24 / 365, '08-AUG-25 To 31-AUG-25 @ 29%');
+        $this->interestPosting('2025-09-30', 397653000 * 0.29 * 30 / 365, '01-SEP-25 To 30-SEP-25 @ 29%');
+
+        $result = app(ScheduleWorkflowService::class)->generate($contract);
+
+        $stored = ContractEir::where('contract_id', '104430000085')->first();
+        $this->assertStringContainsString('interest_basis=OBSERVED_EBANKER_INTEREST', $stored->schedule_basis_sources);
+        $this->assertStringContainsString('drawdown_profile=TRANCHES_AS_DRAWN', $stored->schedule_basis_sources);
+        $this->assertEqualsWithDelta(1047653000, (float) $stored->schedule_amortising_balance, 0.01);
+        $this->assertEqualsWithDelta(1047653000, (float) DB::table('contract_cashflow_schedule')->where('contract_id', '104430000085')->sum('principal_due'), 0.05);
+        $first = DB::table('contract_cashflow_schedule')->where('contract_id', '104430000085')->orderBy('due_date')->first();
+        $this->assertSame('2025-08-15', $first->due_date);
+        $this->assertEqualsWithDelta(397653000 * 0.29 * 7 / 365, (float) $first->interest_due, 0.01);
+        $log = json_decode(DB::table('audit_logs')->where('action', 'EIR Schedule Generated')->value('meta'), true);
+        $this->assertSame('the drawn balance', $log['interest_basis_evidence']['read_as']);
+        $this->assertSame('narration', $log['interest_basis_evidence']['months'][0]['rate_from']);
+        $this->assertSame(24, $result['rows']);
+    }
+
+    public function test_a_tranche_facility_with_no_postings_to_read_is_refused_rather_than_assumed(): void
+    {
+        $this->createTrancheSchema();
+        $contract = $this->seedTranche();
+
+        $this->expectExceptionMessage('INTEREST_BASIS_MISSING: the facility was drawn in tranches');
+        app(ScheduleWorkflowService::class)->generate($contract);
+    }
+
+    public function test_the_governed_balance_wise_option_takes_the_drawn_balance_without_reading_the_postings(): void
+    {
+        $this->createTrancheSchema();
+        $contract = $this->seedTranche();
+        DB::table('governance_settings')->where('key', 'partly_drawn_interest_basis')->update(['value' => 'Balance-wise everywhere, flag exceptions']);
+
+        app(ScheduleWorkflowService::class)->generate($contract);
+
+        $this->assertStringContainsString('interest_basis=GOVERNED_BALANCE_WISE', ContractEir::where('contract_id', '104430000085')->value('schedule_basis_sources'));
+    }
+
+    private function createTrancheSchema(): void
+    {
+        $this->createScheduleSchema();
+        foreach (['2026_10_08_000000_create_ebanker_landing_zone', '2026_09_24_000003_create_contract_disbursements', '2026_10_14_200000_eir_tranches_takeon_and_gl_fees'] as $m) {
+            (require base_path("database/migrations/{$m}.php"))->up();
+        }
+        DB::table('ebanker_loads')->insert(['id' => 1, 'pack_hash' => str_repeat('e', 64), 'pack_name' => 'fixture', 'manifest' => '{}', 'status' => 'LANDED', 'created_at' => now(), 'updated_at' => now()]);
+        Scheme::create(['scheme_code' => 'MAIIC-IND', 'interest_calc_base' => null, 'installment_based_on' => null, 'emi_calc_type' => 'E', 'default_moratorium_type' => null, 'effective_from' => '2024-01-01']);
+    }
+
+    /** Mphunzitsi SACCO: signed 15 July 2025, drawn 8 August, 28 November and 2 February, in full. */
+    private function seedTranche(): ContractEir
+    {
+        foreach ([['2025-08-08', 397653000], ['2025-11-28', 350000000], ['2026-02-02', 300000000]] as $i => [$date, $amount]) {
+            DB::table('contract_disbursements')->insert(['contract_id' => '104430000085', 'tranche_no' => $i + 1, 'disbursement_date' => $date, 'amount' => $amount,
+                'reference' => 'CUMVOUCH:' . $i, 'source_system' => 'MAIIC_DISBURSEMENTS', 'external_transaction_id' => 't' . $i, 'created_at' => now(), 'updated_at' => now()]);
+        }
+
+        return $this->seedContract('104430000085', ['origination_date' => '2025-07-15', 'interest_start_date' => '2025-07-15', 'maturity_date' => '2027-07-15',
+            'approved_amount' => 1047653000, 'drawn_amount' => 1047653000, 'contractual_rate' => 29.0, 'schedule_approval_status' => 'NOT_GENERATED']);
+    }
+
+    private function interestPosting(string $date, float $amount, string $span): void
+    {
+        $key = 'I' . $date;
+        DB::table('ebanker_raw_rows')->insert(['load_id' => 1, 'query_id' => 'P1_01', 'source_key' => $key, 'account' => '000104430000085', 'row_date' => $date,
+            'payload' => json_encode(['CUMVOUCH_DET_ID' => $key, 'AC_GLCODE' => '1050102', 'TRANSAMT' => (string) round(-$amount, 2), 'TRANTYPE' => '303', 'PARTICULARS' => 'To Trf IntDR Fm ' . $span, 'DELETE_FLAG' => 'N']),
+            'row_hash' => md5($key), 'version' => 1, 'created_at' => now(), 'updated_at' => now()]);
     }
 }

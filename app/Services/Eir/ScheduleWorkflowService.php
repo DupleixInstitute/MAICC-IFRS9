@@ -51,6 +51,27 @@ class ScheduleWorkflowService
 
     public function generate(ContractEir $contract): array
     {
+        // A version 1 schedule from a source (the take-on workbook of spec 6.9,
+        // an imported original schedule) is the contract's evidenced schedule
+        // and is never generated over. Deleting only the GENERATED rows and
+        // inserting a second set beside it doubled the scheduled principal of
+        // the take-on loans (41 on the fresh bootstrap of 13 October 2026) and
+        // blocked their EIR; the take-on build runs before the contract master
+        // exists, so the contract is labelled here with the source it holds.
+        $held=DB::table('contract_cashflow_schedule')->where('contract_id',$contract->contract_id)->where('schedule_version',1)
+            ->where('schedule_source','<>','GENERATED')->distinct()->pluck('schedule_source')->all();
+        if ($held!==[]) {
+            if (!$contract->schedule_source || $contract->schedule_source==='GENERATED') {
+                $contract->update(['schedule_source'=>$held[0]]);
+            }
+            // The take-on workbook's schedule is the version 1 schedule and is
+            // reviewed like a generated draft before any EIR is solved on it
+            // (results review of 13 October 2026, E2): a person approves it.
+            if ($contract->schedule_approval_status==='NOT_GENERATED' && in_array(\App\Services\Ebanker\TakeonLandingService::ROUTE,$held,true)) {
+                $contract->update(['schedule_approval_status'=>'PENDING_REVIEW']);
+            }
+            throw new InvalidArgumentException('The contract holds its version 1 schedule from '.implode(', ',$held).'; a schedule is not generated over it.');
+        }
         $check=$this->readiness($contract);
         if (!$check['ready']) throw new InvalidArgumentException(implode('; ',$check['issues']));
         if ($contract->schedule_approval_status==='APPROVED') throw new InvalidArgumentException('Approved schedule cannot be overwritten.');
@@ -74,6 +95,11 @@ class ScheduleWorkflowService
 
         $rate=(float)$contract->contractual_rate;
         if ($rate>1) $rate/=100;
+        // The drawdown profile (results review of 13 October 2026, E1): the
+        // tranches as the ledger drew them, so interest runs on what was lent
+        // and a later tranche earns interest from its own date. A register on
+        // one date at or before the start changes nothing and is not passed.
+        [$drawdowns,$observed]=$this->drawdownTerms($contract,$moratoriumFrom);
         $result=$this->generator->generate([
             'principal'=>(float)$contract->drawn_amount,
             'approved_amount'=>(float)$contract->approved_amount,
@@ -94,6 +120,8 @@ class ScheduleWorkflowService
             // the Governance Centre never restates a schedule already built.
             'as_of'=>$start,
             'scheme'=>$this->scheme($contract),
+            'drawdowns'=>$drawdowns,
+            'interest_calc_base_observed'=>$observed,
         ]);
 
         DB::transaction(function() use ($contract,$result) {
@@ -108,7 +136,7 @@ class ScheduleWorkflowService
             ],$result['rows']));
             $contract->update(['schedule_source'=>'GENERATED','schedule_approval_status'=>'DRAFT',
                 'schedule_generated_at'=>$now,'schedule_approved_at'=>null,'schedule_approved_by'=>null,
-                'schedule_amortising_balance'=>$result['amortising_opening_balance'],
+                'schedule_amortising_balance'=>$result['retires'] ?? $result['amortising_opening_balance'],
                 'schedule_moratorium_type'=>$result['moratorium_type'],
                 'schedule_emi_calc_type'=>$result['emi_calc_type'],
                 'schedule_interest_basis'=>$result['interest_basis'],
@@ -123,7 +151,9 @@ class ScheduleWorkflowService
                 'interest_basis'=>$result['interest_basis'],'instalment_basis'=>$result['instalment_basis'],
                 'day_count'=>$result['day_count'],'amortising_opening_balance'=>$result['amortising_opening_balance'],
                 'capitalised_interest'=>$result['capitalised_interest'],
-            ],'meta'=>['basis_sources'=>$result['basis_sources'],'grace_period_months'=>$result['grace_period_months']]]);
+                'drawdowns'=>$result['drawdowns'] ?? [],'tranched'=>$result['tranched'] ?? false,
+            ],'meta'=>['basis_sources'=>$result['basis_sources'],'grace_period_months'=>$result['grace_period_months'],
+                'interest_basis_evidence'=>$result['interest_basis_evidence'] ?? null]]);
         });
         $comparison=$this->comparison($contract->fresh());
         $contract->update(['schedule_comparison_status'=>$comparison['status']]);
@@ -307,6 +337,113 @@ class ScheduleWorkflowService
             'default_moratorium_type'=>$scheme->default_moratorium_type,
             'scheme_code'=>$scheme->scheme_code,
         ];
+    }
+
+    /**
+     * The drawdown terms the generator is given: the tranche register (one row
+     * per drawdown date, fee debits included in their drawdown, spec 7.8.4)
+     * when it says anything the start date does not, and, for a facility drawn
+     * in full but in tranches whose contract and scheme state no interest
+     * basis, the basis read from the interest E-Banker posted while it was
+     * partly drawn (governed setting partly_drawn_interest_basis).
+     *
+     * @return array{0: ?list<array{date:string,amount:float}>, 1: ?array}
+     */
+    private function drawdownTerms(ContractEir $contract, Carbon $moratoriumFrom): array
+    {
+        if (!DB::getSchemaBuilder()->hasTable('contract_disbursements')) return [null,null]; // no register: no profile
+        $tranches=app(DisbursementService::class)->tranchesFor($contract->contract_id);
+        if ($tranches===[]) return [null,null];
+        $profileStart=((int)$contract->moratorium_months>0 ? $moratoriumFrom : ($contract->interest_start_date ?: $contract->origination_date))->toDateString();
+        $later=array_values(array_filter($tranches,fn($t)=>$t['disbursement_date']>$profileStart));
+        if ($later===[]) return [null,null];
+        $sum=round(array_sum(array_column($tranches,'amount')),2);
+        $dates=array_unique(array_column($tranches,'disbursement_date'));
+        if (count($dates)===1 && abs($sum-round((float)$contract->drawn_amount,2))>0.01) {
+            // one drawdown whose amount the register and the contract master
+            // tell differently: the timing is known but not the amount, so
+            // the schedule stays on the contract master's amount at the start
+            return [null,null];
+        }
+        $drawdowns=array_map(fn($t)=>['date'=>$t['disbursement_date'],'amount'=>$t['amount']],$tranches);
+        // partly drawn for a while only when something was drawn before the last tranche
+        $opening=round(array_sum(array_column(array_filter($tranches,fn($t)=>$t['disbursement_date']<=$profileStart),'amount')),2);
+        $window=$opening>0 || count(array_unique(array_column($later,'disbursement_date')))>1;
+        $scheme=$this->scheme($contract);
+        if (!$window || $this->stated($contract->interest_calc_base) || $this->stated($scheme['interest_calc_base']??null)) return [$drawdowns,null];
+        try {
+            $setting=app(GovernanceService::class)->get('partly_drawn_interest_basis',$contract->origination_date);
+        } catch (\Throwable $e) {
+            throw new InvalidArgumentException('The interest basis of a facility drawn in tranches is governed (partly_drawn_interest_basis) and the setting could not be read: '.$e->getMessage());
+        }
+        if (str_starts_with($setting,'Balance-wise')) {
+            return [$drawdowns,['basis'=>'B','source'=>'GOVERNED_BALANCE_WISE','evidence'=>['setting'=>$setting]]];
+        }
+        return [$drawdowns,$this->observedInterestBasis($contract,$tranches)];
+    }
+
+    /**
+     * Which basis E-Banker charged interest on while the facility was partly
+     * drawn, read from its own interest postings in the ledger (types 303 and
+     * 120) against what each basis gives at the rate E-Banker charged: the
+     * principal outstanding at the month before plus each tranche from its
+     * date, or the sanctioned amount, over the days from the first drawdown.
+     * The rate is the one the posting narrates ("IntDR Fm 27-NOV-24 To
+     * 30-NOV-24 @ 85%"), else the month's loan-book rate. The basis whose
+     * figure is nearer the postings is the one E-Banker applied; both figures
+     * are kept as the evidence. With no postings for those months nothing can
+     * be read and null is returned, so the generator refuses rather than
+     * assumes.
+     *
+     * @param list<array{disbursement_date:string, amount:float}> $tranches
+     */
+    private function observedInterestBasis(ContractEir $contract, array $tranches): ?array
+    {
+        $first=Carbon::parse($tranches[0]['disbursement_date'])->startOfDay();
+        $last=Carbon::parse($tranches[count($tranches)-1]['disbursement_date'])->startOfDay();
+        $total=round(array_sum(array_column($tranches,'amount')),2);
+        $approved=max((float)$contract->approved_amount,$total);
+        $account=str_pad((string)$contract->contract_id,15,'0',STR_PAD_LEFT);
+        try {
+            $ledger=app(\App\Services\Ebanker\LandingZoneReader::class)->ledgerByAccount($last->copy()->endOfMonth()->toDateString(),$account)[$account] ?? [];
+        } catch (\Throwable) {
+            return null;
+        }
+        $posted=[]; $narrated=[];
+        foreach ($ledger as $row) {
+            $x=$row['payload'];
+            if (!in_array((string)($x['TRANTYPE'] ?? ''),\App\Services\Ebanker\LoanBookBuildService::TYPE_INTEREST,true) || $row['row_date']===null) continue;
+            $ym=substr((string)$row['row_date'],0,7);
+            $posted[$ym]=($posted[$ym] ?? 0.0)-(float)str_replace(',','',(string)($x['TRANSAMT'] ?? 0));
+            if (!isset($narrated[$ym]) && preg_match('/@\s*(\d+(?:\.\d+)?)\s*%/',(string)($x['PARTICULARS'] ?? ''),$m)===1) $narrated[$ym]=(float)$m[1]/100;
+        }
+        $schema=DB::getSchemaBuilder();
+        $book=fn(string $ym)=>$schema->hasTable('loan_books') ? DB::table('loan_books')->where('contract_id',$contract->contract_id)
+            ->whereRaw("REPLACE(SUBSTR(reporting_period, 1, 7), '-', '') = ?",[str_replace('-','',$ym)])->orderByDesc('id')->first() : null;
+        $months=[]; $sumPosted=0.0; $onBalance=0.0; $onSanction=0.0;
+        for ($m=$first->copy()->startOfMonth(); $m->lte($last); $m->addMonthNoOverflow()) {
+            $ym=$m->format('Y-m');
+            $p=$posted[$ym] ?? 0.0;
+            $row=$book($ym);
+            $rate=$narrated[$ym] ?? ($row && is_numeric($row->interest_rate) && (float)$row->interest_rate>0 ? (float)$row->interest_rate/100 : (float)$contract->contractual_rate);
+            if ($p<=0 || $rate<=0) continue;
+            $from=$m->copy()->max($first); $end=$m->copy()->endOfMonth()->startOfDay();
+            $prior=$m->isSameMonth($first) ? 0.0 : (float)($book($m->copy()->subMonthNoOverflow()->format('Y-m'))->principal_balance ?? 0);
+            $b=$prior*$rate*($from->diffInDays($end)+1)/365;
+            foreach ($tranches as $t) {
+                $d=Carbon::parse($t['disbursement_date'])->startOfDay();
+                if ($d->isSameMonth($m)) $b+=$t['amount']*$rate*($d->diffInDays($end)+1)/365;
+            }
+            $sanction=$approved*$rate*($from->diffInDays($end)+1)/365;
+            $months[]=['month'=>$ym,'posted'=>round($p,2),'on_balance'=>round($b,2),'on_sanction'=>round($sanction,2),'rate'=>$rate,'rate_from'=>isset($narrated[$ym])?'narration':'loan book'];
+            $sumPosted+=$p; $onBalance+=$b; $onSanction+=$sanction;
+        }
+        if ($months===[] || $sumPosted<=0 || $onBalance<=0 || $onSanction<=0) return null;
+        $basis=abs(log($sumPosted/$onBalance))<=abs(log($sumPosted/$onSanction)) ? 'B' : 'S';
+        return ['basis'=>$basis,'source'=>ScheduleGeneratorService::BASIS_OBSERVED,'evidence'=>[
+            'months'=>$months,'posted'=>round($sumPosted,2),'expected_on_balance'=>round($onBalance,2),'expected_on_sanction'=>round($onSanction,2),
+            'read_as'=>$basis==='B'?'the drawn balance':'the sanctioned amount',
+        ]];
     }
 
     /** True when the approved amount is above the amount drawn. */

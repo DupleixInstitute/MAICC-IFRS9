@@ -32,8 +32,14 @@ class TimePhasedEclService
         foreach($loans as $loan){
             try{
                 $result=$this->projectLoan($loan,$asOf,$scenarios,$runId,$lgdField);
+                // ecl_value stays the ECL engine's own measure (EAD x stage PD x LGD at the
+                // reporting date), which the FLI build-up and the month record reconcile to;
+                // this engine writes the discounted allowance beside it and the effect of
+                // discounting its own projection. Overwriting ecl_value with the projected
+                // undiscounted shortfall broke that reconciliation, so the month-end could
+                // not run discounted at all (results review of 13 October 2026).
                 DB::table('loan_books')->where('id',$loan->id)->update([
-                    'ecl_value'=>round($result['undiscounted'],2),'ecl_value_discounted'=>round($result['discounted'],2),
+                    'ecl_value_discounted'=>round($result['discounted'],2),
                     'ecl_discounting_effect'=>round($result['undiscounted']-$result['discounted'],2),
                     'ecl_discount_rate'=>$result['rate'],'ecl_discount_rate_source'=>$result['rate_source'],
                     'ecl_discount_status'=>'CALCULATED_TIME_PHASED','ecl_discount_horizon_years'=>$result['horizon'],
@@ -57,11 +63,17 @@ class TimePhasedEclService
     private function projectLoan(object $loan,CarbonImmutable $asOf,Collection $scenarios,string $runId,string $lgdField): array
     {
         $id=trim((string)($loan->contract_id??''));if($id==='')throw new RuntimeException('Contract ID is missing.');
-        $eir=DB::table('contract_eir')->where('contract_id',$id)->whereNotNull('locked_at')->whereNotNull('eir_effective_annual')->first();
-        if(!$eir)throw new RuntimeException('A locked original EIR is unavailable.');
-        $rate=(float)$eir->eir_effective_annual;if($rate<=-1)throw new RuntimeException('Locked EIR is unusable.');
         $stage=(int)($loan->calculated_ifrs9_stage??$loan->ifrs9stage_post_qualitative??$loan->ifrs9stage_pre_qualitative??0);
         if(!in_array($stage,[1,2,3],true))throw new RuntimeException('IFRS 9 stage is unavailable.');
+        $eir=DB::table('contract_eir')->where('contract_id',$id)->whereNotNull('locked_at')->whereNotNull('eir_effective_annual')->first();
+        // A defaulted loan with no approved recovery plan is measured at the
+        // reporting date (EAD x LGD, nothing dated later), so no discount rate
+        // enters it and a missing EIR does not leave it unresolved; any other
+        // loan needs its locked EIR, and without one it is named, never given a rate.
+        $stage3AtDate=$stage===3&&!DB::table('ecl_recovery_cashflows')->where('contract_id',$id)->where('reporting_period',$asOf->format('Y-m'))
+            ->where('status','APPROVED')->whereDate('recovery_date','>',$asOf)->exists();
+        if(!$eir&&!$stage3AtDate)throw new RuntimeException('A locked original EIR is unavailable.');
+        $rate=$eir?(float)$eir->eir_effective_annual:0.0;if($eir&&$rate<=-1)throw new RuntimeException('Locked EIR is unusable.');
         $ead=(float)($loan->carrying_amount??0)+(float)($loan->commitments??0)*(float)($loan->facility_utilisation_rate??1);
         if($ead<=0)throw new RuntimeException('EAD is not positive.');
         $basePd=(float)($loan->pd_post_fli??$loan->pd_prefli??0);if($stage===3)$basePd=1.0;
@@ -78,7 +90,7 @@ class TimePhasedEclService
         $principalByMonth=DB::table('contract_cashflow_schedule')->where('contract_id',$id)->where('schedule_version',1)
             ->whereDate('due_date','>',$asOf)->selectRaw("SUBSTR(due_date,1,7) ym, SUM(principal_due) principal")
             ->groupByRaw("SUBSTR(due_date,1,7)")->pluck('principal','ym');
-        $rateSource=$eir->rate_type==='FLOATING'?'EIR_ORIGINAL_FLOATING_PROXY':'EIR_ORIGINAL';
+        $rateSource=!$eir?'NONE_LOSS_AT_REPORTING_DATE':($eir->rate_type==='FLOATING'?'EIR_ORIGINAL_FLOATING_PROXY':'EIR_ORIGINAL');
         $recoveryShares=$stage===3?$this->recoveryShares($recoveries,$asOf,$months):[];
         $pdSource=$stage===3
             ?($recoveryShares===[]?'DEFAULTED_RESOLUTION_HORIZON':'DEFAULTED_RECOVERY_SCHEDULE')
@@ -140,7 +152,7 @@ class TimePhasedEclService
                 $weightedUndisc+=$shortfall*(float)$scenario->weight;$weightedDisc+=$weighted;$survival=max(0,$survival-$marginal);$opening=max(0,$opening-$scheduled);$maxExponent=max($maxExponent,$exponent);
             }
         }
-        return ['undiscounted'=>$weightedUndisc,'discounted'=>$weightedDisc,'rate'=>$rate,'rate_source'=>$rateSource,'horizon'=>$maxExponent];
+        return ['undiscounted'=>$weightedUndisc,'discounted'=>$weightedDisc,'rate'=>$eir?$rate:null,'rate_source'=>$rateSource,'horizon'=>$maxExponent];
     }
 
     /**
@@ -256,6 +268,9 @@ class TimePhasedEclService
 
     private function projectionMonths(object $loan,string $id,CarbonImmutable $asOf,int $stage,Collection $recoveries): int
     {
+        // a defaulted loan with no recovery plan is measured at the reporting date: no horizon enters it
+        // (a matured Stage 3 loan has no remaining schedule, and was left unresolved for want of one)
+        if($stage===3 && $recoveries->isEmpty()) return 1;
         $last=DB::table('contract_cashflow_schedule')->where('contract_id',$id)->where('schedule_version',1)->whereDate('due_date','>',$asOf)->max('due_date');
         if($stage===3 && $recoveries->isNotEmpty()) $last=$recoveries->max('recovery_date');
         $months=$last?max(1,$asOf->diffInMonths(CarbonImmutable::parse($last)->endOfMonth())):(int)ceil((float)($loan->remaining_tenor??0)); // remaining_tenor is in months

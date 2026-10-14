@@ -25,6 +25,13 @@ use RuntimeException;
  * that started in it, annualised when the book holds a shorter window.
  * Every segment shares the same window, so the PDs are comparable.
  *
+ * Verification of the inputs (14 October 2026): a loan with a nil or credit
+ * balance at the window start is not an observation (it owes nothing that
+ * could default, and a credit balance would shrink the balance the defaults
+ * are weighed against); and a loan the ledger wrote off inside the window
+ * (build_basis.ledger.written_off rising) defaulted, although a written-off
+ * account is left in the book at a nil balance that stages as current.
+ *
  * A stage of a segment is thin when it has fewer loans or defaults at the
  * window start than the governed minimum (pd_segment_min_observations).
  * A thin stage that the period needs then follows the governed rule
@@ -284,10 +291,28 @@ class PdSegmentationService
         return [$start->format('Y-m'), $end->format('Y-m'), max(1, (int) $start->diffInMonths($end))];
     }
 
-    /** The portfolios with loans in the period. @return list<int> */
+    /**
+     * The portfolios with loans in the period, the Mega Farm programme's own
+     * portfolio left out: the programme is staged and provided by the Mega
+     * Farm module (spec v4 section 16, D30; 16.8: the MAIIC book keeps its own
+     * probabilities), so its loans enter neither MAIIC's PD and LGD segments
+     * nor the pooled book they fall back to. A portfolio that still mixes the
+     * programme with MAIIC's loans stops the run: the book must be split by
+     * ifrs9:segment-portfolios first, or the programme's defaults would be
+     * measured as MAIIC's.
+     *
+     * @return list<int>
+     */
     public function scope(string $period): array
     {
+        $mixed = \App\Services\MegaFarm\MegaFarmEclService::mixedPortfolios($period);
+        if ($mixed !== []) {
+            throw new RuntimeException("The loan book of {$period} mixes Mega Farm programme loans with MAIIC's own in portfolio(s) " . implode(', ', $mixed) . '; run ifrs9:segment-portfolios first so the programme is measured apart (spec v4 section 16).');
+        }
+        $programme = \App\Services\MegaFarm\MegaFarmEclService::programmePortfolios($period);
+
         return DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('loan_portfolio_id')
+            ->whereNotIn('loan_portfolio_id', $programme === [] ? [0] : $programme)
             ->distinct()->orderBy('loan_portfolio_id')->pluck('loan_portfolio_id')->map(fn ($v) => (int) $v)->all();
     }
 
@@ -312,26 +337,45 @@ class PdSegmentationService
         $id = $p->start_client_id_col;
         $endId = $p->end_client_id_col;
 
+        // the ledger's cumulative write-offs ride on each built row (build_basis): a loan written off
+        // inside the window defaulted, whatever stage its nil balance is given at the end
+        $hasBasis = Schema::hasColumn($p->start_table, 'build_basis') && Schema::hasColumn($p->end_table, 'build_basis');
         $rows = DB::table("{$p->start_table} as s")
             ->leftJoin("{$p->end_table} as e", fn ($j) => $j->on("s.{$id}", '=', "e.{$endId}")->where('e.reporting_period', '=', $endPeriod))
             ->where('s.reporting_period', $startPeriod)->whereIn('s.loan_portfolio_id', $portfolioIds)
-            ->get([DB::raw("s.{$id} as client_id"), 's.loan_portfolio_id', 's.industry_code', 's.industry_type', DB::raw('s.carrying_amount as start_bal'),
-                DB::raw("{$sg} as start_grade"), DB::raw("{$eg} as end_grade"), DB::raw("e.{$endId} as end_client_id")]);
+            ->get(array_merge([DB::raw("s.{$id} as client_id"), 's.loan_portfolio_id', 's.industry_code', 's.industry_type', DB::raw('s.carrying_amount as start_bal'),
+                DB::raw("{$sg} as start_grade"), DB::raw("{$eg} as end_grade"), DB::raw("e.{$endId} as end_client_id")],
+                $hasBasis ? [DB::raw('s.build_basis as start_basis'), DB::raw('e.build_basis as end_basis')] : []));
 
         $hasStatus = Schema::hasColumn($p->end_table, 'contract_status');
         $hasBalance = Schema::hasColumn($p->end_table, 'carrying_amount');
         $blank = fn (string $key) => ['key' => $key, 'kind' => self::kindOf($key), 'parent' => self::parentOf($key), 'label' => $this->label($key), 'portfolio_id' => null, 'sector_code' => null,
             'matrix' => [], 'stages' => []];
         $segments = [];
+        $excluded = ['nil_or_credit_balance' => 0, 'written_off_in_window' => 0];
         foreach ($rows as $r) {
             if ($r->start_grade === null || $r->start_grade === '') {
                 continue; // an unstaged start row is not an observation
+            }
+            // a loan with nothing owed at the window start is not an exposure that can default: a nil
+            // or credit balance is no observation (it neither counts towards the governed minimum nor,
+            // when in credit, reduces the balance it is weighed against). Verification, 14 October 2026.
+            if ($hasBalance && (float) $r->start_bal <= 0.005) {
+                $excluded['nil_or_credit_balance']++;
+                continue;
             }
             $end = $r->end_grade;
             if ($r->end_client_id === null) {
                 $end = TransitionMatrixService::exitGrade($p->end_table, $endId, (string) $r->client_id, $startPeriod, $endPeriod, $profile['default'], $hasStatus, $hasBalance);
             } elseif ($end === null || $end === '') {
                 $end = 'Paid';
+            }
+            if ($hasBasis && $end !== $profile['default']) {
+                $endBasis = $r->end_client_id === null ? $this->lastBasis($p->end_table, $endId, (string) $r->client_id, $startPeriod, $endPeriod) : $r->end_basis;
+                if (self::writtenOff($endBasis) > self::writtenOff($r->start_basis) + 0.005) {
+                    $end = $profile['default'];
+                    $excluded['written_off_in_window']++;
+                }
             }
             $start = (string) $r->start_grade;
             $end = (string) $end;
@@ -362,7 +406,26 @@ class PdSegmentationService
         }
         unset($s);
 
-        return ['window_start' => $startPeriod, 'window_end' => $endPeriod, 'window_months' => $months, 'basis' => $basis, 'profile' => $profile, 'segments' => $segments, 'portfolios' => $portfolioIds];
+        return ['window_start' => $startPeriod, 'window_end' => $endPeriod, 'window_months' => $months, 'basis' => $basis, 'profile' => $profile, 'segments' => $segments, 'portfolios' => $portfolioIds,
+            'not_observed_nil_balance' => $excluded['nil_or_credit_balance'], 'defaults_by_write_off' => $excluded['written_off_in_window']];
+    }
+
+    /** The cumulative write-offs the ledger carries on a built row (build_basis.ledger.written_off), 0 when none is recorded. */
+    public static function writtenOff(?string $basis): float
+    {
+        if ($basis === null || $basis === '') {
+            return 0.0;
+        }
+        $b = json_decode($basis, true);
+
+        return is_array($b) ? (float) ($b['ledger']['written_off'] ?? 0) : 0.0;
+    }
+
+    /** The build basis of a loan's last row inside the window (a loan that left the book). */
+    private function lastBasis(string $table, string $idCol, string $clientId, string $startPeriod, string $endPeriod): ?string
+    {
+        return DB::table($table)->where($idCol, $clientId)->where('reporting_period', '>=', $startPeriod)->where('reporting_period', '<', $endPeriod)
+            ->orderByDesc('reporting_period')->value('build_basis');
     }
 
     /** The portfolio id and sector code a segment key names. */

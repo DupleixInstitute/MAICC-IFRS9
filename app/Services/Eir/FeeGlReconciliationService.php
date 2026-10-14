@@ -83,7 +83,7 @@ class FeeGlReconciliationService
     /** @return list<int> every year that holds a dated fee */
     public function years(): array
     {
-        return DB::table('contract_fees')->whereNotNull('transaction_date')->pluck('transaction_date')
+        return $this->held()->whereNotNull('transaction_date')->pluck('transaction_date')
             ->map(fn ($d) => (int) substr((string) $d, 0, 4))->filter(fn ($y) => $y > 1900)
             ->unique()->sort()->values()->all();
     }
@@ -101,7 +101,7 @@ class FeeGlReconciliationService
         }
         ksort($out);
 
-        $undated = DB::table('contract_fees')->whereNull('transaction_date');
+        $undated = $this->held()->whereNull('transaction_date');
 
         return [
             'enabled' => true,
@@ -112,9 +112,24 @@ class FeeGlReconciliationService
         ];
     }
 
+    /**
+     * The fee lines the check counts: a line superseded by a higher source
+     * under fee_source_precedence (spec 7.8.2) is the same fee held twice and
+     * is left out, so a fee in GL_04 and in the charges table counts once.
+     */
+    private function held(): \Illuminate\Database\Query\Builder
+    {
+        $q = DB::table('contract_fees');
+        if (DB::getSchemaBuilder()->hasColumn('contract_fees', 'superseded_by_source')) {
+            $q->whereNull('superseded_by_source');
+        }
+
+        return $q;
+    }
+
     private function year(int $year, array $tolerance): array
     {
-        $rows = DB::table('contract_fees')
+        $rows = $this->held()
             ->whereBetween('transaction_date', ["{$year}-01-01", "{$year}-12-31 23:59:59"])
             ->get(['fee_type', 'gl_account_ref', 'amount', 'transaction_date', 'cashflow_direction']);
 

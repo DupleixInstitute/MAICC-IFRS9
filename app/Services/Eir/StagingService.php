@@ -4,6 +4,7 @@ namespace App\Services\Eir;
 
 use App\Models\StagingThreshold;
 use App\Services\AuditLoggerService;
+use App\Services\Ebanker\InstalmentChartHistory;
 use App\Services\Ebanker\LandingZoneReader;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -21,8 +22,19 @@ use Throwable;
  *                    long term, Stage 2 from 31 in every class
  *   missed instalments  the accounting policy's default trigger (note 22.8.1):
  *                    N consecutive instalments unpaid, read from the instalment
- *                    chart (P2_10) against the receipts in the ledger allocated
- *                    in due-date order
+ *                    chart in force at the month-end against the cash receipts
+ *                    in the ledger to that date allocated in due-date order
+ *                    (InstalmentChartHistory). Verification of 14 October 2026:
+ *                    the trigger read the live chart of 6 October 2026 for
+ *                    every month-end (a schedule E-Banker had not yet written),
+ *                    counted every credit as a receipt (write-offs, interest
+ *                    credits, and receipts later reversed) and fired on loans
+ *                    that owed nothing. It now reads the chart in force, the
+ *                    receipts net of reversals with write-offs left out, and
+ *                    only a loan with a balance owed; a month-end with no chart
+ *                    in force, or whose chart demands more than the ledger has
+ *                    ever debited to the loan (a schedule that cannot be the
+ *                    loan's), is not evaluated and is counted, never assumed
  *
  * The DPD stage is written to ifrs9stage_pre_qualitative; the stage after the
  * missed-instalment trigger and the qualitative triggers goes to
@@ -52,12 +64,15 @@ class StagingService
 {
     private QualitativeSicrService $qualitative;
 
-    public function __construct(private GovernanceService $governance, private LandingZoneReader $zone, ?QualitativeSicrService $qualitative = null)
+    private InstalmentChartHistory $charts;
+
+    public function __construct(private GovernanceService $governance, private LandingZoneReader $zone, ?QualitativeSicrService $qualitative = null, ?InstalmentChartHistory $charts = null)
     {
         $this->qualitative = $qualitative ?? new QualitativeSicrService();
+        $this->charts = $charts ?? new InstalmentChartHistory($zone);
     }
 
-    /** @return array{period:string,rows:int,stage1:int,stage2:int,stage3:int,by_dpd:int,by_instalments:int,by_sicr:int,by_credit_impaired:int,by_bucket:int,held_by_cure:int,cure_months:int,qualitative_triggers:int} */
+    /** @return array{period:string,rows:int,stage1:int,stage2:int,stage3:int,by_dpd:int,by_instalments:int,by_sicr:int,by_credit_impaired:int,by_bucket:int,held_by_cure:int,cure_months:int,qualitative_triggers:int,instalments_no_chart:int,instalments_chart_contradicts_ledger:int} */
     public function stage(string $period, ?int $userId = null, bool $dryRun = false): array
     {
         if (! $dryRun) {
@@ -67,31 +82,48 @@ class StagingService
         $missedTrigger = $this->missedTrigger($monthEnd);
         $cureMonths = $this->cureMonths($monthEnd);
         $rows = DB::table('loan_books')->where('reporting_period', $period)
-            ->get(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'tenor', 'overdue_days', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360']);
-        $charts = $missedTrigger > 0 ? $this->instalmentsByAccount() : [];
-        $receipts = $missedTrigger > 0 ? $this->receiptsByAccount($monthEnd->toDateString()) : [];
+            ->get(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360']);
+        $asOf = $monthEnd->toDateString();
         $customers = $rows->pluck('customer_id', 'contract_id')->map(fn ($c) => $c === null ? null : (string) $c)->all();
         [$priorStage, $dpdHistory] = $this->priorMonths($period, $cureMonths, $customers);
         $qualMap = $this->qualitative->mapAt($monthEnd->toDateString());
-        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0];
+        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0, 'instalments_no_chart' => 0, 'instalments_chart_contradicts_ledger' => 0];
         $applied = [];
+        $notEvaluated = [];
         $updates = [];
         foreach ($rows as $r) {
-            $class = str_contains(strtolower((string) $r->product_group), 'mega') ? 'MEGA_FARM' : 'DEFAULT';
+            // the programme is known by its GL (1050301 to 1050307) as well as by its name:
+            // a book built before the GL titles were read named it "GL 1050301" and was
+            // staged at 181 days instead of the directive's 91
+            $class = (str_contains(strtolower((string) $r->product_group), 'mega') || in_array((string) $r->product_code, \App\Services\MegaFarm\MegaFarmEclService::GLS, true)) ? 'MEGA_FARM' : 'DEFAULT';
             [$s2, $s3] = $this->thresholds($class, (int) $r->tenor, $monthEnd);
             // the build counts days from the oldest overdue instalment; a row with no
             // count (loaded by the report importer, or the Mega Farm book) ages by bucket
             $dpd = (int) $r->overdue_days;
-            if ($dpd === 0) {
+            // a count the build made on the instalment chart, against the report's ageing, is not
+            // overruled by that same report's buckets (verification of 14 October 2026)
+            $counted = str_contains((string) ($r->build_flag ?? ''), \App\Services\Ebanker\LoanBookBuildService::SCHEDULE_COUNT);
+            if ($dpd === 0 && ! $counted) {
                 $dpd = $this->bucketDays($r);
                 if ($dpd > 0) { $counts['by_bucket']++; }
             }
             $pre = $dpd >= $s3 ? 3 : ($dpd >= $s2 ? 2 : 1);
             $post = $pre;
             $reason = $pre > 1 ? 'dpd' : null;
-            if ($missedTrigger > 0 && $post < 3 && isset($charts[$r->external_identity_id])) {
-                $missed = $this->consecutiveMissed($charts[$r->external_identity_id], $receipts[$r->external_identity_id] ?? 0.0, $monthEnd->toDateString());
-                if ($missed >= $missedTrigger) {
+            // the trigger counts unpaid instalments of a balance still owed, on the chart in force at the month-end
+            $account = (string) ($r->external_identity_id ?? '');
+            if ($missedTrigger > 0 && $post < 3 && $account !== '' && (float) ($r->carrying_amount ?? 0) > 0.005) {
+                $chart = $this->charts->at($account, $asOf);
+                if ($chart === null || $chart['unreadable']) {
+                    if ($chart !== null || $this->charts->hasChart($account)) {
+                        $counts['instalments_no_chart']++;
+                        $notEvaluated[(string) $r->contract_id] = $chart === null ? 'no instalment chart in force at the month-end' : 'instalment chart in force cannot be dated';
+                    }
+                } elseif (InstalmentChartHistory::dueTo($chart['instalments'], $asOf) > $this->charts->debitsTo($account, $asOf) + 0.5) {
+                    // a schedule that asks for more than the ledger has ever charged the loan is not the loan's schedule
+                    $counts['instalments_chart_contradicts_ledger']++;
+                    $notEvaluated[(string) $r->contract_id] = 'instalments due on the chart exceed everything the ledger has debited to the loan';
+                } elseif (InstalmentChartHistory::missed($chart['instalments'], $this->charts->receiptsTo($account, $asOf), $asOf) >= $missedTrigger) {
                     $post = 3;
                     $reason = 'instalments';
                 }
@@ -133,7 +165,7 @@ class StagingService
         }
         $counts['qualitative_triggers'] = count(array_unique(array_merge([], ...array_column($applied, 'triggers'))));
         if (! $dryRun) {
-            DB::transaction(function () use ($updates, $period, $counts, $userId, $missedTrigger, $applied) {
+            DB::transaction(function () use ($updates, $period, $counts, $userId, $missedTrigger, $applied, $notEvaluated) {
                 foreach ($updates as $u) {
                     DB::table('loan_books')->where('id', $u['id'])->update([
                         'ifrs9stage_pre_qualitative' => $u['pre'], 'ifrs9stage_post_qualitative' => $u['post'],
@@ -142,7 +174,7 @@ class StagingService
                 }
                 // the qualitative triggers each loan was staged under, by contract, for the audit trail
                 AuditLoggerService::log('Loan Book Staged', 'loan_books', null, ['reporting_period' => $period, 'rows_affected' => $counts['rows'],
-                    'new_values' => $counts + ['missed_instalment_trigger' => $missedTrigger, 'qualitative' => $applied], 'meta' => ['user' => $userId]]);
+                    'new_values' => $counts + ['missed_instalment_trigger' => $missedTrigger, 'qualitative' => $applied, 'instalment_trigger_not_evaluated' => $notEvaluated], 'meta' => ['user' => $userId]]);
             });
         }
 
@@ -233,65 +265,5 @@ class StagingService
         $v = $this->governance->get('stage3_missed_instalments', $asOf);
 
         return (int) (preg_match('/^(\d+)/', $v, $m) ? $m[1] : 0);
-    }
-
-    /** Instalments per account from the current chart: due date and amount, in due-date order. */
-    private function instalmentsByAccount(): array
-    {
-        $by = [];
-        foreach ($this->zone->family(['P2_10']) as $row) {
-            $p = $row['payload'];
-            if (($p['DELETE_FLAG'] ?? 'N') === 'Y' || ($p['ACTIVE_FLAG'] ?? 'Y') !== 'Y') {
-                continue;
-            }
-            $amt = (float) str_replace(',', '', (string) ($p['INSTALLMENT_AMT'] ?? '0'));
-            if ($amt <= 0 || $row['row_date'] === null) {
-                continue;
-            }
-            $by[$row['account']][] = [$row['row_date'], $amt];
-        }
-        foreach ($by as &$list) {
-            usort($list, fn ($a, $b) => $a[0] <=> $b[0]);
-        }
-
-        return $by;
-    }
-
-    /** Receipts (credit postings) per account dated on or before the date. */
-    private function receiptsByAccount(string $toDate): array
-    {
-        $out = [];
-        foreach ($this->zone->ledgerByAccount($toDate) as $account => $posts) {
-            $sum = 0.0;
-            foreach ($posts as $p) {
-                $amt = (float) ($p['payload']['TRANSAMT'] ?? 0);
-                if ($amt > 0) {
-                    $sum += $amt;
-                }
-            }
-            $out[$account] = $sum;
-        }
-
-        return $out;
-    }
-
-    /** Receipts allocated to instalments in due-date order; the count of unpaid instalments at the end of the run. */
-    private function consecutiveMissed(array $instalments, float $receipts, string $asOf): int
-    {
-        $missed = 0;
-        foreach ($instalments as [$due, $amt]) {
-            if ($due > $asOf) {
-                break;
-            }
-            if ($receipts + 0.005 >= $amt) {
-                $receipts -= $amt;
-                $missed = 0;
-            } else {
-                $receipts = 0.0;
-                $missed++;
-            }
-        }
-
-        return $missed;
     }
 }

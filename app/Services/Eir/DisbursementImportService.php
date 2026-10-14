@@ -60,8 +60,10 @@ class DisbursementImportService
         $alreadyStored = 0;
         $skipped = [];
         $now = now();
+        // the part of a drawdown that is a fee debit capitalised into it (spec 7.8.4), where the schema carries it
+        $withFees = \Illuminate\Support\Facades\Schema::hasColumn('contract_disbursements', 'capitalised_fees');
 
-        DB::transaction(function () use ($parsed, $importId, $userId, $now, &$loaded, &$alreadyStored, &$skipped) {
+        DB::transaction(function () use ($parsed, $importId, $userId, $now, $withFees, &$loaded, &$alreadyStored, &$skipped) {
             foreach ($parsed as $row) {
                 $existing = DB::table('contract_disbursements')
                     ->where('source_system', self::SOURCE)
@@ -81,7 +83,7 @@ class DisbursementImportService
                     continue;
                 }
 
-                DB::table('contract_disbursements')->insert([
+                DB::table('contract_disbursements')->insert(($withFees ? ['capitalised_fees' => $row['capitalised_fees']] : []) + [
                     'contract_id' => $row['contract_id'],
                     'sub_account_no' => $row['sub_account_no'],
                     'tranche_no' => $row['tranche_no'],
@@ -181,6 +183,8 @@ class DisbursementImportService
                 'amount' => $amount,
                 'reference' => $reference,
                 'external_transaction_id' => $fingerprint,
+                'capitalised_fees' => isset($row['capitalised_fees']) && is_numeric($row['capitalised_fees']) && (float) $row['capitalised_fees'] > 0
+                    ? round((float) $row['capitalised_fees'], 2) : null,
             ];
         }
 

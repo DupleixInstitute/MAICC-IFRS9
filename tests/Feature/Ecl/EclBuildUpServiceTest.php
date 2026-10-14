@@ -69,6 +69,19 @@ class EclBuildUpServiceTest extends TestCase
         $this->assertFalse(EclBuildUpService::lineage($this->loan(['remaining_tenor' => 0]))['tenor_recorded']);
     }
 
+    /**
+     * A loan in credit (the customer has paid more than is owed) is a liability
+     * to the customer, not a negative exposure (spec 3.8): its EAD is nil and a
+     * booked ECL of nil ties. The engine used to book a negative ECL on it.
+     */
+    public function test_a_credit_balance_has_no_exposure_and_no_negative_ecl(): void
+    {
+        $l = $this->loan(['carrying_amount' => -29678.33, 'commitments' => 0.0, 'ecl_value' => 0.0]);
+        $x = EclBuildUpService::lineage($l);
+        $this->assertSame(0.0, $x['ead']);
+        $this->assertTrue($x['ties']);
+    }
+
     public function test_build_up_adds_back_to_the_booked_ecl(): void
     {
         $loans = collect([

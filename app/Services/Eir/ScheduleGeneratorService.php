@@ -59,6 +59,18 @@ use InvalidArgumentException;
  *    instalment, 28,624,982, reproduces to 23 tambala on that basis and is
  *    341,296 away on rate/4. The choice is the Governance Centre key
  *    `period_rate_basis`; a monthly loan is the same under either.
+ *
+ *  - A facility drawn in tranches (results review of 13 October 2026, E1).
+ *    Given the drawdown profile, the balance is what has been drawn: a
+ *    tranche is added on its own date and earns interest from that day, a
+ *    period with a tranche in it is charged on its actual days, part on the
+ *    balance before and part on the balance after, and the level instalment
+ *    is sized again over the instalments left whenever a tranche arrives, so
+ *    the schedule retires exactly what was lent. Built on the whole facility
+ *    from the signing date, as before, it charged interest on money not yet
+ *    lent, and the EIR solved on it was far above the contractual rate
+ *    (Mphunzitsi SACCO: 41.3 percent against 29.0). A due date that falls
+ *    before anything is drawn has nothing due and is left out.
  */
 class ScheduleGeneratorService
 {
@@ -91,6 +103,9 @@ class ScheduleGeneratorService
 
     /** Installment Based On the amount disbursed. */
     public const INSTALMENT_ON_DISBURSEMENT = 'DISBURSEMENT';
+
+    /** The interest basis read from the interest E-Banker posted while the facility was partly drawn. */
+    public const BASIS_OBSERVED = 'OBSERVED_EBANKER_INTEREST';
 
     /** The day counts the Governance Centre offers, plus ACT/360 for completeness. */
     private const DAY_COUNTS = ['ACT/365', 'ACT/360', '30/360'];
@@ -126,6 +141,9 @@ class ScheduleGeneratorService
      *   day_count: ?string            overrides the Governance Centre value (tests)
      *   as_of: ?date                  the date the conventions are read as at
      *   scheme: ?array                the scheme's settings, used where the contract states none
+     *   drawdowns: ?list<array{date: string, amount: float}>  the tranches as drawn; they must add up to principal
+     *   interest_calc_base_observed: ?array{basis: string, evidence: array}  the basis read from E-Banker's own
+     *                                 interest postings, used only where neither the contract nor the scheme states one
      * }
      * @return array {
      *   instalment: float                  level instalment (E) or the fixed principal share (P)
@@ -186,24 +204,44 @@ class ScheduleGeneratorService
         // that is the only case in which a missing flag stops the schedule.
         $partlyDrawn = round($sanctioned - $principal, 2) > 0.0;
 
+        // ---- where the balance starts, and the tranches still to come --------
+        // The moratorium runs from the first disbursement (E-Banker p.31), which
+        // is `moratorium_from`, not from approval; the instalments accrue from
+        // the end of the moratorium, or from the interest start date.
+        $moratoriumFrom = isset($terms['moratorium_from']) && $terms['moratorium_from']
+            ? $this->date($terms['moratorium_from'])
+            : $startDate;
+        $plainAccrualStart = isset($terms['interest_start_date']) && $terms['interest_start_date']
+            ? $this->date($terms['interest_start_date'])
+            : $startDate;
+        $profileStart = $moratoriumMonths > 0 ? $moratoriumFrom : $plainAccrualStart;
+        [$openingDrawn, $queue, $drawdowns] = $this->drawdownProfile($terms['drawdowns'] ?? null, $principal, $profileStart);
+        // drawn after the schedule starts: each tranche is added on its own date
+        $tranched = $queue !== [];
+        // partly drawn for a while: something was drawn before the last tranche
+        $window = $tranched && ($openingDrawn > 0 || count(array_unique(array_map(fn ($d) => $d['date']->toDateString(), $queue))) > 1);
+
         [$emiCalcType, $emiSource] = $this->emiCalcType($terms, $scheme);
-        [$interestBasis, $interestSource] = $this->interestBasis($terms, $scheme, $partlyDrawn);
-        [$instalmentBasis, $instalmentSource] = $this->instalmentBasis($terms, $scheme, $partlyDrawn);
+        [$interestBasis, $interestSource] = $this->interestBasis($terms, $scheme, $partlyDrawn || $window, $window);
+        [$instalmentBasis, $instalmentSource] = ! $partlyDrawn && $window
+            ? $this->trancheInstalmentBasis($terms, $scheme)
+            : $this->instalmentBasis($terms, $scheme, $partlyDrawn);
         [$moratoriumType, $moratoriumSource] = $moratoriumMonths > 0
             ? $this->moratoriumType($terms, $scheme, $moratoriumMonths)
             : [null, 'NOT_APPLICABLE'];
 
-        $interestBaseFor = fn (float $balance): float => $interestBasis === self::INTEREST_ON_SANCTION ? $sanctioned : $balance;
+        // Interest on the sanctioned amount still runs only once money has been
+        // lent: E-Banker's first charge on a facility runs from its first
+        // drawdown ("IntDR Fm 02-MAY-25 To 31-MAY-25"), whatever the basis.
+        $interestBaseFor = fn (float $balance): float => $interestBasis === self::INTEREST_ON_SANCTION ? ($tranched && $balance <= 0.0 ? 0.0 : $sanctioned) : $balance;
 
         // ---- the moratorium, measured from the first disbursement ----------
-        $moratoriumFrom = isset($terms['moratorium_from']) && $terms['moratorium_from']
-            ? $this->date($terms['moratorium_from'])
-            : $startDate;
         $moratoriumEnd = null;
         $moratoriumRows = [];
         $servicedRows = [];
         $capitalisedInterest = 0.0;
-        $balance = round($principal, 2);
+        $balance = round($openingDrawn, 2);
+        $skippedBeforeDrawdown = 0;
 
         if ($moratoriumMonths > 0) {
             $cursor = $moratoriumFrom;
@@ -212,7 +250,8 @@ class ScheduleGeneratorService
                 // frequency, so the moratorium is walked month by month.
                 $next = $moratoriumFrom->addMonthsNoOverflow($m);
                 $days = $cursor->diffInDays($next);
-                $interest = round($interestBaseFor($balance) * $annualRate * $this->yearFraction($cursor, $next, $dayCount), 2);
+                $monthOpening = $balance;
+                [$interest, $balance] = $this->accrue($cursor, $next, $balance, $queue, $interestBaseFor, $annualRate, $dayCount, null);
 
                 $capitalised = 0.0;
                 $paid = 0.0;
@@ -222,12 +261,15 @@ class ScheduleGeneratorService
                     $capitalised = $interest;
                     $balance = round($balance + $interest, 2);
                     $capitalisedInterest = round($capitalisedInterest + $interest, 2);
+                } elseif ($interest == 0.0 && $balance == 0.0) {
+                    // nothing drawn yet: nothing is due on this date
+                    $skippedBeforeDrawdown++;
                 } else {
                     $paid = $interest;
                     $servicedRows[] = [
                         'due_date' => $next->toDateString(),
                         'days' => $days,
-                        'opening_balance' => $balance,
+                        'opening_balance' => $monthOpening,
                         'principal_due' => 0.0,
                         'interest_due' => $interest,
                         'closing_balance' => $balance,
@@ -239,7 +281,7 @@ class ScheduleGeneratorService
                     'month' => $m,
                     'due_date' => $next->toDateString(),
                     'days' => $days,
-                    'opening_balance' => $moratoriumRows === [] ? round($principal, 2) : $moratoriumRows[count($moratoriumRows) - 1]['closing_balance'],
+                    'opening_balance' => $monthOpening,
                     'interest' => $interest,
                     'interest_paid' => $paid,
                     'interest_capitalised' => $capitalised,
@@ -257,16 +299,20 @@ class ScheduleGeneratorService
         // amount: that is what "Installment Based On = sanction" means in
         // E-Banker, and a facility that is never drawn in full is rescheduled
         // at its last drawdown rather than left with a short final payment.
-        $amortisingOpening = round(
-            ($instalmentBasis === self::INSTALMENT_ON_SANCTION ? $sanctioned : $principal) + $capitalisedInterest,
-            2
-        );
+        // A facility drawn in tranches amortises what has been drawn by then,
+        // and is sized again as each later tranche arrives.
+        $onSanction = $instalmentBasis === self::INSTALMENT_ON_SANCTION;
+        if ($tranched && $onSanction) {
+            throw new InvalidArgumentException(
+                'INSTALMENT_ON_SANCTION_WITH_TRANCHES: the instalment is sized on the sanctioned amount and the facility is drawn in tranches. An instalment sized on the whole sanction before it is drawn is not built; send one such schedule as E-Banker issued it and it can be.'
+            );
+        }
+        $amortisingOpening = $tranched && ! $onSanction
+            ? round($balance, 2)
+            : round(($onSanction ? $sanctioned : $principal) + $capitalisedInterest, 2);
         $balance = $amortisingOpening;
 
-        $accrualStart = $moratoriumEnd
-            ?? (isset($terms['interest_start_date']) && $terms['interest_start_date']
-                ? $this->date($terms['interest_start_date'])
-                : $startDate);
+        $accrualStart = $moratoriumEnd ?? $plainAccrualStart;
 
         $intervalMonths = intdiv(12, $paymentsPerYear);
         $firstDue = isset($terms['first_due_date']) && $terms['first_due_date']
@@ -290,12 +336,32 @@ class ScheduleGeneratorService
             $days = $previous->diffInDays($due);
             // A whole payment period is charged at the period rate (for a
             // quarter, three months compounded under the E-Banker basis);
-            // anything else is charged on its actual days under the day count.
+            // anything else is charged on its actual days under the day count,
+            // and so is a period in which a tranche is drawn.
             $wholePeriod = $previous->addMonthsNoOverflow($intervalMonths)->isSameDay($due);
-            $rateForPeriod = $wholePeriod ? $periodRate : $annualRate * $this->yearFraction($previous, $due, $dayCount);
 
             $opening = $balance;
-            $interest = round($interestBaseFor($balance) * $rateForPeriod, 2);
+            [$interest, $balance, $drawnInPeriod] = $this->accrue($previous, $due, $balance, $queue, $interestBaseFor, $annualRate, $dayCount, $wholePeriod ? $periodRate : null);
+            if ($drawnInPeriod) {
+                // a tranche arrived: the instalment is sized again over the
+                // instalments left, on the balance now drawn. This period's
+                // interest is already known (it ran part on the old balance and
+                // part on the new), so the level instalment I is the one that,
+                // paid now and on every date left, retires the balance exactly:
+                // balance + interest - I = I x a(left - 1), a the annuity factor.
+                $left = $nPayments - $t + 1;
+                $instalment = $emiCalcType === self::EMI_EQUAL_PRINCIPAL
+                    ? round($balance / $left, 2)
+                    : ($balance + $interest) / (1 + $this->annuityFactor($periodRate, $left - 1));
+            }
+            if ($tranched && $opening == 0.0 && $balance == 0.0) {
+                if ($t === $nPayments) {
+                    throw new InvalidArgumentException('DRAWDOWN_AFTER_LAST_INSTALMENT: nothing is drawn before the last instalment falls due, so no schedule can be generated from these dates.');
+                }
+                $skippedBeforeDrawdown++;
+                $previous = $due;
+                continue;
+            }
 
             if ($emiCalcType === self::EMI_EQUAL_PRINCIPAL) {
                 $principalDue = $instalment;
@@ -325,9 +391,15 @@ class ScheduleGeneratorService
                 'principal_due' => $principalDue,
                 'interest_due' => $interest,
                 'closing_balance' => $balance,
-                'phase' => $wholePeriod ? 'INSTALMENT' : 'INSTALMENT_IRREGULAR_PERIOD',
+                'phase' => $drawnInPeriod ? 'INSTALMENT_TRANCHE_PERIOD' : ($wholePeriod ? 'INSTALMENT' : 'INSTALMENT_IRREGULAR_PERIOD'),
             ];
             $previous = $due;
+        }
+        if ($queue !== []) {
+            throw new InvalidArgumentException(sprintf(
+                'DRAWDOWN_AFTER_LAST_INSTALMENT: a tranche of %s drawn on %s falls after the last instalment (%s), so the schedule cannot retire it.',
+                number_format($queue[0]['amount'], 2), $queue[0]['date']->toDateString(), $previous->toDateString()
+            ));
         }
 
         return [
@@ -341,7 +413,14 @@ class ScheduleGeneratorService
                 'interest_basis' => $interestSource,
                 'instalment_basis' => $instalmentSource,
                 'moratorium_type' => $moratoriumSource,
+                'drawdown_profile' => $tranched ? 'TRANCHES_AS_DRAWN' : ($drawdowns !== [] ? 'DRAWN_BY_THE_START' : 'NOT_GIVEN'),
             ],
+            'interest_basis_evidence' => is_array($terms['interest_calc_base_observed'] ?? null) && $interestSource === ($terms['interest_calc_base_observed']['source'] ?? self::BASIS_OBSERVED) ? ($terms['interest_calc_base_observed']['evidence'] ?? null) : null,
+            'drawdowns' => array_map(fn ($d) => ['date' => $d['date']->toDateString(), 'amount' => $d['amount']], $drawdowns),
+            'tranched' => $tranched,
+            'due_dates_before_first_drawdown' => $skippedBeforeDrawdown,
+            // the balance the schedule retires: every tranche plus any interest capitalised
+            'retires' => $tranched && ! $onSanction ? round($principal + $capitalisedInterest, 2) : $amortisingOpening,
             'moratorium_type' => $moratoriumType,
             'moratorium_months' => $moratoriumMonths,
             'moratorium_from' => $moratoriumMonths > 0 ? $moratoriumFrom->toDateString() : null,
@@ -383,6 +462,16 @@ class ScheduleGeneratorService
         }
 
         return $flows;
+    }
+
+    /** The present value of 1 a period for n periods at the period rate: (1 - (1+r)^-n) / r; n when r is nil. */
+    private function annuityFactor(float $periodRate, int $periods): float
+    {
+        if ($periods <= 0) {
+            return 0.0;
+        }
+
+        return $periodRate == 0.0 ? (float) $periods : (1 - pow(1 + $periodRate, -$periods)) / $periodRate;
     }
 
     /**
@@ -518,9 +607,10 @@ class ScheduleGeneratorService
      *
      * @return array{0:string, 1:string}
      */
-    private function interestBasis(array $terms, array $scheme, bool $partlyDrawn): array
+    private function interestBasis(array $terms, array $scheme, bool $partlyDrawn, bool $tranched = false): array
     {
-        foreach ([['CONTRACT', $terms['interest_calc_base'] ?? null], ['SCHEME', $scheme['interest_calc_base'] ?? null]] as [$source, $stated]) {
+        $observed = is_array($terms['interest_calc_base_observed'] ?? null) ? $terms['interest_calc_base_observed'] : null;
+        foreach ([['CONTRACT', $terms['interest_calc_base'] ?? null], ['SCHEME', $scheme['interest_calc_base'] ?? null], [$observed['source'] ?? self::BASIS_OBSERVED, $observed['basis'] ?? null]] as [$source, $stated]) {
             $code = strtoupper(trim((string) $stated));
             if ($code === '' || $code === 'N') {
                 continue;
@@ -537,6 +627,11 @@ class ScheduleGeneratorService
             ));
         }
 
+        if ($tranched) {
+            throw new InvalidArgumentException(
+                'INTEREST_BASIS_MISSING: the facility was drawn in tranches, so for a time it was drawn in part, and neither the contract nor its scheme says whether interest is charged on the approved amount or on the balance (Loan Interest Cal. Base On), nor could it be read from the interest E-Banker posted while it was partly drawn. The schedule is not generated and the basis is not assumed.'
+            );
+        }
         if ($partlyDrawn) {
             throw new InvalidArgumentException(
                 'INTEREST_BASIS_MISSING: the facility is drawn in part, and neither the contract nor its scheme says whether interest is charged on the approved amount or on the balance (Loan Interest Cal. Base On). On one MAIIC facility the two bases differ by about MWK 22 million a month, so the schedule is not generated and the basis is not assumed.'
@@ -581,6 +676,108 @@ class ScheduleGeneratorService
         }
 
         return [self::INSTALMENT_ON_DISBURSEMENT, 'DRAWN_IN_FULL_BASES_AGREE'];
+    }
+
+    /**
+     * The instalment basis of a facility drawn in full, but in tranches. Once
+     * the last tranche is drawn the sanctioned amount and the amount drawn are
+     * the same, so the two bases agree from then on; before it, an instalment
+     * sized on the whole sanction would repay money not yet lent. Where no
+     * basis is stated the instalment is sized on what has been drawn and sized
+     * again at each tranche, which is the shape both bases reach after the last
+     * tranche. A stated sanction basis with tranches is not built and is
+     * refused rather than bent into this shape.
+     *
+     * @return array{0:string, 1:string}
+     */
+    private function trancheInstalmentBasis(array $terms, array $scheme): array
+    {
+        foreach ([['CONTRACT', $terms['installment_based_on'] ?? null], ['SCHEME', $scheme['installment_based_on'] ?? null]] as [$source, $stated]) {
+            $text = strtoupper(trim((string) $stated));
+            if ($text === '' || $text === 'N') {
+                continue;
+            }
+            if (str_contains($text, 'SANCTION') || $text === 'S') {
+                throw new InvalidArgumentException(
+                    'INSTALMENT_ON_SANCTION_WITH_TRANCHES: Installment Based On says the sanctioned amount, and the facility was drawn in tranches. An instalment sized on the whole sanction before it is drawn is not built; send one such schedule as E-Banker issued it and it can be.'
+                );
+            }
+
+            return [self::INSTALMENT_ON_DISBURSEMENT, $source];
+        }
+
+        return [self::INSTALMENT_ON_DISBURSEMENT, 'RESIZED_AT_EACH_DRAWDOWN'];
+    }
+
+    /**
+     * The tranches as drawn: those on or before the date the schedule starts
+     * make its opening balance, the later ones wait to be added on their own
+     * dates. They must add up to the amount drawn, or the schedule would
+     * retire a different sum from the one lent.
+     *
+     * @return array{0: float, 1: list<array{date: CarbonImmutable, amount: float}>, 2: list<array{date: CarbonImmutable, amount: float}>}
+     */
+    private function drawdownProfile($drawdowns, float $principal, CarbonImmutable $profileStart): array
+    {
+        if (! is_array($drawdowns) || $drawdowns === []) {
+            return [round($principal, 2), [], []];
+        }
+        $list = [];
+        foreach (array_values($drawdowns) as $i => $d) {
+            $amount = round((float) ($d['amount'] ?? 0), 2);
+            if ($amount <= 0 || empty($d['date'])) {
+                throw new InvalidArgumentException("DRAWDOWN_INVALID: tranche {$i} needs a date and an amount above nil.");
+            }
+            $list[] = ['date' => $this->date($d['date']), 'amount' => $amount];
+        }
+        usort($list, fn ($a, $b) => $a['date']->getTimestamp() <=> $b['date']->getTimestamp());
+        $sum = round(array_sum(array_column($list, 'amount')), 2);
+        if (abs($sum - round($principal, 2)) > 0.01) {
+            throw new InvalidArgumentException(sprintf(
+                'DRAWDOWNS_DO_NOT_ADD_UP: the tranches add up to %s and the amount drawn is %s, so the schedule would not retire what was lent.',
+                number_format($sum, 2), number_format($principal, 2)
+            ));
+        }
+        $opening = 0.0;
+        $queue = [];
+        foreach ($list as $d) {
+            if ($d['date']->lte($profileStart)) {
+                $opening += $d['amount'];
+            } else {
+                $queue[] = $d;
+            }
+        }
+
+        return [round($opening, 2), $queue, $list];
+    }
+
+    /**
+     * The interest from one date to the next, adding every tranche that falls
+     * in between on its own date. With no tranche in the period a whole
+     * payment period is charged at the period rate given; otherwise each part
+     * is charged on its actual days on the balance it carried.
+     *
+     * @param  list<array{date: CarbonImmutable, amount: float}>  $queue  the tranches still to come, oldest first; consumed
+     * @return array{0: float, 1: float, 2: bool} the interest, the balance after the tranches, whether one was drawn
+     */
+    private function accrue(CarbonImmutable $from, CarbonImmutable $to, float $balance, array &$queue, callable $base, float $annualRate, string $dayCount, ?float $wholePeriodRate): array
+    {
+        $segmentStart = $from;
+        $interest = 0.0;
+        $drawn = false;
+        while ($queue !== [] && $queue[0]['date']->lte($to)) {
+            $tranche = array_shift($queue);
+            $interest += $base($balance) * $annualRate * $this->yearFraction($segmentStart, $tranche['date'], $dayCount);
+            $balance = round($balance + $tranche['amount'], 2);
+            $segmentStart = $tranche['date'];
+            $drawn = true;
+        }
+        if (! $drawn && $wholePeriodRate !== null) {
+            return [round($base($balance) * $wholePeriodRate, 2), $balance, false];
+        }
+        $interest += $base($balance) * $annualRate * $this->yearFraction($segmentStart, $to, $dayCount);
+
+        return [round($interest, 2), $balance, $drawn];
     }
 
     /**

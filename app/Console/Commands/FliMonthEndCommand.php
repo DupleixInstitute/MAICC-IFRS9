@@ -82,7 +82,7 @@ class FliMonthEndCommand extends Command
         }
         $this->project($projection, $period, $user);
         $this->line('<info>run</info> ECL on the post-FLI PD ...');
-        $code = Artisan::call('ifrs9:segment-ecl', ['from' => $period, '--pd' => 'pd_post_fli']);
+        $code = Artisan::call('ifrs9:segment-ecl', ['from' => $period, '--pd' => 'pd_post_fli', '--discounting' => 'discounted']);
         $this->output->write(Artisan::output());
         if ($code !== 0) {
             $this->error('The ECL run stopped; the month is not recorded. Correct what it names and run this again.');

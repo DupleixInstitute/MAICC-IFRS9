@@ -57,6 +57,16 @@ class EirRevenueService
                 if ($contract->locked_at === null || $contract->eir_effective_annual === null) {
                     throw new RuntimeException('The original EIR must be approved and locked before revenue can be run.');
                 }
+                // A loan migrated into E-Banker at the take-on of 31 July 2024 has no E-Banker history
+                // before it: the ledger holds only the three opening legs, dated back to the loan or to
+                // the take-on (the drawn principal, the interest charged to date and the repayments to
+                // date), which are balances, not cash of July 2024. Its roll-forward starts in August
+                // 2024 from the balance at the take-on, with the arrears at take-on of decision D39
+                // (spec 6.9; results review of 13 October 2026, E2).
+                if ($period <= substr(\App\Services\Ebanker\TakeonLandingService::TAKEON_DATE, 0, 7)
+                    && DB::getSchemaBuilder()->hasTable('contract_takeon') && DB::table('contract_takeon')->where('contract_id', $contractId)->exists()) {
+                    throw new RuntimeException('Migrated at the take-on of 31 July 2024: the roll-forward starts in August 2024 from the balance at the take-on; the months before are the take-on build\'s (spec 6.9).');
+                }
 
                 $superseded = 0;
                 $existing = EirAmortisation::where('contract_id', $contractId)->where('reporting_period', $period)->first();
@@ -99,10 +109,14 @@ class EirRevenueService
                 // tranche, so adding the advance there would count it twice.
                 $advances = 0.0;
                 if ($openingBasis === 'LEDGER') {
-                    // the advance raises the net carrying amount as much as the gross, so it accrues on either basis
+                    // the advance raises the net carrying amount as much as the gross, so it accrues on either basis;
+                    // it is net of the reviewed integral fees of the month, which the EIR was solved net of (spec 7.8.4)
+                    $fees = $cash['advances'] === [] ? 0.0 : $this->feesReceivedIn($contractId, CarbonImmutable::createFromFormat('Y-m-d', $period . '-01'));
                     foreach ($cash['advances'] as $adv) {
-                        $advances += $adv['amount'];
-                        $interest += $monthlyRate * $adv['amount'] * $adv['share_of_month'];
+                        $net = max(0.0, $adv['amount'] - $fees);
+                        $fees = max(0.0, $fees - $adv['amount']);
+                        $advances += $net;
+                        $interest += $monthlyRate * $net * $adv['share_of_month'];
                     }
                 }
                 // a write-off or a settlement in kind leaves the gross without being cash
@@ -146,7 +160,7 @@ class EirRevenueService
     private function eirInForce(ContractEir $contract, object $loan): float
     {
         $locked = (float) $contract->eir_effective_annual;
-        $built = (float) ($contract->contractual_rate ?? 0);
+        $built = $this->scheduleRate($contract);
         $charged = isset($loan->interest_rate) && is_numeric($loan->interest_rate) ? (float) $loan->interest_rate / 100 : null;
         if (strtoupper((string) $contract->rate_type) !== 'FLOATING' || $built <= 0 || $charged === null || $charged <= 0) {
             return $locked;
@@ -154,6 +168,41 @@ class EirRevenueService
         $nominal = 12 * (pow(1 + $locked, 1 / 12) - 1) + ($charged - $built);
 
         return pow(1 + max(0.0, $nominal) / 12, 12) - 1;
+    }
+
+    /**
+     * The nominal rate the locked schedule was built at. A generated schedule
+     * is built at the contract master's rate; a take-on loan's schedule is the
+     * workbook's, which carries the rates MAIIC charged before the migration,
+     * so its rate is the one its own cash flows solve to with no fee, recorded
+     * on the locked snapshot (results review of 13 October 2026, E2).
+     */
+    private function scheduleRate(ContractEir $contract): float
+    {
+        $recorded = $contract->input_snapshot['metadata']['schedule_rate'] ?? null;
+
+        return is_numeric($recorded) && (float) $recorded > 0 ? (float) $recorded : (float) ($contract->contractual_rate ?? 0);
+    }
+
+    /**
+     * The reviewed integral fees received in a month, which the cash advanced
+     * that month is net of: a facility on the ledger basis opens at what the
+     * ledger drew, which carries a fee capitalised into the loan, while its EIR
+     * was solved on the cash paid out (the amount drawn less the fee). Only a
+     * line a person has reviewed counts, and only from the source of record.
+     */
+    private function feesReceivedIn(string $contractId, CarbonImmutable $start): float
+    {
+        if (! DB::getSchemaBuilder()->hasTable('contract_fees')) {
+            return 0.0;
+        }
+        $q = DB::table('contract_fees')->where('contract_id', $contractId)->where('classification_status', 'REVIEWED')->where('integral', true)
+            ->where('cashflow_direction', 'RECEIVED')->whereBetween('transaction_date', [$start->toDateString(), $start->endOfMonth()->toDateString()]);
+        if (DB::getSchemaBuilder()->hasColumn('contract_fees', 'superseded_by_source')) {
+            $q->whereNull('superseded_by_source');
+        }
+
+        return (float) $q->sum('amount');
     }
 
     /** @return array{0: float, 1: string, 2: float} the opening, its basis (SCHEDULE or LEDGER) and the arrears in it */
@@ -175,8 +224,12 @@ class EirRevenueService
             // Lent within the month: nothing was owed at its start. Where the ledger shows the
             // advances, the month opens at nil and each one is added from the day it was drawn;
             // without them the initial net investment stands in, as before.
+            // A facility signed in the month but first drawn later (Mphunzitsi SACCO: signed 15
+            // July 2025, first tranche in August) is in the same position: nothing is owed yet,
+            // and opening it at the initial net investment on the schedule basis counted money
+            // not yet lent and never added the tranches (results review, 13 October 2026).
             $drawn = DB::table('eir_actual_transactions')->where('contract_id', $contract->contract_id)->whereIn('transaction_type', self::ADVANCE_TYPES)
-                ->whereBetween('transaction_date', [$start->toDateString(), $start->endOfMonth()->toDateString()])->exists();
+                ->where('transaction_date', '>=', $start->toDateString())->exists();
 
             return $drawn ? [0.0, 'LEDGER', 0.0] : [$opening, 'SCHEDULE', 0.0];
         }
@@ -184,8 +237,8 @@ class EirRevenueService
 
         $pv = $this->presentValue($contract, $flows, $asOf, (float) $contract->eir_effective_annual);
         if ($pv <= 0) throw new RuntimeException("No remaining contractual cash flows exist after {$period}.");
-        // the balance the schedule expects to be owed: the same flows at the contractual rate
-        $contractual = (float) ($contract->contractual_rate ?? 0);
+        // the balance the schedule expects to be owed: the same flows at the rate they were built at
+        $contractual = $this->scheduleRate($contract);
         $scheduled = $contractual > 0 ? $this->presentValue($contract, $flows, $asOf, pow(1 + $contractual / 12, 12) - 1) : $pv;
 
         return $this->prepaidOpening($contract, $period, $pv, $scheduled);

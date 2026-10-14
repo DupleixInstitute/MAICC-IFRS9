@@ -266,7 +266,12 @@ class EirCoverageService
 
     private function feeAggregates(): array
     {
-        return DB::table('contract_fees')
+        $q = DB::table('contract_fees');
+        if (DB::getSchemaBuilder()->hasColumn('contract_fees', 'superseded_by_source')) {
+            $q->whereNull('superseded_by_source'); // a superseded line is the same fee from a lower source (spec 7.8.2)
+        }
+
+        return $q
             ->selectRaw("contract_id")
             ->selectRaw("SUM(CASE WHEN classification_status NOT IN ('REVIEWED','REJECTED') THEN 1 ELSE 0 END) as unresolved")
             ->selectRaw("SUM(CASE WHEN classification_status = 'REVIEWED' AND integral = 1 AND (cashflow_direction IS NULL OR cashflow_direction NOT IN ('RECEIVED','PAID')) THEN 1 ELSE 0 END) as integral_without_direction")

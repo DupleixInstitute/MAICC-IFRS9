@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Http\Controllers\ExpectedCreditLossController;
 use App\Services\Ecl\EclDiscountingService;
+use App\Services\MegaFarm\MegaFarmEclService;
 use App\Support\ReportingPeriodLock;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -16,6 +17,14 @@ use Throwable;
  * The ECL of every portfolio of a month, after the PD and LGD by segment.
  *
  *   php artisan ifrs9:segment-ecl 2026-01 2026-08 --pd=pd_post_fli --prune-stale
+ *
+ * The allowance is discounted at the effective interest rate (IFRS 9
+ * 5.5.17(b); spec v4 6.10.1 step 7, FLI specification D-F6) by default:
+ * each loan keeps the engine's measure in ecl_value and carries the
+ * time-phased, discounted allowance in ecl_value_discounted; a loan that
+ * cannot be discounted (no locked EIR and not a Stage 3 loss at the
+ * reporting date) is named on the run, never given a rate. Until 13
+ * October 2026 the month-end ran undiscounted.
  *
  * Before any row is written the month is checked, and it fails closed with
  * the loans named when: a loan with an exposure has no measured stage, no
@@ -30,7 +39,7 @@ use Throwable;
  */
 class SegmentEcl extends Command
 {
-    protected $signature = 'ifrs9:segment-ecl {from : YYYY-MM} {to? : YYYY-MM} {--pd=pd_post_fli : pd_prefli|pd_post_fli} {--lgd=collection_lgd} {--discounting=undiscounted} {--prune-stale}';
+    protected $signature = 'ifrs9:segment-ecl {from : YYYY-MM} {to? : YYYY-MM} {--pd=pd_post_fli : pd_prefli|pd_post_fli} {--lgd=collection_lgd} {--discounting=discounted : discounted (the booked allowance, IFRS 9 5.5.17(b)) or undiscounted} {--prune-stale}';
 
     protected $description = 'Calculate the ECL of every portfolio of each month after the PD and LGD by segment, failing closed on a missing input';
 
@@ -57,7 +66,10 @@ class SegmentEcl extends Command
                 $this->error("{$period}: ECL not run (fail closed). " . implode(' ', $problems));
                 continue;
             }
-            $portfolios = DB::table('loan_books')->where('reporting_period', $period)->distinct()->orderBy('loan_portfolio_id')->pluck('loan_portfolio_id')->map(fn ($v) => (int) $v)->all();
+            // the Mega Farm programme's portfolio is provided by megafarm:ecl (spec v4 section 16, D30), not by the MAIIC engine
+            $programme = MegaFarmEclService::programmePortfolios($period);
+            $portfolios = DB::table('loan_books')->where('reporting_period', $period)->whereNotIn('loan_portfolio_id', $programme === [] ? [0] : $programme)
+                ->distinct()->orderBy('loan_portfolio_id')->pluck('loan_portfolio_id')->map(fn ($v) => (int) $v)->all();
             try {
                 foreach ($portfolios as $pid) {
                     DB::transaction(function () use ($controller, $discounting, $period, $pid, $pdCol, $lgdCol) {
@@ -67,13 +79,14 @@ class SegmentEcl extends Command
                             'pd_type' => $pdCol, 'lgd_type' => $lgdCol, 'discounting_mode' => $this->option('discounting'),
                         ]), $discounting);
                     });
+                    set_time_limit(0); // the controller's 300 s is for the web; the console runs every month (audit H14)
                 }
             } catch (Throwable $e) {
                 $failures++;
                 $this->error("{$period}: ECL failed: " . $e->getMessage());
                 continue;
             }
-            $stale = DB::table('expected_credit_loss')->where('reporting_period', $period)->where('ecl_calculation_level', 'portfolio')->whereNotIn('ecl_calculation_id', $portfolios);
+            $stale = DB::table('expected_credit_loss')->where('reporting_period', $period)->where('ecl_calculation_level', 'portfolio')->whereNotIn('ecl_calculation_id', array_merge($portfolios, $programme));
             $staleRows = (clone $stale)->get(['ecl_calculation_id', 'ifrs9_stage', 'total_ecl']);
             if ($staleRows->isNotEmpty()) {
                 if ($this->option('prune-stale')) {
@@ -102,10 +115,15 @@ class SegmentEcl extends Command
         $stage = 'COALESCE(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative)';
         $pd = $pdCol === 'pd_prefli' ? 'COALESCE(pd_prefli, pd_post_fli)' : 'pd_post_fli';
         $problems = [];
-        $exposed = DB::table('loan_books')->where('reporting_period', $period)->whereRaw('(' . self::EAD . ') <> 0');
         if (! DB::table('loan_books')->where('reporting_period', $period)->exists()) {
             return ["The loan book of {$period} is empty."];
         }
+        $mixed = MegaFarmEclService::mixedPortfolios($period);
+        if ($mixed !== []) {
+            return ['Portfolio(s) ' . implode(', ', $mixed) . " mix Mega Farm programme loans with MAIIC's own; run ifrs9:segment-portfolios first (spec v4 section 16)."];
+        }
+        $programme = MegaFarmEclService::programmePortfolios($period);
+        $exposed = DB::table('loan_books')->where('reporting_period', $period)->whereNotIn('loan_portfolio_id', $programme === [] ? [0] : $programme)->whereRaw('(' . self::EAD . ') <> 0');
         foreach (["{$stage} IS NULL" => 'no measured stage', "{$pd} IS NULL" => "no {$pdCol}", "{$lgdCol} IS NULL" => "no {$lgdCol}"] as $cond => $what) {
             $ids = (clone $exposed)->whereRaw($cond)->limit(6)->pluck('contract_id');
             $n = (clone $exposed)->whereRaw($cond)->count();
@@ -114,7 +132,7 @@ class SegmentEcl extends Command
             }
         }
         if (Schema::hasColumn('loan_books', 'pd_segment_run_id')) {
-            $runs = DB::table('loan_books')->where('reporting_period', $period)->whereRaw("{$stage} IS NOT NULL")->distinct()->pluck('pd_segment_run_id');
+            $runs = DB::table('loan_books')->where('reporting_period', $period)->whereNotIn('loan_portfolio_id', $programme === [] ? [0] : $programme)->whereRaw("{$stage} IS NOT NULL")->distinct()->pluck('pd_segment_run_id');
             if ($runs->count() > 1 || $runs->contains(null)) {
                 $problems[] = 'The loans carry PDs from ' . ($runs->contains(null) ? 'outside a PD segment run' : $runs->count() . ' PD segment runs') . '; run ifrs9:segment-parameters for the month first.';
             }

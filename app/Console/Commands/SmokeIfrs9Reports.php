@@ -34,6 +34,9 @@ class SmokeIfrs9Reports extends Command
             app()->instance('request', $req);
             try {
                 $c->$m($req);
+                // a controller may lower the time limit for the web (300 s); on the console
+                // that cap would stop the rest of the run (audit H14), so it is lifted again
+                set_time_limit(0);
                 $this->info("  $m = OK");
             } catch (\Throwable $e) {
                 $failures++;

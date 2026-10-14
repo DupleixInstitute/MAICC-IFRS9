@@ -42,6 +42,7 @@ class MaintenanceTask extends Command
             ],
             'month-end' => [
                 ['Clients for new loan-book customers', 'clients:link-loan-book', $u],
+                ['Programme portfolios (the Mega Farm schemes kept apart from the MAIIC book)', 'ifrs9:segment-portfolios', []],
                 ['Stage the book', 'eir:stage', ['from' => $period] + $u],
                 ['PD and LGD by segment', 'ifrs9:segment-parameters', ['from' => $period] + $u],
                 ['Forward-looking route, projection, ECL and the month record', 'fli:month-end', ['period' => $period, '--all' => true] + $u],

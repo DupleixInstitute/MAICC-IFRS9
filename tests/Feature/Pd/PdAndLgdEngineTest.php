@@ -155,6 +155,37 @@ class PdAndLgdEngineTest extends TestCase
         $this->assertSame('system', DB::table('loss_given_default')->where('id', $r['lgd_id'])->value('calculation_source'));
     }
 
+    /**
+     * Verification of 14 October 2026: a written-off account is left in the
+     * book at a nil balance, where it stages as current, and was read as a
+     * cure (COMSIV, Mwachisosa, Walusiya and Kayola in June 2026). A loan the
+     * window closes at nil has not cured: its outcome is the cash it returned.
+     * A Stage 3 loan that owed nothing at the start is no member of the cohort.
+     */
+    public function test_a_loan_closed_at_nil_is_not_a_cure_and_a_nil_start_balance_is_no_member(): void
+    {
+        Schema::table('loan_books', function (Blueprint $t) { $t->decimal('repayments', 20, 2)->default(0); });
+        DB::table('loan_books')->where('contract_id', 'D')->where('reporting_period', '2026-08')->update(['repayments' => 250]);
+        // F: Stage 3, 500 owing; written off in the window, left in the book at nil and staged current
+        $this->loan('F', '2025-08', '3', '3', 500);
+        $this->loan('F', '2026-08', '1', '1', 0);
+        // G: Stage 3 with nothing owed at the start
+        $this->loan('G', '2025-08', '3', '3', 0);
+        $this->loan('G', '2026-08', '1', '1', 0);
+        // H: Stage 3, 400 owing, repaid in full in the window: a full recovery, not a cure
+        $this->loan('H', '2025-08', '3', '3', 400);
+        $this->loan('H', '2026-08', '1', '1', 0);
+        DB::table('loan_books')->where('contract_id', 'H')->where('reporting_period', '2026-08')->update(['repayments' => 450]);
+
+        $m = (new LgdEngineService())->measure('2026-08', [1], 12, '2025-08');
+        $this->assertSame(5, $m['cohort'], 'C, D, E, F and H; G owed nothing');
+        $this->assertEquals(2400.0, $m['start_balance']);
+        $this->assertEqualsWithDelta(500 / 2400, $m['cure_rate'], 1e-9, 'only C cured: F and H closed at nil');
+        // of the 1,900 that did not cure: D returned 250, H 400 (capped at its balance), E and F nothing
+        $this->assertEqualsWithDelta(650 / 1900, $m['recovery_rate'], 1e-9);
+        $this->assertEqualsWithDelta(1000.0, $m['written_off'], 1e-6, 'E absent and F closed at nil: 500 each');
+    }
+
     public function test_an_empty_cohort_is_refused_rather_than_an_lgd_invented(): void
     {
         DB::table('loan_books')->where('reporting_period', '2025-08')->update(['calculated_ifrs9_stage' => '1']);

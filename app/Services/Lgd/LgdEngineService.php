@@ -67,14 +67,19 @@ class LgdEngineService
         }
         $rows = DB::table('loan_books as s')->leftJoin('loan_books as e', fn ($j) => $j->on('s.contract_id', '=', 'e.contract_id')->on('s.loan_portfolio_id', '=', 'e.loan_portfolio_id')->where('e.reporting_period', '=', $period))
             ->where('s.reporting_period', $startPeriod)->where('s.calculated_ifrs9_stage', '3')->whereIn('s.loan_portfolio_id', $portfolioIds)
+            ->where('s.carrying_amount', '>', 0.005) // nothing owed at the start: no loss to work out, and no member of the cohort's count
             ->get(['s.contract_id', 's.loan_portfolio_id', DB::raw('s.carrying_amount as start_balance'), DB::raw('e.carrying_amount as end_balance'), DB::raw("COALESCE(e.calculated_ifrs9_stage, '3') as closing_stage")]);
 
         /*
         | The workout (system audit of 9 October 2026, finding H7).
         |
-        | Cure: a loan back in Stage 1 or 2 at the end of the window. A cured
-        | loan is repaying under its contract, so it is out of the recovery
-        | measure; cure and recovery are exclusive.
+        | Cure: a loan back in Stage 1 or 2 at the end of the window with a
+        | balance still owed. A cured loan is repaying under its contract, so
+        | it is out of the recovery measure; cure and recovery are exclusive.
+        | A loan that ends the window at a nil balance is not a cure: either
+        | its cash repaid it (a full recovery) or the rest was written off and
+        | the account left in the book at nil, where it stages as current
+        | (COMSIV, Mwachisosa, Walusiya and Kayola in June 2026).
         |
         | Recovery, on the loans that did not cure: the cash received over the
         | window (the rise in the cumulative repayments the loan book carries,
@@ -101,7 +106,10 @@ class LgdEngineService
             $sb = (float) $r->start_balance;
             $startBalance += $sb;
             $endBalance += (float) ($r->end_balance ?? 0);
-            if ((string) $r->closing_stage === '1' || (string) $r->closing_stage === '2') {
+            // a cure is a loan back in Stage 1 or 2 that still owes: a loan the window closed at a nil
+            // balance (repaid in full, or written off and left in the book at nil, which stages as
+            // current) has not cured, and its outcome is the cash it returned. Verification, 14 October 2026.
+            if (((string) $r->closing_stage === '1' || (string) $r->closing_stage === '2') && (float) ($r->end_balance ?? 0) > 0.005) {
                 $cured += $sb;
                 continue;
             }
@@ -129,6 +137,10 @@ class LgdEngineService
             } else {
                 $eb = $r->end_balance === null ? (float) ($last->carrying_amount ?? 0) : (float) $r->end_balance;
                 $cash = max(0.0, $sb - $eb); $pv = $cash / (1 + $rate) ** ($windowMonths / 24); // mid-window when the months are not known
+            }
+            // closed at nil inside the book: what the cash did not return was written off
+            if ($r->end_balance !== null && (float) $r->end_balance <= 0.005 && $cash < $sb - 0.005) {
+                $writtenOff += max(0.0, $sb - $cash);
             }
             // absent at the end: settled, or written off
             if ($r->end_balance === null) {

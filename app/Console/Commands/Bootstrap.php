@@ -225,7 +225,7 @@ class Bootstrap extends Command
 
         try {
             $t = app(TakeonLandingService::class)->build($user);
-            $this->note('5b take-on population', "{$t['accounts']} accounts: {$t['recomputed']} recomputed, {$t['takeon_balance']} at take-on balance, {$t['refused']} refused");
+            $this->note('5b take-on population', "{$t['accounts']} accounts: {$t['recomputed']} recomputed, {$t['takeon_balance']} at take-on balance, {$t['refused']} refused; take-on EIR check {$t['eir_check_pass']} pass, {$t['eir_check_refused']} refused; take-on fees " . json_encode(array_intersect_key($t['fees'] ?? [], array_flip(['loaded_rows', 'amounts_changed']))) . ' landed PENDING');
         } catch (Throwable $e) {
             $this->note('5b take-on population', 'SKIPPED: ' . $e->getMessage());
         }
@@ -244,6 +244,17 @@ class Bootstrap extends Command
         // approval there (spec 6.10; audit M8): a suggestion stays a suggestion
         // until a person reviews it, and the rulebook itself suggests nothing
         // until MAIIC approves it.
+        // the GL fee route (spec 7.8.3 to 7.8.5; results review E3): the fee postings of
+        // GL_04 tied to their loans by the batch, the rest held with the reason, and the
+        // governed precedence so a fee in GL_04 and in the charges table counts once
+        try {
+            $gf = app(\App\Services\Ebanker\GlFeeBuildService::class)->build($user);
+            $this->note('5e GL fee postings', "{$gf['legs']} fee postings: {$gf['assigned']['lines']} on a loan (" . number_format($gf['assigned']['amount'], 2) . "), {$gf['held']['lines']} held (" . number_format($gf['held']['amount'], 2) . ') ' . json_encode($gf['held']['by_reason'])
+                . "; {$gf['loaded']['loaded_rows']} loaded PENDING; precedence " . json_encode($gf['precedence']['by_winner']) . ", {$gf['precedence']['superseded_lines']} lines superseded, " . count($gf['precedence']['exceptions']) . ' cross-source differences; GL gate '
+                . "{$gf['gate']['agree']} months agree, {$gf['gate']['differ']} differ, {$gf['gate']['no_tb']} without a trial balance");
+        } catch (Throwable $e) {
+            $this->note('5e GL fee postings', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
         $sweep = app(FeeRuleMatcher::class)->sweepPending();
         $this->note('5e fee rulebook', "{$sweep['examined']} examined, {$sweep['matched']} matched an approved rule (suggested, not reviewed: the review is a person's), " . ContractFee::where('classification_status', 'PENDING')->count() . ' PENDING');
         $gi = $inputs->glInterest($from, null);
@@ -307,24 +318,52 @@ class Bootstrap extends Command
             }
         }
         $this->note('6.9 EIR solved and locked', "{$solved} solved, {$locked} locked (administrator override under the bootstrap label); " . count($failed) . ' not solved' . ($failed !== [] ? ': ' . implode(' | ', array_slice($failed, 0, 3)) : ''));
-        // 4, 5, 7 for every period, pre-FLI: the PD, the LGD and the ECL of each
-        // month, so the revenue step that follows nets the opening allowance on
-        // Stage 3 (audit C6) and the chain runs from the first full month, not
-        // the last (spec 6.10, audit M17). A month without a twelve-month window
-        // or a Stage 3 cohort is noted and left without an allowance.
-        $portfolio = (int) DB::table('loan_portfolios')->orderBy('id')->value('id');
-        $eclPeriods = []; $eclSkipped = [];
+        // The book split into its programmes (ifrs9:segment-portfolios): the
+        // Mega Farm schemes get their own portfolio, so MAIIC's PD, LGD and ECL
+        // are measured on MAIIC's loans only and the programme is provided by
+        // the Mega Farm module (spec v4 section 16, D30). Until 13 October 2026
+        // the chain ran every engine on one blended portfolio, so the
+        // programme's defaults (95 percent of its book in 2025) entered MAIIC's
+        // transition PDs and cohort LGD, and the programme was provided twice.
+        Artisan::call('ifrs9:segment-portfolios');
+        $this->note('6.0 programme portfolios', trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), -220))));
+
+        // 4, 5, 6, 7 for every period, the month-end path: the PD and the LGD by
+        // segment on the governed basis, the forward-looking route (with no
+        // approved fit on a clean install, the overlay at zero, spec 6.10.1 step
+        // 6), the ECL on the post-FLI PD discounted at the EIR (IFRS 9
+        // 5.5.17(b); spec 6.10.1 step 7), then the Mega Farm programme, so the
+        // revenue step that follows nets the opening allowance on Stage 3
+        // (audit C6) and every month carries the allowance the month-end books.
+        // A month without a twelve-month window or a Stage 3 cohort is noted and
+        // left without an allowance.
+        $eclPeriods = []; $eclSkipped = []; $mfPeriods = []; $mfDeclined = [];
+        $mega = app(\App\Services\MegaFarm\MegaFarmEclService::class);
         foreach ($periods as $p) {
             try {
-                app(\App\Services\Pd\PdEngineService::class)->run($p, $portfolio, 12, 'bootstrap', $user);
-                app(\App\Services\Lgd\LgdEngineService::class)->run($p, $portfolio, 12, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
-                Artisan::call('ifrs9:recalculate-ecl', ['period' => $p, '--level' => 'portfolio', '--portfolio' => $portfolio, '--pd' => 'pd_prefli']);
+                app(\App\Services\Pd\PdSegmentationService::class)->run($p, null, 12, $user, 'bootstrap');
+                app(\App\Services\Lgd\LgdSegmentationService::class)->run($p, null, 12, $user);
+                app(\App\Services\Fli\FliRouteService::class)->apply($p, $user);
+                $code = Artisan::call('ifrs9:segment-ecl', ['from' => $p, '--pd' => 'pd_post_fli', '--discounting' => 'discounted', '--prune-stale' => true]);
+                set_time_limit(0); // the ECL controller lowers it to 300 s for the web (audit H14)
+                if ($code !== 0) {
+                    throw new \RuntimeException(trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 200))));
+                }
                 $eclPeriods[] = $p;
             } catch (Throwable $e) {
-                $eclSkipped[$p] = substr($e->getMessage(), 0, 60);
+                $eclSkipped[$p] = substr($e->getMessage(), 0, 90);
+            }
+            try {
+                if ($mega->loans($p)->exists()) {
+                    $mf = $mega->run($p, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+                    $mf['declined'] ? $mfDeclined[$p] = substr($mf['declined'], 0, 90) : $mfPeriods[] = $p;
+                }
+            } catch (Throwable $e) {
+                $mfDeclined[$p] = substr($e->getMessage(), 0, 90);
             }
         }
-        $this->note('6.7 ECL pre-FLI by period', count($eclPeriods) . ' periods with a PD, an LGD and an ECL' . ($eclPeriods !== [] ? " ({$eclPeriods[0]}..{$eclPeriods[count($eclPeriods) - 1]})" : '') . '; ' . count($eclSkipped) . ' without' . ($eclSkipped !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($eclSkipped), $eclSkipped), 0, 2)) : ''));
+        $this->note('6.7 ECL by period (month-end path, discounted)', count($eclPeriods) . ' periods with a PD, an LGD and an ECL' . ($eclPeriods !== [] ? " ({$eclPeriods[0]}..{$eclPeriods[count($eclPeriods) - 1]})" : '') . '; ' . count($eclSkipped) . ' without' . ($eclSkipped !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($eclSkipped), $eclSkipped), 0, 3)) : ''));
+        $this->note('6.7 Mega Farm by period', count($mfPeriods) . ' periods provided' . ($mfPeriods !== [] ? " ({$mfPeriods[0]}..{$mfPeriods[count($mfPeriods) - 1]})" : '') . '; ' . count($mfDeclined) . ' declined' . ($mfDeclined !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($mfDeclined), $mfDeclined), 0, 3)) : ''));
 
         $before = DB::table('eir_amortisation')->count();
         $errors = [];
@@ -337,22 +376,9 @@ class Bootstrap extends Command
         $rows = DB::table('eir_amortisation')->count();
         $this->note('6.9 revenue', count($periods) . " periods run {$from}..{$to}; " . ($rows - $before) . " roll-forward rows written, {$rows} in all" . ($errors !== [] ? '; failed: ' . implode(' | ', array_slice($errors, 0, 3)) : ''));
 
-        // 4 PD: the transition matrix over the last twelve staged months, the Stage 3 probabilities to the loan book
-        try {
-            $pd = app(\App\Services\Pd\PdEngineService::class)->run($to, $portfolio, 12, 'bootstrap', $user);
-            $this->note('6.4 PD transition matrix', "matrix {$pd['matrix_id']} over {$pd['window']}: {$pd['transitioned']} transitions; PD to Stage 3 by stage " . json_encode($pd['pds']) . "; {$pd['updated']} loans given a PD");
-        } catch (Throwable $e) {
-            $this->note('6.4 PD transition matrix', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
-        }
-        // 5-7 LGD, FLI, ECL
-        // 5 LGD: the Stage 3 cohort of twelve months earlier followed to the period
-        try {
-            $lgd = app(\App\Services\Lgd\LgdEngineService::class)->run($to, $portfolio, 12, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
-            $this->note('6.5 LGD cohort workout', "lgd {$lgd['lgd_id']} over {$lgd['window']}: cohort {$lgd['cohort']} loans, " . number_format($lgd['start_balance'], 0) . "; cure " . round($lgd['cure_rate'] * 100, 2) . "%, recovery " . round($lgd['recovery_rate'] * 100, 2) . "%, LGD " . round($lgd['lgd'] * 100, 2) . "%; applied to {$lgd['updated']} loans");
-        } catch (Throwable $e) {
-            $this->note('6.5 LGD cohort workout', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
-        }
-
+        // the PD and LGD of the last period were measured by segment above; the
+        // pooled single-portfolio runs that stood here would overwrite them
+        // with figures that include the Mega Farm programme
         // 2 the scenario set: the first set of 15.8 seeded as proposed and approved under the bootstrap label so the chain can run
         try {
             $sets = app(\App\Services\Scenario\ScenarioSetService::class);
@@ -386,12 +412,13 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.6 forward-looking route', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
-        // 7 ECL on the post-FLI PDs, after the scenario set and the chain
+        // 7 ECL on the post-FLI PDs of the last period, now under the seeded scenario set, discounted
         try {
-            Artisan::call('ifrs9:recalculate-ecl', ['period' => $to, '--level' => 'portfolio', '--portfolio' => $portfolio, '--discounting' => 'discounted',
-                '--pd' => DB::table('loan_books')->where('reporting_period', $to)->whereNotNull('pd_post_fli')->exists() ? 'pd_post_fli' : 'pd_prefli']);
-            $disc = DB::table('loan_books')->where('reporting_period', $to)->selectRaw('sum(ecl_value) ecl, sum(ecl_value_discounted) disc, sum(ecl_value_discounted is not null) n')->first();
-            $this->note('6.7 ECL', $to . ': ' . trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 160))) . ' | undiscounted ' . number_format((float) $disc->ecl, 0) . "; discounted through the time-phased engine on {$disc->n} loans with a locked EIR: " . number_format((float) $disc->disc, 0));
+            Artisan::call('ifrs9:segment-ecl', ['from' => $to, '--pd' => 'pd_post_fli', '--discounting' => 'discounted', '--prune-stale' => true]);
+            $out = Artisan::output();
+            $disc = DB::table('loan_books')->where('reporting_period', $to)->whereNotIn('product_code', \App\Services\MegaFarm\MegaFarmEclService::GLS)
+                ->selectRaw('sum(ecl_value) ecl, sum(ecl_value_discounted) disc, sum(ecl_value_discounted is not null) n, sum(ecl_value is not null and ecl_value_discounted is null) un')->first();
+            $this->note('6.7 ECL', $to . ': MAIIC book undiscounted ' . number_format((float) $disc->ecl, 0) . "; discounted at the EIR on {$disc->n} loans: " . number_format((float) $disc->disc, 0) . "; {$disc->un} loans not discountable (named on the run)" . (str_contains($out, 'fail closed') ? ' | ' . trim(preg_replace('/\s+/', ' ', substr($out, 0, 200))) : ''));
         } catch (Throwable $e) {
             $this->note('6.7 ECL', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
@@ -405,20 +432,12 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.2 scenario sensitivity', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
-        // 7b the Mega Farm programme, where its book is in the period (spec section 16, D30)
-        try {
-            if (app(\App\Services\MegaFarm\MegaFarmEclService::class)->loans($to)->exists()) {
-                $mf = app(\App\Services\MegaFarm\MegaFarmEclService::class)->run($to, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
-                $this->note('6.7 Mega Farm', $mf['declined'] ? "declined: {$mf['declined']}" : "{$mf['loans']} loans, programme ECL " . number_format($mf['programme_ecl'], 0) . ', MAIIC share ' . ($mf['share'] * 100) . '% = ' . number_format($mf['maiic_ecl'], 0) . " (scalar {$mf['scalar']}, LGD " . round($mf['lgd'] * 100, 1) . '%)');
-            } else {
-                $this->note('6.7 Mega Farm', 'no Mega Farm loans in the book for ' . $to . ' (the MF_01 to MF_08 extracts are awaited from Barry)');
-            }
-        } catch (Throwable $e) {
-            $this->note('6.7 Mega Farm', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
-        }
+        // 7b the Mega Farm programme of the last period, as run in the loop above (spec section 16, D30)
+        $last = DB::table('megafarm_ecl_runs')->where('reporting_period', $to)->orderByDesc('id')->first();
+        $this->note('6.7 Mega Farm', $last === null ? 'no Mega Farm loans in the book for ' . $to : ($last->declined ? "declined: {$last->declined}" : "{$last->loans} loans, programme ECL " . number_format((float) $last->programme_ecl, 0) . ', MAIIC share ' . ((float) $last->share * 100) . '% = ' . number_format((float) $last->maiic_ecl, 0)));
         // 11 stress testing: the approved set's scenarios as saved stress runs
         try {
-            $st = app(\App\Services\Stress\StressTestService::class)->runSet($to, $portfolio, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+            $st = app(\App\Services\Stress\StressTestService::class)->runSet($to, null, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
             $this->note('6.11 stress testing', $st === [] ? 'no approved scenario set' : collect($st)->map(fn ($r, $n) => "{$n} " . number_format($r['stress_ecl'], 0) . ' (' . ($r['delta_pct'] >= 0 ? '+' : '') . $r['delta_pct'] . '%)')->implode('; '));
         } catch (Throwable $e) {
             $this->note('6.11 stress testing', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
@@ -470,6 +489,10 @@ class Bootstrap extends Command
 
     private function note(string $step, string $what): void
     {
+        // the controllers the chain calls lower the time limit to 300 s for the web; on
+        // the console that cap stopped a full bootstrap part-way (audit H14), so each
+        // step lifts it again
+        set_time_limit(0);
         $this->report[] = [$step, $what];
         $this->line("<info>[{$step}]</info> {$what}");
     }

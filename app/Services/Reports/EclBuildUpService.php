@@ -64,7 +64,8 @@ class EclBuildUpService
         $carrying = (float) ($l->carrying_amount ?? 0);
         $undrawn = (float) ($l->commitments ?? 0);
         $utilisation = $l->facility_utilisation_rate === null ? 1.0 : (float) $l->facility_utilisation_rate;
-        $ead = $carrying + $undrawn * $utilisation;
+        // a credit balance is owed to the customer, not an exposure: the engine floors the EAD at nil (spec 3.8)
+        $ead = max(0.0, $carrying + $undrawn * $utilisation);
 
         // the engine's pre-FLI mode reads COALESCE(pd_prefli, pd_post_fli)
         $pre = $l->pd_prefli ?? $l->pd_post_fli;

@@ -137,7 +137,7 @@ class GovernanceService
             ],
             'partly_drawn_interest_basis' => [
                 'label' => 'Interest basis on a partly drawn facility',
-                'description' => 'E-Banker can charge interest on the sanctioned amount or on the drawn balance, and the instalment likewise. The flag is now supplied per account (loan master and scheme settings). Open choice O6.',
+                'description' => 'E-Banker can charge interest on the sanctioned amount or on the drawn balance, and the instalment likewise. The flag is now supplied per account (loan master and scheme settings). Open choice O6. A facility still partly drawn with no flag is refused a schedule. A facility drawn in full in tranches needs the interest basis only for the months it was partly drawn: where neither the contract nor its scheme states it, the basis is read from the interest E-Banker posted in those months (the drawn balance or the sanctioned amount, whichever the postings follow) and recorded as observed; with no postings to read it is refused (results review of 13 October 2026, E1). The second option takes the drawn balance everywhere without reading the postings.',
                 'options' => ['Per-account flag, then the scheme, else refuse', 'Balance-wise everywhere, flag exceptions'],
                 'default' => 'Per-account flag, then the scheme, else refuse',
             ],
@@ -236,6 +236,20 @@ class GovernanceService
                 'description' => 'When fees are imported by loan (EIR Data Intake, type fees), every fee held for each year the file covers is set beside the trial balance movement of 4871 Legal Fees and 4873 Arrangement Fees, month by month and for the year, inside the reconciliation band. The fee GLs agree to the trial balance every month, while about 44 percent of 2025 fee income never touched a loan account, so the GL is the control total (spec v4 sections 3.7 and 7.4). The result shows on the import and on Fee Classification; it reports and never blocks. Switching it off stops the check, and the screens then say it is off.',
                 'options' => [\App\Services\Eir\FeeGlReconciliationService::ON, \App\Services\Eir\FeeGlReconciliationService::OFF],
                 'default' => \App\Services\Eir\FeeGlReconciliationService::ON,
+            ],
+            // Added 14 October 2026 (results review E3, spec v4 sections 7.8.2 and 7.8.6).
+            'fee_source_precedence' => [
+                'label' => 'Which source a contract\'s fees come from',
+                'description' => 'The same fee is held in several places: the GL fee postings by loan (GL_04, tied to the loan through the drawdown batch), Finance\'s fee workbook loaded through EIR Data Intake, the origination system\'s charges table (P2_07) and the contract master\'s fee columns (Extract A). The engine reads a contract\'s fees from the highest source in this order that holds any fee for it; a line from a lower source is kept, shown and marked superseded, never enters the EIR and is not counted again by the fee GL check, so no fee is counted twice. The take-on workbook\'s fees are the only record of the take-on loans and never compete with the others (spec v4 sections 7.8.2 and 7.8.6). Every line still needs a person\'s classification and review before it reaches an EIR.',
+                'options' => [\App\Services\Eir\FeeSourcePrecedence::GL_FIRST, \App\Services\Eir\FeeSourcePrecedence::FINANCE_FIRST, \App\Services\Eir\FeeSourcePrecedence::LOS_FIRST],
+                'default' => \App\Services\Eir\FeeSourcePrecedence::GL_FIRST,
+            ],
+            // Added 14 October 2026 (results review E2, spec v4 section 6.9).
+            'takeon_eir_plausibility' => [
+                'label' => 'Take-on EIR: the check before it is used',
+                'description' => 'A take-on loan\'s EIR is solved from origination on the take-on workbook\'s schedule. Before it is carried into the EIR engine the schedule is solved again with no fee: a schedule that is a true record of the loan gives back the rates it charges, so its no-fee rate must lie inside the lowest and highest rate the schedule\'s own lines charge, widened by this margin for the day-count and compounding differences between the workbook and the solver. A schedule outside the band (a balance the lines do not explain, instalments sharing one date, a loan it never retires) is refused with the reason and the loan stays on its take-on balance until Finance corrects the block (spec v4 section 6.9; results review of 13 October 2026, E2).',
+                'options' => ['Inside the schedule\'s own rates, 0.5 point either side', 'Inside the schedule\'s own rates, 1 point either side', 'Inside the schedule\'s own rates, 0.25 point either side'],
+                'default' => 'Inside the schedule\'s own rates, 0.5 point either side',
             ],
             'mega_farms_scope' => [
                 'label' => 'Mega Farms facilities',

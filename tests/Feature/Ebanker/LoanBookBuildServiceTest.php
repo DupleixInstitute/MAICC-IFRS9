@@ -141,6 +141,142 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertArrayNotHasKey($m, (new LandingZoneReader())->ledgerByAccount('2024-08-31'));
     }
 
+    /**
+     * A loan GL outside MAIIC's own map takes the title the trial balance gives
+     * it, so the Mega Farm schemes reach the book named as E-Banker names them
+     * (and are staged, segmented and provided as the programme); with no title
+     * held the GL code stands, never a guessed name.
+     */
+    public function test_a_mega_farm_gl_takes_its_trial_balance_title_as_the_product_group(): void
+    {
+        Schema::create('gl_trial_balance_lines', function (Blueprint $t) { $t->increments('id'); $t->string('period'); $t->string('gl_code'); $t->string('gl_title')->nullable(); });
+        DB::table('gl_trial_balance_lines')->insert(['period' => '2024-08', 'gl_code' => '1050302', 'gl_title' => 'Mega Farm Seed Loans']);
+        $m = '000104480000002'; $n = '000104480000003';
+        $this->raw('MF_01', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050302', 'CUSTOMER_ID' => '735', 'ACCOUNT_NAME' => 'Seed Grower', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_03', '901', $m, '2024-07-31', ['CUMVOUCH_DET_ID' => '901', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050302', 'TRANSACTION_DATE' => '7/31/2024', 'TRANSAMT' => '-100000.00', 'TRANTYPE' => '301', 'DELETE_FLAG' => 'N']);
+        $this->raw('MF_01', $n, $n, '2024-07-01', ['NEW_AC_NUMBER' => $n, 'GLCODE' => '1050306', 'CUSTOMER_ID' => '736', 'ACCOUNT_NAME' => 'Untitled Scheme', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_03', '902', $n, '2024-07-31', ['CUMVOUCH_DET_ID' => '902', 'NEW_AC_NUMBER' => $n, 'AC_GLCODE' => '1050306', 'TRANSACTION_DATE' => '7/31/2024', 'TRANSAMT' => '-200000.00', 'TRANTYPE' => '301', 'DELETE_FLAG' => 'N']);
+
+        $this->service()->build('2024-07', '2024-07', 'B', 1, 2);
+        $rows = DB::table('loan_books')->where('reporting_period', '2024-07')->get()->keyBy('contract_id');
+        $this->assertSame('Mega Farm Seed Loans', $rows['104480000002']->product_group);
+        $this->assertSame('Mega Farm (Government fund)', $rows['104480000002']->funding_source);
+        $this->assertSame('GL 1050306', $rows['104480000003']->product_group);
+        $this->assertSame('MAIIC Agricultural Loans', $rows['104420000005']->product_group);
+        $this->assertSame('MAIIC', $rows['104420000005']->funding_source);
+    }
+
+    /**
+     * A bullet loan past its maturity that still owes a balance is overdue from
+     * maturity, even where E-Banker's report leaves the buckets and the overdue
+     * date empty (the Mega Farm loans at December 2025); a loan not yet mature
+     * keeps the reported count.
+     */
+    public function test_a_matured_balance_is_past_due_from_its_maturity_date(): void
+    {
+        $m = '000104480000004';
+        $this->raw('MF_01', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'CUSTOMER_ID' => '737', 'ACCOUNT_NAME' => 'Bullet Grower', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_03', '903', $m, '2024-07-01', ['CUMVOUCH_DET_ID' => '903', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'TRANSACTION_DATE' => '7/1/2024', 'TRANSAMT' => '-300000.00', 'TRANTYPE' => '301', 'DELETE_FLAG' => 'N']);
+        $this->raw('MF_05', '7001', $m, '2024-08-31', ['LOAN_BOOK_DET_ID_A' => '7001', 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'MATURITY_DATE' => '7/31/2024',
+            'PRINCIPAL' => '300000.00', 'CARRYING_AMOUNT' => '300000.00', 'DAY_1_30' => '0.00', 'DAY_31_91' => '0.00', 'DAY_91_180' => '0.00', 'DAY_181_270' => '0.00', 'DAY_271_360' => '0.00', 'OVERDUE_PRINCI_DATE' => '']);
+
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104480000004')->first();
+        $this->assertSame(31, (int) $row->overdue_days);              // 31 Jul to 31 Aug, from maturity
+        $this->assertSame('2024-07-31', $row->overdue_principal_date);
+        // the in-scope loan matures in 2026: its reported count stands
+        $this->assertSame(61, (int) DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->value('overdue_days'));
+    }
+
+    /** A loan of 120,000 drawn 1 July 2024, its stored August run saying what $run says, and the chart rows given. */
+    private function chartLoan(string $a, array $run, array $chart, array $receipts = [], array $definitions = []): void
+    {
+        $this->raw('P1_02', $a, $a, '2024-07-01', ['NEW_AC_NUMBER' => $a, 'GLCODE' => '1050101', 'CUSTOMER_ID' => '900', 'ACCOUNT_NAME' => 'Chart Ltd', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '10.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('P1_01', $a . 'd', $a, '2024-07-01', ['CUMVOUCH_DET_ID' => '1', 'NEW_AC_NUMBER' => $a, 'TRANSACTION_DATE' => '7/1/2024', 'TRANSAMT' => '-120000.00', 'TRANTYPE' => '301', 'DELETE_FLAG' => 'N']);
+        foreach ($receipts as $i => [$date, $amount]) {
+            $this->raw('P1_01', $a . 'r' . $i, $a, $date, ['CUMVOUCH_DET_ID' => (string) (10 + $i), 'NEW_AC_NUMBER' => $a, 'TRANSACTION_DATE' => $date, 'TRANSAMT' => $amount, 'TRANTYPE' => '305', 'DELETE_FLAG' => 'N']);
+        }
+        $this->raw('P2_08', $a . 'run', $a, '2024-08-31', $run + ['LOAN_BOOK_DET_ID_A' => '9' . substr($a, -3), 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => $a, 'GLCODE' => '1050101', 'VALUE_DATE' => '7/1/2024', 'MATURITY_DATE' => '6/1/2026', 'CARRYING_AMOUNT' => '120000.00', 'DAY_91_180' => '0.00', 'DAY_181_270' => '0.00', 'DAY_271_360' => '0.00']);
+        foreach ($chart as $i => [$due, $amount, $det, $serial]) {
+            $this->raw('P2_10', $a . 'c' . $i, $a, $due, ['INST_CHART_DET_ID' => $a . $i, 'NEW_AC_NUMBER' => $a, 'INST_DET_ID' => $det, 'INST_SR_NO' => (string) $serial, 'INSTALLMENT_DATE' => $due, 'INSTALLMENT_AMT' => $amount, 'ACTIVE_FLAG' => 'Y', 'DELETE_FLAG' => 'N', 'TRANSACTION_DATE' => '7/1/2024']);
+        }
+        foreach ($definitions as $det => $mode) {
+            $this->raw('P3_11', $a . 'def' . $det, $a, '2024-07-01', ['INST_DET_ID' => (string) $det, 'NEW_AC_NUMBER' => $a, 'INSTALLMENT_PAY_MODE' => $mode, 'DELETE_FLAG' => 'N']);
+        }
+    }
+
+    /**
+     * Verification of 14 October 2026: the as-at reports re-run in September
+     * 2026 aged monthly instalments on loans whose chart in force had nothing
+     * due until 2026 (Namalowe Eco Farm, Mchinji Civil Servants SACCO). No
+     * contractual payment had fallen due, so none was past due; the row says
+     * why it differs from the report.
+     */
+    public function test_reported_arrears_are_not_accepted_when_the_chart_in_force_has_nothing_due(): void
+    {
+        $a = '000104420000064';
+        $this->chartLoan($a, ['OVERDUE_PRINCI_DATE' => '7/1/2024', 'ARREAS_TOTAL' => '5000.00', 'DAY_1_30' => '5000.00', 'DAY_31_91' => '5000.00'],
+            [['2024-08-01', '0.00', '1', 1], ['2025-03-03', '60000.00', '2', 1], ['2025-09-03', '60000.00', '2', 2]]);
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000064')->first();
+        $this->assertSame(0, (int) $row->overdue_days);
+        $this->assertNull($row->overdue_principal_date);
+        $this->assertStringContainsString('no instalment falls due until 2025-03-03', $row->build_flag);
+        $this->assertStringContainsString(LoanBookBuildService::SCHEDULE_COUNT, $row->build_flag);
+        // a loan with no chart keeps the report's count
+        $this->assertSame(61, (int) DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->value('overdue_days'));
+    }
+
+    /** Microloan Foundation, December 2024: an overdue date in the future and the arrears in the buckets, nothing due on the chart. */
+    public function test_bucket_ageing_with_nothing_due_on_the_chart_in_force_is_not_accepted_either(): void
+    {
+        $a = '000104430000069';
+        $this->chartLoan($a, ['OVERDUE_PRINCI_DATE' => '9/1/2024', 'ARREAS_TOTAL' => '5000.00', 'DAY_1_30' => '0.00', 'DAY_31_91' => '0.00', 'DAY_181_270' => '5000.00'],
+            [['2024-08-01', '0.00', '1', 1], ['2025-12-09', '60000.00', '2', 1]]);
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104430000069')->first();
+        $this->assertSame(0, (int) $row->overdue_days);
+        $this->assertStringContainsString(LoanBookBuildService::SCHEDULE_COUNT, $row->build_flag, 'so staging does not age it by the buckets');
+    }
+
+    /**
+     * Udon Business and BenCal Technologies: the migrated chart dates the rest
+     * of a monthly definition on one day, and from that day the report shows
+     * the whole balance overdue from the value date. Dated by the definition,
+     * the instalments due are covered by the ledger receipts.
+     */
+    public function test_a_collapsed_chart_is_counted_on_its_monthly_definition_against_the_ledger(): void
+    {
+        $a = '000104450000056';
+        $chart = [['2024-07-01', '20000.00', '7', 1], ['2024-08-01', '20000.00', '7', 2]];
+        foreach (range(3, 6) as $serial) {
+            $chart[] = ['2024-08-01', '20000.00', '7', $serial]; // serials 3 to 6 all dated 1 August 2024
+        }
+        $this->chartLoan($a, ['OVERDUE_PRINCI_DATE' => '7/1/2024', 'ARREAS_TOTAL' => '120000.00', 'DAY_31_91' => '120000.00'], $chart,
+            [['2024-07-01', '20000.00'], ['2024-08-01', '20000.00']], ['7' => 'M']);
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104450000056')->first();
+        $this->assertSame(0, (int) $row->overdue_days, 'July and August are paid; September onward is not yet due');
+        $this->assertStringContainsString('dates several instalments on one day', $row->build_flag);
+        $this->assertStringContainsString('the report says 61', $row->build_flag);
+    }
+
+    /** A facility past its maturity cannot be drawn: its undrawn amount leaves the EAD (Mphanga Holdings, 65m undrawn after May 2025). */
+    public function test_an_undrawn_amount_past_maturity_is_no_exposure(): void
+    {
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $live = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->first();
+        $this->assertEquals(2000000, $live->commitments, 'matures in 2026: 12m approved, 10m drawn, 2m still available');
+        DB::table('loan_books')->delete();
+        DB::table('ebanker_raw_rows')->where('query_id', 'P1_03')->update(['payload' => json_encode(['NEW_AC_NUMBER' => '000104420000005', 'SANCTION_AMOUNT' => '12000000.00', 'PERIOD_YEARS' => '0', 'PERIOD_MONTHS' => '1', 'EXPIRY_DATE' => '8/1/2024'])]);
+        DB::table('ebanker_raw_rows')->where('query_id', 'P2_08')->where('source_key', '5000')->update(['payload' => json_encode(['LOAN_BOOK_DET_ID_A' => '5000', 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => '000104420000005', 'GLCODE' => '1050101', 'MATURITY_DATE' => '8/1/2024', 'CARRYING_AMOUNT' => '8000000.00', 'PRINCIPAL' => '8000000.00'])]);
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $matured = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->first();
+        $this->assertEquals(0, $matured->commitments);
+        $this->assertEquals(8000000, $matured->ead);
+        $this->assertEquals(2000000, json_decode($matured->build_basis, true)['undrawn_after_maturity']);
+    }
+
     public function test_method_a_copies_the_stored_run_and_derives_marked_where_none_exists(): void
     {
         $this->service()->build('2024-07', '2024-08', 'A', 1, 2);

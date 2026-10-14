@@ -7,12 +7,13 @@ use App\Services\Eir\GovernanceService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Feature\Eir\Concerns\CreatesFeeSchema;
 use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 class EirRevenueServiceTest extends TestCase
 {
-    use CreatesGovernanceSchema;
+    use CreatesGovernanceSchema, CreatesFeeSchema;
 
     protected $seed = false;
 
@@ -385,6 +386,36 @@ class EirRevenueServiceTest extends TestCase
         $this->assertEqualsWithDelta($jan->closing_gross + 400 + $feb->interest_accrued, $feb->closing_gross, 0.01);
     }
 
+    /**
+     * Signed in January, first drawn in February (Mphunzitsi SACCO: signed 15
+     * July 2025, first tranche in August): January owes nothing, so it opens
+     * at nil on the ledger basis and the tranche is added in February. It used
+     * to open January at the initial net investment on the schedule basis and
+     * never add a tranche.
+     */
+    public function test_a_facility_signed_in_the_month_but_drawn_later_opens_at_nil_on_the_ledger(): void
+    {
+        DB::table('contract_eir')->insert(['contract_id' => 'TL', 'eir_effective_annual' => 0.126825, 'origination_date' => '2025-01-10',
+            'source_day_count_basis' => 'ACT/365', 'input_snapshot' => json_encode(['initial_net_investment' => 1000, 'cash_flows' => [
+                ['due_date' => '2025-12-31', 'amount' => 1150],
+            ]]), 'locked_at' => '2025-01-10', 'created_at' => now(), 'updated_at' => now()]);
+        $this->loan('TL', '2025-01', 1);
+        $this->loan('TL', '2025-02', 1);
+        $this->actual('TL', '2025-02-15', 'Disbursement', 400);
+
+        $service = new EirRevenueService();
+        $service->run('TL', '2025-01');
+        $service->run('TL', '2025-02');
+        [$jan, $feb] = DB::table('eir_amortisation')->where('contract_id', 'TL')->orderBy('reporting_period')->get()->all();
+        $r = pow(1.126825, 1 / 12) - 1;
+
+        $this->assertSame('LEDGER', $jan->opening_basis);
+        $this->assertEqualsWithDelta(0, $jan->closing_gross, 0.01);
+        $this->assertSame('LEDGER', $feb->opening_basis);
+        $this->assertEqualsWithDelta(400, $feb->advances, 0.01);
+        $this->assertEqualsWithDelta($r * 400 * 14 / 28, $feb->interest_accrued, 0.01);
+    }
+
     public function test_an_advance_is_not_added_to_a_schedule_basis_roll_forward(): void
     {
         $this->seedLocked(); // no schedule dates: the initial net investment, which counts every tranche
@@ -455,5 +486,64 @@ class EirRevenueServiceTest extends TestCase
         // the schedule and the contractual rate agree, so the opening is the ledger's balance
         $this->assertEqualsWithDelta(1042.60, $row->opening_gross, 0.5);
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'EIR Opening Arrears')->count());
+    }
+
+    /**
+     * A take-on loan's workbook schedule carries the rates charged before the
+     * migration, so the rate its EIR moves from (D38) is the one recorded on
+     * the snapshot (the schedule's own no-fee rate), not today's contract rate
+     * (results review of 13 October 2026, E2).
+     */
+    public function test_a_floating_takeon_loan_moves_from_the_rate_its_schedule_carries(): void
+    {
+        $this->ratesSchema();
+        DB::table('contract_eir')->insert(['contract_id' => 'TF', 'eir_effective_annual' => 0.126825, 'rate_type' => 'FLOATING', 'contractual_rate' => 0.30,
+            'input_snapshot' => json_encode(['initial_net_investment' => 1000, 'metadata' => ['schedule_rate' => 0.12]]), 'locked_at' => '2025-01-01', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('loan_books')->insert(['contract_id' => 'TF', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 1, 'interest_rate' => 18]);
+
+        (new EirRevenueService())->run('TF', '2025-01');
+
+        $nominal = 12 * (pow(1.126825, 1 / 12) - 1) + 0.06;
+        $this->assertEqualsWithDelta(1000 * $nominal / 12, DB::table('eir_amortisation')->where('contract_id', 'TF')->value('interest_accrued'), 0.01);
+    }
+
+    /** A loan migrated at the take-on starts in August 2024 from the balance at the take-on; July 2024 is the take-on build's. */
+    public function test_a_migrated_loan_starts_after_the_takeon(): void
+    {
+        Schema::create('contract_takeon', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); });
+        DB::table('contract_takeon')->insert(['contract_id' => 'C-1']);
+        $this->seedLocked();
+        $this->loan('C-1', '2024-07', 1);
+        $this->loan('C-1', '2024-08', 1);
+
+        $july = (new EirRevenueService())->run('C-1', '2024-07');
+        $this->assertSame('BLOCKED', $july['status']);
+        $this->assertStringContainsString('Migrated at the take-on of 31 July 2024', $july['error']);
+        $this->assertSame('CREATED', (new EirRevenueService())->run('C-1', '2024-08')['status']);
+    }
+
+    /** On the ledger basis a tranche is advanced net of the reviewed integral fee deducted from it, as the EIR was solved (spec 7.8.4, E3). */
+    public function test_a_ledger_basis_advance_is_net_of_the_reviewed_fee_of_its_month(): void
+    {
+        $this->createFeeSchema();
+        DB::table('contract_eir')->insert(['contract_id' => 'NF', 'eir_effective_annual' => 0.126825, 'origination_date' => '2025-02-01',
+            'source_day_count_basis' => 'ACT/365', 'input_snapshot' => json_encode(['initial_net_investment' => 970, 'metadata' => ['origination_date' => '2025-02-01'], 'cash_flows' => [
+                ['due_date' => '2025-12-31', 'amount' => 1150],
+            ]]), 'locked_at' => '2025-02-01', 'created_at' => now(), 'updated_at' => now()]);
+        $this->loan('NF', '2025-02', 1);
+        $this->actual('NF', '2025-02-01', 'Disbursement', 1000);
+        DB::table('contract_fees')->insert([
+            ['contract_id' => 'NF', 'fee_type' => 'arrangement', 'amount' => 30, 'transaction_date' => '2025-02-01', 'cashflow_direction' => 'RECEIVED', 'classification_status' => 'REVIEWED', 'integral' => 1, 'superseded_by_source' => null],
+            // pending and superseded lines do not net the advance
+            ['contract_id' => 'NF', 'fee_type' => 'legal', 'amount' => 20, 'transaction_date' => '2025-02-01', 'cashflow_direction' => 'RECEIVED', 'classification_status' => 'PENDING', 'integral' => null, 'superseded_by_source' => null],
+            ['contract_id' => 'NF', 'fee_type' => 'arrangement', 'amount' => 30, 'transaction_date' => '2025-02-01', 'cashflow_direction' => 'RECEIVED', 'classification_status' => 'REVIEWED', 'integral' => 1, 'superseded_by_source' => 'GL posting'],
+        ]);
+
+        (new EirRevenueService())->run('NF', '2025-02');
+        $row = DB::table('eir_amortisation')->where('contract_id', 'NF')->first();
+
+        $this->assertSame('LEDGER', $row->opening_basis);
+        $this->assertEqualsWithDelta(970, $row->advances, 0.01);
+        $this->assertEqualsWithDelta((pow(1.126825, 1 / 12) - 1) * 970, $row->interest_accrued, 0.01);
     }
 }

@@ -40,6 +40,41 @@ class MegaFarmEclService
     {
     }
 
+    /**
+     * The portfolios of a period that hold the programme only (every loan on
+     * a Mega Farm GL). The MAIIC book's PD, LGD and ECL engines leave them
+     * out: the programme is staged and provided here (D30, section 16.8: "the
+     * MAIIC book keeps its transition-matrix probabilities"), and its 95
+     * percent default rate must not enter MAIIC's own measures.
+     *
+     * @return list<int>
+     */
+    public static function programmePortfolios(string $period): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'product_code')) {
+            return [];
+        }
+        $gls = "'" . implode("','", self::GLS) . "'";
+
+        return DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('loan_portfolio_id')
+            ->groupBy('loan_portfolio_id')->havingRaw("SUM(CASE WHEN product_code IN ({$gls}) THEN 0 ELSE 1 END) = 0")
+            ->pluck('loan_portfolio_id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+    }
+
+    /** Portfolios of a period that mix programme loans with MAIIC's own (the book has not been split). @return list<int> */
+    public static function mixedPortfolios(string $period): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'product_code')) {
+            return [];
+        }
+        $gls = "'" . implode("','", self::GLS) . "'";
+
+        return DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('loan_portfolio_id')
+            ->groupBy('loan_portfolio_id')
+            ->havingRaw("SUM(CASE WHEN product_code IN ({$gls}) THEN 1 ELSE 0 END) > 0 AND SUM(CASE WHEN product_code IN ({$gls}) THEN 0 ELSE 1 END) > 0")
+            ->pluck('loan_portfolio_id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+    }
+
     /** The programme's loans of a period. */
     public function loans(?string $period)
     {
@@ -88,7 +123,9 @@ class MegaFarmEclService
                 $scalar = min($scalar, $ceiling);
                 $basis['scalar_applied'] = $scalar; $basis['ceiling'] = $ceiling; $basis['sector_pd_by_stage'] = $sector;
                 foreach ($sector as $stage => $pd) {
-                    $pdByStage[$stage] = $stage === '3' ? 1.0 : min(1.0, $pd * $scalar);
+                    // the array key comes back as an integer, so the stage is compared as a string:
+                    // compared as it was, Stage 3 took the scaled sector PD (0.385 in January 2026) instead of 1
+                    $pdByStage[(string) $stage] = (string) $stage === '3' ? 1.0 : min(1.0, $pd * $scalar);
                 }
                 break;
             case str_starts_with($method, 'Seasonal cohort'):
@@ -111,14 +148,19 @@ class MegaFarmEclService
         }
 
         // the ECL per loan: EAD x PD x LGD; MAIIC's share
-        $lgd = $this->lgd($period, $loans);
+        [$lgd, $lgdBasis] = $this->lgd($period);
+        if ($lgd === null) {
+            return $this->record($period, $scope, $method, $loans, $byStage, $pdByStage, $scalar, 0.0, $share, $lgdBasis, $basis, $userId, $label);
+        }
         $basis['lgd'] = $lgd;
+        $basis['lgd_basis'] = $lgdBasis;
         $programme = 0.0;
         DB::transaction(function () use ($loans, $pdByStage, $lgd, $share, &$programme) {
             foreach ($loans as $l) {
                 $s = (string) ($l->ifrs9stage_post_qualitative ?? '1');
                 $pd = $pdByStage[$s] ?? ($s === '3' ? 1.0 : ($pdByStage['1'] ?? 0.0));
-                $ead = (float) $l->carrying_amount + (float) $l->commitments * (float) ($l->facility_utilisation_rate ?? 1);
+                // a credit balance is owed to the farmer, not an exposure (spec 3.8): no negative allowance
+                $ead = max(0.0, (float) $l->carrying_amount + (float) $l->commitments * (float) ($l->facility_utilisation_rate ?? 1));
                 $ecl = $ead * $pd * $lgd;
                 $programme += $ecl;
                 DB::table('loan_books')->where('id', $l->id)->update(['pd_prefli' => round($pd, 8), 'pd_post_fli' => round($pd, 8), 'lgd_value' => round($lgd, 8), 'ead' => round($ead, 2), 'ecl_value' => round($ecl * $share, 2), 'fli_route' => 'Mega Farm programme (D30)', 'fli_method' => $this->setting('megafarm_pd_method', 'Agricultural-sector PD scaled to the programme', CarbonImmutable::today())]);
@@ -147,8 +189,10 @@ class MegaFarmEclService
         $prior = CarbonImmutable::parse($period . '-01')->subYear()->format('Y-m');
         $earlier = $this->loans($prior)->get(['contract_id', 'ifrs9stage_post_qualitative', 'carrying_amount']);
         if ($earlier->isEmpty() || ! isset($sector['1']) || $sector['1'] <= 0) {
-            // with one season only, the 2025 statements' rate stands as the measure: K48.7bn Stage 3 of K51.5bn gross against the sector PD
-            return isset($sector['1']) && $sector['1'] > 0 ? round((48.7 / 51.5) / $sector['1'], 4) : null;
+            // no programme book a year earlier (or no sector PD): the scalar cannot be
+            // measured and the method is declined. It used to fall back to a ratio typed
+            // from the 2025 statements (48.7 / 51.5), a number no data in the system produced.
+            return null;
         }
         $now = $loans->keyBy('contract_id');
         $exposure = 0.0; $defaulted = 0.0;
@@ -170,12 +214,33 @@ class MegaFarmEclService
         return (int) $this->loans(null)->selectRaw('count(distinct substr(reporting_period, 1, 4)) n')->value('n');
     }
 
-    /** The LGD: the book's cohort LGD where held, else 0.45 and said so in the basis. */
-    private function lgd(string $period, $loans): float
+    /**
+     * The LGD: the programme's own cohort workout (spec 16.8, step 4: the loss
+     * is built from the programme's collection experience), the Stage 3 Mega
+     * Farm loans of twelve months earlier followed to the period by
+     * LgdEngineService on the programme's portfolio. It used to take the
+     * average LGD of MAIIC's own book, or a typed 0.45 when none was held:
+     * neither is the programme's experience. With no programme portfolio or no
+     * Stage 3 cohort to follow, the run is declined with the reason.
+     *
+     * @return array{0:?float,1:string} the LGD and its basis (or the reason it is declined)
+     */
+    private function lgd(string $period): array
     {
-        $held = DB::table('loan_books')->where('reporting_period', $period)->whereNotIn('product_code', self::GLS)->whereNotNull('collection_lgd')->avg('collection_lgd');
+        $portfolios = self::programmePortfolios($period);
+        if ($portfolios === []) {
+            return [null, 'the programme has no portfolio of its own: run ifrs9:segment-portfolios so its LGD can be measured on its own loans'];
+        }
+        try {
+            $m = app(\App\Services\Lgd\LgdEngineService::class)->measure($period, $portfolios, 12);
+        } catch (Throwable $e) {
+            return [null, 'the programme LGD cannot be measured: ' . $e->getMessage()];
+        }
+        if ($m['cohort'] === 0 || $m['start_balance'] <= 0) {
+            return [null, "no Stage 3 programme loan at {$m['start_period']} to follow: the programme LGD cannot be measured"];
+        }
 
-        return $held !== null ? (float) $held : 0.45;
+        return [(float) $m['lgd'], sprintf('programme cohort workout %s to %s: %d loans, %s; cure %.2f%%, recovery %.2f%%', $m['start_period'], $period, $m['cohort'], number_format($m['start_balance'], 0), $m['cure_rate'] * 100, $m['recovery_rate'] * 100)];
     }
 
     private function record(string $period, string $scope, string $method, $loans, array $byStage, ?array $pdByStage, ?float $scalar, float $lgd, float $share, ?string $declined, array $basis, ?int $userId, ?string $label, float $programme = 0.0): array

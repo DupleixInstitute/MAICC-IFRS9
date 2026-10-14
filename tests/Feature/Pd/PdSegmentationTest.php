@@ -59,7 +59,7 @@ class PdSegmentationTest extends TestCase
             $t->decimal('pd_prefli', 16, 8)->nullable(); $t->decimal('pd_post_fli', 16, 8)->nullable(); $t->decimal('12m_pd', 8, 2)->nullable(); $t->decimal('lifetime_pd', 16, 8)->nullable();
             $t->decimal('lgd_value', 16, 8)->nullable(); $t->decimal('collection_lgd', 16, 8)->nullable(); $t->decimal('ecl_value', 20, 2)->nullable();
             $t->string('pd_segment_key')->nullable(); $t->string('pd_applied_segment_key')->nullable(); $t->string('pd_segment_run_id')->nullable(); $t->integer('pd_matrix_id')->nullable();
-            $t->string('lgd_applied_segment_key')->nullable(); $t->integer('lgd_source_id')->nullable();
+            $t->string('lgd_applied_segment_key')->nullable(); $t->integer('lgd_source_id')->nullable(); $t->text('build_basis')->nullable();
         });
         foreach (['segment_parameter_runs', 'segment_parameter_results'] as $table) {
             Schema::dropIfExists($table);
@@ -249,6 +249,38 @@ class PdSegmentationTest extends TestCase
         DB::table('loan_books')->where('reporting_period', '2026-08')->where('contract_id', 'B1-2')->update(['pd_segment_run_id' => null]);
         EclSegmentLineage::stamp($row);
         $this->assertNull($row->pd_segment_run_id);
+    }
+
+    /**
+     * Verification of 14 October 2026. A loan with a nil or credit balance at
+     * the window start is no observation (ten such loans counted towards the
+     * governed minimum of MAIIC's Stage 1 cohort, and a credit balance shrank
+     * the balance the defaults are weighed against). A loan written off in the
+     * window defaulted, though the written-off account is left in the book at
+     * nil and stages as current, or leaves the book with a last row at nil.
+     */
+    public function test_a_nil_start_balance_is_no_observation_and_a_write_off_in_the_window_is_a_default(): void
+    {
+        $basis = fn (float $w) => json_encode(['ledger' => ['written_off' => $w]]);
+        $add = function (string $id, string $period, string $stage, float $ca, float $writtenOff) use ($basis) {
+            $this->loan($id, $period, 3, $stage, $ca, '3-3. Manufacturing', '1079');
+            DB::table('loan_books')->where('contract_id', $id)->where('reporting_period', $period)->update(['build_basis' => $basis($writtenOff)]);
+        };
+        DB::table('loan_portfolios')->insert(['id' => 3, 'name' => 'Gamma']);
+        $add('C-ok', '2025-08', '1', 1000, 0); $add('C-ok', '2026-08', '1', 900, 0);
+        $add('C-wo', '2025-08', '1', 1000, 0); $add('C-wo', '2026-08', '1', 0, 950);         // written off, left at nil, staged current
+        $add('C-gone', '2025-08', '1', 1000, 0); $add('C-gone', '2026-02', '1', 0, 980);    // written off, then gone: its last row is at nil
+        $add('C-nil', '2025-08', '1', 0, 0); $add('C-nil', '2026-08', '1', 0, 0);
+        $add('C-credit', '2025-08', '1', -50, 0); $add('C-credit', '2026-08', '1', -50, 0);
+
+        $m = app(PdSegmentationService::class)->measure('2026-08', 'portfolio', 12, [3]);
+        $c = $m['segments']['portfolio:3']['stages']['1'];
+        $this->assertSame(3, $c['loans'], 'the nil and the credit balance are no observation');
+        $this->assertEquals(3000.0, $c['balance']);
+        $this->assertSame(2, $c['default_loans'], 'both written-off loans defaulted');
+        $this->assertEqualsWithDelta(2 / 3, $c['observed'], 1e-9);
+        $this->assertSame(2, $m['not_observed_nil_balance']);
+        $this->assertSame(2, $m['defaults_by_write_off']);
     }
 
     public function test_the_governed_options_parse(): void

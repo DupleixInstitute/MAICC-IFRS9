@@ -91,6 +91,34 @@ class TimePhasedEclServiceTest extends TestCase
         $this->assertSame('DEFAULTED_RESOLUTION_HORIZON',DB::table('ecl_cashflow_projections')->value('pd_source'));
     }
 
+    /**
+     * Results review of 13 October 2026: a defaulted loan with no recovery plan
+     * is measured at the reporting date, so it needs no discount rate and a
+     * missing EIR (a take-on loan whose EIR is not yet locked) does not leave
+     * it unresolved; a performing loan without a locked EIR still is. The
+     * engine's own measure in ecl_value is left as the ECL run wrote it.
+     */
+    public function test_a_stage_three_loss_at_the_reporting_date_needs_no_eir_and_ecl_value_is_left_alone():void
+    {
+        DB::table('loan_books')->insert([
+            ['contract_id'=>'C-S3','reporting_period'=>'2025-01','ifrs9stage_pre_qualitative'=>3,'calculated_ifrs9_stage'=>3,'carrying_amount'=>100000,'pd_post_fli'=>.5,'collection_lgd'=>.6,'customer_lgd'=>.6,'ecl_value'=>60000],
+            ['contract_id'=>'C-S1','reporting_period'=>'2025-01','ifrs9stage_pre_qualitative'=>1,'calculated_ifrs9_stage'=>1,'carrying_amount'=>100000,'pd_post_fli'=>.1,'collection_lgd'=>.6,'customer_lgd'=>.6,'ecl_value'=>6000],
+        ]);
+        DB::table('ecl_scenario_assumptions')->insert(['scenario_code'=>'BASE','name'=>'Base','weight'=>1,'pd_multiplier'=>1,'lgd_multiplier'=>1,'ead_multiplier'=>1,'effective_from'=>'2025-01-01','status'=>'APPROVED']);
+        $result=(new TimePhasedEclService())->run(DB::table('loan_books')->orderBy('id')->get(),'2025-01');
+
+        $this->assertSame(1,$result['calculated'],json_encode($result['exceptions']));
+        $this->assertSame(['C-S1'],array_keys($result['exceptions']));
+        $s3=DB::table('loan_books')->where('contract_id','C-S3')->first();
+        $this->assertEqualsWithDelta(60000,(float)$s3->ecl_value_discounted,.01);
+        $this->assertNull($s3->ecl_discount_rate);
+        $this->assertSame('NONE_LOSS_AT_REPORTING_DATE',$s3->ecl_discount_rate_source);
+        $this->assertEqualsWithDelta(60000,(float)$s3->ecl_value,.01);
+        $s1=DB::table('loan_books')->where('contract_id','C-S1')->first();
+        $this->assertSame('TIME_PHASED_UNRESOLVED',$s1->ecl_discount_status);
+        $this->assertEqualsWithDelta(6000,(float)$s1->ecl_value,.01);
+    }
+
     public function test_a_stage_three_shortfall_is_discounted_from_the_approved_recovery_dates():void
     {
         DB::table('loan_books')->insert(['contract_id'=>'C-4','reporting_period'=>'2025-01','ifrs9stage_pre_qualitative'=>3,

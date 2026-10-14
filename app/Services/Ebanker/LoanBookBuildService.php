@@ -360,10 +360,10 @@ class LoanBookBuildService
         foreach ($runs as $account => $run) {
             $p = $run['payload'];
             $gl = trim((string) ($p['GLCODE'] ?? ''));
-            [$group, $fund] = LandingZoneReader::LOAN_GLS[$gl] ?? ["GL {$gl}", 'MAIIC'];
+            [$group, $fund] = $this->groupOf($gl);
             $name = $master[$account]['ACCOUNT_NAME'] ?? null;
             $arrears = $this->arrears($p);
-            [$dpd, $odDate] = $this->daysPastDue($p, $monthEnd, $arrears);
+            [$dpd, $odDate, $dpdFlag] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ''), $this->num($p['CARRYING_AMOUNT'] ?? 0), $account);
             $rows[] = $this->row([
                 'contract_id' => ltrim($account, '0'), 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
                 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl, 'funding_source' => $fund,
@@ -375,7 +375,7 @@ class LoanBookBuildService
                 'stored_carrying_amount' => $this->num($p['CARRYING_AMOUNT'] ?? 0), 'commitments' => $this->num($p['NOT_YET_DISBURS'] ?? 0),
                 'overdue_days' => $dpd, 'overdue_principal_date' => $odDate, 'contract_status' => $master[$account]['STATUS_CODE'] ?? null,
                 'industry_code' => $this->str($p['INDUSTRY_CODE'] ?? null), 'industry_type' => $this->str($p['IND_DESCR'] ?? null, 100),
-                'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'], 'build_flag' => null,
+                'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'], 'build_flag' => $dpdFlag,
                 'build_basis' => ['run' => $run['query_id'] . ':' . $run['source_key'], 'run_date' => $this->date($p['TRANSACTION_DATE'] ?? ''), 'segment' => $p['SEG_MENT'] ?? null],
             ] + $arrears, $monthEnd);
         }
@@ -429,7 +429,7 @@ class LoanBookBuildService
             $am = $master[$account] ?? [];
             $lm = $loans[$account] ?? [];
             $gl = trim((string) ($am['GLCODE'] ?? ($p['GLCODE'] ?? '')));
-            [$group, $fund] = LandingZoneReader::LOAN_GLS[$gl] ?? ["GL {$gl}", 'MAIIC'];
+            [$group, $fund] = $this->groupOf($gl);
             $flags = [];
             $stored = $run !== null ? $this->num($p['CARRYING_AMOUNT'] ?? 0) : null;
             $derived = $carrying;
@@ -455,7 +455,10 @@ class LoanBookBuildService
             $approved = $this->num($lm['SANCTION_AMOUNT'] ?? ($p['APPROVED'] ?? 0));
             $rate = $this->rateOn($account, $monthEnd, $p, $rates, $am);
             $arrears = $this->arrears($p);
-            [$dpd, $odDate] = $this->daysPastDue($p, $monthEnd, $arrears);
+            [$dpd, $odDate, $dpdFlag] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ($lm['EXPIRY_DATE'] ?? '')), $carrying, $account);
+            if ($dpdFlag !== null) {
+                $flags[] = $dpdFlag;
+            }
             $tenor = (int) ($this->num($lm['PERIOD_YEARS'] ?? 0) * 12 + $this->num($lm['PERIOD_MONTHS'] ?? 0));
             if ($tenor === 0 && isset($p['TENOR_YRS'])) {
                 $tenor = (int) round($this->num($p['TENOR_YRS']) * 12);
@@ -540,7 +543,87 @@ class LoanBookBuildService
      *
      * @return array{0:int,1:?string}
      */
-    private function daysPastDue(array $p, string $monthEnd, array $arrears): array
+    /**
+     * Days past due on the governed basis (dpd_basis), and the overdue date.
+     *
+     * A loan past its maturity date that still owes a balance has its whole
+     * balance overdue from maturity: the last instalment is unpaid, which is
+     * what the directive counts (spec 3.6). E-Banker's report leaves the
+     * arrears buckets and the overdue date empty on many such loans (the Mega
+     * Farm bullet loans, due once after harvest, read 0 days at December 2025
+     * on 47 billion kwacha that matured in 2025), so the count from maturity
+     * is taken whenever it is the longer. Results review, 13 October 2026.
+     */
+    private function daysPastDue(array $p, string $monthEnd, array $arrears, ?string $maturity = null, float $balance = 0.0, ?string $account = null): array
+    {
+        [$dpd, $odDate] = $this->daysPastDueReported($p, $monthEnd, $arrears);
+        [$dpd, $odDate, $flag] = $this->againstTheChart($account, $monthEnd, $dpd, $odDate, $balance, array_sum($arrears) > 0);
+        if ($maturity !== null && $balance > 0.005 && $maturity < $monthEnd) {
+            $sinceMaturity = (int) CarbonImmutable::parse($maturity)->diffInDays(CarbonImmutable::parse($monthEnd), false);
+            if ($sinceMaturity > $dpd) {
+                return [$sinceMaturity, $odDate === null || $odDate > $maturity ? $maturity : $odDate, $flag];
+            }
+        }
+
+        return [$dpd, $odDate, $flag];
+    }
+
+    private ?InstalmentChartHistory $charts = null;
+
+    /** The flag a row carries when its days past due were counted on the instalment chart, not taken from the report (StagingService reads it). */
+    public const SCHEDULE_COUNT = 'days past due counted on the instalment chart in force';
+
+    /**
+     * The reported ageing read against the instalment chart in force at the
+     * month-end (verification of the PD, LGD and staging inputs, 14 October
+     * 2026). Two E-Banker defects are corrected, each named on the row; any
+     * other reported ageing stands (dpd_basis).
+     *
+     *   Nothing due yet. The report ages arrears from a date on which the
+     *   chart in force schedules no instalment: on seven loans with a
+     *   moratorium or half-yearly instalments in 2025 (Namalowe Eco Farm,
+     *   Mchinji Civil Servants SACCO, Microloan Foundation, Chikomanya Farms,
+     *   Mthirakuwiri Farm, Barnet, Chigra) the as-at reports re-run in
+     *   September 2026 aged monthly instalments from definitions E-Banker had
+     *   deleted, while the chart in force had nothing due until months later. No
+     *   contractual payment had fallen due, so none was past due.
+     *
+     *   A collapsed chart. The chart dates several instalments of one monthly
+     *   definition on one day (InstalmentChartHistory), so from that day the
+     *   report shows the whole balance overdue from the value date (Udon
+     *   Business from December 2025) although the ledger shows the borrower
+     *   paid ahead. The days are counted on the chart dated by its monthly
+     *   definition against the ledger receipts to the month-end.
+     *
+     * @return array{0:int,1:?string,2:?string}
+     */
+    private function againstTheChart(?string $account, string $monthEnd, int $dpd, ?string $odDate, float $balance, bool $bucketsAged = false): array
+    {
+        if ($account === null || $account === '' || $balance <= 0.005) {
+            return [$dpd, $odDate, null];
+        }
+        $this->charts ??= new InstalmentChartHistory($this->zone);
+        $chart = $this->charts->at($account, $monthEnd);
+        if ($chart === null) {
+            return [$dpd, $odDate, null];
+        }
+        if ($chart['collapsed']) {
+            if ($chart['unreadable']) {
+                return [$dpd, $odDate, 'instalment chart dates several instalments on one day and states no monthly definition to date them by: the reported ageing is kept'];
+            }
+            [$own, $oldest] = InstalmentChartHistory::daysPastDue($chart['instalments'], $this->charts->receiptsTo($account, $monthEnd), $monthEnd);
+
+            return [$own, $oldest, sprintf('%s: it dates several instalments on one day (E-Banker defect) and is dated by its monthly definition, against the ledger receipts (%d; the report says %d)', self::SCHEDULE_COUNT, $own, $dpd)];
+        }
+        // the report's ageing, by its overdue date or by its buckets (which staging reads when the count is nil)
+        if (($dpd > 0 || $bucketsAged) && $chart['first_due'] !== null && $chart['first_due'] > $monthEnd) {
+            return [0, null, sprintf('%s: the reported %d days are not accepted, no instalment falls due until %s', self::SCHEDULE_COUNT, $dpd, $chart['first_due'])];
+        }
+
+        return [$dpd, $odDate, null];
+    }
+
+    private function daysPastDueReported(array $p, string $monthEnd, array $arrears): array
     {
         $odDate = $this->date($p['OVERDUE_PRINCI_DATE'] ?? '');
         $inArrears = array_sum($arrears) > 0 || $this->num($p['ARREAS_TOTAL'] ?? 0) > 0;
@@ -561,6 +644,35 @@ class LoanBookBuildService
         return [0, $odDate];
     }
 
+    /** @var array<string,string>|null the GL titles of the trial balance, by GL code */
+    private ?array $glTitles = null;
+
+    /**
+     * The product group and funding source of a loan GL. MAIIC's own GLs are
+     * the reader's map; any other loan GL (the Mega Farm programme's 1050301
+     * to 1050307) takes the title the trial balance gives it, so the build
+     * names the programme as E-Banker does ("Mega Farm Seed Loans") and the
+     * staging class (91 days, spec 3.6, D31), the programme portfolio and the
+     * Mega Farm module can recognise it. A GL with no title on any trial
+     * balance keeps its code as its name, never a guessed one.
+     *
+     * @return array{0:string,1:string}
+     */
+    private function groupOf(string $gl): array
+    {
+        if (isset(LandingZoneReader::LOAN_GLS[$gl])) {
+            return LandingZoneReader::LOAN_GLS[$gl];
+        }
+        if ($this->glTitles === null) {
+            $this->glTitles = DB::getSchemaBuilder()->hasTable('gl_trial_balance_lines')
+                ? DB::table('gl_trial_balance_lines')->whereNotNull('gl_title')->where('gl_title', '<>', '')->orderBy('period')->pluck('gl_title', 'gl_code')->map(fn ($t) => trim((string) $t))->all()
+                : [];
+        }
+        $megaFarm = in_array($gl, \App\Services\MegaFarm\MegaFarmEclService::GLS, true);
+
+        return [$this->glTitles[$gl] ?? "GL {$gl}", $megaFarm ? 'Mega Farm (Government fund)' : 'MAIIC'];
+    }
+
     private function row(array $v, string $monthEnd): array
     {
         $end = CarbonImmutable::parse($monthEnd);
@@ -568,6 +680,15 @@ class LoanBookBuildService
         // loan_books declares the numerics NOT NULL with a zero default; a loan with no due date carries 0
         $remaining = $due ? max(0, round($end->diffInMonths($due, false), 2)) : 0;
         $carrying = (float) $v['carrying_amount'];
+        // a facility past its maturity can no longer be drawn: its undrawn amount is no exposure
+        // (Mphanga Holdings matured May 2025 with 65m undrawn carried into the EAD of December;
+        // verification of 14 October 2026). The undrawn amount is kept on the build basis.
+        if ($due !== null && $due->lt($end) && (float) $v['commitments'] > 0) {
+            $basis = $v['build_basis'] ?? [];
+            $basis['undrawn_after_maturity'] = round((float) $v['commitments'], 2);
+            $v['build_basis'] = $basis;
+            $v['commitments'] = 0.0;
+        }
         $v += [
             'loan_portfolio_id' => $this->portfolioId(), 'reporting_year' => $end->year, 'reporting_month' => $end->month, 'reporting_period' => $end->format('Y-m'),
             'remaining_tenor' => $remaining, // the ECL engines read this as the credit-conversion fraction on the undrawn commitment (null = 1), so it is a fraction, not a percentage

@@ -8,6 +8,7 @@ use App\Services\Eir\FeeImportService;
 use App\Services\Eir\GlInterestImportService;
 use App\Services\Eir\ReferenceRateImportService;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The EIR engine's inputs built from the landing zone (spec v4 section 7):
@@ -198,9 +199,21 @@ class ContractInputsBuildService
      */
     public function disbursements(?string $to = null): array
     {
+        // A fee debit is not a drawdown (spec 7.8.4; results review of 13 October
+        // 2026, E1 and E3): a type-301 line in a batch that only credits a fee GL
+        // (GL_04), or whose narration names an arrangement or legal fee, is the
+        // fee capitalised into the loan. It is added to the drawdown of its date
+        // (with none that day, to the first drawdown) and never becomes a tranche
+        // of its own; the drawdown records how much of it is fee. Several
+        // postings on one day are one drawdown. Until 14 October 2026 every
+        // type-301 line was a tranche, so 18 facilities appeared to be drawn in
+        // tranches that were drawn once with their fees.
+        $feeDebits = app(GlFeeBuildService::class)->feeDebitVouchers();
         $rows = [];
+        $accounts = [];
         foreach ($this->zone->ledgerByAccount($to) as $account => $posts) {
-            $n = 0;
+            $byDate = [];
+            $fees = [];
             foreach ($posts as $p) {
                 $x = $p['payload'];
                 if (! in_array((string) ($x['TRANTYPE'] ?? ''), LoanBookBuildService::TYPE_DISBURSEMENT, true) || $p['row_date'] === null) {
@@ -210,12 +223,60 @@ class ContractInputsBuildService
                 if ($amt <= 0) {
                     continue;
                 }
-                $rows[] = ['contract_id' => $account, 'disbursement_date' => $p['row_date'], 'amount' => round($amt, 2), 'tranche_no' => ++$n,
-                    'reference' => 'CUMVOUCH:' . (string) ($x['CUMVOUCH_DET_ID'] ?? $p['source_key']), 'sub_account_no' => null];
+                // the take-on opening balance of 31 July 2024 is the migration, not money lent that day
+                // (the same opening legs TakeonLandingService reads: operated on the migration day, narrated "opening")
+                if (($x['OPERATION_DATE'] ?? '') === '7/31/2024' && stripos((string) ($x['PARTICULARS'] ?? ''), 'opening') !== false) {
+                    continue;
+                }
+                $voucher = (string) ($x['CUMVOUCH_DET_ID'] ?? $p['source_key']);
+                if (isset($feeDebits[$voucher]) || $this->namesAFee((string) ($x['PARTICULARS'] ?? ''))) {
+                    $fees[] = ['date' => $p['row_date'], 'amount' => round($amt, 2), 'voucher' => $voucher];
+                } else {
+                    $byDate[$p['row_date']]['amount'] = ($byDate[$p['row_date']]['amount'] ?? 0.0) + $amt;
+                    $byDate[$p['row_date']]['vouchers'][] = $voucher;
+                }
+            }
+            // every loan account the ledger holds is rebuilt, so one left with no drawdown loses the rows an earlier build gave it
+            $accounts[] = $account;
+            if ($byDate === [] && $fees === []) {
+                continue;
+            }
+            ksort($byDate);
+            foreach ($fees as $f) {
+                // into the drawdown of its date; with none that day, into the first
+                $date = isset($byDate[$f['date']]) ? $f['date'] : (array_key_first($byDate) ?? $f['date']);
+                $byDate[$date]['amount'] = ($byDate[$date]['amount'] ?? 0.0) + $f['amount'];
+                $byDate[$date]['fees'] = ($byDate[$date]['fees'] ?? 0.0) + $f['amount'];
+                $byDate[$date]['fee_vouchers'][] = $f['voucher'];
+            }
+            ksort($byDate);
+            $n = 0;
+            foreach ($byDate as $date => $d) {
+                $reference = 'CUMVOUCH:' . implode('+', $d['vouchers'] ?? []) . (isset($d['fee_vouchers']) ? ' fees ' . implode('+', $d['fee_vouchers']) : '');
+                $rows[] = ['contract_id' => $account, 'disbursement_date' => $date, 'amount' => round($d['amount'], 2), 'tranche_no' => ++$n,
+                    'reference' => mb_substr($reference, 0, 190), 'sub_account_no' => null, 'capitalised_fees' => isset($d['fees']) ? round($d['fees'], 2) : null];
             }
         }
 
-        return ['rows' => count($rows), 'result' => $rows === [] ? [] : app(\App\Services\Eir\DisbursementImportService::class)->import($rows)];
+        // The register is rebuilt from the ledger each time: the rows an earlier
+        // build wrote for these accounts (references CUMVOUCH:) give way to the
+        // new ones, so a fee debit that was a tranche stops being one. Rows
+        // delivered by file carry their own references and are left alone.
+        $removed = 0;
+        if ($accounts !== []) {
+            $removed = DB::table('contract_disbursements')->whereIn('contract_id', array_map(fn ($a) => ltrim((string) $a, '0'), $accounts))
+                ->where('reference', 'like', 'CUMVOUCH:%')->delete();
+        }
+
+        $result = $rows === [] ? [] : app(\App\Services\Eir\DisbursementImportService::class)->import($rows);
+
+        return ['rows' => count($rows), 'result' => $result + ['ledger_rows_replaced' => $removed, 'fee_debits_capitalised' => array_sum(array_map(fn ($r) => $r['capitalised_fees'] === null ? 0 : 1, $rows))]];
+    }
+
+    /** A narration that names an arrangement, legal or similar fee, as a fee debit's does ("Arrangement fees- Mphunzitsi SACCO"). */
+    private function namesAFee(string $narration): bool
+    {
+        return preg_match('/\b(arrangement|legal|lega|appraisal|commitment|processing|guarantee)\b[^\n]*\bfees?\b/i', $narration) === 1;
     }
 
     private function actualTransactionsFrom(array $rows, ?string $to): array

@@ -118,13 +118,16 @@ class TransitionMatrixService
                 // sorted by exitGrade() below: "Paid" or the default end grade.
                 $startGradeExpr = self::gradeExpression('start_tbl', $start_grading_col);
                 $endGradeExpr = self::gradeExpression('end_tbl', $end_grading_col);
+                // the ledger's cumulative write-offs on each built row (as PdSegmentationService reads them)
+                $hasBasis = \Illuminate\Support\Facades\Schema::hasColumn($start_table, 'build_basis') && \Illuminate\Support\Facades\Schema::hasColumn($end_table, 'build_basis');
+                $basisCols = $hasBasis ? ', start_tbl.build_basis AS start_basis, end_tbl.build_basis AS end_basis' : '';
                 $matrix_sql = "
                     SELECT
                         start_tbl.{$start_client_id_col} AS client_id,
                         start_tbl.{$balance_column} AS start_bal,
                         {$startGradeExpr} AS start_grade,
                         {$endGradeExpr} AS end_grade,
-                        end_tbl.{$end_client_id_col} AS end_client_id
+                        end_tbl.{$end_client_id_col} AS end_client_id{$basisCols}
                     FROM {$start_table} AS start_tbl
                     LEFT JOIN {$end_table} AS end_tbl
                         ON start_tbl.{$start_client_id_col} = end_tbl.{$end_client_id_col}
@@ -154,10 +157,23 @@ class TransitionMatrixService
                 foreach ($matrix_rows as $row) {
                     $start_grade = $row->start_grade;
                     $end_grade = $row->end_grade;
+                    // nothing owed at the start is no observation (verification of 14 October 2026)
+                    if ($hasBalance && (float) $row->start_bal <= 0.005) {
+                        continue;
+                    }
                     if ($row->end_client_id === null) {
                         $end_grade = self::exitGrade($end_table, $end_client_id_col, (string) $row->client_id, $transitionMatrix->start_reporting_period, $transitionMatrix->end_reporting_period, $defaultEndGrade, $hasStatus, $hasBalance);
                     } elseif ($end_grade === null) {
                         $end_grade = 'Paid';
+                    }
+                    // written off inside the window: a default, whatever stage the nil balance is given
+                    if ($hasBasis && $end_grade !== $defaultEndGrade) {
+                        $endBasis = $row->end_client_id === null
+                            ? DB::table($end_table)->where($end_client_id_col, $row->client_id)->where('reporting_period', '>=', $transitionMatrix->start_reporting_period)->where('reporting_period', '<', $transitionMatrix->end_reporting_period)->orderByDesc('reporting_period')->value('build_basis')
+                            : $row->end_basis;
+                        if (\App\Services\Pd\PdSegmentationService::writtenOff($endBasis) > \App\Services\Pd\PdSegmentationService::writtenOff($row->start_basis) + 0.005) {
+                            $end_grade = $defaultEndGrade;
+                        }
                     }
                     $bal = (float) $row->start_bal;
 
