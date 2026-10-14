@@ -1,0 +1,82 @@
+{
+  "pack": "MAIIC E-Banker pack 10, received 14 October 2026",
+  "assembled": "2026-10-14",
+  "period": "2026-10",
+  "source": "E-Banker (Virtual Galaxy CBS, schemas VGCBS and MAIIC_ORA_LIVE), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 10 - 14 Oct 2026.sql; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
+  "date_format": "m/d/Y",
+  "scope_scheme_ids": [],
+  "accepted_exceptions": [
+    "RUN 0 not applied: every date is m/d/yyyy; the manifest declares the format (D23)",
+    "OD_02 continues the overdue run's daily rows of pack 9 (2025 Q3 to 2026 Q1) with 2026 Q2, Q3 and 1 to 12 October 2026; the keys (OVERDUE_DET_ID) do not overlap any pack 9 file; each part equals the pack 10 profile (OD_00) for its months",
+    "RF_01 is a slice of the live ledger (every leg of the batches that paid off a loan from a new one); it has its own query id outside the LEDGER family, so no engine reads it twice"
+  ],
+  "not_landed": [
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/OD_00_overdue_profile.csv",
+      "reason": "the profile of the overdue run (23 rows, one per calculation month, December 2024 to 12 October 2026): the control counts of OD_01 and OD_02, read, not landed, as in pack 9"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/CV_15_crm_acmaster_05082024.csv",
+      "reason": "CRM_ACMASTER_05082024 holds 102 vendor test or training accounts (101 on GL 2563, one on GL 2136), not loans; it cannot map the old 00010075 loan accounts"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/DD_17_login_and_synonyms.csv",
+      "reason": "a probe: the extract login is the schema owner VGCBS, no synonyms (and three PROC_BUILD_MAIIC_* procedures listed)"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/DD_18_read_access.csv",
+      "reason": "a probe: read access per table (32 of 35 return a row; the three empty ones are empty, not closed)"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/DD_20_link_columns_probe.csv",
+      "reason": "a probe of column names: E-Banker keeps no refinance-link column"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/TB_06_stored_tb_balance_check.csv",
+      "reason": "a rebuild check: the stored trial balance is still 88,000.00 out of balance on every day from 15 May 2026 (posting 368352 not yet rebuilt by the vendor)"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/ZF_04_zaithwa_balance_rows_recheck.csv",
+      "reason": "a rebuild check: the Zaithwa Farms ACCOUNT_BALANCE rows are unchanged from pack 1 (the vendor rebuild is still owed; the ledger is used, accepted exception of pack 1)"
+    }
+  ],
+  "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "OD_02_overdue_daily_2026Q2.csv",
+      "query_id": "OD_02",
+      "kind": "pack 10 RUN 2a: OVERDUE_DETAILS daily rows of April to June 2026 (34 columns); 10,721 rows = the profile's 3,520 + 3,639 + 3,562",
+      "rows": 10721,
+      "sha256": "1d34a9151d11332e2088e43bcaa26ea052ddf9a8cdd8fca4aa68a99d9f16691e",
+      "bytes": 3515705,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/OD_02_overdue_daily_2026Q2.csv"
+    },
+    {
+      "file": "OD_02_overdue_daily_2026Q3.csv",
+      "query_id": "OD_02",
+      "kind": "pack 10 RUN 2b: OVERDUE_DETAILS daily rows of July to September 2026; 9,589 rows = 3,193 + 3,216 + 3,180",
+      "rows": 9589,
+      "sha256": "240b5301801ff2469575921615b84b9cd372da91fd16949e838c2c2ee62ca358",
+      "bytes": 3136326,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/OD_02_overdue_daily_2026Q3.csv"
+    },
+    {
+      "file": "OD_02_overdue_daily_2026Q4.csv",
+      "query_id": "OD_02",
+      "kind": "pack 10 RUN 2c: OVERDUE_DETAILS daily rows of 1 to 12 October 2026; 1,272 rows",
+      "rows": 1272,
+      "sha256": "3f54cf0a22b74aba95162b89d8dcda4bb6b622c5802a3fe202de80f2c13b88e2",
+      "bytes": 417567,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/OD_02_overdue_daily_2026Q4.csv"
+    },
+    {
+      "file": "RF_01_refinance_batch_legs.csv",
+      "query_id": "RF_01",
+      "kind": "pack 10 RUN 4: every leg of the batches that paid off a loan from a new one; links The Food Empire 000104450000068 to 000106050000003 (24 Nov 2025, DISB 20) and Malawi Police SACCO 000104430000072 to 000106050000006 (March 2026 reallocation); no link for JVD Agro",
+      "rows": 289,
+      "sha256": "a5635cb0b21ffee75196859b7a014c28e2fbae5620741fc5bfc847bad8d05ae8",
+      "bytes": 54236,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 10/Export Results/RF_01_refinance_batch_legs.csv"
+    }
+  ]
+}
