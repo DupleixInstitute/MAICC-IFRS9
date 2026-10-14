@@ -82,4 +82,28 @@ class ComplianceAuditServiceTest extends TestCase
         $this->assertSame(['test' => 1], $exported);
         $this->assertSame('Done', json_decode(file_get_contents($this->dir . '/Test_Audit.signed.json'), true)['rows'][0]['status']);
     }
+
+    /**
+     * The bootstrap's compliance register step stopped on every run with "Data
+     * too long for column 'test'": the column was a string of 500 and the
+     * committed modules name a test of more than 500 characters. It is text now,
+     * and every committed module loads with its tests whole.
+     */
+    public function test_the_committed_modules_load_with_tests_longer_than_500_characters(): void
+    {
+        $this->assertSame('string', Schema::getColumnType('compliance_audit_rows', 'test'));
+        (require base_path('database/migrations/2026_10_14_250000_compliance_audit_rows_test_as_text.php'))->up();
+        $this->assertSame('text', Schema::getColumnType('compliance_audit_rows', 'test'));
+
+        $longest = 0;
+        foreach (glob(base_path('docs/compliance/*.json')) ?: [] as $f) {
+            foreach ((json_decode(file_get_contents($f), true)['rows'] ?? []) as $r) {
+                $longest = max($longest, mb_strlen((string) ($r['test'] ?? '')));
+            }
+        }
+        $this->assertGreaterThan(500, $longest, 'the committed modules hold a test the old column could not');
+        $loaded = (new ComplianceAuditService())->load(base_path('docs/compliance'));
+        $this->assertNotEmpty($loaded);
+        $this->assertSame($longest, (int) DB::table('compliance_audit_rows')->selectRaw('max(length(test)) n')->value('n'));
+    }
 }

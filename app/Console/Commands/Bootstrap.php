@@ -338,6 +338,132 @@ class Bootstrap extends Command
             $proposed, $confirmed);
     }
 
+    /**
+     * The steps the bootstrap runs for every month, in order: [key, label, the
+     * Maintenance month-end step it is (MaintenanceTask 'month-end', with
+     * fli:month-end --all for the forward-looking ones), the steps it needs].
+     * A step whose need did not run for the month is not run and says so; the
+     * projection is evidence (the month-end's optional step), so nothing needs
+     * it. Public so the coverage can be tested without running a step.
+     *
+     * @return list<array{0:string,1:string,2:string,3:list<string>}>
+     */
+    public static function periodChain(): array
+    {
+        return [
+            ['pd-lgd', 'PD and LGD by segment', 'ifrs9:segment-parameters', []],
+            ['scenario-set', 'The month\'s scenario set (the first set of 15.8, approved under the bootstrap label)', 'fli:month-end', ['pd-lgd']],
+            ['fli-route', 'Forward-looking route under the model version and the set in force for the month', 'fli:month-end', ['pd-lgd']],
+            ['fli-projection', 'Scenario projection (evidence)', 'fli:month-end', ['fli-route']],
+            ['ecl', 'ECL on the post-FLI PD, discounted at the EIR (ifrs9:segment-ecl, as fli:month-end --all runs it)', 'fli:month-end', ['fli-route']],
+            ['fli-record', 'The month record', 'fli:month-end', ['ecl']],
+            ['mega-farm', 'Mega Farm programme (when the month has Mega Farm loans)', 'megafarm:ecl', []],
+        ];
+    }
+
+    /** The arguments of the month's ECL run: on the post-FLI PD, discounted at the EIR, as fli:month-end --all runs it. */
+    public static function eclArguments(string $period): array
+    {
+        return ['from' => $period, '--pd' => 'pd_post_fli', '--discounting' => 'discounted', '--prune-stale' => true];
+    }
+
+    private function monthPdLgd(string $p, int $user): string
+    {
+        $pd = app(\App\Services\Pd\PdSegmentationService::class)->run($p, null, 12, $user, 'bootstrap');
+        $n = DB::table('loan_books')->where('reporting_period', $p)->whereNotNull('pd_prefli')->count();
+        if ($n === 0) {
+            throw new \RuntimeException("no loan of {$p} carries a PD before FLI after the PD run (window {$pd['window']})");
+        }
+        app(\App\Services\Lgd\LgdSegmentationService::class)->run($p, null, 12, $user);
+
+        return "{$n} loans with a PD";
+    }
+
+    /**
+     * The month's scenario set, as the last month's was set up before 14 October
+     * 2026: the first set of 15.8 seeded for the month as proposed and approved
+     * under the bootstrap label (never as MAIIC). A set already held for the month
+     * is kept; only a proposed one is approved. Its paths are read as known at the
+     * end of the month (ScenarioSetService::paths), so no later data enters.
+     *
+     * @return array{id:int,status:string}
+     */
+    private function monthScenarioSet(\App\Services\Scenario\ScenarioSetService $sets, string $p, int $user): array
+    {
+        $setId = $sets->seedFirstSet($p, $user);
+        if (DB::table('governed_scenario_sets')->where('id', $setId)->value('status') === 'PROPOSED') {
+            $sets->approve($setId, null, \App\Services\Scenario\ScenarioSetService::BOOTSTRAP_LABEL);
+        }
+        $status = (string) DB::table('governed_scenario_sets')->where('id', $setId)->value('status');
+        if (! in_array($status, ['APPROVED', 'LOCKED'], true)) {
+            throw new \RuntimeException("the scenario set {$setId} of {$p} is {$status}, not approved; the route runs without it and names the loans it cannot measure");
+        }
+
+        return ['id' => $setId, 'status' => $status];
+    }
+
+    private function monthEcl(string $p): string
+    {
+        $code = Artisan::call('ifrs9:segment-ecl', self::eclArguments($p));
+        $out = Artisan::output();
+        if ($code !== 0) {
+            throw new \RuntimeException(trim(preg_replace('/\s+/', ' ', substr($out, 0, 200))));
+        }
+
+        return self::discountedLine($p);
+    }
+
+    /**
+     * The month's discounted allowance on the MAIIC book (the Mega Farm programme is
+     * measured by its own engine): undiscounted, discounted and on how many loans,
+     * and the loans left undiscounted by the reason the ECL run named.
+     */
+    public static function discountedLine(string $p): string
+    {
+        $d = DB::table('loan_books')->where('reporting_period', $p)->whereNotIn('product_code', \App\Services\MegaFarm\MegaFarmEclService::GLS)
+            ->selectRaw("sum(ecl_value) ecl, sum(case when ecl_discount_status = 'CALCULATED_TIME_PHASED' then ecl_value_discounted end) disc, sum(ecl_discount_status = 'CALCULATED_TIME_PHASED') n, sum(ecl_discount_status in ('EIR_UNAVAILABLE', 'HORIZON_UNAVAILABLE', 'TIME_PHASED_UNRESOLVED')) un")->first();
+        $reasons = self::unresolvedReasons($p);
+
+        return $p . ': MAIIC book undiscounted ' . number_format((float) $d->ecl, 0) . '; discounted at the EIR on ' . (int) $d->n . ' loans: ' . number_format((float) $d->disc, 0) . '; ' . (int) $d->un . ' loans not discountable'
+            . ($reasons === [] ? '' : ' (' . implode('; ', array_map(fn ($r, $n) => "{$n} {$r}", array_keys($reasons), $reasons)) . ')');
+    }
+
+    /**
+     * The reasons the ECL runs of a month named for the loans they could not discount,
+     * counted, from the runs the month's loans carry (ecl_projection_runs.exceptions).
+     *
+     * @return array<string,int>
+     */
+    public static function unresolvedReasons(string $p): array
+    {
+        $runIds = DB::table('loan_books')->where('reporting_period', $p)->whereNotNull('ecl_calculation_run_id')->distinct()->pluck('ecl_calculation_run_id');
+        $out = [];
+        foreach (DB::table('ecl_projection_runs')->whereIn('run_id', $runIds)->pluck('exceptions') as $json) {
+            foreach ((array) (json_decode((string) $json, true) ?: []) as $reason) {
+                $reason = rtrim(is_string($reason) ? $reason : json_encode($reason), '.');
+                $out[$reason] = ($out[$reason] ?? 0) + 1;
+            }
+        }
+        arsort($out);
+
+        return $out;
+    }
+
+    /** One line for a month of the chain: the set, the route, the projection, the ECL and the record. */
+    private static function monthLine(string $p, array $why, array $ok): string
+    {
+        $set = $why['scenario-set'];
+        $route = $why['fli-route'];
+        $proj = $why['fli-projection'];
+        $rec = $why['fli-record'];
+
+        return ($ok['scenario-set'] ? "set {$set['id']} {$set['status']}" : 'set ' . $set)
+            . '; route ' . ($ok['fli-route'] ? 'set ' . ($route['set'] ?? 'none') . ($route['model_version'] ? ", model version {$route['model_version']}" : ', no model version in force') . ", {$route['adjusted']} adjusted, {$route['held']} held" . ($route['note'] ? " ({$route['note']})" : '') : $route)
+            . '; projection ' . ($ok['fli-projection'] ? count($proj['segments'] ?? []) . ' portfolios' : $proj)
+            . '; ECL ' . $why['ecl']
+            . '; record ' . ($ok['fli-record'] ? "{$rec['id']} RECORDED" . (isset($rec['booked_ecl_discounted']) ? ', discounted ' . number_format((float) $rec['booked_ecl_discounted'], 0) : '') : $rec);
+    }
+
     private function stepEngines(int $user, ?string $to): void
     {
         // 1 macro statistics: the committed snapshot, so every install starts from the same series and
@@ -384,41 +510,86 @@ class Bootstrap extends Command
         Artisan::call('ifrs9:segment-portfolios');
         $this->note('6.0 programme portfolios', trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), -220))));
 
-        // 4, 5, 6, 7 for every period, the month-end path: the PD and the LGD by
-        // segment on the governed basis, the forward-looking route (with no
-        // approved fit on a clean install, the overlay at zero, spec 6.10.1 step
-        // 6), the ECL on the post-FLI PD discounted at the EIR (IFRS 9
-        // 5.5.17(b); spec 6.10.1 step 7), then the Mega Farm programme, so the
-        // revenue step that follows nets the opening allowance on Stage 3
-        // (audit C6) and every month carries the allowance the month-end books.
-        // A month without a twelve-month window or a Stage 3 cohort is noted and
-        // left without an allowance.
+        // 2, 4, 5, 6, 7 for every period from the first month with a PD to the
+        // last: the Maintenance month-end chain (MaintenanceTask 'month-end' and
+        // its fli:month-end --all; spec v4 D37, FLI module D-F16), step by step
+        // in the order of periodChain(): the PD and the LGD by segment, the
+        // month's scenario set (the first set of 15.8, seeded and approved
+        // under the bootstrap label, never as MAIIC), the forward-looking route
+        // under the model version and the set in force for the month, the
+        // scenario projection (evidence), the ECL on the post-FLI PD discounted
+        // at the EIR (IFRS 9 5.5.17(b)), the month record, then the Mega Farm
+        // programme; the revenue step that follows nets the opening allowance on
+        // Stage 3 (audit C6). Until 14 October 2026 the set was seeded for the
+        // last month only, so the route of every earlier month ran with no set:
+        // its Stage 3 loans carried neither the set nor a scenario PD, and the
+        // time-phased engine could not measure them ("not on the scenario set",
+        // audit M17), which left December 2025 discounted on 18 of 123 loans.
+        // Each month reads only what was known at its own end: the set's paths
+        // and the route's macro actuals are as at the month (AsAtSeries), and
+        // the model is the version in force for the month (D-F1, D-F2); where
+        // the route or the projection cannot run for the month, its own
+        // fail-closed rule decides and the reason is recorded, never a proxy.
+        // fli:month-end --all itself is not called: it stops at a month with no
+        // model version in force, which a clean install never has (no fit is
+        // approved by the bootstrap, audit C9); its steps are run here instead.
+        // A month without a twelve-month window is noted and left without an
+        // allowance.
         $eclPeriods = []; $eclSkipped = []; $mfPeriods = []; $mfDeclined = [];
+        $chain = ['set' => [], 'route' => [], 'projection' => [], 'record' => []];
+        $routeLast = null; $setLast = null;
         $mega = app(\App\Services\MegaFarm\MegaFarmEclService::class);
+        $sets = app(\App\Services\Scenario\ScenarioSetService::class);
+        $routeSvc = app(\App\Services\Fli\FliRouteService::class);
         foreach ($periods as $p) {
-            try {
-                app(\App\Services\Pd\PdSegmentationService::class)->run($p, null, 12, $user, 'bootstrap');
-                app(\App\Services\Lgd\LgdSegmentationService::class)->run($p, null, 12, $user);
-                app(\App\Services\Fli\FliRouteService::class)->apply($p, $user);
-                $code = Artisan::call('ifrs9:segment-ecl', ['from' => $p, '--pd' => 'pd_post_fli', '--discounting' => 'discounted', '--prune-stale' => true]);
+            $ok = [];
+            $why = [];
+            foreach (self::periodChain() as [$key, $label, , $needs]) {
+                $blocked = array_values(array_filter($needs, fn ($n) => ! ($ok[$n] ?? false)));
+                if ($blocked !== []) {
+                    $ok[$key] = false;
+                    $why[$key] = 'not run: ' . implode(', ', $blocked) . ' did not run for the month';
+                    continue;
+                }
+                try {
+                    $why[$key] = match ($key) {
+                        'pd-lgd' => $this->monthPdLgd($p, $user),
+                        'scenario-set' => $this->monthScenarioSet($sets, $p, $user),
+                        'fli-route' => $routeSvc->apply($p, $user),
+                        'fli-projection' => app(\App\Services\Fli\FliProjectionService::class)->run($p, $user),
+                        'ecl' => $this->monthEcl($p),
+                        'fli-record' => app(\App\Services\Fli\FliCloseService::class)->record($p, $user),
+                        'mega-farm' => $mega->loans($p)->exists() ? $mega->run($p, $user, LoanBookBuildService::BOOTSTRAP_LABEL) : null,
+                    };
+                    $ok[$key] = true;
+                } catch (Throwable $e) {
+                    $ok[$key] = false;
+                    $why[$key] = 'not run: ' . substr(trim(preg_replace('/\s+/', ' ', $e->getMessage())), 0, 160);
+                }
                 set_time_limit(0); // the ECL controller lowers it to 300 s for the web (audit H14)
-                if ($code !== 0) {
-                    throw new \RuntimeException(trim(preg_replace('/\s+/', ' ', substr(Artisan::output(), 0, 200))));
-                }
-                $eclPeriods[] = $p;
-            } catch (Throwable $e) {
-                $eclSkipped[$p] = substr($e->getMessage(), 0, 90);
             }
-            try {
-                if ($mega->loans($p)->exists()) {
-                    $mf = $mega->run($p, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
-                    $mf['declined'] ? $mfDeclined[$p] = substr($mf['declined'], 0, 90) : $mfPeriods[] = $p;
-                }
-            } catch (Throwable $e) {
-                $mfDeclined[$p] = substr($e->getMessage(), 0, 90);
+            // the month's line and the summaries
+            $ok['ecl'] ? $eclPeriods[] = $p : $eclSkipped[$p] = substr((string) ($ok['pd-lgd'] ? $why['ecl'] : $why['pd-lgd']), 0, 90);
+            $mf = $why['mega-farm'];
+            if (! $ok['mega-farm']) {
+                $mfDeclined[$p] = substr((string) $mf, 0, 90);
+            } elseif (is_array($mf)) {
+                $mf['declined'] ? $mfDeclined[$p] = substr($mf['declined'], 0, 90) : $mfPeriods[] = $p;
             }
+            if (! $ok['pd-lgd']) {
+                continue; // no PD for the month: nothing of the forward-looking chain applies
+            }
+            $chain['set'][$p] = $ok['scenario-set'];
+            $chain['route'][$p] = $ok['fli-route'];
+            $chain['projection'][$p] = $ok['fli-projection'];
+            $chain['record'][$p] = $ok['fli-record'];
+            $routeLast = $why['fli-route'];
+            $setLast = $why['scenario-set'];
+            $this->note('6.4-6.7 month ' . $p, self::monthLine($p, $why, $ok));
         }
         $this->note('6.7 ECL by period (month-end path, discounted)', count($eclPeriods) . ' periods with a PD, an LGD and an ECL' . ($eclPeriods !== [] ? " ({$eclPeriods[0]}..{$eclPeriods[count($eclPeriods) - 1]})" : '') . '; ' . count($eclSkipped) . ' without' . ($eclSkipped !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($eclSkipped), $eclSkipped), 0, 3)) : ''));
+        $this->note('6.6 forward-looking chain by period', sprintf('of %d months with a PD: scenario set approved for %d, route applied for %d, projection run for %d, month recorded for %d',
+            count($chain['route']), count(array_filter($chain['set'])), count(array_filter($chain['route'])), count(array_filter($chain['projection'])), count(array_filter($chain['record']))));
         $this->note('6.7 Mega Farm by period', count($mfPeriods) . ' periods provided' . ($mfPeriods !== [] ? " ({$mfPeriods[0]}..{$mfPeriods[count($mfPeriods) - 1]})" : '') . '; ' . count($mfDeclined) . ' declined' . ($mfDeclined !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($mfDeclined), $mfDeclined), 0, 3)) : ''));
 
         $before = DB::table('eir_amortisation')->count();
@@ -432,20 +603,14 @@ class Bootstrap extends Command
         $rows = DB::table('eir_amortisation')->count();
         $this->note('6.9 revenue', count($periods) . " periods run {$from}..{$to}; " . ($rows - $before) . " roll-forward rows written, {$rows} in all" . ($errors !== [] ? '; failed: ' . implode(' | ', array_slice($errors, 0, 3)) : ''));
 
-        // the PD and LGD of the last period were measured by segment above; the
-        // pooled single-portfolio runs that stood here would overwrite them
-        // with figures that include the Mega Farm programme
-        // 2 the scenario set: the first set of 15.8 seeded as proposed and approved under the bootstrap label so the chain can run
-        try {
-            $sets = app(\App\Services\Scenario\ScenarioSetService::class);
-            $setId = $sets->seedFirstSet($to, $user);
-            if (DB::table('governed_scenario_sets')->where('id', $setId)->value('status') === 'PROPOSED') {
-                $sets->approve($setId, null, \App\Services\Scenario\ScenarioSetService::BOOTSTRAP_LABEL);
-            }
-            $this->note('6.2 scenario set', "set {$setId} for {$to}: " . DB::table('governed_scenario_sets')->where('id', $setId)->value('status') . ' under the bootstrap label (not a MAIIC approval)');
-        } catch (Throwable $e) {
-            $this->note('6.2 scenario set', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
-        }
+        // The last period: its scenario set, route and discounted ECL ran in the
+        // month-end loop above like every other month's; the lines below report
+        // them. The pooled single-portfolio PD runs that stood here would
+        // overwrite the PD by segment with figures that include the Mega Farm
+        // programme, and the route and the ECL are not run a second time: the
+        // correlation sweep below proposes fits, it approves none, so nothing it
+        // writes moves a PD (audit C9).
+        $this->note('6.2 scenario set', is_array($setLast) ? "set {$setLast['id']} for {$to}: {$setLast['status']} under the bootstrap label (not a MAIIC approval); every month with a PD has its own set, seeded and approved the same way" : 'NOT RUN: ' . substr((string) $setLast, 0, 160));
         // 6 forward-looking chain: bridge, profile, sweep, fit; applied fits are proposals, not adjustments
         try {
             Artisan::call('fli:correlate', ['period' => $to, '--top' => 0]);
@@ -456,28 +621,14 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.6 forward-looking chain', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
-        // 6b the route, applied once per scenario. Spec 6.10.1 step 6: on a clean
-        // install no fit is approved, so the overlay is zero and the post-FLI PD
-        // is marked "no adjustment: bootstrap"; the regression is used once two
-        // people approve a fit on the FLI Adjustments screen (audit C9: the
-        // bootstrap had proposed and approved the best fit itself).
-        try {
-            $routeSvc = app(\App\Services\Fli\FliRouteService::class);
-            $fr = $routeSvc->apply($to, $user);
-            $this->note('6.6 forward-looking route', "route '{$fr['route']}', method '{$fr['method']}'" . ($fr['fit'] ? ", fit {$fr['fit']} {$fr['fit_relationship']}" : '') . '; adjustments ' . json_encode(array_map(fn ($x) => $x['adjustment'], $fr['scenarios'])) . "; {$fr['adjusted']} loans adjusted, {$fr['held']} held" . ($fr['note'] ? '; ' . $fr['note'] : ''));
-        } catch (Throwable $e) {
-            $this->note('6.6 forward-looking route', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
-        }
-        // 7 ECL on the post-FLI PDs of the last period, now under the seeded scenario set, discounted
-        try {
-            Artisan::call('ifrs9:segment-ecl', ['from' => $to, '--pd' => 'pd_post_fli', '--discounting' => 'discounted', '--prune-stale' => true]);
-            $out = Artisan::output();
-            $disc = DB::table('loan_books')->where('reporting_period', $to)->whereNotIn('product_code', \App\Services\MegaFarm\MegaFarmEclService::GLS)
-                ->selectRaw('sum(ecl_value) ecl, sum(ecl_value_discounted) disc, sum(ecl_value_discounted is not null) n, sum(ecl_value is not null and ecl_value_discounted is null) un')->first();
-            $this->note('6.7 ECL', $to . ': MAIIC book undiscounted ' . number_format((float) $disc->ecl, 0) . "; discounted at the EIR on {$disc->n} loans: " . number_format((float) $disc->disc, 0) . "; {$disc->un} loans not discountable (named on the run)" . (str_contains($out, 'fail closed') ? ' | ' . trim(preg_replace('/\s+/', ' ', substr($out, 0, 200))) : ''));
-        } catch (Throwable $e) {
-            $this->note('6.7 ECL', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
-        }
+        // 6b the route of the last period, as applied in the loop. Spec 6.10.1 step 6: on a clean
+        // install no fit is approved, so the PD holds and the loan says so; the regression is used
+        // once two people approve a fit on the FLI Adjustments screen (audit C9: the bootstrap had
+        // proposed and approved the best fit itself).
+        $fr = $routeLast;
+        $this->note('6.6 forward-looking route', is_array($fr) ? "{$to}: route '{$fr['route']}', method '{$fr['method']}'" . ($fr['fit'] ? ", fit {$fr['fit']} {$fr['fit_relationship']}" : '') . ', set ' . ($fr['set'] ?? 'none') . '; adjustments ' . json_encode(array_map(fn ($x) => $x['adjustment'], $fr['scenarios'])) . "; {$fr['adjusted']} loans adjusted, {$fr['held']} held" . ($fr['note'] ? '; ' . $fr['note'] : '') : 'NOT RUN: ' . substr((string) $fr, 0, 160));
+        // 7 the ECL of the last period on the post-FLI PDs, under the month's set, discounted (run in the loop)
+        $this->note('6.7 ECL', self::discountedLine($to));
         // the scenario sensitivity, now that the loans carry a PD and an LGD
         try {
             $setId = DB::table('governed_scenario_sets')->where('reporting_period', $to)->whereIn('status', ['APPROVED', 'LOCKED'])->orderByDesc('version')->value('id');
