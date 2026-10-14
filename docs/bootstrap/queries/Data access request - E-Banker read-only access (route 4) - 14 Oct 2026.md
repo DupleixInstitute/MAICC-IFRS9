@@ -20,6 +20,8 @@ Specifically:
 4. If E-Banker runs a standby or reporting replica, access to that rather than production. The queries are read-only either way; the replica simply removes any question of load on the live system.
 5. **The same account, first, on E-Banker's test environment** (the UAT or test copy of the database, if MAIIC has one; otherwise a restored copy of a recent backup). Everything is proved there before the production account is switched on (section 9).
 
+**Please plan this now.** The build is about a week, but approvals, the vendor's reply, a test copy of E-Banker and two month-ends of parallel running set the pace. To have the route proven on the November month-end and run in parallel on the December 2026 year-end, the request needs approval by **Friday 23 October 2026** (timetable in section 9.2).
+
 ## 2. Why
 
 Since 7 October the system has been fed by packs that Barry runs in SQL Developer and exports by hand. That works, and it stays as the fallback, but each pack has needed a second run for one of three reasons: the date settings not applied in the worksheet, an export stopping early at SQL Developer's 100 MB grid, or a table too large to export at all (the overdue run, which writes one row per account per day). A scheduled read by the system removes all three: it sets its own session, has no grid, and reads in pages.
@@ -117,6 +119,33 @@ The landing zone is four tables in the system's database: the **query register**
 | **4. Direct read (this request)** | The IFRS 9 system itself, under the read-only account | The system's server over the VPN; monthly, or daily for the overdue run | Never leaves the system: the pack is built in place | The system's scheduler | `ROUTE_4_DIRECT` |
 | **5. Vendor view or API** | The IFRS 9 system, reading the vendor's views or endpoint | As route 4 | As route 4 | The system's scheduler | `ROUTE_5_VENDOR` |
 
+### 4.1 Inside the landing zone: the four tables, explained
+
+This part is written so that anyone at MAIIC can follow it, not only ICT. If you have run a receiving office, you already know how the landing zone is organised: it keeps four record books.
+
+1. **The register** (`ebanker_queries`) is the list of everything the system is allowed to ask E-Banker for: about sixty questions, each with a code (P1_01, P2_08, OD_01 …). For each one it records which E-Banker table it reads, which column is that table's own unique number for a record, which columns hold the account and the date, the version of the question, and whether to fetch everything each time or only what is new. If a question is not in the register, the system will not accept its answers.
+2. **The deliveries book** (`ebanker_loads`) has one line for every pack that arrives: when, by which route, its fingerprint, whether it was accepted (LANDED) or set aside (QUARANTINED), the result of every check, and the **watermark**, meaning the last record received for each question so that the next delivery fetches only what is new.
+3. **The files book** (`ebanker_pack_files`) has one line for every file inside a pack: its fingerprint, how many records the pack said it held, how many were actually stored, and how many of those were new, changed or already held.
+4. **The records book** (`ebanker_raw_rows`) holds the records themselves, one line for each version of each E-Banker record. A few facts are copied into labelled columns so they can be found quickly: E-Banker's own record number, the account, the date, the version, and whether this version has been replaced. The full record, every column exactly as E-Banker sent it, is kept beside them unchanged.
+
+**One real payment, followed through** (Figure 4, from the bootstrap database). MUSECO repaid K200,000,000 on 24 July 2025. In E-Banker that is ledger record 194427. It arrived in delivery 1 (by hand, accepted on 9 October 2026), in the file `P1_01_ledger_all.csv`. That file said it held 3,640 records and 3,640 were stored. In the records book it is line 20: account 000104420000005, dated 24 July 2025, version 1, not replaced, with all 83 of E-Banker's columns kept as they were (amount 200,000,000.00, transaction type 305, "By Trf Loan repayment", loan GL 1050101).
+
+![Figure 4. The four record books of the landing zone, following MUSECO's K200,000,000 repayment of 24 July 2025 from E-Banker's ledger to line 20 of the records book, and what happens if E-Banker later corrects it.](Landing zone - the four tables, one payment followed through - diagram.png)
+
+**What happens if E-Banker later changes that record.** Suppose the payment is corrected in E-Banker to K195,000,000. At the next delivery the system sees record 194427 again with a different fingerprint. It does **not** overwrite line 20. It marks line 20 with the date and time it was replaced, and adds a new line, version 2, holding the corrected amount. Figures already reported for October were calculated from version 1 and can be reproduced exactly; figures from November use version 2. If the record arrives again unchanged, its fingerprint matches and nothing is added. (So far no record has needed a second version; the figure shows the case as an illustration.)
+
+**Questions MAIIC can answer from the four books**, without asking Dupleix:
+
+| Question | Where the answer is |
+|---|---|
+| Did this month's pack arrive, and was it accepted? | The deliveries book: the pack's line, its status and its check results |
+| Was any file short or altered? | The files book: records declared against records stored, and the fingerprint |
+| Which E-Banker record is behind a figure in a report? | The records book: E-Banker's record number, the delivery it came in, its version |
+| Has E-Banker changed a record we had already received? | The records book: any line with a version above 1, and the date its earlier version was replaced |
+| What exactly did we ask E-Banker for, and has the question changed? | The register: the query, its version and the fingerprint of its SQL |
+
+**Have the tables been created?** Yes, in the system's test databases, where they hold the data received so far: the bootstrap database holds 65 registered questions, 23 deliveries, 75 files and 88,977 records. In the production database they are created, empty, when the system is installed on MAIIC's server (the installation runs the same database set-up), ready for the first pack. Their full column-by-column definition is in the system's code.
+
 ## 5. What the account will do, and will not do
 
 | Will | Will not |
@@ -130,7 +159,7 @@ MAIIC ICT administers the account, can see every session in the database's own a
 
 ## 6. Setting up the accounts: step by step for MAIIC ICT
 
-The same steps are done twice: first on **E-Banker's test environment** (stage B of section 9), then on **production or the replica** (stage C), only after the tests on the test environment have passed. Both use the same account name, with different passwords. Every statement below is standard Oracle and is run by a database administrator (a user with the DBA role or equivalent). None of it changes E-Banker's own tables, code or users. If the vendor wants to run the steps themselves, this section is what to send them.
+This section is for MAIIC ICT. You do the same steps twice: first on **E-Banker's test environment** (stage B of section 9), then on **production or the replica** (stage C), only after the tests on the test environment have passed. Both use the same account name, with different passwords. Every statement below is standard Oracle and is run by your database administrator (a user with the DBA role or equivalent). None of it changes E-Banker's own tables, code or users. If you would rather the vendor ran the steps, this section is what to send them. Dupleix will join any of the steps on a call if that helps.
 
 **Step 1. Agree the names and the server.** Account: `MAIIC_IFRS9_RO`. Role: `IFRS9_FEED_READ`. Profile: `IFRS9_FEED_PROFILE`. Dupleix provides the IP address of the system's test server now and of the production server at stage C.
 
@@ -198,6 +227,23 @@ On an older database using traditional auditing: `AUDIT SESSION BY maiic_ifrs9_r
 
 **Step 6. Open the network path.** On the firewall, allow the system's server (one IP, over the existing VPN) to reach the database listener on its port (1521 unless E-Banker uses another), and nothing else. No change is needed to the listener or to `sqlnet.ora`. Restricting by IP on the firewall rather than in the database keeps the change outside E-Banker.
 
+**Step 6a. Test the connection.** Before anything else is tried, confirm that the account can reach the database from the right computer. Do this from the computer that will actually use the account: the IFRS 9 system's server for route 4 (with Dupleix on the call), or the MAIIC server for routes 2 and 3.
+
+1. **Is the database reachable on the network?** In PowerShell on that computer: `Test-NetConnection <database host> -Port 1521`. It must show `TcpTestSucceeded : True`. If it shows False, the firewall rule of step 6 is not yet in place.
+2. **Can the account log in?** With SQLcl: `sql maiic_ifrs9_ro@//<database host>:1521/<service name>`, enter the password when asked. (In SQL Developer, a new connection with the same details and **Test** must show "Status: Success".)
+3. **Who, where and when: the test-connection query.** Once logged in, run:
+
+`SELECT USER AS connected_as, SYS_CONTEXT('USERENV','DB_NAME') AS database_name, SYS_CONTEXT('USERENV','SERVICE_NAME') AS service_name, SYS_CONTEXT('USERENV','IP_ADDRESS') AS connected_from, TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS') AS database_time FROM dual;`
+
+It must return one row: `MAIIC_IFRS9_RO`, the name of the **test** database at stage B (the **production** or replica name at stage C, never the other way round), and as `connected_from` the IP address of the computer you are on. A wrong database name here is the one mistake that matters most, so check it before going further.
+4. **Can it read what it should?** Run:
+
+`SELECT COUNT(*) AS maiic_loan_accounts, MAX(a.account_open_date) AS latest_account_opened FROM vgcbs.acmaster a WHERE a.scheme_mst_id IN (84,85,86,87,88,89,90,91,92,93,94,95,140,141,142,143,144,145);`
+
+It must return a count above zero and a recent date. On the test environment the figures reflect the date the test copy was taken.
+
+Save the four results in a text file named `Connection test - <test or production> - <date>.txt` in the E-Banker Integration folder, together with the output of step 7.
+
 **Step 7. Prove the account is read-only, before handing it over.** Log in as `MAIIC_IFRS9_RO` in SQL Developer and run:
 
 1. `SELECT * FROM session_privs;` must return only `CREATE SESSION`.
@@ -216,7 +262,7 @@ Save the output of these five as a text file in the E-Banker Integration folder:
 
 **Step 10. Look after the account.** Every 90 days: `ALTER USER maiic_ifrs9_ro IDENTIFIED BY "<new password>";` then update the system's configuration (or the wallet). To pause the feed at once: `ALTER USER maiic_ifrs9_ro ACCOUNT LOCK;` (`ACCOUNT UNLOCK` to resume). To end it: `DROP USER maiic_ifrs9_ro;` and `DROP ROLE ifrs9_feed_read;`. For route 3, the feed token is changed on the same 90-day cycle (a new token on the system's server and in the Credential Manager, the same day). When the system needs a new table, Dupleix sends one line, `GRANT SELECT ON <table> TO ifrs9_feed_read;`, for MAIIC to approve and run.
 
-**Step 11. Repeat on production at stage C.** Steps 2 to 8 again on production (or the replica the vendor names), with a new password and the production server's IP. Run step 7 again and save its output beside the test one.
+**Step 11. Repeat on production at stage C.** Steps 2 to 8 again on production (or the replica the vendor names), with a new password and the production server's IP. Run steps 6a and 7 again and save their output beside the test ones; check that step 6a now names the production (or replica) database.
 
 ## 7. What we need from Virtual Galaxy
 
@@ -269,12 +315,45 @@ Nothing touches production until it has worked end to end on the test environmen
 | | Route 2 on test: the scheduled script run against the test database, the pack written to a test folder, landed into the bootstrap database | Dupleix writes the script, Barry installs the task | Within two weeks of the account |
 | | Route 3 on test, if MAIIC prefers it to route 2 or 4: the same script posting to the test system's endpoint with a test token (section 6, step 9a); a wrong token must be refused | Dupleix and Barry | Alongside route 2 |
 | | Route 4 on test: the Oracle client and connection installed on the system's test server; the system runs the queries itself against E-Banker's test environment and lands into the bootstrap database | Dupleix | On the vendor's confirmation; about a week |
-| | **Acceptance on test**, signed off by Barry and Dupleix: (1) every registered query runs under the account and nothing outside the annex can be read (the saved output of section 6, step 7); (2) a month read by route 4 lands against the bootstrap's copy of the same month (received by hand) as all unchanged: the same rows and hashes, no new versions; (3) a re-read of the same month lands as all unchanged, with no duplicates; (4) a deliberately broken file is quarantined and nothing downstream moves; (5) the read takes under 15 minutes and the database shows no measurable load; (6) a backup is restored and re-read from its watermarks; (7) the bootstrap re-run with the route 4 data passes all nine golden ties | Dupleix and MAIIC ICT | At the end of stage B |
+| | **Acceptance on test**, signed off by Barry and Dupleix: (1) the connection test of section 6, step 6a passes from the system's test server, every registered query runs under the account, and nothing outside the annex can be read (the saved outputs of steps 6a and 7); (2) a month read by route 4 lands against the bootstrap's copy of the same month (received by hand) as all unchanged: the same rows and hashes, no new versions; (3) a re-read of the same month lands as all unchanged, with no duplicates; (4) a deliberately broken file is quarantined and nothing downstream moves; (5) the read takes under 15 minutes and the database shows no measurable load; (6) a backup is restored and re-read from its watermarks; (7) the bootstrap re-run with the route 4 data passes all nine golden ties | Dupleix and MAIIC ICT | At the end of stage B |
 | **C. Production** | The same account created on production (or the replica, per the vendor) by section 6, step 11; the connection pointed at it; the route setting changed to route 4 under maker-checker | MAIIC ICT; Dupleix; approver in the Governance Centre | After acceptance on test |
 | | **Parallel run**: two month-ends read by route 4 alongside the manual pack; each pair must tie row for row before the manual pack is stood down | Dupleix and Barry | Two month-ends |
 | | Switch: route 4 in force; route 1 kept as the fallback | MAIIC | After the parallel run |
 
 If the vendor declines route 4 (section 7, item 5), stages B and C run the same way on route 2, which needs no vendor change, or on the vendor's views under route 5.
+
+### 9.1 Why this must be planned now, not after go-live
+
+This route has to be planned early. The build itself is about a week; the time is taken by things outside the build, most of them outside Dupleix's control, and each one can only happen in a fixed order:
+
+- **Approvals and the vendor take weeks, not days.** Dr Thom's authorisation, the vendor's written confirmation of support terms, and MAIIC's own change control for a new database account and a firewall rule all have to be in place before anything can be tested.
+- **A test copy of E-Banker has to exist.** If MAIIC does not already have a UAT copy, one has to be restored from a backup; that is ICT and vendor time that needs booking.
+- **Proof needs real month-ends, and there is only one a month.** The parallel run needs two month-ends read both ways and tying row for row. If the November month-end is missed, the earliest switch moves from January to February; every missed month-end moves it by a full month.
+- **Year-end is the month that matters most.** The December 2026 year-end feeds the annual financial statements and Deloitte's audit. Having route 4 proven on November and run in parallel on December gives the auditors the strongest evidence: the same figures by two independent routes. Starting later means the year-end is read by hand only.
+- **Year-end change freezes.** Many ICT teams freeze changes over December. Everything that changes MAIIC's systems (the accounts, the firewall rule, the production set-up) is therefore scheduled to finish by **27 November**.
+- **The manual route carries risk every month it remains the only one.** Each pack so far has needed a re-run; the overdue table cannot be exported by hand at all. Until route 2 or 4 is live, those risks recur at every month-end.
+
+### 9.2 Proposed build and test timetable
+
+The dates assume Dr Thom approves by **Friday 23 October 2026**. Each week of delay moves the whole chain; a missed month-end moves it by a month. Month-end reading days are the first working day after month-end.
+
+| Stage | What | Who | Dates (2026 to 2027) |
+|---|---|---|---|
+| **A** | Dr Thom approves the request; Barry sends the vendor letter (section 7) | MAIIC | Thu 15 to Fri 23 October |
+| **A** | Vendor's written reply. **Decision point Fri 6 November**: if there is no reply or a refusal, the same timetable continues on route 2, which needs no vendor change | Virtual Galaxy | 23 October to 6 November |
+| **B** | Test account on E-Banker's test copy, firewall rule, connection test and read-only proof (section 6, steps 1 to 8) | MAIIC ICT | Mon 26 October to Fri 6 November |
+| **B** | Route 2 script written by Dupleix and installed on a MAIIC server against the test copy | Dupleix and MAIIC ICT | 26 October to 6 November |
+| | *October month-end: read by hand as now (route 1)* | *Barry* | *Mon 2 November* |
+| **B** | Route 4 build: Oracle client and connection on the system's test server, the query runner, the bootstrap option; route 3 hardening if route 3 is chosen | Dupleix | Mon 2 to Fri 13 November |
+| **B** | Testing on the test copy into the bootstrap database; acceptance tests 1 to 7; **sign-off Fri 20 November** | Dupleix and MAIIC ICT | Mon 16 to Fri 20 November |
+| **C** | Production (or replica) account by section 6, step 11; connection test against production; switch prepared in the Governance Centre | MAIIC ICT | Mon 23 to Fri 27 November |
+| **C** | **Parallel run 1**: November month-end read by route 4 beside the hand pack; must tie row for row | Dupleix and Barry | Tue 1 to Fri 4 December |
+| | *Possible ICT year-end change freeze: no changes, only the parallel run continues as planned* | | *14 December to 3 January* |
+| **C** | **Parallel run 2**: December year-end read by route 4 beside the hand pack | Dupleix and Barry | Mon 4 to Fri 8 January 2027 |
+| **C** | Switch: route 4 in force (maker-checker); route 1 kept as the fallback | MAIIC | Mon 18 to Fri 22 January 2027 |
+| | **First month-end by route 4 alone: January** | | **Mon 1 February 2027** |
+
+![Figure 5. Proposed timetable for route 4, from approval in October 2026 to the first month-end read by route 4 alone in February 2027, with the month-ends that anchor it.](Route 4 - proposed build and test timetable - gantt.png)
 
 ## 10. How the queries are refreshed
 

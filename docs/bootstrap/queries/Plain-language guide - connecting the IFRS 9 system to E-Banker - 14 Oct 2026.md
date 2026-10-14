@@ -14,7 +14,9 @@ MAIIC's new IFRS 9 system calculates expected credit losses, interest revenue an
 
 We are asking MAIIC to let the IFRS 9 system **read** the data from E-Banker automatically, using a special login that can **look but never change anything**. We would set it up and test it on a copy of E-Banker first, and only switch it on for the real system once it has proved itself. The hand method stays available as a backup.
 
-What we need: Dr Thom's approval, a login created by Barry's team, and written confirmation from Virtual Galaxy (the company that supplies E-Banker) that this does not affect their support.
+**This needs to be planned now.** The building takes about a week, but approvals, the vendor's reply and two months of running old and new side by side take the time. To have it proven before the December 2026 year-end, which feeds the annual accounts and the audit, we need approval by **Friday 23 October 2026** (timetable in section 7).
+
+What we need: Dr Thom's approval, a login created by MAIIC ICT, and written confirmation from Virtual Galaxy (the company that supplies E-Banker) that this does not affect their support.
 
 ## 2. Why change
 
@@ -67,9 +69,22 @@ At the checkpoint the system:
 
 This is what makes the change safe: switching from the hand method to the automatic read changes nothing about how the figures are calculated, only how the data arrives.
 
+### Inside the checkpoint: four record books
+
+The checkpoint keeps four record books, in the system's own database:
+
+- **The register**: the list of questions the system is allowed to ask E-Banker (about sixty).
+- **The deliveries book**: one line for every delivery: when it came, how, whether it was accepted, and how far it got (so the next delivery fetches only what is new).
+- **The files book**: one line for every file in a delivery: how many records it promised and how many were stored.
+- **The records book**: the records themselves, each kept exactly as E-Banker sent it, with every later correction added as a new version beside the old one rather than over it.
+
+Figure 4 follows one real payment through the four books: MUSECO's K200,000,000 repayment of 24 July 2025. These books already exist in the test copies of the system, holding the data received so far, and are created empty when the system is installed for real.
+
+![Figure 4. One payment followed through the four record books of the checkpoint, and what happens if E-Banker later corrects it.](Landing zone - the four tables, one payment followed through - diagram.png)
+
 ## 5. The login we are asking for
 
-Barry's team would create one login on E-Banker's database with these limits:
+MAIIC ICT would create one login on E-Banker's database with these limits:
 
 - it can **read** a fixed list of tables (the loan accounts, their payments, balances and repayment schedules, and the trial balance) and **nothing else**;
 - it **cannot change, add or delete** anything, and cannot run any of E-Banker's programs;
@@ -77,7 +92,7 @@ Barry's team would create one login on E-Banker's database with these limits:
 - it can only connect from one named computer, over the secure link MAIIC already has;
 - MAIIC holds the password, changes it every 90 days, can see everything the login does, and can switch it off at any moment.
 
-The technical document gives Barry's team the exact steps and a short test to prove the login really is read-only before it is handed over.
+The technical document gives MAIIC ICT the exact steps, a simple test that the connection works from the right computer to the right database, and a short test to prove the login really is read-only before it is handed over.
 
 ## 6. What we need from the vendor
 
@@ -88,9 +103,27 @@ The login is within MAIIC's own control, but we ask Virtual Galaxy to confirm in
 Nothing touches the real E-Banker data until the whole arrangement has worked on a copy.
 
 1. **Approve.** Dr Thom approves; Barry asks the vendor.
-2. **Test on a copy.** Barry's team creates the login on E-Banker's test copy. We connect it to the IFRS 9 system's own test copy (the "bootstrap", below). We run way 2, then way 4, and check seven things together, including that nothing outside the agreed list can be read, that the automatic read gives exactly the same data as the hand method, and that a broken file is caught.
+2. **Test on a copy.** MAIIC ICT creates the login on E-Banker's test copy. We connect it to the IFRS 9 system's own test copy (the "bootstrap", below). We run way 2, then way 4, and check seven things together, including that nothing outside the agreed list can be read, that the automatic read gives exactly the same data as the hand method, and that a broken file is caught.
 3. **Go live.** The login is created on the real E-Banker, and the setting in the system is switched to way 4, which needs two people to approve.
 4. **Run side by side.** For two month-ends, both the hand method and the automatic read are used, and they must agree exactly before the hand method is retired. It remains available as a backup.
+
+**Proposed timetable**, assuming approval by Friday 23 October 2026:
+
+| When | What |
+|---|---|
+| By 23 October | Dr Thom approves; Barry writes to the vendor |
+| 26 October to 6 November | MAIIC ICT sets up the test login; the scheduled program is installed on the test copy; vendor reply expected by 6 November |
+| 2 to 13 November | Dupleix builds the direct read (way 4) |
+| 16 to 20 November | Everything tested on the copy; signed off on 20 November |
+| 23 to 27 November | The login is created on the live system, before any year-end change freeze |
+| 1 to 4 December | November month-end read both ways, side by side |
+| 4 to 8 January 2027 | December year-end read both ways, side by side |
+| 18 to 22 January 2027 | Switch to the direct read; the hand method stays as a backup |
+| 1 February 2027 | First month-end by the direct read alone |
+
+Each week of delay moves every later date; missing a month-end moves the switch by a whole month, and missing November means the year-end is read by hand only.
+
+![Figure 5. The proposed timetable, from approval in October 2026 to the first month-end read automatically in February 2027.](Route 4 - proposed build and test timetable - gantt.png)
 
 ## 8. The bootstrap: our test copy and safety check
 
