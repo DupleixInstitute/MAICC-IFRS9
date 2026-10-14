@@ -52,17 +52,17 @@ The bootstrap builds the whole system from the files in this folder and nothing 
 
 `--fresh` rebuilds the schema; it refuses a database that already holds loan books unless `--force-wipe` is given, so point `.env` at the right database first. The World Bank series are read from the committed snapshot (`macro/worldbank-MWI.json`); `--live-macro` fetches them live instead, after which the forward-looking statistics depend on the day the command runs. Nothing the bootstrap approves is a MAIIC approval: every load, build, schedule and scenario set it approves carries the label "System Bootstrap (automated data-readiness, not a MAIIC approval)".
 
-**How long it takes.** On the development machine (Windows, XAMPP, MariaDB) a full run took 51 minutes with the machine otherwise quiet (run A1 of commit 467ef7f: 3,057 s) and 70 to 101 minutes while other builds ran beside it (B1 5,483 s; commit c4acec4: A2 6,060 s, B2 4,196 s). Most of the time is the loan book build (27 months) and the month-end ECL path (PD, LGD, forward-looking route and ECL for every month).
+**How long it takes.** On the development machine (Windows, XAMPP, MariaDB) a full run of commit bece21a took 68 minutes (A3 4,119 s and B3 4,096 s, the two run side by side). Earlier commits took 51 minutes with the machine otherwise quiet (467ef7f, A1 3,057 s) and up to 101 minutes while other builds ran beside them. Most of the time is the loan book build (27 months), the restructure detection and the month-end chain, which runs for every month with a PD: the scenario set, the forward-looking route, the discounted ECL, the month record and the Mega Farm programme.
 
-**What it prints.** One line per step (the landing of each pack with its gates, the builds, every engine), then the verify table: one row per check with the expected figure, the figure recomputed from the database, and PASS or FAIL. The command exits non-zero on any FAIL. The checks are:
+**What it prints.** One line per step (the landing of each pack with its gates, the builds, every engine, one line per month of the month-end chain), then the verify table: one row per check with the expected figure, the figure recomputed from the database, and PASS or FAIL. The command exits non-zero on any FAIL. The same table is printed at any time by `php artisan eir:baselines`. The checks are:
 
-- the section 9 baselines: the interest posted from January 2025 to July 2026 (5,293,988,207.06), the loan book derived from the ledger against E-Banker's stored Loan Book Report on every in-scope account-month, the year-end interest batch on 4215 and 4216, and each loan GL at 31 December 2025 against Finance's trial balance (the two keyed GL openings of spec 3.5 named as accepted exceptions);
-- the pack inventory, one row per manifest: every committed file's SHA-256 recomputed, every extract landed with exactly its manifest rows, no CSV in a pack folder missing from its manifest, the trial balances and take-on workbooks landed; each row also counts the received files deliberately not landed (their reasons are in the manifest);
-- the golden numbers of `golden.json` below, each recomputed by `BaselineService::goldenActuals()` and compared to the cent (amounts) or exactly (counts). A golden with no committed value fails, so a value can never be taken from the run it tests.
+- the section 9 baselines: the interest posted from January 2025 to July 2026 (5,293,988,207.06), the loan book derived from the ledger against E-Banker's stored Loan Book Report on every in-scope account-month, the year-end interest batch on 4215 and 4216, and each loan GL at 31 December 2025 against Finance's trial balance (the two keyed GL openings of spec 3.5 named as accepted exceptions); two rows are reported, not asserted: the Mega Farm account-months whose ledger still differs from the report, and E-Banker's overdue run against the days past due staging reads;
+- the pack inventory, one row per manifest (nine manifests covering packs 1 to 10): every committed file's SHA-256 recomputed, every extract landed with exactly its manifest rows, no CSV in a pack folder missing from its manifest, the trial balances and take-on workbooks landed; each row also counts the received files deliberately not landed (their reasons are in the manifest);
+- the golden numbers of `golden.json` below, each recomputed by `BaselineService::goldenActuals()` and compared to the cent (amounts) or exactly (counts). A golden with no committed value fails, and so does a committed golden the run no longer produces, so a value can never be taken from the run it tests and a figure cannot silently disappear.
 
-**Proof that it reproduces.** Each commit was bootstrapped twice from a clean worktree into two empty databases (commit 467ef7f: A1 and B1; commit c4acec4: A2 and B2), and the second run's verify passed against goldens set from the first. Every table of the two databases was then compared over all columns except surrogate ids and run timestamps: the figures were identical. What differs between two runs is only what identifies a run, never a result: run UUIDs (`ecl_calculation_run_id`, `pd_segment_run_id`, the segment and projection run ids, and the transition-matrix comment that quotes the run id), the approval time stored inside `governed_scenario_sets.overlays_at_approval`, timestamps inside the audit log, and the seeded administrator's password hash (its salt is random) and remember token. On c4acec4, B2's own `--verify` against the goldens set from A2 gave 64 checks, 0 FAIL.
+**Proof that it reproduces.** Each commit was bootstrapped twice from a clean worktree (a fresh checkout, so the committed files are exactly what a client clones) into two empty databases: 467ef7f (A1, B1), c4acec4 (A2, B2) and bece21a (A3, B3, run in parallel). Each time the second run passed every verify check against goldens set from the first (bece21a: 98 checks, 0 FAIL), and every table of the two databases was compared over all columns except surrogate ids and run timestamps: the figures were identical. What differs between two runs is only what identifies a run, never a result: run UUIDs (`ecl_calculation_run_id`, `pd_segment_run_id`, the segment and projection run ids, and the transition-matrix comment that quotes the run id), the times stored inside `governed_scenario_sets.overlays_at_approval`, `fli_run_snapshots.inputs` and the audit log, and the seeded administrator's password hash (its salt is random) and remember token.
 
-**The golden numbers** (set on 14 October 2026 from run A2 of commit c4acec4, database `maiic_ifrs9_final_a2`; reproduced by run B2):
+**The golden numbers** (set on 14 October 2026 from run A3 of commit bece21a, database `maiic_ifrs9_final_a3`; reproduced by run B3):
 
 | Golden | Value |
 |---|---|
@@ -73,17 +73,24 @@ The bootstrap builds the whole system from the files in this folder and nothing 
 | Loan book 31 Dec 2025, Mega Farm programme (3,671 accounts with a balance) | 54,498,560,819.60 |
 | Loan book 30 Sep 2026, MAIIC's loan GLs (134 rows) | 23,189,580,235.43 |
 | Loan book 30 Sep 2026, Mega Farm programme (3,618 accounts with a balance) | 56,180,761,113.43 |
+| Mega Farm ledger against the Loan Book Report, account-months: tie / the report prints a credit as a debit (the ledger stands) / the report stands | 77,842 / 180 / 1 |
 | Ledger write-offs on MAIIC loans (WriteOffClassifier): 22 postings | 60,778,466.86 |
-| ECL 31 Dec 2025, MAIIC's book: undiscounted / discounted at the EIR (18 loans) | 4,633,401,758.31 / 449,877,082.57 |
-| ECL 31 Dec 2025, discounted by stage 1 / 2 / 3 | 5,533,881.06 / 444,343,201.51 / 0.00 |
+| ECL 31 Dec 2025, MAIIC's book: undiscounted / discounted at the EIR (booked) | 4,633,401,758.31 / 3,015,683,463.14 |
+| ECL 31 Dec 2025, discounted by stage 1 / 2 / 3 (loans 15 / 2 / 49) | 5,533,881.06 / 444,343,201.51 / 2,565,806,380.57 |
+| ECL 31 Dec 2025, loans not discounted: "A locked original EIR is unavailable." | 57 |
 | ECL 31 Dec 2025, Mega Farm programme | declined by the engine (no PD on MAIIC's own agricultural book that month) |
-| ECL 30 Sep 2026, MAIIC's book: undiscounted / discounted at the EIR (96 loans) | 10,654,569,637.48 / 6,473,181,447.94 |
-| ECL 30 Sep 2026, discounted by stage 1 / 2 / 3 | 266,143,422.79 / 179,420,874.77 / 6,027,617,150.38 |
-| ECL 30 Sep 2026, Mega Farm programme / MAIIC's 5 percent share | 45,096,989,583.07 / 2,254,849,479.15 |
+| ECL 30 Sep 2026, MAIIC's book: undiscounted / discounted at the EIR (booked) | 10,654,569,637.48 / 6,473,181,447.94 |
+| ECL 30 Sep 2026, discounted by stage 1 / 2 / 3 (loans 42 / 3 / 51) | 266,143,422.79 / 179,420,874.77 / 6,027,617,150.38 |
+| ECL 30 Sep 2026, loans not discounted: locked original EIR unavailable / remaining contractual horizon unavailable | 37 / 1 |
+| ECL 30 Sep 2026, Mega Farm programme / MAIIC's 5 percent share | 44,661,819,737.68 / 2,233,090,986.88 |
+| Month records (FLI module), December 2025 to September 2026: recorded / whose scenario-weighted discounted allowance equals the booked | 10 / 10 |
+| Month record 31 Dec 2025 and 30 Sep 2026: booked = weighted, discounted | 3,015,683,463.14 and 6,473,181,447.94 |
 | EIR contracts: in the contract master / solved and locked / blocked | 144 / 12 / 115 |
 | Revenue 2024: EIR interest / cash received / roll-forward rows | 12,056,553.50 / 55,983,930.53 / 14 |
 | Revenue 2025: EIR interest / cash received / roll-forward rows | 361,071,124.37 / 432,472,897.80 / 64 |
-| Revenue 2026 (to September): EIR interest / cash received / roll-forward rows | 234,852,444.59 / 386,932,610.86 / 35 |
+| Revenue 2026 (to September): EIR interest / cash received / roll-forward rows | 246,326,793.41 / 1,098,182,610.86 / 41 |
 | RBM return 30 Sep 2026, paragraph 12 loss list: facilities / balance | 10 / 1,510,956,083.45 |
+| Compliance register rows loaded from the committed workbooks | 84 |
+| Days past due, E-Banker's overdue run (OD_01, 2,259 month-end rows) against staging: account-months in both / agree / differ / by more than 30 days / not in the loan book | 2,241 / 1,782 / 459 / 229 / 18 |
 
-A revenue month that cannot be opened from a booked prior-month allowance is refused and writes no row (and the month after it is refused too), so the roll-forward row counts above are the golden for the refused months. The goldens are the figures of the committed data and code; they are not MAIIC approvals and they change only by a new commit that resets `golden.json` from a fresh run (the file names the date, commit and database it was set from).
+`golden.json` holds 77 values (the table groups them). A revenue month that cannot be opened from a booked prior-month allowance is refused and writes no row (and the month after it is refused too), so the roll-forward row counts above are the golden for the refused months. The goldens are the figures of the committed data and code; they are not MAIIC approvals and they change only by a new commit that resets `golden.json` from a fresh run (the file names the date, commit and database it was set from).

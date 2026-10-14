@@ -94,8 +94,13 @@ class BaselineService
 
         // every committed client file landed whole; then the golden numbers of docs/bootstrap/golden.json
         array_push($checks, ...$this->packInventory(base_path(self::INPUTS)));
-        foreach ($this->goldenActuals() as $key => $g) {
+        $actuals = $this->goldenActuals();
+        foreach ($actuals as $key => $g) {
             $checks[] = $this->goldenCheck($key, $g['what'], $g['value'], $g['amount']);
+        }
+        // a golden committed that this run no longer produces (a reason or a stage that disappeared) fails too
+        foreach (array_diff_key($this->golden(), $actuals) as $key => $value) {
+            $checks[] = ["Golden {$key}: committed but not produced by this run", is_float($value) ? number_format($value, 2) : (string) $value, 'none', false];
         }
 
         $out = [];
@@ -227,7 +232,79 @@ class BaselineService
      */
     public function goldenActuals(): array
     {
-        return $this->takeonWorksheetTie() + $this->bookGoldens() + $this->outputGoldens();
+        return $this->takeonWorksheetTie() + $this->bookGoldens() + $this->outputGoldens() + $this->controlGoldens();
+    }
+
+    /**
+     * The controls a run must reproduce besides the figures: the discounted allowance by stage in
+     * loans, the loans the time-phased engine could not discount by reason, the month records and
+     * whether each reconciles, the compliance register as loaded, the Mega Farm ledger tie by
+     * outcome and the days-past-due comparison with E-Banker's overdue run.
+     *
+     * @return array<string, array{what:string,value:float|int|null,amount:bool}>
+     */
+    private function controlGoldens(): array
+    {
+        $g = [];
+        $mf = \App\Services\MegaFarm\MegaFarmEclService::GLS;
+        foreach (self::GOLDEN_PERIODS as $p) {
+            foreach (DB::table('loan_books')->where('reporting_period', $p)->whereNotIn('product_code', $mf)->whereNotNull('ecl_value_discounted')
+                ->selectRaw('ifrs9_stage s, count(*) n')->groupBy('ifrs9_stage')->orderBy('ifrs9_stage')->get() as $s) {
+                $g["ecl_{$p}_maiic_stage{$s->s}_discounted_loans"] = ['what' => "ECL {$p}, MAIIC's book, stage {$s->s}: loans discounted", 'value' => (int) $s->n, 'amount' => false];
+            }
+            // the loans left undiscounted, by the reason their projection run recorded (digits masked, so a
+            // reason that names an amount or a date counts with its kind)
+            $runs = [];
+            $byReason = [];
+            foreach (DB::table('loan_books')->where('reporting_period', $p)->whereNotIn('product_code', $mf)->where('ecl_discount_status', 'TIME_PHASED_UNRESOLVED')
+                ->orderBy('contract_id')->get(['contract_id', 'ecl_calculation_run_id']) as $l) {
+                $run = (string) $l->ecl_calculation_run_id;
+                $runs[$run] ??= json_decode((string) DB::table('ecl_projection_runs')->where('run_id', $run)->value('exceptions'), true) ?: [];
+                $reason = trim(preg_replace('/\d[\d,.\/-]*/', '#', (string) ($runs[$run][(string) $l->contract_id] ?? 'no reason recorded')));
+                $slug = trim(preg_replace('/[^a-z0-9]+/', '_', strtolower(mb_substr($reason, 0, 60))), '_');
+                $byReason[$slug] ??= ['what' => "ECL {$p}, MAIIC's book: loans not discounted, \"" . mb_substr($reason, 0, 90) . '"', 'value' => 0, 'amount' => false];
+                $byReason[$slug]['value']++;
+            }
+            ksort($byReason);
+            foreach ($byReason as $slug => $row) {
+                $g["ecl_{$p}_unresolved_{$slug}"] = $row;
+            }
+            $g["ecl_{$p}_unresolved_loans"] = ['what' => "ECL {$p}, MAIIC's book: loans not discounted (all reasons)", 'value' => array_sum(array_column($byReason, 'value')), 'amount' => false];
+            // the month record of the period (the latest not superseded)
+            if (DB::getSchemaBuilder()->hasTable('fli_run_snapshots')) {
+                $rec = DB::table('fli_run_snapshots')->where('reporting_period', $p)->where('status', '<>', 'SUPERSEDED')->orderByDesc('id')->first();
+                $g["month_record_{$p}_booked_discounted"] = ['what' => "Month record {$p}: discounted allowance booked", 'value' => $rec?->booked_ecl_discounted === null ? null : (float) $rec->booked_ecl_discounted, 'amount' => true];
+                $g["month_record_{$p}_weighted_discounted"] = ['what' => "Month record {$p}: scenario-weighted discounted allowance", 'value' => $rec?->weighted_ecl_discounted === null ? null : (float) $rec->weighted_ecl_discounted, 'amount' => true];
+                $g["month_record_{$p}_reconciles"] = ['what' => "Month record {$p}: discounted weighted = booked (1) or not (0)", 'value' => $rec === null ? null : (int) (bool) $rec->discounted_reconciles, 'amount' => false];
+            }
+        }
+        if (DB::getSchemaBuilder()->hasTable('fli_run_snapshots')) {
+            $live = DB::table('fli_run_snapshots')->where('status', '<>', 'SUPERSEDED');
+            $g['month_records'] = ['what' => 'Month records (not superseded)', 'value' => (clone $live)->count(), 'amount' => false];
+            $g['month_records_reconciling'] = ['what' => 'Month records whose discounted weighted allowance equals the booked', 'value' => (clone $live)->where('discounted_reconciles', true)->count(), 'amount' => false];
+            // which months reconcile, as one number: the sum of the YYYYMM of each reconciling month
+            $g['month_records_reconciling_periods'] = ['what' => 'Month records reconciling: the sum of their YYYYMM (pins which months)', 'value' => (int) (clone $live)->where('discounted_reconciles', true)->get(['reporting_period'])
+                ->sum(fn ($r) => (int) str_replace('-', '', $r->reporting_period)), 'amount' => false];
+        }
+        if (DB::getSchemaBuilder()->hasTable('compliance_audit_rows')) {
+            $g['compliance_register_rows'] = ['what' => 'Compliance register rows loaded from the committed workbooks', 'value' => DB::table('compliance_audit_rows')->count(), 'amount' => false];
+        }
+        // the Mega Farm ledger tie (method B on the programme's GLs, where the report holds a row)
+        $mfRows = fn () => DB::table('loan_books')->where('build_method', 'B')->whereIn('product_code', $mf)->whereNotNull('stored_carrying_amount');
+        $sign = $mfRows()->where('build_flag', LoanBookBuildService::MEGA_FARM_SIGN_FLAG)->count();
+        $report = $mfRows()->where('build_flag', 'like', LoanBookBuildService::MEGA_FARM_REPORT_STANDS . '%')->count();
+        $other = $mfRows()->where('build_flag', 'like', LoanBookBuildService::MEGA_FARM_FLAG . '%')->count() - $sign - $report;
+        $g['megafarm_ledger_tie'] = ['what' => 'Mega Farm account-months whose ledger ties to the Loan Book Report', 'value' => $mfRows()->count() - $sign - $report - $other, 'amount' => false];
+        $g['megafarm_ledger_sign_error_ledger_stands'] = ['what' => 'Mega Farm account-months where the report prints a credit as a debit (the ledger stands)', 'value' => $sign, 'amount' => false];
+        $g['megafarm_ledger_report_stands'] = ['what' => 'Mega Farm account-months where the report\'s amount stands', 'value' => $report, 'amount' => false];
+        $g['megafarm_ledger_other_flags'] = ['what' => 'Mega Farm account-months with another Mega Farm flag', 'value' => $other, 'amount' => false];
+        // E-Banker's overdue run against the days past due staging reads
+        $od = $this->overdueRunComparison(0);
+        foreach (['od_rows' => 'OD_01 month-end rows read', 'compared' => 'account-months in both', 'agree' => 'agree', 'differ' => 'differ', 'differ_over_30' => 'differ by more than 30 days', 'not_in_book' => 'OD_01 account-months not in the loan book'] as $k => $what) {
+            $g["overdue_run_{$k}"] = ['what' => "Days past due, E-Banker's overdue run against staging: {$what}", 'value' => (int) $od[$k], 'amount' => false];
+        }
+
+        return $g;
     }
 
     /** The periods whose outputs are golden: the audited year-end and the last month of the committed packs. */
