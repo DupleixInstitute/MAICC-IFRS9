@@ -23,7 +23,7 @@ class EirFeedController extends Controller
     public function __construct()
     {
         $this->middleware(['auth', 'permission:eir.view']);
-        $this->middleware('permission:eir.govern')->only(['land', 'build', 'approve']);
+        $this->middleware('permission:eir.govern')->only(['land', 'build', 'approve', 'lockPeriod']);
     }
 
     public function index(GovernanceService $governance, LoanBookBuildService $build)
@@ -54,16 +54,19 @@ class EirFeedController extends Controller
             ->selectRaw('query_id, count(*) n, max(row_date) last_date')->groupBy('query_id')->get()->keyBy('query_id');
         $builds = DB::table('loan_book_builds as b')->leftJoin('users as r', 'r.id', '=', 'b.requested_by')->leftJoin('users as a', 'a.id', '=', 'b.approved_by')
             ->orderByDesc('b.id')->limit(20)
-            ->get(['b.id', 'b.method', 'b.period_from', 'b.period_to', 'b.status', 'b.approver_label', 'b.result', 'b.created_at', 'b.built_at', 'r.name as requested_by', 'a.name as approved_by'])
+            ->get(['b.id', 'b.method', 'b.period_from', 'b.period_to', 'b.status', 'b.note', 'b.approver_label', 'b.result', 'b.created_at', 'b.built_at', 'b.requested_by as requested_by_id', 'r.name as requested_by', 'a.name as approved_by'])
             ->map(fn ($b) => ['id' => $b->id, 'method' => $b->method, 'from' => $b->period_from, 'to' => $b->period_to, 'status' => $b->status, 'approver' => $b->approved_by ?? $b->approver_label,
-                'requested_by' => $b->requested_by, 'created_at' => $b->created_at, 'built_at' => $b->built_at,
+                // an approved proposal is closed as superseded by the build it produced, not refused
+                'superseded' => $b->status === 'REJECTED' && str_starts_with((string) $b->note, 'Superseded'),
+                'requested_by' => $b->requested_by, 'requested_by_id' => $b->requested_by_id === null ? null : (int) $b->requested_by_id, 'created_at' => $b->created_at, 'built_at' => $b->built_at,
                 'summary' => collect(json_decode($b->result ?? '', true) ?? [])->map(fn ($p, $period) => ['period' => $period, 'method' => $p['method'] ?? '', 'rows' => $p['rows'] ?? 0, 'flagged' => $p['flagged'] ?? 0, 'changed' => $p['changed'] ?? 0, 'new' => $p['new'] ?? 0])->values()->all()]);
         $periods = DB::table('loan_books')->whereNotNull('build_method')->selectRaw('reporting_period, build_method, count(*) n, sum(build_flag is not null) flagged')->groupBy('reporting_period', 'build_method')->orderBy('reporting_period')->get();
         try {
             $route = $governance->get('ebanker_feed_route');
             $method = $governance->get('loan_book_build_method');
         } catch (Throwable) {
-            $route = 'Route 1: manual pack'; $method = 'B: derived from the ledger';
+            // no approved value in Governance: say so, never assume one
+            $route = null; $method = null;
         }
 
         return Inertia::render('Eir/Feed/Index', [
@@ -72,6 +75,7 @@ class EirFeedController extends Controller
             'locks' => DB::table('reporting_period_locks')->orderBy('reporting_period')->pluck('reporting_period'),
             'lastLedgerDate' => (new \App\Services\Ebanker\LandingZoneReader())->lastLedgerDate(),
             'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
+            'me' => auth()->id(),
             // the view the section tab opened (config/menu.php) and the count on each tab
             'tab' => in_array(request('tab'), ['loads', 'builds', 'periods', 'queries'], true) ? request('tab') : 'loads',
             'tabCounts' => ['loads' => DB::table('ebanker_loads')->count(), 'builds' => DB::table('loan_book_builds')->count(), 'periods' => $periods->count(), 'queries' => $queries->count()],
@@ -128,6 +132,7 @@ class EirFeedController extends Controller
     public function build(Request $request, LoanBookBuildService $service)
     {
         $data = $request->validate(['from' => ['required', 'regex:/^\d{4}-\d{2}$/'], 'to' => ['required', 'regex:/^\d{4}-\d{2}$/'], 'method' => ['nullable', 'in:A,B,C'], 'retire_stale' => ['nullable', 'boolean']]);
+        \App\Support\LedgerReadLimits::raise();
         try {
             $r = $service->build($data['from'], $data['to'], $data['method'] ?? null, $request->user()->id, null, null, false, (bool) ($data['retire_stale'] ?? false));
         } catch (Throwable $e) {
@@ -139,6 +144,7 @@ class EirFeedController extends Controller
 
     public function approve(Request $request, int $build, LoanBookBuildService $service)
     {
+        \App\Support\LedgerReadLimits::raise();
         try {
             $r = $service->approve($build, $request->user()->id);
         } catch (Throwable $e) {
@@ -146,6 +152,32 @@ class EirFeedController extends Controller
         }
 
         return back()->with('success', "Build {$r['build_id']} approved and built: " . collect($r['periods'])->sum('rows') . ' rows over ' . count($r['periods']) . ' periods.');
+    }
+
+    /**
+     * Lock a reporting period, or unlock it, from the screen (spec v4 sections
+     * 6.6 and 6.11): the same action as `php artisan eir:lock-period`, with the
+     * reason written to the audit log. A locked period is never restated by a
+     * build, the ECL, staging, the PD, the LGD, the forward-looking route, the
+     * revenue roll-forward or a write-off; unlocking is a deliberate,
+     * reasoned act.
+     */
+    public function lockPeriod(Request $request, string $period)
+    {
+        abort_unless((bool) preg_match('/^\d{4}-\d{2}$/', $period), 404);
+        $data = $request->validate(['reason' => ['required', 'string', 'min:10', 'max:500'], 'unlock' => ['nullable', 'boolean']]);
+        $unlock = (bool) ($data['unlock'] ?? false);
+        if (! $unlock && ! DB::table('loan_books')->where('reporting_period', $period)->exists()) {
+            return back()->with('error', "Period {$period} has no loan book; there is nothing to lock.");
+        }
+        $args = ['period' => $period, '--user' => $request->user()->id, '--reason' => trim($data['reason'])];
+        if ($unlock) {
+            $args['--unlock'] = true;
+        }
+        $code = \Illuminate\Support\Facades\Artisan::call('eir:lock-period', $args);
+        $out = trim(\Illuminate\Support\Facades\Artisan::output());
+
+        return back()->with($code === 0 ? 'success' : 'error', $out !== '' ? $out : ($code === 0 ? "Period {$period} updated." : "Period {$period} could not be updated."));
     }
 
     /** The queries, as the file Barry runs. */

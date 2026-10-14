@@ -46,6 +46,15 @@ class CommandRunner
      * @param array<string,mixed> $extra Extra metadata persisted on the run
      *                                   (e.g. danger, group, key) for the history UI.
      */
+    /**
+     * The memory a launched job may use. The month-end steps, the loan-book
+     * build and the baseline checks read the whole landing-zone ledger, the
+     * Mega Farm ledger of pack 4 with it (some 300,000 postings); PHP's 1 GB
+     * default stopped them where the console bootstrap, run with 4 GB,
+     * succeeded (UI audit of 14 October 2026).
+     */
+    private const MEMORY = '4096M';
+
     public function launch(string $command, string $label, array $extra = []): string
     {
         $id = Carbon::now()->format('Ymd-His') . '-' . Str::lower(Str::random(5));
@@ -72,7 +81,7 @@ class CommandRunner
         if (PHP_OS_FAMILY === 'Windows') {
             $bat = $this->dir . '/' . $id . '.bat';
             $content = "@echo off\r\n"
-                . '"' . $php . '" "' . $artisan . '" ' . $command . ' > "' . $log . '" 2>&1' . "\r\n"
+                . '"' . $php . '" -d memory_limit=' . self::MEMORY . ' "' . $artisan . '" ' . $command . ' > "' . $log . '" 2>&1' . "\r\n"
                 . 'echo ===EXIT:%ERRORLEVEL%=== >> "' . $log . '"' . "\r\n";
             file_put_contents($bat, $content);
             // start /B detaches; the cmd window is hidden. The pipe closes
@@ -84,7 +93,7 @@ class CommandRunner
         } else {
             $sh = $this->dir . '/' . $id . '.sh';
             $content = "#!/usr/bin/env bash\n"
-                . escapeshellarg($php) . ' ' . escapeshellarg($artisan) . ' ' . $command . ' > ' . escapeshellarg($log) . " 2>&1\n"
+                . escapeshellarg($php) . ' -d memory_limit=' . self::MEMORY . ' ' . escapeshellarg($artisan) . ' ' . $command . ' > ' . escapeshellarg($log) . " 2>&1\n"
                 . 'echo "===EXIT:$?===" >> ' . escapeshellarg($log) . "\n";
             file_put_contents($sh, $content);
             chmod($sh, 0755);

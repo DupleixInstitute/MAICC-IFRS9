@@ -146,8 +146,20 @@ private function dashboardState(Request $request): array
     $bookGross = (float) $bookByStage->sum('gross');
 
     // --- ECL: totals, PD and LGD by stage in ONE grouped query ------------
+    // The booked allowance is the loss discounted at the EIR (spec 6.10.1,
+    // IFRS 9 5.5.17). It is shown only when every run row of the period was
+    // fully discounted; otherwise the tiles show the undiscounted loss and say
+    // so, never a mix of the two bases.
+    $eclColumn = function (string $period) use ($eclScope) {
+        $rows = $eclScope($period)->selectRaw("COUNT(*) as n, SUM(CASE WHEN discount_status = 'CALCULATED' AND total_ecl_discounted IS NOT NULL THEN 1 ELSE 0 END) as full")->first();
+
+        return ((int) ($rows->n ?? 0) > 0 && (int) $rows->full === (int) $rows->n) ? 'total_ecl_discounted' : 'total_ecl';
+    };
+    // the compare-to period is read on the same basis, so the movement compares like with like
+    $selectedEclColumn = $eclColumn($selectedPeriod) === 'total_ecl_discounted' && (! $comparePeriod || $eclColumn($comparePeriod) === 'total_ecl_discounted')
+        ? 'total_ecl_discounted' : 'total_ecl';
     $eclByStage = $eclScope($selectedPeriod)
-        ->selectRaw('ifrs9_stage, SUM(total_ecl) as total_ecl, AVG(pd_value_used) as avg_pd, AVG(lgd_value_used) as avg_lgd')
+        ->selectRaw('ifrs9_stage, SUM(' . $selectedEclColumn . ') as total_ecl, AVG(pd_value_used) as avg_pd, AVG(lgd_value_used) as avg_lgd')
         ->groupBy('ifrs9_stage')
         ->get()
         ->keyBy('ifrs9_stage');
@@ -169,7 +181,7 @@ private function dashboardState(Request $request): array
 
     if ($comparePeriod) {
         $compareEclRows = $eclScope($comparePeriod)
-            ->selectRaw('ifrs9_stage, SUM(total_ecl) as total, SUM(total_ead) as total_ead, AVG(pd_value_used) as avg_pd, AVG(lgd_value_used) as avg_lgd')
+            ->selectRaw('ifrs9_stage, SUM(' . $selectedEclColumn . ') as total, SUM(total_ead) as total_ead, AVG(pd_value_used) as avg_pd, AVG(lgd_value_used) as avg_lgd')
             ->groupBy('ifrs9_stage')
             ->get()
             ->keyBy('ifrs9_stage');
@@ -253,6 +265,10 @@ private function dashboardState(Request $request): array
     $summary = [
         'carrying_amount' => $grossCarryingAmount,
         'total_ecl' => $totalECLAllowance,
+        // the booked allowance is the loss discounted at the EIR (spec 6.10.1,
+        // IFRS 9 5.5.17); a run saved undiscounted has only its undiscounted
+        // figure, and the tile says which basis it shows
+        'ecl_basis' => $selectedEclColumn === 'total_ecl_discounted' ? 'discounted' : 'undiscounted',
         'last_ecl' => $lastTotalECLAllowance->toArray(),
         'ecl_percentage' => $coverageRatio,
         'last_ecl_percentage' => $lastCoverageRatio,

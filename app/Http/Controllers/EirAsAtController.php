@@ -35,6 +35,7 @@ class EirAsAtController extends Controller
 
     public function index(Request $request, EirAsAtService $service)
     {
+        \App\Support\LedgerReadLimits::raise(); // reads the whole landing-zone ledger
         $date = (string) $request->query('date', '');
         $contract = (string) $request->query('contract', '');
         $last = (new \App\Services\Ebanker\LandingZoneReader())->lastLedgerDate();
@@ -63,6 +64,7 @@ class EirAsAtController extends Controller
     /** The book at the date as CSV (the default), Excel or PDF. */
     public function export(Request $request, EirAsAtService $service)
     {
+        \App\Support\LedgerReadLimits::raise(); // reads the whole landing-zone ledger
         $data = $request->validate(['date' => ['required', 'date_format:Y-m-d'], 'format' => ['nullable', Rule::in(['csv', 'xlsx', 'pdf'])]]);
         $date = $data['date'];
         $format = $data['format'] ?? 'csv';

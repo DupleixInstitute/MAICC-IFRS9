@@ -91,6 +91,9 @@ class SystemDocsController extends Controller
 
     private function pdf(string $doc)
     {
+        // the technical manual runs to some hundreds of A4 pages with the live
+        // schema; dompdf needs more than PHP's default 60 seconds to lay it out
+        set_time_limit(600);
         $meta = self::DOCS[$doc];
 
         $company = $this->company();

@@ -24,6 +24,7 @@ class RbmReturnController extends Controller
 
     public function index(Request $request, RbmReturnService $service)
     {
+        \App\Support\LedgerReadLimits::raise(); // reads the whole landing-zone ledger
         $period = (string) $request->query('period', DB::table('loan_books')->whereNotNull('build_method')->max('reporting_period') ?? DB::table('loan_books')->max('reporting_period'));
         $error = null; $return = null;
         try {
@@ -38,6 +39,7 @@ class RbmReturnController extends Controller
 
     public function export(Request $request, RbmReturnService $service)
     {
+        \App\Support\LedgerReadLimits::raise(); // reads the whole landing-zone ledger
         $period = (string) $request->query('period');
         $r = $service->build($period, (bool) $request->query('mega_farm', false));
         // every format is the branded report, CSV included, under one file name

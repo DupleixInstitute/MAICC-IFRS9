@@ -173,6 +173,9 @@ public function index(Request $request)
     public function linkLoanBook(Request $request, \App\Services\ClientLinkService $service)
     {
         abort_unless($request->user()?->can('clients.create'), 403);
+        // the first link writes the client onto every loan-book row (some 80,000
+        // over 27 months): more than PHP's default 60 seconds on a web request
+        set_time_limit(600);
         $r = $service->link((int) $request->user()->id);
 
         return redirect()->route('clients.index')->with('success', "{$r['created']} new client(s) from the loan book; {$r['loans_linked']} loan(s) linked to their client.");

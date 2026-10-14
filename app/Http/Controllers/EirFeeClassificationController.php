@@ -18,7 +18,81 @@ class EirFeeClassificationController extends Controller
         $this->middleware('auth');
         // the list and the fee GL check are readable with eir.fees.import; classifying and reviewing stay with settings
         $this->middleware('permission:settings|eir.fees.import')->only('index');
-        $this->middleware('permission:settings')->except('index');
+        $this->middleware('permission:settings')->except(['index', 'tieHeld']);
+        // tying a held GL fee line to a loan is a governed, audit-logged act (spec 7.8.4)
+        $this->middleware('permission:eir.govern')->only('tieHeld');
+    }
+
+    /**
+     * The GL fee legs the batch could not place on one loan (fee_gl_unassigned),
+     * read only: date, batch, amount, GL, narration, why it is held and the loan
+     * the evidence points to, if any. A person ties it with tieHeld().
+     */
+    private function heldGlFees(): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('fee_gl_unassigned')) {
+            return [];
+        }
+
+        return DB::table('fee_gl_unassigned')->orderBy('transaction_date')->orderBy('id')
+            ->get(['id', 'transaction_date', 'batch', 'gl_code', 'amount', 'narration', 'reason', 'loans_in_batch', 'candidate_contract_id', 'candidate_evidence'])
+            ->map(fn ($h) => (array) $h + ['loans' => json_decode((string) $h->loans_in_batch, true) ?: []])->all();
+    }
+
+    /**
+     * Where a lower fee source carries a different amount from the source of
+     * record for the same contract and fee type (spec 7.8.5), read from the
+     * superseded markers the precedence wrote; nothing is written here.
+     */
+    private function sourceDifferences(): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('contract_fees', 'superseded_by_source')) {
+            return [];
+        }
+        $contracts = DB::table('contract_fees')->whereNotNull('superseded_by_source')->distinct()->pluck('contract_id');
+        if ($contracts->isEmpty()) {
+            return [];
+        }
+        $out = [];
+        foreach (DB::table('contract_fees')->whereIn('contract_id', $contracts)->get(['contract_id', 'fee_type', 'amount', 'source_system', 'superseded_by_source'])->groupBy('contract_id') as $contract => $rows) {
+            $winner = $rows->whereNotNull('superseded_by_source')->first()->superseded_by_source;
+            $kept = []; $other = [];
+            foreach ($rows as $r) {
+                $tier = \App\Services\Eir\FeeSourcePrecedence::tierOf($r->source_system);
+                if ($tier === null) {
+                    continue;
+                }
+                if ($tier === $winner && $r->superseded_by_source === null) {
+                    $kept[$r->fee_type] = ($kept[$r->fee_type] ?? 0.0) + (float) $r->amount;
+                } elseif ($r->superseded_by_source !== null) {
+                    $other[$tier][$r->fee_type] = ($other[$tier][$r->fee_type] ?? 0.0) + (float) $r->amount;
+                }
+            }
+            foreach ($other as $tier => $byType) {
+                foreach (array_unique(array_merge(array_keys($byType), array_keys($kept))) as $type) {
+                    $a = round($kept[$type] ?? 0.0, 2); $b = round($byType[$type] ?? 0.0, 2);
+                    if (abs($a - $b) >= 0.01) {
+                        $out[] = ['contract_id' => (string) $contract, 'fee_type' => $type, 'source_of_record' => $winner, 'amount_of_record' => $a, 'other_source' => $tier, 'other_amount' => $b, 'difference' => round($b - $a, 2)];
+                    }
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /** Tie a held GL fee line to its loan, with the reason (GlFeeBuildService::assignHeld audit-logs it). */
+    public function tieHeld(Request $request, int $held, \App\Services\Ebanker\GlFeeBuildService $service)
+    {
+        $data = $request->validate(['contract_id' => ['required', 'string', 'max:60'], 'reason' => ['required', 'string', 'min:10', 'max:500']]);
+        \App\Support\LedgerReadLimits::raise(); // the precedence and the fee build read the ledger
+        try {
+            $service->assignHeld($held, $data['contract_id'], (int) $request->user()->id, $data['reason']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'The fee line is tied to loan ' . ltrim(trim($data['contract_id']), '0') . '. It now waits on the list below for its classification and review.');
     }
 
     public function index(Request $request)
@@ -40,6 +114,8 @@ class EirFeeClassificationController extends Controller
             'glReconciliation' => app(\App\Services\Eir\FeeGlReconciliationService::class)->report(),
             'canClassify' => (bool) $request->user()?->can('settings'),
             'canGovern' => (bool) $request->user()?->can('eir.govern'),
+            'heldGlFees' => $this->heldGlFees(),
+            'sourceDifferences' => $this->sourceDifferences(),
             'ruleCoverage' => [
                 'pending' => ContractFee::where('classification_status', 'PENDING')->count(),
                 'pending_matched' => ContractFee::where('classification_status', 'PENDING')->whereNotNull('suggested_rule_id')->count(),
@@ -100,6 +176,9 @@ class EirFeeClassificationController extends Controller
             'integral' => ['required_if:mode,manual', 'nullable', 'boolean'],
             'reason' => ['required', 'string', 'max:2000'],
             'accounting_rule_id' => ['nullable', 'exists:eir_accounting_rules,id'],
+            // a line loaded without a direction (the LOS charges carry none) cannot
+            // enter the EIR; the classifier states it, and only fills a blank
+            'cashflow_direction' => ['nullable', 'in:RECEIVED,PAID'],
         ]);
 
         $byRule = ($data['mode'] ?? 'manual') === 'rule';
@@ -122,6 +201,8 @@ class EirFeeClassificationController extends Controller
                     ? $data['reason'] . ' [applied by rule: ' . ($fee->suggestedRule?->name ?? 'unknown') . ']'
                     : $data['reason'];
 
+                $fee->update(($fee->cashflow_direction === null || $fee->cashflow_direction === '') && ! empty($data['cashflow_direction'])
+                    ? ['cashflow_direction' => $data['cashflow_direction']] : []);
                 $fee->update([
                     'integral' => $integral,
                     'classification_status' => 'CLASSIFIED',
@@ -144,6 +225,7 @@ class EirFeeClassificationController extends Controller
         AuditLoggerService::log('EIR Fees Classified', ContractFee::class, null, ['meta' => [
             'fee_ids' => $data['fee_ids'], 'mode' => $byRule ? 'RULE' : 'MANUAL',
             'integral' => $byRule ? null : $data['integral'],
+            'cashflow_direction_set' => $data['cashflow_direction'] ?? null,
             'applied' => $applied, 'refused' => count($refused),
         ]]);
 

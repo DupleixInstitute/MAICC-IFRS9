@@ -30,6 +30,20 @@ class EirDrawdownController extends Controller
 
         $facilities = $service->facilities($asOf, $search === '' ? null : $search);
 
+        // the fee capitalised into each drawdown (type-301 fee debits on the
+        // loan account the same day, spec 7.8.4), included in its amount
+        $ids = collect($facilities)->flatMap(fn ($f) => array_column($f['tranches'], 'id'))->all();
+        $capitalised = $ids !== [] && \Illuminate\Support\Facades\Schema::hasColumn('contract_disbursements', 'capitalised_fees')
+            ? \Illuminate\Support\Facades\DB::table('contract_disbursements')->whereIn('id', $ids)->pluck('capitalised_fees', 'id')->all() : [];
+        foreach ($facilities as &$f) {
+            foreach ($f['tranches'] as &$t) {
+                $t['capitalised_fees'] = isset($capitalised[$t['id']]) ? (float) $capitalised[$t['id']] : null;
+            }
+            unset($t);
+            $f['capitalised_fees'] = array_sum(array_map(fn ($t) => (float) ($t['capitalised_fees'] ?? 0), $f['tranches']));
+        }
+        unset($f);
+
         // Largest undrawn commitment first: that is the figure the screen is
         // for, and a facility with none needs no attention.
         usort($facilities, function ($a, $b) {

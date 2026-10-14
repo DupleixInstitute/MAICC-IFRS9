@@ -1,6 +1,7 @@
 <template>
     <app-layout title="Clients" description="Every borrower in the loan book, one client per E-Banker customer number, and those added here or imported. Each loan is linked to its client">
         <template #actions>
+            <HelpManual inline/>
             <input v-model="form.search" type="text" class="maiic-input w-64" placeholder="Search ID, name or phone" aria-label="Search clients"/>
             <button v-if="can.create" type="button" class="secondary-btn" @click="linkLoanBook" title="Create a client for every loan-book customer not yet held, and link every loan to its client">Link the loan book</button>
             <Link v-if="can.create" :href="route('clients.import.create')" class="secondary-btn">Import clients</Link>
@@ -39,7 +40,6 @@
             </div>
         </div>
         <pagination v-if="clients?.links" :links="clients.links"/>
-        <HelpManual/>
     </app-layout>
 </template>
 

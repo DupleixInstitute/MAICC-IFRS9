@@ -12,11 +12,13 @@ const props = defineProps({
     me: { type: Object, default: () => ({}) },
     is_admin: { type: Boolean, default: false },
     messages: { type: Array, default: () => [] },
+    approvals: { type: Array, default: () => [] },
 })
 
 const activeTab = ref('checklist')
 const tabs = computed(() => [
     { key: 'checklist', label: 'IFRS 9 close checklist', count: props.progress.done + '/' + props.progress.total },
+    { key: 'approvals', label: 'Awaiting approval', count: props.approvals.reduce((n, a) => n + a.count, 0) },
     { key: 'messages', label: 'Team messages', count: props.messages.length },
 ])
 const draft = ref('')
@@ -138,6 +140,21 @@ function toggle(t) {
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <!-- ===================== AWAITING APPROVAL TAB ===================== -->
+            <div v-else-if="activeTab === 'approvals'">
+                <p class="border-b border-gray-200 px-5 py-2 text-xs text-gray-500">
+                    Everything a second person must approve, across the system (all periods). The person who proposed an item cannot approve it.
+                </p>
+                <div v-for="a in approvals" :key="a.label" class="flex items-center gap-4 border-b border-gray-100 px-5 py-3 last:border-0">
+                    <span class="maiic-badge maiic-badge-gold tabular-nums">{{ a.count.toLocaleString() }}</span>
+                    <p class="min-w-0 flex-1 font-semibold text-gray-900">{{ a.label }}</p>
+                    <a :href="a.href" class="maiic-action maiic-action-view" :title="'Open: ' + a.label">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    </a>
+                </div>
+                <p v-if="!approvals.length" class="maiic-empty py-10 text-center text-sm">Nothing is waiting for approval.</p>
             </div>
 
             <!-- ===================== MESSAGES TAB ===================== -->

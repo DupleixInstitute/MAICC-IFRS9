@@ -967,6 +967,7 @@ Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classificat
     Route::post('/rematch', [\App\Http\Controllers\EirFeeClassificationController::class, 'rematch'])->name('rematch');
     Route::post('/classify', [\App\Http\Controllers\EirFeeClassificationController::class, 'classify'])->name('classify');
     Route::post('/review', [\App\Http\Controllers\EirFeeClassificationController::class, 'review'])->name('review');
+    Route::post('/held/{held}/tie', [\App\Http\Controllers\EirFeeClassificationController::class, 'tieHeld'])->name('tie-held');
 });
 
 Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], function () {
@@ -1300,6 +1301,7 @@ Route::group(['prefix' => 'eir-feed', 'as' => 'eir-feed.'], function () {
     Route::post('/land', [\App\Http\Controllers\EirFeedController::class, 'land'])->name('land');
     Route::post('/build', [\App\Http\Controllers\EirFeedController::class, 'build'])->name('build');
     Route::post('/build/{build}/approve', [\App\Http\Controllers\EirFeedController::class, 'approve'])->name('approve');
+    Route::post('/periods/{period}/lock', [\App\Http\Controllers\EirFeedController::class, 'lockPeriod'])->name('lock-period');
 });
 // Write-offs: those the ledger carries, and the governed register (spec v4 s.3.8)
 Route::group(['prefix' => 'eir-write-offs', 'as' => 'eir-write-offs.'], function () {

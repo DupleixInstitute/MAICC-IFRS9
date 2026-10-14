@@ -19,6 +19,7 @@ class EirWriteOffController extends Controller
 
     public function index(WriteOffRegisterService $service)
     {
+        \App\Support\LedgerReadLimits::raise(); // reads the whole landing-zone ledger
         $users = DB::table('users')->pluck('name', 'id');
         $register = DB::table('loan_write_offs')->orderByDesc('id')->get()->map(fn ($w) => (array) $w + [
             'proposed_by_name' => $users[$w->proposed_by] ?? null,

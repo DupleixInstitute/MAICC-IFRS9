@@ -79,6 +79,7 @@
                             <th class="th">Tranche</th>
                             <th class="th">Date drawn</th>
                             <th class="th text-right">Amount</th>
+                            <th class="th text-right" title="Fee debits on the loan account the same day, included in the amount (capitalised into the loan)">Of which capitalised fees</th>
                             <th class="th">Reference</th>
                             <th class="th">Sub-account</th>
                             <th class="th">Loaded</th>
@@ -89,6 +90,7 @@
                             <td class="td tabular-nums">{{ t.tranche_no === null ? '-' : t.tranche_no }}</td>
                             <td class="td tabular-nums">{{ t.disbursement_date }}</td>
                             <td class="td text-right tabular-nums">{{ money(t.amount) }}</td>
+                            <td class="td text-right tabular-nums">{{ t.capitalised_fees ? money(t.capitalised_fees) : '-' }}</td>
                             <td class="td text-xs">{{ t.reference || '-' }}</td>
                             <td class="td text-xs">{{ t.sub_account_no || '-' }}</td>
                             <td class="td text-xs text-gray-500">{{ t.loaded_at || '-' }}</td>
@@ -98,6 +100,7 @@
                           <tr class="border-t border-gray-300 font-semibold">
                             <td class="td" colspan="2">Total drawn</td>
                             <td class="td text-right tabular-nums">{{ money(f.drawn) }}</td>
+                            <td class="td text-right tabular-nums">{{ f.capitalised_fees ? money(f.capitalised_fees) : '-' }}</td>
                             <td class="td" colspan="3"></td>
                           </tr>
                         </tfoot>

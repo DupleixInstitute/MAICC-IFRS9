@@ -367,7 +367,9 @@ class ExpectedCreditLossController extends Controller
 
          public function calculateECL(Request $request, EclDiscountingService $discounting, ?TimePhasedEclService $timePhased = null)
             {
-                ini_set('max_execution_time', 300);
+                if (! app()->runningInConsole()) {
+                    ini_set('max_execution_time', 300); // the web request only: on the console it capped the bootstrap (audit H14)
+                }
                 $startTime = microtime(true);
 
                 $validated = $request->validate([
@@ -509,8 +511,8 @@ class ExpectedCreditLossController extends Controller
                         SET
                             lgd_value = IFNULL($lgdExpr, 0),
                             ecl_value = IFNULL($stagePdExpr, 0) * IFNULL($lgdExpr, 0)
-                                * (IFNULL(carrying_amount, 0)
-                                    + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1))
+                                * (CASE WHEN (IFNULL(carrying_amount, 0) + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1)) > 0
+                                    THEN (IFNULL(carrying_amount, 0) + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1)) ELSE 0 END)
                         WHERE $baseWhere
                     ", $bindings);
 
@@ -522,7 +524,12 @@ class ExpectedCreditLossController extends Controller
                         // The complete time-phased engine is authoritative on
                         // current schemas. The fallback keeps isolated legacy
                         // test schemas operational and remains visibly labelled.
-                        if (\Schema::hasTable('ecl_projection_runs') && DB::table('ecl_scenario_assumptions')->where('status','APPROVED')->exists()) {
+                        // the time-phased engine runs on the governed set the route wrote on
+                        // the loans (fli_by_scenario) as well as on the legacy assumptions; it
+                        // used to need the legacy table, so a book run under the governed set
+                        // fell to the horizon proxy below
+                        $governedOnLoans = \Schema::hasColumn('loan_books', 'fli_by_scenario') && $loans->contains(fn ($l) => ! empty($l->fli_by_scenario) && $l->fli_by_scenario !== '[]');
+                        if (\Schema::hasTable('ecl_projection_runs') && ($governedOnLoans || DB::table('ecl_scenario_assumptions')->where('status','APPROVED')->exists())) {
                             $discountResult = ($timePhased ?? app(TimePhasedEclService::class))->run(
                                 $loans, $period, $validated['lgd_type'], auth()->id()
                             );

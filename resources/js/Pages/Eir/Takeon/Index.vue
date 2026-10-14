@@ -7,7 +7,7 @@
 
     <div class="space-y-5">
       <details class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600">
-        <summary class="cursor-pointer"><span class="font-semibold text-gray-800">Basis in force:</span> {{ basisInForce }}</summary>
+        <summary class="cursor-pointer"><span class="font-semibold text-gray-800">Basis in force:</span> {{ basisInForce || 'Not set: no approved value in the Governance Centre' }}</summary>
         <p class="mt-1 pb-1">Where a facility has a mapped block and its fees, the EIR is solved from origination and rolled to 31 July 2024; where it has not, the loan starts at its take-on balance and is flagged. A blank fee means no such fee; a zero means known to be nil. Every figure keeps the sheet and cell it came from.</p>
       </details>
 
@@ -81,7 +81,7 @@
             </div>
             <div class="maiic-table-wrap">
               <table class="maiic-table">
-                <thead><tr><th>Account</th><th>Basis</th><th>Origination</th><th class="num">Original principal</th><th class="num">Rate %</th><th class="num">Fees</th><th class="num">Take-on principal</th><th class="num">Opening recovery</th><th class="num">Schedule balance 31 Jul 2024</th><th class="num">Difference</th><th class="num">EIR from origination</th><th class="num">Amortised cost 31 Jul 2024</th><th class="num">Take-on balance</th><th class="num">Difference</th><th class="num">Schedule lines</th><th>Flags</th></tr></thead>
+                <thead><tr><th>Account</th><th>Basis</th><th>Origination</th><th class="num">Original principal</th><th class="num">Rate %</th><th class="num">Fees</th><th class="num">Take-on principal</th><th class="num">Opening recovery</th><th class="num">Schedule balance 31 Jul 2024</th><th class="num">Difference</th><th class="num">EIR from origination</th><th class="num" title="The rate the workbook schedule itself carries, with no fee">EIR with no fee</th><th title="The governed take-on solve check (take-on EIR plausibility)">EIR check</th><th class="num">Amortised cost 31 Jul 2024</th><th class="num">Take-on balance</th><th class="num">Difference</th><th class="num">Schedule lines</th><th>Flags</th></tr></thead>
                 <tbody>
                   <tr v-for="c in pageOf(filteredPopulation, 'population')" :key="c.account">
                     <td class="font-mono text-xs">{{ c.account }}</td>
@@ -95,13 +95,19 @@
                     <td class="num">{{ c.schedule_balance_at_takeon != null ? fmt(c.schedule_balance_at_takeon) : '-' }}</td>
                     <td class="num" :class="c.difference_at_takeon > 0 ? 'text-red-700' : (c.difference_at_takeon < 0 ? 'text-teal-700' : '')">{{ c.difference_at_takeon != null ? fmt(c.difference_at_takeon) : '-' }}</td>
                     <td class="num">{{ c.recomputed_eir != null ? (c.recomputed_eir * 100).toFixed(4) + '%' : '-' }}</td>
+                    <td class="num">{{ c.nofee_eir != null ? (c.nofee_eir * 100).toFixed(4) + '%' : '-' }}</td>
+                    <td class="min-w-[12rem] text-xs">
+                      <span v-if="c.eir_check" class="maiic-badge" :class="c.eir_check === 'PASS' ? 'maiic-badge-green' : 'maiic-badge-red'">{{ c.eir_check === 'PASS' ? 'Passed' : 'Refused' }}</span>
+                      <span v-else class="text-gray-400">Not checked</span>
+                      <div v-if="c.eir_check_reason" class="mt-0.5 text-gray-600 dark:text-slate-300">{{ c.eir_check_reason }}</div>
+                    </td>
                     <td class="num">{{ c.recomputed_amortised_cost != null ? fmt(c.recomputed_amortised_cost) : '-' }}</td>
                     <td class="num">{{ c.takeon_balance != null ? fmt(c.takeon_balance) : '-' }}</td>
                     <td class="num" :class="c.recomputed_difference > 0 ? 'text-red-700' : (c.recomputed_difference < 0 ? 'text-teal-700' : '')">{{ c.recomputed_difference != null ? fmt(c.recomputed_difference) : '-' }}</td>
                     <td class="num">{{ c.schedule_lines_written || '-' }}</td>
                     <td class="min-w-[14rem] text-xs text-amber-700">{{ c.flags.join('; ') }}</td>
                   </tr>
-                  <tr v-if="!filteredPopulation.length"><td colspan="16" class="maiic-empty">{{ population.length ? 'No account matches the search.' : 'Not built yet. Load the workbook, then use Build the take-on population (top right).' }}</td></tr>
+                  <tr v-if="!filteredPopulation.length"><td colspan="18" class="maiic-empty">{{ population.length ? 'No account matches the search.' : 'Not built yet. Load the workbook, then use Build the take-on population (top right).' }}</td></tr>
                 </tbody>
               </table>
             </div>

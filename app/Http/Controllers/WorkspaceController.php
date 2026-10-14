@@ -127,6 +127,35 @@ class WorkspaceController extends Controller
             'detail' => $close && $close['state'] === 'done' ? $close['status'] : (($apply['state'] ?? '') === 'done' ? 'Route applied; ' . lcfirst($close['status'] ?? '') : ($apply['status'] ?? ''))];
     }
 
+    /**
+     * What waits for a second person, across the governed workflows (maker
+     * proposes, checker approves). Each line counts the rows the workflow's
+     * own screen would list as awaiting approval, and links to that screen.
+     * Only lines with something waiting are returned.
+     */
+    private function awaitingApproval(): array
+    {
+        $lines = [
+            ['label' => 'Loan book builds proposed', 'count' => DB::table('loan_book_builds')->where('status', 'PROPOSED')->count(), 'route' => ['eir-feed.index', ['tab' => 'builds']]],
+            ['label' => 'Governance setting changes proposed', 'count' => DB::table('governance_settings')->where('status', 'PROPOSED')->count(), 'route' => ['eir-governance.index', []]],
+            ['label' => 'Write-offs proposed', 'count' => DB::table('loan_write_offs')->where('status', 'PROPOSED')->count(), 'route' => ['eir-write-offs.index', []]],
+            ['label' => 'EIRs calculated, awaiting approval and lock', 'count' => DB::table('contract_eir')->where('calculation_status', 'CALCULATED')->whereNull('locked_at')->count(), 'route' => ['eir-calculations.index', []]],
+            ['label' => 'Repayment schedules awaiting review', 'count' => DB::table('contract_eir')->whereIn('schedule_approval_status', ['DRAFT', 'PENDING_REVIEW'])->count(), 'route' => ['eir-data.index', ['tab' => 'schedules']]],
+            ['label' => 'Fees awaiting classification review', 'count' => DB::table('contract_fees')->where('classification_status', 'PENDING')->count(), 'route' => ['eir-fee-classification.index', []]],
+            ['label' => 'EIR accounting rules not yet approved', 'count' => DB::table('eir_accounting_rules')->whereNull('approved_at')->count(), 'route' => ['eir-accounting-rules.index', []]],
+            ['label' => 'SICR trigger alerts proposed', 'count' => DB::table('finance_sicr_triggers')->where('status', 'PROPOSED')->count(), 'route' => ['sicr-triggers.index', []]],
+            ['label' => 'Scenario sets proposed', 'count' => DB::table('governed_scenario_sets')->where('status', 'PROPOSED')->count(), 'route' => ['scenario-sets.index', []]],
+            ['label' => 'Forward-looking regression fits proposed', 'count' => DB::table('fli_fits')->where('approval_status', 'PROPOSED')->count(), 'route' => ['fli-adjustments.index', []]],
+            ['label' => 'External forward-looking models proposed', 'count' => DB::table('fli_model_versions')->where('status', 'PROPOSED')->count(), 'route' => ['fli-models.index', []]],
+            ['label' => 'Manual overlays proposed', 'count' => DB::table('fli_overlays')->where('status', 'PROPOSED')->count(), 'route' => ['fli-overlays.index', []]],
+            ['label' => 'Forward-looking months recorded, awaiting sign-off', 'count' => DB::table('fli_run_snapshots')->where('status', 'RECORDED')->count(), 'route' => ['fli.overview', []]],
+        ];
+
+        return collect($lines)->filter(fn ($l) => $l['count'] > 0)->map(fn ($l) => [
+            'label' => $l['label'], 'count' => $l['count'], 'href' => route($l['route'][0], $l['route'][1]),
+        ])->values()->all();
+    }
+
     public function index(Request $request)
     {
         $periods = DB::table('loan_books')->whereNotNull('reporting_period')
@@ -191,6 +220,7 @@ class WorkspaceController extends Controller
             'me' => ['name' => optional($user)->name, 'email' => optional($user)->email],
             'is_admin' => $this->isAdmin($user),
             'messages' => $messages,
+            'approvals' => $this->awaitingApproval(),
         ]);
     }
 

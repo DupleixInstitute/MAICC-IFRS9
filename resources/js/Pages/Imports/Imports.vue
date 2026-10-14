@@ -1,6 +1,7 @@
 <template>
     <app-layout title="Imports" description="Every file uploaded (loan book, clients, collateral, credit loss data and EIR data), with its progress, record counts and the rows that failed">
         <template #actions>
+            <HelpManual inline/>
             <Link :href="route('loan_applications.loan-book.import.create')" class="primary-btn" title="Upload a monthly loan book file">Import loan book</Link>
             <Link :href="route('clients.import.create')" class="secondary-btn" title="Upload a client file">Import clients</Link>
             <Link :href="route('collateral.register.import')" class="secondary-btn" title="Upload a collateral register file">Import collateral</Link>
@@ -68,7 +69,6 @@
             </div>
         </div>
         <pagination :links="results.links"/>
-        <HelpManual />
     </app-layout>
 </template>
 

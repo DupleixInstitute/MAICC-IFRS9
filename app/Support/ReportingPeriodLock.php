@@ -46,6 +46,6 @@ final class LockedPeriodException extends RuntimeException
 {
     public function __construct(public readonly string $period, string $what)
     {
-        parent::__construct("Reporting period {$period} is locked: {$what} cannot be written. A locked period is never restated; unlock it with a reason (eir:lock-period --unlock) if the restatement is deliberate.");
+        parent::__construct("Reporting period {$period} is locked: {$what} cannot be written. A locked period is never restated; unlock it with a reason on Imports & Feeds, Periods Built (or eir:lock-period --unlock) if the restatement is deliberate.");
     }
 }

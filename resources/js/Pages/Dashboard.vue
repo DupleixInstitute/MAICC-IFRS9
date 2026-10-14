@@ -4,7 +4,7 @@
         <template #header>
             <h1 class="flex items-center gap-2 text-xl font-extrabold leading-tight text-maiic-900 dark:text-slate-100">
                 IFRS 9 ECL Dashboard
-                <HelpManual />
+                <HelpManual inline />
             </h1>
             <p class="mt-0.5 text-sm text-gray-500 dark:text-slate-400">
                 <template v-if="selectedPeriod">
@@ -701,7 +701,7 @@ const kpis = computed(() => {
     }
     return [
         { label: 'Total exposure (EAD)', value: money(s.carrying_amount), full: fullMoney(s.carrying_amount), icon: I.bank, accent: C.green, ...deltaInfo('carrying_amount', 'money', true) },
-        { label: 'Total ECL', value: money(s.total_ecl), full: fullMoney(s.total_ecl), icon: I.alert, accent: C.red, ...deltaInfo('total_ecl', 'money', false) },
+        { label: s.ecl_basis === 'discounted' ? 'Total ECL (booked)' : (s.ecl_basis === 'mixed' ? 'Total ECL (part discounted)' : 'Total ECL (undiscounted)'), value: money(s.total_ecl), full: fullMoney(s.total_ecl) + (s.ecl_basis === 'discounted' ? ', discounted at the EIR' : (s.ecl_basis === 'mixed' ? ': some runs of the period were not discounted' : ': the period was run undiscounted')), icon: I.alert, accent: C.red, ...deltaInfo('total_ecl', 'money', false) },
         { label: 'ECL coverage', value: formatPct(s.ecl_percentage), full: null, icon: I.shield, accent: C.gold, ...deltaInfo('ecl_percentage', 'pts', false) },
         { label: 'Stage 3 exposure', value: money(s.stage_3_amount), full: fullMoney(s.stage_3_amount), icon: I.pie, accent: C.orange, sub: formatPct(s.stage_3_percentage) + ' of book', ...deltaInfo('stage_3_amount', 'money', false) },
         { label: 'Weighted PD', value: formatPct(s.weighted_pd), full: null, icon: I.trend, accent: C.deep, ...deltaInfo('weighted_pd', 'pts', false) },

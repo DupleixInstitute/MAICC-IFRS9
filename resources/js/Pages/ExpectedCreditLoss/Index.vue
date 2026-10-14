@@ -1,6 +1,7 @@
 <template>
     <app-layout title="ECL Calculation" description="How each loan's ECL was built: EAD x PD over the horizon x LGD, with the PD before and after the forward-looking adjustment">
         <template #actions>
+            <HelpManual inline/>
             <Link :href="route('expected-credit-loss.create')" :class="btn.primary">
                 <font-awesome-icon icon="calculator"/> Run ECL calculation
             </Link>
@@ -34,12 +35,13 @@
                     <div class="maiic-kpi-label">ECL undiscounted</div>
                     <div class="text-xl font-bold tabular-nums text-gray-900">{{ buildUp.calculated ? compact(totals.ecl) : '-' }}</div>
                 </div>
-                <div class="maiic-kpi !py-3" style="--accent:#b45309" :title="totals.ecl_discounted !== null ? 'MWK ' + formatMoney(totals.ecl_discounted) : 'The run in view was undiscounted'">
-                    <div class="maiic-kpi-label">ECL discounted</div>
-                    <div class="text-xl font-bold tabular-nums text-gray-900">{{ totals.ecl_discounted !== null ? compact(totals.ecl_discounted) : '-' }}</div>
+                <div class="maiic-kpi !py-3" style="--accent:#b45309" :title="discountBasis === 'none' ? 'The run in view was undiscounted: no booked (discounted) allowance yet' : 'MWK ' + formatMoney(totals.ecl_discounted) + (discountBasis === 'full' ? ': the allowance booked, the loss discounted at the EIR (IFRS 9 5.5.17)' : ': only ' + formatNumber(summary.discounted_loans) + ' of ' + formatNumber(summary.calculated_loans) + ' loans with an ECL are discounted, so this is not the booked total')">
+                    <div class="maiic-kpi-label">{{ discountBasis === 'partial' ? 'ECL discounted (part of the book)' : 'ECL booked (discounted)' }}</div>
+                    <div class="text-xl font-bold tabular-nums text-gray-900">{{ discountBasis !== 'none' ? compact(totals.ecl_discounted) : '-' }}</div>
+                    <div v-if="discountBasis === 'partial'" class="text-[11px] text-amber-700 dark:text-amber-300">{{ formatNumber(summary.discounted_loans) }} of {{ formatNumber(summary.calculated_loans) }} loans</div>
                 </div>
                 <div class="maiic-kpi !py-3" style="--accent:#15803d">
-                    <div class="maiic-kpi-label">Coverage (ECL / EAD)</div>
+                    <div class="maiic-kpi-label" :title="discountBasis === 'full' ? 'Booked (discounted) ECL over EAD' : 'Undiscounted ECL over EAD: not every loan of the view is discounted'">Coverage ({{ discountBasis === 'full' ? 'booked' : 'undiscounted' }} ECL / EAD)</div>
                     <div class="text-xl font-bold tabular-nums text-gray-900">{{ buildUp.calculated && totals.ead ? formatPercent(coverageRate) : '-' }}</div>
                 </div>
             </div>
@@ -368,7 +370,6 @@
                 </div>
             </div>
         </div>
-        <HelpManual/>
     </app-layout>
 </template>
 
@@ -405,9 +406,19 @@ const latestPeriodParts = (props.latestPeriod || '').split('-');
 const defaultYear = Number(latestPeriodParts[0]) || new Date().getFullYear();
 const defaultMonth = Number(latestPeriodParts[1]) || new Date().getMonth() + 1;
 
+// the booked allowance is the discounted one, but only when every loan with an
+// ECL in the view was discounted; a part-discounted view shows both honestly
+const discountBasis = computed(() => {
+    if (props.totals?.ecl_discounted === null || props.totals?.ecl_discounted === undefined) return 'none'
+    const calc = Number(props.summary?.calculated_loans || 0), disc = Number(props.summary?.discounted_loans || 0)
+    return calc > 0 && disc >= calc ? 'full' : 'partial'
+});
 const coverageRate = computed(() => {
     const exposure = Number(props.totals?.ead || 0);
-    return exposure > 0 ? (Number(props.totals?.ecl || 0) / exposure) * 100 : 0;
+    // the booked allowance is the discounted one (spec 6.10.1, IFRS 9 5.5.17); the
+    // undiscounted loss stands in only when the run in view was not discounted
+    const ecl = discountBasis.value === 'full' ? props.totals.ecl_discounted : props.totals?.ecl;
+    return exposure > 0 ? (Number(ecl || 0) / exposure) * 100 : 0;
 });
 
 const tabs = computed(() => [

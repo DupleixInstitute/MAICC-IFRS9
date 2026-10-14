@@ -8,8 +8,8 @@
 
     <div class="space-y-5">
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div class="maiic-kpi" style="--accent:#0d9488"><div class="maiic-kpi-label">Route in force</div><div class="truncate text-base font-bold text-gray-900" :title="routeInForce">{{ routeInForce }}</div></div>
-        <div class="maiic-kpi" style="--accent:#0d9488"><div class="maiic-kpi-label">Build method in force</div><div class="truncate text-base font-bold text-gray-900" :title="methodInForce">{{ methodInForce }}</div></div>
+        <div class="maiic-kpi" style="--accent:#0d9488"><div class="maiic-kpi-label">Route in force</div><div class="truncate text-base font-bold text-gray-900" :title="routeInForce || 'No approved value in the Governance Centre'">{{ routeInForce || 'Not set' }}</div></div>
+        <div class="maiic-kpi" style="--accent:#0d9488"><div class="maiic-kpi-label">Build method in force</div><div class="truncate text-base font-bold text-gray-900" :title="methodInForce || 'No approved value in the Governance Centre'">{{ methodInForce || 'Not set' }}</div></div>
         <div class="maiic-kpi" style="--accent:#0d9488" title="A view or build after this date is refused, never estimated"><div class="maiic-kpi-label">Last posting loaded</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ lastLedgerDate || '-' }}</div></div>
         <div class="maiic-kpi" style="--accent:#0d9488" :title="locks.join(', ') || 'No period is locked'"><div class="maiic-kpi-label">Locked periods</div><div class="text-xl font-bold text-gray-900 tabular-nums">{{ locks.length }}</div></div>
       </div>
@@ -93,7 +93,7 @@
                     <td class="font-mono text-xs">{{ b.id }}</td>
                     <td>{{ b.method === '?' ? 'In force' : b.method }}</td>
                     <td class="whitespace-nowrap">{{ b.from }} to {{ b.to }}</td>
-                    <td><span class="maiic-badge" :class="b.status === 'BUILT' ? 'maiic-badge-green' : (b.status === 'PROPOSED' ? 'maiic-badge-gold' : 'maiic-badge-grey')">{{ b.status }}</span></td>
+                    <td><span class="maiic-badge" :class="b.status === 'BUILT' ? 'maiic-badge-green' : (b.status === 'PROPOSED' ? 'maiic-badge-gold' : 'maiic-badge-grey')" :title="b.superseded ? 'Approved: the build was written as a new build above' : ''">{{ b.superseded ? 'Approved, superseded' : ({ BUILT: 'Built', PROPOSED: 'Proposed', REJECTED: 'Rejected' }[b.status] || b.status) }}</span></td>
                     <td class="text-xs whitespace-nowrap">{{ b.requested_by || 'system' }}<br><span class="text-gray-500">{{ b.created_at }}</span></td>
                     <td class="text-xs">{{ b.approver || '-' }}</td>
                     <td class="text-xs">
@@ -101,7 +101,8 @@
                       <span v-if="b.summary.length > 4" class="text-gray-400" :title="b.summary.slice(4).map(p => p.period + ': ' + p.rows + ' rows').join('\n')">and {{ b.summary.length - 4 }} more periods</span>
                     </td>
                     <td v-if="canGovern" class="text-right whitespace-nowrap">
-                      <button v-if="b.status === 'PROPOSED'" @click="approve(b.id)" class="secondary-btn" title="Approve this build and write it; the differences are kept on the build">Approve and build</button>
+                      <button v-if="b.status === 'PROPOSED' && b.requested_by_id !== me" @click="approve(b.id)" class="secondary-btn" title="Approve this build and write it; the differences are kept on the build">Approve and build</button>
+                      <span v-else-if="b.status === 'PROPOSED'" class="text-xs text-gray-500" title="The person who proposed a build cannot approve it">Waiting for a second person</span>
                     </td>
                   </tr>
                   <tr v-if="!builds.length"><td :colspan="canGovern ? 8 : 7" class="maiic-empty">No build yet. Use <strong>Propose a build</strong> to choose the months.</td></tr>
@@ -114,17 +115,22 @@
           <!-- Periods built -->
           <template v-else-if="tab === 'periods'">
             <div class="border-b border-gray-200 px-5 py-3">
-              <p class="text-sm text-gray-500">The loan book rows built for each period, by method. A flag names a difference from the source, it never hides one.</p>
+              <p class="text-sm text-gray-500">The loan book rows built for each period, by method. A flag names a difference from the source, it never hides one. Lock a period once its month-end is signed off: nothing then restates it.</p>
             </div>
             <div class="maiic-table-wrap">
               <table class="maiic-table">
-                <thead><tr><th>Period</th><th>Method</th><th class="num">Rows</th><th class="num">Flagged</th><th>Locked</th></tr></thead>
+                <thead><tr><th>Period</th><th>Method</th><th class="num">Rows</th><th class="num">Flagged</th><th>Locked</th><th v-if="canGovern" class="text-right">Action</th></tr></thead>
                 <tbody>
                   <tr v-for="p in pageOf(periods, 'periods')" :key="p.reporting_period + p.build_method">
                     <td>{{ p.reporting_period }}</td><td>{{ p.build_method }}</td><td class="num">{{ fmt(p.n) }}</td><td class="num">{{ fmt(p.flagged) }}</td>
-                    <td><span v-if="locks.includes(p.reporting_period)" class="maiic-badge maiic-badge-grey">Locked</span></td>
+                    <td><span v-if="locks.includes(p.reporting_period)" class="maiic-badge maiic-badge-grey">Locked</span><span v-else class="text-xs text-gray-500 dark:text-slate-400">Open</span></td>
+                    <td v-if="canGovern" class="text-right">
+                      <button type="button" class="maiic-action maiic-action-neutral" :title="(locks.includes(p.reporting_period) ? 'Unlock ' : 'Lock ') + p.reporting_period" @click="openLock(p.reporting_period)">
+                        <font-awesome-icon :icon="locks.includes(p.reporting_period) ? 'lock-open' : 'lock'"/>
+                      </button>
+                    </td>
                   </tr>
-                  <tr v-if="!periods.length"><td colspan="5" class="maiic-empty">Nothing has been built from the loaded packs yet. Use the Loan Book Builds tab to propose one.</td></tr>
+                  <tr v-if="!periods.length"><td :colspan="canGovern ? 6 : 5" class="maiic-empty">Nothing has been built from the loaded packs yet. Use the Loan Book Builds tab to propose one.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -221,6 +227,23 @@
         </div>
       </form>
     </jet-modal>
+
+    <!-- Lock or unlock a reporting period -->
+    <jet-modal :show="!!lockForm.period" max-width="lg" @close="lockForm.period = null">
+      <form class="p-6" @submit.prevent="submitLock">
+        <h3 class="text-lg font-semibold text-gray-900">{{ lockForm.unlock ? 'Unlock' : 'Lock' }} {{ lockForm.period }}</h3>
+        <p class="mt-2 text-sm text-gray-600" v-if="!lockForm.unlock">A locked period is never restated: the loan book build, staging, the PD, the LGD, the forward-looking route, the ECL, the revenue roll-forward and write-offs all refuse to write it. The governance values in force are kept with the lock.</p>
+        <p class="mt-2 text-sm text-gray-600" v-else>Unlocking lets the period be restated. Give the approval for the restatement as the reason.</p>
+        <label class="mt-4 block"><span class="maiic-flabel">Reason (written to the audit log)</span>
+          <textarea v-model="lockForm.reason" rows="3" class="maiic-input" minlength="10" maxlength="500" required></textarea>
+        </label>
+        <p v-if="$page.props.errors.reason" class="mt-1 text-xs text-red-600">{{ $page.props.errors.reason }}</p>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="secondary-btn" :disabled="locking" @click="lockForm.period = null">Cancel</button>
+          <button type="submit" class="primary-btn" :disabled="locking || lockForm.reason.trim().length < 10">{{ locking ? 'Saving...' : (lockForm.unlock ? 'Unlock the period' : 'Lock the period') }}</button>
+        </div>
+      </form>
+    </jet-modal>
   </app-layout>
 </template>
 
@@ -234,12 +257,12 @@ import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
   components: { AppLayout, JetModal, LocalPager, ImportSpecPanel },
-  props: { tab: { type: String, default: 'loads' }, tabCounts: Object, loads: Array, queries: Array, builds: Array, periods: Array, routeInForce: String, methodInForce: String, locks: Array, lastLedgerDate: String, canGovern: Boolean },
+  props: { tab: { type: String, default: 'loads' }, tabCounts: Object, loads: Array, queries: Array, builds: Array, periods: Array, routeInForce: String, methodInForce: String, locks: Array, lastLedgerDate: String, canGovern: Boolean, me: Number },
   data() {
     return {
       open: null, querySearch: '',
       page: { loads: 1, builds: 1, periods: 1, queries: 1 },
-      packFile: null, packDryRun: false, packOpen: false, buildOpen: false, landing: false, building: false, build: { from: '', to: '', method: '', retire_stale: false },
+      packFile: null, packDryRun: false, packOpen: false, buildOpen: false, landing: false, building: false, locking: false, lockForm: { period: null, unlock: false, reason: '' }, build: { from: '', to: '', method: '', retire_stale: false },
     }
   },
   computed: {
@@ -262,6 +285,13 @@ export default {
     requestBuild() {
       this.building = true
       router.post(route('eir-feed.build'), this.build, { preserveScroll: true, onFinish: () => { this.building = false; this.buildOpen = false } })
+    },
+    openLock(period) {
+      this.lockForm = { period, unlock: this.locks.includes(period), reason: '' }
+    },
+    submitLock() {
+      this.locking = true
+      router.post(route('eir-feed.lock-period', this.lockForm.period), { reason: this.lockForm.reason, unlock: this.lockForm.unlock ? 1 : 0 }, { preserveScroll: true, onSuccess: () => { this.lockForm.period = null }, onFinish: () => { this.locking = false } })
     },
     async approve(id) {
       if (!(await confirmDialog({ title: 'Approve build ' + id + '?', message: 'The build is written to the loan book. The differences from the previous build are kept on the build.', confirmLabel: 'Approve and build' }))) return

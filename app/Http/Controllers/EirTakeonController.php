@@ -52,11 +52,17 @@ class EirTakeonController extends Controller
             'recomputed_amortised_cost' => isset($c->recomputed_amortised_cost) ? (float) $c->recomputed_amortised_cost : null,
             'recomputed_difference' => isset($c->recomputed_difference) ? (float) $c->recomputed_difference : null,
             'schedule_lines_written' => (int) ($c->schedule_lines_written ?? 0),
+            // the governed take-on solve check (takeon_eir_plausibility): PASS or REFUSED, with why
+            'eir_check' => $c->eir_check ?? null,
+            'eir_check_reason' => $c->eir_check_reason ?? null,
+            'nofee_eir' => isset($c->nofee_eir) ? (float) $c->nofee_eir : null,
+            'solve_start_date' => $c->solve_start_date ?? null,
         ]);
         try {
             $basis = $governance->get('takeon_history_basis');
         } catch (Throwable) {
-            $basis = 'Recompute from origination where the block and fees exist, else start at the take-on balance';
+            // no approved value in Governance: say so, never assume one
+            $basis = null;
         }
 
         return Inertia::render('Eir/Takeon/Index', [
