@@ -18,7 +18,7 @@ Specifically:
 2. A firewall rule allowing that one server (IP to be given by Dupleix) to reach the database listener (port 1521 unless E-Banker uses another) over the VPN.
 3. The connection details (host, service name, port), and a short test window with ICT present.
 4. If E-Banker runs a standby or reporting replica, access to that rather than production. The queries are read-only either way; the replica simply removes any question of load on the live system.
-5. **The same account, first, on E-Banker's test environment** (the UAT or test copy of the database, if MAIIC has one; otherwise a restored copy of a recent backup). Everything is proved there before the production account is switched on (section 7).
+5. **The same account, first, on E-Banker's test environment** (the UAT or test copy of the database, if MAIIC has one; otherwise a restored copy of a recent backup). Everything is proved there before the production account is switched on (section 9).
 
 ## 2. Why
 
@@ -34,11 +34,52 @@ The system takes E-Banker data through one door, the landing zone, whatever road
 |---|---|---|---|
 | **1. Manual pack** | Barry runs the versioned queries in SQL Developer, exports one CSV per query and saves them to the shared OneDrive folder; the system's Feed screen lands them | Nothing new | **In use since 7 October.** Every pack to date has come this way. Exposed to the three problems in section 2 |
 | **2. Scheduled export at MAIIC** | A script (Oracle SQLcl, written by Dupleix) runs the same queries on a MAIIC server by Windows Task Scheduler on the first working day after month-end, and writes the pack to a shared folder; the system polls the folder at 06:30 and lands it | A read-only Oracle account for the script; one shared folder; Barry installs the task | **Built on the system side** (the folder poller runs daily); waits for the account and the MAIIC-side task |
-| **3. Push by API** | The same script sends the pack to the system over HTTPS with a token, instead of through a folder | A token issued by the system; outbound HTTPS from the MAIIC server | **Built on the system side** (the endpoint exists); waits for the token and the script. The alternative to route 2 where a shared folder is awkward |
-| **4. Direct read over the VPN** (this request) | The system connects to E-Banker's Oracle database read-only over the existing VPN, runs the registered queries itself on schedule and lands the result; the pack and manifest are generated inside the system, so the audit trail is the same as for a manual pack | The read-only account and firewall rule of section 1; the Oracle client on the system server; the vendor's consent (section 6); Dr Thom's authorisation | **Not built yet**: about a week once the account exists. The destination: no person in the loop, no export limits |
+| **3. Push by API (the endpoint)** | The same script zips the pack and sends it to the system's endpoint, `POST /api/ebanker-feed/pack`, over HTTPS with a token, instead of through a folder; the system replies at once and lands the pack at its next poll (section 3.1) | A token issued by the system; outbound HTTPS from the MAIIC server to the system's server | **Built on the system side** (the endpoint exists and is tested); waits for the token and the script. The alternative to route 2 where a shared folder between the two servers is awkward |
+| **4. Direct read over the VPN** (this request) | The system connects to E-Banker's Oracle database read-only over the existing VPN, runs the registered queries itself on schedule and lands the result; the pack and manifest are generated inside the system, so the audit trail is the same as for a manual pack | The read-only account and firewall rule of section 1; the Oracle client on the system server; the vendor's consent (section 7); Dr Thom's authorisation | **Not built yet**: about a week once the account exists. The destination: no person in the loop, no export limits |
 | **5. Vendor view or API** | Virtual Galaxy provides a reporting schema of views, or an endpoint, carrying the same columns; route 4 reads that instead of the tables | A change request to the vendor, likely paid | **Not built.** Only if the vendor will not allow route 4 on the tables themselves |
 
-Routes 2 and 4 use the **same read-only account**. That is why the sequence in section 7 starts with route 2: it proves the account, the queries and the month-end timing with no new software on either side, while the vendor's consent for route 4 is obtained.
+Routes 2 and 4 use the **same read-only account**. That is why the sequence in section 9 starts with route 2: it proves the account, the queries and the month-end timing with no new software on either side, while the vendor's consent for route 4 is obtained.
+
+### 3.1 Route 3 in detail: the endpoint
+
+An **endpoint** is an address on the IFRS 9 system's web server that accepts a delivery from another computer, in the way a web page accepts a form. Route 3 uses one: `POST https://<system server>/api/ebanker-feed/pack`. The MAIIC script runs the same queries as under route 2; the only difference is that instead of leaving the pack in a shared folder, it sends it straight to this address. Figure 3 shows the exchange.
+
+![Figure 3. Route 3: the MAIIC script reads E-Banker, then posts the zipped pack to the system's endpoint; the endpoint checks it on arrival and replies at once; the landing zone lands it at the next poll through the same gates as every route.](Route 3 - push by API endpoint - sequence diagram.png)
+
+**What the endpoint does with each delivery, in order** (this is how it is built today):
+
+| Step | What happens | If it fails |
+|---|---|---|
+| 1. The token | The request must carry `Authorization: Bearer <token>`. The token is compared with the one configured on the system's server (`EBANKER_FEED_TOKEN`), in a way that does not leak its length or content through timing | Refused with 401; nothing is stored |
+| 2. The file | The body must carry one file, field name `pack`, which must be a readable zip | Refused with 422 |
+| 3. The names inside the zip | Every entry name is checked before anything is written; a name that would write outside the inbox (for example `../../`) refuses the whole zip, and the attempt is logged with the sender's IP | Refused with 422; logged as a warning |
+| 4. The manifest | The zip must hold `manifest.json` (at the top or in one sub-folder) | Refused with 422 |
+| 5. Into the inbox | The zip is unpacked into its own inbox folder named by date, time and the first characters of the file's hash; an audit entry "E-Banker Pack Received by API" records the inbox and the sender's IP | |
+| 6. The reply | `202 Accepted`, with the inbox name. 202 means **received, not yet landed** | |
+| 7. The landing | At the next run of the poller (daily at 06:30, `eir:poll-feed-folder --also-route-3`), the pack goes through the landing zone exactly as under every other route: the gates, landed or quarantined, versioned rows, watermarks. The load is recorded as route `ROUTE_3_API` | Quarantined, with the failures named |
+
+A pack sent twice is recognised by its manifest hash at step 7 and not landed twice (section 11).
+
+**Push and pull: who opens the connection.** This is usually what decides between the routes, because it decides which firewall rule MAIIC's ICT has to open.
+
+| Route | Who starts it | Connection opened | Firewall rule needed | Where the E-Banker password lives | What the system holds |
+|---|---|---|---|---|---|
+| 1. Manual | A person | Barry to E-Banker; then a browser upload to the system | None new | With Barry | Nothing |
+| 2. Scheduled export | MAIIC's scheduled task | MAIIC server to E-Banker; MAIIC server to a shared folder the system can read | A share both servers can reach | Oracle Wallet on the MAIIC server | Read access to the folder |
+| 3. Push by API (endpoint) | MAIIC's scheduled task | MAIIC server to E-Banker; MAIIC server **out** to the system over HTTPS | Outbound HTTPS (443) from the MAIIC server to the system's server | Oracle Wallet on the MAIIC server | The feed token only |
+| 4. Direct read | The system's scheduler | System server **in** to E-Banker over the VPN | Inbound to the database listener (1521) from the system's server | The system server's configuration | The read-only database password |
+| 5. Vendor view or API | The system's scheduler | System server to the vendor's views or the vendor's own endpoint | As route 4, or to the vendor's endpoint | The system server's configuration | The vendor's credentials |
+
+Routes 2 and 3 keep every connection to E-Banker inside MAIIC: the IFRS 9 system never connects into MAIIC's network and never holds an E-Banker password. That makes them the natural choice if MAIIC's ICT policy does not allow an outside system to connect to the database. Route 4 is simpler to run (nothing to install at MAIIC) but needs the inbound rule.
+
+**Route 5's endpoint is a different thing.** Under route 5 the endpoint would be the vendor's, not ours: Virtual Galaxy would publish an address the system calls to fetch the data (a pull), and the system would need a small connector written to their specification. That is only worth doing if the vendor refuses route 4 and MAIIC prefers not to run a script (routes 2 and 3).
+
+**What would be added before route 3 goes live.** The endpoint works today, but four hardening items would be added if route 3 is chosen, about a day's work:
+
+- **An IP allow-list**, so only the MAIIC server's address is accepted (today any address with the token is). Until then, the same can be done on the system server's firewall.
+- **Two-token rotation**, so a new token can be issued and the old one retired without a gap (today there is one token in the configuration).
+- **Landing on receipt**, so the reply can say "landed" or "quarantined" straight away instead of waiting for the 06:30 poll; or the poll run more often on the first working days of the month.
+- **A size limit and a status address**, so oversize packs are refused clearly (today the limit is the web server's upload limit, which must be raised to at least 100 MB) and the script can ask for the result of its last delivery.
 
 ## 4. The landing zone technique
 
@@ -87,7 +128,97 @@ The landing zone is four tables in the system's database: the **query register**
 
 MAIIC ICT administers the account, can see every session in the database's own audit, and can revoke it at any time. The manual route keeps working regardless.
 
-## 6. What we need from Virtual Galaxy
+## 6. Setting up the accounts: step by step for MAIIC ICT
+
+The same steps are done twice: first on **E-Banker's test environment** (stage B of section 9), then on **production or the replica** (stage C), only after the tests on the test environment have passed. Both use the same account name, with different passwords. Every statement below is standard Oracle and is run by a database administrator (a user with the DBA role or equivalent). None of it changes E-Banker's own tables, code or users. If the vendor wants to run the steps themselves, this section is what to send them.
+
+**Step 1. Agree the names and the server.** Account: `MAIIC_IFRS9_RO`. Role: `IFRS9_FEED_READ`. Profile: `IFRS9_FEED_PROFILE`. Dupleix provides the IP address of the system's test server now and of the production server at stage C.
+
+**Step 2. Create a profile that limits the account.** The profile caps sessions, locks the account after failed logins and forces a password change every 90 days.
+
+- `CREATE PROFILE ifrs9_feed_profile LIMIT SESSIONS_PER_USER 2 FAILED_LOGIN_ATTEMPTS 5 PASSWORD_LOCK_TIME 1 PASSWORD_LIFE_TIME 90 PASSWORD_GRACE_TIME 7 IDLE_TIME 30;`
+
+(`SESSIONS_PER_USER` and `IDLE_TIME` take effect only when the database parameter `RESOURCE_LIMIT` is TRUE, which is the default from Oracle 12c. If it is FALSE, leave it as it is and tell us; the account works the same.)
+
+**Step 3. Create the user.** It can log in and own nothing; it has no quota, so it cannot create anything.
+
+- `CREATE USER maiic_ifrs9_ro IDENTIFIED BY "<a strong password>" PROFILE ifrs9_feed_profile DEFAULT TABLESPACE users TEMPORARY TABLESPACE temp QUOTA 0 ON users;`
+- `GRANT CREATE SESSION TO maiic_ifrs9_ro;`
+
+**Step 4. Create a read-only role and grant SELECT on the tables in the annex.** Granting through a role means the whole access can be removed with one statement.
+
+- `CREATE ROLE ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.ACMASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.ACLOANMASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.SCHEME_MASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.CUMVOUCH TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.CUMOVUCH_OLD TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.ACCOUNT_BALANCE TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.LOAN_BOOK_DETAILS_ALL TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.FIXLOAN_INST_CHART TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.MULTI_INST_DETAILS TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.LOAN_DISBURSMENT_SCHEDULE TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.ACCOUNT_STATUS_HISTORY TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.OVERDUE_DETAILS TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.INTEREST_SLAB_MASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.INTEREST_SLAB_DETAILS TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.INTEREST_SUMMARY TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.DAILY_INTEREST_ACCRUAL TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.FORGIVE_INTEREST_DETAILS TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.PLR_MASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.LOS_DISB_CHARGES_POST TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.LOS_REQUEST_DETAILS TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.CUST_SECURITY_DETAILS TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.GUARANTER_MASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.LOAN_RESCHEDULE_DETAILS TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.LOAN_WRITEOFF_MASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.GL_OPENING_BALANCE TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.GL_OPENING_BALANCE_BK240824 TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.TRIAL_BALANCE_HISTORY TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.OPENING_BAL TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.ACCOUNT_NO_MAPP TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.NEW_ACMAP TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.T_ACCOUNT TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.T_ACCOUNTBALANCE TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.TEMP_MASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.G_ACMASTER TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.ACMASTER_MW TO ifrs9_feed_read;`
+- `GRANT SELECT ON VGCBS.ACMASTER_NF TO ifrs9_feed_read;`
+- `GRANT SELECT ON MAIIC_ORA_LIVE.CRM_ACMASTER_05082024 TO ifrs9_feed_read;`
+- `GRANT ifrs9_feed_read TO maiic_ifrs9_ro;`
+
+If a grant fails with ORA-00942 (table or view does not exist), that table sits in a different schema on MAIIC's installation: skip it and send us the error, and we will correct the schema. Nothing else is granted: no INSERT, UPDATE, DELETE, EXECUTE, CREATE TABLE, or any ANY privilege. The data dictionary views in the annex need no grant; they show only the tables the account can already see.
+
+**Step 5. Switch on auditing for the account.** So that MAIIC can see every session and every statement it runs. On Oracle 12c and later with unified auditing:
+
+- `CREATE AUDIT POLICY ifrs9_feed_audit ACTIONS LOGON, LOGOFF, SELECT;`
+- `AUDIT POLICY ifrs9_feed_audit BY maiic_ifrs9_ro;`
+
+On an older database using traditional auditing: `AUDIT SESSION BY maiic_ifrs9_ro;` and `AUDIT SELECT TABLE BY maiic_ifrs9_ro BY ACCESS;`. The records appear in `UNIFIED_AUDIT_TRAIL` (or `DBA_AUDIT_TRAIL`).
+
+**Step 6. Open the network path.** On the firewall, allow the system's server (one IP, over the existing VPN) to reach the database listener on its port (1521 unless E-Banker uses another), and nothing else. No change is needed to the listener or to `sqlnet.ora`. Restricting by IP on the firewall rather than in the database keeps the change outside E-Banker.
+
+**Step 7. Prove the account is read-only, before handing it over.** Log in as `MAIIC_IFRS9_RO` in SQL Developer and run:
+
+1. `SELECT * FROM session_privs;` must return only `CREATE SESSION`.
+2. `SELECT owner, table_name FROM all_tables WHERE owner IN ('VGCBS','MAIIC_ORA_LIVE') ORDER BY 1, 2;` must list only the tables in the annex.
+3. `SELECT COUNT(*) FROM vgcbs.acmaster;` must return a count.
+4. `DELETE FROM vgcbs.acmaster WHERE 1 = 0;` must fail with ORA-01031 (insufficient privileges). It deletes nothing even if the test went wrong, because `WHERE 1 = 0` matches no row.
+5. `CREATE TABLE ifrs9_probe (x NUMBER);` must fail with ORA-01031 or ORA-01950.
+
+Save the output of these five as a text file in the E-Banker Integration folder: it is the evidence that the account is read-only, and it is acceptance test 1 in section 9.
+
+**Step 8. Hand over the connection details, and the password separately.** Send Dupleix the host, port and service name (by email is fine). Do not email the password. Under route 4, Barry types it into the system server's configuration file himself, or reads it out on a call. Under route 2, it is stored in an **Oracle Wallet** on the MAIIC server (`mkstore`, or the SQLcl secure credential store), so it never appears in the script.
+
+**Step 9. For route 2 only: the server, the folder and the task.** On a MAIIC Windows server that can reach the database: install Oracle SQLcl (a single folder, needs Java 11 or later); create a shared folder (for example `\\<server>\ifrs9_feed`) that the scheduled task can write to and the IFRS 9 system's server can read; create a Windows scheduled task, run by a service account, that runs Dupleix's export script on the first working day after month-end at 05:30. Dupleix supplies the script and joins the first run.
+
+**Step 9a. For route 3 only: the outbound connection and the token.** Instead of a shared folder: allow the MAIIC server to make outbound HTTPS connections (port 443) to the IFRS 9 system's server, and nothing else new. Dupleix issues a token (a long random string) and gives it to Barry on a call, not by email; Barry stores it in the Windows Credential Manager of the service account that runs the task, not in the script. The script sends each pack with the built-in Windows command `curl.exe -f -X POST "https://<system server>/api/ebanker-feed/pack" -H "Authorization: Bearer <token>" -F "pack=@<pack>.zip"`, writes the reply to its log, and tries again up to three times if the reply is not 202. Test it once with a deliberately wrong token: the reply must be 401.
+
+**Step 10. Look after the account.** Every 90 days: `ALTER USER maiic_ifrs9_ro IDENTIFIED BY "<new password>";` then update the system's configuration (or the wallet). To pause the feed at once: `ALTER USER maiic_ifrs9_ro ACCOUNT LOCK;` (`ACCOUNT UNLOCK` to resume). To end it: `DROP USER maiic_ifrs9_ro;` and `DROP ROLE ifrs9_feed_read;`. For route 3, the feed token is changed on the same 90-day cycle (a new token on the system's server and in the Credential Manager, the same day). When the system needs a new table, Dupleix sends one line, `GRANT SELECT ON <table> TO ifrs9_feed_read;`, for MAIIC to approve and run.
+
+**Step 11. Repeat on production at stage C.** Steps 2 to 8 again on production (or the replica the vendor names), with a new password and the production server's IP. Run step 7 again and save its output beside the test one.
+
+## 7. What we need from Virtual Galaxy
 
 The account itself is within MAIIC ICT's gift. We ask that the vendor confirms, in writing:
 
@@ -99,37 +230,66 @@ The account itself is within MAIIC ICT's gift. We ask that the vendor confirms, 
 
 Two further items are vendor questions in any case and can go in the same message: the **Reschedule Report** (restructure history: LOAN_RESCHEDULE_DETAILS is empty while OPENING_BAL shows eight restructures), and the **write-off record** (LOAN_WRITEOFF_MASTER is empty while the ledger carries type 300 write-off postings).
 
-## 7. Proposed sequence: test environment first, then production
+## 8. The bootstrap: how the integration is tested before production
 
-Nothing touches production until it has worked end to end on the test environment. The system has its own test databases (separate from the live one, already used for every build and audit to date), so the test stage pairs E-Banker's test environment with the system's test database: no live data on either side is read or written until stage C.
+**What the bootstrap is.** One command in the IFRS 9 system, `eir:bootstrap`, that rebuilds the whole system from scratch on a separate, throwaway database (`maiic_ifrs9_bootstrap`) and proves the result. It takes about two minutes and never touches the production database (`maiic_ifrs9`). It has been run after every change since 8 October; it is how the figures in every review and audit to date were produced.
+
+**What it does, in order.**
+
+1. **Wipe.** Empties the test database and creates it again from the system's own definitions.
+2. **Land.** Takes every pack MAIIC has sent so far (kept, with their hashes, in the project repository) and the client inputs (Finance's fee template, the take-on workbook, the trial balances), and lands them through the same landing zone and the same gates as production (section 4).
+3. **Build.** Builds the monthly loan books, the contract inputs, the fees and the EIR schedules from the landed rows.
+4. **Run the engines.** Staging, PD and LGD, ECL, EIR and revenue, the forward-looking chain, sensitivity and stress, the reports, the compliance register and the GL reconciliation, month by month, in the same order as production.
+5. **Verify.** Checks nine **golden ties**: figures that must agree exactly with an independent source. They are the interest posted in the ledger; the carrying amount against E-Banker's stored loan book report, for every account and month; the year-end interest contra entries on GL 4215 and 4216; and the loan book against the trial balance on the five loan GLs (1050101, 1050102, 1050201, 1050202, 1050401). Today all nine pass.
+
+Anything approved inside the test database is labelled "System Bootstrap (automated data-readiness, not a MAIIC approval)". Only MAIIC's own approvals, in production, count.
+
+![Figure 2. The bootstrap rebuilds the system on the test database and checks the nine golden ties; only when they hold does a change reach production.](Bootstrap - test harness and reference copy - diagram.png)
+
+**Where it fits in this integration.**
+
+| Role | What it means for the integration |
+|---|---|
+| **History load** | The packs received by hand since 7 October are the history up to go-live. The bootstrap is how that history is built, reproducibly; route 4 then only reads forward from the watermarks the history leaves. |
+| **The test system** | In stage B (section 9), route 2 and route 4 land into the bootstrap database, not production. The test account on E-Banker's test environment is paired with this test database, so nothing live is read or written on either side. |
+| **The baseline** | The bootstrap already holds each month as it arrived by hand. A month read by route 4 must land against it as "all unchanged": no new rows, no new versions. Any difference is named, row by row, and is either a query to correct or a genuine change in E-Banker to explain. |
+| **The regression gate** | Before any change reaches production (a new query version, an engine change, a change of route), the bootstrap is re-run and the nine golden ties must still pass. |
+| **Disaster-recovery rehearsal** | The quarterly restore test of section 13 uses the same mechanism: rebuild, run the ties, record the result. |
+
+For stage B the bootstrap gains one option, to take a fresh read from E-Banker's test environment by route 4 in addition to the committed packs, so the whole test runs under one command. This is part of the route 4 build in section 9, not separate work.
+
+## 9. Proposed sequence: test environment first, then production
+
+Nothing touches production until it has worked end to end on the test environment. The system has its own test databases (separate from the live one, already used for every build and audit to date), so the test stage pairs E-Banker's test environment with the system's test database, the bootstrap database of section 8: no live data on either side is read or written until stage C.
 
 | Stage | Step | Who | When |
 |---|---|---|---|
-| **A. Authorise** | Dr Thom authorises the request; Barry raises section 6 with the vendor | MAIIC | This week |
-| **B. Test environment** | Read-only account created on E-Banker's test environment (UAT, or a restored recent backup), with the grants in the annex; firewall rule from the system's test server | MAIIC ICT | On authorisation |
-| | Route 2 on test: the scheduled script run against the test database, the pack written to a test folder, landed into the system's test database | Dupleix writes the script, Barry installs the task | Within two weeks of the account |
-| | Route 4 on test: the Oracle client and connection installed on the system's test server; the system runs the queries itself against the test database | Dupleix | On the vendor's confirmation; about a week |
-| | **Acceptance on test**, signed off by Barry and Dupleix: (1) every registered query runs under the account and nothing outside the annex can be read; (2) a month read by route 4 lands with the same rows, hashes and check results as the same month landed by hand (route 1); (3) a re-read of the same month lands as all unchanged, with no duplicates; (4) a deliberately broken file is quarantined and nothing downstream moves; (5) the read takes under 15 minutes and the database shows no measurable load; (6) a backup is restored and re-read from its watermarks | Dupleix and MAIIC ICT | At the end of stage B |
-| **C. Production** | The same account created on production (or the replica, per the vendor); the connection pointed at it; the route setting changed to route 4 under maker-checker | MAIIC ICT; Dupleix; approver in the Governance Centre | After acceptance on test |
+| **A. Authorise** | Dr Thom authorises the request; Barry raises section 7 with the vendor | MAIIC | This week |
+| **B. Test environment** | Read-only account created on E-Banker's test environment (UAT, or a restored recent backup) by steps 1 to 8 of section 6; firewall rule from the system's test server | MAIIC ICT | On authorisation |
+| | Route 2 on test: the scheduled script run against the test database, the pack written to a test folder, landed into the bootstrap database | Dupleix writes the script, Barry installs the task | Within two weeks of the account |
+| | Route 3 on test, if MAIIC prefers it to route 2 or 4: the same script posting to the test system's endpoint with a test token (section 6, step 9a); a wrong token must be refused | Dupleix and Barry | Alongside route 2 |
+| | Route 4 on test: the Oracle client and connection installed on the system's test server; the system runs the queries itself against E-Banker's test environment and lands into the bootstrap database | Dupleix | On the vendor's confirmation; about a week |
+| | **Acceptance on test**, signed off by Barry and Dupleix: (1) every registered query runs under the account and nothing outside the annex can be read (the saved output of section 6, step 7); (2) a month read by route 4 lands against the bootstrap's copy of the same month (received by hand) as all unchanged: the same rows and hashes, no new versions; (3) a re-read of the same month lands as all unchanged, with no duplicates; (4) a deliberately broken file is quarantined and nothing downstream moves; (5) the read takes under 15 minutes and the database shows no measurable load; (6) a backup is restored and re-read from its watermarks; (7) the bootstrap re-run with the route 4 data passes all nine golden ties | Dupleix and MAIIC ICT | At the end of stage B |
+| **C. Production** | The same account created on production (or the replica, per the vendor) by section 6, step 11; the connection pointed at it; the route setting changed to route 4 under maker-checker | MAIIC ICT; Dupleix; approver in the Governance Centre | After acceptance on test |
 | | **Parallel run**: two month-ends read by route 4 alongside the manual pack; each pair must tie row for row before the manual pack is stood down | Dupleix and Barry | Two month-ends |
 | | Switch: route 4 in force; route 1 kept as the fallback | MAIIC | After the parallel run |
 
-If the vendor declines route 4 (section 6, item 5), stages B and C run the same way on route 2, which needs no vendor change, or on the vendor's views under route 5.
+If the vendor declines route 4 (section 7, item 5), stages B and C run the same way on route 2, which needs no vendor change, or on the vendor's views under route 5.
 
-## 8. How the queries are refreshed
+## 10. How the queries are refreshed
 
 Every extract is a **registered query**: the system holds a register (`ebanker_queries`) with, for each query, its identifier (P1_01, P2_08, OD_01 and so on), the E-Banker table it reads, the table's own key column, the account and date columns, a version number, the SQL text and its hash, and whether the table is read incrementally or whole. The register is seeded from the repository, so a query is changed by changing the repository, not by editing a worksheet.
 
 Two kinds of table, two refresh rules:
 
-- **Master tables come whole each time** (account master, loan master, scheme master, instalment chart in force, security, guarantors, rate slabs, PLR history). The whole table is read at each run and compared row by row with what is held; only rows that are new or changed are stored (section 8). The size is small (hundreds of rows).
+- **Master tables come whole each time** (account master, loan master, scheme master, instalment chart in force, security, guarantors, rate slabs, PLR history). The whole table is read at each run and compared row by row with what is held; only rows that are new or changed are stored (section 10). The size is small (hundreds of rows).
 - **History tables are read incrementally** (ledger postings, balance history, loan-book runs, status history, interest rows, the overdue run). After every landing the system records a **watermark** per query: the highest source key loaded (the ledger's CUMVOUCH_DET_ID, the overdue run's OVERDUE_DET_ID). The next run reads only rows above the watermark. Under the manual route the watermark is printed on the pack sheet so the next query starts from it (the "ids ledger 439206 / balances 363004 / runs 808196" lines on the pack 3 sheet); under the scheduled and direct routes the system applies it itself. Nothing is ever re-read in full unless asked.
 
 Timing: the month-end pack is read on the first working day after month-end (the loan-book run and the trial balance are produced by then); the overdue run can be read daily or at month-end only. A month can be re-read at any time (a correction, a late posting) and the same rules apply: new rows are added, changed rows become a new version, unchanged rows are left alone.
 
 Changing a query (a column added, a filter corrected) means a **new version in the register**. Each pack's manifest states the version of every file in it; a file whose version is not the one the register holds is refused (the `query_version` gate), so an old script cannot feed the system unnoticed. The SQL hash lets anyone confirm that the script Barry ran is the one in the register.
 
-## 9. How duplicates are handled
+## 11. How duplicates are handled
 
 Three levels, all automatic, none of them overwriting anything:
 
@@ -141,7 +301,7 @@ Three levels, all automatic, none of them overwriting anything:
 
 So an overlap between two extracts of the same table (the month-end overdue rows in OD_01 and the daily rows in OD_02; a ledger re-run that re-pulls keys already held) lands once. Every landing records, per file, how many rows were new, versioned and unchanged, so a pack that was entirely duplicate shows as "0 new, 0 versioned, N unchanged" rather than as a silent double count. And because superseded rows are kept with their dates, any month can be re-derived exactly as it looked at the time it was first reported.
 
-## 10. Governance around the feed
+## 12. Governance around the feed
 
 - **Gates before anything moves.** Every pack passes the checks in the manifest (file exists, hash, row count, key unique, dates parse, amounts parse, query version known) and the checks across files (every ledger account is in the account master; the balance history ties to the ledger; every in-scope account has its month-end loan-book row; the fee GL movement ties to the trial balance). An ERROR-level failure **quarantines the whole pack**: its rows are kept so the refused file can be opened and examined, but no reader of the system sees them and nothing downstream (loan book, staging, ECL, EIR) moves. WARNING-level results are recorded against the load, not enforced.
 - **Only landed loads are read.** Every build reads from landed loads only, and records which loads it read, so a figure in a report traces to the pack and the file it came from.
@@ -151,7 +311,7 @@ So an overlap between two extracts of the same table (the month-end overdue rows
 - **Changes to the queries** go through the repository (version, hash, review) and the register, not through SQL Developer; the `query_version` gate enforces it.
 - **The account** is MAIIC ICT's: created, held, rotated and revocable by MAIIC; used by one server; visible in Oracle's own session audit.
 
-## 11. Data storage and backup
+## 13. Data storage and backup
 
 **Where the data sits.** Nothing is stored on the E-Banker side: the account only reads. What it reads is stored in the IFRS 9 system's own MySQL database, on the system's server, in three layers:
 
@@ -181,9 +341,9 @@ On that basis the database stays **under 2 GB for the first five years**. The se
 
 Every backup is **encrypted at rest**: the data is customer loan data. A **restore test** is run each quarter: the latest dump restored to a separate database, the bootstrap's tie checks run against it, and the result recorded. The database password, the read-only E-Banker password and the backup encryption key are held by MAIIC ICT, not by Dupleix.
 
-**If the system's database is lost**, it is restored from the last nightly dump; anything landed after it is re-read from E-Banker, because the watermarks in the restored database say where to start, and the duplicate rules (section 9) make a re-read safe.
+**If the system's database is lost**, it is restored from the last nightly dump; anything landed after it is re-read from E-Banker, because the watermarks in the restored database say where to start, and the duplicate rules (section 11) make a re-read safe.
 
-## 12. Contact
+## 14. Contact
 
 Edward Mazibuko, Director, Data Analytics, Dupleix Institute. Technical questions from the vendor can come to us directly, copied to Barry.
 
