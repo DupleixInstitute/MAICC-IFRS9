@@ -166,7 +166,7 @@ This part is written so that anyone at MAIIC can follow it, not only ICT. If you
 | Was any file short or altered? | The files book: records declared against records stored, and the fingerprint |
 | Which E-Banker record is behind a figure in a report? | The records book: E-Banker's record number, the delivery it came in, its version |
 | Has E-Banker changed a record we had already received? | The records book: any line with a version above 1, and the date its earlier version was replaced |
-| What exactly did we ask E-Banker for, and has the question changed? | The register: the query, its version and the fingerprint of its SQL |
+| What exactly did we ask E-Banker for, and has the question changed? | The register gives each query and its version; the exact SQL is the committed query file of that version (section 4.2) |
 
 **Have the tables been created?** Yes, in the system's test databases, where they hold the data received so far. The bootstrap database holds 65 registered questions, 23 deliveries, 75 files and 88,977 records. In the production database the tables are created empty when the system is installed on MAIIC's server, because the installation runs the same database set-up. They are then ready for the first pack. Their full column-by-column definition is in the system's code.
 
@@ -176,11 +176,11 @@ This part is written so that anyone at MAIIC can follow it, not only ICT. If you
 
 **How a query will be executed under route 4.** This is part of the build in section 9. For each registered query, the system will take four steps.
 
-(1) It will open a session as `MAIIC_IFRS9_RO` and set up the session itself (`NLS_DATE_FORMAT` to ISO and `NLS_NUMERIC_CHARACTERS`). This is the RUN 0 that is so often missed by hand. (2) It will bind the watermark as a parameter rather than pasting it into the text, so the statement text, and therefore its fingerprint, stays exactly as registered. (3) It will fetch the result in pages of a few thousand rows, so there is no grid limit and little memory is used on either side. (4) It will write the file and the manifest and land them through the gates.
+(1) It will open a session as `MAIIC_IFRS9_RO` and set up the session itself (`NLS_DATE_FORMAT` to ISO and `NLS_NUMERIC_CHARACTERS`). This is the RUN 0 that is so often missed by hand. (2) It will bind the watermark as a parameter rather than pasting it into the text, so the statement text, and therefore its fingerprint, stays exactly as approved. (3) It will fetch the result in pages of a few thousand rows, so there is no grid limit and little memory is used on either side. (4) It will write the file and the manifest and land them through the gates.
 
 On a busy database, Oracle may refuse a very long read with ORA-01555 ("snapshot too old"). The system will avoid this by running at 06:00, reading only rows above the watermark and splitting the largest tables, as the overdue run already is by quarter. That keeps every statement short enough.
 
-**What the register is.** The register (`ebanker_queries`) is the system's controlled catalogue of every statement it may run against E-Banker. After pack 10 it has **114 entries**. It is seeded from the code repository, so it changes only through the release steps in section 2.2. Each entry records the following:
+**What the register is.** The register (`ebanker_queries`) is the system's controlled catalogue of every query it accepts from E-Banker. After pack 10 it has **114 entries**. It is seeded from the code repository (`database/seeders/EbankerQuerySeeder.php`), so it changes only through the release steps in section 2.2. Today each entry records the query's **shape**: what it reads, its key, its account and date columns, how it is read, and its version. The **SQL text itself** is kept, by version, in the committed query files under `docs/bootstrap/queries`, which are what the pack sheets print and what the E-Banker Feed screen hands out as one download. Each entry records the following:
 
 | Field | Example (P1_01) | What it is used for |
 |---|---|---|
@@ -190,9 +190,9 @@ On a busy database, Oracle may refuse a very long read with ORA-01555 ("snapshot
 | `account_column`, `date_column` | NEW_AC_NUMBER, TRANSACTION_DATE | Copied into the landing zone's typed columns, so builds can find a loan's rows for a month without reading the JSON |
 | `incremental` | yes | Whether to read the whole table each time, or only rows above the watermark |
 | `version` | 1 | Raised whenever the statement changes. The `query_version` gate refuses a file from any other version |
-| `sql`, `sha256` | The statement and its SHA-256 | The statement route 4 will execute. The hash proves that a hand-run file came from the registered text |
+| `sql`, `sha256` | Empty today | Filled by the route 4 build: the statement route 4 will execute, and its SHA-256, so the system runs exactly the approved text and any change to it shows |
 
-Under route 1, the register's statements are what the pack sheets print for your team to run in SQL Developer. Under routes 2 and 3, the export script carries the same statements, and under route 4 the system will execute them directly. In every case the same entry governs the same table, so a month read by one route can be compared with a month read by any other.
+Under route 1, the committed query files are what the pack sheets print for your team to run in SQL Developer. Under routes 2 and 3, the export script carries the same statements, and under route 4 the system will execute them directly. In every case the same entry governs the same table, so a month read by one route can be compared with a month read by any other.
 
 ## 5. What the account will do, and will not do
 
@@ -360,7 +360,7 @@ The build will add a separate database connection called `ebanker` that reads on
 
 - **One user.** Only the feed runner will use the `ebanker` connection. No screen in the system will show, edit or test the credentials, and no report or export will be able to reach them.
 - **Read-only session as well as a read-only account.** Each session will start with `SET TRANSACTION READ ONLY`. The account cannot write anyway (section 6), so this is a second guard, in the system's own code.
-- **Registered statements only.** The runner will execute only statements from the register (section 4.2) whose SQL fingerprint matches the registered one. It cannot run a statement typed in by hand.
+- **Registered statements only.** The route 4 build will store each approved statement and its fingerprint in the register (section 4.2). The runner will execute only those statements, and only when the fingerprint still matches. It cannot run a statement typed in by hand.
 - **No secrets in logs.** Each run will be written to the audit trail with the queries run, the rows read and the timings, but never with the password or the full connection string. Errors will be logged with only the Oracle error number and the query identifier.
 - **A connection-test command.** The build will add a command that runs the step 6a query from the system itself and prints who it connected as, to which database and from where. Your team can then check the connection at any time without opening SQL Developer.
 
@@ -467,7 +467,7 @@ The dates assume Dr Thom approves by **Friday 23 October 2026**. Each week of de
 
 ## 10. How the queries are refreshed
 
-Every extract is a **registered query**. The system holds a register (`ebanker_queries`) that records, for each query, its identifier (P1_01, P2_08, OD_01 and so on), the E-Banker table it reads and the table's own key column. It also records the account and date columns, a version number, the SQL text and its hash, and whether the table is read incrementally or whole. The register is seeded from the repository, so a query is changed by changing the repository, not by editing a worksheet.
+Every extract is a **registered query**. The system holds a register (`ebanker_queries`) that records, for each query, its identifier (P1_01, P2_08, OD_01 and so on), the E-Banker table it reads and the table's own key column. It also records the account and date columns, a version number, and whether the table is read incrementally or whole. The SQL text of each version is kept in the committed query files under `docs/bootstrap/queries`; the route 4 build will also store it, with its hash, in the register. Both are in the repository, so a query is changed by changing the repository, not by editing a worksheet.
 
 There are two kinds of table, with a refresh rule for each.
 
@@ -476,7 +476,7 @@ There are two kinds of table, with a refresh rule for each.
 
 On timing, the month-end pack is read on the first working day after month-end, by which time the loan-book run and the trial balance have been produced. The overdue run can be read daily or at month-end only. A month can be re-read at any time, for a correction or a late posting, and the same rules apply. New rows are added, changed rows become a new version and unchanged rows are left alone.
 
-Changing a query, for example to add a column or correct a filter, means a **new version in the register**. Each pack's manifest states the version of every file in it. If a file's version is not the one the register holds, the `query_version` gate refuses it, so an old script cannot feed the system unnoticed. The SQL hash lets anyone confirm that the script MAIIC ran is the one in the register.
+Changing a query, for example to add a column or correct a filter, means a **new version in the register**. Each pack's manifest states the version of every file in it. If a file's version is not the one the register holds, the `query_version` gate refuses it, so an old script cannot feed the system unnoticed. What the gate checks today is the query's identifier and version as stated in the manifest, not the SQL text itself. Under route 1 the SQL run is the committed file for that version; once the route 4 build stores each statement's hash in the register, the system runs and checks the exact text itself.
 
 ## 11. How duplicates are handled
 
