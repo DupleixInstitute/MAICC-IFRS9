@@ -52,6 +52,8 @@ class TakeonLandingService
     /** @return array{load_id:int,status:string,blocks:int,lines:int,gates:array} */
     public function land(string $originalPath, string $mappingPath, ?int $userId = null, bool $dryRun = false): array
     {
+        // both workbooks are opened whole; under artisan serve the 128M CLI default is not enough
+        PackLandingService::raiseMemoryLimit();
         foreach ([$originalPath, $mappingPath] as $p) {
             if (! is_file($p)) {
                 throw new RuntimeException("Not a file: {$p}");
@@ -268,6 +270,7 @@ class TakeonLandingService
      */
     public function build(?int $userId = null): array
     {
+        PackLandingService::raiseMemoryLimit();
         $loadId = DB::table('ebanker_loads')->where('route', self::ROUTE)->where('status', 'LANDED')->orderByDesc('id')->value('id');
         if ($loadId === null) {
             throw new RuntimeException('No take-on workbook has been landed.');

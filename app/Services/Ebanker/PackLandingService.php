@@ -40,12 +40,42 @@ class PackLandingService
     private const BATCH = 500;
 
     /**
+     * The memory a landing may use. The gates look across the files, so the
+     * whole pack is parsed into memory first: the committed bootstrap pack
+     * (16 MB of CSV) peaks near 250 MB, past the 128M a php.ini commonly sets.
+     */
+    public const MEMORY_LIMIT = '2048M';
+
+    /** Raise the PHP memory limit to MEMORY_LIMIT for this process; never lower it. */
+    public static function raiseMemoryLimit(): void
+    {
+        $current = (string) ini_get('memory_limit');
+        if ($current === '-1' || self::bytes($current) >= self::bytes(self::MEMORY_LIMIT)) {
+            return;
+        }
+        ini_set('memory_limit', self::MEMORY_LIMIT);
+    }
+
+    private static function bytes(string $limit): int
+    {
+        $n = (int) $limit;
+
+        return match (strtoupper(substr(trim($limit), -1))) {
+            'G' => $n * 1024 ** 3,
+            'M' => $n * 1024 ** 2,
+            'K' => $n * 1024,
+            default => $n,
+        };
+    }
+
+    /**
      * Land a pack. Returns the load id and a summary.
      *
      * @return array{load_id:int,status:string,gates:array,files:array<string,array>,watermarks:array<string,int|string|null>}
      */
     public function land(string $packDir, ?int $userId = null, string $route = self::ROUTE_MANUAL, bool $dryRun = false): array
     {
+        self::raiseMemoryLimit();
         $manifestPath = rtrim($packDir, '/\\') . DIRECTORY_SEPARATOR . 'manifest.json';
         if (! is_readable($manifestPath)) {
             throw new InvalidArgumentException("No manifest.json in {$packDir}: a pack is its files plus a manifest.");
