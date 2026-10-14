@@ -34,7 +34,11 @@ class GovernanceService
      * recommendation; the seeder writes it as the first APPROVED row and the
      * engine reads only the database.
      *
-     * @return array<string, array{label:string, description:string, options:list<string>, default:string}>
+     * A definition may carry 'seed_reason': the reason the seeder records for a
+     * technical default that is not Dupleix's recommendation (it says so, and
+     * that it is not a MAIIC approval).
+     *
+     * @return array<string, array{label:string, description:string, options:list<string>, default:string, seed_reason?:string}>
      */
     public static function catalogue(): array
     {
@@ -155,8 +159,10 @@ class GovernanceService
             ],
             'ebanker_feed_route' => [
                 'label' => 'How E-Banker data arrives: the feed route',
-                'description' => 'Every route produces the same pack (the extract files plus a manifest) and enters the landing zone by the same door, so the route can be changed at any time and the others stay available for a missed month or a correction (spec v4 section 6.5). Route 1 is Barry running the versioned queries and uploading the files; route 2 a scheduled export at MAIIC to a folder the system polls; route 3 the same script posting the pack to the system; route 4 the system reading E-Banker directly over the VPN with a read-only account; route 5 a vendor view or API. Routes 4 and 5 need Dr Thom and ICT. Open choice O9.',
-                'options' => ['Route 1: manual pack upload', 'Route 2: scheduled export to a folder', 'Route 3: push by API', 'Route 4: direct read over the VPN', 'Route 5: vendor view or API'],
+                'description' => 'Every route produces the same pack (the extract files plus a manifest) and enters the landing zone by the same door, so the route can be changed at any time and the others stay available for a missed month or a correction (spec v4 section 6.5). Route 1 is Barry running the versioned queries and uploading the files; route 2 a scheduled export at MAIIC to a folder the system polls; route 3 the same script posting the pack to the system; route 4 the system reading E-Banker directly over the VPN with a read-only account; route 5 a vendor view or API. Routes 4 and 5 need Dr Thom and ICT. The feed-folder poller lands packs only while route 2 is in force and the API intake only while route 3 is, unless the last option opens routes 1 to 3 together; the manual upload stays open for a missed month or a correction. Open choice O9.',
+                // the feed-folder poller lands only under route 2 and the API intake only under route 3,
+                // unless the last option opens routes 1 to 3 together (FeedRoute, 14 October 2026)
+                'options' => ['Route 1: manual pack upload', 'Route 2: scheduled export to a folder', 'Route 3: push by API', 'Route 4: direct read over the VPN', 'Route 5: vendor view or API', \App\Services\Ebanker\FeedRoute::SEVERAL],
                 'default' => 'Route 1: manual pack upload',
             ],
             'loan_book_build_method' => [
@@ -335,6 +341,13 @@ class GovernanceService
                 'description' => 'The model (the driver, the lag and the coefficients) is recalibrated and approved as a new version, and each month-end applies the version in force at its date. Under the seeded option a version stays in force until the next annual review, or until an event breaks the relationship (a devaluation, a drought, a change of policy regime); the month-end does not re-fit it, and a version older than twelve months is flagged as due for review. Under the other option a version must be published for every month (FLI module decision D-F1).',
                 'options' => ['Once a year, and when an event breaks the relationship', 'Every month-end'],
                 'default' => 'Once a year, and when an event breaks the relationship',
+            ],
+            'fli_without_model' => [
+                'label' => 'A month-end with no forward-looking model version in force',
+                'description' => 'What the month-end does for a month that has no model version in force (no fit approved on Regression, so none is published). Under the seeded option the month-end runs every step: the route writes each scenario of the approved set at the PD before FLI, so the PD holds with no forward-looking adjustment; the projection is skipped; the ECL is calculated and the month is recorded, and the record says "no forward-looking model in force", the IFRS 9 note and the forward-looking reports disclose it, and the sign-off needs a commentary saying so. Under the other option the month-end, the bootstrap and the route stop for such a month, with the reason, until a version is in force. The Maintenance month-end, the Forward-Looking Overview and the bootstrap all read this one setting (FLI module decision D-F1, note of 14 October 2026). Seeded as a technical default from inception, the behaviour of the bootstrap until then, so the golden figures do not move; it is not a MAIIC approval and is a decision for Dr Thom.',
+                'options' => [\App\Services\Fli\FliWithoutModel::PROCEED, \App\Services\Fli\FliWithoutModel::REFUSE],
+                'default' => \App\Services\Fli\FliWithoutModel::PROCEED,
+                'seed_reason' => 'Technical default from inception, not a MAIIC approval: the behaviour of the bootstrap until 14 October 2026, so the golden figures do not move; decision for Dr Thom (FLI module specification D-F1, note of 14 October 2026)',
             ],
             'fli_forecast_horizon' => [
                 'label' => 'Reasonable and supportable forecast horizon',

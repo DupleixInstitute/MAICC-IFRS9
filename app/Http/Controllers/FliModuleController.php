@@ -84,12 +84,16 @@ class FliModuleController extends Controller
         }
 
         $snap = $close->latest($period);
+        $modelStep = collect($steps)->firstWhere('key', 'model') ?? [];
         // the steps run from here, and the forward-looking ones run from Maintenance
         $recent = array_values(array_filter($runner->recent(40), fn ($r) => ($r['group'] ?? null) === 'fli' || str_starts_with((string) ($r['label'] ?? ''), 'Forward-looking')));
 
         return Inertia::render('FLI/Overview', [
             'period' => $period, 'periods' => $this->periods(), 'steps' => $steps, 'next' => $monthEnd->next($steps), 'pending' => $pending,
             'snapshot' => $snap, 'tolerance' => $close->tolerance($period), 'recent' => array_slice($recent, 0, 15), 'running' => $runner->running(),
+            // no model in force (fli_without_model) and a month-end stopped part-way: each its own banner
+            'withoutModel' => ! empty($modelStep['without_model']) ? $modelStep['status'] : null,
+            'currency' => \App\Services\Fli\MonthEndCurrency::state($period),
             'commands' => array_map(fn ($c) => $c['label'], self::COMMANDS),
             'canGovern' => (bool) $request->user()?->can('eir.govern'), 'userId' => $userId,
         ]);

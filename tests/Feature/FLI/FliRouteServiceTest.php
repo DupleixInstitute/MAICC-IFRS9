@@ -50,7 +50,7 @@ class FliRouteServiceTest extends TestCase
         Schema::create('governance_settings', function (Blueprint $t) { $t->increments('id'); $t->string('key', 60); $t->string('value', 60); $t->text('options'); $t->string('label'); $t->text('description'); $t->string('effective_from'); $t->integer('set_by')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approved_at')->nullable(); $t->string('reason', 500)->nullable(); $t->string('status', 20)->default('PROPOSED'); $t->timestamps(); });
         DB::table('users')->insert([['id' => 1, 'name' => 'Maker', 'created_at' => now(), 'updated_at' => now()], ['id' => 2, 'name' => 'Checker', 'created_at' => now(), 'updated_at' => now()]]);
         // the route and the scenario rules read their settings with no value in code: the seeded defaults (D21)
-        $this->seedGovernedDefaults(['scenario_minimum_count', 'scenario_weight_bounds', 'scenario_calibration_note', 'overlay_requires_approved_set', 'scenario_weighting_method', 'fli_adjustment_route']);
+        $this->seedGovernedDefaults(['scenario_minimum_count', 'scenario_weight_bounds', 'scenario_calibration_note', 'overlay_requires_approved_set', 'scenario_weighting_method', 'fli_adjustment_route', 'fli_without_model']);
         DB::table('macro_series')->insert(['statistic_code' => 'PLR', 'observation_period' => '202608', 'value' => 20.0, 'value_type' => 'actual']);
         DB::table('fli_relationships')->insert(['id' => 1, 'statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'r2_cutoff' => 0.3, 'lag_months' => 0, 'created_at' => now(), 'updated_at' => now()]);
         // proxy = 0.01 x PLR + 0.1: at 20 the proxy is 0.3; a PLR five points higher gives 0.35, an adjustment of one sixth

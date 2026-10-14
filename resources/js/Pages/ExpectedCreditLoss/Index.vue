@@ -17,6 +17,10 @@
         </template>
 
         <div class="space-y-5">
+            <!-- a month-end stopped part-way: the ECL shown predates a step it depends on (MonthEndCurrency) -->
+            <div v-if="midRun && midRun.mid_run" role="alert" class="maiic-panel border-l-4 !border-l-red-600 bg-red-50 px-5 py-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+                <span class="font-semibold">The month is mid-run: the ECL below is not current.</span>&nbsp;{{ midRun.message }}
+            </div>
             <!-- One line of figures: the filtered population in view, in MWK -->
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <div class="maiic-kpi !py-3" style="--accent:#0e7490" :title="'MWK ' + formatMoney(totals.ead) + ', carrying amount plus undrawn commitments times utilisation, ' + formatNumber(totals.loans) + ' loans'">
@@ -388,6 +392,7 @@ const props = defineProps({
     summary: Object,
     latestPeriod: String,
     runInfo: { type: Object, default: () => ({ period: null, rows: [] }) },
+    midRun: { type: Object, default: null },
     buildUp: { type: Object, default: () => ({ available: false, pre_fli: null, fli_total: null }) },
     totals: { type: Object, default: () => ({ loans: 0, ead: 0, ecl: 0, ecl_pre: null, ecl_discounted: null }) },
     productGroups: { type: Array, default: () => [] },

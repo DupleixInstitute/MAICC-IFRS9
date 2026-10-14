@@ -12,6 +12,15 @@
     <div class="space-y-4">
       <KpiRow :cards="kpis" />
 
+      <!-- a month-end stopped part-way: the ECL and the record on screen are not current -->
+      <div v-if="currency && currency.mid_run" role="alert" class="maiic-panel border-l-4 !border-l-red-600 bg-red-50 px-5 py-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+        <span class="font-semibold">The month is mid-run.</span>&nbsp;{{ currency.message }}
+      </div>
+      <!-- no model version in force, the governed setting lets the month proceed with the PD held -->
+      <div v-if="withoutModel" role="status" class="maiic-panel border-l-4 !border-l-amber-500 bg-amber-50 px-5 py-3 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
+        <span class="font-semibold">No forward-looking model in force.</span>&nbsp;{{ withoutModel }}
+      </div>
+
       <div v-if="next" class="maiic-panel border-l-4 !border-l-maiicgold-500 px-5 py-3 text-sm">
         <span class="font-semibold text-gray-900">Next: {{ next.title }}.</span>&nbsp;<span class="text-gray-600">{{ next.status }}</span>
       </div>
@@ -59,7 +68,9 @@
       <div v-if="snapshot" class="maiic-panel">
         <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 px-5 py-3 dark:border-slate-700">
           <div>
-            <h3 class="font-semibold text-gray-900">The month's record <span class="maiic-badge ml-1" :class="snapshot.status === 'SIGNED_OFF' ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ snapshot.status === 'SIGNED_OFF' ? 'Signed off' : 'Recorded' }}</span></h3>
+            <h3 class="font-semibold text-gray-900">The month's record <span class="maiic-badge ml-1" :class="snapshot.status === 'SIGNED_OFF' ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ snapshot.status === 'SIGNED_OFF' ? 'Signed off' : 'Recorded' }}</span>
+              <span v-if="snapshot.stale" class="maiic-badge maiic-badge-red ml-1" :title="snapshot.stale">Not current: the month is mid-run</span>
+              <span v-if="snapshot.without_model" class="maiic-badge maiic-badge-gold ml-1">No forward-looking model in force</span></h3>
             <p class="text-xs text-gray-500">Recorded {{ snapshot.created_at }} by {{ snapshot.recorder || '-' }}<span v-if="snapshot.signed_off_at"> · signed off {{ snapshot.signed_off_at }} by {{ snapshot.signer || snapshot.approver_label }}</span></p>
           </div>
           <Link :href="route('fli.impact', { period })" class="secondary-btn !px-3 !py-1 text-xs">Impact Analysis</Link>
@@ -96,11 +107,11 @@
               <ul class="mt-1 list-disc pl-4"><li v-for="u in (snapshot.discount_detail?.unresolved || []).slice(0, 8)" :key="u.contract_id">{{ u.contract_id }}: {{ u.reason || u.status }}</li></ul>
             </div>
             <div v-if="snapshot.status === 'RECORDED' && canGovern" class="mt-3 space-y-2">
-              <label class="text-xs font-semibold text-gray-700" for="commentary">Commentary<span v-if="snapshot.needs_commentary" class="text-red-700 dark:text-red-300"> (required: the movement is above {{ tolerance !== null ? (tolerance * 100).toFixed(0) + '%' : 'the tolerance' }})</span><span v-else-if="Number(snapshot.discount_unresolved_loans) > 0" class="text-red-700 dark:text-red-300"> (required: loans are not discounted)</span></label>
+              <label class="text-xs font-semibold text-gray-700" for="commentary">Commentary<span v-if="snapshot.needs_commentary" class="text-red-700 dark:text-red-300"> (required: the movement is above {{ tolerance !== null ? (tolerance * 100).toFixed(0) + '%' : 'the tolerance' }})</span><span v-else-if="snapshot.without_model" class="text-red-700 dark:text-red-300"> (required: no forward-looking model was in force; say so)</span><span v-else-if="Number(snapshot.discount_unresolved_loans) > 0" class="text-red-700 dark:text-red-300"> (required: loans are not discounted)</span></label>
               <textarea id="commentary" v-model="commentary" rows="3" class="maiic-input w-full" placeholder="Why the ECL moved, and what the forward-looking information added"></textarea>
               <div class="flex justify-end gap-2">
                 <button type="button" class="secondary-btn text-sm" :disabled="!commentary.trim()" @click="saveComment">Save commentary</button>
-                <button type="button" class="primary-btn text-sm" :disabled="snapshot.created_by === userId || !snapshot.reconciles || snapshot.discounted_reconciles === false" :title="snapshot.created_by === userId ? 'A second person signs off the month' : ''" @click="signOff">Sign off the month</button>
+                <button type="button" class="primary-btn text-sm" :disabled="snapshot.created_by === userId || !snapshot.reconciles || snapshot.discounted_reconciles === false || !!snapshot.stale || (snapshot.without_model && !commentary.trim())" :title="snapshot.created_by === userId ? 'A second person signs off the month' : (snapshot.stale ? snapshot.stale : (snapshot.without_model && !commentary.trim() ? 'No forward-looking model was in force: a commentary saying so is needed' : ''))" @click="signOff">Sign off the month</button>
               </div>
             </div>
             <p v-else-if="snapshot.commentary" class="mt-3 rounded bg-gray-50 p-3 text-xs text-gray-700 dark:bg-slate-900/60">{{ snapshot.commentary }}</p>
@@ -147,7 +158,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export default {
   components: { AppLayout, KpiRow, Link },
-  props: { period: String, periods: Array, steps: Array, next: Object, pending: Array, snapshot: Object, tolerance: Number, recent: Array, running: Object, commands: Object, canGovern: Boolean, userId: Number },
+  props: { period: String, periods: Array, steps: Array, next: Object, pending: Array, snapshot: Object, tolerance: Number, recent: Array, running: Object, commands: Object, canGovern: Boolean, userId: Number, withoutModel: { type: String, default: null }, currency: { type: Object, default: null } },
   data() { return { form: { period: this.period }, run: null, timer: null, commentary: this.snapshot?.commentary || '' } },
   computed: {
     busy() { return !!this.running || (this.run && this.run.status === 'running') },
@@ -157,7 +168,7 @@ export default {
       const done = this.steps.filter(x => x.state === 'done').length
       return [
         { label: 'Steps done', value: done + ' of ' + this.steps.length, raw: true, accent: '#15803d', bar: done / this.steps.length * 100 },
-        { label: 'Model in force', value: (step('model')?.status || '').split(':')[0] || '-', raw: true, accent: '#0284c7', hint: step('model')?.status },
+        { label: 'Model in force', value: step('model')?.version_id ? ((step('model')?.status || '').split(':')[0] || '-') : (step('model')?.without_model ? 'None: the PD holds' : 'None'), raw: true, accent: '#0284c7', hint: step('model')?.status },
         { label: 'Scenario set', value: step('set')?.state === 'done' ? 'Approved' : 'Not approved', raw: true, accent: '#7c3aed', hint: step('set')?.status },
         { label: s && s.booked_ecl_discounted !== null && s.booked_ecl_discounted !== undefined ? 'ECL booked, discounted' : 'ECL booked', value: s ? this.short(s.booked_ecl_discounted ?? s.booked_ecl) : '-', raw: true, accent: '#d97706', sub: s ? 'FLI effect ' + this.short(Number(s.model_effect) + Number(s.overlay_effect)) + ' (undiscounted)' + (Number(s.discount_unresolved_loans) > 0 ? '; ' + s.discount_unresolved_loans + ' loans not discounted' : '') : 'month not recorded' },
         { label: 'Waiting for approval', value: this.pending.length, accent: this.pending.length ? '#dc2626' : '#64748b' },

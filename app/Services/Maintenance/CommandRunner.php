@@ -20,7 +20,8 @@ class CommandRunner
 
     public function __construct()
     {
-        $this->dir = storage_path('app/command-runs');
+        // the run history of the database in use: one code tree serves several databases (14 October 2026)
+        $this->dir = \App\Support\DatabaseScope::storagePath('command-runs');
         if (! is_dir($this->dir)) {
             mkdir($this->dir, 0775, true);
         }

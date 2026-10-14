@@ -786,20 +786,22 @@ class Ifrs9ReportsController extends Controller
                     $this->num($r->value, 4)])->all();
         }
         $setLabel = $set ? $set->name . ' v' . $set->version . ' (' . strtolower($set->status) . ')' : null;
+        // a month whose PD held for want of a model version says so (fli_without_model, D-F1 note of 14 October 2026)
+        $withoutModel = $period ? \App\Services\Fli\FliWithoutModel::disclosure($period) : null;
 
         return $this->respond(['key' => 'macro-scenario', 'period' => $period,
             'subtitle' => 'The macro-economic data and the governed scenario set the forward-looking adjustment used for ' . ($period ?: 'the month'),
             'kpis' => array_merge($this->totalsKpis($period), [
                 ['label' => 'Scenario set', 'value' => $setLabel ?? 'None approved', 'tone' => $set ? 'emerald' : 'amber'],
                 ['label' => 'Macro vintage', 'value' => $snap->macro_vintage ?? '-', 'tone' => 'grey'],
-            ]),
+            ], $withoutModel !== null ? [['label' => 'Model in force', 'value' => \App\Services\Fli\FliWithoutModel::NOTE, 'tone' => 'amber']] : []),
             'sections' => [
                 ['heading' => 'Macro-Economic Data Held for the Month',
                  'columns' => ['Variable', 'Code', 'Latest period', 'Type', 'Value', 'Source'], 'align' => ['l', 'l', 'l', 'l', 'r', 'l'],
                  'rows' => $macro ?: [['No macro-economic data held up to this month', '-', '-', '-', '-', '-']]],
                 ['heading' => 'Economic Scenarios & Weights' . ($setLabel ? ' - ' . $setLabel : ''),
                  'columns' => ['Scenario', 'Weight', 'Anchored to', 'PD multiplier'], 'align' => ['l', 'r', 'l', 'r'],
-                 'rows' => $scenarios ?: [['No approved scenario set for this month', '-', '-', '-']]],
+                 'rows' => $scenarios ?: [['No approved scenario set for this month', '-', '-', '-']]] + ($withoutModel !== null ? ['note' => $withoutModel] : []),
                 ['heading' => 'Scenario Shocks',
                  'columns' => ['Scenario', 'Variable', 'Forecast year', 'Shock', 'Value'], 'align' => ['l', 'l', 'l', 'l', 'r'],
                  'rows' => $shocks ?: [['No shocks recorded on the set', '-', '-', '-', '-']]],
@@ -821,11 +823,15 @@ class Ifrs9ReportsController extends Controller
             $rows[] = ['Probability-weighted', $this->pct(1), '', $this->money($snap->weighted_ecl)];
         }
 
+        // the record is not current when a step it depends on ran again (MonthEndCurrency); a month whose PD
+        // held for want of a model version says so (fli_without_model)
+        $stale = $snap ? \App\Services\Fli\MonthEndCurrency::state((string) $period)['record_stale'] : null;
+        $withoutModel = $snap ? \App\Services\Fli\FliWithoutModel::disclosure((string) $period) : null;
         $kpis = $snap ? [
             ['label' => 'Booked ECL', 'value' => $this->money($snap->booked_ecl), 'tone' => 'rose'],
             ['label' => 'Probability-Weighted ECL', 'value' => $this->money($snap->weighted_ecl), 'tone' => 'amber'],
             ['label' => 'Difference', 'value' => $this->money($snap->difference), 'tone' => $snap->reconciles ? 'emerald' : 'rose'],
-            ['label' => 'Close status', 'value' => $snap->status === 'SIGNED_OFF' ? 'Signed off' : 'Recorded, awaiting sign-off', 'tone' => 'grey'],
+            ['label' => 'Close status', 'value' => $stale !== null ? 'Not current: the month is mid-run' : ($snap->status === 'SIGNED_OFF' ? 'Signed off' : 'Recorded, awaiting sign-off'), 'tone' => $stale !== null ? 'rose' : 'grey'],
         ] : [
             ['label' => 'FLI close', 'value' => 'Not recorded for this month', 'tone' => 'amber'],
         ];
@@ -839,7 +845,7 @@ class Ifrs9ReportsController extends Controller
                 'columns' => ['Scenario', 'Weight', 'ECL under the scenario', 'Weighted contribution'],
                 'align' => ['l', 'r', 'r', 'r'],
                 'rows' => $rows ?: [['Run the FLI month-end close for this month (FLI Month-End, Overview)', '-', '-', '-']],
-            ]]]);
+            ] + (($stale ?? $withoutModel) !== null ? ['note' => trim(($stale ?? '') . ' ' . ($withoutModel ?? ''))] : [])]]);
     }
 
     /** The FLI month-end close of the month that stands (recorded or signed off), or null. */

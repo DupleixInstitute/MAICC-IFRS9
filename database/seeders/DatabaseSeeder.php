@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             ScoringAttributesTableSeeder::class,
             CreditLossDefinitionSeeder::class,
             ScenarioSetSeeder::class,
+            CollateralTypesSeeder::class,
         ]);
     }
 }

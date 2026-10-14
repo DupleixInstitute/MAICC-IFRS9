@@ -64,17 +64,23 @@ class GovernanceServiceTest extends TestCase
         // plus the five PD and LGD segment settings (9 Oct 2026),
         // plus fee_gl_reconciliation (11 Oct 2026, spec v4 section 7.4),
         // plus the three forward-looking module settings (13 Oct 2026, FLI module v1),
-        // plus fee_source_precedence and takeon_eir_plausibility (14 Oct 2026, results review E2 and E3).
-        $this->assertSame(61, GovernanceSetting::count());
-        $this->assertSame(61, GovernanceSetting::where('status', 'APPROVED')->count());
+        // plus fee_source_precedence and takeon_eir_plausibility (14 Oct 2026, results review E2 and E3),
+        // plus fli_without_model (14 Oct 2026, FLI module D-F1 note).
+        $this->assertSame(62, GovernanceSetting::count());
+        $this->assertSame(62, GovernanceSetting::where('status', 'APPROVED')->count());
 
         foreach (GovernanceService::catalogue() as $key => $definition) {
             $this->assertSame($definition['default'], $this->service()->get($key), $key);
             $this->assertContains($definition['default'], $definition['options'], $key);
             foreach ($definition['options'] as $option) {
-                $this->assertLessThanOrEqual(60, strlen($option), "{$key}: '{$option}' does not fit the value column");
+                // the value column is 255 since 14 October 2026 (fli_without_model has an option of 108 characters)
+                $this->assertLessThanOrEqual(255, strlen($option), "{$key}: '{$option}' does not fit the value column");
             }
         }
+        // a technical default says so and is not a MAIIC approval; every other default is Dupleix's recommendation
+        $this->assertStringContainsString('not a MAIIC approval', (string) GovernanceSetting::where('key', 'fli_without_model')->value('reason'));
+        $this->assertSame(\App\Services\Fli\FliWithoutModel::PROCEED, $this->service()->get('fli_without_model'));
+        $this->assertSame(\Database\Seeders\GovernanceSettingsSeeder::REASON, GovernanceSetting::where('key', 'day_count')->value('reason'));
 
         // Every open choice names the specification item it settles, so the
         // screen reads back to section 4 of the specification.
@@ -85,14 +91,14 @@ class GovernanceServiceTest extends TestCase
                   'historic_materiality_assessment' => 'O20', 'fee_reclass_journal' => 'O21', 'mega_farms_scope' => 'O22',
                   'ebanker_feed_route' => 'O9', 'loan_book_build_method' => 'O8', 'takeon_history_basis' => '6.9', 'megafarm_pd_method' => '16.8',
                   'macro_source_precedence' => '13', 'fli_adjustment_route' => '14.6', 'fli_transmission_method' => '14.7', 'scenario_weighting_method' => '15.5',
-                  'dpd_basis' => 'D31', 'stage3_missed_instalments' => 'D31', 'stage_cure_months' => 'M11', 'fee_gl_reconciliation' => '7.4', 'fee_source_precedence' => '7.8.2', 'takeon_eir_plausibility' => '6.9'] as $key => $item) {
+                  'dpd_basis' => 'D31', 'stage3_missed_instalments' => 'D31', 'stage_cure_months' => 'M11', 'fee_gl_reconciliation' => '7.4', 'fee_source_precedence' => '7.8.2', 'takeon_eir_plausibility' => '6.9', 'fli_without_model' => 'D-F1'] as $key => $item) {
             $this->assertStringContainsString($item, GovernanceService::catalogue()[$key]['description'], $key);
             $this->assertLessThanOrEqual(60, strlen($key), "{$key} does not fit the key column");
         }
 
         // Running it again changes nothing: an approved MAIIC change is never overwritten.
         $this->seedGovernanceDefaults();
-        $this->assertSame(61, GovernanceSetting::count());
+        $this->assertSame(62, GovernanceSetting::count());
     }
 
     /** Audit finding H10: the generator resolves settings at origination, and MAIIC's earliest contract is March 2020. */

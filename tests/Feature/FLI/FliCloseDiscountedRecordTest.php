@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\FLI;
 
+use App\Services\Eir\GovernanceService;
 use App\Services\Fli\FliCloseService;
+use App\Services\Fli\FliWithoutModel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
+use Tests\Concerns\SeedsGovernedDefaults;
 use Tests\TestCase;
 
 /**
@@ -23,6 +26,8 @@ use Tests\TestCase;
  */
 class FliCloseDiscountedRecordTest extends TestCase
 {
+    use SeedsGovernedDefaults;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -52,7 +57,10 @@ class FliCloseDiscountedRecordTest extends TestCase
         });
         Schema::create('governed_scenario_sets', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->integer('version'); $t->string('status'); $t->string('reporting_period'); });
         Schema::create('governed_scenarios', function (Blueprint $t) { $t->increments('id'); $t->integer('set_id'); $t->string('name'); $t->double('weight'); $t->integer('order_position'); $t->boolean('is_base')->default(false); });
-        Schema::create('fli_model_versions', function (Blueprint $t) { $t->increments('id'); });
+        // the registry: no version is published, so the month has no model in force (fli_without_model decides)
+        Schema::create('fli_models', function (Blueprint $t) { $t->increments('id'); $t->string('code'); $t->string('name')->nullable(); });
+        Schema::create('fli_model_versions', function (Blueprint $t) { $t->increments('id'); $t->integer('model_id')->nullable(); $t->integer('version')->nullable(); $t->string('status')->nullable(); $t->string('effective_from')->nullable(); $t->integer('fli_fit_id')->nullable(); });
+        $this->seedGovernedDefaults(['fli_without_model', 'fli_movement_commentary', 'scenario_weighting_method']);
         Schema::create('loan_portfolios', function (Blueprint $t) { $t->increments('id'); $t->string('name'); });
         Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); });
         Schema::create('macro_series', function (Blueprint $t) { $t->increments('id'); $t->string('statistic_code'); $t->string('observation_period'); $t->double('value'); $t->string('value_type'); $t->string('vintage')->nullable(); });
@@ -90,7 +98,7 @@ class FliCloseDiscountedRecordTest extends TestCase
 
         $fli = json_encode(['Base' => ['weight' => 50, 'pd' => 0.10], 'Severe' => ['weight' => 50, 'pd' => 0.16]]);
         $base = ['reporting_period' => '2026-09', 'loan_portfolio_id' => 1, 'product_code' => '1040101', 'remaining_tenor' => 24, 'commitments' => 0, 'facility_utilisation_rate' => 1,
-            'fli_set_id' => 1, 'fli_route' => 'Regression', 'ecl_calculated_at' => '2026-10-14 10:00:00', 'ecl_calculation_run_id' => 'R1'];
+            'fli_set_id' => 1, 'fli_route' => 'Regression', 'ecl_calculated_at' => '2026-10-01 10:00:00', 'ecl_calculation_run_id' => 'R1'];
         // Stage 1: EAD 1,000, post-FLI PD 0.13 (the weighted scenario PD), LGD 0.5: engine ECL 65;
         // time-phased 48 / 45 and 80 / 75 by scenario: undiscounted 64, discounted 60
         DB::table('loan_books')->insert($base + ['contract_id' => 'A', 'ifrs9stage_post_qualitative' => '1', 'carrying_amount' => 1000, 'pd_prefli' => 0.10, 'pd_post_fli' => 0.13, 'lgd_value' => 0.5,
@@ -219,5 +227,64 @@ class FliCloseDiscountedRecordTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('carry no PD for a scenario of the set');
         $close->signOff((int) $s['id'], 3, 'commentary');
+    }
+
+    /**
+     * No model version in force, the setting fli_without_model at Proceed (14 October 2026, D-F1 note):
+     * the record says so, the IFRS 9 note and the forward-looking reports disclose it, and the sign-off
+     * needs a commentary saying so.
+     */
+    public function test_a_month_with_no_model_is_recorded_as_such_and_signed_off_only_with_a_commentary(): void
+    {
+        DB::table('loan_books')->where('contract_id', 'C')->delete(); // no loan left undiscounted: only the model asks for a commentary
+        $close = app(FliCloseService::class);
+        $s = $close->record('2026-09', 2);
+
+        $this->assertSame(FliWithoutModel::NOTE, $s['inputs']['without_model']['note']);
+        $this->assertSame(FliWithoutModel::PROCEED, $s['inputs']['without_model']['setting']);
+        $this->assertNull($s['model_version_id']);
+        $this->assertTrue($close->latest('2026-09')['without_model']);
+        $this->assertStringContainsString(FliWithoutModel::NOTE, (string) FliWithoutModel::disclosure('2026-09'));
+        try {
+            $close->signOff((int) $s['id'], 3);
+            $this->fail('signed off with no model in force and no commentary');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString(FliWithoutModel::NOTE, $e->getMessage());
+        }
+        $close->signOff((int) $s['id'], 3, 'No forward-looking model version is in force: the fit awaits approval; the PD holds.');
+        $this->assertSame('SIGNED_OFF', DB::table('fli_run_snapshots')->where('id', $s['id'])->value('status'));
+    }
+
+    public function test_under_refuse_a_month_with_no_model_is_not_recorded(): void
+    {
+        DB::table('governance_settings')->where('key', FliWithoutModel::KEY)->update(['value' => FliWithoutModel::REFUSE]);
+        app()->forgetInstance(GovernanceService::class);
+        try {
+            app(FliCloseService::class)->record('2026-09', 2);
+            $this->fail('recorded under Refuse');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('refuses the month-end until one is', $e->getMessage());
+        }
+        $this->assertSame(0, DB::table('fli_run_snapshots')->count());
+    }
+
+    /**
+     * A month-end that stopped part-way (14 October 2026): the PD step re-ran after the record, so the
+     * record on screen is not the month any more; it is shown as not current and cannot be signed off.
+     */
+    public function test_a_record_made_before_a_step_ran_again_is_not_current_and_cannot_be_signed_off(): void
+    {
+        $close = app(FliCloseService::class);
+        $s = $close->record('2026-09', 2);
+        $this->assertNull($close->latest('2026-09')['stale']);
+        DB::table('audit_logs')->insert(['action' => 'PD Segment Run', 'entity_type' => 'segment_parameter_runs', 'reporting_period' => '2026-09',
+            'created_at' => now()->addMinute(), 'updated_at' => now()->addMinute()]);
+
+        $latest = $close->latest('2026-09');
+        $this->assertStringContainsString('not current', (string) $latest['stale']);
+        $this->assertStringContainsString('the PD run', (string) $latest['stale']);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('not current');
+        $close->signOff((int) $s['id'], 3, 'C waits for its EIR to be locked.');
     }
 }

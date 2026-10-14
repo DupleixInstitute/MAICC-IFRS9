@@ -707,7 +707,8 @@ private function scenarioEcl(string $period, ?int $portfolioId, float $totalEcl)
         return ['period' => $period, 'source' => 'month_end', 'series' => $series, 'loans' => $loans,
             'set' => $setInfo($snap->set_id ? DB::table('governed_scenario_sets')->where('id', $snap->set_id)->first() : null),
             'record' => ['id' => (int) $snap->id, 'status' => $snap->status, 'reconciles' => (bool) $snap->reconciles, 'recorded_at' => $snap->created_at],
-            'ties' => abs($weightedTotal - $totalEcl) <= max(1.0, 1e-6 * abs($totalEcl)), 'note' => null];
+            // a record made before a step it depends on ran again is said to be not current (MonthEndCurrency, 14 October 2026)
+            'ties' => abs($weightedTotal - $totalEcl) <= max(1.0, 1e-6 * abs($totalEcl)), 'note' => \App\Services\Fli\MonthEndCurrency::state($period)['record_stale']];
     }
 
     // 2. the saved stress runs of the approved set ("Set 8 v1: Base")

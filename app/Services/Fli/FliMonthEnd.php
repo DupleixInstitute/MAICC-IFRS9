@@ -21,8 +21,11 @@ use Throwable;
  */
 class FliMonthEnd
 {
-    public function __construct(private FliModelRegistry $registry, private FliCloseService $close, private FliProjectionService $projection, private GovernanceService $governance)
+    private FliWithoutModel $withoutModel;
+
+    public function __construct(private FliModelRegistry $registry, private FliCloseService $close, private FliProjectionService $projection, private GovernanceService $governance, ?FliWithoutModel $withoutModel = null)
     {
+        $this->withoutModel = $withoutModel ?? new FliWithoutModel($governance, $registry);
     }
 
     /** @return list<array<string,mixed>> */
@@ -64,18 +67,21 @@ class FliMonthEnd
                 : 'No credit-loss measure yet: the correlation sweep derives them from the staged loan books.',
             'credit-loss-data.index', 'fli-correlate');
 
-        // 4. the model version in force
-        $version = $this->registry->inForce($period);
+        // 4. the model version in force; with none, the governed setting fli_without_model decides
+        // whether the month-end proceeds with the PD held or stops (D-F1, note of 14 October 2026)
+        $decision = $this->withoutModel->decide($period);
+        $version = $decision['model'];
+        $noModel = $version === null && $decision['proceed'];
         $cadence = $this->setting('fli_model_cadence', $period) ?? '';
         $age = $version ? AsAtSeries::monthsBetween(AsAtSeries::ym($version->effective_from), $ym) : null;
         $monthly = str_starts_with($cadence, 'Every month');
-        $vState = $version === null ? 'blocked' : (($monthly && $version->effective_from !== $period) ? 'blocked' : ($age !== null && $age >= 12 ? 'warn' : 'done'));
+        $vState = $version === null ? ($noModel ? 'warn' : 'blocked') : (($monthly && $version->effective_from !== $period) ? 'blocked' : ($age !== null && $age >= 12 ? 'warn' : 'done'));
         $steps[] = $this->step('model', 'Model version in force', $vState,
-            $version === null ? 'No model version is in force: run the correlation sweep, then propose and approve a fit on Regression; approval publishes it.'
+            $version === null ? $decision['message']
                 : "Version {$version->version}: {$version->statistic_code} to {$version->proxy_code}, lag {$version->lag_months} months, R-squared " . number_format((float) $version->r_squared, 3) . ", in force since {$version->effective_from}"
                     . ($monthly && $version->effective_from !== $period ? '; the governed cadence asks for a version every month' : '')
                     . ($age !== null && $age >= 12 ? '; more than twelve months old, due for its annual review' : ''),
-            'fli-models.index', null, ['version_id' => $version?->id]);
+            'fli-models.index', null, ['version_id' => $version?->id, 'without_model' => $noModel, 'without_model_setting' => $decision['setting']]);
 
         // 5. the scenario set approved for the month
         $set = DB::table('governed_scenario_sets')->where('reporting_period', $period)->orderByDesc('version')->first();
@@ -94,41 +100,53 @@ class FliMonthEnd
             'fli-overlays.index', null);
 
         // 7. the route applied to every loan under the version and the set in force
+        // with no model in force (and the setting letting the month proceed) the loans carry no version
+        $onVersion = $version ? 'sum(case when fli_model_version_id = ? then 1 else 0 end)' : 'sum(case when fli_model_version_id is null then 1 else 0 end)';
         $applied = DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('pd_prefli')
-            ->selectRaw('count(*) n, sum(fli_set_id = ?) on_set, sum(fli_model_version_id = ?) on_version, sum(pd_post_fli is not null) post', [(int) ($approved->id ?? 0), (int) ($version->id ?? 0)])->first();
+            ->selectRaw("count(*) n, sum(case when fli_set_id = ? then 1 else 0 end) on_set, {$onVersion} on_version, sum(case when pd_post_fli is not null then 1 else 0 end) post", $version ? [(int) ($approved->id ?? 0), (int) $version->id] : [(int) ($approved->id ?? 0)])->first();
         $appliedAt = DB::table('audit_logs')->where('action', 'FLI Route Applied')->where('reporting_period', $period)->max('created_at');
         // done only when every loan carries a post-FLI PD under the set and version in force,
         // written after the latest PD run (a new PD run clears the post-FLI PD)
         $pdRunAt = DB::getSchemaBuilder()->hasTable('segment_parameter_runs')
             ? DB::table('segment_parameter_runs')->whereIn('run_id', DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('pd_segment_run_id')->distinct()->pluck('pd_segment_run_id'))->max('created_at') : null;
-        $applyDone = $approved && $version && $applied->n > 0 && (int) $applied->on_set === (int) $applied->n && (int) $applied->on_version === (int) $applied->n
+        $modelOk = $version !== null || $noModel;
+        $applyDone = $approved && $modelOk && $applied->n > 0 && (int) $applied->on_set === (int) $applied->n && (int) $applied->on_version === (int) $applied->n
             && (int) $applied->post === (int) $applied->n && ! ($pdRunAt && $appliedAt && $appliedAt < $pdRunAt);
-        $steps[] = $this->step('apply', 'Forward-looking route applied', $applyDone ? 'done' : (($approved && $version) ? 'todo' : 'blocked'),
-            $applyDone ? number_format((int) $applied->n) . ' loans carry the post-FLI PD under version ' . $version->version . ' and set ' . $approved->id . ($appliedAt ? ", applied {$appliedAt}" : '')
-                : (($approved && $version) ? ((int) $applied->post < (int) $applied->n ? number_format((int) $applied->n - (int) $applied->post) . ' loans have no post-FLI PD (a new PD run clears it): apply the route.' : number_format((int) ($applied->on_set ?? 0)) . ' of ' . number_format((int) $applied->n) . ' loans are on the set and version in force: apply the route.') : 'Needs the model version and the scenario set first.'),
+        $under = $version ? 'version ' . $version->version : 'no model version (' . FliWithoutModel::NOTE . ': the PD holds)';
+        $steps[] = $this->step('apply', 'Forward-looking route applied', $applyDone ? 'done' : (($approved && $modelOk) ? 'todo' : 'blocked'),
+            $applyDone ? number_format((int) $applied->n) . ' loans carry the post-FLI PD under ' . $under . ' and set ' . $approved->id . ($appliedAt ? ", applied {$appliedAt}" : '')
+                : (($approved && $modelOk) ? ((int) $applied->post < (int) $applied->n ? number_format((int) $applied->n - (int) $applied->post) . ' loans have no post-FLI PD (a new PD run clears it): apply the route.' : number_format((int) ($applied->on_set ?? 0)) . ' of ' . number_format((int) $applied->n) . ' loans are on the set and ' . ($version ? 'the version in force' : 'the route with no model version') . ': apply the route.') : ($approved ? (string) $decision['message'] : 'Needs the model version and the scenario set first.')),
             'fli.external.index', 'fli-apply');
 
         // 8. the scenario projection (evidence; does not block the close)
         $proj = DB::table('ecl_projection_runs')->where('reporting_period', $period)->where('methodology_version', FliProjectionService::SOURCE)->where('status', 'COMPLETED')->orderByDesc('id')->first();
         $projCurrent = $proj && $appliedAt && $proj->completed_at >= $appliedAt;
-        $steps[] = $this->step('project', 'Scenario projection (term structure)', $projCurrent ? 'done' : ($applyDone ? 'optional' : 'blocked'),
-            $proj ? 'Projected ' . $proj->completed_at . ($projCurrent ? '' : ', before the route last ran: project again') : 'Not projected yet: the year-by-year PD of each portfolio under each scenario.',
-            'forecasting.manual', 'fli-project');
+        if ($noModel) {
+            // nothing to project: the PD holds in every scenario (fli_without_model, Proceed)
+            $steps[] = $this->step('project', 'Scenario projection (term structure)', 'optional', ucfirst(FliWithoutModel::PROJECTION_SKIPPED) . '.', 'forecasting.manual', null);
+        } else {
+            $steps[] = $this->step('project', 'Scenario projection (term structure)', $projCurrent ? 'done' : ($applyDone ? 'optional' : 'blocked'),
+                $proj ? 'Projected ' . $proj->completed_at . ($projCurrent ? '' : ', before the route last ran: project again') : 'Not projected yet: the year-by-year PD of each portfolio under each scenario.',
+                'forecasting.manual', 'fli-project');
+        }
 
         // 9. the ECL on the post-FLI PD, after the route
-        $eclDone = $applyDone && $book->ecl_at && $appliedAt && CarbonImmutable::parse($book->ecl_at)->gte(CarbonImmutable::parse($appliedAt));
+        // a restaging, a PD or LGD run or a route after the ECL leaves it stale: the month is mid-run (MonthEndCurrency)
+        $currency = MonthEndCurrency::state($period);
+        $eclDone = $applyDone && $book->ecl_at && $appliedAt && CarbonImmutable::parse($book->ecl_at)->gte(CarbonImmutable::parse($appliedAt)) && $currency['ecl_stale'] === null;
         $steps[] = $this->step('ecl', 'ECL calculated on the post-FLI PD', $eclDone ? 'done' : ($applyDone ? 'todo' : 'blocked'),
-            $eclDone ? 'Calculated ' . $book->ecl_at : ($applyDone ? 'The route ran after the last ECL calculation: calculate the ECL.' : 'Needs the route applied first.'),
+            $eclDone ? 'Calculated ' . $book->ecl_at : ($applyDone ? ($currency['ecl_stale'] ?? 'The route ran after the last ECL calculation') . ' Calculate the ECL.' : 'Needs the route applied first.' . ($currency['ecl_stale'] ? ' ' . $currency['ecl_stale'] : '')),
             'expected-credit-loss.index', 'ecl');
 
         // 10. recorded and signed off
         $snap = $this->close->latest($period);
-        $snapCurrent = $snap && $eclDone && $snap['created_at'] >= $book->ecl_at;
+        $snapCurrent = $snap && $eclDone && $snap['created_at'] >= $book->ecl_at && empty($snap['stale']);
         $state = ! $eclDone ? 'blocked' : (! $snapCurrent ? 'todo' : ($snap['status'] === 'SIGNED_OFF' ? 'done' : 'todo'));
         $steps[] = $this->step('close', 'Month recorded and signed off', $state,
-            ! $snapCurrent ? ($eclDone ? 'Record the month: the ECL under each scenario, the reconciliation and what it ran under.' : 'Needs the ECL first.')
+            ! $snapCurrent ? ($eclDone ? 'Record the month: the ECL under each scenario, the reconciliation and what it ran under.' . (! empty($snap['stale']) ? ' ' . $snap['stale'] : '') : 'Needs the ECL first.' . (! empty($snap['stale']) ? ' ' . $snap['stale'] : ''))
                 : ($snap['status'] === 'SIGNED_OFF' ? 'Signed off by ' . ($snap['signer'] ?? $snap['approver_label'] ?? 'a second person') . ' on ' . $snap['signed_off_at']
-                    : 'Recorded ' . $snap['created_at'] . ($snap['reconciles'] ? ', weighted ECL ties to the booked ECL' : ', the weighted ECL does NOT tie to the booked ECL') . ($snap['needs_commentary'] ? '; the movement needs a commentary' : '') . ': a second person signs it off.'),
+                    : 'Recorded ' . $snap['created_at'] . ($snap['reconciles'] ? ', weighted ECL ties to the booked ECL' : ', the weighted ECL does NOT tie to the booked ECL') . ($snap['needs_commentary'] ? '; the movement needs a commentary' : '')
+                        . (! empty($snap['inputs']['without_model']) ? '; ' . FliWithoutModel::NOTE . ', so the sign-off needs a commentary saying so' : '') . ': a second person signs it off.'),
             'fli.overview', 'fli-close', ['snapshot_id' => $snap['id'] ?? null]);
 
         return $steps;

@@ -46,7 +46,8 @@ class GovernanceSettingsSeeder extends Seeder
                 'set_by' => null,
                 'approved_by' => null,
                 'approved_at' => now(),
-                'reason' => self::REASON,
+                // a technical default names itself as one, never as a MAIIC approval (fli_without_model, 14 October 2026)
+                'reason' => $definition['seed_reason'] ?? self::REASON,
                 'status' => GovernanceSetting::STATUS_APPROVED,
             ]);
             $seeded++;

@@ -207,8 +207,10 @@ class PackLandingService
             }
             $watermarks = [];
             $fileResults = [];
+            // a query with no key is keyed by content across every file of it in the pack (landFile)
+            $keyless = [];
             foreach ($plans as $plan) {
-                $res = $this->landFile($loadId, $plan, $dateFormat);
+                $res = $this->landFile($loadId, $plan, $dateFormat, $keyless);
                 $fileResults[$plan['file']] = $res;
                 // a watermark is the last key loaded of an incremental table (spec 6.4); the masters come whole
                 if ($plan['query']->incremental && $plan['query']->key_column !== null && $res['max_key'] !== null) {
@@ -220,6 +222,19 @@ class PackLandingService
                     'rows_unchanged' => $res['unchanged'], 'status' => 'LANDED', 'created_at' => now(), 'updated_at' => now(),
                 ]);
             }
+            // A query with no key comes whole (none is incremental): what the landed loads held of it and
+            // this pack no longer carries is superseded, never deleted, and named on its last file
+            foreach ($keyless as $queryId => $state) {
+                $gone = array_values(array_map(fn ($r) => $r->id, array_diff_key($state['current'], $state['seen'])));
+                $withdrawn = 0;
+                foreach (array_chunk($gone, self::BATCH) as $ids) {
+                    $withdrawn += DB::table('ebanker_raw_rows')->whereIn('id', $ids)->update(['superseded_at' => now()]);
+                }
+                if ($withdrawn > 0) {
+                    $fileResults[$state['last_file']]['withdrawn'] = $withdrawn;
+                    DB::table('ebanker_pack_files')->where('load_id', $loadId)->where('file', $state['last_file'])->update(['note' => "{$withdrawn} row(s) of the earlier extract of {$queryId} are not in this pack and were superseded (a query with no key comes whole)"]);
+                }
+            }
             DB::table('ebanker_loads')->where('id', $loadId)->update([
                 'status' => 'LANDED', 'gates' => json_encode($gates), 'watermarks' => json_encode($watermarks), 'loaded_at' => now(), 'updated_at' => now(),
             ]);
@@ -229,26 +244,58 @@ class PackLandingService
         });
     }
 
-    /** @return array{loaded:int,new:int,versioned:int,unchanged:int,max_key:int|string|null} */
-    private function landFile(int $loadId, array $plan, string $dateFormat): array
+    /**
+     * Land one file's rows: a row whose key is held with the same content is unchanged, with other
+     * content it is a new version of the held row (superseding it), and an unheld key is new.
+     *
+     * A query with no key column (CV_07, GL_02, P3_12, DD_09, DD_10 and the other probes and masters
+     * the register lists without one) is keyed by the row's content (contentKey: its SHA-256 and the
+     * occurrence of that content among the query's rows in the pack), never by its row number: until
+     * 14 October 2026 a re-sent CV_07 landed its 47 rows again as 47 new current rows, and family()
+     * kept, row number by row number, whichever load came later. Identical rows are now recognised as
+     * held. Such a query comes whole (none is incremental), so the pack carries the query's current
+     * extract: land() supersedes a held row whose content the pack no longer carries ('withdrawn'),
+     * which is how a changed row of a keyless query is versioned. $keyless keeps, per such query, the
+     * rows held before the pack, the occurrences counted and the keys seen, across its files.
+     *
+     * @param  array<string, array{current:array, occurrence:array, seen:array, last_file:string}>  $keyless
+     * @return array{loaded:int,new:int,versioned:int,unchanged:int,max_key:int|string|null}
+     */
+    private function landFile(int $loadId, array $plan, string $dateFormat, array &$keyless = []): array
     {
         $q = $plan['query'];
         $keyCol = $q->key_column; $accCol = $q->account_column; $dateCol = $q->date_column;
-        $current = [];
-        if ($keyCol !== null) {
+        $isKeyless = $keyCol === null;
+        $held = function () use ($q): array {
+            $out = [];
             // only rows of landed loads are a lineage to version against; a quarantined load's rows are not
             foreach (DB::table('ebanker_raw_rows')->where('query_id', $q->query_id)->whereNull('superseded_at')
                 ->whereIn('load_id', DB::table('ebanker_loads')->select('id')->where('status', 'LANDED'))
                 ->get(['id', 'source_key', 'row_hash', 'version']) as $r) {
-                $current[$r->source_key] = $r;
+                $out[$r->source_key] = $r;
             }
+
+            return $out;
+        };
+        if ($isKeyless) {
+            $keyless[$q->query_id] ??= ['current' => $held(), 'occurrence' => [], 'seen' => [], 'last_file' => $plan['file']];
+            $keyless[$q->query_id]['last_file'] = $plan['file'];
+            $current = $keyless[$q->query_id]['current'];
+        } else {
+            $current = $held();
         }
         $new = $versioned = $unchanged = 0; $maxKey = null; $batch = [];
         $now = now();
         foreach ($plan['rows'] as $i => $row) {
-            $key = $this->sourceKey($q, $row, $i);
             $payload = json_encode($row, JSON_UNESCAPED_UNICODE);
             $hash = hash('sha256', $payload);
+            if ($isKeyless) {
+                $n = $keyless[$q->query_id]['occurrence'][$hash] = ($keyless[$q->query_id]['occurrence'][$hash] ?? 0) + 1;
+                $key = self::contentKey($hash, $n);
+                $keyless[$q->query_id]['seen'][$key] = true;
+            } else {
+                $key = $this->sourceKey($q, $row, $i);
+            }
             $version = 1;
             if (isset($current[$key])) {
                 if ($current[$key]->row_hash === $hash) {
@@ -283,6 +330,17 @@ class PackLandingService
     }
 
     /**
+     * The source key of a row of a query with no key column: its content (the SHA-256 of the row as
+     * landed, cut to fit source_key) and the occurrence of that content among the query's rows in the
+     * pack, so two identical rows both land and a re-sent pack is recognised row for row. Public for the
+     * migration that re-keyed the rows landed before 14 October 2026 and for the tests.
+     */
+    public static function contentKey(string $rowHash, int $occurrence): string
+    {
+        return 'c:' . substr($rowHash, 0, 50) . '#' . $occurrence;
+    }
+
+    /**
      * The rows of a file in a refused pack, kept verbatim against the
      * quarantined load (spec 6.4). They are not a version of anything: no
      * current row is superseded, and every reader leaves them out because the
@@ -294,14 +352,21 @@ class PackLandingService
     {
         $q = $plan['query'];
         $accCol = $q->account_column; $dateCol = $q->date_column;
-        $now = now(); $batch = []; $seen = []; $kept = 0;
+        $now = now(); $batch = []; $seen = []; $kept = 0; $occurrence = [];
         foreach ($plan['rows'] as $i => $row) {
-            $key = $this->sourceKey($q, $row, $i);
+            $payload = json_encode($row, JSON_UNESCAPED_UNICODE);
+            if ($q->key_column === null) {
+                // keyed by content, as a landed file is (landFile)
+                $h = hash('sha256', $payload);
+                $occurrence[$h] = ($occurrence[$h] ?? 0) + 1;
+                $key = self::contentKey($h, $occurrence[$h]);
+            } else {
+                $key = $this->sourceKey($q, $row, $i);
+            }
             if (isset($seen[$key])) {
                 $key .= '#' . ($i + 2);
             }
             $seen[$key] = true;
-            $payload = json_encode($row, JSON_UNESCAPED_UNICODE);
             $batch[] = [
                 'load_id' => $loadId, 'query_id' => $q->query_id, 'source_key' => $key,
                 'account' => $accCol !== null ? (trim((string) ($row[$accCol] ?? '')) ?: null) : null,
@@ -360,7 +425,7 @@ class PackLandingService
         return $query->key_column === null ? [] : array_values(array_filter(array_map('trim', explode(',', $query->key_column))));
     }
 
-    /** The row's source key: the key column(s) joined by '|', or the row number when the query has no key. */
+    /** The row's source key: the key column(s) joined by '|' (a query with no key column is keyed by content, contentKey). */
     private function sourceKey(object $query, array $row, int $index): string
     {
         $cols = $this->keyColumns($query);

@@ -31,9 +31,23 @@ class StageLoanBooks extends Command
                 $this->error('Locked period(s) are never restaged: ' . implode(', ', $locked));
                 return self::FAILURE;
             }
+            // a month with no loan book has nothing to stage: refused by name, never reported as a
+            // success with 0 rows (final check of 14 October 2026)
+            foreach ($periods as $p) {
+                if (! \Illuminate\Support\Facades\DB::table('loan_books')->where('reporting_period', $p)->exists()) {
+                    $this->error(\App\Http\Controllers\MaintenanceController::noLoanBookMessage($p, 'Staging'));
+
+                    return self::FAILURE;
+                }
+            }
             $rows = [];
             foreach ($periods as $p) {
                 $c = $service->stage($p, $user, (bool) $this->option('dry-run'));
+                if ((int) $c['rows'] === 0) {
+                    $this->error("Staging is refused for {$p}: the loan book holds no row to stage.");
+
+                    return self::FAILURE;
+                }
                 $rows[] = [$p, $c['rows'], $c['stage1'], $c['stage2'], $c['stage3'], $c['by_dpd'], $c['by_instalments'], $c['by_sicr'], $c['by_credit_impaired'], $c['by_bucket'], $c['held_by_cure']];
             }
         } catch (Throwable $e) {

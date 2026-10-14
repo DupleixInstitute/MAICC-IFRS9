@@ -38,7 +38,7 @@ class EirGovernanceController extends Controller
     {
         $data = $request->validate([
             'key' => ['required', 'string', 'in:' . implode(',', GovernanceService::keys())],
-            'value' => ['required', 'string', 'max:60'],
+            'value' => ['required', 'string', 'max:255'],
             'effective_from' => ['required', 'date_format:Y-m-d'],
             'reason' => ['required', 'string', 'min:10', 'max:500'],
         ]);

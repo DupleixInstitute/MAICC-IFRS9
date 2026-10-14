@@ -80,7 +80,7 @@ class BootstrapMonthEndChainTest extends TestCase
     {
         $src = file_get_contents(app_path('Console/Commands/Bootstrap.php'));
         $engines = substr($src, strpos($src, 'private function stepEngines('));
-        $this->assertSame(1, preg_match('/foreach \(\$periods as \$p\) \{\s*\$ok = \[\];\s*\$why = \[\];\s*foreach \(self::periodChain\(\) as/', $engines), 'the month-end loop runs the chain of the month for every period');
+        $this->assertSame(1, preg_match('/foreach \(\$periods as \$p\) \{\s*\$ok = \[\];\s*\$why = \[\];\s*(\$decision = null;\s*)?foreach \(self::periodChain\(\) as/', $engines), 'the month-end loop runs the chain of the month for every period');
         // the set, the route and the ECL are no longer run for the last period only
         $this->assertStringNotContainsString('seedFirstSet($to', $engines);
         $this->assertStringNotContainsString('->apply($to', $engines);

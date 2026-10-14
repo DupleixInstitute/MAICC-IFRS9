@@ -94,3 +94,38 @@ The bootstrap builds the whole system from the files in this folder and nothing 
 | Days past due, E-Banker's overdue run (OD_01, 2,259 month-end rows) against staging: account-months in both / agree / differ / by more than 30 days / not in the loan book | 2,241 / 1,782 / 459 / 229 / 18 |
 
 `golden.json` holds 77 values (the table groups them). A revenue month that cannot be opened from a booked prior-month allowance is refused and writes no row (and the month after it is refused too), so the roll-forward row counts above are the golden for the refused months. The goldens are the figures of the committed data and code; they are not MAIIC approvals and they change only by a new commit that resets `golden.json` from a fresh run (the file names the date, commit and database it was set from).
+
+**Options worth knowing (added 14 October 2026).**
+
+- `--to` is the last month the bootstrap builds and runs. Left out, it is the last month-end in the packs: the latest date of E-Banker's stored Loan Book Report runs landed (queries P2_08, M09_03 and MF_05), or, with none, the month of the last ledger posting landed. A month after the last pack is never estimated. `--from` (default `2024-07`, the take-on) is the first.
+- `--inputs` (default `docs/bootstrap`) is relative to the repository folder: the bootstrap reads `base_path(--inputs)`, so `--inputs=docs/bootstrap` and `--inputs=storage/app/my-inputs` work, and an absolute path such as `D:\packs` does not (it would be read as a folder inside the repository).
+- The "N files" and "N files landed" lines count every file the step went through, including a file an earlier run had already landed: the door recognises it by its SHA-256 (or the pack by the hash of its manifest) and does not load it twice, but it is still counted. A pack already landed prints `ALREADY_LANDED` with the load that holds it; for a trial balance, "21 files landed, 0 quarantined" means 21 files are held, whether this run or an earlier one landed them.
+
+## Adding next month's pack
+
+Each month MAIIC's export produces one more E-Banker pack: the extract files plus a `manifest.json`. There are two ways to bring it in.
+
+**On a running system** (the usual way), through the same door and gates as every pack:
+
+1. Land the pack by the route in force on the Governance Centre ("How E-Banker data arrives"): route 1, upload the zipped pack on Imports & Feeds, E-Banker Feed; route 2, the scheduled export writes the pack (or its zip) to the folder named by `EBANKER_FEED_FOLDER` and `php artisan eir:poll-feed-folder` (scheduled daily at 06:30, and the Maintenance job "Refresh the data") lands it; route 3, the export script posts the zip to `POST /api/ebanker-feed/pack` with the feed token, and the poller lands it with `--also-route-3`. The poller refuses unless route 2 is in force and the API unless route 3 is (or the setting opens routes 1 to 3 together); the upload of route 1 is always open, for a missed month or a correction. The API inbox and the Maintenance run history are kept per database (`storage/app/ebanker-inbox/<database>`, `storage/app/command-runs/<database>`).
+2. Build the month's loan book (Maintenance, "Build the loan book", or `php artisan eir:build-loan-books YYYY-MM`) and have a second person approve the build on Imports & Feeds, Loan Book Builds.
+3. Run the month-end (Maintenance, "Run the month-end calculations": `php artisan maiic:task month-end YYYY-MM --user=<id>`). A month with no loan book is refused by name at the start, and so is staging it on its own (`eir:stage`).
+
+**For the bootstrap** (so a clean install carries the month too): commit the pack as a folder `docs/bootstrap/ebanker-pack-YYYY-MM-DD/` (the date it was received; a second pack of the same day takes a suffix, as `ebanker-pack-2026-10-12-p5`) holding the CSV files exactly as received and a `manifest.json` with the fields of the existing manifests:
+
+| Field | What |
+|---|---|
+| `pack` | The pack's name, e.g. "MAIIC E-Banker pack 11, received 4 November 2026" |
+| `assembled` | The date the pack was put together (YYYY-MM-DD) |
+| `period` | The month-end it carries (YYYY-MM) |
+| `source` | Who ran which query file, from which E-Banker schema, when, and how dates and amounts were exported |
+| `date_format` | The date format of the files, `m/d/Y` while RUN 0 does not take (D23), else `Y-m-d` |
+| `scope_scheme_ids` | The schemes the pack is limited to; empty for the whole book |
+| `accepted_exceptions` | Gate findings accepted for this pack, each with its reason |
+| `not_landed` | Every received file that is deliberately not landed: `received_as` and `reason` |
+| `classification` | How the data is to be handled, e.g. "MAIIC client data: borrower names and balances. Private repository; access as for the production database." |
+| `files` | One entry per CSV: `file`, `query_id` (registered in `EbankerQuerySeeder`), `kind` (what it holds), `rows` (data rows, header excluded), `sha256` (of the file as received), `bytes`, `received_as` |
+
+A pack too large to commit as files goes in `docs/bootstrap/packs/ebanker-pack-YYYY-MM-DD.zip` with its folder and manifest inside (as pack 4). The bootstrap lands the packs in the order of their folder names, after the first two; the pack inventory check then proves every committed file against its manifest (SHA-256 and rows), and every CSV in the folder must be in the manifest or in its `not_landed` list. A query id that is not registered quarantines the pack. With the pack committed, `--to` moves to the new month by itself; re-set `golden.json` from a fresh run only for the figures the new month adds or changes, and say why in its note.
+
+**A query with no key column** (CV_07, GL_02, P3_12, DD_09, DD_10 and the other probes and data-dictionary queries) is landed by content since 14 October 2026: a re-sent file lands no new row, and the pack carries the query's whole extract, so a row the new pack no longer carries is superseded (never deleted). Until then a re-sent CV_07 added its 47 rows again as current rows; the migration of 14 October 2026 re-keyed the rows already landed and superseded such duplicates.

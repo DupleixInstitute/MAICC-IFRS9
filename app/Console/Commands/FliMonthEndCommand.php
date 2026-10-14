@@ -6,6 +6,7 @@ use App\Services\Fli\FliCloseService;
 use App\Services\Fli\FliMonthEnd;
 use App\Services\Fli\FliProjectionService;
 use App\Services\Fli\FliRouteService;
+use App\Services\Fli\FliWithoutModel;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Throwable;
@@ -39,7 +40,7 @@ class FliMonthEndCommand extends Command
         $user = $this->option('user') !== null ? (int) $this->option('user') : null;
         try {
             if ($this->option('project')) {
-                $this->project($projection, $period, $user);
+                $this->project($projection, $period, $user, app(FliWithoutModel::class));
 
                 return self::SUCCESS;
             }
@@ -72,7 +73,7 @@ class FliMonthEndCommand extends Command
 
                 return self::FAILURE;
             }
-            $this->line("<info>ok</info>  {$s['title']}: {$s['status']}");
+            $this->line(($k === 'model' && ! empty($s['without_model']) ? '<comment>warn</comment> ' : '<info>ok</info>  ') . "{$s['title']}: {$s['status']}");
         }
         if ($steps['apply']['state'] !== 'done') {
             $r = $route->apply($period, $user);
@@ -80,7 +81,7 @@ class FliMonthEndCommand extends Command
         } else {
             $this->line('<info>ok</info>  Forward-looking route already applied under the version and set in force');
         }
-        $this->project($projection, $period, $user);
+        $this->project($projection, $period, $user, app(FliWithoutModel::class));
         $this->line('<info>run</info> ECL on the post-FLI PD ...');
         $code = Artisan::call('ifrs9:segment-ecl', ['from' => $period, '--pd' => 'pd_post_fli', '--discounting' => 'discounted']);
         $this->output->write(Artisan::output());
@@ -95,8 +96,16 @@ class FliMonthEndCommand extends Command
         return self::SUCCESS;
     }
 
-    private function project(FliProjectionService $projection, string $period, ?int $user): void
+    private function project(FliProjectionService $projection, string $period, ?int $user, FliWithoutModel $withoutModel): void
     {
+        // no model in force: under fli_without_model (Proceed) there is nothing to project, the PD holds;
+        // under Refuse, or with no approved value, the month stops here with the reason
+        $d = $withoutModel->assertMayRun($period);
+        if (! $d['in_force']) {
+            $this->line('<comment>skip</comment> Projection: ' . FliWithoutModel::PROJECTION_SKIPPED);
+
+            return;
+        }
         $p = $projection->run($period, $user);
         $this->line("<info>run</info> Projection: " . count($p['segments']) . ' portfolios, ' . count($p['adjustments']) . " scenarios, {$p['horizon']['label']}");
         $rows = [];

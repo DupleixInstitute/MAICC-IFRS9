@@ -1437,10 +1437,17 @@ Route::group(['prefix' => 'compliance-audits', 'as' => 'compliance-audits.'], fu
 // Route 3 of the E-Banker feed (spec v4 s.6.5): the export script posts the zipped pack with a token over HTTPS;
 // it is unzipped into the inbox the poller lands from, through the same gates as every other route. Every entry
 // name is checked before anything is written: a name that climbs out of the inbox refuses the whole pack
-// (system audit of 9 October 2026, finding M14).
+// (system audit of 9 October 2026, finding M14). The intake is open only while route 3 is the governed route in force,
+// or the setting opens routes 1 to 3 together (FeedRoute, 14 October 2026); the inbox is the database's own (DatabaseScope).
 Route::post('/api/ebanker-feed/pack', function (\Illuminate\Http\Request $request) {
     $token = (string) config('services.ebanker_feed.api_token');
     abort_unless($token !== '' && hash_equals($token, (string) $request->bearerToken()), 401, 'A valid feed token is required.');
+    $route = \App\Services\Ebanker\FeedRoute::check(3);
+    if (! $route['allowed']) {
+        \Illuminate\Support\Facades\Log::warning('E-Banker pack refused at the API: ' . $route['reason'], ['ip' => $request->ip()]);
+
+        return response()->json(['refused' => $route['reason']], 409);
+    }
     $request->validate(['pack' => ['required', 'file', 'mimes:zip']]);
     $zip = new \ZipArchive();
     abort_unless($zip->open($request->file('pack')->getRealPath()) === true, 422, 'The file is not a readable zip.');
@@ -1450,7 +1457,7 @@ Route::post('/api/ebanker-feed/pack', function (\Illuminate\Http\Request $reques
         \Illuminate\Support\Facades\Log::warning('E-Banker pack refused at the API: entries that climb out of the inbox: ' . implode(', ', $unsafe) . ' (audit finding M14)', ['ip' => $request->ip()]);
         abort(422, 'The zip is refused: ' . count($unsafe) . ' entry name(s) would write outside the inbox (' . implode(', ', array_slice($unsafe, 0, 5)) . ').');
     }
-    $dir = storage_path('app/ebanker-inbox/' . now()->format('Ymd-His') . '-' . substr(hash_file('sha256', $request->file('pack')->getRealPath()), 0, 8));
+    $dir = \App\Support\DatabaseScope::storagePath('ebanker-inbox') . '/' . now()->format('Ymd-His') . '-' . substr(hash_file('sha256', $request->file('pack')->getRealPath()), 0, 8);
     mkdir($dir, 0775, true);
     \App\Services\Ebanker\FeedZip::extract($zip, $dir, 'API');
     $zip->close();

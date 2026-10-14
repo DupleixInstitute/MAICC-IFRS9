@@ -678,7 +678,9 @@ class Ifrs9NoteService
         $p['parameters'] = 'ECL for each loan is measured at the reporting date as EAD x PD x LGD, where EAD is the carrying amount plus the expected drawn share of undrawn commitments, and is then projected over the loan\'s remaining life and discounted at its effective interest rate, the original EIR or, for a floating-rate loan, the current EIR (IFRS 9 5.5.17, B5.5.44): the discounted amount is the loss allowance. Applied at '
             . self::period($closing) . ': ' . implode('; ', $bits) . '.'
             . ($uniform ? ' Every loan in a stage carries the same PD and LGD.' : ' PD or LGD varies within a stage; the figures above are those saved with the ECL run.')
-            . ($close['fli_adjusted'] > 0 ? ' The PD includes the forward-looking (macro-economic) adjustment for ' . number_format($close['fli_adjusted']) . ' loans.' : '');
+            . ($close['fli_adjusted'] > 0 ? ' The PD includes the forward-looking (macro-economic) adjustment for ' . number_format($close['fli_adjusted']) . ' loans.' : '')
+            // a month whose PD held for want of a model version says so (fli_without_model, D-F1 note of 14 October 2026)
+            . (($fwd = \App\Services\Fli\FliWithoutModel::disclosure($closing)) !== null ? ' ' . $fwd : '');
 
         $rp = DB::table('reporting_periods')->whereDate('period', $closing . '-01')->first();
         $p['sources'] = ($rp && ($rp->pd_id || $rp->lgd_id))

@@ -94,6 +94,19 @@ class FliCloseService
         $pdMissing = [];
         $versionIds = DB::table('loan_books')->where('reporting_period', $period)->whereNotNull('fli_model_version_id')->distinct()->pluck('fli_model_version_id');
         $version = $versionIds->count() === 1 ? DB::table('fli_model_versions')->where('id', $versionIds->first())->first() : null;
+        // The route ran under the regression route with no model version on any loan: the PD held
+        // (fli_without_model, D-F1 note of 14 October 2026). Under "Proceed" the month is recorded and
+        // says so, and its sign-off needs a commentary; under "Refuse" (or with no approved value) the
+        // record stops with the reason, as the month-end and the bootstrap do.
+        $withoutModel = null;
+        if ($versionIds->isEmpty() && $loans->contains(fn ($l) => str_starts_with((string) ($l->fli_route ?? ''), 'Regression'))) {
+            $d = (new FliWithoutModel($this->governance, $this->registry))->decide($period);
+            if (! $d['in_force'] && ! $d['proceed']) {
+                throw new RuntimeException($d['message']);
+            }
+            $withoutModel = ['note' => FliWithoutModel::NOTE, 'setting' => $d['setting'],
+                'detail' => 'The forward-looking route ran with no model version in force: each scenario of the set carries the PD before FLI, so the allowance has no forward-looking adjustment. Signing off needs a commentary saying so.'];
+        }
 
         $rows = [];
         $per = array_fill_keys(array_keys($weights), 0.0);
@@ -201,6 +214,7 @@ class FliCloseService
             'discount_basis' => 'TimePhasedEclService at the locked original EIR (EIR_ORIGINAL); a floating-rate loan at its current EIR at the month-end (EIR_CURRENT_FLOATING, IFRS 9 B5.5.44, D-F6), unresolved and named where it cannot be determined',
             'macro' => $this->vintage($period, $version?->statistic_code),
             'without_scenario_pd' => ['loans' => count(array_unique(array_map(fn ($m) => strstr($m, ' (', true), $pdMissing))), 'first' => array_slice($pdMissing, 0, 20)],
+            'without_model' => $withoutModel,
         ];
 
         $perScenarioDisc = [];
@@ -266,12 +280,21 @@ class FliCloseService
         if (property_exists($s, 'discounted_reconciles') && $s->discounted_reconciles !== null && ! $s->discounted_reconciles) {
             throw new RuntimeException("The discounted allowance of {$s->reporting_period} weighted over the scenarios differs from the one booked by {$s->discounted_difference}, or a loan carries no per-scenario figures: run the ECL again, record the month again, then sign it off.");
         }
+        // a record made before a step it depends on ran again is not the month any more (14 October 2026)
+        $currency = MonthEndCurrency::state((string) $s->reporting_period);
+        if ($currency['record_id'] === (int) $s->id && $currency['record_stale'] !== null) {
+            throw new RuntimeException($currency['record_stale'] . ' Run the remaining month-end steps and record the month again before signing it off.');
+        }
         $commentary = trim((string) ($commentary ?? $s->commentary ?? ''));
         if ($s->needs_commentary && $commentary === '') {
             throw new RuntimeException('The ECL moved by ' . round((float) $s->movement_pct * 100, 1) . ' percent against the previous month-end, more than the governed tolerance: say why before signing off.');
         }
         if (property_exists($s, 'discount_unresolved_loans') && (int) $s->discount_unresolved_loans > 0 && $commentary === '') {
             throw new RuntimeException("{$s->discount_unresolved_loans} loan(s) of {$s->reporting_period} have no discounted allowance (named on the record, mostly no locked original EIR), so the discounted allowance covers part of the book: say why the month is signed off before they are resolved.");
+        }
+        if (! empty((json_decode((string) ($s->inputs ?? ''), true) ?: [])['without_model']) && $commentary === '') {
+            // fli_without_model, Proceed: the month is signed off only with a commentary saying so
+            throw new RuntimeException(FliWithoutModel::NOTE . " for {$s->reporting_period}: the PD held with no forward-looking adjustment (fli_without_model). Say so in the commentary, with why no model version is in force, before signing off.");
         }
         if ($label === null && $userId !== null && (int) $s->created_by === $userId) {
             throw new RuntimeException('Maker-checker: the person who recorded the month cannot sign it off.');
@@ -328,12 +351,23 @@ class FliCloseService
         return $s;
     }
 
-    /** The latest record of a month that is not superseded. */
+    /**
+     * The latest record of a month that is not superseded, with whether it is still current: a record
+     * made before the staging, the PD, the LGD, the route or the ECL ran again carries 'stale' (the
+     * reason) and is shown as not current (MonthEndCurrency, 14 October 2026).
+     */
     public function latest(string $period): ?array
     {
         $id = DB::table('fli_run_snapshots')->where('reporting_period', $period)->whereIn('status', ['RECORDED', 'SIGNED_OFF'])->orderByDesc('id')->value('id');
+        if (! $id) {
+            return null;
+        }
+        $s = $this->find((int) $id);
+        $currency = MonthEndCurrency::state($period);
+        $s['stale'] = $currency['record_stale'];
+        $s['without_model'] = ! empty($s['inputs']['without_model']);
 
-        return $id ? $this->find((int) $id) : null;
+        return $s;
     }
 
     /** The governed movement tolerance as a share (0.10 for ten percent), or null when none is in force. */

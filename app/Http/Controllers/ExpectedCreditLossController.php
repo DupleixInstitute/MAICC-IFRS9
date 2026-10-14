@@ -131,6 +131,8 @@ class ExpectedCreditLossController extends Controller
                 'portfolios'  => LoanPortfolio::all(),
                 'sectors'     => IndustryType::all(),
                 'runInfo'     => $this->runInfo($request, $latestPeriod),
+                // a month-end stopped part-way leaves these rows older than a step they depend on: said so, not shown as current
+                'midRun'      => $viewPeriod ? \App\Services\Fli\MonthEndCurrency::state((string) $viewPeriod) : null,
                 'buildUp'     => $buildUp,
                 'totals'      => $totals,
                 // the product groups and sectors present in the month shown, for the filters

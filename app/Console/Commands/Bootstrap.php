@@ -110,7 +110,7 @@ class Bootstrap extends Command
         $classes = ['CountriesTableSeeder', 'PermissionsTableSeeder', 'RolesTableSeeder', 'MaiicAdminPermissionsSeeder', 'TicketsPermissionsSeeder', 'LegacyPermissionsCleanupSeeder', 'UsersTableSeeder',
             'CurrenciesTableSeeder', 'MaiicCurrencySeeder', 'TimezonesTableSeeder', 'SettingsTableSeeder', 'BranchesTableSeeder', 'LegalTypesTableSeeder', 'ChartOfAccountsTableSeeder', 'GovernanceSettingsSeeder', 'StagingThresholdSeeder', 'SicrQualitativeFactorsSeeder',
             'EbankerQuerySeeder', 'MacroSeriesSeeder', 'MaiicTransitionProfileSeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder',
-            'IndustryTypeSeeder', 'CreditLossDefinitionSeeder', 'TransitionProfileDefinitionSeeder', 'TransitionProfileOptionSeeder'];
+            'IndustryTypeSeeder', 'CreditLossDefinitionSeeder', 'TransitionProfileDefinitionSeeder', 'TransitionProfileOptionSeeder', 'CollateralTypesSeeder'];
         $ran = [];
         foreach ($classes as $c) {
             if (! class_exists("Database\\Seeders\\{$c}")) {
@@ -459,7 +459,7 @@ class Bootstrap extends Command
 
         return ($ok['scenario-set'] ? "set {$set['id']} {$set['status']}" : 'set ' . $set)
             . '; route ' . ($ok['fli-route'] ? 'set ' . ($route['set'] ?? 'none') . ($route['model_version'] ? ", model version {$route['model_version']}" : ', no model version in force') . ", {$route['adjusted']} adjusted, {$route['held']} held" . ($route['note'] ? " ({$route['note']})" : '') : $route)
-            . '; projection ' . ($ok['fli-projection'] ? count($proj['segments'] ?? []) . ' portfolios' : $proj)
+            . '; projection ' . ($ok['fli-projection'] ? (is_array($proj) ? count($proj['segments'] ?? []) . ' portfolios' : $proj) : $proj)
             . '; ECL ' . $why['ecl']
             . '; record ' . ($ok['fli-record'] ? "{$rec['id']} RECORDED" . (isset($rec['booked_ecl_discounted']) ? ', discounted ' . number_format((float) $rec['booked_ecl_discounted'], 0) : '') : $rec);
     }
@@ -530,20 +530,28 @@ class Bootstrap extends Command
         // the model is the version in force for the month (D-F1, D-F2); where
         // the route or the projection cannot run for the month, its own
         // fail-closed rule decides and the reason is recorded, never a proxy.
-        // fli:month-end --all itself is not called: it stops at a month with no
-        // model version in force, which a clean install never has (no fit is
-        // approved by the bootstrap, audit C9); its steps are run here instead.
+        // fli:month-end --all itself is not called; its steps are run here. A
+        // clean install has no model version in force (no fit is approved by
+        // the bootstrap, audit C9), and since 14 October 2026 the bootstrap and
+        // the month-end read the same governed setting for that case
+        // (fli_without_model, FLI module D-F1 note): under "Proceed" (the seeded
+        // technical default) the route holds the PD, the projection is skipped
+        // and the ECL and the record run, the record saying so; under "Refuse"
+        // (or with no approved value) the bootstrap stops at the first month
+        // with no model, naming the reason, as the month-end does.
         // A month without a twelve-month window is noted and left without an
         // allowance.
         $eclPeriods = []; $eclSkipped = []; $mfPeriods = []; $mfDeclined = [];
-        $chain = ['set' => [], 'route' => [], 'projection' => [], 'record' => []];
+        $chain = ['set' => [], 'route' => [], 'projection' => [], 'record' => [], 'no_model' => []];
         $routeLast = null; $setLast = null;
         $mega = app(\App\Services\MegaFarm\MegaFarmEclService::class);
         $sets = app(\App\Services\Scenario\ScenarioSetService::class);
         $routeSvc = app(\App\Services\Fli\FliRouteService::class);
+        $withoutModel = app(\App\Services\Fli\FliWithoutModel::class);
         foreach ($periods as $p) {
             $ok = [];
             $why = [];
+            $decision = null;
             foreach (self::periodChain() as [$key, $label, , $needs]) {
                 $blocked = array_values(array_filter($needs, fn ($n) => ! ($ok[$n] ?? false)));
                 if ($blocked !== []) {
@@ -551,12 +559,20 @@ class Bootstrap extends Command
                     $why[$key] = 'not run: ' . implode(', ', $blocked) . ' did not run for the month';
                     continue;
                 }
+                if ($key === 'fli-route') {
+                    // the governed answer for a month with no model version in force: proceed with the PD
+                    // held, or stop the bootstrap here with the reason (fli_without_model), as the month-end does
+                    $decision = $withoutModel->decide($p);
+                    if (! $decision['proceed']) {
+                        throw new \RuntimeException("{$p}: " . $decision['message']);
+                    }
+                }
                 try {
                     $why[$key] = match ($key) {
                         'pd-lgd' => $this->monthPdLgd($p, $user),
                         'scenario-set' => $this->monthScenarioSet($sets, $p, $user),
                         'fli-route' => $routeSvc->apply($p, $user),
-                        'fli-projection' => app(\App\Services\Fli\FliProjectionService::class)->run($p, $user),
+                        'fli-projection' => ($decision['in_force'] ?? false) ? app(\App\Services\Fli\FliProjectionService::class)->run($p, $user) : \App\Services\Fli\FliWithoutModel::PROJECTION_SKIPPED,
                         'ecl' => $this->monthEcl($p),
                         'fli-record' => app(\App\Services\Fli\FliCloseService::class)->record($p, $user),
                         'mega-farm' => $mega->loans($p)->exists() ? $mega->run($p, $user, LoanBookBuildService::BOOTSTRAP_LABEL) : null,
@@ -581,15 +597,16 @@ class Bootstrap extends Command
             }
             $chain['set'][$p] = $ok['scenario-set'];
             $chain['route'][$p] = $ok['fli-route'];
-            $chain['projection'][$p] = $ok['fli-projection'];
+            $chain['projection'][$p] = $ok['fli-projection'] && is_array($why['fli-projection']);
+            $chain['no_model'][$p] = $ok['fli-route'] && is_array($why['fli-route']) && empty($why['fli-route']['model_version']);
             $chain['record'][$p] = $ok['fli-record'];
             $routeLast = $why['fli-route'];
             $setLast = $why['scenario-set'];
             $this->note('6.4-6.7 month ' . $p, self::monthLine($p, $why, $ok));
         }
         $this->note('6.7 ECL by period (month-end path, discounted)', count($eclPeriods) . ' periods with a PD, an LGD and an ECL' . ($eclPeriods !== [] ? " ({$eclPeriods[0]}..{$eclPeriods[count($eclPeriods) - 1]})" : '') . '; ' . count($eclSkipped) . ' without' . ($eclSkipped !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($eclSkipped), $eclSkipped), 0, 3)) : ''));
-        $this->note('6.6 forward-looking chain by period', sprintf('of %d months with a PD: scenario set approved for %d, route applied for %d, projection run for %d, month recorded for %d',
-            count($chain['route']), count(array_filter($chain['set'])), count(array_filter($chain['route'])), count(array_filter($chain['projection'])), count(array_filter($chain['record']))));
+        $this->note('6.6 forward-looking chain by period', sprintf('of %d months with a PD: scenario set approved for %d, route applied for %d (%d with no model version in force: the PD held under fli_without_model), projection run for %d, month recorded for %d',
+            count($chain['route']), count(array_filter($chain['set'])), count(array_filter($chain['route'])), count(array_filter($chain['no_model'])), count(array_filter($chain['projection'])), count(array_filter($chain['record']))));
         $this->note('6.7 Mega Farm by period', count($mfPeriods) . ' periods provided' . ($mfPeriods !== [] ? " ({$mfPeriods[0]}..{$mfPeriods[count($mfPeriods) - 1]})" : '') . '; ' . count($mfDeclined) . ' declined' . ($mfDeclined !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($mfDeclined), $mfDeclined), 0, 3)) : ''));
 
         $before = DB::table('eir_amortisation')->count();

@@ -42,7 +42,8 @@ return [
                 . '</ul>'
                 . '<h4>Common problems</h4>'
                 . '<ul>'
-                . '<li><b>The Overview says no model version is in force.</b> Run the correlation sweep, propose an applied fit on Regression and have a second person approve it; approval publishes it as the version in force from that month.</li>'
+                . '<li><b>The Overview says no model version is in force.</b> What happens next is the Governance Centre setting <b>A month-end with no forward-looking model version in force</b>. Under <b>Proceed</b> (the seeded default) every step still runs: the PD holds with no forward-looking adjustment, an amber banner says so, the projection is skipped, the record reads <b>No forward-looking model in force</b>, and signing off needs a commentary saying so. Under <b>Refuse</b> the month-end stops at step 4 with the reason. To bring a model in, run the correlation sweep, propose an applied fit on Regression and have a second person approve it; approval publishes it as the version in force from that month.</li>'
+                . '<li><b>A red banner says the month is mid-run.</b> Staging, the PD or LGD run or the route ran again after the ECL or the record, usually because a month-end stopped part-way. The ECL and the record on screen are not current, and the record cannot be signed off: run the remaining steps (<b>Run the remaining steps</b>, or the Maintenance month-end).</li>'
                 . '<li><b>The ECL step is waiting.</b> A new PD run clears the post-FLI PD; apply the route again (Overview, step 7), then calculate the ECL.</li>'
                 . '<li><b>The weighted ECL does not tie to the booked ECL.</b> The ECL was calculated before the route last ran: calculate it again, then record the month again.</li>'
                 . '</ul>',

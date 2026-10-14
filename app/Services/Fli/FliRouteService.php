@@ -426,6 +426,11 @@ class FliRouteService
         $method = $this->methods->inForce();
         $set = DB::table('governed_scenario_sets')->where('reporting_period', $period)->whereIn('status', ['APPROVED', 'LOCKED'])->orderByDesc('version')->first();
         $fit = str_starts_with($route, 'Regression') ? $this->approvedFit($period) : null;
+        if ($fit === null && str_starts_with($route, 'Regression')) {
+            // no model version in force: the governed setting fli_without_model decides whether the PD
+            // holds (Proceed) or the route stops with the reason (Refuse, or no approved value); D-F1 note
+            (new FliWithoutModel($this->governance, $this->registry))->assertMayRun($period);
+        }
 
         // the adjustment per scenario
         $scenarios = [];
