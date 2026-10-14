@@ -36,7 +36,10 @@ class MaintenanceTask extends Command
         $steps = match ($task) {
             'update' => [
                 ['Database update', 'migrate', ['--force' => true]],
+                // a stale cached permission list made the seeders below fail (UI audit, 14 Oct 2026)
+                ['Permission cache cleared', 'permission:cache-reset', []],
                 ['Permissions', 'db:seed', ['--class' => 'MaiicAdminPermissionsSeeder', '--force' => true]],
+                ['Support ticket permissions', 'db:seed', ['--class' => 'TicketsPermissionsSeeder', '--force' => true]],
                 ['Governance Centre defaults (additive)', 'db:seed', ['--class' => 'GovernanceSettingsSeeder', '--force' => true]],
                 ['Qualitative SICR factors (additive)', 'db:seed', ['--class' => 'SicrQualitativeFactorsSeeder', '--force' => true]],
             ],

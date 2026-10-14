@@ -218,7 +218,7 @@ return [
         // centre); the technical manual and the installation guide are
         // repository Markdown under docs/manuals.
         ['color' => '#C4B5FD', 'heading' => 'Administration & support'] + $group('Support & Maintenance', 'wrench', [
-            $leaf('Support Tickets', 'tickets.index', 'ticket-alt'),
+            $leaf('Support Tickets', 'tickets.index', 'ticket-alt', permission: 'tickets.index'),
             $leaf('Maintenance', 'maintenance.index', 'wrench', permission: 'settings'),
             $group('System Documentation', 'book-open', [
                 $leaf('User Manual', 'help.index'),

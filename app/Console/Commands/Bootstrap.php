@@ -102,7 +102,7 @@ class Bootstrap extends Command
     private function stepSeed(): void
     {
         Artisan::call('migrate', ['--force' => true]);
-        $classes = ['PermissionsTableSeeder', 'RolesTableSeeder', 'MaiicAdminPermissionsSeeder', 'UsersTableSeeder', 'GovernanceSettingsSeeder', 'StagingThresholdSeeder', 'SicrQualitativeFactorsSeeder',
+        $classes = ['PermissionsTableSeeder', 'RolesTableSeeder', 'MaiicAdminPermissionsSeeder', 'TicketsPermissionsSeeder', 'UsersTableSeeder', 'GovernanceSettingsSeeder', 'StagingThresholdSeeder', 'SicrQualitativeFactorsSeeder',
             'EbankerQuerySeeder', 'MacroSeriesSeeder', 'MaiicTransitionProfileSeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder', 'EclScenarioAssumptionSeeder',
             'IndustryTypeSeeder', 'CreditLossDefinitionSeeder', 'TransitionProfileDefinitionSeeder', 'TransitionProfileOptionSeeder'];
         $ran = [];

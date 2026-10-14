@@ -98,7 +98,10 @@ class LandingZoneReader
     {
         $gls = self::LOAN_GLS + ($withMegaFarm ? array_flip(\App\Services\MegaFarm\MegaFarmEclService::GLS) : []);
         $by = [];
-        foreach ($this->family(self::LEDGER, $toDate, null, $account) as $row) {
+        // every MF_03 row is on a programme GL (1050301 to 1050307), so without Mega Farm the family is
+        // left unread rather than decoded and dropped: some 300,000 rows that stopped whole-ledger screens
+        $families = $withMegaFarm ? self::LEDGER : array_values(array_diff(self::LEDGER, ['MF_03']));
+        foreach ($this->family($families, $toDate, null, $account) as $row) {
             $p = $row['payload'];
             if (($p['DELETE_FLAG'] ?? 'N') === 'Y' || $row['account'] === null || $row['account'] === '') {
                 continue;

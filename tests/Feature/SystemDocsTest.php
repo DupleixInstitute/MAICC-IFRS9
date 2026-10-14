@@ -80,7 +80,21 @@ class SystemDocsTest extends TestCase
 
     public function test_documentation_menu_lists_all_four_deliverables()
     {
-        $group = collect(config('menu.admin'))->firstWhere('name', 'System Documentation');
+        // System Documentation sits under Administration & support > Support & Maintenance (14 Oct 2026)
+        $find = function (array $items) use (&$find) {
+            foreach ($items as $item) {
+                if (($item['name'] ?? null) === 'System Documentation') {
+                    return $item;
+                }
+                if (! empty($item['children']) && ($hit = $find($item['children']))) {
+                    return $hit;
+                }
+            }
+
+            return null;
+        };
+        $group = $find(config('menu.admin'));
+        $this->assertNotNull($group, 'System Documentation is on the menu');
         $routes = collect($group['children'])->pluck('route')->all();
 
         $this->assertSame(['help.index', 'help.admin', 'docs.technical', 'docs.installation'], $routes);

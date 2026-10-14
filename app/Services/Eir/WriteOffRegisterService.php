@@ -39,7 +39,9 @@ class WriteOffRegisterService
         if ((float) $data['amount'] <= 0) {
             throw new RuntimeException('The amount written off must be more than nil.');
         }
-        $open = DB::table('loan_write_offs')->where('contract_id', $contract)->whereIn('status', ['PROPOSED', 'APPROVED'])->exists();
+        // refused at the door, not only at approval, when the month is closed
+        \App\Support\ReportingPeriodLock::assertOpen(substr((string) $data['write_off_date'], 0, 7), 'a write-off');
+        $open =DB::table('loan_write_offs')->where('contract_id', $contract)->whereIn('status', ['PROPOSED', 'APPROVED'])->exists();
         if ($open) {
             throw new RuntimeException("Contract {$contract} already has a write-off proposed or approved in the register.");
         }
