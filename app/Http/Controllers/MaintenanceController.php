@@ -120,8 +120,12 @@ class MaintenanceController extends Controller
             $period = (string) $request->input('period');
             $known = LoanBook::query()->where('reporting_period', $period)->exists();
             // a new month can be built; every other step needs the month's loan book
-            if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $period) || (! $known && $entry['key'] !== 'build')) {
-                return response()->json(['ok' => false, 'message' => 'Choose a month the system holds a loan book for.'], 422);
+            if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $period)) {
+                return response()->json(['ok' => false, 'message' => 'Choose a month, YYYY-MM.'], 422);
+            }
+            if (! $known && $entry['key'] !== 'build') {
+                // name the month and what it lacks, never a generic refusal (final check of 14 October 2026)
+                return response()->json(['ok' => false, 'message' => self::noLoanBookMessage($period, $entry['label'])], 422);
             }
         }
 
@@ -145,6 +149,29 @@ class MaintenanceController extends Controller
         return $status === null
             ? response()->json(['ok' => false, 'message' => 'Run not found.'], 404)
             : response()->json(['ok' => true, 'run' => $status]);
+    }
+
+    /**
+     * The refusal of a month-end step for a month with no loan book: the month, what is missing,
+     * where the landed data ends, and the step that comes first. Shared with the FLI Overview.
+     */
+    public static function noLoanBookMessage(string $period, string $step): string
+    {
+        $label = \Carbon\CarbonImmutable::parse($period . '-01')->format('F Y');
+        try {
+            $last = (new \App\Services\Ebanker\LandingZoneReader())->lastLedgerDate();
+        } catch (\Throwable) {
+            $last = null;
+        }
+        $monthEnd = \Carbon\CarbonImmutable::parse($period . '-01')->endOfMonth()->toDateString();
+        $zone = $last === null
+            ? 'No E-Banker ledger is landed yet.'
+            : ($last < $monthEnd
+                ? "The landed E-Banker ledger ends at {$last}: the E-Banker pack for {$label} (ledger to {$monthEnd}) has not been landed."
+                : "The landed E-Banker ledger reaches {$last}.");
+
+        return "{$step} is refused for {$label}: the system holds no loan book for {$period}. {$zone} "
+            . 'Land the month\'s pack (Imports & Feeds, E-Banker Feed), then build the loan book (step 1) and have a second person approve the build.';
     }
 
     /** The command line as the user sees it ({user} stays a placeholder). */

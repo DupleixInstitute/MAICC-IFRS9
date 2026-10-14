@@ -267,7 +267,7 @@ class EirReconciliationController extends Controller
         ]);
 
         $chain = $this->chainUpTo($periods, $data['period']);
-        $missing = array_values(array_diff(array_slice($chain, 0, -1), $this->calculatedPeriods()));
+        $missing = self::afterTakeon(array_diff(array_slice($chain, 0, -1), $this->calculatedPeriods()));
 
         $redirect = redirect()->route('eir-reconciliation.index', array_filter([
             'period' => $data['period'],
@@ -336,6 +336,22 @@ class EirReconciliationController extends Controller
         return $index === false ? [] : array_slice($ordered, 0, $index + 1);
     }
 
+    /**
+     * The periods a roll-forward needs rows for: those after the take-on month. The take-on
+     * month (July 2024) holds GL interest but no amortisation row, because a migrated loan's
+     * roll-forward starts the month after the take-on (EirRevenueService, spec 6.9); counted
+     * as missing, it refused every single-period run (final check of 14 October 2026).
+     *
+     * @param  array<int, string>  $periods
+     * @return list<string>
+     */
+    private static function afterTakeon(array $periods): array
+    {
+        $takeon = substr(\App\Services\Ebanker\TakeonLandingService::TAKEON_DATE, 0, 7);
+
+        return array_values(array_filter($periods, fn ($p) => (string) $p > $takeon));
+    }
+
     /** @return list<string> Periods that already hold at least one amortisation row. */
     private function calculatedPeriods(): array
     {
@@ -357,7 +373,7 @@ class EirReconciliationController extends Controller
             'calculated_periods' => count($calculated),
             'rows_for_period' => $period === null ? 0
                 : EirAmortisation::where('reporting_period', $period)->count(),
-            'missing_periods' => array_values(array_diff($chain, $calculated)),
+            'missing_periods' => self::afterTakeon(array_diff($chain, $calculated)),
             'first_period' => $chain[0] ?? null,
         ];
     }

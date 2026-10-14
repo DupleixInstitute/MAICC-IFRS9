@@ -103,8 +103,11 @@ class FliModuleController extends Controller
         if (! isset(self::COMMANDS[$key])) {
             return response()->json(['ok' => false, 'message' => 'Unknown step.'], 422);
         }
-        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $period) || ! DB::table('loan_books')->where('reporting_period', $period)->exists()) {
-            return response()->json(['ok' => false, 'message' => 'Choose a month the system holds a loan book for.'], 422);
+        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $period)) {
+            return response()->json(['ok' => false, 'message' => 'Choose a month, YYYY-MM.'], 422);
+        }
+        if (! DB::table('loan_books')->where('reporting_period', $period)->exists()) {
+            return response()->json(['ok' => false, 'message' => \App\Http\Controllers\MaintenanceController::noLoanBookMessage($period, self::COMMANDS[$key]['label'])], 422);
         }
         if ($busy = $runner->running()) {
             return response()->json(['ok' => false, 'message' => "\"{$busy['label']}\" is still running. Wait for it to finish."], 409);

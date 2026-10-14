@@ -38,6 +38,13 @@ class MaintenanceTask extends Command
 
             return self::FAILURE;
         }
+        if ($task === 'month-end' && ! \Illuminate\Support\Facades\DB::table('loan_books')->where('reporting_period', $period)->exists()) {
+            // refuse at the start, naming the month and what it lacks, instead of running four steps
+            // and staging an empty book before the PD step stops (final check of 14 October 2026)
+            $this->error(\App\Http\Controllers\MaintenanceController::noLoanBookMessage($period, 'The month-end'));
+
+            return self::FAILURE;
+        }
         $u = $user !== '' ? ['--user' => $user] : [];
         $steps = self::steps($task, $period, $u);
         if ($steps === null) {

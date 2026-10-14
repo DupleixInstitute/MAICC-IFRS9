@@ -57,7 +57,9 @@ class EirAsAtController extends Controller
         return Inertia::render('Eir/AsAt/Index', [
             'date' => $date, 'contract' => $contract, 'lastLedgerDate' => $last, 'book' => $book, 'one' => $one, 'error' => $error,
             'contracts' => DB::table('contract_eir')->whereNotNull('locked_at')->orderBy('contract_id')->get(['contract_id', 'customer_name'])->map(fn ($c) => ['id' => $c->contract_id, 'name' => $c->customer_name]),
-            'yearEnds' => ['2024-12-31', '2025-12-31', '2026-12-31'],
+            // every year-end from the take-on year to the year the landed ledger reaches (was a fixed
+            // 2024 to 2026 list; final check of 14 October 2026); a year-end after the ledger stays disabled
+            'yearEnds' => $last === null ? [] : array_map(fn ($y) => $y . '-12-31', range((int) substr(\App\Services\Eir\EirAsAtService::TAKEON_DATE, 0, 4), (int) substr($last, 0, 4))),
         ]);
     }
 

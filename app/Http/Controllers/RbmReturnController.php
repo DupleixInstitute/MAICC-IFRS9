@@ -29,11 +29,13 @@ class RbmReturnController extends Controller
     {
         \App\Support\LedgerReadLimits::raise(); // reads the whole landing-zone ledger
         $period = (string) $request->query('period', DB::table('loan_books')->whereNotNull('build_method')->max('reporting_period') ?? DB::table('loan_books')->max('reporting_period'));
-        $error = null; $return = null;
-        try {
-            $return = $service->build($period, (bool) $request->query('mega_farm', false));
-        } catch (Throwable $e) {
-            $error = $e->getMessage();
+        $error = self::refusal($period); $return = null;
+        if ($error === null) {
+            try {
+                $return = $service->build($period, (bool) $request->query('mega_farm', false));
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
         }
 
         return Inertia::render('Reports/RbmReturn', ['period' => $period, 'return' => $return ? array_diff_key($return, ['per_loan' => 1]) : null, 'error' => $error, 'megaFarm' => (bool) $request->query('mega_farm', false),
@@ -44,11 +46,29 @@ class RbmReturnController extends Controller
     {
         \App\Support\LedgerReadLimits::raise(); // reads the whole landing-zone ledger
         $period = (string) $request->query('period');
+        // a month with no loan book has no return: refused and named, never an all-zero file
+        abort_if(($why = self::refusal($period)) !== null, 422, $why);
         $r = $service->build($period, (bool) $request->query('mega_farm', false));
         // every format is the branded report, CSV included, under one file name
         $format = in_array($request->query('format'), ['pdf', 'xlsx'], true) ? $request->query('format') : 'csv';
 
         return \App\Support\ReportDownload::respond($this->payload($r), 'MAIIC-RBM-return-provisional-' . $period, $format);
+    }
+
+    /**
+     * Why the return cannot be built for the month, or null: the month must be YYYY-MM and hold a
+     * loan book. The service builds a return of zeros for any month it is given (final check of
+     * 14 October 2026: October 2026, with no loan book, rendered and downloaded as an empty return).
+     */
+    private static function refusal(string $period): ?string
+    {
+        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $period)) {
+            return 'Choose a month, YYYY-MM.';
+        }
+
+        return DB::table('loan_books')->where('reporting_period', $period)->exists()
+            ? null
+            : \App\Http\Controllers\MaintenanceController::noLoanBookMessage($period, 'The RBM return');
     }
 
     /** The return in the hub's report shape, for the branded PDF and workbook. */

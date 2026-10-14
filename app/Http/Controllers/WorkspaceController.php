@@ -168,10 +168,21 @@ class WorkspaceController extends Controller
         $periods = DB::table('loan_books')->whereNotNull('reporting_period')
             ->distinct()->orderByDesc('reporting_period')->pluck('reporting_period');
 
+        // the month after the latest loan book is offered too, so the next close can be opened and
+        // shows what it lacks; a month asked for by name is shown as that month, never silently
+        // replaced by another (final check of 14 October 2026: ?period=2026-10 showed September)
+        $next = $periods->first() ? \Carbon\CarbonImmutable::parse($periods->first() . '-01')->addMonth()->format('Y-m') : null;
         $period = $request->query('period');
-        if (! $period || ! $periods->contains($period)) {
+        if (! is_string($period) || ! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $period)) {
             $period = $periods->first();
         }
+        if ($period !== null && ! $periods->contains($period)) {
+            $periods = $periods->push($period);
+        }
+        if ($next !== null && ! $periods->contains($next)) {
+            $periods = $periods->push($next);
+        }
+        $periods = $periods->unique()->sortDesc()->values();
 
         $state = PeriodWorkspaceTask::where('reporting_period', $period)
             ->get()->keyBy('task_key');
@@ -261,6 +272,14 @@ class WorkspaceController extends Controller
         abort_unless((bool) $definition, 422, 'Unknown checklist step.');
         // System-verified steps reflect the database and cannot be hand-ticked.
         abort_if($definition['auto'], 422, 'This step is verified automatically by the system.');
+
+        // a month with no loan book has nothing to review or sign off: refuse ticking a step done
+        // for it (reopening a step already done stays possible)
+        $hasBook = DB::table('loan_books')->where('reporting_period', $v['period'])->exists();
+        $existing = PeriodWorkspaceTask::where('reporting_period', $v['period'])->where('task_key', $v['task_key'])->first();
+        if (! $hasBook && ($existing->status ?? 'pending') !== 'done') {
+            return back()->with('error', 'Step "' . $definition['label'] . '" cannot be completed for ' . $v['period'] . ': the system holds no loan book for that month.');
+        }
 
         $task = PeriodWorkspaceTask::firstOrNew([
             'reporting_period' => $v['period'],

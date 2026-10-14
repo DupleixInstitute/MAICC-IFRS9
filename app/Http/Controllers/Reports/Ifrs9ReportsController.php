@@ -992,7 +992,15 @@ class Ifrs9ReportsController extends Controller
 
         $note = null;
         $error = null;
-        if ($opening && $closing) {
+        // a month asked for by name that holds no ECL is refused and named, never replaced by the
+        // default month (final check of 14 October 2026: closing=2026-10 showed September's note)
+        $notHeld = array_values(array_filter([$request->query('opening'), $request->query('closing')], fn ($m) => is_string($m) && $m !== '' && ! in_array($m, $months, true)));
+        if ($notHeld !== []) {
+            $error = 'No ECL is calculated for ' . implode(' or ', array_unique($notHeld)) . ', so the note cannot be built for it. The months with a calculated ECL run to '
+                . ($months[0] ?? 'none') . '; a new month needs its loan book built and the month-end run first.';
+            $opening = in_array($request->query('opening'), $months, true) ? $request->query('opening') : null;
+            $closing = in_array($request->query('closing'), $months, true) ? $request->query('closing') : null;
+        } elseif ($opening && $closing) {
             try {
                 $report = \App\Services\Reports\Ifrs9NoteService::build($opening, $closing, $portfolioId);
                 $note = \App\Services\Reports\Ifrs9NoteDocuments::build($report, $unit);

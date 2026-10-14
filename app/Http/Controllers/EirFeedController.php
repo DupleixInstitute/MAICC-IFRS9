@@ -107,6 +107,11 @@ class EirFeedController extends Controller
             return back()->with('error', $e->getMessage());
         }
         $note = $extracted['skipped'] !== [] ? ' ' . count($extracted['skipped']) . ' entry name(s) were refused and left out: ' . implode(', ', $extracted['skipped']) . '.' : '';
+        if (($r['status'] ?? null) === 'ALREADY_LANDED') {
+            // the same manifest is already held: say so, for a check as for a load (final check of 14 October
+            // 2026: a check of a landed pack said "every check passed; load the pack to keep it")
+            return back()->with('success', ($request->boolean('dry_run') ? 'Check only, nothing kept: this' : 'This') . " pack is already loaded (load {$r['load_id']}); loading it again changes nothing.{$note}");
+        }
         if ($request->boolean('dry_run')) {
             $failed = array_filter($r['gates']['files'] ?? [], fn ($f) => ($f['failures'] ?? []) !== []);
             $packFails = array_filter($r['gates']['pack'] ?? [], fn ($g) => is_array($g) && ($g['result'] ?? '') === 'FAIL');
@@ -127,7 +132,11 @@ class EirFeedController extends Controller
                     . implode('; ', array_map(fn ($name, $f) => $name . ' ' . implode(', ', $f['failures']), array_keys($failed), $failed))) . $note);
         }
 
-        return back()->with($r['status'] === 'QUARANTINED' ? 'error' : 'success', "Pack {$r['status']} (load {$r['load_id']}).{$note}");
+        // the rows the load added, changed and found already held, so a pack sent twice is seen to change nothing
+        $rows = $r['status'] === 'LANDED' ? collect($r['files'] ?? [])->filter(fn ($f) => is_array($f) && isset($f['new'])) : collect();
+        $counts = $rows->isNotEmpty() ? ': ' . number_format($rows->sum('new')) . ' new rows, ' . number_format($rows->sum('versioned')) . ' changed (kept as a new version), ' . number_format($rows->sum('unchanged')) . ' already held' : '';
+
+        return back()->with($r['status'] === 'QUARANTINED' ? 'error' : 'success', "Pack {$r['status']} (load {$r['load_id']}){$counts}.{$note}");
     }
 
     /** Propose a build; a second person approves it. */
