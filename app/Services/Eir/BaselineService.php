@@ -41,9 +41,20 @@ class BaselineService
         $tied = $inScope()->count();
         $checks[] = ['Derived carrying amount against the stored report, in-scope loan GLs (over 2 cents)', '0 differences', "{$flagged} of {$tied} account-months", $flagged === 0];
 
-        // the Mega Farm accounts carry the report's amount; how far their MF_03 ledger is from it is reported, not asserted
-        $mf = DB::table('loan_books')->where('build_method', 'B')->whereIn('product_code', \App\Services\MegaFarm\MegaFarmEclService::GLS)->where('build_flag', 'like', 'Mega Farm:%');
-        $checks[] = ['Mega Farm: account-months whose MF_03 ledger differs from the Loan Book Report (reported, not a test)', 'reported', $mf->count() . ' account-months', true];
+        // the Mega Farm accounts are derived from their MF_03 ledger with the government's 67 percent interest legs
+        // (LoanBookBuildService, 14 October 2026); where it still differs the report's amount stands: reported, not asserted
+        $mfRun = fn () => DB::table('loan_books')->where('build_method', 'B')->whereIn('product_code', \App\Services\MegaFarm\MegaFarmEclService::GLS)->whereNotNull('stored_carrying_amount');
+        $mfResidual = $mfRun()->where('build_flag', 'like', '%' . LoanBookBuildService::MEGA_FARM_REPORT_STANDS . '%')->count();
+        $mfSign = $mfRun()->where('build_flag', 'like', '%' . LoanBookBuildService::MEGA_FARM_SIGN_FLAG . '%')->count();
+        $checks[] = ['Mega Farm: account-months whose MF_03 ledger, with its government-portion legs, still differs from the Loan Book Report (the report stands; reported, not a test)', 'reported', "{$mfResidual} of " . $mfRun()->count() . ' account-months', true];
+        $checks[] = ['Mega Farm: account-months whose Loan Book Report prints the ledger credit balance as a debit (the ledger stands; reported, not a test)', 'reported', "{$mfSign} of " . $mfRun()->count() . ' account-months', true];
+
+        // E-Banker's own overdue run (OD_01, pack 9) against the days past due staging reads: reported, not asserted
+        $od = $this->overdueRunComparison();
+        if ($od['compared'] > 0 || $od['od_rows'] > 0) {
+            $checks[] = ["Days past due: E-Banker's overdue run (OD_01) at month-end against the days staging reads, account-months in both (reported, not a test)", 'reported',
+                "{$od['agree']} agree, {$od['differ']} differ ({$od['differ_over_30']} by more than 30 days) of {$od['compared']}; {$od['not_in_book']} OD_01 account-months not in the loan book", true];
+        }
 
         // the Diff-Int year-end batch nets to the two income GLs (section 3.4)
         $net = ['4215' => 0.0, '4216' => 0.0];
@@ -93,6 +104,91 @@ class BaselineService
                 'expected_value' => is_numeric(str_replace(',', '', $expected)) ? (float) str_replace(',', '', $expected) : null,
                 'actual_value' => is_numeric(str_replace(',', '', $actual)) ? (float) str_replace(',', '', $actual) : null];
         }
+
+        return $out;
+    }
+
+    /**
+     * E-Banker's overdue run at month-end (OD_01, OVERDUE_DETAILS, pack 9 RUN 8b) against the days
+     * past due staging reads from the loan book (StagingService::daysPastDueOf), per account-month:
+     * the independent check of the days-past-due input that pack 9 RUN 8 was asked for. The run's
+     * days are counted from its own oldest overdue date (OVERDUE_PRINCI_DATE where principal is
+     * overdue, OVERDUE_INT_DATE where interest is) to its calculation date, nil when nothing is
+     * overdue; where one account has two rows for a month-end the later key wins. Reported, not
+     * asserted: a difference is evidence for the review, not a failure. RESCHEDULEMENT_DATE is
+     * empty on every row received, so the run says nothing about reschedules.
+     *
+     * @return array{od_rows:int,compared:int,agree:int,differ:int,differ_over_30:int,run_higher:int,book_higher:int,not_in_book:int,differences:list<array>}
+     */
+    public function overdueRunComparison(int $sample = 50): array
+    {
+        $num = fn ($v) => (float) str_replace([',', ' '], '', (string) $v);
+        $date = function (string $v): ?string {
+            $v = trim($v);
+            foreach (['n/j/Y', 'm/d/Y', 'Y-m-d'] as $f) {
+                $d = \DateTimeImmutable::createFromFormat('!' . $f, $v);
+                if ($d !== false && $d->format($f) === $v) {
+                    return $d->format('Y-m-d');
+                }
+            }
+
+            return null;
+        };
+        $run = [];
+        $rows = 0;
+        foreach ($this->zone->family(['OD_01']) as $r) {
+            $p = $r['payload'];
+            if (($p['DELETE_FLAG'] ?? 'N') === 'Y' || $r['row_date'] === null || (string) $r['account'] === '') {
+                continue;
+            }
+            $rows++;
+            $key = $r['account'] . '|' . substr($r['row_date'], 0, 7);
+            if (isset($run[$key]) && (int) $run[$key]['source_key'] > (int) $r['source_key']) {
+                continue;
+            }
+            $oldest = null;
+            foreach (['OVERDUE_PRINCIPLE' => 'OVERDUE_PRINCI_DATE', 'OVERDUE_INTEREST' => 'OVERDUE_INT_DATE'] as $amount => $col) {
+                $d = $date((string) ($p[$col] ?? ''));
+                if ($num($p[$amount] ?? 0) > 0.005 && $d !== null && ($oldest === null || $d < $oldest)) {
+                    $oldest = $d;
+                }
+            }
+            $days = $num($p['OVERDUE_AMOUNT'] ?? 0) > 0.005 && $oldest !== null && $oldest < $r['row_date']
+                ? (int) (new \DateTimeImmutable($oldest))->diff(new \DateTimeImmutable($r['row_date']))->days : 0;
+            $run[$key] = ['source_key' => $r['source_key'], 'account' => $r['account'], 'period' => substr($r['row_date'], 0, 7), 'date' => $r['row_date'], 'days' => $days, 'oldest' => $oldest];
+        }
+        $out = ['od_rows' => $rows, 'compared' => 0, 'agree' => 0, 'differ' => 0, 'differ_over_30' => 0, 'run_higher' => 0, 'book_higher' => 0, 'not_in_book' => 0, 'differences' => []];
+        if ($run === []) {
+            return $out;
+        }
+        $book = [];
+        $periods = array_values(array_unique(array_column($run, 'period')));
+        foreach (array_chunk($periods, 50) as $chunk) {
+            foreach (DB::table('loan_books')->whereIn('reporting_period', $chunk)->get(['contract_id', 'reporting_period', 'overdue_days', 'build_flag', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360']) as $b) {
+                $book[$b->contract_id . '|' . $b->reporting_period] = $b;
+            }
+        }
+        foreach ($run as $o) {
+            $b = $book[ltrim($o['account'], '0') . '|' . $o['period']] ?? null;
+            if ($b === null) {
+                $out['not_in_book']++;
+                continue;
+            }
+            $out['compared']++;
+            $ours = \App\Services\Eir\StagingService::daysPastDueOf($b);
+            if ($ours === $o['days']) {
+                $out['agree']++;
+                continue;
+            }
+            $out['differ']++;
+            $out[$o['days'] > $ours ? 'run_higher' : 'book_higher']++;
+            if (abs($o['days'] - $ours) > 30) {
+                $out['differ_over_30']++;
+            }
+            $out['differences'][] = ['account' => $o['account'], 'period' => $o['period'], 'overdue_run_days' => $o['days'], 'overdue_run_oldest' => $o['oldest'], 'staging_days' => $ours, 'difference' => $o['days'] - $ours];
+        }
+        usort($out['differences'], fn ($a, $b) => [abs($b['difference']), $a['account'], $a['period']] <=> [abs($a['difference']), $b['account'], $b['period']]);
+        $out['differences'] = array_slice($out['differences'], 0, $sample);
 
         return $out;
     }

@@ -99,14 +99,8 @@ class StagingService
             [$s2, $s3] = $this->thresholds($class, (int) $r->tenor, $monthEnd);
             // the build counts days from the oldest overdue instalment; a row with no
             // count (loaded by the report importer, or the Mega Farm book) ages by bucket
-            $dpd = (int) $r->overdue_days;
-            // a count the build made on the instalment chart, against the report's ageing, is not
-            // overruled by that same report's buckets (verification of 14 October 2026)
-            $counted = str_contains((string) ($r->build_flag ?? ''), \App\Services\Ebanker\LoanBookBuildService::SCHEDULE_COUNT);
-            if ($dpd === 0 && ! $counted) {
-                $dpd = $this->bucketDays($r);
-                if ($dpd > 0) { $counts['by_bucket']++; }
-            }
+            $dpd = self::daysPastDueOf($r);
+            if ($dpd > 0 && (int) $r->overdue_days === 0) { $counts['by_bucket']++; }
             $pre = $dpd >= $s3 ? 3 : ($dpd >= $s2 ? 2 : 1);
             $post = $pre;
             $reason = $pre > 1 ? 'dpd' : null;
@@ -235,7 +229,22 @@ class StagingService
     }
 
     /** Lower bound of the highest non-empty arrears bucket; 0 = current. */
-    private function bucketDays(object $r): int
+    /**
+     * The days past due staging reads from a loan-book row: the build's count, or with no count
+     * (a row loaded by the report importer, or the Mega Farm book) the lower bound of the highest
+     * non-empty arrears bucket. A count the build made on the instalment chart, against the
+     * report's ageing, is not overruled by that same report's buckets (verification of 14 October
+     * 2026). Public so a comparison (BaselineService, OD_01) reads the days staging reads.
+     */
+    public static function daysPastDueOf(object $r): int
+    {
+        $dpd = (int) ($r->overdue_days ?? 0);
+        $counted = str_contains((string) ($r->build_flag ?? ''), \App\Services\Ebanker\LoanBookBuildService::SCHEDULE_COUNT);
+
+        return $dpd === 0 && ! $counted ? self::bucketDays($r) : $dpd;
+    }
+
+    private static function bucketDays(object $r): int
     {
         foreach ([271 => 'arrears_271_to_360', 181 => 'arrears_180_to_270', 91 => 'arrears_91_to_180', 31 => 'arrears_30_to_90', 1 => 'arrears_1_to_30'] as $lower => $col) {
             $v = (float) str_replace(',', '', (string) ($r->{$col} ?? '0'));

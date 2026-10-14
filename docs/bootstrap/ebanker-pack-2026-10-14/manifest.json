@@ -2,7 +2,7 @@
   "pack": "MAIIC E-Banker pack 9, received 14 October 2026",
   "assembled": "2026-10-14",
   "period": "2026-09",
-  "source": "E-Banker (Virtual Galaxy CBS, schemas VGCBS and MAIIC_ORA_LIVE), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 9 - 13 Oct 2026.sql, uploaded to OneDrive by Vanessa Magaleta on 14 October 2026 at 09:09; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
+  "source": "E-Banker (Virtual Galaxy CBS, schemas VGCBS and MAIIC_ORA_LIVE), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 9 - 13 Oct 2026.sql, uploaded to OneDrive by Vanessa Magaleta on 14 October 2026 at 09:09, with the overdue run (RUN 8b OD_01 and RUN 8c OD_02, one file per quarter) following in the same folder at 10:01; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
   "date_format": "m/d/Y",
   "scope_scheme_ids": [],
   "accepted_exceptions": [
@@ -55,10 +55,6 @@
       "reason": "a count profile of CUMOVUCH_OLD (13,359 rows, 2018-2022) under account blocks that match no loan; the table itself is not requested"
     },
     {
-      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/OD_01_overdue_details.csv",
-      "reason": "a 21-row fragment (SQL Developer stopped at 100 MB); RUN 8 was split into 8a, 8b and 8c, which supersede it"
-    },
-    {
       "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/OD_01_overdue_details.png",
       "reason": "a screenshot of the RUN 8 grid sent with the OD_01 fragment, not an extract"
     }
@@ -82,6 +78,42 @@
       "sha256": "f04ad85fa28096cdb426c154ff67d25d8ac70f4b55af627e660cf6b0eb1249e0",
       "bytes": 67506,
       "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_14_gl_opening_balance_bk240824.csv"
+    },
+    {
+      "file": "OD_01_overdue_details.csv",
+      "query_id": "OD_01",
+      "kind": "pack 9 RUN 8b: OVERDUE_DETAILS, the month-end rows of E-Banker's overdue run, all columns (2,259 rows on 131 accounts of the in-scope loan GLs, 31 December 2024 to 30 September 2026): per account and month-end the overdue principal, interest and their dates, the instalments and period overdue; replaces the 21-row fragment of 14 October 09:09; RESCHEDULEMENT_DATE is empty on every row",
+      "rows": 2259,
+      "sha256": "8e7e538d52b0b9f1f59d3325d2a8a86296c9f70ac10fa2101d7c691107ec1241",
+      "bytes": 1396861,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/OD_01_overdue_details.csv"
+    },
+    {
+      "file": "OD_02_overdue_daily_2025Q3.csv",
+      "query_id": "OD_02",
+      "kind": "pack 9 RUN 8c: OVERDUE_DETAILS, the daily rows of the overdue run for July to September 2025 (from 14 July 2025, when the run became daily), 34 columns; 8,112 rows on 106 accounts; the month-end rows are also in OD_01; RESCHEDULEMENT_DATE is empty on every row",
+      "rows": 8112,
+      "sha256": "8c9599620a0ad16c7e8765642e33ec6b3a231a36b8b9dffcf5a43fdf6c6bac3d",
+      "bytes": 2605760,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/OD_02_overdue_daily_2025Q3.csv"
+    },
+    {
+      "file": "OD_02_overdue_daily_2025Q4.csv",
+      "query_id": "OD_02",
+      "kind": "pack 9 RUN 8c: OVERDUE_DETAILS, the daily rows of the overdue run for October to December 2025, 34 columns; 10,032 rows on 118 accounts; the month-end rows are also in OD_01; RESCHEDULEMENT_DATE is empty on every row",
+      "rows": 10032,
+      "sha256": "47649e5370869dd6b708a7ce68a6f0bc638f8c8298e8cfc80a5687033cd62a63",
+      "bytes": 3276885,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/OD_02_overdue_daily_2025Q4.csv"
+    },
+    {
+      "file": "OD_02_overdue_daily_2026Q1.csv",
+      "query_id": "OD_02",
+      "kind": "pack 9 RUN 8c: OVERDUE_DETAILS, the daily rows of the overdue run for January to March 2026, 34 columns; 10,594 rows on 121 accounts; the month-end rows are also in OD_01; RESCHEDULEMENT_DATE is empty on every row",
+      "rows": 10594,
+      "sha256": "b6719f483beb541abc773538e800aa4a02e8b2d7536b599a3490f42f397d81f5",
+      "bytes": 3467879,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/OD_02_overdue_daily_2026Q1.csv"
     }
   ]
 }

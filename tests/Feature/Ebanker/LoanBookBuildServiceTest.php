@@ -139,12 +139,153 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertNotNull($row);
         $this->assertEquals(5200000, $row->carrying_amount);       // E-Banker's report stands for a Mega Farm account
         $this->assertEquals(5200000, $row->stored_carrying_amount);
-        $this->assertStringContainsString('Mega Farm: carrying amount from the Loan Book Report; the MF_03 ledger derives 5,000,000.00 (difference -200,000.00)', $row->build_flag);
+        $this->assertStringContainsString('Mega Farm: carrying amount from the Loan Book Report; the MF_03 ledger with its government-portion legs derives 5,000,000.00 (difference -200,000.00)', $row->build_flag);
         $this->assertEquals(5000000, json_decode($row->build_basis, true)['ledger_carrying']);
         // the in-scope loan is still derived from its ledger
         $this->assertEquals(8000000, DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->value('carrying_amount'));
         // and the EIR's readers do not see the Mega Farm ledger
         $this->assertArrayNotHasKey($m, (new LandingZoneReader())->ledgerByAccount('2024-08-31'));
+    }
+
+    /**
+     * The Mega Farm interest batch as E-Banker posts it (MF_03, pack 4): each month 33 percent to the
+     * loan's own interest-receivable GL (type 303), 67 percent to the government-portion GL (type 400)
+     * and that leg's contra to the fund (type 401 on 2071), every leg on the loan's AC_GLCODE. The
+     * contra is the fund's side, not the loan's: left out, the ledger rebuilds the Loan Book Report
+     * to the cent, the derived figure stands with no flag, and the split is kept per account-month.
+     */
+    private function megaFarmBatch(string $m, string $key, string $date, string $batch, string $own, string $gov): void
+    {
+        $iso = \Carbon\CarbonImmutable::createFromFormat('!n/j/Y', $date)->toDateString();
+        $leg = ['NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'TRANSACTION_DATE' => $date, 'BATCH_TYPE' => 'INTP', 'BATCH_NUMBER' => $batch, 'DELETE_FLAG' => 'N'];
+        $this->raw('MF_03', $key . '1', $m, $iso, ['CUMVOUCH_DET_ID' => $key . '1', 'CB_GLCODE' => '105031', 'TRANSAMT' => '-' . $own, 'TRANTYPE' => '303', 'PARTICULARS' => 'BANK_INT  33% 1050301 ' . $m] + $leg);
+        $this->raw('MF_03', $key . '2', $m, $iso, ['CUMVOUCH_DET_ID' => $key . '2', 'CB_GLCODE' => '1060', 'TRANSAMT' => '-' . $gov, 'TRANTYPE' => '400', 'PARTICULARS' => 'GOVT_INT 67% Int Ac: 1050301 ' . $m] + $leg);
+        $this->raw('MF_03', $key . '3', $m, $iso, ['CUMVOUCH_DET_ID' => $key . '3', 'CB_GLCODE' => '2071', 'TRANSAMT' => $gov, 'TRANTYPE' => '401', 'PARTICULARS' => 'GOVT_INT 67%  1050301 ' . $m] + $leg);
+    }
+
+    public function test_a_mega_farm_account_is_derived_from_its_ledger_with_the_government_portion_legs(): void
+    {
+        $m = '000104480000001';
+        $this->raw('MF_01', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'CUSTOMER_ID' => '734', 'ACCOUNT_NAME' => 'Mega Farm Grower', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_03', '900', $m, '2024-07-01', ['CUMVOUCH_DET_ID' => '900', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'CB_GLCODE' => '1050301', 'TRANSACTION_DATE' => '7/1/2024', 'TRANSAMT' => '-5000000.00', 'TRANTYPE' => '301', 'PARTICULARS' => 'Loan Disburse', 'DELETE_FLAG' => 'N']);
+        $this->raw('MF_02', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'SANCTION_AMOUNT' => '6000000.00', 'PERIOD_YEARS' => '1', 'PERIOD_MONTHS' => '0', 'EXPIRY_DATE' => '6/30/2025']);
+        $this->megaFarmBatch($m, '91', '7/31/2024', '113', '20625.00', '41875.00');
+        $this->megaFarmBatch($m, '92', '8/31/2024', '114', '20625.00', '41875.00');
+        // E-Banker's report carries the full 15 percent: 5,000,000 + 2 x (20,625 + 41,875)
+        $this->raw('MF_05', '7000', $m, '2024-08-31', ['LOAN_BOOK_DET_ID_A' => '7000', 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'PRINCIPAL' => '5000000.00', 'CARRYING_AMOUNT' => '5125000.00']);
+
+        $this->service()->build('2024-07', '2024-08', 'B', 1, 2);
+        $aug = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104480000001')->first();
+        $this->assertEquals(5125000, $aug->carrying_amount);
+        $this->assertEquals(5125000, $aug->stored_carrying_amount);
+        $this->assertNull($aug->build_flag);                       // the ledger ties: no "report stands" flag
+        $basis = json_decode($aug->build_basis, true);
+        $this->assertEquals(5125000, $basis['ledger_carrying']);
+        $mf = $basis['mega_farm'];
+        $this->assertEquals(41250, $mf['interest_own_gl']);        // MAIIC's 33 percent, to date
+        $this->assertEquals(83750, $mf['interest_government_portion']); // the fund's 67 percent, to date
+        $this->assertEquals(125000, $mf['interest_total']);
+        $this->assertEquals(['interest_own_gl' => 20625, 'interest_government_portion' => 41875, 'interest_total' => 62500], $mf['month']);
+        $this->assertEquals(83750, $mf['government_portion_contra_excluded']);
+        $this->assertSame(['1060'], $mf['government_portion_gls']); // read from the legs, not from a list
+        $this->assertSame(['2071'], $mf['contra_gls']);
+        $this->assertEquals(0, $basis['ledger']['settled_in_kind']); // the contra is not a settlement in kind
+        // the 67 percent is interest, not a drawdown: the disbursed amount and the undrawn commitment do not move with it
+        $this->assertEquals(5000000, $aug->disbursed);
+        $this->assertEquals(125000, $aug->interest_to_date);       // both shares: the 15 percent the report carries
+        $this->assertEquals(1000000, $aug->commitments);           // 6m sanctioned less 5m drawn
+        $this->assertEquals(6125000, $aug->ead);
+        $this->assertArrayNotHasKey('disbursed_includes_government_portion', $mf);
+        // a month with no report run is the ledger with the government portion too
+        $jul = DB::table('loan_books')->where('reporting_period', '2024-07')->where('contract_id', '104480000001')->first();
+        $this->assertEquals(5062500, $jul->carrying_amount);
+        $this->assertNull($jul->stored_carrying_amount);
+        // the main-book account is untouched
+        $main = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->first();
+        $this->assertEquals(8000000, $main->carrying_amount);
+        $this->assertArrayNotHasKey('mega_farm', json_decode($main->build_basis, true));
+    }
+
+    /**
+     * A 2024-season Mega Farm loan came into E-Banker at the migration as a type 900 "Opening Account
+     * Balance" debit on 31 July 2024: drawn before the take-on, not a receipt, so its sanction is not
+     * an undrawn commitment. A later type 900 debit is not a take-on and stays among the receipts.
+     */
+    public function test_the_opening_balance_taken_on_at_the_migration_counts_as_drawn(): void
+    {
+        $m = '000105450000001';
+        $this->raw('MF_01', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050305', 'CUSTOMER_ID' => '736', 'ACCOUNT_NAME' => 'Irrigation Grower', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_02', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'SANCTION_AMOUNT' => '6000000.00', 'PERIOD_YEARS' => '5', 'PERIOD_MONTHS' => '0', 'EXPIRY_DATE' => '5/31/2029']);
+        $this->raw('MF_03', '960', $m, '2024-07-31', ['CUMVOUCH_DET_ID' => '960', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050305', 'CB_GLCODE' => '1050305', 'TRANSACTION_DATE' => '7/31/2024', 'TRANSAMT' => '-5000000.00', 'TRANTYPE' => '900', 'DBCR' => 'DR', 'PARTICULARS' => 'To Trf Opening Account Balance', 'DELETE_FLAG' => 'N']);
+        $this->raw('MF_03', '961', $m, '2024-08-20', ['CUMVOUCH_DET_ID' => '961', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050305', 'CB_GLCODE' => '1050305', 'TRANSACTION_DATE' => '8/20/2024', 'TRANSAMT' => '-100000.00', 'TRANTYPE' => '900', 'DBCR' => 'DR', 'PARTICULARS' => 'To Trf Returned Payment', 'DELETE_FLAG' => 'N']);
+
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '105450000001')->first();
+        $this->assertEquals(5100000, $row->carrying_amount);
+        $this->assertEquals(5000000, $row->disbursed);              // the take-on balance was drawn
+        $this->assertEquals(-100000, $row->repayments);             // the later type 900 stays a receipt, as before
+        $this->assertEquals(1000000, $row->commitments);            // 6m sanctioned less 5m drawn, not the whole 6m
+        $this->assertEquals(5000000, json_decode($row->build_basis, true)['takeon_drawn']);
+        $this->assertArrayNotHasKey('takeon_drawn', json_decode(DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->value('build_basis'), true));
+    }
+
+    /**
+     * A facility past its expiry can no longer be drawn. Where the report leaves MATURITY_DATE empty
+     * (the never-drawn Mega Farm facilities), the loan master's EXPIRY_DATE is the facility's end, so
+     * the undrawn sanction is dropped as past maturity, with the source of the date on the row.
+     */
+    public function test_an_empty_report_maturity_takes_the_loan_master_expiry_and_an_expired_undrawn_sanction_is_no_commitment(): void
+    {
+        $m = '000104480003247';
+        $this->raw('MF_01', $m, $m, '2025-08-27', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'CUSTOMER_ID' => '737', 'ACCOUNT_NAME' => 'Never Drawn', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '8/27/2025']);
+        $this->raw('MF_02', $m, $m, '2025-06-28', ['NEW_AC_NUMBER' => $m, 'SANCTION_AMOUNT' => '19040000.00', 'PERIOD_YEARS' => '1', 'PERIOD_MONTHS' => '0', 'EXPIRY_DATE' => '8/15/2024']);
+        $this->raw('MF_05', '7100', $m, '2024-08-31', ['LOAN_BOOK_DET_ID_A' => '7100', 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'MATURITY_DATE' => '', 'PRINCIPAL' => '0.00', 'CARRYING_AMOUNT' => '0.00']);
+
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104480003247')->first();
+        $this->assertSame('2024-08-15', $row->due_date);
+        $this->assertEquals(0, $row->commitments);
+        $this->assertEquals(0, $row->ead);
+        $basis = json_decode($row->build_basis, true);
+        $this->assertEquals(19040000, $basis['undrawn_after_maturity']);
+        $this->assertSame("loan master EXPIRY_DATE: the report's MATURITY_DATE is empty", $basis['due_date_source']);
+    }
+
+    public function test_a_report_that_prints_a_mega_farm_credit_balance_as_a_debit_gives_way_to_the_ledger(): void
+    {
+        $m = '000104480002788';
+        $this->raw('MF_01', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'CUSTOMER_ID' => '735', 'ACCOUNT_NAME' => 'Overpaid Grower', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_03', '900', $m, '2024-07-01', ['CUMVOUCH_DET_ID' => '900', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'CB_GLCODE' => '1050301', 'TRANSACTION_DATE' => '7/1/2024', 'TRANSAMT' => '-5000000.00', 'TRANTYPE' => '301', 'PARTICULARS' => 'Loan Disburse', 'DELETE_FLAG' => 'N']);
+        $this->raw('MF_03', '901', $m, '2024-08-15', ['CUMVOUCH_DET_ID' => '901', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'CB_GLCODE' => '1050301', 'TRANSACTION_DATE' => '8/15/2024', 'TRANSAMT' => '5500000.00', 'TRANTYPE' => '305', 'PARTICULARS' => 'By Trf Loan repayment', 'DELETE_FLAG' => 'N']);
+        // the ledger is 500,000 in credit; the report prints it as a debit
+        $this->raw('MF_05', '7000', $m, '2024-08-31', ['LOAN_BOOK_DET_ID_A' => '7000', 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'PRINCIPAL' => '5000000.00', 'CARRYING_AMOUNT' => '500000.00']);
+
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104480002788')->first();
+        $this->assertEquals(-500000, $row->carrying_amount);      // the ledger stands
+        $this->assertEquals(500000, $row->stored_carrying_amount);
+        $this->assertSame(LoanBookBuildService::MEGA_FARM_SIGN_FLAG, $row->build_flag);
+        $basis = json_decode($row->build_basis, true);
+        $this->assertEquals(['report_carrying' => 500000, 'ledger_carrying' => -500000], $basis['mega_farm']['report_sign_error']);
+        $this->assertEquals(0.0, \App\Services\Ecl\EclExposure::of($row)); // a credit balance is no exposure
+    }
+
+    public function test_a_mega_farm_account_month_that_still_differs_keeps_the_report_and_an_unpaired_contra_is_flagged(): void
+    {
+        $m = '000104480000001';
+        $this->raw('MF_01', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'CUSTOMER_ID' => '734', 'ACCOUNT_NAME' => 'Mega Farm Grower', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_03', '900', $m, '2024-07-01', ['CUMVOUCH_DET_ID' => '900', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'CB_GLCODE' => '1050301', 'TRANSACTION_DATE' => '7/1/2024', 'TRANSAMT' => '-5000000.00', 'TRANTYPE' => '301', 'PARTICULARS' => 'Loan Disburse', 'DELETE_FLAG' => 'N']);
+        $this->megaFarmBatch($m, '91', '8/31/2024', '114', '20625.00', '41875.00');
+        // a contra in a batch of its own, with no 67 percent leg against it
+        $this->raw('MF_03', '950', $m, '2024-08-31', ['CUMVOUCH_DET_ID' => '950', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'CB_GLCODE' => '2071', 'TRANSACTION_DATE' => '8/31/2024', 'BATCH_TYPE' => 'INTP', 'BATCH_NUMBER' => '115', 'TRANSAMT' => '100.00', 'TRANTYPE' => '401', 'PARTICULARS' => 'GOVT_INT 67%  1050301 ' . $m, 'DELETE_FLAG' => 'N']);
+        $this->raw('MF_05', '7000', $m, '2024-08-31', ['LOAN_BOOK_DET_ID_A' => '7000', 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'PRINCIPAL' => '5000000.00', 'CARRYING_AMOUNT' => '5070000.00']);
+
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104480000001')->first();
+        $this->assertEquals(5070000, $row->carrying_amount);         // still 7,500 apart: the report stands
+        $this->assertStringContainsString('Mega Farm: carrying amount from the Loan Book Report; the MF_03 ledger with its government-portion legs derives 5,062,500.00 (difference -7,500.00)', $row->build_flag);
+        $this->assertStringContainsString('Mega Farm: 1 government-portion batch(es) whose 67% leg and its contra on the fund do not net to nil (first 2024-08-31|INTP|115)', $row->build_flag);
+        $this->assertEquals(5062500, json_decode($row->build_basis, true)['ledger_carrying']);
     }
 
     /**

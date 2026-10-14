@@ -45,6 +45,34 @@ class LoanBookBuildService
     /** 401: the Nascomex loan settled by redemption of its preference shares, a settlement in kind, not cash (spec 3.3 and O13; audit H1). */
     public const TYPE_SETTLEMENT_IN_KIND = ['401'];
 
+    /**
+     * The Mega Farm interest split as E-Banker posts it (MF_03, pack 4; review of 14 October 2026).
+     * Each month's 15 percent is posted per loan in one INTP batch: 33 percent (type 303, "BANK_INT
+     * 33%") debited to the loan's own interest-receivable GL, and 67 percent (type 400, "GOVT_INT 67%
+     * Int Ac" or "GOVT_INT_PORTION 67%") debited to the programme's government-portion receivable GL,
+     * with its contra (type 401, "GOVT_INT 67%") credited to the fund. Every leg carries the loan
+     * account's AC_GLCODE, so the reader returns all three; the contra is the fund's side of the
+     * entry, not the loan's, and is left out of the carrying amount. The 67 percent leg is interest
+     * (the government's portion), never a drawdown, although type 400 is a disbursement type on
+     * MAIIC's own book. The legs are known by their type
+     * and narration on the account, and the GLs they were booked to are read from the legs themselves
+     * (build_basis.mega_farm), never from a list in code.
+     */
+    public const TYPE_GOVERNMENT_PORTION = '400';
+    public const TYPE_GOVERNMENT_PORTION_CONTRA = '401';
+    public const GOVERNMENT_PORTION_NARRATION = 'GOVT_INT';
+
+    /** Type 900 debited to a loan at the migration with this narration is the balance taken on: drawn, not a receipt (isTakeOnDrawdown). */
+    public const TYPE_TAKEON_OPENING = '900';
+    public const TAKEON_OPENING_NARRATION = 'OPENING ACCOUNT BALANCE';
+
+    /** The flag prefix of every Mega Farm build flag. */
+    public const MEGA_FARM_FLAG = 'Mega Farm:';
+    /** A Mega Farm account-month whose ledger still does not rebuild the report: the report's figure stands (BaselineService counts it). */
+    public const MEGA_FARM_REPORT_STANDS = 'Mega Farm: carrying amount from the Loan Book Report';
+    /** A Mega Farm account-month whose report prints the ledger's credit balance as a debit: the ledger stands (BaselineService counts it). */
+    public const MEGA_FARM_SIGN_FLAG = 'Mega Farm: the Loan Book Report prints the credit balance as a debit; the ledger stands';
+
     /** The loan-book columns a build writes; nothing else on the row is touched. */
     private const COLUMNS = [
         'contract_id', 'customer_id', 'customer_name', 'external_identity_id', 'product_group', 'product_code', 'funding_source',
@@ -447,17 +475,54 @@ class LoanBookBuildService
         $accounts = array_unique(array_merge(array_keys($ledger), array_keys($runs)));
         sort($accounts);
         $rows = [];
+        $monthStart = substr($monthEnd, 0, 8) . '01';
         foreach ($accounts as $account) {
-            $sum = ['all' => 0.0, 'disb' => 0.0, 'int' => 0.0, 'rec' => 0.0, 'woff' => 0.0, 'kind' => 0.0, 'other' => 0.0, 'n' => 0, 'first' => null, 'last' => null, 'load' => null];
+            $run = $runs[$account] ?? null;
+            $p = $run['payload'] ?? [];
+            $am = $master[$account] ?? [];
+            $gl = trim((string) ($am['GLCODE'] ?? ($p['GLCODE'] ?? '')));
+            $megaFarm = ! isset(LandingZoneReader::LOAN_GLS[$gl]) && in_array($gl, \App\Services\MegaFarm\MegaFarmEclService::GLS, true);
+            $sum = ['all' => 0.0, 'disb' => 0.0, 'int' => 0.0, 'rec' => 0.0, 'woff' => 0.0, 'kind' => 0.0, 'other' => 0.0, 'takeon' => 0.0, 'n' => 0, 'first' => null, 'last' => null, 'load' => null];
+            $mf = ['own' => 0.0, 'own_month' => 0.0, 'gov' => 0.0, 'gov_month' => 0.0, 'contra' => 0.0, 'gov_gls' => [], 'contra_gls' => [], 'batches' => []];
             foreach ($ledger[$account] ?? [] as $post) {
                 $amt = $this->num($post['payload']['TRANSAMT'] ?? 0);
                 $type = (string) ($post['payload']['TRANTYPE'] ?? '');
+                $inMonth = $post['row_date'] !== null && $post['row_date'] >= $monthStart;
+                if ($megaFarm && $this->isGovernmentPortion($post['payload'], self::TYPE_GOVERNMENT_PORTION_CONTRA)) {
+                    // the fund's side of the government-portion entry: not part of the loan's carrying amount
+                    $mf['contra'] += $amt;
+                    $mf['contra_gls'][trim((string) ($post['payload']['CB_GLCODE'] ?? ''))] = true;
+                    $key = WriteOffClassifier::batchKey($post['row_date'], $post['payload']) ?? ('row ' . $post['source_key']);
+                    $mf['batches'][$key] = ($mf['batches'][$key] ?? 0.0) + $amt;
+                    continue;
+                }
+                if ($megaFarm && $this->isGovernmentPortion($post['payload'], self::TYPE_GOVERNMENT_PORTION)) {
+                    $mf['gov'] -= $amt;
+                    $mf['gov_month'] -= $inMonth ? $amt : 0.0;
+                    $mf['gov_gls'][trim((string) ($post['payload']['CB_GLCODE'] ?? ''))] = true;
+                    $key = WriteOffClassifier::batchKey($post['row_date'], $post['payload']) ?? ('row ' . $post['source_key']);
+                    $mf['batches'][$key] = ($mf['batches'][$key] ?? 0.0) + $amt;
+                    // the government's 67 percent is interest charged, not a drawdown: counted as interest so that
+                    // neither the disbursed amount nor the undrawn commitment moves with the interest posted
+                    // (type 400 stays a disbursement type on MAIIC's own book, TYPE_DISBURSEMENT)
+                    $sum['int'] += $amt;
+                    $sum['all'] += $amt; $sum['n']++;
+                    $sum['first'] ??= $post['row_date']; $sum['last'] = $post['row_date']; $sum['load'] = $post['load_id'];
+                    continue;
+                }
+                if ($megaFarm && in_array($type, self::TYPE_INTEREST, true)) {
+                    $mf['own'] -= $amt;
+                    $mf['own_month'] -= $inMonth ? $amt : 0.0;
+                }
                 $sum['all'] += $amt; $sum['n']++;
                 $sum['first'] ??= $post['row_date']; $sum['last'] = $post['row_date']; $sum['load'] = $post['load_id'];
                 if ($writeOffs->isWriteOff($post['payload'], $post['row_date'], $account)) {
                     $sum['woff'] += $amt;     // in the balance, never in repayments (type 300, a 1064 batch, an H closure)
                 } elseif (in_array($type, self::TYPE_DISBURSEMENT, true)) {
                     $sum['disb'] += $amt;
+                } elseif ($this->isTakeOnDrawdown($post)) {
+                    $sum['disb'] += $amt;     // the balance taken on at the migration was drawn (see TYPE_TAKEON_OPENING)
+                    $sum['takeon'] += $amt;
                 } elseif (in_array($type, self::TYPE_INTEREST, true)) {
                     $sum['int'] += $amt;
                 } elseif (in_array($type, self::TYPE_RECEIPT, true)) {
@@ -469,24 +534,34 @@ class LoanBookBuildService
                 }
             }
             $carrying = round(-$sum['all'], 2);
-            $run = $runs[$account] ?? null;
             if (abs($carrying) < 0.005 && $run === null) {
                 continue; // closed and not in the report for the month
             }
-            $p = $run['payload'] ?? [];
-            $am = $master[$account] ?? [];
             $lm = $loans[$account] ?? [];
-            $gl = trim((string) ($am['GLCODE'] ?? ($p['GLCODE'] ?? '')));
             [$group, $fund] = $this->groupOf($gl);
             $flags = [];
             $stored = $run !== null ? $this->num($p['CARRYING_AMOUNT'] ?? 0) : null;
             $derived = $carrying;
-            if ($stored !== null && ! isset(LandingZoneReader::LOAN_GLS[$gl]) && in_array($gl, \App\Services\MegaFarm\MegaFarmEclService::GLS, true)) {
-                // a Mega Farm account (outside the EIR, decision D30): its MF_03 ledger does not yet rebuild the
-                // balance E-Banker reports, so the Loan Book Report's carrying amount stands and the gap is kept on the row
-                $carrying = $stored;
-                if (abs($stored - $derived) > 0.005) {
-                    $flags[] = sprintf('Mega Farm: carrying amount from the Loan Book Report; the MF_03 ledger derives %s (difference %s)', number_format($derived, 2), number_format($derived - $stored, 2));
+            $signError = null;
+            if ($megaFarm) {
+                // a Mega Farm account (outside the EIR, decision D30): its MF_03 ledger, with the government's
+                // 67 percent interest legs, rebuilds the balance E-Banker reports; where it still does not,
+                // the Loan Book Report's carrying amount stands and the difference is kept on the row
+                $unpaired = array_filter($mf['batches'], fn ($v) => abs($v) > 0.005);
+                if ($unpaired !== []) {
+                    $flags[] = sprintf('%s %d government-portion batch(es) whose 67%% leg and its contra on the fund do not net to nil (first %s)', self::MEGA_FARM_FLAG, count($unpaired), array_key_first($unpaired));
+                }
+                if ($stored !== null && abs($stored - $derived) > 0.005) {
+                    if ($derived < -0.005 && abs($derived + $stored) <= 0.005) {
+                        // the report prints an overpaid account's credit balance as a debit (60 accounts in its May, June
+                        // and July 2026 runs; the April and August runs agree with the ledger): a sign error in the
+                        // report, so the ledger's credit stands and the ECL floors the exposure at nil (EclExposure)
+                        $flags[] = self::MEGA_FARM_SIGN_FLAG;
+                        $signError = ['report_carrying' => round($stored, 2), 'ledger_carrying' => round($derived, 2)];
+                    } else {
+                        $carrying = $stored;
+                        $flags[] = sprintf('%s; the MF_03 ledger with its government-portion legs derives %s (difference %s)', self::MEGA_FARM_REPORT_STANDS, number_format($derived, 2), number_format($derived - $stored, 2));
+                    }
                 }
             } elseif ($stored !== null && abs($stored - $carrying) > 0.005) {
                 $flags[] = sprintf('carrying amount differs from the stored run by %s', number_format($carrying - $stored, 2));
@@ -501,9 +576,13 @@ class LoanBookBuildService
             // say how much of a receipt settled interest, so without a run the whole balance is principal
             $principal = $run !== null ? $this->num($p['PRINCIPAL'] ?? 0) : $carrying;
             $approved = $this->num($lm['SANCTION_AMOUNT'] ?? ($p['APPROVED'] ?? 0));
+            // the facility's end: the run's maturity date, or where the run leaves it empty the loan master's expiry
+            // (an empty MATURITY_DATE used to leave the row with no due date, so a facility that had expired kept its
+            // undrawn sanction as a commitment; review of 14 October 2026)
+            [$due, $dueSource] = $this->dueDate($p, $lm);
             $rate = $this->rateOn($account, $monthEnd, $p, $rates, $am);
             $arrears = $this->arrears($p);
-            [$dpd, $odDate, $dpdFlag] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ($lm['EXPIRY_DATE'] ?? '')), $carrying, $account);
+            [$dpd, $odDate, $dpdFlag] = $this->daysPastDue($p, $monthEnd, $arrears, $due, $carrying, $account);
             if ($dpdFlag !== null) {
                 $flags[] = $dpdFlag;
             }
@@ -516,7 +595,7 @@ class LoanBookBuildService
                 'customer_name' => $am['ACCOUNT_NAME'] ?? null, 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl,
                 'funding_source' => $fund,
                 'create_date' => $this->date($p['VALUE_DATE'] ?? ($am['ACCOUNT_OPEN_DATE'] ?? '')) ?? $sum['first'],
-                'due_date' => $this->date($p['MATURITY_DATE'] ?? ($lm['EXPIRY_DATE'] ?? '')),
+                'due_date' => $due,
                 'tenor' => $tenor, 'interest_rate' => $rate, 'principal_balance' => $principal, 'approved_amount' => $approved,
                 'disbursed' => $disbursed, 'repayments' => $receipts, 'carrying_amount' => $carrying, 'interest_to_date' => $interest,
                 'stored_carrying_amount' => $stored, 'commitments' => max(0.0, round($approved - $disbursed, 2)),
@@ -527,11 +606,84 @@ class LoanBookBuildService
                 'build_basis' => ['postings' => $sum['n'], 'first_posting' => $sum['first'], 'last_posting' => $sum['last'],
                     'ledger' => ['disbursed' => $disbursed, 'interest' => $interest, 'receipts' => $receipts, 'written_off' => round($sum['woff'], 2), 'settled_in_kind' => round($sum['kind'], 2), 'other' => round($sum['other'], 2)],
                     'stored_run' => $run !== null ? $run['query_id'] . ':' . $run['source_key'] : null, 'rate_source' => $this->rateSource,
-                    'ledger_carrying' => round($derived, 2)],
+                    'ledger_carrying' => round($derived, 2)]
+                    + ($dueSource !== null ? ['due_date_source' => $dueSource] : [])
+                    + (abs($sum['takeon']) > 0.005 ? ['takeon_drawn' => round(-$sum['takeon'], 2)] : [])
+                    + ($megaFarm ? ['mega_farm' => $this->megaFarmSplit($mf) + ($signError !== null ? ['report_sign_error' => $signError] : [])] : []),
             ] + $arrears, $monthEnd);
         }
 
         return $rows;
+    }
+
+    /**
+     * The balance a loan was taken on with at the migration (MF_03, pack 4): a type 900 debit to the
+     * loan, narrated "Opening Account Balance", dated on or before the take-on date
+     * (TakeonLandingService::TAKEON_DATE, 31 July 2024). The Mega Farm loans of the 2024 season came
+     * into E-Banker this way (413 postings, 8,179.3m, all on 31 July 2024), so the amount was drawn
+     * before the migration; read as a receipt (TYPE_RECEIPT) it left the whole sanction looking
+     * undrawn. Every other type 900 posting keeps its place among the receipts. MAIIC's own book was
+     * taken on by type 301 ("Opening Account Balance Disbursement amount") and holds no such debit.
+     */
+    private function isTakeOnDrawdown(array $post): bool
+    {
+        $p = $post['payload'];
+
+        return (string) ($p['TRANTYPE'] ?? '') === self::TYPE_TAKEON_OPENING
+            && $this->num($p['TRANSAMT'] ?? 0) < 0
+            && $post['row_date'] !== null && $post['row_date'] <= TakeonLandingService::TAKEON_DATE
+            && str_contains(strtoupper((string) ($p['PARTICULARS'] ?? '')), self::TAKEON_OPENING_NARRATION);
+    }
+
+    /**
+     * The due date of the facility and, when it is not the run's, where it came from: the run's
+     * MATURITY_DATE, else the loan master's EXPIRY_DATE. An empty cell is no date.
+     *
+     * @return array{0:?string,1:?string}
+     */
+    private function dueDate(array $run, array $loanMaster): array
+    {
+        $maturity = $this->date((string) ($run['MATURITY_DATE'] ?? ''));
+        if ($maturity !== null || $run === []) {
+            return $run === [] ? [$this->date((string) ($loanMaster['EXPIRY_DATE'] ?? '')), null] : [$maturity, null];
+        }
+        $expiry = $this->date((string) ($loanMaster['EXPIRY_DATE'] ?? ''));
+
+        return [$expiry, $expiry !== null ? "loan master EXPIRY_DATE: the report's MATURITY_DATE is empty" : null];
+    }
+
+    /** A government-portion leg of the Mega Farm interest batch: its type and the GOVT_INT narration, on the account. */
+    private function isGovernmentPortion(array $payload, string $type): bool
+    {
+        return (string) ($payload['TRANTYPE'] ?? '') === $type
+            && str_contains(strtoupper((string) ($payload['PARTICULARS'] ?? '')), self::GOVERNMENT_PORTION_NARRATION);
+    }
+
+    /**
+     * The interest split of a Mega Farm account-month, for decision D30 (Dr Thom: the 33/67 split):
+     * the interest charged to date and in the month on the loan's own interest-receivable GL (types
+     * 303 and 120, MAIIC's 33 percent) and on the government-portion GL (type 400, the fund's 67
+     * percent), their sum, the contra left out of the carrying amount, and the GLs each was booked
+     * to as the legs name them. The 67 percent legs are interest: they are in the row's
+     * interest_to_date, not in its disbursed amount, so the undrawn commitment (approved less
+     * disbursed) is not reduced by interest posted.
+     */
+    private function megaFarmSplit(array $mf): array
+    {
+        // GL codes as array keys come back as integers: read back as the strings the ledger carries
+        $gls = function (array $set): array {
+            $l = array_values(array_filter(array_map('strval', array_keys($set)), fn ($g) => $g !== ''));
+            sort($l);
+
+            return $l;
+        };
+
+        return [
+            'interest_own_gl' => round($mf['own'], 2), 'interest_government_portion' => round($mf['gov'], 2), 'interest_total' => round($mf['own'] + $mf['gov'], 2),
+            'month' => ['interest_own_gl' => round($mf['own_month'], 2), 'interest_government_portion' => round($mf['gov_month'], 2), 'interest_total' => round($mf['own_month'] + $mf['gov_month'], 2)],
+            'government_portion_contra_excluded' => round($mf['contra'], 2),
+            'government_portion_gls' => $gls($mf['gov_gls']), 'contra_gls' => $gls($mf['contra_gls']),
+        ];
     }
 
     private string $rateSource = '';
