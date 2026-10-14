@@ -33,6 +33,8 @@ class EbankerQuerySeeder extends Seeder
             ['P2_11',  'Security details',                      'CUST_SECURITY_DETAILS',   'CUST_SEC_DET_ID,NEW_AC_NUMBER', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false], // one row per security and account it secures
             ['P2_12',  'Guarantors',                            'GUARANTER_MASTER',        'GUARANTER_MST_ID',    'NEW_AC_NUMBER', null,                   false],
             ['P2_13',  'LOS request payloads',                  'LOS_REQUEST_DETAILS',     'LOS_REQ_ID',          'NEW_AC_NUMBER', 'TRANSACTION_DATE',     false],
+            // E-Banker's own overdue computation per account and calculation date (pack 9 RUN 8, 14 October 2026): the independent check on days past due and the instalment trigger; may hold the reschedule date and amount
+            ['OD_01',  'Overdue details (E-Banker overdue run)', 'OVERDUE_DETAILS',       'OVERDUE_DET_ID',      'NEW_AC_NUMBER', 'OVD_CALC_DATE',        true],
             ['P3_11',  'Instalment plans',                      'MULTI_INST_DETAILS',      'INST_DET_ID',         'NEW_AC_NUMBER', 'INSTALLMENT_START_DATE', false],
             ['P3_12',  'Disbursement schedules',                'LOAN_DISBURSMENT_SCHEDULE', null,                'NEW_AC_NUMBER', null,                   false],
             ['P3_13',  'Status history',                        'ACCOUNT_STATUS_HISTORY',  'AC_STATUS_MST_ID',    'NEW_AC_NUMBER', 'STATUS_EFF_DATE',      false],
