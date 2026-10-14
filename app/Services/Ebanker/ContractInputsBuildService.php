@@ -53,6 +53,7 @@ class ContractInputsBuildService
                 $latest[$account] = $run['payload'];
             }
         }
+        $setups = $this->zone->rateSetupByAccount();
         $rows = [];
         foreach ($master as $account => $a) {
             $l = $loans[$account] ?? [];
@@ -66,7 +67,7 @@ class ContractInputsBuildService
             if ($months === 0 && isset($b['TENOR_YRS'])) {
                 $months = (int) round($this->num($b['TENOR_YRS']) * 12);
             }
-            $rate = $this->num($b['INTEREST_RATE'] ?? ($a['INTEREST_RATE'] ?? 0));
+            $rate = $this->rateCharged($b, $setups[$account] ?? [], $a);
             $rows[] = [
                 'contract_id' => $account, 'customer_id' => trim((string) ($a['CUSTOMER_ID'] ?? '')), 'customer_name' => $a['ACCOUNT_NAME'] ?? null,
                 'gl_account_code' => $gl, 'product_type' => $schemes[(string) ($a['SCHEME_MST_ID'] ?? '')] ?? ('Scheme ' . ($a['SCHEME_MST_ID'] ?? '?')),
@@ -215,6 +216,27 @@ class ContractInputsBuildService
         }
 
         return ['rows' => count($codes), 'upserted' => $upserted, 'from_dd10' => $fromDd, 'refused' => $refused];
+    }
+
+    /**
+     * The rate charged, in the loan book's order (LoanBookBuildService::rateOn):
+     * the latest run's rate; else the latest rate set-up (P1_04); else the
+     * account master. The loan book report leaves INTEREST_RATE blank on some
+     * accounts, and a blank is not null, so a bare ?? stopped there and the
+     * contract was stored with no rate and never given a schedule. A zero is
+     * passed over as well: the run and the master show 0 where interest is
+     * stopped (MALAWI POLICE SACCO, status D), while the set-up still holds the
+     * contractual rate, which is the one the EIR needs.
+     */
+    private function rateCharged(array $run, array $setups, array $master): float
+    {
+        $run = $this->num($run['INTEREST_RATE'] ?? 0);
+        if ($run > 0) {
+            return $run;
+        }
+        $setup = $setups !== [] ? $this->num(end($setups)['payload']['INTEREST_RATE'] ?? 0) : 0.0;
+
+        return $setup > 0 ? $setup : $this->num($master['INTEREST_RATE'] ?? 0);
     }
 
     /** @return array{rows:int,result:array} */

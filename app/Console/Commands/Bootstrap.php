@@ -62,6 +62,8 @@ class Bootstrap extends Command
         $inputs = base_path((string) $this->option('inputs'));
         $user = (int) $this->option('user');
         config(['queue.default' => 'sync']);
+        // the pack is parsed whole before it lands (the gates look across its files); a 128M php.ini default runs out on the committed pack
+        ini_set('memory_limit', '-1');
         try {
             $this->stepFresh();
             $this->stepSeed();
