@@ -93,6 +93,16 @@ class EbankerQuerySeeder extends Seeder
             // pack 9 (14 October 2026): the migration worksheet and the GL opening balances of 2024
             ['CV_10', 'Migration worksheet (OPENING_BAL), take-on of 31 Jul 2024', 'OPENING_BAL', 'OP_BAL_DET_ID', 'ACCNO', null, false],
             ['CV_14', 'GL opening balances of 1 Jan 2024 (backup of 24 Aug 2024)', 'GL_OPENING_BALANCE_BK240824', 'GL_OPENING_BAL_DET_ID', null, 'FINYEARSTARTDATE', false],
+            // pack 10 (14 October 2026). OD_00 (the overdue profile) is read, not landed, as in pack 9; OD_02 takes
+            // the remaining quarters. RF_01 is a slice of the live ledger and ZF_04 of the balance history, so
+            // neither joins the LEDGER or BALANCE_HISTORY families: landing them moves no engine figure
+            ['CV_15', 'Account master copy of 5 Aug 2024 (CRM_ACMASTER_05082024), identifying columns', 'CRM_ACMASTER_05082024', 'ACCOUNT_MST_ID', 'NEW_AC_NUMBER', 'ACCOUNT_OPEN_DATE', false],
+            ['RF_01', 'Refinance batch legs: every leg of the batches that paid off a loan from a new one', 'CUMVOUCH', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['TB_06', 'Stored trial balance check: daily net of the posting GLs and GL 6730, from 1 May 2026', 'TRIAL_BALANCE_HISTORY', 'TRANSACTION_DATE', null, 'TRANSACTION_DATE', false],
+            ['ZF_04', 'Zaithwa Farms balance rows from Apr 2025 (re-check of the vendor rebuild)', 'ACCOUNT_BALANCE', 'ACCOUNT_BAL_MST_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['DD_17', 'Data dictionary: login and synonyms', null, null, null, null, false],
+            ['DD_18', 'Data dictionary: read access per table', null, 'TABLE_NAME', null, null, false],
+            ['DD_20', 'Data dictionary: refinance-link columns probe (names, statistics)', 'ALL_TAB_COLUMNS', null, null, null, false], // keyed by row, as CV_07
             // packs 3 and 4 (9 and 11 October 2026)
             ['SM_01',  'Scheme master',                         'SCHEME_MASTER',           'SCHEME_MST_ID',       null,            null,                   false],
             ['CT_01',  'Row counts of the reschedule, write-off and charges tables', null,  'TABLE_NAME',          null,            null,                   false],
