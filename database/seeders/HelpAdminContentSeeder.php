@@ -25,7 +25,7 @@ class HelpAdminContentSeeder extends Seeder
         if (HelpCategory::manual(self::MANUAL)->exists()) {
             // the shipped text is versioned: with HELP_SEED_REFRESH=1 the seeded articles' body and steps are
             // brought up to date by chapter and title (an article a person authored in the system is left alone)
-            if (! filter_var(env('HELP_SEED_REFRESH', false), FILTER_VALIDATE_BOOL)) {
+            if (! filter_var(config('maiic.help_seed_refresh'), FILTER_VALIDATE_BOOL)) {
                 $this->command?->info('Administrator Manual already has content; seeder skipped (HELP_SEED_REFRESH=1 refreshes the shipped text).');
 
                 return;

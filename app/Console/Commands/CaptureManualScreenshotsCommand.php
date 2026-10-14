@@ -199,8 +199,8 @@ class CaptureManualScreenshotsCommand extends Command
         }
 
         $baseUrl  = rtrim($this->option('base-url') ?: (config('app.url') ?: 'http://127.0.0.1:8000'), '/');
-        $email    = $this->option('email') ?: env('MANUAL_SHOT_EMAIL', 'admin@localhost.com');
-        $password = $this->option('password') ?: env('MANUAL_SHOT_PASSWORD');
+        $email    = $this->option('email') ?: config('maiic.manual_shot.email');
+        $password = $this->option('password') ?: config('maiic.manual_shot.password');
         if (! $password) {
             $this->error('No password. Pass --password or set MANUAL_SHOT_PASSWORD.');
 
@@ -275,7 +275,7 @@ class CaptureManualScreenshotsCommand extends Command
     private function detectBrowser(): ?string
     {
         foreach (array_filter([
-            env('MAIIC_BROWSER_PATH'),
+            config('maiic.browser_path'),
             'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
             'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
             'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',

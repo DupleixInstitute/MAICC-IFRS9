@@ -132,7 +132,8 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Features::registration(): no public sign-up; accounts are created by an administrator under
+        // Administration & support > Access & setup > Users & Roles (14 October 2026)
         Features::resetPasswords(),
         // Features::emailVerification(),
         Features::updateProfileInformation(),

@@ -19,7 +19,7 @@ final class StatisticsSidecar
 {
     public function endpoint(): ?string
     {
-        $url = config('fli.sidecar.url') ?? env('FLI_SIDECAR_URL');
+        $url = config('fli.sidecar.url');
         $url = is_string($url) ? trim($url) : '';
 
         return $url === '' ? null : $url;

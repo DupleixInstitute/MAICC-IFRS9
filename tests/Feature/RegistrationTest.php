@@ -11,14 +11,14 @@ class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_screen_can_be_rendered()
+    public function test_there_is_no_public_registration()
     {
-        $response = $this->get('/register');
-
-        $response->assertStatus(200);
+        // accounts are created by an administrator (Users & Roles); /register is not served
+        $this->get('/register')->assertNotFound();
+        $this->assertFalse(\Laravel\Fortify\Features::enabled(\Laravel\Fortify\Features::registration()));
     }
 
-    public function test_new_users_can_register()
+    public function test_new_users_cannot_register_themselves()
     {
         $response = $this->post('/register', [
             'first_name' => 'Test',
@@ -30,7 +30,7 @@ class RegistrationTest extends TestCase
             'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature(),
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(RouteServiceProvider::HOME);
+        $this->assertGuest();
+        $response->assertNotFound();
     }
 }

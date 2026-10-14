@@ -32,6 +32,12 @@ class MaintenanceTask extends Command
 
             return self::FAILURE;
         }
+        if ($task === 'month-end' && $user === '') {
+            // the revenue run and the approvals record a person; refuse at the start, not at step 9
+            $this->error('The month-end needs --user=<id>, the person running it.');
+
+            return self::FAILURE;
+        }
         $u = $user !== '' ? ['--user' => $user] : [];
         $steps = self::steps($task, $period, $u);
         if ($steps === null) {
