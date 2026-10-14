@@ -108,6 +108,11 @@ class LoanBookBuildService
         $loads = $this->zone->loadsOf(array_merge(LandingZoneReader::LEDGER, LandingZoneReader::LOAN_BOOK_RUNS, LandingZoneReader::ACCOUNT_MASTER, LandingZoneReader::LOAN_MASTER));
         $result = [];
         $built = [];
+        // the ledger to the last month is read once and sliced per month (method B), instead of
+        // re-reading some 300,000 postings for every month of the range
+        $this->ledgerTo = $lastEnd;
+        $this->ledgerCache = null;
+        $this->masterCache = [];
         foreach ($periods as $period) {
             $m = $method ?? $this->methodInForce($this->monthEnd($period));
             $rows = $this->rowsFor($period, $m);
@@ -385,15 +390,54 @@ class LoanBookBuildService
 
     // ----- method B -------------------------------------------------------
 
+    /** The last month-end of the build in progress, and the ledger read once to it. */
+    private ?string $ledgerTo = null;
+
+    private ?array $ledgerCache = null;
+
+    /** The masters, read once per build: they do not depend on the month. */
+    private array $masterCache = [];
+
+    /**
+     * The ledger dated on or before the month-end, with the Mega Farm postings. Within a build it is
+     * a slice of the ledger read once to the build's last month-end: each account's postings are in
+     * date order, so the slice is the same rows a read to this month-end returns.
+     */
+    private function ledgerOn(string $monthEnd): array
+    {
+        if ($this->ledgerTo === null || $monthEnd > $this->ledgerTo) {
+            return $this->zone->ledgerByAccount($monthEnd, null, true);
+        }
+        $this->ledgerCache ??= $this->zone->ledgerByAccount($this->ledgerTo, null, true);
+        if ($monthEnd === $this->ledgerTo) {
+            return $this->ledgerCache;
+        }
+        $out = [];
+        foreach ($this->ledgerCache as $account => $rows) {
+            $kept = [];
+            foreach ($rows as $row) {
+                if ($row['row_date'] === null || $row['row_date'] > $monthEnd) {
+                    break;
+                }
+                $kept[] = $row;
+            }
+            if ($kept !== []) {
+                $out[$account] = $kept;
+            }
+        }
+
+        return $out;
+    }
+
     private function rowsB(string $monthEnd): array
     {
         // the Mega Farm accounts are in the Loan Book Report too, so their own ledger is read for them
-        $ledger = $this->zone->ledgerByAccount($monthEnd, null, true);
+        $ledger = $this->ledgerOn($monthEnd);
         $runs = $this->zone->latestRunsOn($monthEnd);
-        $master = $this->zone->accountMaster();
-        $loans = $this->zone->loanMaster();
-        $rates = $this->zone->rateSetupByAccount();
-        $statuses = $this->zone->statusHistoryByAccount();
+        $master = $this->masterCache['account'] ??= $this->zone->accountMaster();
+        $loans = $this->masterCache['loan'] ??= $this->zone->loanMaster();
+        $rates = $this->masterCache['rates'] ??= $this->zone->rateSetupByAccount();
+        $statuses = $this->masterCache['status'] ??= $this->zone->statusHistoryByAccount();
         // a write-off posted as a repayment (spec 3.8) is a write-off here too
         $writeOffs = new WriteOffClassifier($this->zone);
         $accounts = array_unique(array_merge(array_keys($ledger), array_keys($runs)));
