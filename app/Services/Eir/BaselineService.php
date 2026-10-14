@@ -35,10 +35,15 @@ class BaselineService
         }
         $checks[] = ['Interest posted Jan 2025 to Jul 2026 (ledger, types 303 and 120)', '5,293,988,207.06', number_format($total, 2), abs($total - 5293988207.06) < 0.01];
 
-        // method B ties to the stored report on every account-month but the one-cent row
-        $flagged = DB::table('loan_books')->where('build_method', 'B')->whereNotNull('stored_carrying_amount')->whereRaw('abs(carrying_amount - stored_carrying_amount) > 0.02')->count();
-        $tied = DB::table('loan_books')->where('build_method', 'B')->whereNotNull('stored_carrying_amount')->count();
-        $checks[] = ['Derived carrying amount against the stored report (over 2 cents)', '0 differences', "{$flagged} of {$tied} account-months", $flagged === 0];
+        // method B ties to the stored report on every account-month of the in-scope loan GLs but the one-cent row
+        $inScope = fn () => DB::table('loan_books')->where('build_method', 'B')->whereNotNull('stored_carrying_amount')->whereIn('product_code', array_keys(\App\Services\Ebanker\LandingZoneReader::LOAN_GLS));
+        $flagged = $inScope()->whereRaw('abs(carrying_amount - stored_carrying_amount) > 0.02')->count();
+        $tied = $inScope()->count();
+        $checks[] = ['Derived carrying amount against the stored report, in-scope loan GLs (over 2 cents)', '0 differences', "{$flagged} of {$tied} account-months", $flagged === 0];
+
+        // the Mega Farm accounts carry the report's amount; how far their MF_03 ledger is from it is reported, not asserted
+        $mf = DB::table('loan_books')->where('build_method', 'B')->whereIn('product_code', \App\Services\MegaFarm\MegaFarmEclService::GLS)->where('build_flag', 'like', 'Mega Farm:%');
+        $checks[] = ['Mega Farm: account-months whose MF_03 ledger differs from the Loan Book Report (reported, not a test)', 'reported', $mf->count() . ' account-months', true];
 
         // the Diff-Int year-end batch nets to the two income GLs (section 3.4)
         $net = ['4215' => 0.0, '4216' => 0.0];

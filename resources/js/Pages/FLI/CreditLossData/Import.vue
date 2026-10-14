@@ -2,22 +2,18 @@
     <app-layout>
         <template #header>
             <div>
-                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                    <span>IFRS 9 Model Setup</span><span>/</span><span>Forward-Looking Model</span><span>/</span>
-                    <Link :href="route('credit-loss-data.index')" class="hover:text-maiic-700">Credit Loss Data</Link><span>/</span><span class="font-medium text-maiic-700">Import</span>
-                </div>
                 <h2 class="text-xl font-semibold text-gray-800">Import credit loss data</h2>
                 <p class="mt-1 text-sm text-gray-600">Load the historical loss measures of one portfolio from a CSV file, one row per period</p>
             </div>
         </template>
         <template #actions>
-            <a :href="route('import-samples.show', 'credit-loss-data')" class="secondary-btn" title="A CSV with the exact column headers this import reads">Download sample CSV</a>
             <Link :href="route('credit-loss-data.index')" class="secondary-btn">Back to credit loss data</Link>
         </template>
 
-        <div class="maiic-panel">
-            <form class="grid gap-6 p-5 lg:grid-cols-3" @submit.prevent="submit">
-                <div class="space-y-5 lg:col-span-2">
+        <div class="maiic-panel space-y-5 p-5">
+            <ImportSpecPanel spec-key="credit-loss-data" :file="form.file"/>
+            <form class="grid gap-6" @submit.prevent="submit">
+                <div class="space-y-5">
                     <div>
                         <label for="portfolio_id" class="maiic-flabel">Portfolio</label>
                         <select id="portfolio_id" v-model="form.portfolio_id" required class="maiic-select" :disabled="form.processing">
@@ -62,14 +58,6 @@
                         </button>
                     </div>
                 </div>
-
-                <ImportHowTo title="How to import credit loss data" :sample-url="route('import-samples.show', 'credit-loss-data')">
-                    <li>Download the sample CSV (top right). It has a period column, one column per measure ({{ measureList }}), and the optional source and notes.</li>
-                    <li>Fill one row per period, the date in the period column. Columns are read by their names, so keep the sample's headings; other columns are ignored.</li>
-                    <li>PD and LGD are fractions between 0 and 1, and the stage is 1, 2 or 3. A value that breaks this is set aside, the rest of the row still loads.</li>
-                    <li>Choose the portfolio and the file, then press Start import. A value already held for the same portfolio, measure and period is replaced.</li>
-                    <li>Each upload is logged under its file name on the <Link :href="route('imports.index')" class="font-semibold text-maiic-700 underline">Imports</Link> screen.</li>
-                </ImportHowTo>
             </form>
         </div>
     </app-layout>
@@ -78,11 +66,11 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import FileDrop from '@/Components/Data/FileDrop.vue'
-import ImportHowTo from '@/Components/Data/ImportHowTo.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { Link } from '@inertiajs/vue3'
 
 export default {
-    components: { AppLayout, FileDrop, ImportHowTo, Link },
+    components: { AppLayout, FileDrop, ImportSpecPanel, Link },
 
     props: {
         portfolios: { type: [Array, Object], default: () => [] },

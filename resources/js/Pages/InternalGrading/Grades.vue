@@ -1,5 +1,5 @@
 <template>
-  <app-layout>
+  <app-layout :title="profile.name + ' - Internal Grades'" :extra-crumbs="[{ label: profile.name }]">
     <!-- HEADER -->
     <template #header>
       <div class="flex justify-between items-center">

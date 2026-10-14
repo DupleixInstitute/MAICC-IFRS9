@@ -1,5 +1,5 @@
 <template><app-layout>
-  <template #header><div><div class="mb-1 flex items-center gap-2 text-xs text-gray-500"><span>EIR &amp; Revenue Recognition</span><span>/</span><span class="font-medium text-maiic-700">Accounting Rules</span></div><h2 class="font-semibold text-xl text-gray-800">EIR Accounting Rules</h2><p class="mt-1 text-sm text-gray-600">Approved rules that suggest whether an imported fee or cost forms part of the EIR</p></div></template>
+  <template #header><div><h2 class="font-semibold text-xl text-gray-800">EIR Accounting Rules</h2><p class="mt-1 text-sm text-gray-600">Approved rules that suggest whether an imported fee or cost forms part of the EIR</p></div></template>
   <template #actions><button @click="openCreate" class="primary-btn">Create rule</button></template>
   <div class="w-full space-y-6">
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

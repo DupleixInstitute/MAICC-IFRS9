@@ -20,6 +20,13 @@ use Carbon\CarbonImmutable;
  */
 class ContractInputsBuildService
 {
+    private ?WriteOffClassifier $writeOffClassifier = null;
+
+    private function writeOffs(): WriteOffClassifier
+    {
+        return $this->writeOffClassifier ??= new WriteOffClassifier($this->zone);
+    }
+
     public function __construct(
         private LandingZoneReader $zone,
         private ContractMasterImportService $contracts,
@@ -221,12 +228,12 @@ class ContractInputsBuildService
                 if ($p['row_date'] === null || $amt === 0.0) {
                     continue;
                 }
-                if (in_array($type, LoanBookBuildService::TYPE_DISBURSEMENT, true)) {
+                if ($this->writeOffs()->isWriteOff($x, $p['row_date'], $account)) {
+                    $kind = 'Write-off'; $total = $amt;               // derecognition, not cash (audit H1; spec 3.8: type 300, a 1064 batch, an H closure)
+                } elseif (in_array($type, LoanBookBuildService::TYPE_DISBURSEMENT, true)) {
                     $kind = 'Disbursement'; $total = -$amt;           // a debit to the loan: cash advanced
                 } elseif (in_array($type, LoanBookBuildService::TYPE_RECEIPT, true)) {
                     $kind = 'Principal+Interest'; $total = $amt;      // a credit: cash collected; a reversal arrives negative
-                } elseif (in_array($type, LoanBookBuildService::TYPE_WRITEOFF, true)) {
-                    $kind = 'Write-off'; $total = $amt;               // derecognition against the allowance, not cash (audit H1)
                 } elseif (in_array($type, LoanBookBuildService::TYPE_SETTLEMENT_IN_KIND, true)) {
                     $kind = 'Settlement in kind'; $total = $amt;      // the Nascomex share redemption: settles the loan, not cash (audit H1)
                 } else {

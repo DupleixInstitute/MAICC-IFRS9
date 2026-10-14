@@ -1,7 +1,6 @@
 <template>
     <app-layout title="Import Clients" description="Upload a file of clients (customer ID and name, or any columns you match). It is processed in the background">
         <template #actions>
-            <button type="button" class="secondary-btn" title="A CSV with the exact column headers the standard client import reads" @click="downloadSample">Download sample CSV</button>
             <Link :href="route('clients.index')" class="secondary-btn">Back to clients</Link>
         </template>
 
@@ -10,8 +9,11 @@
             <div class="maiic-panel rounded-t-none">
 
                 <!-- Upload -->
-                <form v-if="tab === 'upload'" @submit.prevent="submit" class="grid gap-6 p-5 lg:grid-cols-3">
-                    <div class="space-y-5 lg:col-span-2">
+                <div v-if="tab === 'upload'" class="space-y-5 p-5">
+                <ImportSpecPanel spec-key="clients" :file="selectedFile"
+                                 :check-data="importType === 'custom' ? { mapping } : {}"/>
+                <form @submit.prevent="submit" class="grid gap-6">
+                    <div class="space-y-5">
                         <div>
                             <span class="maiic-flabel">File layout</span>
                             <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -69,17 +71,8 @@
                             <button type="submit" class="primary-btn" :disabled="form.processing || !selectedFile">{{ form.processing ? 'Uploading...' : 'Start import' }}</button>
                         </div>
                     </div>
-
-                    <aside class="rounded-lg border border-maiic-100 bg-maiic-50/60 p-4 text-sm text-gray-700">
-                        <div class="mb-2 font-semibold text-maiic-800">How to import clients</div>
-                        <ol class="list-decimal space-y-1.5 pl-5">
-                            <li>For the standard layout, download the sample CSV (top right): two columns, customer_id and name.</li>
-                            <li>To use another file as it is, pick Match columns and choose the client field for each column. customer_id must be matched.</li>
-                            <li>A client whose customer_id already exists is updated, not duplicated.</li>
-                            <li>Rows without a customer_id are set aside in a failed rows file, which you can download from the History tab.</li>
-                        </ol>
-                    </aside>
                 </form>
+                </div>
 
                 <!-- History -->
                 <ImportHistoryTable v-else :imports="recentImports"/>
@@ -92,10 +85,11 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import InPageTabs from '@/Components/Data/InPageTabs.vue'
 import ImportHistoryTable from '@/Components/Data/ImportHistoryTable.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { Link } from '@inertiajs/vue3'
 
 export default {
-    components: { AppLayout, InPageTabs, ImportHistoryTable, Link },
+    components: { AppLayout, InPageTabs, ImportHistoryTable, ImportSpecPanel, Link },
 
     props: {
         availableFields: { type: Array, default: () => [] },
@@ -210,18 +204,6 @@ export default {
                     mapping[header] = commonMappings[clean]
                 }
             })
-        },
-
-        // The standard (legacy) layout of ClientsImport reads exactly these
-        // two headings: customer_id and name.
-        downloadSample() {
-            const blob = new Blob(['customer_id,name\n'], { type: 'text/csv' })
-            const url = window.URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = 'clients_sample.csv'
-            a.click()
-            window.URL.revokeObjectURL(url)
         },
     },
 }

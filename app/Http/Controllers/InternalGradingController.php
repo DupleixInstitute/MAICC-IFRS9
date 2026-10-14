@@ -219,6 +219,30 @@ class InternalGradingController extends Controller
         return back()->with('success', "Grade {$grade->grade_code} deleted");
     }
 
+    /** Read an ECL model workbook's S&P grading and show it before anything is saved. */
+    public function previewSp(Request $request, \App\Services\Ifrs9\SpGradesImportService $service)
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:xlsx,xlsm', 'max:51200']]);
+        try {
+            return response()->json($service->read($request->file('file')->getRealPath()));
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /** Create a draft grading profile from the workbook's S&P grading. */
+    public function importSp(Request $request, \App\Services\Ifrs9\SpGradesImportService $service)
+    {
+        $data = $request->validate(['file' => ['required', 'file', 'mimes:xlsx,xlsm', 'max:51200'], 'name' => ['required', 'string', 'max:190']]);
+        try {
+            $profile = $service->import($request->file('file')->getRealPath(), $request->file('file')->getClientOriginalName(), $data['name'], $request->user()->id);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Draft profile \"{$profile->name}\" created with {$profile->mappings()->count()} grades. It changes no PD until it is activated.");
+    }
+
         public function toggle(InternalGradeProfile $profile)
         {
             DB::transaction(function () use ($profile) {
@@ -248,16 +272,30 @@ class InternalGradingController extends Controller
 
             $maxTenor = $profile->max_tenor_years ?? 5;
 
-            $grades = $profile->mappings->map(function ($mapping) use ($maxTenor) {
+            $grades = $profile->mappings->sortBy(fn ($m) => [is_numeric($m->grade_code) ? (int) $m->grade_code : PHP_INT_MAX, $m->grade_code])->values()->map(function ($mapping) use ($maxTenor) {
 
                 $pdMap = $mapping->tenorPds
                     ->keyBy('tenor_years')
                     ->map(fn ($pd) => $pd->pd_probability);
 
+                // the ECL model's combined label is "code-description-S&P rating-broad grade"; show the description on its own
+                $label = (string) $mapping->grade_name;
+                $description = $label;
+                $prefix = $mapping->grade_code . '-';
+                $suffix = '-' . $mapping->sp_rating . '-' . $mapping->rbm_class;
+                if ($mapping->sp_rating && $mapping->rbm_class && str_starts_with($label, $prefix) && str_ends_with($label, $suffix)) {
+                    $description = trim(substr($label, strlen($prefix), strlen($label) - strlen($prefix) - strlen($suffix)));
+                }
+
                 return [
                     'id' => $mapping->id,
                     'grade_code' => $mapping->grade_code,
                     'grade_name' => $mapping->grade_name,
+                    'description' => $description,
+                    'sp_rating' => $mapping->sp_rating,
+                    'broad_grade' => $mapping->rbm_class,
+                    'lower_bound' => $mapping->lower_bound,
+                    'upper_bound' => $mapping->upper_bound,
                     'pds' => collect(range(1, $maxTenor))->mapWithKeys(
                         fn ($year) => [$year => $pdMap[$year] ?? null]
                     ),

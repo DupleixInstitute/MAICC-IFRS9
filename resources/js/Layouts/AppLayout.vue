@@ -39,12 +39,14 @@
             </Dialog>
         </TransitionRoot>
 
-        <!-- Static sidebar for desktop -->
-        <div class="hidden md:fixed md:inset-y-0 md:z-20 md:flex md:w-72 md:flex-col"
+        <!-- Static sidebar for desktop: full width, or the 72px icon rail when
+             collapsed (remembered per browser); the page widens with it. -->
+        <div class="hidden md:fixed md:inset-y-0 md:z-20 md:flex md:flex-col md:transition-[width] md:duration-200"
+             :class="sidebarCollapsed ? 'md:w-[72px]' : 'md:w-72'"
              style="background: linear-gradient(172deg, #0b2b1a 0%, #082013 48%, #051509 100%); border-right: 1px solid rgba(212,160,23,0.14);">
-            <SidebarNav/>
+            <SidebarNav :collapsed="sidebarCollapsed" collapsible @toggle="setSidebarCollapsed(!sidebarCollapsed)" @expand="setSidebarCollapsed(false)"/>
         </div>
-        <div class="flex flex-1 flex-col md:pl-72">
+        <div class="flex min-w-0 flex-1 flex-col md:transition-[padding] md:duration-200" :class="sidebarCollapsed ? 'md:pl-[72px]' : 'md:pl-72'">
             <div class="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white shadow">
                 <button type="button"
                         class="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-maiic-500 md:hidden"
@@ -119,9 +121,11 @@
                 </div>
             </div>
 
-            <main>
+            <main ref="main">
                 <div class="pt-6 pb-20"><!-- the bottom clears the floating help button -->
                     <div class="mx-auto px-4 sm:px-6 md:px-4">
+                        <!-- Breadcrumbs: the page's place in the menu, above every page header -->
+                        <Breadcrumbs :title="title" :extra="extraCrumbs"/>
                         <!-- Page Heading -->
                         <header class="" v-if="$slots.header || $slots.actions || description">
                             <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -131,10 +135,16 @@
                                         <p v-if="description" class="mt-0.5 text-sm text-gray-500">{{ description }}</p>
                                     </slot>
                                 </div>
-                                <!-- Page buttons sit top right -->
-                                <div v-if="$slots.actions" class="flex flex-none flex-wrap items-center gap-2"><slot name="actions"/></div>
                             </div>
                         </header>
+                        <!-- Page buttons (#actions) sit in their own row at the far
+                             right, directly above the page's table: below the tab
+                             names, the KPI cards and the filter bars. The row is one
+                             element (actionsRow) that placeActions() moves to just
+                             before the first visible table container, or a page's own
+                             [data-actions-anchor]; with no table it sits here, below
+                             the tab row. Teleport keeps the buttons' handlers. -->
+                        <Teleport v-if="$slots.actions" :to="actionsRow"><slot name="actions"/></Teleport>
                         <!-- Section tabs: screens that do one job together share one
                              menu entry; each tab is that screen's own route. Same look
                              as the in-page tabs (Eir/Data.vue): green active tab and a
@@ -152,9 +162,11 @@
                                 </Link>
                             </nav>
                         </div>
+                        <!-- home of the actions row when the page has no table -->
+                        <div ref="actionsHome"></div>
                         <FlashMessages/>
 
-                        <slot/>
+                        <div ref="pageBody"><slot/></div>
                     </div>
                 </div>
             </main>
@@ -238,14 +250,63 @@ import SidebarNav from "@/Jetstream/SidebarNav.vue"
 import { currentSection, activeTab } from "@/Jetstream/menuMatch"
 import NotificationBell from "@/Jetstream/NotificationBell.vue"
 import FlashMessages from '@/Jetstream/FlashMessages.vue'
+import Breadcrumbs from '@/Components/Maiic/Breadcrumbs.vue'
 import ApplicationMark from '@/Jetstream/ApplicationMark.vue'
 import { router } from '@inertiajs/vue3'
+import { markRaw } from 'vue'
+
+// The desktop sidebar is full width or a 72px icon rail; the choice is kept
+// per browser (spec v4 section 11, decision D24).
+const SIDEBAR_KEY = 'maiic.sidebar.collapsed'
+function readSidebarCollapsed() {
+    try {
+        return localStorage.getItem(SIDEBAR_KEY) === '1'
+    } catch (e) {
+        return false
+    }
+}
+
+// The page's action buttons sit in their own row at the far right, directly
+// above the page's first visible table (UI request of 13 October 2026).
+function makeActionsRow() {
+    if (typeof document === 'undefined') return null;
+    const el = document.createElement('div');
+    el.className = 'mb-3 flex flex-wrap items-center justify-end gap-2';
+    el.setAttribute('data-actions-row', '');
+    return el;
+}
+function visible(el) {
+    return !!el && el.getClientRects().length > 0;
+}
+// Where the actions row goes: before the page's own [data-actions-anchor],
+// else before the container of the first visible table (its panel, else its
+// .maiic-table-wrap, else the table). A container that is a cell of a grid or
+// a row of flex items is lifted to the grid or row, so the actions row never
+// becomes a cell beside it. Null when the page shows no table.
+function actionsTarget(body, row) {
+    const usable = el => visible(el) && !row.contains(el) && !el.closest('[role="dialog"], [aria-modal="true"], .fixed');
+    const mark = [...body.querySelectorAll('[data-actions-anchor]')].find(usable);
+    if (mark) return mark;
+    const wrap = [...body.querySelectorAll('.maiic-table-wrap')].find(el => usable(el) && el.querySelector('table'));
+    const table = wrap ? wrap.querySelector('table') : [...body.querySelectorAll('table')].find(usable);
+    if (!table) return null;
+    let node = table.closest('.maiic-panel') || wrap || table.closest('.overflow-x-auto') || table;
+    if (!body.contains(node) || node === body) node = table;
+    while (node.parentElement && node.parentElement !== body) {
+        const cs = getComputedStyle(node.parentElement);
+        const side = cs.display.includes('grid') || (cs.display.includes('flex') && !cs.flexDirection.startsWith('column'));
+        if (!side) break;
+        node = node.parentElement;
+    }
+    return node;
+}
 
 export default {
     components: {
         SidebarNav,
         NotificationBell,
         FlashMessages,
+        Breadcrumbs,
         ApplicationMark,
         MagnifyingGlassIcon,
         Dialog,
@@ -265,7 +326,10 @@ export default {
     props: {
         title: String,
         description: String,
-        menu: [Object, Array]
+        menu: [Object, Array],
+        // a detail page's own crumbs after its menu trail, e.g.
+        // [{ label: 'S&P Emerging Markets', href: null }]; the last is the page
+        extraCrumbs: { type: Array, default: () => [] },
     },
     computed: {
         section() {
@@ -278,6 +342,12 @@ export default {
     data() {
         return {
             sidebarOpen: false,
+            sidebarCollapsed: readSidebarCollapsed(),
+            // the row the page's #actions are teleported into; a plain element
+            // that placeActions() moves, never rendered by Vue itself
+            actionsRow: markRaw(makeActionsRow()),
+            actionsObserver: null,
+            actionsFrame: null,
             showingNavigationDropdown: false,
             nurseConsultationChannel: null,
             doctorConsultationChannel: null,
@@ -295,8 +365,18 @@ export default {
     mounted() {
         this.initializeChannels();
         this.initNavigationFeedback();
+        this.initActionsRow();
+    },
+    // a page's #actions can appear or change after the first paint
+    updated() {
+        this.schedulePlaceActions();
+    },
+    unmounted() {
+        if (this.actionsRow) this.actionsRow.remove();
     },
     beforeUnmount() {
+        if (this.actionsObserver) this.actionsObserver.disconnect();
+        if (this.actionsFrame) cancelAnimationFrame(this.actionsFrame);
         if (this.busyShowAfter) clearTimeout(this.busyShowAfter);
         if (this.busyClearAfter) clearTimeout(this.busyClearAfter);
         if (this.offRouterStart) this.offRouterStart();
@@ -316,6 +396,49 @@ export default {
         },
         isActiveTab(tab) {
             return !!this.activeTab && this.activeTab === tab
+        },
+        // ---- the page's action buttons, in a row above its table ----------
+        initActionsRow() {
+            this.placeActions();
+            // client-side tabs, filters and v-if panels change which table is
+            // first: place the row again after any change under <main>
+            if (typeof MutationObserver === 'undefined' || !this.$refs.main) return;
+            this.actionsObserver = new MutationObserver((records) => {
+                const row = this.actionsRow;
+                if (records.every(r => row.contains(r.target))) return;
+                this.schedulePlaceActions();
+            });
+            this.actionsObserver.observe(this.$refs.main, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+        },
+        schedulePlaceActions() {
+            if (this.actionsFrame || typeof requestAnimationFrame === 'undefined') return;
+            this.actionsFrame = requestAnimationFrame(() => {
+                this.actionsFrame = null;
+                this.placeActions();
+            });
+        },
+        placeActions() {
+            const row = this.actionsRow;
+            const body = this.$refs.pageBody;
+            const home = this.$refs.actionsHome;
+            if (!row || !body || !home) return;
+            // a page whose #actions render nothing (or not yet) leaves no gap
+            row.hidden = row.children.length === 0;
+            const target = actionsTarget(body, row);
+            if (target) {
+                if (row.parentNode !== target.parentNode || row.nextSibling !== target) target.parentNode.insertBefore(row, target);
+            } else if (row.parentNode !== home) {
+                home.appendChild(row);
+            }
+        },
+        // the desktop sidebar's icon rail, remembered in this browser
+        setSidebarCollapsed(value) {
+            this.sidebarCollapsed = !!value
+            try {
+                localStorage.setItem(SIDEBAR_KEY, this.sidebarCollapsed ? '1' : '0')
+            } catch (e) {
+                /* storage unavailable: the choice holds for this page only */
+            }
         },
 
         logout() {

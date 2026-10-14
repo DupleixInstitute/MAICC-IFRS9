@@ -2,125 +2,54 @@
     <app-layout>
         <template #header>
             <div>
-                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                    <span>IFRS 9 Model Setup</span><span>/</span><span>PD Model</span><span>/</span><span class="font-medium text-maiic-700">Internal Grades</span>
-                </div>
                 <h2 class="text-xl font-semibold text-gray-800">Internal Grades</h2>
                 <p class="mt-1 text-sm text-gray-600">Internal grading profiles: the grades and the PD term structure for each</p>
             </div>
         </template>
         <template #actions>
+            <button type="button" class="secondary-btn" @click="openSp"><font-awesome-icon icon="upload" /> Import S&amp;P table</button>
             <button type="button" class="primary-btn" @click="openCreateProfile">New profile</button>
         </template>
 
         <div class="w-full">
-            <div v-if="profiles && profiles.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div
-                    v-for="profile in profiles"
-                    :key="profile.id"
-                    @click="goToGrades(profile.id)"
-                    class="bg-white rounded-xl shadow hover:shadow-lg transition cursor-pointer border border-gray-200"
-                >
-                    <div class="p-6">
-                        <!-- Header -->
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                                {{ profile.name }}
-
-                                <span
-                                    class="px-2 py-0.5 rounded-full text-xs font-medium"
-                                    :class="profile.is_active ? activeClass : draftClass"
-                                >
-                                    {{ profile.is_active ? 'Active' : 'Draft' }}
-                                </span>
-                            </h3>
-
-                            </div>
-
-                            <!-- Actions -->
-                            <div class="flex items-center space-x-2">
-                                <button v-if="!profile.is_active" @click.stop="openEditProfile(profile)" class="text-gray-500 hover:text-maiic-600 transition" title="Edit profile">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button v-if="!profile.is_active" @click.stop="deleteProfile(profile)" class="text-gray-500 hover:text-red-600 transition" title="Delete profile">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                <!-- View Matrix -->
-                                <button
-                                @click.stop="openMatrix(profile)"
-                                class="text-maiic-500 hover:text-maiic-600 transition"
-                                title="View PD Matrix"
-                                >
-                                <i class="fas fa-eye"></i>
-                                </button>
-
-                                <!-- Lock / Unlock -->
-                                <button
-                                    @click.stop="toggleStatus(profile)"
-                                    class="transition"
-                                    :title="profile.is_active ? 'Deactivate profile' : 'Activate profile'"
-                                >
-                                    <span v-if="profile.is_active" class="text-maiic-600">
-                                        <i class="fas fa-unlock"></i>
-                                    </span>
-                                    <span v-else class="text-red-600">
-                                        <li class="fas fa-lock"></li>
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-
-
-                        <!-- Stats -->
-                        <div class="flex items-center justify-between text-sm mb-4">
-                            <div class="text-gray-600">Grades</div>
-                            <div class="font-semibold text-gray-800">{{ profile.mappings_count || 0 }}</div>
-                        </div>
-
-                        <!-- Grade Preview -->
-                        <div v-if="profile.mappings && profile.mappings.length" class="flex flex-wrap gap-2 mb-4">
-                            <span
-                                v-for="grade in profile.mappings.slice(0, 5)"
-                                :key="grade.id"
-                                class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded"
-                            >
-                                {{ grade.grade_code }}
-                            </span>
-                            <span
-                                v-if="profile.mappings.length > 5"
-                                class="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded"
-                            >
-                                +{{ profile.mappings.length - 5 }}
-                            </span>
-
-                        </div>
-
-                        <!-- Footer -->
-                        <div class="pt-4 border-t flex justify-between items-center text-sm">
-                            <span class="font-medium flex items-center gap-2">
-                                <template v-if="profile.is_active">
-                                    <!-- <span class="text-gray-400">Locked (Active)</span> -->
-                                    <button
-                                            @click.stop="openLoanBookModal(profile)"
-                                            class="bg-maiic-500 hover:bg-maiic-600 text-white text-xs px-2 py-1 rounded ml-2"
-                                            title="Update loan book for this profile"
-                                        >
-                                            Update Loan Book
-                                        </button>
-                                </template>
-                                <template v-else>
-                                    <span class="text-maiic-600 cursor-pointer" @click="goToGrades(profile.id)">
-                                        Manage Grades →
-                                    </span>
-                                </template>
-                            </span>
-
-                            <span class="text-gray-400">ID {{ profile.id }}</span>
-                        </div>
-
-                    </div>
-                </div>
+            <div v-if="profiles && profiles.length" class="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <table class="maiic-table">
+                    <thead>
+                        <tr>
+                            <th>Profile</th>
+                            <th class="num">Grades</th>
+                            <th class="num">Max tenor</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="profile in profiles" :key="profile.id" class="cursor-pointer" @click="openMatrix(profile)">
+                            <td class="max-w-xl">
+                                <p class="font-semibold text-gray-900 dark:text-slate-100">{{ profile.name }}</p>
+                                <p v-if="profile.description" class="mt-0.5 line-clamp-2 text-xs text-gray-500 dark:text-slate-400" :title="profile.description">{{ profile.description }}</p>
+                            </td>
+                            <td class="num">{{ profile.mappings_count || 0 }}</td>
+                            <td class="num whitespace-nowrap">{{ profile.max_tenor_years }} years</td>
+                            <td class="whitespace-nowrap">
+                                <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="profile.is_active ? activeClass : draftClass">{{ profile.is_active ? 'Active' : 'Draft' }}</span>
+                            </td>
+                            <td class="whitespace-nowrap text-right" @click.stop>
+                                <div class="inline-flex items-center gap-3">
+                                    <button type="button" class="text-maiic-600 hover:text-maiic-700 dark:text-emerald-400" title="View the PD matrix" @click="openMatrix(profile)"><i class="fas fa-table"></i></button>
+                                    <button v-if="!profile.is_active" type="button" class="text-gray-500 hover:text-maiic-600 dark:text-slate-400" title="Manage grades" @click="goToGrades(profile.id)"><i class="fas fa-list"></i></button>
+                                    <button v-if="!profile.is_active" type="button" class="text-gray-500 hover:text-maiic-600 dark:text-slate-400" title="Edit profile" @click="openEditProfile(profile)"><i class="fas fa-edit"></i></button>
+                                    <button v-if="!profile.is_active" type="button" class="text-gray-500 hover:text-red-600 dark:text-slate-400" title="Delete profile" @click="deleteProfile(profile)"><i class="fas fa-trash"></i></button>
+                                    <button type="button" :title="profile.is_active ? 'Deactivate profile' : 'Activate profile'" @click="toggleStatus(profile)">
+                                        <i v-if="profile.is_active" class="fas fa-unlock text-maiic-600 dark:text-emerald-400"></i>
+                                        <i v-else class="fas fa-lock text-red-600 dark:text-red-400"></i>
+                                    </button>
+                                    <button v-if="profile.is_active" type="button" class="rounded bg-maiic-500 px-2 py-1 text-xs text-white hover:bg-maiic-600" title="Update the loan book with this profile's PDs" @click="openLoanBookModal(profile)">Update loan book</button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <!-- Empty State -->
@@ -303,6 +232,66 @@
 </div>
 
 
+<!-- Import the S&P grading of an ECL model workbook -->
+<div v-if="sp.open" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="sp.open = false">
+    <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+    <div class="relative z-10 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white p-6 shadow-lg dark:bg-slate-800">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Import the S&amp;P grading of an ECL model</h3>
+        <ImportSpecPanel class="mt-3" spec-key="sp-grades" :collapsed="false"/>
+        <div class="mt-3 grid gap-4 md:grid-cols-2">
+            <div class="rounded-lg bg-maiic-50 p-3 text-sm text-gray-700 dark:bg-slate-900/60 dark:text-slate-300">
+                <p class="font-semibold text-maiic-800 dark:text-emerald-300">What to upload</p>
+                <p class="mt-1">MAIIC's ECL model workbook, as Finance keeps it (for December 2025, <span class="font-mono text-xs">MAIIC &amp; FInES ECL Model - 14th December 2025_Final.xlsx</span>). Two of its sheets are read and nothing else:</p>
+                <ul class="mt-1 list-disc space-y-0.5 pl-5">
+                    <li><strong>ASS1-Internal Grades</strong>: the ten credit grades, each with its description, its S&amp;P rating, its broad grade and its PD range.</li>
+                    <li><strong>PDs-S&amp;P</strong>: S&amp;P's average cumulative default rates by rating for horizons 1 to 10 years (the December 2025 model uses Table 25, Emerging Markets 1981-2024), each row tied to a grade.</li>
+                </ul>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700 dark:bg-slate-900/60 dark:text-slate-300">
+                <p class="font-semibold text-gray-800 dark:text-slate-100">What happens</p>
+                <ul class="mt-1 list-disc space-y-0.5 pl-5">
+                    <li>Press <strong>Preview</strong>: the grades and their PDs are shown, with the S&amp;P source, before anything is saved.</li>
+                    <li>A grade with no row of PDs on the second sheet is listed and left out, not given a curve the model does not have.</li>
+                    <li><strong>Create draft profile</strong> saves it as a draft. It changes no PD until it is activated with the lock on its card, and it can be edited or deleted while it is a draft.</li>
+                    <li>Next year, load the new model the same way under a new name.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+            <label class="block"><span class="block text-sm font-medium text-gray-700 dark:text-slate-300">ECL model workbook (.xlsx)</span>
+                <input type="file" accept=".xlsx,.xlsm" class="mt-1 block w-full text-sm" @change="spFile($event)" /></label>
+            <label class="block"><span class="block text-sm font-medium text-gray-700 dark:text-slate-300">Profile name</span>
+                <input v-model="sp.name" type="text" class="mt-1 w-full rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-900" /></label>
+        </div>
+        <p v-if="sp.error" class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ sp.error }}</p>
+
+        <div v-if="sp.preview" class="mt-4">
+            <p class="text-sm text-gray-700 dark:text-slate-300"><strong>Source:</strong> {{ sp.preview.source.provider }} {{ sp.preview.source.title }}<span v-if="sp.preview.source.region">, {{ sp.preview.source.region }}</span><span v-if="sp.preview.source.table"> ({{ sp.preview.source.table }})</span>. {{ sp.preview.source.note }}</p>
+            <div class="mt-2 overflow-x-auto">
+                <table class="maiic-table maiic-table-compact">
+                    <thead><tr><th>Grade</th><th>S&amp;P</th><th>Broad grade</th><th class="num">PD range</th><th v-for="y in sp.preview.max_tenor" :key="y" class="num">Year {{ y }}</th></tr></thead>
+                    <tbody>
+                        <tr v-for="g in sp.preview.grades" :key="g.grade_code">
+                            <td class="whitespace-nowrap font-semibold">{{ g.grade_code }} {{ g.description }}</td>
+                            <td class="whitespace-nowrap">{{ g.sp_rating }}</td>
+                            <td class="whitespace-nowrap">{{ g.broad }}</td>
+                            <td class="num whitespace-nowrap">{{ pctTxt(g.lower) }} to {{ pctTxt(g.upper) }}</td>
+                            <td v-for="y in sp.preview.max_tenor" :key="y" class="num">{{ g.pds[y] !== undefined ? pctTxt(g.pds[y]) : '-' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <ul v-if="sp.preview.skipped.length" class="mt-2 list-disc pl-5 text-xs text-amber-700"><li v-for="(m, i) in sp.preview.skipped" :key="i">{{ m }}</li></ul>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-2">
+            <button type="button" class="secondary-btn" :disabled="sp.busy" @click="sp.open = false">Cancel</button>
+            <button type="button" class="secondary-btn" :disabled="!sp.file || sp.busy" @click="previewSp">{{ sp.busy && !sp.preview ? 'Reading...' : 'Preview' }}</button>
+            <button type="button" class="primary-btn" :disabled="!sp.preview || !sp.preview.grades.length || !sp.name || sp.busy" @click="importSp">Create draft profile</button>
+        </div>
+    </div>
+</div>
+
 <GradesPdMatrix
   :show="showMatrix"
   :profile="selectedProfile"
@@ -319,6 +308,7 @@ import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import GradesPdMatrix from './GradesPdMatrix.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import axios from 'axios'
 import '@fortawesome/fontawesome-free/css/all.css';
 
@@ -330,6 +320,28 @@ defineProps(
      )
 
 const showModal = ref(false)
+const sp = ref({ open: false, file: null, name: '', preview: null, error: null, busy: false })
+const openSp = () => { sp.value = { open: true, file: null, name: 'S&P Emerging Markets (ECL model, December 2025)', preview: null, error: null, busy: false } }
+const spFile = (e) => { sp.value.file = e.target.files[0] || null; sp.value.preview = null; sp.value.error = null }
+const pctTxt = (v) => (v === null || v === undefined) ? '-' : (Number(v) * 100).toFixed(2) + '%'
+const previewSp = async () => {
+    sp.value.busy = true; sp.value.error = null
+    const fd = new FormData(); fd.append('file', sp.value.file)
+    try {
+        const { data } = await axios.post(route('internal-grading.import-sp.preview'), fd)
+        sp.value.preview = data
+    } catch (e) {
+        sp.value.error = e.response?.data?.message || 'The workbook could not be read.'
+    } finally { sp.value.busy = false }
+}
+const importSp = () => {
+    sp.value.busy = true
+    router.post(route('internal-grading.import-sp'), { file: sp.value.file, name: sp.value.name }, {
+        forceFormData: true, preserveScroll: true,
+        onSuccess: () => { sp.value.open = false },
+        onFinish: () => { sp.value.busy = false },
+    })
+}
 const showMatrix = ref(false)
 const selectedProfile = ref(null)
 const matrixGrades = ref([])
@@ -457,6 +469,6 @@ const updateLoanBookWithPD = () => {
     )
 }
 
-const activeClass = 'bg-maiic-100 text-maiic-700'
-const draftClass = 'bg-amber-100 text-amber-700'
+const activeClass = 'bg-maiic-100 text-maiic-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+const draftClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200'
 </script>

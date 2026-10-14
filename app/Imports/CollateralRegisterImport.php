@@ -153,8 +153,10 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
                     $data['status']            = strtoupper(trim($normalizedRow['status'] ?? '')) ?: 'ACTIVE';
                 } else {
                     // Custom import type with mapping
+                    // period is the month chosen on the screen (the controller adds it to the
+                    // mapping), not a file column; registration_date is a column like any other
                     $ignoredKeys = [
-                        'registration_date',
+                        'period',
                         'import_type',
                         'mapping',
                     ];
@@ -181,6 +183,8 @@ class CollateralRegisterImport implements ToCollection, WithHeadingRow, WithEven
                         }
                     }
                     
+                    $data['period'] = $periodCarbon->format('Y-m-d');
+
                     // If mapping is empty or doesn't include essential fields, use direct field mapping as fallback
                     $essentialFields = ['customer_id', 'collateral_type', 'period'];
                     $hasEssentialFields = count(array_intersect($essentialFields, array_keys($data))) === count($essentialFields);

@@ -73,6 +73,11 @@ class SicrGroupController extends Controller
         $request->validate([
             'file' => ['required','file','mimes:csv,txt','max:10240'],
         ]);
+        // the file against the column spec before anything is written (key sicr-groups)
+        $check = (new \App\Support\Imports\ImportSpecValidator())->checkFile('sicr-groups', $request->file('file')->getPathname(), $request->file('file')->getClientOriginalName());
+        if (! $check['ok']) {
+            return \App\Support\Imports\ImportSpecValidator::refuse($check);
+        }
         $csv = Reader::createFromPath($request->file('file')->getPathname(), 'r');
         $csv->setHeaderOffset(0);
         $headers = array_map('strtolower', $csv->getHeader());
@@ -83,6 +88,8 @@ class SicrGroupController extends Controller
         }
         $count = 0;
         foreach ($csv->getRecords() as $row) {
+            // headings are matched in any case, as the check above reads them
+            $row = array_change_key_case($row, CASE_LOWER);
             if (!empty($row['name'])) {
                 SicrGroup::firstOrCreate(['name' => $row['name']], ['description' => $row['description'] ?? null]);
                 $count++;

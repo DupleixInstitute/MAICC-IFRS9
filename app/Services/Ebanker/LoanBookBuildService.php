@@ -387,12 +387,15 @@ class LoanBookBuildService
 
     private function rowsB(string $monthEnd): array
     {
-        $ledger = $this->zone->ledgerByAccount($monthEnd);
+        // the Mega Farm accounts are in the Loan Book Report too, so their own ledger is read for them
+        $ledger = $this->zone->ledgerByAccount($monthEnd, null, true);
         $runs = $this->zone->latestRunsOn($monthEnd);
         $master = $this->zone->accountMaster();
         $loans = $this->zone->loanMaster();
         $rates = $this->zone->rateSetupByAccount();
         $statuses = $this->zone->statusHistoryByAccount();
+        // a write-off posted as a repayment (spec 3.8) is a write-off here too
+        $writeOffs = new WriteOffClassifier($this->zone);
         $accounts = array_unique(array_merge(array_keys($ledger), array_keys($runs)));
         sort($accounts);
         $rows = [];
@@ -403,14 +406,14 @@ class LoanBookBuildService
                 $type = (string) ($post['payload']['TRANTYPE'] ?? '');
                 $sum['all'] += $amt; $sum['n']++;
                 $sum['first'] ??= $post['row_date']; $sum['last'] = $post['row_date']; $sum['load'] = $post['load_id'];
-                if (in_array($type, self::TYPE_DISBURSEMENT, true)) {
+                if ($writeOffs->isWriteOff($post['payload'], $post['row_date'], $account)) {
+                    $sum['woff'] += $amt;     // in the balance, never in repayments (type 300, a 1064 batch, an H closure)
+                } elseif (in_array($type, self::TYPE_DISBURSEMENT, true)) {
                     $sum['disb'] += $amt;
                 } elseif (in_array($type, self::TYPE_INTEREST, true)) {
                     $sum['int'] += $amt;
                 } elseif (in_array($type, self::TYPE_RECEIPT, true)) {
                     $sum['rec'] += $amt;
-                } elseif (in_array($type, self::TYPE_WRITEOFF, true)) {
-                    $sum['woff'] += $amt;     // in the balance, never in repayments
                 } elseif (in_array($type, self::TYPE_SETTLEMENT_IN_KIND, true)) {
                     $sum['kind'] += $amt;     // in the balance, never in repayments
                 } else {
@@ -429,7 +432,15 @@ class LoanBookBuildService
             [$group, $fund] = LandingZoneReader::LOAN_GLS[$gl] ?? ["GL {$gl}", 'MAIIC'];
             $flags = [];
             $stored = $run !== null ? $this->num($p['CARRYING_AMOUNT'] ?? 0) : null;
-            if ($stored !== null && abs($stored - $carrying) > 0.005) {
+            $derived = $carrying;
+            if ($stored !== null && ! isset(LandingZoneReader::LOAN_GLS[$gl]) && in_array($gl, \App\Services\MegaFarm\MegaFarmEclService::GLS, true)) {
+                // a Mega Farm account (outside the EIR, decision D30): its MF_03 ledger does not yet rebuild the
+                // balance E-Banker reports, so the Loan Book Report's carrying amount stands and the gap is kept on the row
+                $carrying = $stored;
+                if (abs($stored - $derived) > 0.005) {
+                    $flags[] = sprintf('Mega Farm: carrying amount from the Loan Book Report; the MF_03 ledger derives %s (difference %s)', number_format($derived, 2), number_format($derived - $stored, 2));
+                }
+            } elseif ($stored !== null && abs($stored - $carrying) > 0.005) {
                 $flags[] = sprintf('carrying amount differs from the stored run by %s', number_format($carrying - $stored, 2));
             }
             if ($am === []) {
@@ -464,7 +475,8 @@ class LoanBookBuildService
                 'build_flag' => $flags === [] ? null : implode('; ', $flags),
                 'build_basis' => ['postings' => $sum['n'], 'first_posting' => $sum['first'], 'last_posting' => $sum['last'],
                     'ledger' => ['disbursed' => $disbursed, 'interest' => $interest, 'receipts' => $receipts, 'written_off' => round($sum['woff'], 2), 'settled_in_kind' => round($sum['kind'], 2), 'other' => round($sum['other'], 2)],
-                    'stored_run' => $run !== null ? $run['query_id'] . ':' . $run['source_key'] : null, 'rate_source' => $this->rateSource],
+                    'stored_run' => $run !== null ? $run['query_id'] . ':' . $run['source_key'] : null, 'rate_source' => $this->rateSource,
+                    'ledger_carrying' => round($derived, 2)],
             ] + $arrears, $monthEnd);
         }
 
@@ -559,7 +571,9 @@ class LoanBookBuildService
         $v += [
             'loan_portfolio_id' => $this->portfolioId(), 'reporting_year' => $end->year, 'reporting_month' => $end->month, 'reporting_period' => $end->format('Y-m'),
             'remaining_tenor' => $remaining, // the ECL engines read this as the credit-conversion fraction on the undrawn commitment (null = 1), so it is a fraction, not a percentage
-            'facility_utilisation_rate' => $v['approved_amount'] > 0 ? round(min(1.0, max(0.0, $v['disbursed'] / $v['approved_amount'])), 2) : null,
+            // with no approved amount (the Mega Farm loan-book runs carry none) the facility counts as fully drawn:
+            // the column is NOT NULL with a default of 1, and the ECL engines read a missing rate as 1
+            'facility_utilisation_rate' => $v['approved_amount'] > 0 ? round(min(1.0, max(0.0, $v['disbursed'] / $v['approved_amount'])), 2) : 1.0,
             'ead' => round($carrying + (float) $v['commitments'], 2),
             'overdue_status' => $v['overdue_days'] > 0 ? 'OVERDUE' : 'CURRENT', 'is_month_end' => 1,
             'created_at' => now(), 'updated_at' => now(),

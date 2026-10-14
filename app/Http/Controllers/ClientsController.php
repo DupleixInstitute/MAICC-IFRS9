@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 use App\Services\FieldMappingService;
+use App\Support\Imports\ImportSpecValidator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -326,6 +327,15 @@ public function index(Request $request)
                 if (!$hasCustomerId) {
                     return back()->withErrors(['mapping' => 'The customer_id field must be mapped.']);
                 }
+            }
+
+            // the file against the column spec before anything is written: any error refuses it
+            // with the problems listed by row (App\Support\Imports\ImportSpecs, key clients)
+            $file = $request->file('names_file');
+            $check = (new ImportSpecValidator())->checkFile('clients', $file->getRealPath(), $file->getClientOriginalName(),
+                $request->import_type === 'custom' ? ['mapping' => $mapping] : []);
+            if (! $check['ok']) {
+                return ImportSpecValidator::refuse($check);
             }
 
             $import = Import::create([

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Throwable;
+use App\Support\Imports\ImportSpecValidator;
 
 /**
  * Data Foundation, Take-on Schedules (spec v4 section 6.9): upload a workbook
@@ -70,7 +71,10 @@ class EirTakeonController extends Controller
 
     public function upload(Request $request, TakeonLandingService $service)
     {
-        $request->validate(['original' => ['required', 'file', 'mimes:xlsx'], 'mapping' => ['required', 'file', 'mimes:xlsx']]);
+        $request->validate(['original' => ['required', 'file', 'mimes:xlsx'], 'mapping' => ['required', 'file', 'mimes:xlsx'], 'check_only' => ['nullable', 'boolean']]);
+        if ($request->boolean('check_only')) {
+            return $this->checkOnly($request, $service);
+        }
         $dir = storage_path('app/takeon/' . now()->format('Ymd-His'));
         mkdir($dir, 0775, true);
         $o = $request->file('original')->move($dir, $request->file('original')->getClientOriginalName());
@@ -82,6 +86,41 @@ class EirTakeonController extends Controller
         }
 
         return back()->with($r['status'] === 'QUARANTINED' ? 'error' : 'success', "Take-on workbook {$r['status']}: {$r['blocks']} blocks, {$r['lines']} schedule lines.");
+    }
+
+    /**
+     * Both workbooks read and every block gated, nothing kept (the landing's
+     * dry run). The refusals and flags come back block by block, as the
+     * import screens list a refused file (App\Support\Imports\ImportSpecs, key takeon).
+     */
+    private function checkOnly(Request $request, TakeonLandingService $service)
+    {
+        $name = $request->file('original')->getClientOriginalName() . ' + ' . $request->file('mapping')->getClientOriginalName();
+        try {
+            $r = $service->land($request->file('original')->getRealPath(), $request->file('mapping')->getRealPath(), $request->user()?->id, true);
+        } catch (Throwable $e) {
+            $check = ImportSpecValidator::fromGates('takeon', $name, 0, [['row' => null, 'column' => null, 'message' => $e->getMessage(), 'fix' => 'Choose the two workbooks as received; the column guide lists the sheets read.', 'severity' => 'error']]);
+
+            return back()->with('error', ImportSpecValidator::summary($check))->with('import_check', $check);
+        }
+        $issues = [];
+        foreach ($r['gates']['blocks'] ?? [] as $no => $g) {
+            foreach ($g['refusals'] ?? [] as $m) {
+                $issues[] = ['row' => null, 'column' => "Block {$no}", 'message' => $m, 'fix' => 'Correct the cell named in the workbook, or the block lands as refused and the build leaves it out.', 'severity' => 'error'];
+            }
+            foreach ($g['flags'] ?? [] as $m) {
+                $issues[] = ['row' => null, 'column' => "Block {$no}", 'message' => $m, 'fix' => 'Review the block; it lands flagged.', 'severity' => 'warning'];
+            }
+        }
+        $check = ImportSpecValidator::fromGates('takeon', $name, (int) $r['blocks'], $issues);
+        $landable = str_ends_with((string) $r['status'], 'LANDED');
+        if ($r['status'] === 'ALREADY_LANDED') {
+            return back()->with('success', "Check only: these two workbooks are already landed (load {$r['load_id']}); loading them again changes nothing.")->with('import_check', $check);
+        }
+
+        return back()->with($landable ? 'success' : 'error', "Check only, nothing kept: {$r['blocks']} blocks, {$r['lines']} schedule lines; "
+            . ($landable ? 'the workbook can be landed' . ($check['error_count'] ? " ({$check['error_count']} block refusals would land as refused)" : '') . '.' : 'nothing in it can be landed.'))
+            ->with('import_check', $check);
     }
 
     /** Finance confirms or corrects a mapping on the screen; this entry counts over the workbook's and is logged. */

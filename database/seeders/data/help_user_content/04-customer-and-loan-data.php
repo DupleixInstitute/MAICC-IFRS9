@@ -62,7 +62,8 @@ return [
                 . '<li><code>customer_id is required but missing</code> in the rejected-rows file: the row had a blank customer ID; fill it in and re-import.</li>'
                 . '<li><code>Phone number must be 10 digits starting with 07</code>: correct the phone number on the create form.</li>'
                 . '<li>A client is missing: it may be deleted; choose <b>With Trashed</b> in the Filter panel.</li>'
-                . '</ul>',
+                . '</ul>'
+                . '<h4>Sample file, column guide and the check</h4><p>The <b>How to import</b> panel on the import screen lists every column with its type, whether it is required, its format and allowed values, a description and an example. <b>Download sample file</b> gives a file in exactly the format the import reads, with one or two illustrative rows (identifiers start with 8 and names with Sample, so they are never mistaken for real data); <b>Download column guide</b> gives the same as an Excel workbook. On the client import page, <b>Check file</b> tests a chosen file without saving it. Before anything is saved the whole file is checked: every required column present, the type of each value, the allowed values and no key repeated. If any row breaks a rule, nothing is imported and the problems are listed by row and column with how to fix each one.</p>',
             'steps' => [
                 'Open the sidebar, expand Data Foundation and choose Clients.',
                 'Type part of the customer ID, name or phone in the Search box to find a client.',
@@ -157,7 +158,8 @@ return [
                 . '<li><code>Failed to import E-Banker file: ... Please ensure your file matches the E-Banker format template.</code>: the file is not the core banking layout; download the template and compare.</li>'
                 . '<li>The import completes with zero inserted rows: usually the header row was not on line 1 or the file is not comma-separated.</li>'
                 . '<li>Loans appear under the wrong month: the <b>Reporting Period</b> was wrong; re-import with the correct month.</li>'
-                . '</ul>',
+                . '</ul>'
+                . '<h4>Sample file, column guide and the check</h4><p>The <b>How to import</b> panel on the import screen lists every column with its type, whether it is required, its format and allowed values, a description and an example. <b>Download sample file</b> gives a file in exactly the format the import reads, with one or two illustrative rows (identifiers start with 8 and names with Sample, so they are never mistaken for real data); <b>Download column guide</b> gives the same as an Excel workbook. The standard layout and the E-Banker report each have their own sample and guide; the E-Banker report is read by column position. <b>Check file</b> tests a chosen file without saving it; a matched (custom) file is checked through its matching. Before anything is saved the whole file is checked: every required column present, the type of each value, the allowed values and no key repeated. If any row breaks a rule, nothing is imported and the problems are listed by row and column with how to fix each one.</p>',
             'steps' => [
                 'Open the Loan Book and click Import Loan Book.',
                 'Choose the Portfolio Group and set the Reporting Period to the month the file represents.',

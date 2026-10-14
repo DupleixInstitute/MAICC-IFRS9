@@ -106,21 +106,13 @@
         </jet-modal>
 
         <!-- Bulk import: how to, sample CSV, upload -->
-        <jet-modal :show="showImportModal" @close="closeImportModal" max-width="2xl">
+        <jet-modal :show="showImportModal" @close="closeImportModal" max-width="5xl">
             <div class="p-6">
                 <h3 class="text-lg font-semibold text-gray-900">Import SICR items from a CSV file</h3>
                 <p class="mt-1 text-sm text-gray-500">Add or update many items at once.</p>
-                <div class="mt-5 grid gap-5 md:grid-cols-5">
-                    <div class="md:col-span-3">
-                        <FileDrop :key="importKey" :error="importError" :disabled="processing" @file="onFile"/>
-                    </div>
-                    <ImportHowTo class="md:col-span-2" title="How to import" :sample-url="route('import-samples.show', 'sicr-items')">
-                        <li>Download the sample CSV. group, name and active are required; stage, description, evidence_required and standard_reference are optional.</li>
-                        <li>group is the SICR group name; a group that does not exist yet is created.</li>
-                        <li>stage is 2 (significant increase) or 3 (credit-impaired); left blank it is 2.</li>
-                        <li>active and evidence_required are true or false (1 / 0 and yes / no also work).</li>
-                        <li>An item with the same group and name is updated, not duplicated. Rows without a group or name are skipped.</li>
-                    </ImportHowTo>
+                <ImportSpecPanel class="mt-4" spec-key="sicr-items" :file="csvFile"/>
+                <div class="mt-4">
+                    <FileDrop :key="importKey" :error="importError" :disabled="processing" @file="onFile"/>
                 </div>
                 <div class="mt-6 flex justify-end gap-2 border-t border-gray-200 pt-4">
                     <button type="button" class="secondary-btn" :disabled="processing" @click="closeImportModal">Cancel</button>
@@ -135,7 +127,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetModal from '@/Jetstream/Modal.vue'
 import FileDrop from '@/Components/Data/FileDrop.vue'
-import ImportHowTo from '@/Components/Data/ImportHowTo.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import Pagination from '@/Components/Pagination.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
 import HowSicrWorks from './Partials/HowSicrWorks.vue'
@@ -145,7 +137,7 @@ const blank = (groupId = null) => ({ group_id: groupId, name: '', description: '
 
 export default {
     props: { groups: Array, items: Object, filters: Object, counts: Object },
-    components: { AppLayout, JetModal, FileDrop, ImportHowTo, Pagination, KpiRow, HowSicrWorks },
+    components: { AppLayout, JetModal, FileDrop, ImportSpecPanel, Pagination, KpiRow, HowSicrWorks },
     data() {
         return {
             form: blank(), processing: false, editingId: null, csvFile: null, showModal: false, showImportModal: false, importError: '', importKey: 0,
@@ -195,7 +187,7 @@ export default {
             data.append('file', this.csvFile)
             this.$inertia.post(this.route('sicr-items.import'), data, {
                 onFinish: () => { this.processing = false },
-                onSuccess: () => this.closeImportModal(),
+                onSuccess: () => { const c = this.$page.props.flash?.import_check; if (!(c && c.key === 'sicr-items' && !c.ok)) this.closeImportModal() },
                 onError: (errors) => { this.importError = Object.values(errors || {})[0] || 'The file could not be imported. Check it against the sample CSV.' },
             })
         },

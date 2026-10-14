@@ -93,6 +93,11 @@ class SicrItemController extends Controller
         $request->validate([
             'file' => ['required','file','mimes:csv,txt','max:10240'],
         ]);
+        // the file against the column spec before anything is written (key sicr-items)
+        $check = (new \App\Support\Imports\ImportSpecValidator())->checkFile('sicr-items', $request->file('file')->getPathname(), $request->file('file')->getClientOriginalName());
+        if (! $check['ok']) {
+            return \App\Support\Imports\ImportSpecValidator::refuse($check);
+        }
         $csv = Reader::createFromPath($request->file('file')->getPathname(), 'r');
         $csv->setHeaderOffset(0);
         $headers = array_map('strtolower', $csv->getHeader());
@@ -109,7 +114,8 @@ class SicrItemController extends Controller
             if (empty($row['name']) || empty($row['group'])) {
                 continue;
             }
-            $stage = trim((string) ($row['stage'] ?? '2'));
+            // a blank stage is 2, as the screen and the sample say
+            $stage = trim((string) ($row['stage'] ?? '')) ?: '2';
             if (! in_array($stage, ['2', '3'], true)) {
                 $skipped[] = 'row ' . ($n + 1) . ' (stage must be 2 or 3)';
                 continue;

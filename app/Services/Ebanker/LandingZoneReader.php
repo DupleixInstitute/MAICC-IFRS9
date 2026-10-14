@@ -49,10 +49,13 @@ class LandingZoneReader
      * @param  list<string>  $queryIds
      * @return array<string, array{load_id:int,query_id:string,source_key:string,account:?string,row_date:?string,payload:array}>
      */
-    public function family(array $queryIds, ?string $toDate = null, ?string $onDate = null): array
+    public function family(array $queryIds, ?string $toDate = null, ?string $onDate = null, ?string $account = null): array
     {
         $q = $this->current()->whereIn('query_id', $queryIds)
             ->orderBy('load_id')->orderBy('id');
+        if ($account !== null) {
+            $q->where('account', $account);
+        }
         if ($toDate !== null) {
             $q->where('row_date', '<=', $toDate);
         }
@@ -82,11 +85,20 @@ class LandingZoneReader
         return DB::table('ebanker_loads')->select('id')->where('status', 'LANDED');
     }
 
-    /** Ledger postings dated on or before the date, grouped by account, each in date then key order. */
-    public function ledgerByAccount(?string $toDate = null): array
+    /**
+     * Ledger postings dated on or before the date, grouped by account, each in date then key order;
+     * one account's only when it is named (the EIR asks for one loan at a time). Only postings on
+     * the in-scope loan GLs are kept, so the Mega Farm ledger (MF_03, on the programme's GLs 1050301
+     * to 1050307) is left out unless asked for: the loan book's method B asks, because the Mega Farm
+     * accounts are in E-Banker's Loan Book Report (MF_05) and their carrying amount is derived from
+     * their own postings; the EIR and the other readers do not (the programme is outside the EIR,
+     * decision D30).
+     */
+    public function ledgerByAccount(?string $toDate = null, ?string $account = null, bool $withMegaFarm = false): array
     {
+        $gls = self::LOAN_GLS + ($withMegaFarm ? array_flip(\App\Services\MegaFarm\MegaFarmEclService::GLS) : []);
         $by = [];
-        foreach ($this->family(self::LEDGER, $toDate) as $row) {
+        foreach ($this->family(self::LEDGER, $toDate, null, $account) as $row) {
             $p = $row['payload'];
             if (($p['DELETE_FLAG'] ?? 'N') === 'Y' || $row['account'] === null || $row['account'] === '') {
                 continue;
@@ -95,7 +107,7 @@ class LandingZoneReader
             // the income GLs (4215, 4216) and the FInES suspense (3065), which are
             // not loans and have no account master row
             $gl = trim((string) ($p['AC_GLCODE'] ?? ($p['CB_GLCODE'] ?? '')));
-            if ($gl !== '' && ! isset(self::LOAN_GLS[$gl])) {
+            if ($gl !== '' && ! isset($gls[$gl])) {
                 continue;
             }
             $by[$row['account']][] = $row;
@@ -187,7 +199,21 @@ class LandingZoneReader
     /** The last date any ledger posting carries: the date after which a build is refused, never estimated. */
     public function lastLedgerDate(): ?string
     {
-        return $this->current()->whereIn('query_id', self::LEDGER)->max('row_date');
+        return self::onCurrentIndex()->whereNull('superseded_at')->whereIn('load_id', self::landedLoadIds())
+            ->whereIn('query_id', self::LEDGER)->max('row_date');
+    }
+
+    /**
+     * The raw rows read through the covering index (query_id, superseded_at, load_id, row_date)
+     * for a count, a last date or a list of keys, which never need the payload. MySQL's planner
+     * otherwise walks the load index and reads every row, payload and all: after packs 3 and 4
+     * (620,000 rows, 742 MB) that took 90 seconds. SQLite (the tests) has no index hint.
+     */
+    public static function onCurrentIndex(): \Illuminate\Database\Query\Builder
+    {
+        return DB::connection()->getDriverName() === 'mysql'
+            ? DB::table(DB::raw('ebanker_raw_rows FORCE INDEX (ebanker_raw_rows_current_idx)'))
+            : DB::table('ebanker_raw_rows');
     }
 
     /** Loads read by a family, for the build's audit trail. */

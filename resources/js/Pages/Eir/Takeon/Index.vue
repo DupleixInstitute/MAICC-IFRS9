@@ -1,7 +1,8 @@
 <template>
   <app-layout title="Take-on Schedules" description="The take-on workbook as loaded: each block with its account mapping, fees and checks, and the take-on population built from it">
     <template #actions>
-      <button v-if="canGovern && load" @click="build" class="primary-btn" title="Build the take-on population under the basis in force; the previous build is replaced">Build the take-on population</button>
+      <button v-if="canGovern && tab === 'blocks'" type="button" class="primary-btn" @click="uploadOpen = true"><font-awesome-icon icon="upload" /> Load take-on workbook</button>
+      <button v-if="canGovern && load" type="button" class="secondary-btn" title="Build the take-on population under the basis in force; the previous build is replaced" @click="build">Build the take-on population</button>
     </template>
 
     <div class="space-y-5">
@@ -26,15 +27,7 @@
               <p class="text-sm text-gray-500"><span v-if="load">{{ load.pack }}, {{ load.status }}, loaded {{ String(load.loaded_at || '').slice(0, 16) }}</span><span v-else>No workbook has been loaded yet.</span></p>
               <input v-model="search.blocks" class="maiic-input md:w-72" placeholder="Search block, facility or account" @input="page.blocks = 1"/>
             </div>
-            <details v-if="canGovern" class="border-b border-gray-200 px-5 py-2 text-sm text-gray-700" :open="!load">
-              <summary class="cursor-pointer font-semibold text-maiic-800">Load a take-on workbook</summary>
-              <p class="mt-1">Choose the take-on workbook exactly as received and the returned mapping workbook (account mapping and fees), both as .xlsx, then click Load.</p>
-              <form @submit.prevent="upload" class="mt-2 flex flex-wrap items-end gap-3 pb-1">
-                <label><span class="maiic-flabel">Original workbook (as received)</span><input type="file" accept=".xlsx" class="text-sm" @change="files.original = $event.target.files[0]"/></label>
-                <label><span class="maiic-flabel">Mapping workbook with fees</span><input type="file" accept=".xlsx" class="text-sm" @change="files.mapping = $event.target.files[0]"/></label>
-                <button type="submit" class="primary-btn" :disabled="!files.original || !files.mapping || uploading">{{ uploading ? 'Loading...' : 'Load' }}</button>
-              </form>
-            </details>
+
             <div class="maiic-table-wrap">
               <table class="maiic-table">
                 <thead><tr><th>#</th><th>Block</th><th>Facility</th><th class="num">Principal</th><th class="num">Rate %</th><th>Account</th><th class="num">Fees</th><th>Status</th><th>Checks</th><th class="text-right">Actions</th></tr></thead>
@@ -144,21 +137,48 @@
         </div>
       </div>
     </div>
+    <jet-modal :show="uploadOpen" max-width="5xl" @close="uploadOpen = false">
+      <form class="p-6" @submit.prevent="upload(false)">
+        <h3 class="text-lg font-semibold text-gray-900">Load the take-on workbook</h3>
+        <ImportSpecPanel class="mt-3" spec-key="takeon" :collapsed="false"/>
+        <div class="mt-3">
+          <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+            <p class="font-semibold text-gray-800">What happens</p>
+            <ul class="mt-1 list-disc space-y-0.5 pl-5">
+              <li>Each block is checked: an account for it, its principal against E-Banker's take-on posting of 31 July 2024, a fee row. A block that fails is flagged or refused, with the cell named.</li>
+              <li>Loading the workbook does not change any EIR. <strong>Build the take-on population</strong> does: where a block is mapped and has its fees, the EIR is solved from origination with the fees; otherwise the loan starts at its take-on balance.</li>
+              <li>A later, corrected workbook is loaded the same way; the earlier load is kept.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label><span class="maiic-flabel">Original workbook (as received)</span><input type="file" accept=".xlsx" class="block w-full text-sm" @change="files.original = $event.target.files[0]"/></label>
+          <label><span class="maiic-flabel">Mapping workbook with fees</span><input type="file" accept=".xlsx" class="block w-full text-sm" @change="files.mapping = $event.target.files[0]"/></label>
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="secondary-btn" :disabled="uploading" @click="uploadOpen = false">Cancel</button>
+          <button type="button" class="secondary-btn" :disabled="!files.original || !files.mapping || uploading" title="Read both workbooks and gate every block; nothing is kept" @click="upload(true)">{{ uploading === 'check' ? 'Checking...' : 'Check only' }}</button>
+          <button type="submit" class="primary-btn" :disabled="!files.original || !files.mapping || uploading">{{ uploading === true ? 'Loading...' : 'Load the workbook' }}</button>
+        </div>
+      </form>
+    </jet-modal>
   </app-layout>
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import LocalPager from '@/Components/Data/LocalPager.vue'
+import JetModal from '@/Jetstream/Modal.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { router } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
-  components: { AppLayout, LocalPager },
+  components: { AppLayout, LocalPager, JetModal, ImportSpecPanel },
   props: { tab: { type: String, default: 'blocks' }, tabCounts: Object, load: Object, blocks: Array, population: Array, basisInForce: String, canGovern: Boolean },
   data() {
     return {
-      files: { original: null, mapping: null }, edit: null, open: null, uploading: false,
+      files: { original: null, mapping: null }, edit: null, open: null, uploading: false, uploadOpen: false,
       search: { blocks: '', population: '' }, page: { blocks: 1, population: 1 },
     }
   },
@@ -175,9 +195,10 @@ export default {
   methods: {
     pageOf(rows, key) { const p = this.page[key]; return rows.slice((p - 1) * 15, p * 15) },
     fmt(v) { return v == null ? '' : Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-    upload() {
-      this.uploading = true
-      router.post(route('eir-takeon.upload'), { original: this.files.original, mapping: this.files.mapping }, { forceFormData: true, onFinish: () => { this.uploading = false } })
+    upload(checkOnly = false) {
+      this.uploading = checkOnly ? 'check' : true
+      // a check keeps the window open, so its block-by-block result is read beside the files
+      router.post(route('eir-takeon.upload'), { original: this.files.original, mapping: this.files.mapping, check_only: checkOnly ? 1 : 0 }, { forceFormData: true, preserveScroll: true, onFinish: () => { this.uploading = false; if (!checkOnly) this.uploadOpen = false } })
     },
     async build() {
       if (!(await confirmDialog({ title: 'Build the take-on population?', message: 'It is built under the basis in force and replaces the previous build.', confirmLabel: 'Build' }))) return

@@ -214,6 +214,17 @@
               </div>
             </div>
 
+            <!-- the layout of each file source: columns, types, required, sample and check result -->
+            <div>
+              <div class="mb-2 flex flex-wrap items-center gap-1" role="tablist" aria-label="File layout">
+                <button v-for="o in specSources" :key="o.key" type="button" role="tab" :aria-selected="specSource === o.key ? 'true' : 'false'"
+                        class="rounded-md px-3 py-1 text-xs font-semibold transition"
+                        :class="specSource === o.key ? 'bg-maiic-600 text-white dark:bg-maiic-500' : 'text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700'"
+                        @click="specSource = o.key">{{ o.label }}</button>
+              </div>
+              <ImportSpecPanel :spec-key="specSource" :check="specCheck && specCheck.key === specSource ? specCheck : null"/>
+            </div>
+
             <div v-if="previewError" class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">
               <font-awesome-icon icon="times" class="mt-0.5 text-red-500" />
               <div><div class="font-semibold">The preview could not be made</div><p class="mt-0.5 text-xs">{{ previewError }}</p></div>
@@ -288,6 +299,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
 import FileDrop from '@/Components/Data/FileDrop.vue'
 import ImportHowTo from '@/Components/Data/ImportHowTo.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import LocalPager from '@/Components/Data/LocalPager.vue'
 import { confirmDialog } from '@/Components/confirmDialog'
 import { promptReason } from '@/Components/Maiic/promptReason'
@@ -298,12 +310,12 @@ const KEYS = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [v, k]))
 const viewFromUrl = () => VIEWS[new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('tab')] || 'Dashboard'
 
 export default {
-  components: { AppLayout, Link, FileDrop, ImportHowTo, LocalPager },
+  components: { AppLayout, Link, FileDrop, ImportHowTo, ImportSpecPanel, LocalPager },
   props: { series: Array, selected: Number, observations: Array, batches: Array, sets: Array, assumptions: Object, canManage: Boolean, defaultCountry: String, errors: Object },
   data() {
     return { tab: viewFromUrl(), sel: this.selected, aPeriod: this.assumptions?.period, aSetId: this.defaultSetId(this.assumptions), aScenarioId: null,
       wb: { series_code: '', country: this.defaultCountry, from: 2000, to: new Date().getFullYear() }, imf: { series_code: '', file: null }, rbm: { file: null }, own: { file: null },
-      showImport: false, batchPage: 1, varPage: 1, obsPage: 1, previewData: null, previewError: null, previewSource: null, ownPreview: null, varForm: null, valForm: null, edits: {} }
+      showImport: false, specSource: 'macro-series', specCheck: null, specSources: [{ key: 'macro-series', label: 'Your own file' }, { key: 'imf-weo', label: 'IMF WEO file' }, { key: 'rbm-policy-rate', label: 'Reserve Bank file' }], batchPage: 1, varPage: 1, obsPage: 1, previewData: null, previewError: null, previewSource: null, ownPreview: null, varForm: null, valForm: null, edits: {} }
   },
   computed: {
     current() { return this.series.find(s => s.id === this.sel) },
@@ -390,6 +402,7 @@ export default {
       const fd = new FormData(); fd.append('file', this.own.file)
       const res = await fetch(route('macro-statistics.csv-preview'), { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-XSRF-TOKEN': this.xsrf(), Accept: 'application/json' } })
       const data = await res.json().catch(() => ({ error: 'The file could not be read.' }))
+      this.specSource = 'macro-series'; this.specCheck = data.check || null
       if (!res.ok || data.error) { this.previewError = data.error || (data.message || 'Preview failed'); return }
       this.ownPreview = data
     },
@@ -400,6 +413,7 @@ export default {
       Object.entries(form).forEach(([k, v]) => { if (v !== null && v !== '' && v !== undefined) fd.append(k, v) })
       const res = await fetch(route('macro-statistics.preview'), { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-XSRF-TOKEN': this.xsrf(), Accept: 'application/json' } })
       const data = await res.json().catch(() => ({ error: 'The preview could not be read.' }))
+      if (source !== 'world_bank') { this.specSource = source === 'imf_weo' ? 'imf-weo' : 'rbm-policy-rate'; this.specCheck = data.check || null }
       if (!res.ok || data.error) { this.previewError = data.error || 'Preview failed'; return }
       this.previewData = data
     },

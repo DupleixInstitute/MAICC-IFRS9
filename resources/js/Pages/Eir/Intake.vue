@@ -3,15 +3,11 @@
         <template #header>
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                        <Link :href="route('eir-data.index')" class="hover:text-maiic-700">EIR Data</Link><span>/</span><span class="font-medium text-maiic-700">Data Intake</span>
-                    </div>
                     <h2 class="text-xl font-semibold text-gray-800">EIR Data Intake</h2>
                     <p class="mt-1 text-sm text-gray-600">Load contract terms, transactions, fees, drawdowns, reference rates and the interest the ledger posted</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="maiic-badge maiic-badge-green" title="Contracts on the latest loan tape that have a repayment schedule">Schedules: {{ coverage.covered }}/{{ coverage.total }} contracts</span>
-                    <a :href="sampleUrl" class="secondary-btn" :title="'The ' + typeLabel + ' columns with worked example rows'">Download sample CSV</a>
                 </div>
             </div>
         </template>
@@ -23,8 +19,11 @@
                 <InPageTabs v-model="tab" :tabs="tabs" flush/>
                 <div class="maiic-panel rounded-t-none">
 
-                    <div v-if="tab === 'upload'" class="grid gap-6 p-5 lg:grid-cols-3">
-                        <div class="space-y-5 lg:col-span-2">
+                    <div v-if="tab === 'upload'" class="space-y-5 p-5">
+                        <!-- the chosen type's columns, sample file, guide and the row-by-row check -->
+                        <ImportSpecPanel :spec-key="specKey" :check="intakeCheck && intakeCheck.key === specKey ? intakeCheck : null"
+                                         :extra-steps="['Contracts that cannot be loaded are listed with a reason and can be downloaded as an exception report. Every upload is kept on the History tab.']"/>
+                        <div class="space-y-5">
                             <div v-if="autoDetectedType" class="flex items-start gap-2 rounded-lg border border-maiic-200 bg-maiic-50 px-4 py-3 text-sm text-maiic-800">
                                 <svg class="mt-0.5 h-4 w-4 flex-none" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
                                 <span>{{ autoDetectedType }} was recognised from the file's headers and selected for you.</span>
@@ -46,14 +45,6 @@
                                 </button>
                             </div>
                         </div>
-
-                        <ImportHowTo :title="'How to import ' + typeShort" :sample-url="sampleUrl" :sample-label="'Download ' + sampleFileName"
-                                     sample-title="This type's columns with worked example rows. Its headers map automatically.">
-                            <li>Pick the import type, then download its sample CSV. A file with the same headers needs no column matching.</li>
-                            <li v-for="(step, i) in typeSteps" :key="i">{{ step }}</li>
-                            <li>Choose the file and press Import file. It runs in the background and this page shows the progress.</li>
-                            <li>Contracts that cannot be loaded are listed with a reason and can be downloaded as an exception report. Every upload is kept on the History tab.</li>
-                        </ImportHowTo>
                     </div>
 
                     <div v-else>
@@ -275,7 +266,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import InPageTabs from '@/Components/Data/InPageTabs.vue'
 import ImportHistoryTable from '@/Components/Data/ImportHistoryTable.vue'
-import ImportHowTo from '@/Components/Data/ImportHowTo.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import FileDrop from '@/Components/Data/FileDrop.vue'
 import LocalPager from '@/Components/Data/LocalPager.vue'
 import FeeGlReconciliation from '@/Components/Eir/FeeGlReconciliation.vue'
@@ -294,7 +285,7 @@ export default {
         allowedTypes: { type: Array, default: null },
         canGovern: { type: Boolean, default: false },
     },
-    components: { AppLayout, Link, InPageTabs, ImportHistoryTable, ImportHowTo, FileDrop, LocalPager, FeeGlReconciliation },
+    components: { AppLayout, Link, InPageTabs, ImportHistoryTable, ImportSpecPanel, FileDrop, LocalPager, FeeGlReconciliation },
     data() {
         return {
             importType: this.initialType || 'contract_master',
@@ -325,6 +316,8 @@ export default {
             pollError: null,
             terminalResultRetries: 0,
             error: null,
+            // the row-by-row check of the file (App\Support\Imports\ImportSpecValidator)
+            intakeCheck: null,
             autoDetectedType: null,
         }
     },
@@ -378,6 +371,10 @@ export default {
         /** Named for the type so a folder of downloads stays readable. */
         sampleFileName() {
             return `${this.importType}_sample.csv`
+        },
+        /** The type's key in the import spec registry. */
+        specKey() {
+            return 'eir-' + String(this.importType).replace(/_/g, '-')
         },
         sampleUrl() {
             return this.route('eir-intake.sample', { type: this.importType })
@@ -441,6 +438,7 @@ export default {
         },
         resetAnalysis() {
             this.stopImportPolling()
+            this.intakeCheck = null
             this.analysis = null
             this.mapping = {}
             this.transforms = {}
@@ -530,7 +528,12 @@ export default {
                     const t = analysis.profile?.[header]?.suggested_transform || this.defaultTransformFor(field)
                     if (t) this.transforms[field] = t
                 }
+                this.intakeCheck = analysis.check || null
                 if (autoImport) {
+                    if (analysis.check && !analysis.check.ok) {
+                        this.error = `${analysis.check.error_count} problem(s) found in the file; nothing was imported. The rows are listed in the How to import panel above.`
+                        return
+                    }
                     if (this.missingRequired.length) {
                         this.error = `The file is missing required columns: ${this.missingRequired.join(', ')}. Check that the correct source type and file were selected.`
                         return
@@ -592,6 +595,7 @@ export default {
                     this.result = response.result
                 }
             } catch (e) {
+                if (e.response?.data?.check) this.intakeCheck = e.response.data.check
                 this.error = e.response?.data?.error || e.response?.data?.message || 'Import failed.'
             } finally {
                 this.processing = false

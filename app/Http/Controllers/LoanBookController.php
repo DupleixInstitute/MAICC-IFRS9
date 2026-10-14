@@ -8,6 +8,8 @@ use App\Services\FieldMappingService;
 use App\Models\Import;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use App\Support\Imports\ImportSpecValidator;
+use App\Support\Imports\ImportTemplateBuilder;
 use Inertia\Inertia;
 use Inertia\Response;
 use League\Csv\Reader;
@@ -279,23 +281,10 @@ class LoanBookController extends Controller
         }
     }*/
 
+    /** The standard layout's sample file, from the import spec registry (key loan-book). */
     public function downloadSample()
     {
-        $headers = ['Content-Type' => 'text/csv'];
-        // The headers LoanBooksImport reads (its direct field mapping, after
-        // normalising: lower case, spaces and dashes to underscores). The
-        // portfolio and the reporting period are chosen on the screen.
-        $columns = ['customer_id', 'contract_id', 'name', 'type', 'industry_code', 'industry_type', 'internal_grade',
-            'value_date', 'maturity_date', 'tenor', 'interest_rate', 'approved_amount', 'disbursed', 'principal',
-            'carrying_amount', 'repayments', '1-30 Days', '31-90 Days', '91-180 Days', '181-270 Days'];
-
-        $callback = function () use ($columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-            fclose($file);
-        };
-
-        return response()->streamDownload($callback, 'loan_book_sample.csv', $headers);
+        return app(ImportTemplateController::class)->template('loan-book', app(ImportTemplateBuilder::class));
     }
 
     public function store(Request $request)
@@ -565,6 +554,15 @@ class LoanBookController extends Controller
             'mapping' => ['nullable', 'array'],
         ]);
 
+        // the file against the column spec before anything is written (key loan-book); a mapped
+        // file is checked through its mapping, under the names the importer reads
+        $file = $request->file('file');
+        $check = (new ImportSpecValidator())->checkFile('loan-book', $file->getRealPath(), $file->getClientOriginalName(),
+            $request->import_type === 'custom' ? ['mapping' => (array) $request->input('mapping', []), 'field_aliases' => ImportTemplateController::fieldAliases('loan-book')] : []);
+        if (! $check['ok']) {
+            return ImportSpecValidator::refuse($check);
+        }
+
         $import = Import::create([
             'kind' => 'loan_book',
             'name' => $request->file('file')->getClientOriginalName(),
@@ -599,6 +597,12 @@ class LoanBookController extends Controller
             'reporting_period' => 'required',
             'loan_portfolio_id' => 'required',
         ]);
+
+        // the E-Banker report against its layout before anything is written (key loan-book-ebanker)
+        $check = (new ImportSpecValidator())->checkFile('loan-book-ebanker', $request->file('file')->getRealPath(), $request->file('file')->getClientOriginalName());
+        if (! $check['ok']) {
+            return ImportSpecValidator::refuse($check);
+        }
 
         try {
             // Create Import record first
@@ -695,77 +699,9 @@ class LoanBookController extends Controller
     //     }
     // }
 
+    /** The E-Banker loan book report layout, from the import spec registry (key loan-book-ebanker). */
     public function downloadEbanker(Request $request)
     {
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="ebanker_loan_book_template.csv"'
-        ];
-        
-        // E-Banker format columns based on the actual file structure
-        $columns = [
-            'Sr.',
-            'Customer National A/C',
-            'Name',
-            'Value',
-            'Maturity',
-            'Tenure',
-            'Moratoriu',
-            'Interest',
-            'Approved',
-            'Disbursed',
-            'Not Yet',
-            'Principal',
-            'Collateral',
-            'Charge',
-            'Interest',
-            'Repaymer Carrying',
-            'Principal',
-            'Interest',
-            'Total',
-            'Arrears',
-            '1 - 30 Days',
-            '31 - 90 Days',
-            '91 - 180 Days',
-            '181 - 270 Days'
-        ];
-
-        $callback = function () use ($columns) {
-            $file = fopen('php://output', 'w');
-            
-            // Add header row
-            fputcsv($file, $columns);
-            
-            // Add context row for Loan Type
-            fputcsv($file, ['Loan Type : 1050101-MAJIC Agricultural Loans']);
-            
-            // Add sample data rows matching the actual format
-            $sampleData = [
-                [1, 'CUST001', 'MUSECO', '500000.00', '31/12/2025', '60', '0', '15.00', '500000.00', '475000.00', '25000.00', '450000.00', 'PRIMARY', '50000.00', '67500.00', '567500.00', '450000.00', '67500.00', '517500.00', '0.00', '0.00', '0.00', '0.00', '0.00'],
-                [2, 'CUST002', 'LENZIEMIL', '750000.00', '30/06/2026', '72', '0', '12.50', '750000.00', '712500.00', '37500.00', '675000.00', 'PRIMARY', '75000.00', '84375.00', '834375.00', '675000.00', '84375.00', '759375.00', '0.00', '0.00', '0.00', '0.00', '0.00'],
-                [3, 'CUST003', 'Mach MILK', '1200000.00', '31/12/2027', '84', '6', '18.00', '1200000.00', '1140000.00', '60000.00', '1080000.00', 'SECONDARY', '120000.00', '194400.00', '1412400.00', '1080000.00', '194400.00', '1274400.00', '15000.00', '15000.00', '0.00', '0.00', '0.00'],
-            ];
-            
-            foreach ($sampleData as $row) {
-                fputcsv($file, $row);
-            }
-            
-            // Add another context row for different loan type
-            fputcsv($file, ['Loan Type : 1050102-MAJIC Industrial Loans']);
-            
-            // Add sample data for second loan type
-            $industrialData = [
-                [4, 'CUST004', 'Sunrise Engineering', '2500000.00', '30/09/2028', '96', '0', '17.00', '2500000.00', '2375000.00', '125000.00', '2250000.00', 'COMMERCIAL', '250000.00', '382500.00', '2882750.00', '2250000.00', '382500.00', '2632500.00', '0.00', '0.00', '0.00', '0.00', '0.00'],
-                [5, 'CUST005', 'Riverside Transport', '1800000.00', '31/03/2029', '108', '3', '14.50', '1800000.00', '1710000.00', '90000.00', '1620000.00', 'PRIMARY', '180000.00', '234900.00', '2034900.00', '1620000.00', '234900.00', '1854900.00', '45000.00', '45000.00', '0.00', '0.00', '0.00'],
-            ];
-            
-            foreach ($industrialData as $row) {
-                fputcsv($file, $row);
-            }
-            
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return app(ImportTemplateController::class)->template('loan-book-ebanker', app(ImportTemplateBuilder::class));
     }
 }

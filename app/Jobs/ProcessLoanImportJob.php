@@ -196,10 +196,15 @@ class ProcessLoanImportJob implements ShouldQueue
             }
         }
 
+        // A row that starts with its serial number is a loan, whatever its other
+        // cells hold: the header test below matched "ID" inside a name such as
+        // David and dropped the loan as a header row (13 October 2026).
+        $leadSerial = trim((string) ($row[0] ?? '')) !== '' ? trim((string) $row[0]) : trim((string) ($row[1] ?? ''));
+
         // Check if this is a header row - look for header indicators
         $headerIndicators = ['Sr.', 'No.', 'Customer', 'ID', 'National', 'A/C', 'Number'];
         $isHeaderRow = false;
-        foreach ($row as $cell) {
+        foreach (is_numeric($leadSerial) ? [] : $row as $cell) {
             foreach ($headerIndicators as $indicator) {
                 if (stripos(trim($cell), $indicator) !== false) {
                     $isHeaderRow = true;

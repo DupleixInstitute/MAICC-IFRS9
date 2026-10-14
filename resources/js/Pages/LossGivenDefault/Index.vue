@@ -2,9 +2,6 @@
     <app-layout>
         <template #header>
             <div>
-                <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                    <span>IFRS 9 Model Setup</span><span>/</span><span>LGD Model</span><span>/</span><span class="font-medium text-maiic-700">Monthly LGD</span>
-                </div>
                 <h2 class="text-xl font-semibold text-gray-800">Monthly LGD</h2>
                 <p class="mt-1 text-sm text-gray-600">Loss given default from cures and recoveries on Stage 3 loans, one run per window</p>
             </div>

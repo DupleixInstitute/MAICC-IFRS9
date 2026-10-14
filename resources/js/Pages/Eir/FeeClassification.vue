@@ -1,6 +1,6 @@
 <template>
   <app-layout>
-    <template #header><div><div class="mb-1 flex items-center gap-2 text-xs text-gray-500"><span>EIR &amp; Revenue Recognition</span><span>/</span><span class="font-medium text-maiic-700">Fee Classification</span></div><h2 class="font-semibold text-xl text-gray-800">Fee and Cost Classification</h2><p class="mt-1 text-sm text-gray-600">Classify imported fee and cost lines, then have someone else review them before the EIR is calculated</p></div></template>
+    <template #header><div><h2 class="font-semibold text-xl text-gray-800">Fee and Cost Classification</h2><p class="mt-1 text-sm text-gray-600">Classify imported fee and cost lines, then have someone else review them before the EIR is calculated</p></div></template>
     <template #actions><div class="flex gap-2"><Link :href="route('eir-intake.index', { type: 'fees' })" class="primary-btn whitespace-nowrap">Import fees</Link><button v-if="canClassify" @click="rematch" class="secondary-btn whitespace-nowrap">Re-apply rules to pending lines</button></div></template>
     <div class="w-full space-y-6">
       <KpiRow :cards="cards" />

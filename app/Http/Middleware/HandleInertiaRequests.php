@@ -67,6 +67,8 @@ class HandleInertiaRequests extends Middleware
                     'error' => $request->session()->get('error'),
                     'warning' => $request->session()->get('warning'),
                     'info' => $request->session()->get('info'),
+                    // the row-by-row result of a refused import (App\Support\Imports\ImportSpecValidator)
+                    'import_check' => $request->session()->get('import_check'),
                 ];
             },
             // Slim user payload: the full model serialized 174 permission
@@ -86,9 +88,9 @@ class HandleInertiaRequests extends Middleware
                     'theme_preference' => $u->theme_preference ?? 'system',
                 ];
             },
-            'menu' => fn () => \App\Support\SectionTabCounts::annotate($this->visibleMenu(
-                (Auth::check() && Auth::user()->hasRole('member')) ? config('menu.member') : config('menu.admin')
-            ), Route::currentRouteName()),
+            'menu' => fn () => \App\Support\SectionTabCounts::annotate($this->userMenu(), Route::currentRouteName()),
+            // The page's place in that menu, for the layout's breadcrumbs.
+            'breadcrumbs' => fn () => \App\Support\Breadcrumbs::trail($this->userMenu(), Route::currentRouteName(), $request->query()),
             'logoUrl' => $logo ? asset('storage/' . $logo) : asset('images/maiic-logo-white.png'),
             'smallLogoUrl' => $smallLogo ? asset('storage/' . $smallLogo) : asset('images/maiic-logo-white.png'),
             'companyName' => $settings['company_name'] ?? 'MAIIC',
@@ -107,6 +109,16 @@ class HandleInertiaRequests extends Middleware
                 return $p ? ['name' => $p->name ?? ($p->start_date . ' to ' . $p->end_date), 'closed' => (bool) $p->closed] : null;
             }),
         ]);
+    }
+
+    /** The menu the signed-in user sees, worked out once per request (the sidebar and the breadcrumbs both read it). */
+    private ?array $userMenu = null;
+
+    private function userMenu(): array
+    {
+        return $this->userMenu ??= $this->visibleMenu(
+            (Auth::check() && Auth::user()->hasRole('member')) ? config('menu.member') : config('menu.admin')
+        );
     }
 
     /**

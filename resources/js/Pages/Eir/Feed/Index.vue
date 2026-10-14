@@ -1,7 +1,9 @@
 <template>
   <app-layout title="E-Banker Feed" description="Packs loaded from E-Banker, the checks each pack passed, and the approved builds of the loan book">
     <template #actions>
-      <a :href="route('eir-feed.queries')" class="secondary-btn" title="The extract queries, as one file to run on E-Banker">Download the queries</a>
+      <a v-if="tab === 'loads' || tab === 'queries'" :href="route('eir-feed.queries')" class="secondary-btn" title="The extract queries, as one file to run on E-Banker"><font-awesome-icon icon="download" /> Download the queries</a>
+      <button v-if="tab === 'loads' && canGovern" type="button" class="primary-btn" @click="packOpen = true"><font-awesome-icon icon="upload" /> Load a pack</button>
+      <button v-if="tab === 'builds' && canGovern" type="button" class="primary-btn" @click="buildOpen = true"><font-awesome-icon icon="plus" /> Propose a build</button>
     </template>
 
     <div class="space-y-5">
@@ -18,16 +20,8 @@
           <!-- Loads -->
           <template v-if="tab === 'loads'">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-3">
-              <p class="text-sm text-gray-500">Every pack that came in, by any route. A pack that fails a check is quarantined, with the file and row named.</p>
-              <form v-if="canGovern" @submit.prevent="landPack" class="flex flex-wrap items-center gap-2">
-                <input type="file" accept=".zip" @change="packFile = $event.target.files[0]" class="text-sm"/>
-                <button type="submit" :disabled="!packFile || landing" class="primary-btn">{{ landing ? 'Loading...' : 'Load a pack' }}</button>
-              </form>
+              <p class="text-sm text-gray-500">Every pack that came in, by any route. A pack that fails a check is quarantined, with the file and row named. Use <strong>Load a pack</strong> for the steps.</p>
             </div>
-            <details v-if="canGovern" class="border-b border-gray-200 px-5 py-2 text-sm text-gray-700">
-              <summary class="cursor-pointer font-semibold text-maiic-800">How to load a pack</summary>
-              <p class="mt-1 pb-1">Run the queries (Download the queries, top right) on E-Banker, put the CSV extracts and their <span class="font-mono">manifest.json</span> in one zip file, and load the zip here. The manifest lists each file with its row count; the checks compare every file with it before anything is kept.</p>
-            </details>
             <div class="maiic-table-wrap">
               <table class="maiic-table">
                 <thead><tr><th>Load</th><th>Pack</th><th>Route</th><th>Period</th><th>Status</th><th class="num">Files</th><th>Checks</th><th>Loaded</th><th class="text-right">View</th></tr></thead>
@@ -89,16 +83,7 @@
           <!-- Build -->
           <template v-else-if="tab === 'builds'">
             <div class="border-b border-gray-200 px-5 py-3">
-              <p class="text-sm text-gray-500">One person proposes a build of the loan book and a second approves it. The differences from the previous build are shown first; a locked period is never restated.</p>
-              <form v-if="canGovern" @submit.prevent="requestBuild" class="mt-2 flex flex-wrap items-end gap-3">
-                <label><span class="maiic-flabel">From</span><input v-model="build.from" type="month" class="maiic-input" required/></label>
-                <label><span class="maiic-flabel">To</span><input v-model="build.to" type="month" class="maiic-input" required/></label>
-                <label><span class="maiic-flabel">Method</span>
-                  <select v-model="build.method" class="maiic-select"><option value="">In force on each period end</option><option value="A">A: from the stored run</option><option value="B">B: derived from the ledger</option></select>
-                </label>
-                <label class="flex items-center gap-2 pb-2 text-sm text-gray-700" title="Retires rows of this month that came from older file imports, not from any build, and that this build does not produce. Mega Farm and out-of-scope rows are never touched."><input v-model="build.retire_stale" type="checkbox"/> Retire rows from older imports</label>
-                <button type="submit" class="primary-btn" :disabled="building">{{ building ? 'Proposing...' : 'Propose a build' }}</button>
-              </form>
+              <p class="text-sm text-gray-500">One person proposes a build of the loan book and a second approves it. The differences from the previous build are shown first; a locked period is never restated. Use <strong>Propose a build</strong> for the steps.</p>
             </div>
             <div class="maiic-table-wrap">
               <table class="maiic-table">
@@ -119,7 +104,7 @@
                       <button v-if="b.status === 'PROPOSED'" @click="approve(b.id)" class="secondary-btn" title="Approve this build and write it; the differences are kept on the build">Approve and build</button>
                     </td>
                   </tr>
-                  <tr v-if="!builds.length"><td :colspan="canGovern ? 8 : 7" class="maiic-empty">No build yet. Choose the periods above and propose one.</td></tr>
+                  <tr v-if="!builds.length"><td :colspan="canGovern ? 8 : 7" class="maiic-empty">No build yet. Use <strong>Propose a build</strong> to choose the months.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -170,23 +155,91 @@
         </div>
       </div>
     </div>
+
+    <!-- Load a pack -->
+    <jet-modal :show="packOpen" max-width="5xl" @close="packOpen = false">
+      <form class="p-6" @submit.prevent="landPack">
+        <h3 class="text-lg font-semibold text-gray-900">Load an E-Banker pack</h3>
+        <ImportSpecPanel class="mt-3" spec-key="ebanker-pack" :collapsed="true"/>
+        <div class="mt-3 grid gap-4 md:grid-cols-2">
+          <div class="rounded-lg bg-maiic-50 p-3 text-sm text-gray-700">
+            <p class="font-semibold text-maiic-800">What a pack is</p>
+            <p class="mt-1">The results of the versioned E-Banker queries, one CSV file per query, with a <span class="font-mono">manifest.json</span> that lists each file, its query and its row count, zipped into one file.</p>
+            <p class="mt-2 font-semibold text-maiic-800">How to make one</p>
+            <ol class="mt-1 list-decimal space-y-0.5 pl-5">
+              <li>Press <strong>Download the queries</strong> and run them in SQL Developer, starting with RUN 0 (ISO dates and a point for decimals).</li>
+              <li>Export each result as CSV with its query id in the file name (for example <span class="font-mono">P1_01_ledger_all.csv</span>).</li>
+              <li>Write the manifest: every file, its query id and its row count.</li>
+              <li>Zip the CSV files and the manifest together, and choose the zip below.</li>
+            </ol>
+          </div>
+          <div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+            <p class="font-semibold text-gray-800">What happens when you load it</p>
+            <ul class="mt-1 list-disc space-y-0.5 pl-5">
+              <li>Every file is checked against the manifest before anything is kept: the row counts, the accounts against the account master, the balances against the ledger, the month-end rows and the date format.</li>
+              <li>A pack that fails a check is quarantined: it is listed with the file and row named, and nothing reads it.</li>
+              <li>The same pack loaded twice is recognised and nothing changes; a row that changed is kept as a new version.</li>
+              <li>Loading a pack does not change the loan book: a build does, on the Loan Book Builds tab, with a second person's approval.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-4">
+          <label class="maiic-flabel" for="pack-file">Pack (zip)</label>
+          <input id="pack-file" type="file" accept=".zip" class="block w-full text-sm" @change="packFile = $event.target.files[0]" />
+        </div>
+        <label class="mt-3 flex items-center gap-2 text-sm text-gray-700"><input v-model="packDryRun" type="checkbox" /> Check only: run the checks and keep nothing</label>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="secondary-btn" :disabled="landing" @click="packOpen = false">Cancel</button>
+          <button type="submit" class="primary-btn" :disabled="!packFile || landing">{{ landing ? 'Checking...' : (packDryRun ? 'Check the pack' : 'Load the pack') }}</button>
+        </div>
+      </form>
+    </jet-modal>
+
+    <!-- Propose a build -->
+    <jet-modal :show="buildOpen" max-width="2xl" @close="buildOpen = false">
+      <form class="p-6" @submit.prevent="requestBuild">
+        <h3 class="text-lg font-semibold text-gray-900">Propose a build of the loan book</h3>
+        <div class="mt-3 rounded-lg bg-maiic-50 p-3 text-sm text-gray-700">
+          <ul class="list-disc space-y-0.5 pl-5">
+            <li>A build writes the month-end loan book for each month in the range from the packs loaded. It is only a proposal until a second person approves it here.</li>
+            <li><strong>A: from the stored run</strong> takes E-Banker's own Loan Book Report for the month end. <strong>B: derived from the ledger</strong> rebuilds each balance from the postings. Leave it on the method in force unless you have a reason.</li>
+            <li>The proposal shows, month by month, what would change against the loan book held now. A locked month is never restated.</li>
+            <li>Calculations already run for a month (staging, PD, LGD, ECL, EIR) are not re-run by the build; run them again after it.</li>
+          </ul>
+        </div>
+        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <label><span class="maiic-flabel">From</span><input v-model="build.from" type="month" class="maiic-input" required/></label>
+          <label><span class="maiic-flabel">To</span><input v-model="build.to" type="month" class="maiic-input" required/></label>
+          <label><span class="maiic-flabel">Method</span>
+            <select v-model="build.method" class="maiic-select"><option value="">In force on each period end</option><option value="A">A: from the stored run</option><option value="B">B: derived from the ledger</option></select>
+          </label>
+        </div>
+        <label class="mt-3 flex items-center gap-2 text-sm text-gray-700" title="Retires rows of this month that came from older file imports, not from any build, and that this build does not produce. Mega Farm and out-of-scope rows are never touched."><input v-model="build.retire_stale" type="checkbox"/> Retire rows from older imports that this build does not produce</label>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="secondary-btn" :disabled="building" @click="buildOpen = false">Cancel</button>
+          <button type="submit" class="primary-btn" :disabled="building || !build.from || !build.to">{{ building ? 'Proposing...' : 'Propose the build' }}</button>
+        </div>
+      </form>
+    </jet-modal>
   </app-layout>
 </template>
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import JetModal from '@/Jetstream/Modal.vue'
 import LocalPager from '@/Components/Data/LocalPager.vue'
+import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { router } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
-  components: { AppLayout, LocalPager },
+  components: { AppLayout, JetModal, LocalPager, ImportSpecPanel },
   props: { tab: { type: String, default: 'loads' }, tabCounts: Object, loads: Array, queries: Array, builds: Array, periods: Array, routeInForce: String, methodInForce: String, locks: Array, lastLedgerDate: String, canGovern: Boolean },
   data() {
     return {
       open: null, querySearch: '',
       page: { loads: 1, builds: 1, periods: 1, queries: 1 },
-      packFile: null, landing: false, building: false, build: { from: '', to: '', method: '', retire_stale: false },
+      packFile: null, packDryRun: false, packOpen: false, buildOpen: false, landing: false, building: false, build: { from: '', to: '', method: '', retire_stale: false },
     }
   },
   computed: {
@@ -204,11 +257,11 @@ export default {
     landPack() {
       if (!this.packFile) return
       this.landing = true
-      router.post(route('eir-feed.land'), { pack: this.packFile }, { forceFormData: true, onFinish: () => { this.landing = false; this.packFile = null } })
+      router.post(route('eir-feed.land'), { pack: this.packFile, dry_run: this.packDryRun ? 1 : 0 }, { forceFormData: true, preserveScroll: true, onFinish: () => { this.landing = false; if (!this.packDryRun) { this.packFile = null; this.packOpen = false } } })
     },
     requestBuild() {
       this.building = true
-      router.post(route('eir-feed.build'), this.build, { preserveScroll: true, onFinish: () => { this.building = false } })
+      router.post(route('eir-feed.build'), this.build, { preserveScroll: true, onFinish: () => { this.building = false; this.buildOpen = false } })
     },
     async approve(id) {
       if (!(await confirmDialog({ title: 'Approve build ' + id + '?', message: 'The build is written to the loan book. The differences from the previous build are kept on the build.', confirmLabel: 'Approve and build' }))) return
