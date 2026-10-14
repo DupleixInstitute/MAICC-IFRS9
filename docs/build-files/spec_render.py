@@ -40,6 +40,9 @@ def parse(md: str):
             flush_table()
         if not line.strip():
             flush_para(); flush_list(); continue
+        m = re.match(r"^!\[(.*?)\]\((.+?)\)\s*$", line)
+        if m:
+            flush_para(); flush_list(); blocks.append(("img", (m.group(1), m.group(2)))); continue
         m = re.match(r"^(#{2,3}) (.*)", line)
         if m:
             flush_para(); flush_list(); blocks.append(("h2" if len(m.group(1)) == 2 else "h3", m.group(2))); continue
@@ -99,6 +102,9 @@ def render_docx(meta, blocks, out: Path):
         if kind == "h2": doc.add_paragraph(content, style="Heading 2")
         elif kind == "h3": doc.add_paragraph(content, style="Heading 3")
         elif kind == "p": p = doc.add_paragraph(); add_runs(p, content); p.paragraph_format.space_after = Pt(6)
+        elif kind == "img":
+            cap, path = content; doc.add_picture(str(out.parent / path), width=Cm(17))
+            if cap: p = doc.add_paragraph(); r = p.add_run(cap); r.italic = True; r.font.size = Pt(8.5); r.font.color.rgb = GREY
         elif kind in ("ul", "ol"):
             for item in content:
                 p = doc.add_paragraph(style="List Bullet" if kind == "ul" else "List Number"); add_runs(p, item)
@@ -157,6 +163,12 @@ def render_pdf(meta, blocks, out: Path):
         if kind == "h2": s.append(Paragraph(inline(content), S["h2"]))
         elif kind == "h3": s.append(Paragraph(inline(content), S["h3"]))
         elif kind == "p": s.append(Paragraph(inline(content), S["p"]))
+        elif kind == "img":
+            from reportlab.platypus import Image as RLImage
+            from reportlab.lib.utils import ImageReader
+            cap, path = content; f = str(out.parent / path); iw, ih = ImageReader(f).getSize()
+            s.append(RLImage(f, width=W, height=W * ih / iw))
+            if cap: s.append(Paragraph(f"<i>{html.escape(cap)}</i>", ParagraphStyle("cap", parent=S["p"], fontSize=8.5, textColor=GREY, spaceBefore=3)))
         elif kind in ("ul", "ol"):
             s.append(ListFlowable([ListItem(Paragraph(inline(i), S["li"]), leftIndent=14, spaceAfter=3) for i in content],
                                   bulletType="1" if kind == "ol" else "bullet", start=None if kind == "ol" else "•", leftIndent=14,
