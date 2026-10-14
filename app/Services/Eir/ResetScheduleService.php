@@ -8,6 +8,7 @@ use App\Models\RateResetEvent;
 use App\Services\AuditLoggerService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 use Throwable;
 
@@ -34,6 +35,15 @@ use Throwable;
  * balance. A version already used by a solved or locked period is kept and
  * chained from; everything else is rebuilt on each run, so it follows version
  * 1 when a draft is regenerated.
+ *
+ * A Reset version is the re-estimated contractual flows, not a new EIR: the
+ * EIR a floating loan accrues at and the ECL discounts at stays decision D38's
+ * monthly re-estimation at the rate charged (EirRevenueService::eirInForce),
+ * which already carries the change, so nothing here solves or sets an EIR and
+ * the revenue run never reads a Reset version (it values the version in force
+ * after a confirmed restructure only). Only floating loans' prime-rate resets
+ * are built; a spread change, or a reset approved as negotiated, goes through
+ * the registers (reconciliation of 14 October 2026).
  */
 class ResetScheduleService
 {
@@ -47,7 +57,7 @@ class ResetScheduleService
     /** @return array{contracts:int, built:int, kept:int, blocked:int, details:array<string,array>} */
     public function build(?string $contractId = null, ?int $userId = null): array
     {
-        $ids = RateResetEvent::query()->when($contractId, fn ($q) => $q->where('contract_id', $contractId))
+        $ids = $this->resets()->when($contractId, fn ($q) => $q->where('contract_id', $contractId))
             ->distinct()->orderBy('contract_id')->pluck('contract_id');
 
         $details = [];
@@ -84,8 +94,29 @@ class ResetScheduleService
         });
     }
 
+    /**
+     * The resets a Reset version is built for: the prime-rate resets the pipeline dated (a
+     * spread change is classified on the register; a move the register recorded on its own,
+     * key MOVE|, carries no pipeline rate), less any approved as negotiated, which the
+     * restructure register carries instead (spec v4 P7).
+     */
+    private function resets()
+    {
+        return RateResetEvent::query()
+            ->where(fn ($q) => $q->where('event_type', RateResetEvent::TYPE_PLR_RESET)->orWhereNull('event_type'))
+            ->whereNotNull('new_contractual_rate')
+            ->where(fn ($q) => $q->whereNull('detection_key')->orWhere('detection_key', 'not like', 'MOVE|%'))
+            ->where(fn ($q) => $q->whereNull('classification')->orWhere('classification', '!=', 'NEGOTIATED')
+                ->orWhere('classification_status', '!=', RateResetEvent::CLASSIFICATION_APPROVED));
+    }
+
     private function forContract(ContractEir $contract): array
     {
+        // only a loan whose EIR moves with its rate (D38, the same rate-type test) is re-amortised
+        [$floating] = ResetDetectionService::followsPrime($contract);
+        if ($floating !== true) {
+            return ['status' => 'BLOCKED', 'reason' => 'NOT_FLOATING: the contract master does not state the loan as floating, so no Reset version is built', 'versions' => []];
+        }
         $original = $this->rows($contract->contract_id, 1);
         if ($original === []) {
             return ['status' => 'BLOCKED', 'reason' => 'NO_VERSION_1: generate or import the original schedule first', 'versions' => []];
@@ -97,7 +128,12 @@ class ResetScheduleService
                 ->where('status', EirRatePeriod::STATUS_PENDING_EIR)->update(['schedule_version' => 1]);
 
             $previous = $original;
-            $events = RateResetEvent::where('contract_id', $contract->contract_id)->orderBy('reset_date')->get();
+            $events = $this->resets()->where('contract_id', $contract->contract_id)->orderBy('reset_date')->get();
+            // A confirmed restructure replaced the flows a Reset version would re-amortise; building
+            // on version 1 past it would be wrong, so a reset after it is held (fail closed).
+            $restructured = Schema::hasTable('contract_modifications')
+                ? DB::table('contract_modifications')->where('contract_id', $contract->contract_id)->where('status', '!=', 'REVERSED')->min('modification_date')
+                : null;
 
             // Every Reset version not used by a solved period is rebuilt and
             // renumbered in date order, so the same resets always get the
@@ -123,6 +159,10 @@ class ResetScheduleService
                 }
 
                 try {
+                    if ($restructured !== null && $date->toDateString() >= substr((string) $restructured, 0, 10)) {
+                        throw new InvalidArgumentException('RESET_AFTER_RESTRUCTURE: a restructure confirmed from ' . substr((string) $restructured, 0, 10)
+                            . ' replaced the schedule; a Reset version on its flows is not built yet');
+                    }
                     [$rows, $meta] = $this->resetRows($contract, $original, $previous, $date, (float) $event->new_contractual_rate);
                 } catch (Throwable $e) {
                     $event->update(['status' => RateResetEvent::STATUS_BLOCKED, 'note' => $e->getMessage()]);

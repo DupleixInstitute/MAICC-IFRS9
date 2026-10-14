@@ -37,7 +37,15 @@ class CommandRunner
             return 'C:\\xampp\\php\\php.exe';
         }
 
-        return PHP_BINARY ?: 'php';
+        // under PHP-FPM, PHP_BINARY is the FPM binary, which cannot run artisan: use the CLI beside it
+        $binary = PHP_BINARY ?: '';
+        if ($binary === '' || str_contains(basename($binary), 'fpm') || PHP_SAPI === 'fpm-fcgi') {
+            $cli = PHP_BINDIR . DIRECTORY_SEPARATOR . (PHP_OS_FAMILY === 'Windows' ? 'php.exe' : 'php');
+
+            return is_file($cli) ? $cli : 'php';
+        }
+
+        return $binary;
     }
 
     /**

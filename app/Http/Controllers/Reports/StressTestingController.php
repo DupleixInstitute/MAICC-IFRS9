@@ -13,15 +13,14 @@ use Inertia\Inertia;
  *
  * Laravel port of the FDH stress-testing methodology: per-IFRS-9-stage PD
  * multipliers and LGD add-ons (in percentage points). Unlike the FDH handler,
- * which scaled an aggregate base ECL by stage-average factors, this recomputes
- * ECL loan-by-loan (EAD x PD x LGD with 100% caps) for accuracy, then rolls up
- * by stage and by portfolio. Scenarios can be saved and reloaded.
+ * which scaled an aggregate base ECL by stage-average factors, this stresses
+ * loan by loan (StressTestService): each loan's booked loss allowance (BookedEcl)
+ * scaled by the stressed over the booked stage PD and LGD (100% caps), with the
+ * undiscounted measure beside it, then rolled up by stage and by portfolio.
+ * Scenarios can be saved and reloaded.
  */
 class StressTestingController extends Controller
 {
-    private const EAD = '(COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1))';
-    private const PD  = 'COALESCE(pd_post_fli, pd_prefli, 0)';
-    private const LGD = 'COALESCE(lgd_value, 0)';
 
     public function index(Request $request)
     {
@@ -92,7 +91,7 @@ class StressTestingController extends Controller
         $portfolio = ! empty($v['loan_portfolio_id']) ? DB::table('loan_portfolios')->where('id', $v['loan_portfolio_id'])->value('name') : 'All portfolios';
         $report = [
             'title' => 'Stress testing',
-            'subtitle' => 'Base against stressed ECL, recomputed loan by loan (EAD x PD x LGD, capped at 100%). ' . $portfolio . '.',
+            'subtitle' => 'Base against stressed loss allowance, loan by loan: the booked allowance scaled by the stressed PD and LGD (capped at 100%). ' . $portfolio . '.',
             'period' => $r['period'],
             'kpis' => [
                 ['label' => 'Base ECL', 'value' => $money($r['total_base_ecl']), 'tone' => 'maiic'],
@@ -102,6 +101,13 @@ class StressTestingController extends Controller
             ],
             'sections' => [
                 $inputs,
+                ['heading' => 'Basis', 'columns' => ['Measure', 'Loans', 'Base', 'Stressed'], 'align' => ['l', 'r', 'r', 'r'], 'rows' => [
+                    ['Booked loss allowance (the figures of this report)', '', $money($r['total_base_ecl']), $money($r['total_stress_ecl'])],
+                    ['ECL undiscounted, stressed the same way', '', $money($r['basis']['undiscounted']['base_ecl']), $money($r['basis']['undiscounted']['stress_ecl'])],
+                    ['Loans without a discounted allowance (shown at their undiscounted ECL)', number_format($r['basis']['not_booked']['loans']), $money($r['basis']['not_booked']['base_ecl']), ''],
+                    ['Loans with no ECL calculated: not measured (exposure)', number_format($r['basis']['not_measured']['loans']), $money($r['basis']['not_measured']['exposure']), ''],
+                    ['Loans with a nil PD or LGD: kept at their allowance, not scaled', number_format($r['basis']['not_scaled']['loans']), $money($r['basis']['not_scaled']['base_ecl']), ''],
+                ]],
                 ['heading' => 'By IFRS 9 stage', 'columns' => ['Stage', 'Accounts', 'Exposure', 'Base ECL', 'Stressed ECL', 'Change'], 'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
                     'rows' => array_merge(collect($r['by_stage'])->map(fn ($s) => ['Stage ' . $s['stage'], number_format($s['accounts']), $money($s['exposure']), $money($s['base_ecl']), $money($s['stress_ecl']), $money($s['stress_ecl'] - $s['base_ecl'])])->all(),
                         [['Total', number_format(collect($r['by_stage'])->sum('accounts')), $money($r['total_exposure']), $money($r['total_base_ecl']), $money($r['total_stress_ecl']), $money($r['delta'])]])],

@@ -273,4 +273,25 @@ class RestructureRegisterTest extends TestCase
         $this->assertSame(1, $section['without_board_approval']);
         $this->assertStringContainsString('16(1)', $section['note']);
     }
+
+    /** The proposer withdraws; a rejection is a second person's act (documentation audit, 14 October 2026). */
+    public function test_the_proposer_cannot_reject_their_own_classification(): void
+    {
+        $this->twoVersions();
+        $this->detector()->detect();
+        $id = (int) DB::table('restructure_events')->value('id');
+        $svc = new RestructureRegisterService();
+        $svc->propose($id, ['classification' => 'MODIFICATION', 'reason' => 'Arrears capitalised and term extended by agreement', 'board_approval_ref' => 'Board minute 14/2026',
+            'board_approval_date' => '2026-06-25', 'qualitative_factors' => []], 1);
+        try {
+            $svc->close($id, 1, 'reject', 'Not sure after all');
+            $this->fail('The proposer rejected their own classification.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('withdraw it instead', $e->getMessage());
+        }
+        $this->assertSame('PROPOSED', DB::table('restructure_events')->where('id', $id)->value('status'));
+
+        $svc->close($id, 2, 'reject', 'The board minute is for another loan');
+        $this->assertSame('CANDIDATE', DB::table('restructure_events')->where('id', $id)->value('status'));
+    }
 }

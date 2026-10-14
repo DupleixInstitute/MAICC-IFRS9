@@ -119,4 +119,25 @@ class WriteOffTest extends TestCase
         $this->assertSame(0, DB::table('eir_actual_transactions')->count());
         $this->assertSame('REVERSED', DB::table('loan_write_offs')->value('status'));
     }
+
+    /** The proposer withdraws; a rejection is a second person's act (documentation audit, 14 October 2026). */
+    public function test_the_proposer_cannot_reject_their_own_write_off_but_can_withdraw_it(): void
+    {
+        $svc = new WriteOffRegisterService();
+        $id = $svc->propose(['contract_id' => '104420000005', 'write_off_date' => '2025-12-31', 'amount' => 10, 'reason' => 'r', 'evidence' => 'e'], 1);
+        try {
+            $svc->close($id, 1, 'reject', 'Changed my mind');
+            $this->fail('The proposer rejected their own write-off.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('withdraw it instead', $e->getMessage());
+        }
+        $this->assertSame('PROPOSED', DB::table('loan_write_offs')->value('status'));
+
+        $svc->close($id, 1, 'withdraw', 'Proposed on the wrong loan');
+        $this->assertSame('WITHDRAWN', DB::table('loan_write_offs')->value('status'));
+
+        $other = $svc->propose(['contract_id' => '104420000005', 'write_off_date' => '2025-12-31', 'amount' => 10, 'reason' => 'r', 'evidence' => 'e'], 1);
+        $svc->close($other, 2, 'reject', 'No evidence of the board approval');
+        $this->assertSame('REJECTED', DB::table('loan_write_offs')->where('id', $other)->value('status'));
+    }
 }

@@ -7,9 +7,9 @@
       </div>
     </template>
     <template #actions>
-      <button v-if="selected.length" type="button" class="secondary-btn" @click="calculate">Calculate selected ({{ selected.length }})</button>
+      <button v-if="selected.length && canCalculate" type="button" class="secondary-btn" @click="calculate">Calculate selected ({{ selected.length }})</button>
       <button
-        v-if="Number(approvalSummary.total || 0) > 0"
+        v-if="Number(approvalSummary.total || 0) > 0 && canCalculate"
         type="button"
         class="primary-btn"
         :disabled="bulkApproving || Number(approvalSummary.eligible || 0) === 0"
@@ -22,6 +22,26 @@
 
     <div class="w-full space-y-6">
       <KpiRow :cards="cards" />
+
+      <!-- reopenings requested by one person, awaiting a second (maker-checker) -->
+      <div v-if="reopenRequests.length" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <div class="font-semibold text-amber-800">Reopenings awaiting approval ({{ reopenRequests.length }})</div>
+        <p class="mt-0.5 text-xs text-gray-600">A locked EIR is reopened only when a person with EIR governance other than the one who asked approves it.</p>
+        <ul class="mt-3 divide-y divide-amber-200 dark:divide-amber-700">
+          <li v-for="r in reopenRequests" :key="r.id" class="flex flex-wrap items-start justify-between gap-3 py-2 text-sm">
+            <div class="min-w-0">
+              <div class="font-medium text-gray-900">{{ r.contract_id }}</div>
+              <div class="text-gray-700">{{ r.reason }}</div>
+              <div class="text-xs text-gray-500">Requested by {{ r.requested_by_name || '-' }}, {{ date(r.requested_at) }}</div>
+            </div>
+            <div v-if="canReopen" class="flex items-center gap-1.5">
+              <button v-if="r.requested_by !== me" type="button" class="maiic-action maiic-action-view" title="Approve and reopen" @click="approveReopen(r)"><font-awesome-icon icon="check" /></button>
+              <button v-if="r.requested_by !== me" type="button" class="maiic-action maiic-action-delete" title="Reject" @click="closeReopen(r, 'reject')"><font-awesome-icon icon="times" /></button>
+              <button v-else type="button" class="maiic-action maiic-action-edit" title="Withdraw" @click="closeReopen(r, 'withdraw')"><font-awesome-icon icon="ban" /></button>
+            </div>
+          </li>
+        </ul>
+      </div>
 
       <div class="maiic-filterbar">
         <form class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end" @submit.prevent="applyFilters">
@@ -78,17 +98,18 @@
                 </td>
                 <td class="td">
                   <div class="flex items-center gap-1.5">
-                    <button v-if="!contract.locked_at" type="button" @click="recalculate(contract)" class="maiic-action maiic-action-neutral"
+                    <button v-if="!contract.locked_at && canCalculate" type="button" @click="recalculate(contract)" class="maiic-action maiic-action-neutral"
                             :title="contract.calculation_status === 'PENDING' ? 'Calculate' : contract.calculation_status === 'BLOCKED' ? 'Retry calculation' : 'Recalculate'">
                       <font-awesome-icon icon="calculator" />
                     </button>
-                    <button v-if="contract.calculation_status === 'CALCULATED'" type="button" @click="approve(contract)" class="maiic-action maiic-action-view" title="Approve and lock">
+                    <button v-if="contract.calculation_status === 'CALCULATED' && canCalculate" type="button" @click="approve(contract)" class="maiic-action maiic-action-view" title="Approve and lock">
                       <font-awesome-icon icon="lock" />
                     </button>
-                    <button v-if="contract.locked_at && canReopen" type="button" @click="openReopenModal(contract)" class="maiic-action maiic-action-edit" title="Reopen locked EIR">
+                    <span v-if="contract.locked_at && reopenRequested(contract)" class="text-xs text-amber-700">Reopening requested, awaiting approval</span>
+                    <button v-else-if="contract.locked_at && canReopen" type="button" @click="openReopenModal(contract)" class="maiic-action maiic-action-edit" title="Request reopening of the locked EIR">
                       <font-awesome-icon icon="lock-open" />
                     </button>
-                    <span v-else-if="contract.locked_at" class="text-xs text-gray-500">Locked, an administrator must reopen it</span>
+                    <span v-else-if="contract.locked_at" class="text-xs text-gray-500">Locked; a person with EIR governance can request its reopening</span>
                   </div>
                 </td>
               </tr>
@@ -117,15 +138,15 @@
         <div class="border-b border-gray-200 px-6 py-5">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h3 id="reopen-eir-title" class="text-lg font-semibold text-gray-900">Reopen locked original EIR</h3>
+              <h3 id="reopen-eir-title" class="text-lg font-semibold text-gray-900">Request reopening of a locked original EIR</h3>
               <p class="mt-1 text-sm text-gray-500">Contract {{ reopenModal.contract?.contract_id }}</p>
             </div>
             <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" :disabled="reopenModal.processing" @click="closeReopenModal">&#10005;</button>
           </div>
         </div>
         <div class="space-y-4 px-6 py-5">
-          <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            The locked calculation will be archived. Revenue-recognition rows will be superseded and discounted ECL will be marked stale. The EIR must then be recalculated and independently approved.
+          <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            A different person with EIR governance approves the request. On approval the locked calculation is archived, the revenue-recognition rows are superseded and the discounted ECL is marked stale; a month the EIR reached that is locked refuses it. The EIR must then be recalculated and independently approved.
           </div>
           <div>
             <label for="reopen-reason" class="text-sm font-semibold text-gray-800">Reason for reopening <span class="text-red-600">*</span></label>
@@ -137,7 +158,7 @@
         <div class="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
           <button class="secondary-btn" :disabled="reopenModal.processing" @click="closeReopenModal">Cancel</button>
           <button class="primary-btn bg-amber-700 hover:bg-amber-800" :disabled="reopenModal.processing || reopenModal.reason.trim().length < 10" @click="confirmReopen">
-            {{ reopenModal.processing ? 'Reopening...' : 'Reopen and invalidate results' }}
+            {{ reopenModal.processing ? 'Requesting...' : 'Request reopening' }}
           </button>
         </div>
       </div>
@@ -152,6 +173,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
 import { confirmDialog } from '@/Components/confirmDialog'
+import { promptReason } from '@/Components/Maiic/promptReason.js'
 
 export default {
   components: { AppLayout, Link, KpiRow },
@@ -161,6 +183,9 @@ export default {
     summary: Object,
     approvalSummary: { type: Object, default: () => ({}) },
     canReopen: { type: Boolean, default: false },
+    canCalculate: { type: Boolean, default: false },
+    reopenRequests: { type: Array, default: () => [] },
+    me: { type: Number, default: null },
     errors: { type: Object, default: () => ({}) },
   },
   data() {
@@ -243,6 +268,24 @@ export default {
     recalculate(contract) {
       this.$inertia.post(this.route('eir-calculations.calculate'), { contract_ids: [contract.contract_id] }, { preserveScroll: true })
     },
+    reopenRequested(contract) {
+      return this.reopenRequests.some(r => r.contract_id === contract.contract_id)
+    },
+    async approveReopen(r) {
+      if (!(await confirmDialog({
+        title: `Reopen the locked EIR of ${r.contract_id}?`,
+        message: `Requested by ${r.requested_by_name || 'another user'}: ${r.reason}. The locked calculation is archived, the revenue rows are superseded and the discounted ECL is marked stale.`,
+        confirmLabel: 'Approve and reopen',
+        tone: 'danger',
+      }))) return
+      this.$inertia.post(this.route('eir-calculations.reopen.approve', r.id), {}, { preserveScroll: true })
+    },
+    async closeReopen(r, action) {
+      const words = { reject: 'Reject', withdraw: 'Withdraw' }
+      const reason = await promptReason({ title: `${words[action]} the reopening of ${r.contract_id}`, message: 'Give the reason; it is kept with the request and in the audit trail.', confirmLabel: words[action] })
+      if (!reason) return
+      this.$inertia.post(this.route('eir-calculations.reopen.close', r.id), { action, reason }, { preserveScroll: true })
+    },
     openReopenModal(contract) {
       this.reopenModal = { open: true, contract, reason: '', processing: false, error: null }
     },
@@ -259,14 +302,14 @@ export default {
       }, {
         preserveScroll: true,
         onSuccess: () => { this.reopenModal = { open: false, contract: null, reason: '', processing: false, error: null } },
-        onError: errors => { this.reopenModal.error = errors.reason || 'The locked EIR could not be reopened.' },
+        onError: errors => { this.reopenModal.error = errors.reason || 'The reopening could not be requested.' },
         onFinish: () => { this.reopenModal.processing = false },
       })
     },
     async approve(c) {
       if (!(await confirmDialog({
         title: `Approve and lock ${c.contract_id}?`,
-        message: 'The original EIR is locked permanently. Only an administrator can reopen it.',
+        message: 'The original EIR is locked. It can be reopened only when one person with EIR governance requests it with a reason and a different person approves it.',
         confirmLabel: 'Approve and lock',
       }))) return
       this.$inertia.post(this.route('eir-calculations.approve', c.id))

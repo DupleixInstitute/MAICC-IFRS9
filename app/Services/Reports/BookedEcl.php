@@ -7,14 +7,17 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * The loss allowance every report carries: the booked allowance, which is the
- * expected credit loss discounted at the loan's original EIR (IFRS 9 5.5.17,
- * B5.5.44; spec v4 6.10.1; the month-end runs `ifrs9:segment-ecl
+ * expected credit loss discounted at the loan's effective interest rate: the
+ * original EIR of a fixed-rate loan, the current EIR of a floating-rate loan
+ * (IFRS 9 5.5.17, B5.5.44; EclDiscountRateService; spec v4 6.10.1; the
+ * month-end runs `ifrs9:segment-ecl
  * --discounting=discounted`), never the undiscounted reporting-date measure
  * where a discounted one exists. Built 14 October 2026.
  *
  * Each loan falls on one basis:
  *  - discounted: the time-phased engine projected and discounted it at the
- *    original EIR (ecl_discount_status CALCULATED_TIME_PHASED); the allowance
+ *    EIR (original for a fixed-rate loan, current for a floating-rate one;
+ *    ecl_discount_status CALCULATED_TIME_PHASED); the allowance
  *    is ecl_value_discounted;
  *  - programme: a Mega Farm programme loan (GLs 1050301 to 1050307), measured
  *    by the programme method at MAIIC's share and outside the EIR engine
@@ -38,7 +41,7 @@ final class BookedEcl
     public const BASES = ['discounted', 'programme', 'undiscounted', 'nil', 'none'];
 
     public const LABELS = [
-        'discounted' => 'Discounted at the original EIR (booked)',
+        'discounted' => 'Discounted at the EIR: original, or current for a floating-rate loan (booked)',
         'programme' => 'Mega Farm programme measure (D30, outside the EIR)',
         'undiscounted' => 'No discounted figure: undiscounted ECL shown',
         'nil' => 'Nil ECL, nothing to discount',
@@ -142,7 +145,7 @@ final class BookedEcl
     {
         return match ($status) {
             'TIME_PHASED_UNRESOLVED' => 'the time-phased projection could not run (for most, no locked original EIR); the run names each loan',
-            'CALCULATED_HORIZON_PROXY', 'FLOATING_RATE_PROXY' => 'discounted only on a proxy horizon or rate, not the time-phased projection at the original EIR, so not booked',
+            'CALCULATED_HORIZON_PROXY', 'FLOATING_RATE_PROXY' => 'discounted only on a proxy horizon or rate, not the time-phased projection at the EIR, so not booked',
             'EIR_UNAVAILABLE' => 'no original EIR to discount at',
             'HORIZON_UNAVAILABLE' => 'no maturity horizon to discount over',
             'NOT_REQUESTED' => 'the ECL run for the month was undiscounted',
@@ -158,7 +161,7 @@ final class BookedEcl
         }
         $parts = [];
         if ($bases['discounted']['loans'] > 0) {
-            $parts[] = number_format($bases['discounted']['loans']) . ' loans discounted at the original EIR (' . $m($bases['discounted']['shown']) . ')';
+            $parts[] = number_format($bases['discounted']['loans']) . ' loans discounted at the EIR, original or, for a floating-rate loan, current (' . $m($bases['discounted']['shown']) . ')';
         }
         if ($bases['programme']['loans'] > 0) {
             $parts[] = number_format($bases['programme']['loans']) . ' Mega Farm programme loans at the programme measure (' . $m($bases['programme']['shown']) . ')';
@@ -192,7 +195,7 @@ final class BookedEcl
         $rows[] = ['Allowance shown', number_format(array_sum(array_column($summary['bases'], 'loans'))), $money($r['shown'])];
         $rows[] = ['Reconciliation: ECL at the reporting date, undiscounted (EAD x PD x LGD)', '', $money($r['undiscounted'])];
         $rows[] = ['Add: lifetime time-phased projection over the reporting-date measure (discounted loans)', '', $money($r['projection'])];
-        $rows[] = ['Less: effect of discounting at the original EIR (discounted loans)', '', $money($r['discounting_effect'])];
+        $rows[] = ['Less: effect of discounting at the EIR (original; current for a floating-rate loan)', '', $money($r['discounting_effect'])];
         $rows[] = ['Allowance shown', '', $money($r['shown'])];
 
         return [

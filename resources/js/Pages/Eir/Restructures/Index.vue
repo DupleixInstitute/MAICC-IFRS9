@@ -133,7 +133,7 @@
       <template v-else>
         <div class="maiic-filterbar flex flex-wrap items-end gap-3">
           <div>
-            <label class="maiic-flabel" for="rr-status">Status</label>
+            <label class="maiic-flabel" for="rr-status">Classification</label>
             <select id="rr-status" v-model="resetFilters.status" class="maiic-select">
               <option value="">All</option><option value="DETECTED">Awaiting a classification</option><option value="PROPOSED">Proposed</option><option value="APPROVED">Approved</option>
             </select>
@@ -158,14 +158,14 @@
         <div class="maiic-panel">
           <div class="border-b border-gray-200 p-4 dark:border-slate-700">
             <h3 class="font-semibold text-gray-900 dark:text-slate-100">Rate resets</h3>
-            <p class="mt-1 text-xs text-gray-500">Every month whose loan-book rate differs from the month before, on a loan of the EIR engine, with the PLR at both month-ends and the spread. The EIR already follows the rate charged each month on a floating loan (decision D38, IFRS 9 B5.4.5, no catch-up); this register records each move and its classification. In-contract: a move the contract provides for. Negotiated: a re-pricing agreed outside it, which becomes a restructure candidate.</p>
+            <p class="mt-1 text-xs text-gray-500">Each prime-rate reset of a floating loan, found once from the PLR series on the spread locked at drawdown, set against the rate the loan book shows E-Banker charged; and each change of the spread, as its own event even on the date of a PLR reset. A move the reset pipeline cannot take (the loan is held there, or the engine treats it as fixed-rate) is still recorded, marked held, with the reason. The EIR already follows the rate charged each month on a floating loan (decision D38, IFRS 9 B5.4.5, no catch-up); this register records each move and its classification. In-contract: a move the contract provides for. Negotiated: a re-pricing agreed outside it, which becomes a restructure candidate.</p>
           </div>
           <div class="maiic-table-wrap">
             <table class="maiic-table maiic-table-compact">
               <thead><tr><th class="w-8"><input type="checkbox" :checked="allOnPage" aria-label="Select the page" @change="togglePage($event.target.checked)" /></th><th>Loan</th><th>Month</th><th>Type</th><th class="num">Rate</th><th class="num">PLR</th><th class="num">Spread</th><th>Evidence</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
               <tbody>
                 <tr v-for="r in pagedResets" :key="r.id">
-                  <td><input v-if="r.status !== 'APPROVED'" v-model="selected" type="checkbox" :value="r.id" :aria-label="'Select reset ' + r.id" /></td>
+                  <td><input v-if="r.classification_status !== 'APPROVED'" v-model="selected" type="checkbox" :value="r.id" :aria-label="'Select reset ' + r.id" /></td>
                   <td><div class="font-semibold">{{ r.customer_name || '-' }}</div><div class="text-xs text-gray-500">{{ r.contract_id }}</div></td>
                   <td class="whitespace-nowrap">{{ r.reporting_period }}<div class="text-xs text-gray-500">from {{ r.reset_date }}</div></td>
                   <td class="text-xs"><span class="maiic-badge" :class="r.event_type === 'PLR_RESET' ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ r.event_type === 'PLR_RESET' ? 'Moved with the PLR' : 'Spread changed' }}</span></td>
@@ -174,17 +174,19 @@
                   <td class="num whitespace-nowrap">{{ pct(r.old_spread) }} to {{ pct(r.new_spread) }}</td>
                   <td class="min-w-[16rem] max-w-[22rem] text-xs text-gray-600">{{ r.evidence }}</td>
                   <td class="text-xs">
-                    <span class="maiic-badge" :class="resetBadge(r.status)">{{ resetLabel(r.status) }}</span>
+                    <span class="maiic-badge" :class="resetBadge(r.classification_status)">{{ resetLabel(r.classification_status) }}</span>
                     <div v-if="r.classification" class="mt-1 font-semibold">{{ r.classification === 'IN_CONTRACT' ? 'In-contract reset' : 'Negotiated' }}</div>
                     <div v-else-if="r.suggested_classification" class="mt-1 text-gray-500">Suggested: in-contract</div>
                     <div v-if="r.reason" class="text-gray-600">{{ r.reason }}</div>
                     <div v-if="r.proposed_by_name" class="text-gray-500">Proposed by {{ r.proposed_by_name }}</div>
                     <div v-if="r.approved_by_name" class="text-gray-500">Approved by {{ r.approved_by_name }}</div>
                     <div v-if="r.restructure_event_id" class="text-gray-500">Restructure candidate #{{ r.restructure_event_id }}</div>
-                    <div v-if="r.close_reason && r.status === 'DETECTED'" class="text-gray-500">{{ r.close_reason }}</div>
+                    <div v-if="r.close_reason && r.classification_status === 'DETECTED'" class="text-gray-500">{{ r.close_reason }}</div>
+                    <div class="mt-1 text-gray-500 dark:text-slate-400" :title="r.note || ''">Reset pipeline: {{ pipelineLabel(r) }}<template v-if="r.new_schedule_version">, schedule version {{ r.new_schedule_version }}</template></div>
+                    <div v-if="r.status === 'BLOCKED' && r.note" class="text-amber-700 dark:text-amber-300">{{ r.note }}</div>
                   </td>
                   <td class="text-right">
-                    <div v-if="canGovern && r.status === 'PROPOSED'" class="flex justify-end gap-1.5">
+                    <div v-if="canGovern && r.classification_status === 'PROPOSED'" class="flex justify-end gap-1.5">
                       <button v-if="r.proposed_by !== me" type="button" class="maiic-action maiic-action-delete" title="Reject" @click="closeReset(r, 'reject')"><font-awesome-icon icon="times" /></button>
                       <button v-else type="button" class="maiic-action maiic-action-edit" title="Withdraw" @click="closeReset(r, 'withdraw')"><font-awesome-icon icon="ban" /></button>
                     </div>
@@ -331,16 +333,16 @@ const resetFilters = reactive({ status: '', type: '', search: '' })
 const resetPage = ref(1)
 const selected = ref([])
 const filteredResets = computed(() => props.resets.filter(r =>
-  (!resetFilters.status || r.status === resetFilters.status) && (!resetFilters.type || r.event_type === resetFilters.type)
+  (!resetFilters.status || r.classification_status === resetFilters.status) && (!resetFilters.type || r.event_type === resetFilters.type)
   && (!resetFilters.search || `${r.customer_name || ''} ${r.contract_id}`.toLowerCase().includes(resetFilters.search.toLowerCase()))))
 const pagedResets = computed(() => filteredResets.value.slice((resetPage.value - 1) * 15, resetPage.value * 15))
 watch(resetFilters, () => { resetPage.value = 1; selected.value = [] })
 const byId = computed(() => Object.fromEntries(props.resets.map(r => [r.id, r])))
-const selectedDetected = computed(() => selected.value.filter(id => byId.value[id]?.status === 'DETECTED'))
-const selectedApprovable = computed(() => selected.value.filter(id => byId.value[id]?.status === 'PROPOSED' && byId.value[id]?.proposed_by !== props.me))
-const allOnPage = computed(() => pagedResets.value.filter(r => r.status !== 'APPROVED').length > 0 && pagedResets.value.filter(r => r.status !== 'APPROVED').every(r => selected.value.includes(r.id)))
+const selectedDetected = computed(() => selected.value.filter(id => byId.value[id]?.classification_status === 'DETECTED'))
+const selectedApprovable = computed(() => selected.value.filter(id => byId.value[id]?.classification_status === 'PROPOSED' && byId.value[id]?.proposed_by !== props.me))
+const allOnPage = computed(() => pagedResets.value.filter(r => r.classification_status !== 'APPROVED').length > 0 && pagedResets.value.filter(r => r.classification_status !== 'APPROVED').every(r => selected.value.includes(r.id)))
 function togglePage(on) {
-  const ids = pagedResets.value.filter(r => r.status !== 'APPROVED').map(r => r.id)
+  const ids = pagedResets.value.filter(r => r.classification_status !== 'APPROVED').map(r => r.id)
   selected.value = on ? [...new Set([...selected.value, ...ids])] : selected.value.filter(id => !ids.includes(id))
 }
 async function proposeResets(classification) {
@@ -388,5 +390,8 @@ const modBadge = (s) => ({ PENDING: 'maiic-badge-gold', APPLIED: 'maiic-badge-gr
 const treatmentLabel = (t) => ({ MODIFICATION: 'Modified (5.4.3)', DERECOGNITION: 'Derecognised; new loan recognised', CATCH_UP: 'Catch-up (B5.4.6)' }[t] || t)
 const resetLabel = (s) => ({ DETECTED: 'Awaiting a classification', PROPOSED: 'Proposed', APPROVED: 'Approved' }[s] || s)
 const resetBadge = (s) => ({ DETECTED: 'maiic-badge-grey', PROPOSED: 'maiic-badge-gold', APPROVED: 'maiic-badge-green' }[s] || 'maiic-badge-grey')
+// the reset pipeline's own state (status), beside the classification (classification_status)
+const pipelineLabel = (r) => r.event_type === 'SPREAD_CHANGE' ? 'not scheduled (a spread change is classified here)'
+  : ({ DETECTED: 'detected', SCHEDULED: 'Reset schedule built', SOLVED: 'solved', BLOCKED: 'held' }[r.status] || r.status || '-')
 const noAccounting = (e) => (e.event_date && e.event_date <= TAKEON) ? 'before the take-on of 31 July 2024; the balance taken on and the take-on EIR already carry it (history and the RBM return)' : e.classification === 'CONTRACTUAL_RESET' ? 'a floating loan\'s reset is carried by the monthly re-estimation (D38)' : 'a ' + classLabel(e.classification).toLowerCase()
 </script>

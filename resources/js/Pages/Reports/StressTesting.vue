@@ -268,7 +268,7 @@ async function deleteScenario(s) {
 
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="maiic-kpi" style="--accent: #15803d">
-                            <p class="maiic-kpi-label">Base ECL</p>
+                            <p class="maiic-kpi-label">Base ECL (booked allowance)</p>
                             <p class="maiic-kpi-value">{{ money(result.total_base_ecl) }}</p>
                         </div>
                         <div class="maiic-kpi" style="--accent: #d97706">
@@ -283,6 +283,19 @@ async function deleteScenario(s) {
                             <p class="maiic-kpi-label">&Delta; %</p>
                             <p class="maiic-kpi-value">{{ pct(result.delta_pct) }}</p>
                         </div>
+                    </div>
+
+                    <!-- the basis: booked allowance, the undiscounted measure beside it, and what was left out -->
+                    <div v-if="result.basis" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+                        <div>
+                            <b class="text-gray-900">Basis:</b> the base is the booked loss allowance, and each scenario scales that same figure loan by loan.
+                            On the undiscounted measure the base is {{ money(result.basis.undiscounted.base_ecl) }} and the stressed figure {{ money(result.basis.undiscounted.stress_ecl) }}.
+                        </div>
+                        <ul v-if="result.basis.not_booked.loans || result.basis.not_measured.loans || result.basis.not_scaled.loans" class="mt-1 list-disc pl-5 text-xs text-gray-600">
+                            <li v-if="result.basis.not_booked.loans">{{ result.basis.not_booked.loans }} loan(s) have no discounted allowance and are shown at their undiscounted ECL ({{ money(result.basis.not_booked.base_ecl) }}).</li>
+                            <li v-if="result.basis.not_measured.loans">{{ result.basis.not_measured.loans }} loan(s) have no ECL calculated and are not measured (exposure {{ money(result.basis.not_measured.exposure) }}).</li>
+                            <li v-if="result.basis.not_scaled.loans">{{ result.basis.not_scaled.loans }} loan(s) carry a nil PD or LGD and are kept at their allowance ({{ money(result.basis.not_scaled.base_ecl) }}).</li>
+                        </ul>
                     </div>
 
                     <div class="maiic-panel">

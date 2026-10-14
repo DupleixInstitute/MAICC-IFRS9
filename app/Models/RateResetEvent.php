@@ -6,9 +6,24 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A prime-rate change applied to one floating loan (phase P5). The reference
- * rates and the spread are in percentage points; the contractual rates are
- * fractions, as on contract_eir.
+ * A move of one loan's rate (phase P5). One row per event, and two events on
+ * one date when the prime rate and the spread both move (spec v4 P5: a spread
+ * change is a separate event, classified on its own under O17).
+ *
+ * Two owners, two states on the same row (reconciliation of 14 October 2026):
+ *  - the reset pipeline (ResetDetectionService, ResetScheduleService) owns
+ *    `status`: DETECTED, SCHEDULED (a Reset schedule version is built),
+ *    SOLVED, BLOCKED (the pipeline cannot go on; `note` says why);
+ *  - the register (RateResetService) owns `classification_status`: DETECTED,
+ *    PROPOSED, APPROVED, one person proposing in-contract or negotiated and a
+ *    different person approving, with the loan-book evidence on the row.
+ *
+ * Neither state sets the EIR: a floating loan's EIR is decision D38's monthly
+ * re-estimation at the rate charged (EirRevenueService::eirInForce).
+ *
+ * The reference rates, the spreads and the charged rates (old_rate, new_rate)
+ * are in percentage points; the contractual rates are fractions, as on
+ * contract_eir.
  */
 class RateResetEvent extends Model
 {
@@ -16,6 +31,13 @@ class RateResetEvent extends Model
     public const STATUS_SCHEDULED = 'SCHEDULED';
     public const STATUS_SOLVED = 'SOLVED';
     public const STATUS_BLOCKED = 'BLOCKED';
+
+    public const TYPE_PLR_RESET = 'PLR_RESET';
+    public const TYPE_SPREAD_CHANGE = 'SPREAD_CHANGE';
+
+    public const CLASSIFICATION_DETECTED = 'DETECTED';
+    public const CLASSIFICATION_PROPOSED = 'PROPOSED';
+    public const CLASSIFICATION_APPROVED = 'APPROVED';
 
     protected $table = 'rate_reset_events';
 
@@ -33,6 +55,17 @@ class RateResetEvent extends Model
         'status',
         'note',
         'recorded_by',
+        // the register
+        'detection_key',
+        'account',
+        'reporting_period',
+        'event_type',
+        'old_rate',
+        'new_rate',
+        'old_spread',
+        'new_spread',
+        'evidence',
+        'suggested_classification',
     ];
 
     protected $casts = [
@@ -44,6 +77,10 @@ class RateResetEvent extends Model
         'old_contractual_rate' => 'float',
         'new_contractual_rate' => 'float',
         'new_schedule_version' => 'integer',
+        'old_rate'             => 'float',
+        'new_rate'             => 'float',
+        'old_spread'           => 'float',
+        'new_spread'           => 'float',
     ];
 
     public function contractEir(): BelongsTo

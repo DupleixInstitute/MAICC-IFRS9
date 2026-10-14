@@ -51,13 +51,16 @@ echo "Deploying $(git rev-parse --short HEAD) in $APP_DIR"
 
 # public/build is intentionally not committed, so production builds the Vite
 # assets after each successful merge to master.
-"$NPM_BIN" ci
+# puppeteer is a dev tool for manual screenshots; production does not download its browser
+PUPPETEER_SKIP_DOWNLOAD=true "$NPM_BIN" ci
 "$NPM_BIN" run build
 
 "$PHP_BIN" artisan down --retry=60
 MAINTENANCE_ENABLED=1
 
-"$PHP_BIN" artisan migrate --force
+# migrations, then the additive seeders a release may need: permissions (incl. tickets) and the
+# Governance Centre and SICR defaults (maiic:task update clears the permission cache first)
+"$PHP_BIN" -d memory_limit=4096M artisan maiic:task update
 "$PHP_BIN" artisan optimize:clear
 "$PHP_BIN" artisan config:cache
 "$PHP_BIN" artisan route:cache

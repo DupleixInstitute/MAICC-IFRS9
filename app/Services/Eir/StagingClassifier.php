@@ -83,7 +83,7 @@ class StagingClassifier
         if (! isset($this->cached[$key])) {
             $rule = StagingThreshold::forFacility($facilityClass, $tenorMonths, $this->asOf);
             if ($rule === null) {
-                throw new RuntimeException('No approved staging threshold is in force for facility class ' . ($facilityClass ?? 'DEFAULT')
+                throw new \App\Exceptions\StagingRuleMissingException('No approved staging threshold is in force for facility class ' . ($facilityClass ?? 'DEFAULT')
                     . " (tenor {$tenorMonths} months) at {$this->asOf}. Approve one on Settings, Staging basis; the import does not assume 31 and 181 days.");
             }
             $this->cached[$key] = [(int) $rule->stage2_dpd, (int) $rule->stage3_dpd];

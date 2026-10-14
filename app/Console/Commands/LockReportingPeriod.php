@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\AuditLoggerService;
 use App\Services\Eir\GovernanceService;
+use App\Services\Eir\PeriodUnlockService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -15,14 +16,20 @@ use Illuminate\Support\Facades\DB;
  *
  *   php artisan eir:lock-period 2025-12 --user=1 --reason="Audited year-end"
  *   php artisan eir:lock-period 2025-12 --user=1 --unlock --reason="Restatement approved by Dr Thom, minute 12"
+ *   php artisan eir:lock-period 2025-12 --user=2 --approve-unlock
+ *
+ * Locking is one person's act. Unlocking is maker-checker (documentation audit
+ * of 14 October 2026; PeriodUnlockService): --unlock requests it with the
+ * reason, and a different user approves it with --approve-unlock, which removes
+ * the lock. The screen (Imports & Feeds, Periods Built) does the same.
  */
 class LockReportingPeriod extends Command
 {
-    protected $signature = 'eir:lock-period {period : YYYY-MM} {--user=} {--reason=} {--unlock}';
+    protected $signature = 'eir:lock-period {period : YYYY-MM} {--user=} {--reason=} {--unlock : Request the unlock; a different user approves it} {--approve-unlock : Approve the unlock another user requested}';
 
     protected $description = 'Lock (or unlock) a reporting period so that no build restates it';
 
-    public function handle(GovernanceService $governance): int
+    public function handle(GovernanceService $governance, PeriodUnlockService $unlocks): int
     {
         $period = (string) $this->argument('period');
         if (! preg_match('/^\d{4}-\d{2}$/', $period)) {
@@ -30,15 +37,42 @@ class LockReportingPeriod extends Command
             return self::FAILURE;
         }
         $user = $this->option('user') !== null ? (int) $this->option('user') : null;
+        if ($this->option('approve-unlock')) {
+            if ($user === null) {
+                $this->error('--user is required: the approver is recorded, and must not be the person who asked.');
+                return self::FAILURE;
+            }
+            $request = DB::table(PeriodUnlockService::TABLE)->where('reporting_period', $period)->where('status', 'PROPOSED')->orderByDesc('id')->first();
+            if (! $request) {
+                $this->error("No unlock of {$period} is awaiting approval.");
+                return self::FAILURE;
+            }
+            try {
+                $unlocks->approve((int) $request->id, $user);
+            } catch (\LogicException $e) {
+                $this->error($e->getMessage());
+                return self::FAILURE;
+            }
+            $this->info("Period {$period} unlocked.");
+            return self::SUCCESS;
+        }
         $reason = trim((string) $this->option('reason'));
         if ($reason === '') {
             $this->error('--reason is required; it is written to the audit log.');
             return self::FAILURE;
         }
         if ($this->option('unlock')) {
-            $n = DB::table('reporting_period_locks')->where('reporting_period', $period)->delete();
-            AuditLoggerService::log('Reporting Period Unlocked', 'reporting_period_locks', null, ['new_values' => ['period' => $period, 'reason' => $reason], 'meta' => ['user' => $user]]);
-            $this->info($n ? "Period {$period} unlocked." : "Period {$period} was not locked.");
+            if ($user === null) {
+                $this->error('--user is required: the person asking is recorded, and a different person approves.');
+                return self::FAILURE;
+            }
+            try {
+                $unlocks->request($period, $user, $reason);
+            } catch (\LogicException $e) {
+                $this->error($e->getMessage());
+                return self::FAILURE;
+            }
+            $this->info("Unlock of period {$period} requested; a different person with EIR governance approves it before the lock is removed.");
             return self::SUCCESS;
         }
         $asOf = CarbonImmutable::parse($period . '-01')->endOfMonth();

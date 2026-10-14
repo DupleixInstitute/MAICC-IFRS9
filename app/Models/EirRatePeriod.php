@@ -10,6 +10,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * (decision D8, IFRS 9 B5.4.5). Period 1 starts at origination; a floating
  * loan gains a period at each prime-rate change. See the migration of
  * 2026-10-01 for the units of each column.
+ *
+ * The period records the rate in force (prime, locked spread, contract rate)
+ * and the schedule version built for it. It is not a source of the EIR: the
+ * EIR a floating loan accrues at, and the current EIR the ECL discounts at,
+ * is decision D38's monthly re-estimation at the rate E-Banker charged
+ * (EirRevenueService::eirInForce and currentFloatingEir, recorded on each
+ * eir_amortisation row as eir_annual). Solving an EIR here as well would
+ * apply each rate change twice, so no engine fills or reads the eir_*
+ * columns (reconciliation of 14 October 2026).
  */
 class EirRatePeriod extends Model
 {

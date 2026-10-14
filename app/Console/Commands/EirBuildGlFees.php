@@ -11,6 +11,13 @@ use Illuminate\Console\Command;
  * applies the governed source precedence and reports the assignment and the
  * fee GL gate. Every line lands PENDING for Fee Classification.
  *
+ * A month whose fee GL movement in GL_04a differs from the trial balance's is
+ * a failure (spec v4 6.4, "a failure refuses"): the command lists the months
+ * and returns FAILURE, so the month-end (maiic:task month-end) stops at this
+ * step and the EIR revenue does not run on fees the ledger does not support.
+ * A month without a trial balance yet is listed, not failed; the next build
+ * checks it again.
+ *
  *   php artisan eir:build-gl-fees --user=1
  */
 class EirBuildGlFees extends Command
@@ -31,10 +38,17 @@ class EirBuildGlFees extends Command
         }
         $this->line("Loaded {$r['loaded']['loaded_rows']} new line(s) PENDING; {$r['precedence']['superseded_lines']} line(s) superseded under " . implode(' > ', $r['precedence']['order']) . '; ' . count($r['precedence']['exceptions']) . ' cross-source difference(s).');
         $this->line("Fee GL gate: {$r['gate']['agree']} month(s) agree, {$r['gate']['differ']} differ, {$r['gate']['no_tb']} without a trial balance.");
-        foreach ($r['gate']['months'] as $m) {
-            if ($m['status'] === 'DIFFERENCE') {
-                $this->warn("  {$m['gl']} {$m['month']}: GL_04a " . number_format($m['gl_04a'], 2) . ' against the trial balance ' . number_format((float) $m['trial_balance'], 2));
-            }
+        $differ = array_values(array_filter($r['gate']['months'], fn ($m) => $m['status'] === 'DIFFERENCE'));
+        foreach ($differ as $m) {
+            $this->error("  {$m['gl']} {$m['month']}: GL_04a " . number_format($m['gl_04a'], 2) . ' against the trial balance ' . number_format((float) $m['trial_balance'], 2));
+        }
+        if ($differ !== []) {
+            $months = array_values(array_unique(array_map(fn ($m) => $m['month'], $differ)));
+            sort($months);
+            $this->error('Fee GL gate failed: the fee GL movement differs from the trial balance in ' . implode(', ', $months)
+                . '. The fee lines are built but the month-end stops here (spec 6.4); land the corrected GL_04a or trial balance and build again.');
+
+            return self::FAILURE;
         }
 
         return self::SUCCESS;

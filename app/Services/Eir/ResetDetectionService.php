@@ -20,13 +20,13 @@ use Illuminate\Support\Facades\DB;
  * rate_reset_events row per change. The EIR of each period is left for the
  * next step; a period here is PENDING_EIR.
  *
- *  - Does it follow the prime rate? E-Banker's Interest Policy decides (P
- *    floats, F is fixed). Where MAIIC has not supplied it, the product family
- *    stands in, as the Governance Centre's rate_source_precedence orders it:
- *    FinES loans are fixed at 10 percent and MAIIC Term Loans did not move in
- *    nine months of loan books, while MAIIC Industrial and Agricultural loans
- *    moved with every prime-rate change (spec v3 section 7.3). The source is
- *    recorded so a supplied policy can overrule the guess.
+ *  - Does it follow the prime rate? The contract's rate type, which the
+ *    contract master takes from E-Banker's Interest Policy (P floating, every
+ *    other code fixed; spec v4 section 7.2). It is the same test the EIR in
+ *    force applies (decision D38, EirRevenueService::eirInForce), so a loan
+ *    has resets here exactly when its EIR moves with its rate. A loan with no
+ *    rate type is held, never guessed from its product family
+ *    (reconciliation of 14 October 2026).
  *
  *  - The spread is locked at origination (Governance key margin_basis). On
  *    LIVE_AT_DRAWDOWN, the default, it is the rate at first disbursement less
@@ -35,14 +35,25 @@ use Illuminate\Support\Facades\DB;
  *    SUPPLIED or AS_CAPTURED it is the MARKUP column, and a loan without one is
  *    held rather than guessed.
  *
- *  - When a change applies is the Governance key plr_mid_period: from the
- *    Reserve Bank's effective date (the default), the next month-end, or the
- *    next instalment. Two changes that land on the same date are one reset at
- *    the later rate.
+ *  - When a change applies is the Governance key plr_mid_period. On its
+ *    default, "Whole month at the month-end rate (E-Banker)", the month the
+ *    change falls in is charged whole at the new rate (spec v4 section 3.1,
+ *    O2), so the reset is dated the 1st of that month (the effective date in
+ *    the loan's first month); "Pro rata from the effective date" dates it on
+ *    the Reserve Bank's date and "From the next instalment date" on the next
+ *    version-1 instalment. A value it does not know holds the loan. Two
+ *    changes that land on the same date are one reset at the later rate.
+ *
+ * This is the one detector of rate_reset_events (reconciliation of 14 October
+ * 2026): RateResetService runs it first, then sets each reset against the
+ * rate the loan book shows E-Banker charged and writes the spread changes
+ * beside it. The rows written here are event_type PLR_RESET; their `status`
+ * is the pipeline's, their `classification_status` the register's.
  *
  * Re-running is safe. A period or event that has moved past its first state
- * (an EIR solved or locked, a schedule built) is never changed or removed;
- * where the new reading disagrees with it, the result says so.
+ * (an EIR solved or locked, a schedule built, a classification proposed or
+ * approved) is never changed or removed; where the new reading disagrees with
+ * it, the result says so.
  */
 class ResetDetectionService
 {
@@ -112,6 +123,9 @@ class ResetDetectionService
         $rate = $rate > 1 ? $rate / 100 : $rate;
         [$floating, $source] = $this->followsPrime($contract);
         $result['rate_behaviour_source'] = $source;
+        if ($floating === null) {
+            return ['status' => self::STATUS_BLOCKED, 'reason' => 'NO_RATE_TYPE: the contract master states no rate type (FLOATING or FIXED), so whether the loan follows the prime rate is not known'] + $result;
+        }
         $result['rate_at_origination'] = round($rate * 100, 5);
 
         if (! $floating) {
@@ -145,6 +159,9 @@ class ResetDetectionService
         $until = $contract->maturity_date && $contract->maturity_date->lt($asOf)
             ? CarbonImmutable::parse($contract->maturity_date->toDateString()) : $asOf;
         $timing = $this->governance->get('plr_mid_period', $origination);
+        if (self::timingRule($timing) === null) {
+            return ['status' => self::STATUS_BLOCKED, 'reason' => "UNKNOWN_PLR_TIMING: plr_mid_period reads \"{$timing}\", which the reset detector does not know how to date"] + $result;
+        }
 
         $changes = [];
         $previous = (float) $first->rate;
@@ -158,7 +175,7 @@ class ResetDetectionService
                 continue;                          // a restatement of the same rate is not a change
             }
             $effective = CarbonImmutable::parse($row->effective_date->toDateString());
-            $resetDate = $this->applies($effective, $timing, $contract);
+            $resetDate = $this->applies($effective, $timing, $contract, $origination);
             if ($resetDate === null) {
                 $result['kept'][] = "the {$index} change of {$effective->toDateString()} has no version-1 instalment on or after it to take effect from (none generated, or past the last one), so it is not applied";
                 $previous = $new;
@@ -197,50 +214,86 @@ class ResetDetectionService
         return ['status' => self::STATUS_FLOATING] + $result;
     }
 
-    /** @return array{0: bool, 1: string} whether the loan floats, and what said so */
-    private function followsPrime(ContractEir $contract): array
+    /**
+     * Whether the loan floats, and what said so: the contract's rate type, the test the EIR in
+     * force applies (D38). Null when no rate type is stated: the loan is held.
+     *
+     * @return array{0: ?bool, 1: ?string}
+     */
+    public static function followsPrime(object $contract): array
     {
-        $policy = strtoupper(trim((string) $contract->interest_policy));
-        if ($policy !== '') {
-            return [$policy === 'P', 'INTEREST_POLICY'];
-        }
-        if ($contract->reprice_flag !== null) {
-            return [(bool) $contract->reprice_flag, 'REPRICE_FLAG'];
-        }
+        $type = strtoupper(trim((string) ($contract->rate_type ?? '')));
 
-        $family = strtoupper((string) $contract->portfolio . ' ' . (string) $contract->product_type);
-        if (str_contains($family, 'FINES') || str_contains($family, 'TERM LOAN')) {
-            return [false, 'PRODUCT_FAMILY'];
-        }
-
-        return [str_contains($family, 'MAIIC'), 'PRODUCT_FAMILY'];
+        return match ($type) {
+            'FLOATING' => [true, 'RATE_TYPE'],
+            'FIXED' => [false, 'RATE_TYPE'],
+            default => [null, null],
+        };
     }
 
-    /** The date a prime-rate change takes effect for this loan, under plr_mid_period. */
-    private function applies(CarbonImmutable $effective, string $timing, ContractEir $contract): ?CarbonImmutable
+    /** WHOLE_MONTH, EFFECTIVE_DATE or NEXT_INSTALMENT for a plr_mid_period value; null for one not known. */
+    public static function timingRule(string $timing): ?string
     {
         $text = strtoupper($timing);
-        if (str_contains($text, 'MONTH-END') || str_contains($text, 'MONTH END')) {
-            return $effective->endOfMonth()->startOfDay();
-        }
-        if (str_contains($text, 'INSTALMENT') || str_contains($text, 'INSTALLMENT')) {
-            $next = DB::table('contract_cashflow_schedule')->where('contract_id', $contract->contract_id)
-                ->where('schedule_version', 1)->whereDate('due_date', '>=', $effective->toDateString())->min('due_date');
 
-            return $next ? CarbonImmutable::parse(substr((string) $next, 0, 10)) : null;
-        }
-
-        return $effective;
+        return match (true) {
+            str_contains($text, 'WHOLE MONTH') => 'WHOLE_MONTH',
+            str_contains($text, 'PRO RATA') || str_contains($text, 'EFFECTIVE DATE') => 'EFFECTIVE_DATE',
+            str_contains($text, 'INSTALMENT') || str_contains($text, 'INSTALLMENT') => 'NEXT_INSTALMENT',
+            default => null,
+        };
     }
 
-    /** @return array<string,int> reset date => event id */
+    /**
+     * The date a prime-rate change takes effect for this loan, under plr_mid_period: the 1st of
+     * the month it falls in (the whole month at the new rate, spec v4 section 3.1), the Reserve
+     * Bank's date, or the next version-1 instalment. In the loan's first month the whole-month
+     * rule cannot reach back before the drawdown, so the change is dated on its own day.
+     */
+    public function applicationDate(CarbonImmutable $effective, ContractEir $contract, ?CarbonImmutable $origination = null): ?CarbonImmutable
+    {
+        $origination ??= $contract->origination_date ? CarbonImmutable::parse($contract->origination_date->toDateString()) : null;
+
+        return $this->applies($effective, (string) $this->governance->get('plr_mid_period', $origination ?? $effective), $contract, $origination);
+    }
+
+    private function applies(CarbonImmutable $effective, string $timing, ContractEir $contract, ?CarbonImmutable $origination): ?CarbonImmutable
+    {
+        switch (self::timingRule($timing)) {
+            case 'WHOLE_MONTH':
+                $first = $effective->startOfMonth();
+
+                return $origination !== null && $first->lte($origination) ? $effective : $first;
+            case 'NEXT_INSTALMENT':
+                $next = DB::table('contract_cashflow_schedule')->where('contract_id', $contract->contract_id)
+                    ->where('schedule_version', 1)->whereDate('due_date', '>=', $effective->toDateString())->min('due_date');
+
+                return $next ? CarbonImmutable::parse(substr((string) $next, 0, 10)) : null;
+            case 'EFFECTIVE_DATE':
+                return $effective;
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * The prime-rate resets of one loan, as PLR_RESET rows. A row the register wrote for a move
+     * the pipeline had not dated (detection key MOVE|) is taken over when the pipeline dates the
+     * same reset; a row of the register's first version (RESET|, dated on the Reserve Bank's
+     * date) is taken over likewise, so each reset is one row.
+     *
+     * @return array<string,int> reset date => event id
+     */
     private function writeEvents(ContractEir $contract, array $changes, float $spread, string $index, ?int $userId, array &$kept): array
     {
-        $existing = RateResetEvent::where('contract_id', $contract->contract_id)->get()
-            ->keyBy(fn ($e) => $e->reset_date->toDateString());
+        $rows = RateResetEvent::where('contract_id', $contract->contract_id)
+            ->where(fn ($q) => $q->where('event_type', RateResetEvent::TYPE_PLR_RESET)->orWhereNull('event_type'))->get();
+        $existing = $rows->keyBy(fn ($e) => $e->reset_date->toDateString());
+        $legacy = $rows->filter(fn ($e) => str_starts_with((string) $e->detection_key, 'RESET|'))->keyBy(fn ($e) => $e->reset_date->toDateString());
         $ids = [];
         foreach ($changes as $key => $c) {
             $values = [
+                'reset_date' => $key,
                 'plr_effective_date' => $c['plr_effective_date']->toDateString(),
                 'index_code' => $index,
                 'old_reference_rate' => $c['old_reference'],
@@ -248,25 +301,40 @@ class ResetDetectionService
                 'spread_over_prime' => $spread,
                 'old_contractual_rate' => round(($c['old_reference'] + $spread) / 100, 7),
                 'new_contractual_rate' => round(($c['new_reference'] + $spread) / 100, 7),
+                'event_type' => RateResetEvent::TYPE_PLR_RESET,
+                'reporting_period' => substr($key, 0, 7),
+                'suggested_classification' => 'IN_CONTRACT',
             ];
-            $event = $existing->get($key);
-            if ($event && $event->status !== RateResetEvent::STATUS_DETECTED) {
+            $event = $existing->get($key) ?? $legacy->get($c['plr_effective_date']->toDateString());
+            if ($event && $this->pastFirstState($event)) {
                 if (abs((float) $event->new_reference_rate - $c['new_reference']) >= 0.000005) {
-                    $kept[] = "the reset of {$key} is already {$event->status} at {$event->new_reference_rate}; the series now reads {$c['new_reference']}";
+                    $state = $event->status !== RateResetEvent::STATUS_DETECTED ? $event->status : 'classified ' . $event->classification_status;
+                    $kept[] = "the reset of {$key} is already {$state} at {$event->new_reference_rate}; the series now reads {$c['new_reference']}";
                 }
                 $ids[$key] = $event->id;
                 continue;
             }
-            $event ??= new RateResetEvent(['contract_id' => $contract->contract_id, 'reset_date' => $key]);
-            $event->fill($values + ['status' => RateResetEvent::STATUS_DETECTED, 'recorded_by' => $userId])->save();
+            $event ??= new RateResetEvent(['contract_id' => $contract->contract_id]);
+            $event->fill($values + ['status' => RateResetEvent::STATUS_DETECTED, 'note' => null, 'recorded_by' => $userId,
+                'detection_key' => "PLR|{$contract->contract_id}|{$key}"])->save();
             $ids[$key] = $event->id;
         }
 
-        // A detected reset the series no longer supports goes; a processed one stays.
-        RateResetEvent::where('contract_id', $contract->contract_id)->where('status', RateResetEvent::STATUS_DETECTED)
-            ->get()->reject(fn ($e) => isset($changes[$e->reset_date->toDateString()]))->each->delete();
+        // A detected reset the series no longer supports goes; a processed or classified one stays.
+        $rows->fresh()->filter(fn ($e) => $e && $e->status === RateResetEvent::STATUS_DETECTED && ! $this->pastFirstState($e)
+            && ! in_array($e->id, $ids, true))->each->delete();
 
         return $ids;
+    }
+
+    /** A schedule built, an EIR solved, or a person's classification proposed or approved. */
+    private function pastFirstState(RateResetEvent $event): bool
+    {
+        $classified = ($event->classification_status ?? RateResetEvent::CLASSIFICATION_DETECTED) !== RateResetEvent::CLASSIFICATION_DETECTED;
+        // a move the register recorded while the pipeline could not date it is the pipeline's to take over
+        $registerOnly = str_starts_with((string) $event->detection_key, 'MOVE|');
+
+        return $classified || ($event->status !== RateResetEvent::STATUS_DETECTED && ! $registerOnly);
     }
 
     /** @return int periods the loan now has */

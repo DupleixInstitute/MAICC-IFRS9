@@ -18,7 +18,7 @@ class SettingsTableSeeder extends Seeder
             [
                 'name' => 'Company Name',
                 'setting_key' => 'company_name',
-                'setting_value' => 'Eswatini  Bank Credit Scoring',
+                'setting_value' => 'Malawi Agricultural and Industrial Investment Corporation plc',
                 'category' => 'general',
                 'type' => 'text',
                 'options' => '',

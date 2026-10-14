@@ -197,8 +197,14 @@ class BaselineService
                 $g["ecl_{$p}_maiic_stage{$s->s}_discounted"] = ['what' => "ECL {$p}, MAIIC's book, stage {$s->s}: discounted", 'value' => (float) $s->disc, 'amount' => true];
             }
             $run = DB::table('megafarm_ecl_runs')->where('reporting_period', $p)->orderByDesc('id')->first();
-            $g["ecl_{$p}_megafarm_programme"] = ['what' => "ECL {$p}, Mega Farm programme (latest run)", 'value' => $run && ! $run->declined ? (float) $run->programme_ecl : null, 'amount' => true];
-            $g["ecl_{$p}_megafarm_maiic_share"] = ['what' => "ECL {$p}, Mega Farm: MAIIC's share", 'value' => $run && ! $run->declined ? (float) $run->maiic_ecl : null, 'amount' => true];
+            // a period the programme engine declined (no PD on MAIIC's own agricultural book that month) is
+            // golden as declined: verify then checks it is still declined rather than failing for want of a figure
+            $declined = $run === null || (bool) $run->declined;
+            $g["ecl_{$p}_megafarm_declined"] = ['what' => "ECL {$p}, Mega Farm programme: declined by the engine (1) or provided (0)", 'value' => $declined ? 1 : 0, 'amount' => false];
+            if (! $declined) {
+                $g["ecl_{$p}_megafarm_programme"] = ['what' => "ECL {$p}, Mega Farm programme (latest run)", 'value' => (float) $run->programme_ecl, 'amount' => true];
+                $g["ecl_{$p}_megafarm_maiic_share"] = ['what' => "ECL {$p}, Mega Farm: MAIIC's share", 'value' => (float) $run->maiic_ecl, 'amount' => true];
+            }
         }
         foreach (['LOCKED' => 'locked', 'BLOCKED' => 'blocked'] as $status => $word) {
             $g["eir_contracts_{$word}"] = ['what' => "EIR contracts {$word}", 'value' => DB::table('contract_eir')->where('calculation_status', $status)->count(), 'amount' => false];

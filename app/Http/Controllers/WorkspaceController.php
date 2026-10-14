@@ -139,6 +139,13 @@ class WorkspaceController extends Controller
             ['label' => 'Loan book builds proposed', 'count' => DB::table('loan_book_builds')->where('status', 'PROPOSED')->count(), 'route' => ['eir-feed.index', ['tab' => 'builds']]],
             ['label' => 'Governance setting changes proposed', 'count' => DB::table('governance_settings')->where('status', 'PROPOSED')->count(), 'route' => ['eir-governance.index', []]],
             ['label' => 'Write-offs proposed', 'count' => DB::table('loan_write_offs')->where('status', 'PROPOSED')->count(), 'route' => ['eir-write-offs.index', []]],
+            ['label' => 'Restructure classifications proposed', 'count' => DB::table('restructure_events')->where('status', 'PROPOSED')->count(), 'route' => ['eir-restructures.index', ['tab' => 'register']]],
+            // the register's maker-checker state is classification_status; rate_reset_events.status is the reset pipeline's
+            ['label' => 'Rate-reset classifications awaiting approval', 'count' => DB::table('rate_reset_events')->where('classification_status', 'PROPOSED')->count(), 'route' => ['eir-restructures.index', ['tab' => 'resets']]],
+            ['label' => 'Take-on builds proposed', 'count' => DB::table('takeon_build_requests')->where('status', 'PROPOSED')->count(), 'route' => ['eir-takeon.index', []]],
+            ['label' => 'Staging threshold proposals', 'count' => DB::table('staging_thresholds')->where('status', \App\Models\StagingThreshold::STATUS_PROPOSED)->count(), 'route' => ['settings.index', ['tab' => 'staging']]],
+            ['label' => 'Locked EIR reopenings requested', 'count' => DB::table(\App\Services\Eir\EirReopenRequestService::TABLE)->where('status', 'PROPOSED')->count(), 'route' => ['eir-calculations.index', []]],
+            ['label' => 'Period unlocks requested', 'count' => DB::table(\App\Services\Eir\PeriodUnlockService::TABLE)->where('status', 'PROPOSED')->count(), 'route' => ['eir-feed.index', ['tab' => 'periods']]],
             ['label' => 'EIRs calculated, awaiting approval and lock', 'count' => DB::table('contract_eir')->where('calculation_status', 'CALCULATED')->whereNull('locked_at')->count(), 'route' => ['eir-calculations.index', []]],
             ['label' => 'Repayment schedules awaiting review', 'count' => DB::table('contract_eir')->whereIn('schedule_approval_status', ['DRAFT', 'PENDING_REVIEW'])->count(), 'route' => ['eir-data.index', ['tab' => 'schedules']]],
             ['label' => 'Fees awaiting classification review', 'count' => DB::table('contract_fees')->where('classification_status', 'PENDING')->count(), 'route' => ['eir-fee-classification.index', []]],

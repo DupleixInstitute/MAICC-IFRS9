@@ -9,7 +9,10 @@ use Throwable;
 
 /**
  * Find the restructure candidates and the rate moves from the landing zone
- * (specification v4 sections 3.9 and P5). Detection only: nothing is ever
+ * (specification v4 sections 3.9 and P5). The rate moves are the one reset
+ * detection (RateResetService::detect runs the reset pipeline's detector,
+ * eir:detect-resets, then sets each reset against the loan book), so the
+ * bootstrap and the month-end detect each reset once. Detection only: nothing is ever
  * confirmed here; each candidate and each move waits for one person's
  * classification and another's approval on EIR Data, Restructures & Resets.
  * Safe for the bootstrap and the month-end job.
@@ -37,8 +40,10 @@ class EirRestructureCandidates extends Command
             }
             if ($only === '' || $only === 'resets') {
                 $r = $resets->detect();
-                $this->info(sprintf('Rate moves: %d PLR resets and %d spread changes recorded (%d on loans the engine treats as fixed-rate that moved with the PLR); %d moves of fixed-rate loans written as restructure candidates; %d floating moves with no PLR in force left out.',
-                    $r['plr_resets'], $r['spread_changes'], $r['fixed_moved_with_plr'], $r['fixed_rate_candidates'], $r['no_reference_rate']));
+                $p = $r['pipeline'];
+                $this->info(sprintf('Prime-rate resets (the one detector, eir:detect-resets): %d floating loans, %d resets, %d loans held.', $p['floating'], $p['resets'], $p['blocked']));
+                $this->info(sprintf('Rate moves: %d PLR resets and %d spread changes recorded (%d held from the reset pipeline, %d on loans the engine treats as fixed-rate that moved with the PLR); %d pipeline resets the loan book does not show; %d moves of fixed-rate loans written as restructure candidates; %d moves with no PLR in force left out.',
+                    $r['plr_resets'], $r['spread_changes'], $r['plr_resets_held'], $r['fixed_moved_with_plr'], $r['not_in_loan_book'], $r['fixed_rate_candidates'], $r['no_reference_rate']));
             }
         } catch (Throwable $e) {
             $this->error($e->getMessage());

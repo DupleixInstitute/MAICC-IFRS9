@@ -436,10 +436,8 @@ class GovernanceService
     public static function notYetApplied(): array
     {
         return [
-            'plr_mid_period' => 'Contractual interest always charges the whole month at the month-end rate, as E-Banker does (spec 3.1); the other options are not built.',
             'reset_trigger' => 'A floating loan\'s EIR is re-estimated each month with the rate E-Banker charged (D38); no reset date is chosen from this setting.',
             'rate_source_precedence' => 'The rate type is taken from the Interest Policy alone: P floating, every other code fixed (spec 7.2).',
-            'margin_basis' => 'The spread is derived monthly as the rate charged less the PLR (SpreadDerivationService); this setting does not choose the source.',
             'cash_source' => 'The engine reads actual cash from the E-Banker ledger (D35, eir:load-ledger-cash) and the contractual schedule only for a month the ledger does not cover; the value recorded here does not change that.',
             'manual_policy_handling' => 'The engine treats Interest Policy M as fixed (spec 7.2), so a manual loan keeps its EIR. The recorded value is not applied: wiring it waits on open choice O4 and review item R14 (a manual change is not automatically a market reset).',
             'counter_reset_handling' => 'Cash comes from the ledger posting by posting (D35), so a falling Repayments counter is not read.',

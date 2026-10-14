@@ -5,6 +5,13 @@ namespace App\Services\Reports;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * The loan book export (Reports hub, Exports). By the stage the ECL was
+ * provided on, after the qualitative triggers (EclBuildUpService::STAGE_SQL),
+ * with the booked loss allowance (BookedEcl) and the undiscounted ECL beside
+ * it (documentation audit of 14 October 2026; it split by the calculated
+ * stage and carried no allowance until then).
+ */
 class LoanBookExportService
 {
     /**
@@ -48,27 +55,35 @@ class LoanBookExportService
     /**
      * Generate summary data (aggregated by period and stage)
      */
+    /** The stage the ECL was provided on, for the aliased table. */
+    private static function stageSql(): string
+    {
+        return 'COALESCE(lb.ifrs9stage_post_qualitative, lb.calculated_ifrs9_stage, lb.ifrs9stage_pre_qualitative)';
+    }
+
     private static function generateSummaryData(string $startPeriod, string $endPeriod, ?int $portfolioId): array
     {
+        $stage = self::stageSql();
+        $booked = BookedEcl::sql('lb.');
         $query = DB::table('loan_books as lb')
             ->select([
-                'lb.reporting_year',
-                'lb.reporting_month',
-                DB::raw('CONCAT(lb.reporting_year, "-", LPAD(lb.reporting_month, 2, "0")) as reporting_period'),
-                DB::raw('SUM(CASE WHEN lb.calculated_ifrs9_stage = 1 THEN lb.carrying_amount ELSE 0 END) as stage_1_balance'),
-                DB::raw('SUM(CASE WHEN lb.calculated_ifrs9_stage = 2 THEN lb.carrying_amount ELSE 0 END) as stage_2_balance'),
-                DB::raw('SUM(CASE WHEN lb.calculated_ifrs9_stage = 3 THEN lb.carrying_amount ELSE 0 END) as stage_3_balance'),
+                DB::raw('SUBSTR(lb.reporting_period, 1, 7) as reporting_period'),
+                DB::raw("SUM(CASE WHEN {$stage} = '1' THEN lb.carrying_amount ELSE 0 END) as stage_1_balance"),
+                DB::raw("SUM(CASE WHEN {$stage} = '2' THEN lb.carrying_amount ELSE 0 END) as stage_2_balance"),
+                DB::raw("SUM(CASE WHEN {$stage} = '3' THEN lb.carrying_amount ELSE 0 END) as stage_3_balance"),
                 DB::raw('SUM(lb.carrying_amount) as total_principal_balance'),
-                DB::raw('COUNT(CASE WHEN lb.calculated_ifrs9_stage = 1 THEN 1 END) as stage_1_count'),
-                DB::raw('COUNT(CASE WHEN lb.calculated_ifrs9_stage = 2 THEN 1 END) as stage_2_count'),
-                DB::raw('COUNT(CASE WHEN lb.calculated_ifrs9_stage = 3 THEN 1 END) as stage_3_count'),
+                DB::raw("SUM(CASE WHEN {$stage} = '1' THEN 1 ELSE 0 END) as stage_1_count"),
+                DB::raw("SUM(CASE WHEN {$stage} = '2' THEN 1 ELSE 0 END) as stage_2_count"),
+                DB::raw("SUM(CASE WHEN {$stage} = '3' THEN 1 ELSE 0 END) as stage_3_count"),
                 DB::raw('COUNT(*) as total_count'),
+                DB::raw("SUM({$booked}) as allowance_booked"),
+                DB::raw('SUM(COALESCE(lb.ecl_value, 0)) as ecl_undiscounted'),
+                DB::raw('SUM(CASE WHEN ' . BookedEcl::basisSql('lb.') . " = 'undiscounted' THEN 1 ELSE 0 END) as not_booked_count"),
             ])
-            ->whereRaw("CONCAT(lb.reporting_year, '-', LPAD(lb.reporting_month, 2, '0')) >= ?", [$startPeriod])
-            ->whereRaw("CONCAT(lb.reporting_year, '-', LPAD(lb.reporting_month, 2, '0')) <= ?", [$endPeriod])
-            ->groupBy('lb.reporting_year', 'lb.reporting_month')
-            ->orderBy('lb.reporting_year', 'desc')
-            ->orderBy('lb.reporting_month', 'desc');
+            ->whereRaw('SUBSTR(lb.reporting_period, 1, 7) >= ?', [$startPeriod])
+            ->whereRaw('SUBSTR(lb.reporting_period, 1, 7) <= ?', [$endPeriod])
+            ->groupByRaw('SUBSTR(lb.reporting_period, 1, 7)')
+            ->orderByRaw('SUBSTR(lb.reporting_period, 1, 7) desc');
 
         if ($portfolioId) {
             $query->where('lb.loan_portfolio_id', $portfolioId);
@@ -85,13 +100,15 @@ class LoanBookExportService
             ->select([
                 'lb.contract_id',
                 DB::raw('lb.carrying_amount as principal_balance'),
-                'lb.calculated_ifrs9_stage',
-                DB::raw('CONCAT(lb.reporting_year, "-", LPAD(lb.reporting_month, 2, "0")) as reporting_period'),
+                DB::raw(self::stageSql() . ' as stage'),
+                DB::raw(BookedEcl::sql('lb.') . ' as allowance_booked'),
+                DB::raw('lb.ecl_value as ecl_undiscounted'),
+                DB::raw(BookedEcl::basisSql('lb.') . ' as allowance_basis'),
+                DB::raw('SUBSTR(lb.reporting_period, 1, 7) as reporting_period'),
             ])
-            ->whereRaw("CONCAT(lb.reporting_year, '-', LPAD(lb.reporting_month, 2, '0')) >= ?", [$startPeriod])
-            ->whereRaw("CONCAT(lb.reporting_year, '-', LPAD(lb.reporting_month, 2, '0')) <= ?", [$endPeriod])
-            ->orderBy('lb.reporting_year', 'desc')
-            ->orderBy('lb.reporting_month', 'desc')
+            ->whereRaw('SUBSTR(lb.reporting_period, 1, 7) >= ?', [$startPeriod])
+            ->whereRaw('SUBSTR(lb.reporting_period, 1, 7) <= ?', [$endPeriod])
+            ->orderByRaw('SUBSTR(lb.reporting_period, 1, 7) desc')
             ->orderBy('lb.contract_id');
 
         if ($portfolioId) {
@@ -124,6 +141,7 @@ class LoanBookExportService
             fputcsv($handle, []);
 
             if ($mode === 'summary') {
+                fputcsv($handle, ['Stage: after the qualitative triggers. Loss allowance: the booked allowance (discounted at the EIR; the Mega Farm programme measure; the undiscounted ECL where no discounted figure exists, counted in the last column).']);
                 fputcsv($handle, [
                     'Reporting Period',
                     'Stage 1',
@@ -134,6 +152,9 @@ class LoanBookExportService
                     'Stage 2 Count',
                     'Stage 3 Count',
                     'Total Count',
+                    'Loss Allowance (booked)',
+                    'ECL Undiscounted',
+                    'Loans Without a Discounted Allowance',
                 ]);
 
                 foreach ($data as $row) {
@@ -147,13 +168,19 @@ class LoanBookExportService
                         $row['stage_2_count'],
                         $row['stage_3_count'],
                         $row['total_count'],
+                        number_format((float) $row['allowance_booked'], 2, '.', ','),
+                        number_format((float) $row['ecl_undiscounted'], 2, '.', ','),
+                        $row['not_booked_count'],
                     ]);
                 }
             } else {
                 fputcsv($handle, [
                     'Contract ID',
                     'Carrying Amount',
-                    'IFRS9 Stage',
+                    'IFRS 9 Stage (after qualitative triggers)',
+                    'Loss Allowance (booked)',
+                    'ECL Undiscounted',
+                    'Allowance Basis',
                     'Reporting Period',
                 ]);
 
@@ -161,7 +188,10 @@ class LoanBookExportService
                     fputcsv($handle, [
                         $row['contract_id'],
                         number_format((float) $row['principal_balance'], 2, '.', ','),
-                        $row['calculated_ifrs9_stage'],
+                        $row['stage'],
+                        number_format((float) $row['allowance_booked'], 2, '.', ','),
+                        $row['ecl_undiscounted'] === null ? '' : number_format((float) $row['ecl_undiscounted'], 2, '.', ','),
+                        BookedEcl::LABELS[$row['allowance_basis']] ?? $row['allowance_basis'],
                         $row['reporting_period'],
                     ]);
                 }

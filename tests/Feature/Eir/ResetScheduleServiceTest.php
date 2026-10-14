@@ -7,7 +7,9 @@ use App\Services\Eir\ResetDetectionService;
 use App\Services\Eir\ResetScheduleService;
 use App\Services\Eir\ScheduleGeneratorService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\Feature\Eir\Concerns\CreatesResetSchema;
 use Tests\TestCase;
@@ -42,11 +44,14 @@ class ResetScheduleServiceTest extends TestCase
         $this->seedJatPrimeRates();
 
         DB::table('contract_eir')->insert([
-            'contract_id' => self::JAT, 'sub_account_no' => '1', 'interest_policy' => 'P', 'portfolio' => 'MAIIC',
+            'contract_id' => self::JAT, 'sub_account_no' => '1', 'rate_type' => 'FLOATING', 'interest_policy' => 'P', 'portfolio' => 'MAIIC',
             'origination_date' => '2025-07-23', 'maturity_date' => '2028-09-30', 'contractual_rate' => 0.333,
             'payments_per_year' => 4, 'emi_calc_type' => 'E',
         ]);
         $this->versionOne();
+        // each change on its own Reserve Bank date, as JAT's EMI chart regenerates (the default,
+        // the whole month at the new rate, dates the 5 and 9 March 2026 changes together)
+        DB::table('governance_settings')->where('key', 'plr_mid_period')->update(['value' => 'Pro rata from the effective date']);
         app(ResetDetectionService::class)->detect(self::JAT, CarbonImmutable::parse('2026-09-30'));
     }
 
@@ -170,5 +175,39 @@ class ResetScheduleServiceTest extends TestCase
 
         $this->assertSame('BLOCKED', $result['details'][self::JAT]['status']);
         $this->assertStringStartsWith('NO_VERSION_1', $result['details'][self::JAT]['reason']);
+    }
+
+    /**
+     * Only a floating loan's prime-rate resets are re-amortised: a spread change, a move the
+     * register holds from the pipeline and a reset approved as negotiated go through the
+     * registers; a reset after a confirmed restructure is held (reconciliation of 14 Oct 2026).
+     */
+    public function test_only_the_pipelines_prime_rate_resets_are_built_and_none_past_a_restructure(): void
+    {
+        $base = ['contract_id' => self::JAT, 'old_reference_rate' => 25.3, 'new_reference_rate' => 25.3, 'classification_status' => 'DETECTED'];
+        DB::table('rate_reset_events')->insert([
+            $base + ['reset_date' => '2025-12-01', 'event_type' => 'SPREAD_CHANGE', 'status' => 'DETECTED', 'detection_key' => 'SPREAD|' . self::JAT . '|2025-12'],
+            $base + ['reset_date' => '2025-12-15', 'event_type' => 'PLR_RESET', 'status' => 'BLOCKED', 'detection_key' => 'MOVE|' . self::JAT . '|2025-12'],
+        ]);
+        RateResetEvent::whereDate('reset_date', '2026-06-03')->update(['classification' => 'NEGOTIATED', 'classification_status' => 'APPROVED']);
+        Schema::create('contract_modifications', function (Blueprint $t) {
+            $t->increments('id'); $t->string('contract_id'); $t->string('modification_date'); $t->string('status');
+        });
+        DB::table('contract_modifications')->insert(['contract_id' => self::JAT, 'modification_date' => '2026-08-01', 'status' => 'APPLIED']);
+
+        $result = $this->build();
+
+        $states = collect($result['details'][self::JAT]['versions'])->keyBy('reset_date');
+        $this->assertArrayNotHasKey('2025-12-01', $states->all(), 'a spread change is classified on the register');
+        $this->assertArrayNotHasKey('2025-12-15', $states->all(), 'a held move carries no pipeline rate');
+        $this->assertArrayNotHasKey('2026-06-03', $states->all(), 'approved as negotiated: the restructure register carries it');
+        $this->assertSame(8, $result['built']);
+        $this->assertSame(['BLOCKED', 'BLOCKED'], [$states['2026-08-05']['state'], $states['2026-09-03']['state']]);
+        $this->assertStringStartsWith('RESET_AFTER_RESTRUCTURE', $states['2026-08-05']['reason']);
+        $this->assertSame('BLOCKED', DB::table('rate_reset_events')->where('detection_key', 'MOVE|' . self::JAT . '|2025-12')->value('status'));
+
+        // a loan the contract master does not state as floating gets no Reset version
+        DB::table('contract_eir')->where('contract_id', self::JAT)->update(['rate_type' => 'FIXED']);
+        $this->assertStringStartsWith('NOT_FLOATING', $this->build()['details'][self::JAT]['reason']);
     }
 }

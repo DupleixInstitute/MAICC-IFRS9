@@ -43,7 +43,7 @@ class EirRestructureController extends Controller
                 ]);
             })->map(fn ($e) => collect($e)->except(['new_flows'])->all())->values();
         $resets = DB::table('rate_reset_events')->whereNotNull('detection_key')
-            ->orderByRaw("CASE status WHEN 'PROPOSED' THEN 0 WHEN 'DETECTED' THEN 1 ELSE 2 END")->orderByDesc('reporting_period')->orderBy('contract_id')->get()
+            ->orderByRaw("CASE classification_status WHEN 'PROPOSED' THEN 0 WHEN 'DETECTED' THEN 1 ELSE 2 END")->orderByDesc('reporting_period')->orderBy('contract_id')->orderBy('event_type')->get()
             ->map(fn ($r) => (array) $r + ['proposed_by_name' => $users[$r->proposed_by] ?? null, 'approved_by_name' => $r->approver_label ?: ($users[$r->approved_by] ?? null)])->values();
         $names = DB::table('loan_books')->whereIn('contract_id', $resets->pluck('contract_id')->unique()->values()->all() ?: ['-'])->whereNotNull('customer_name')
             ->pluck('customer_name', 'contract_id')->all();
@@ -65,8 +65,10 @@ class EirRestructureController extends Controller
                 'confirmed' => $events->where('status', 'CONFIRMED')->count(),
                 'restructured' => $events->where('status', 'CONFIRMED')->where('classification', 'MODIFICATION')->count(),
                 'applied' => $mods->where('status', 'APPLIED')->count(), 'blocked' => $mods->where('status', 'BLOCKED')->count(), 'pending' => $mods->where('status', 'PENDING')->count(),
-                'resets_detected' => $resets->where('status', 'DETECTED')->count(), 'resets_proposed' => $resets->where('status', 'PROPOSED')->count(),
-                'resets_approved' => $resets->where('status', 'APPROVED')->count(), 'spread_changes' => $resets->where('event_type', 'SPREAD_CHANGE')->count(),
+                // the register's maker-checker state is classification_status; status is the reset pipeline's
+                'resets_detected' => $resets->where('classification_status', 'DETECTED')->count(), 'resets_proposed' => $resets->where('classification_status', 'PROPOSED')->count(),
+                'resets_approved' => $resets->where('classification_status', 'APPROVED')->count(), 'spread_changes' => $resets->where('event_type', 'SPREAD_CHANGE')->count(),
+                'resets_held' => $resets->where('status', 'BLOCKED')->count(), 'resets_scheduled' => $resets->where('status', 'SCHEDULED')->count(),
                 'disclosure_year' => $year,
                 'disclosures' => app(RestructureRegisterService::class)->ifrs7Disclosures("{$year}-01-01", "{$year}-12-31"),
                 'last_detected' => DB::table('restructure_events')->max('updated_at'),

@@ -150,6 +150,41 @@ class NavigationTest extends TestCase
         $this->assertSame([], \App\Support\Breadcrumbs::trail(config('menu.admin'), 'profile.show')['crumbs']);
     }
 
+    /**
+     * Fee Classification is readable by the fee importer as well as by
+     * settings (EirFeeClassificationController::index takes
+     * permission:settings|eir.fees.import), so the tab shows to either, and
+     * the menu reads a '|' list as any one of them (documentation audit,
+     * 14 October 2026).
+     */
+    public function test_the_fee_classification_tab_shows_to_the_fee_importer(): void
+    {
+        $tab = null;
+        $this->walk(config('menu.admin'), function (array $item) use (&$tab) {
+            foreach ($item['tabs'] ?? [] as $t) {
+                if ($t['route'] === 'eir-fee-classification.index') {
+                    $tab = $t;
+                }
+            }
+        });
+        $this->assertNotNull($tab);
+        $user = fn (array $perms) => new class($perms) {
+            public function __construct(private array $perms) {}
+            public function can($p): bool { return in_array($p, $this->perms, true); }
+        };
+        $may = fn (array $perms) => \App\Http\Middleware\HandleInertiaRequests::mayOpen($user($perms), $tab['permissions']);
+        $this->assertTrue($may(['eir.fees.import']));
+        $this->assertTrue($may(['settings']));
+        $this->assertFalse($may(['eir.view']));
+        $this->assertFalse(\App\Http\Middleware\HandleInertiaRequests::mayOpen(null, $tab['permissions']));
+        $this->assertTrue(\App\Http\Middleware\HandleInertiaRequests::mayOpen(null, ''));
+
+        // the tab names what the controller enforces on the screen
+        $index = collect((new \App\Http\Controllers\EirFeeClassificationController())->getMiddleware())
+            ->first(fn ($m) => in_array('index', $m['options']['only'] ?? [], true));
+        $this->assertSame('permission:' . $tab['permissions'], $index['middleware']);
+    }
+
     private function walk(array $items, callable $fn): void
     {
         foreach ($items as $item) {

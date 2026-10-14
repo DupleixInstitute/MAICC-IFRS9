@@ -23,7 +23,7 @@ class EirFeedController extends Controller
     public function __construct()
     {
         $this->middleware(['auth', 'permission:eir.view']);
-        $this->middleware('permission:eir.govern')->only(['land', 'build', 'approve', 'lockPeriod']);
+        $this->middleware('permission:eir.govern')->only(['land', 'build', 'approve', 'lockPeriod', 'approveUnlock', 'closeUnlock']);
     }
 
     public function index(GovernanceService $governance, LoanBookBuildService $build)
@@ -73,6 +73,8 @@ class EirFeedController extends Controller
             'loads' => $loads, 'queries' => $queries->map(fn ($q) => (array) $q + ['rows' => (int) ($rowsByQuery[$q->query_id]->n ?? 0), 'last_date' => $rowsByQuery[$q->query_id]->last_date ?? null]),
             'builds' => $builds, 'periods' => $periods, 'routeInForce' => $route, 'methodInForce' => $method,
             'locks' => DB::table('reporting_period_locks')->orderBy('reporting_period')->pluck('reporting_period'),
+            // unlocks requested by one person and awaiting a second (PeriodUnlockService)
+            'unlockRequests' => app(\App\Services\Eir\PeriodUnlockService::class)->pending(),
             'lastLedgerDate' => (new \App\Services\Ebanker\LandingZoneReader())->lastLedgerDate(),
             'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
             'me' => auth()->id(),
@@ -155,12 +157,14 @@ class EirFeedController extends Controller
     }
 
     /**
-     * Lock a reporting period, or unlock it, from the screen (spec v4 sections
-     * 6.6 and 6.11): the same action as `php artisan eir:lock-period`, with the
-     * reason written to the audit log. A locked period is never restated by a
-     * build, the ECL, staging, the PD, the LGD, the forward-looking route, the
-     * revenue roll-forward or a write-off; unlocking is a deliberate,
-     * reasoned act.
+     * Lock a reporting period, or request its unlock, from the screen (spec v4
+     * sections 6.6 and 6.11): the same action as `php artisan eir:lock-period`,
+     * with the reason written to the audit log. A locked period is never
+     * restated by a build, the ECL, staging, the PD, the LGD, the
+     * forward-looking route, the revenue roll-forward or a write-off. Locking
+     * is one person's act; unlocking is maker-checker (documentation audit of
+     * 14 October 2026): this records the request, and a different person
+     * approves it (approveUnlock) before the lock is removed.
      */
     public function lockPeriod(Request $request, string $period)
     {
@@ -178,6 +182,31 @@ class EirFeedController extends Controller
         $out = trim(\Illuminate\Support\Facades\Artisan::output());
 
         return back()->with($code === 0 ? 'success' : 'error', $out !== '' ? $out : ($code === 0 ? "Period {$period} updated." : "Period {$period} could not be updated."));
+    }
+
+    /** A second person approves an unlock request, and the lock is removed (PeriodUnlockService). */
+    public function approveUnlock(Request $request, int $unlock, \App\Services\Eir\PeriodUnlockService $unlocks)
+    {
+        try {
+            $period = $unlocks->approve($unlock, (int) $request->user()->id);
+        } catch (\LogicException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Period {$period} unlocked.");
+    }
+
+    /** Reject an unlock request (another person) or withdraw it (the person who asked), with a reason. */
+    public function closeUnlock(Request $request, int $unlock, \App\Services\Eir\PeriodUnlockService $unlocks)
+    {
+        $data = $request->validate(['action' => ['required', 'in:reject,withdraw'], 'reason' => ['required', 'string', 'min:10', 'max:500']]);
+        try {
+            $unlocks->close($unlock, (int) $request->user()->id, $data['action'], $data['reason']);
+        } catch (\LogicException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', $data['action'] === 'reject' ? 'Unlock request rejected; the period stays locked.' : 'Unlock request withdrawn; the period stays locked.');
     }
 
     /** The queries, as the file Barry runs. */

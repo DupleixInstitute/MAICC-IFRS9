@@ -130,7 +130,7 @@ class MaintenanceTask extends Command
                 ['System snapshot', 'about', []],
                 ['Database update status', 'migrate:status', []],
                 ['Golden numbers and acceptance ties', 'eir:baselines', []],
-                ['Every report and its PDF', 'ifrs9:smoke-reports', []],
+                ['Every report and its PDF', 'ifrs9:smoke-reports', array_filter(['period' => \Illuminate\Support\Facades\Schema::hasTable('loan_books') ? \Illuminate\Support\Facades\DB::table('loan_books')->max('reporting_period') : null])],
             ],
             default => null,
         };

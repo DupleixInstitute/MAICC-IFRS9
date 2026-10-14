@@ -107,7 +107,8 @@ class Bootstrap extends Command
     private function stepSeed(): void
     {
         Artisan::call('migrate', ['--force' => true]);
-        $classes = ['PermissionsTableSeeder', 'RolesTableSeeder', 'MaiicAdminPermissionsSeeder', 'TicketsPermissionsSeeder', 'UsersTableSeeder', 'GovernanceSettingsSeeder', 'StagingThresholdSeeder', 'SicrQualitativeFactorsSeeder',
+        $classes = ['CountriesTableSeeder', 'PermissionsTableSeeder', 'RolesTableSeeder', 'MaiicAdminPermissionsSeeder', 'TicketsPermissionsSeeder', 'LegacyPermissionsCleanupSeeder', 'UsersTableSeeder',
+            'CurrenciesTableSeeder', 'MaiicCurrencySeeder', 'TimezonesTableSeeder', 'SettingsTableSeeder', 'BranchesTableSeeder', 'LegalTypesTableSeeder', 'ChartOfAccountsTableSeeder', 'GovernanceSettingsSeeder', 'StagingThresholdSeeder', 'SicrQualitativeFactorsSeeder',
             'EbankerQuerySeeder', 'MacroSeriesSeeder', 'MaiicTransitionProfileSeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder',
             'IndustryTypeSeeder', 'CreditLossDefinitionSeeder', 'TransitionProfileDefinitionSeeder', 'TransitionProfileOptionSeeder'];
         $ran = [];
@@ -326,14 +327,14 @@ class Bootstrap extends Command
         $proposed = (clone $events)->where('status', 'PROPOSED')->count();
         $confirmed = (clone $events)->where('status', 'CONFIRMED')->count();
         $moves = DB::getSchemaBuilder()->hasColumn('rate_reset_events', 'event_type')
-            ? DB::table('rate_reset_events')->whereNotNull('detection_key')->selectRaw('event_type, status, count(*) n')->groupBy('event_type', 'status')->get()
+            ? DB::table('rate_reset_events')->whereNotNull('detection_key')->selectRaw('event_type, classification_status, count(*) n')->groupBy('event_type', 'classification_status')->get()
             : collect();
         $byType = fn (string $t) => (int) $moves->where('event_type', $t)->sum('n');
 
         return sprintf('%d candidate%s found and awaiting a person\'s classification (%d from the reschedule history and the migration worksheet, %d from rate moves of fixed-rate loans; %d cannot be booked as they stand: no date, old terms or new schedule); '
             . '%d rate move%s recorded on the rate-reset register (%d PLR resets, %d spread changes), %d awaiting classification; nothing was confirmed or approved by the bootstrap (%d proposed and %d confirmed by people are kept as they were).',
             $candidates, $candidates === 1 ? '' : 's', $candidates - $fromRates, $fromRates, $incomplete,
-            (int) $moves->sum('n'), (int) $moves->sum('n') === 1 ? '' : 's', $byType('PLR_RESET'), $byType('SPREAD_CHANGE'), (int) $moves->where('status', 'DETECTED')->sum('n'),
+            (int) $moves->sum('n'), (int) $moves->sum('n') === 1 ? '' : 's', $byType('PLR_RESET'), $byType('SPREAD_CHANGE'), (int) $moves->where('classification_status', 'DETECTED')->sum('n'),
             $proposed, $confirmed);
     }
 

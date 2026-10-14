@@ -227,7 +227,7 @@ class ExpectedCreditLossController extends Controller
             $agg = $query->clone()->selectRaw(
                 'COUNT(*) as total_loans,
                  COALESCE(SUM(carrying_amount),0) as exposure,
-                 COALESCE(SUM(' . EclBuildUpService::EAD_SQL . '),0) as ead,
+                 COALESCE(SUM(' . EclBuildUpService::eadSql() . '),0) as ead,
                  COALESCE(SUM(ecl_value),0) as loss,
                  COALESCE(SUM(ecl_value_discounted),0) as discounted_loss,
                  COALESCE(SUM(ecl_discounting_effect),0) as discounting_effect,

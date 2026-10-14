@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\EirRatePeriod;
 use App\Models\User;
+use App\Services\Eir\RateResetService;
 use App\Services\Eir\ResetDetectionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -11,7 +12,14 @@ use Throwable;
 
 /**
  * Phase P5, step 2: list each floating loan's prime-rate resets and write its
- * rate periods (spec v3 section 7.3). The EIR of each period is the next step.
+ * rate periods (spec v3 section 7.3).
+ *
+ * The same one detection as eir:restructure-candidates --only=resets, which
+ * the bootstrap and the month-end run (RateResetService::detect: the reset
+ * pipeline's detector, then the loan book's evidence and the spread changes on
+ * the register), with this command's options and a fuller print-out. The EIR
+ * of a floating loan is not set here: it is decision D38's monthly
+ * re-estimation at the rate charged.
  *
  *   php artisan eir:detect-resets --user=1
  *   php artisan eir:detect-resets --contract=104430000087 --user=1
@@ -26,7 +34,7 @@ class DetectRateResets extends Command
 
     protected $description = 'Detect prime-rate resets for each floating loan and write its rate periods';
 
-    public function handle(ResetDetectionService $service): int
+    public function handle(RateResetService $service): int
     {
         $user = trim((string) $this->option('user'));
         if ($user === '' || ! ctype_digit($user) || User::query()->whereKey((int) $user)->doesntExist()) {
@@ -38,7 +46,8 @@ class DetectRateResets extends Command
 
         try {
             $asOf = $this->option('as-of') ? CarbonImmutable::createFromFormat('!Y-m-d', $this->option('as-of')) : null;
-            $result = $service->detect($this->option('contract') ?: null, $asOf, (string) $this->option('index'), (int) $user);
+            $register = $service->detect((int) $user, $this->option('contract') ?: null, $asOf, (string) $this->option('index'));
+            $result = $register['pipeline'] + ['details' => $register['details']];
         } catch (Throwable $e) {
             $this->error($e->getMessage());
 
@@ -49,6 +58,8 @@ class DetectRateResets extends Command
         $this->table(['Contracts', 'Floating', 'Fixed', 'Blocked', 'Out of scope', 'Resets'], [[
             $result['contracts'], $result['floating'], $result['fixed'], $result['blocked'], $result['out_of_scope'], $result['resets'],
         ]]);
+        $this->line(sprintf('Rate-reset register: %d loan-book moves with the PLR (%d held from the pipeline), %d pipeline resets the loan book does not show, %d spread changes; nothing is classified here.',
+            $register['plr_resets'], $register['plr_resets_held'], $register['not_in_loan_book'], $register['spread_changes']));
 
         $blocked = array_filter($result['details'], fn ($d) => $d['status'] === ResetDetectionService::STATUS_BLOCKED);
         if ($blocked !== []) {

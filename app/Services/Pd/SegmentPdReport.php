@@ -16,7 +16,11 @@ use Throwable;
  */
 class SegmentPdReport
 {
-    private const EAD = 'COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1)';
+    /** The engine's EAD (EclExposure), as SQL. */
+    private static function ead(): string
+    {
+        return \App\Services\Ecl\EclExposure::sql();
+    }
 
     public function __construct(private PdSegmentationService $segments)
     {
@@ -38,7 +42,7 @@ class SegmentPdReport
         }
         $stage = TransitionMatrixService::gradeExpression('loan_books', 'ifrs9stage_post_qualitative');
         $loans = DB::table('loan_books')->where('reporting_period', $period)->whereIn('loan_portfolio_id', $m['portfolios'])
-            ->get(['id', 'loan_portfolio_id', 'industry_code', 'industry_type', 'pd_prefli', 'pd_post_fli', 'ecl_value', DB::raw('(' . self::EAD . ') as ead'), DB::raw("{$stage} as stage")]
+            ->get(['id', 'loan_portfolio_id', 'industry_code', 'industry_type', 'pd_prefli', 'pd_post_fli', 'ecl_value', DB::raw('(' . self::ead() . ') as ead'), DB::raw("{$stage} as stage")]
                 + (Schema::hasColumn('loan_books', 'pd_applied_segment_key') ? [10 => 'pd_applied_segment_key'] : []));
         $now = [];
         foreach ($loans as $l) {
@@ -141,7 +145,7 @@ class SegmentPdReport
             unset($x);
         }
         foreach (DB::table('loan_books')->where('reporting_period', $period)->whereIn('loan_portfolio_id', $portfolios)
-            ->get(['overdue_days', 'tenor', 'pd_prefli', 'ecl_value', DB::raw('(' . self::EAD . ') as ead')]) as $l) {
+            ->get(['overdue_days', 'tenor', 'pd_prefli', 'ecl_value', DB::raw('(' . self::ead() . ') as ead')]) as $l) {
             $x = &$classes[RbmReturnService::classify((int) ($l->overdue_days ?? 0), (int) ($l->tenor ?? 0))];
             $x['now']++;
             $x['ead'] += (float) $l->ead;
@@ -172,7 +176,7 @@ class SegmentPdReport
 
         return DB::table('loan_books')->where('reporting_period', $period)->whereIn('industry_code', $codes)
             ->groupBy('industry_code', 'product_group')->orderBy('product_group')
-            ->selectRaw('industry_code, product_group, COUNT(*) n, SUM(' . self::EAD . ') ead, SUM(COALESCE(ecl_value,0)) ecl')->get()
+            ->selectRaw('industry_code, product_group, COUNT(*) n, SUM(' . self::ead() . ') ead, SUM(COALESCE(ecl_value,0)) ecl')->get()
             ->map(fn ($r) => (array) $r)->all();
     }
 }

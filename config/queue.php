@@ -38,14 +38,14 @@ return [
             'driver' => 'database',
             'table' => 'jobs',
             'queue' => 'default',
-            'retry_after' => 90,
+            'retry_after' => 7300, // longer than the worker's --timeout (7200 s), so a long job is never picked up twice
         ],
 
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => 'localhost',
             'queue' => 'default',
-            'retry_after' => 90,
+            'retry_after' => 7300, // longer than the worker's --timeout (7200 s), so a long job is never picked up twice
             'block_for' => 0,
         ],
 
@@ -63,7 +63,7 @@ return [
             'driver' => 'redis',
             'connection' => 'default',
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => 90,
+            'retry_after' => 7300, // longer than the worker's --timeout (7200 s), so a long job is never picked up twice
             'block_for' => null,
         ],
 

@@ -24,7 +24,7 @@ class EirRevenueServiceTest extends TestCase
         DB::purge('sqlite'); DB::reconnect('sqlite');
         Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->double('eir_effective_annual')->nullable(); $t->json('input_snapshot')->nullable(); $t->double('opening_amortised_cost')->nullable(); $t->string('origination_date')->nullable(); $t->string('source_day_count_basis')->nullable(); $t->string('locked_at')->nullable(); $t->timestamps(); });
         Schema::create('eir_amortisation', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period', 7); $t->double('opening_gross'); $t->double('advances')->default(0); $t->string('opening_basis', 12)->nullable(); $t->double('eir_annual')->nullable(); $t->double('opening_arrears')->default(0); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->timestamps(); $t->unique(['contract_id', 'reporting_period']); });
-        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->integer('calculated_ifrs9_stage')->nullable(); $t->integer('ifrs9stage_post_qualitative')->nullable(); $t->integer('ifrs9_stage')->nullable(); $t->double('expected_loss_provision')->default(0); $t->double('ecl_value')->nullable(); });
+        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->integer('calculated_ifrs9_stage')->nullable(); $t->integer('ifrs9stage_post_qualitative')->nullable(); $t->integer('ifrs9_stage')->nullable(); $t->integer('ifrs9stage_pre_qualitative')->nullable(); $t->double('expected_loss_provision')->default(0); $t->double('ecl_value')->nullable(); $t->double('ecl_value_discounted')->nullable(); $t->string('ecl_discount_status')->nullable(); $t->string('product_code')->nullable(); });
         Schema::create('eir_actual_transactions', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('transaction_date'); $t->string('transaction_type', 50)->nullable(); $t->double('principal_component')->default(0); $t->double('interest_component')->default(0); $t->double('fee_component')->default(0); $t->double('total_amount')->default(0); });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->smallInteger('schedule_version')->default(1); $t->string('due_date'); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); });
         Schema::create('eir_amortisation_history', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period', 7); $t->double('opening_gross'); $t->double('advances')->default(0); $t->string('opening_basis', 12)->nullable(); $t->double('eir_annual')->nullable(); $t->double('opening_arrears')->default(0); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->string('originally_created_at')->nullable(); $t->string('superseded_at')->nullable(); $t->integer('superseded_by')->nullable(); $t->string('supersession_reason', 500); $t->timestamps(); });
@@ -51,10 +51,16 @@ class EirRevenueServiceTest extends TestCase
             'input_snapshot' => json_encode(['initial_net_investment' => 1000]), 'locked_at' => '2025-01-01', 'created_at' => now(), 'updated_at' => now()]);
     }
 
-    private function loan(string $id, string $period, int $stage, float $allowance = 0): void
+    private function loan(string $id, string $period, int $stage): void
     {
-        DB::table('loan_books')->insert(['contract_id' => $id, 'reporting_period' => $period,
-            'calculated_ifrs9_stage' => $stage, 'expected_loss_provision' => $allowance]);
+        DB::table('loan_books')->insert(['contract_id' => $id, 'reporting_period' => $period, 'calculated_ifrs9_stage' => $stage]);
+    }
+
+    /** A month-end row carrying the booked allowance: the ECL discounted at the EIR (BookedEcl). */
+    private function booked(string $id, string $period, float $allowance, int $stage = 3): void
+    {
+        DB::table('loan_books')->insert(['contract_id' => $id, 'reporting_period' => $period, 'calculated_ifrs9_stage' => $stage,
+            'ecl_value' => round($allowance * 0.97, 2), 'ecl_value_discounted' => $allowance, 'ecl_discount_status' => 'CALCULATED_TIME_PHASED']);
     }
 
     public function test_stage_one_uses_monthly_equivalent_eir_and_rolls_forward(): void
@@ -117,6 +123,23 @@ class EirRevenueServiceTest extends TestCase
         $this->assertSame('DERIVED', $result['cash_source']);
     }
 
+    public function test_a_month_after_a_missing_month_is_refused_not_opened_from_a_stale_balance(): void
+    {
+        $this->seedLocked();
+        $this->loan('C-1', '2025-01', 1);
+        $this->loan('C-1', '2025-03', 1);
+        $this->scheduled('C-1', '2025-01-31', 90, 10);
+        $first = (new EirRevenueService())->run('C-1', '2025-01');
+        $this->assertNotSame('BLOCKED', $first['status'] ?? null);
+
+        // February was never run (or was refused): March may not open from January's closing balance
+        $r = (new EirRevenueService())->run('C-1', '2025-03');
+
+        $this->assertSame('BLOCKED', $r['status']);
+        $this->assertStringContainsString('roll-forward of 2025-02 is missing', $r['error']);
+        $this->assertSame(0, DB::table('eir_amortisation')->where('reporting_period', '2025-03')->count());
+    }
+
     public function test_a_silent_month_inside_the_actuals_window_is_zero_not_the_schedule(): void
     {
         $this->seedLocked();
@@ -132,27 +155,78 @@ class EirRevenueServiceTest extends TestCase
         $this->assertEqualsWithDelta(0, DB::table('eir_amortisation')->value('cash_received'), 0.01);
     }
 
-    /** Audit C6: the net basis nets the allowance the engine wrote on the prior month's row, not a legacy column. */
-    public function test_stage_three_nets_the_opening_allowance_the_ecl_engine_wrote(): void
+    /**
+     * Audit C6 and the documentation audit of 14 October 2026: the net basis nets
+     * the booked allowance at the start of the month, the prior month's
+     * discounted ECL (BookedEcl), not its undiscounted ecl_value, the current
+     * month's figure or the legacy expected_loss_provision column.
+     */
+    public function test_stage_three_nets_the_booked_allowance_at_the_prior_month_end(): void
     {
         $this->seedLocked();
-        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 3, 'expected_loss_provision' => 0, 'ecl_value' => 600]);
-        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-02', 'calculated_ifrs9_stage' => 3, 'expected_loss_provision' => 0, 'ecl_value' => 650]);
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 3, 'expected_loss_provision' => 999,
+            'ecl_value' => 600, 'ecl_value_discounted' => 615, 'ecl_discount_status' => 'CALCULATED_TIME_PHASED']);
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-02', 'calculated_ifrs9_stage' => 3, 'expected_loss_provision' => 999,
+            'ecl_value' => 650, 'ecl_value_discounted' => 670, 'ecl_discount_status' => 'CALCULATED_TIME_PHASED']);
 
         (new EirRevenueService())->run('C-1', '2025-02');
         $row = DB::table('eir_amortisation')->where('reporting_period', '2025-02')->first();
 
-        // opening 1,000 (the PV of the remaining schedule), allowance 600 from the January row: interest on 400
+        // opening 1,000 (the PV of the remaining schedule), booked allowance 615 at 31 January: interest on 385
         $monthly = pow(1.126825, 1 / 12) - 1;
-        $this->assertEqualsWithDelta(600, $row->ecl_allowance, 0.01);
-        $this->assertEqualsWithDelta($monthly * ($row->opening_gross - 600), $row->interest_accrued, 0.01);
+        $this->assertEqualsWithDelta(615, $row->ecl_allowance, 0.01);
+        $this->assertEqualsWithDelta($monthly * ($row->opening_gross - 615), $row->interest_accrued, 0.01);
         $this->assertSame('NET', $row->interest_basis);
+    }
+
+    /** Fail closed: no fallback to the current month, the undiscounted ECL or the legacy column. */
+    public function test_a_stage_three_month_without_a_booked_opening_allowance_is_refused_with_the_reason(): void
+    {
+        $this->seedLocked();
+        // no row at all for January
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-02', 'calculated_ifrs9_stage' => 3, 'expected_loss_provision' => 500,
+            'ecl_value' => 650, 'ecl_value_discounted' => 670, 'ecl_discount_status' => 'CALCULATED_TIME_PHASED']);
+        $r = (new EirRevenueService())->run('C-1', '2025-02');
+        $this->assertSame('BLOCKED', $r['status']);
+        $this->assertStringContainsString('no loan-book row exists for 2025-01', $r['error']);
+
+        // January held, but only undiscounted: not booked
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 3, 'ecl_value' => 600, 'ecl_discount_status' => 'TIME_PHASED_UNRESOLVED']);
+        $r = (new EirRevenueService())->run('C-1', '2025-02');
+        $this->assertSame('BLOCKED', $r['status']);
+        $this->assertStringContainsString('no discounted (booked) figure', $r['error']);
+
+        // January held with no ECL calculated
+        DB::table('loan_books')->where('reporting_period', '2025-01')->update(['ecl_value' => null, 'ecl_discount_status' => null]);
+        $r = (new EirRevenueService())->run('C-1', '2025-02');
+        $this->assertSame('BLOCKED', $r['status']);
+        $this->assertStringContainsString('no ECL was calculated for 2025-01', $r['error']);
+        $this->assertSame(0, DB::table('eir_amortisation')->count());
+    }
+
+    /** The stage is the one the ECL was provided on: after the qualitative triggers, before the calculated one. */
+    public function test_the_stage_is_read_after_the_qualitative_triggers(): void
+    {
+        $this->seedLocked();
+        $this->booked('C-1', '2024-12', 200);
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 1, 'ifrs9stage_post_qualitative' => 3]);
+
+        (new EirRevenueService())->run('C-1', '2025-01');
+        $row = DB::table('eir_amortisation')->first();
+        $this->assertSame('NET', $row->interest_basis);
+        $this->assertEqualsWithDelta(200, $row->ecl_allowance, 0.01);
+
+        // a performing loan accrues on gross and needs no allowance
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-02', 'calculated_ifrs9_stage' => 3, 'ifrs9stage_post_qualitative' => 2]);
+        (new EirRevenueService())->run('C-1', '2025-02');
+        $this->assertSame('GROSS', DB::table('eir_amortisation')->where('reporting_period', '2025-02')->value('interest_basis'));
     }
 
     /** Audit C5: after a borrower's last receipt the ledger still covers the month, so cash is zero, not the schedule. */
     public function test_months_after_the_last_receipt_are_zero_cash_while_the_feed_covers_them(): void
     {
         $this->seedLocked();
+        $this->booked('C-1', '2025-05', 0);
         $this->loan('C-1', '2025-06', 3);
         $this->actual('C-1', '2025-01-20', 'Principal+Interest', 100);   // the borrower's last receipt
         $this->actual('C-2', '2025-07-15', 'Principal+Interest', 50);    // the feed itself runs to July
@@ -168,6 +242,7 @@ class EirRevenueServiceTest extends TestCase
     public function test_a_write_off_reduces_the_gross_but_is_not_cash(): void
     {
         $this->seedLocked();
+        $this->booked('C-1', '2024-12', 0);
         $this->loan('C-1', '2025-01', 3);
         $this->actual('C-1', '2025-01-10', 'Principal+Interest', 100);
         $this->actual('C-1', '2025-01-20', 'Write-off', 300);
@@ -185,7 +260,8 @@ class EirRevenueServiceTest extends TestCase
     public function test_stage_three_recognises_net_interest_and_discloses_unwind(): void
     {
         $this->seedLocked();
-        $this->loan('C-1', '2025-01', 3, 200);
+        $this->booked('C-1', '2024-12', 200);
+        $this->loan('C-1', '2025-01', 3);
         $result = (new EirRevenueService())->run('C-1', '202501');
         $row = DB::table('eir_amortisation')->first();
 
@@ -298,8 +374,9 @@ class EirRevenueServiceTest extends TestCase
     public function test_stage_three_basis_is_the_governed_setting_in_force_for_the_period(): void
     {
         $this->seedLocked();
-        $this->loan('C-1', '2025-01', 3, 200);
-        $this->loan('C-1', '2025-02', 3, 200);
+        $this->booked('C-1', '2024-12', 200);
+        $this->loan('C-1', '2025-01', 3);
+        $this->loan('C-1', '2025-02', 3);
 
         $governance = new GovernanceService();
         $proposal = $governance->propose('stage3_interest_basis', 'Gross with allowance unwind', '2025-02-01', 'Board elected the gross presentation from February.', 10);
@@ -325,7 +402,7 @@ class EirRevenueServiceTest extends TestCase
         // the setting is dated after the period, so June 2024 has no value in force (the seeded defaults are in force from inception)
         \App\Models\GovernanceSetting::where('key', 'stage3_interest_basis')->update(['effective_from' => '2024-07-01']);
         $this->seedLocked();
-        $this->loan('C-1', '2024-06', 3, 200);
+        $this->loan('C-1', '2024-06', 3);
 
         $result = (new EirRevenueService())->run('C-1', '2024-06');
 

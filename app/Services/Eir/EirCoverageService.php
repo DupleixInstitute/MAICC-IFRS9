@@ -2,7 +2,9 @@
 
 namespace App\Services\Eir;
 
+use App\Models\ContractEir;
 use App\Services\MegaFarm\MegaFarmEclService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -11,22 +13,28 @@ use Illuminate\Support\Facades\Schema;
  *
  * `EirReadinessService` answers "can this one contract be solved". This
  * answers "how much of the book can be solved, and what is stopping the
- * rest" — which is a different question with a different audience. A blocker
+ * rest" - which is a different question with a different audience. A blocker
  * affecting 3,000 dormant facilities and one affecting 20 facilities carrying
  * half the book's exposure look identical in a contract count, so every
  * blocker here is weighted by carrying amount as well as counted. That
  * ordering is what turns a data request into a prioritised one.
  *
- * The checks mirror `EirReadinessService` issue code for issue code, but are
- * driven from four bulk queries rather than three queries per contract:
- * assessing a 3,600-contract book one row at a time is roughly eleven
- * thousand round trips. `EirCoverageServiceTest` asserts the two agree
- * contract by contract, so the duplication cannot drift silently.
+ * The checks are not duplicated here: each contract with a profile is put
+ * through `EirReadinessService::assessContract`, the gate the solver itself
+ * applies, with its version 1 schedule, fee lines and take-on row read for
+ * the whole book in one query each and handed over. The two therefore apply
+ * the same rules, the take-on checks (TAKEON_*) and the tranche checks
+ * (SCHEDULE_BEFORE_FIRST_DRAWDOWN, SCHEDULE_NOT_ON_TRANCHES) and the
+ * principal compared with the balance the schedule amortises included.
+ * `EirCoverageServiceTest` asserts they agree contract by contract and that
+ * every code the gate can raise has a label here (documentation audit of
+ * 14 October 2026: the earlier copy of the rules had drifted).
  *
- * One deliberate difference: `EirReadinessService` reports `EIR_LOCKED` as an
- * issue, because a locked contract cannot be re-solved. For coverage a locked
- * contract is the goal state, not a problem, so lock is read as an outcome
- * here rather than a blocker.
+ * Two readings differ by design. `EIR_LOCKED` is an issue to the gate, because
+ * a locked contract cannot be re-solved; to coverage a locked contract is the
+ * goal state, so lock is read as an outcome rather than a blocker.
+ * `EQUITY_EXCLUDED` is read as out of scope, with the Mega Farm programme
+ * (D30), not as a blocker: no data fix brings either into the EIR.
  */
 class EirCoverageService
 {
@@ -53,7 +61,19 @@ class EirCoverageService
         'FEE_CLASSIFICATION_PENDING' => 'Fee/cost lines are not independently reviewed',
         'FEE_DIRECTION_MISSING' => 'A reviewed integral fee has no cash-flow direction',
         'INITIAL_NET_INVALID' => 'Fee-adjusted initial net investment is not positive',
+        'TAKEON_NOT_RECOMPUTED' => 'Take-on loan is on its take-on balance, not recomputed from origination',
+        'TAKEON_SOLVE_REFUSED' => 'Take-on EIR solve refused by the take-on build check',
+        'SCHEDULE_BEFORE_FIRST_DRAWDOWN' => 'Schedule has instalments due on or before the first money advanced',
+        'SCHEDULE_NOT_ON_TRANCHES' => 'Generated schedule does not follow the tranche register',
     ];
+
+    /** Codes the readiness gate raises that coverage reads as an outcome or a scope, never as a blocker. */
+    public const NOT_BLOCKERS = ['EIR_LOCKED', 'EQUITY_EXCLUDED'];
+
+    public function __construct(private ?EirReadinessService $readiness = null)
+    {
+        $this->readiness ??= new EirReadinessService();
+    }
 
     /**
      * Why an out-of-scope contract is out of scope. These are not blockers:
@@ -72,7 +92,7 @@ class EirCoverageService
     {
         $period ??= $this->latestPeriod();
         $exposure = $this->exposureByContract($period);
-        $contracts = DB::table('contract_eir')->get()->keyBy('contract_id');
+        $contracts = ContractEir::query()->get()->keyBy('contract_id');
 
         // The book is whatever the tape carries, plus any contract that has an
         // EIR profile but has fallen off the tape — those must stay visible
@@ -81,8 +101,9 @@ class EirCoverageService
             array_keys($exposure), $contracts->keys()->all()
         )));
 
-        $schedules = $this->scheduleAggregates();
-        $fees = $this->feeAggregates();
+        $schedules = $this->schedules();
+        $fees = $this->fees();
+        $takeon = $this->takeonRows();
         $megaFarm = $this->megaFarmContracts($period);
 
         $rows = [];
@@ -102,7 +123,7 @@ class EirCoverageService
             }
             $rows[] = $this->assess(
                 (string) $contractId, $contract,
-                $schedules[$contractId] ?? null, $fees[$contractId] ?? null,
+                $schedules->get($contractId, collect()), $fees->get($contractId, collect()), $takeon->get($contractId) ?? false,
                 (float) ($exposure[$contractId] ?? 0.0), $onTape
             );
         }
@@ -118,46 +139,18 @@ class EirCoverageService
         ];
     }
 
-    /** Mirrors EirReadinessService::assess, minus the lock check. */
-    private function assess(string $contractId, ?object $contract, ?object $schedule, ?object $fee, float $exposure, bool $onTape): array
+    /** The readiness gate's own checks, read as coverage: lock is the goal state, equity out of scope. */
+    private function assess(string $contractId, ?ContractEir $contract, Collection $schedule, Collection $fees, object|false $takeonRow, float $exposure, bool $onTape): array
     {
-        $issues = [];
-
         if (! $contract) {
             return $this->row($contractId, null, self::STATE_BLOCKED, ['CONTRACT_PROFILE_MISSING'], $exposure, $onTape);
         }
-
-        if (($contract->instrument_type ?? null) === 'EQUITY_EXCLUDED') {
+        if (! $contract->isInEirScope()) {
             return $this->row($contractId, $contract, self::STATE_OUT_OF_SCOPE, [], $exposure, $onTape, 'EQUITY_EXCLUDED');
         }
 
-        if (! $contract->origination_date) $issues[] = 'ORIGINATION_DATE_MISSING';
-        if ((float) $contract->drawn_amount <= 0) $issues[] = 'DRAWN_AMOUNT_MISSING';
-        if (! in_array((int) $contract->payments_per_year, [1, 2, 4, 6, 12], true)) $issues[] = 'FREQUENCY_INVALID';
-        if (($contract->frequency_source ?? null) !== 'STATED') $issues[] = 'FREQUENCY_ASSUMED';
-        if (($contract->schedule_approval_status ?? null) !== 'APPROVED') $issues[] = 'SCHEDULE_NOT_APPROVED';
-
-        $rowCount = (int) ($schedule->row_count ?? 0);
-        if ($rowCount === 0) {
-            $issues[] = 'ORIGINAL_SCHEDULE_MISSING';
-        } else {
-            if ((int) ($schedule->invalid_rows ?? 0) > 0) $issues[] = 'SCHEDULE_INVALID';
-            if ($contract->origination_date && ($schedule->earliest_due ?? null) !== null
-                && $schedule->earliest_due <= substr((string) $contract->origination_date, 0, 10)) {
-                $issues[] = 'SCHEDULE_DATE_INVALID';
-            }
-            if ((int) ($schedule->distinct_dates ?? 0) < $rowCount) $issues[] = 'SCHEDULE_DATE_DUPLICATE';
-
-            $drawn = (float) $contract->drawn_amount;
-            $principal = (float) ($schedule->principal_due ?? 0);
-            if ($drawn > 0 && abs($principal - $drawn) > max(1.0, $drawn * 0.01)) $issues[] = 'PRINCIPAL_NOT_RECONCILED';
-        }
-
-        if ((int) ($fee->unresolved ?? 0) > 0) $issues[] = 'FEE_CLASSIFICATION_PENDING';
-        if ((int) ($fee->integral_without_direction ?? 0) > 0) $issues[] = 'FEE_DIRECTION_MISSING';
-
-        $initialNet = (float) $contract->drawn_amount - (float) ($fee->integral_received ?? 0) + (float) ($fee->integral_paid ?? 0);
-        if ((float) $contract->drawn_amount > 0 && $initialNet <= 0) $issues[] = 'INITIAL_NET_INVALID';
+        $issues = collect($this->readiness->assessContract($contract, $schedule, $fees, $takeonRow)['issues'])
+            ->pluck('code')->reject(fn ($code) => in_array($code, self::NOT_BLOCKERS, true))->values()->all();
 
         // Lock and calculation are outcomes, not blockers: a locked contract
         // is the goal state even though readiness refuses to re-solve it.
@@ -308,29 +301,27 @@ class EirCoverageService
         return $portfolios;
     }
 
-    private function scheduleAggregates(): array
+    /** Every version 1 schedule, by contract, in due-date order: the rows the gate reads one contract at a time. */
+    private function schedules(): Collection
     {
         return DB::table('contract_cashflow_schedule')->where('schedule_version', 1)
-            ->selectRaw('contract_id, COUNT(*) as row_count, COUNT(DISTINCT due_date) as distinct_dates')
-            ->selectRaw('MIN(due_date) as earliest_due, SUM(principal_due) as principal_due')
-            ->selectRaw('SUM(CASE WHEN due_date IS NULL OR (principal_due + interest_due + fee_due) < 0 THEN 1 ELSE 0 END) as invalid_rows')
-            ->groupBy('contract_id')->get()->keyBy('contract_id')->all();
+            ->orderBy('contract_id')->orderBy('due_date')->get()->groupBy('contract_id');
     }
 
-    private function feeAggregates(): array
+    /** Every fee line that counts (not superseded by a higher source), by contract. */
+    private function fees(): Collection
     {
-        $q = DB::table('contract_fees');
-        if (DB::getSchemaBuilder()->hasColumn('contract_fees', 'superseded_by_source')) {
-            $q->whereNull('superseded_by_source'); // a superseded line is the same fee from a lower source (spec 7.8.2)
+        return EirReadinessService::feeQuery()->get()->groupBy('contract_id');
+    }
+
+    /** The take-on rows, by contract; none where the take-on tables are not installed. */
+    private function takeonRows(): Collection
+    {
+        if (! Schema::hasTable('contract_takeon')) {
+            return collect();
         }
 
-        return $q
-            ->selectRaw("contract_id")
-            ->selectRaw("SUM(CASE WHEN classification_status NOT IN ('REVIEWED','REJECTED') THEN 1 ELSE 0 END) as unresolved")
-            ->selectRaw("SUM(CASE WHEN classification_status = 'REVIEWED' AND integral = 1 AND (cashflow_direction IS NULL OR cashflow_direction NOT IN ('RECEIVED','PAID')) THEN 1 ELSE 0 END) as integral_without_direction")
-            ->selectRaw("SUM(CASE WHEN classification_status = 'REVIEWED' AND integral = 1 AND cashflow_direction = 'RECEIVED' THEN amount ELSE 0 END) as integral_received")
-            ->selectRaw("SUM(CASE WHEN classification_status = 'REVIEWED' AND integral = 1 AND cashflow_direction = 'PAID' THEN amount ELSE 0 END) as integral_paid")
-            ->groupBy('contract_id')->get()->keyBy('contract_id')->all();
+        return DB::table('contract_takeon')->get()->keyBy('contract_id');
     }
 
     /** @return array<string,float> carrying amount by contract for the period */

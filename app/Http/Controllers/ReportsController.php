@@ -17,7 +17,10 @@ class ReportsController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware(['permission:reports'])->only(['index']);
+        // every screen and download here is a Reports hub tile, and the hub
+        // tile names 'reports' (Ifrs9ReportsController::hub); until 14 October
+        // 2026 only the redirect was gated and the reports asked only for a login
+        $this->middleware(['permission:reports']);
     }
 
     /**

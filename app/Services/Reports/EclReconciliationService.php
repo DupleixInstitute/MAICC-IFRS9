@@ -122,7 +122,7 @@ class EclReconciliationService
                 fputcsv($handle, [($side === 'start' ? 'Opening' : 'Closing') . ' allowance (' . $b['period'] . '): basis', $b['message']]);
                 fputcsv($handle, ['ECL at the reporting date, undiscounted', '', '', '', number_format($r['undiscounted'], 2, '.', '')]);
                 fputcsv($handle, ['Add: lifetime projection over the reporting-date measure', '', '', '', number_format($r['projection'], 2, '.', '')]);
-                fputcsv($handle, ['Less: effect of discounting at the original EIR', '', '', '', number_format($r['discounting_effect'], 2, '.', '')]);
+                fputcsv($handle, ['Less: effect of discounting at the EIR (original; current for a floating-rate loan)', '', '', '', number_format($r['discounting_effect'], 2, '.', '')]);
                 fputcsv($handle, ['Allowance shown', '', '', '', number_format($r['shown'], 2, '.', '')]);
                 fputcsv($handle, ['Of which with no discounted figure, shown undiscounted (' . $r['not_booked_loans'] . ' loans)', '', '', '', number_format($r['not_booked'], 2, '.', '')]);
             }

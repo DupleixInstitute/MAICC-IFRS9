@@ -87,6 +87,12 @@ class EirRevenueService
                 // The first month opens on the schedule's present value or on the ledger's drawn balance;
                 // every later month carries that basis forward with the closing balance.
                 $arrears = 0.0;
+                // the chain carries month to month: a month whose previous row is not the month just before it
+                // (that month was refused or never run) is refused too, never opened from a stale balance
+                $priorPeriod = \Carbon\CarbonImmutable::parse($period . '-01')->subMonth()->format('Y-m');
+                if ($previous && (string) $previous->reporting_period !== $priorPeriod) {
+                    throw new RuntimeException("The roll-forward of {$priorPeriod} is missing (the last month run is {$previous->reporting_period}); run or resolve {$priorPeriod} first.");
+                }
                 if ($previous) {
                     $opening = (float) $previous->closing_gross;
                     $openingBasis = $previous->opening_basis ?: 'SCHEDULE';
@@ -98,13 +104,14 @@ class EirRevenueService
 
                 $stage = $this->stage($loan);
                 if (! in_array($stage, [1, 2, 3], true)) throw new RuntimeException("The IFRS 9 stage for {$period} is missing or invalid.");
-                $allowance = $this->openingAllowance($contractId, $period, $loan);
                 $eirAnnual = $this->eirInForce($contract, $loan, $period);
                 $monthlyRate = pow(1 + $eirAnnual, 1 / 12) - 1;
                 // Stage 3 accrues on the basis governed for this period
                 // (stage3_interest_basis, IFRS 9 5.4.1(b) by default); a
-                // performing loan always accrues on gross.
+                // performing loan always accrues on gross. Only a row that nets
+                // the allowance reads it, and it fails closed without one.
                 $basis = $stage === 3 ? $this->governance->stage3InterestBasis($this->periodEnd($period)) : 'GROSS';
+                $allowance = $basis === 'NET' ? $this->openingAllowance($contractId, $period) : 0.0;
                 $netOpening = max(0.0, $opening - $allowance);
                 $interest = $monthlyRate * ($basis === 'NET' ? $netOpening : $opening);
                 $unwind = $basis === 'NET' ? $monthlyRate * min($allowance, $opening) : 0.0;
@@ -382,26 +389,46 @@ class EirRevenueService
     }
 
     /**
-     * The loss allowance the net basis nets off (IFRS 9 5.4.1(b)): the
-     * allowance in the books at the start of the month, which is the ECL the
-     * engine wrote on the prior month's loan-book row. The current month's
-     * ECL stands in when the prior month has none; the legacy
-     * expected_loss_provision column, which only a legacy importer fills, is
-     * the last resort. System audit of 9 October 2026, finding C6: the engine
-     * read only that column, nothing in the governed chain wrote it, and
-     * Stage 3 interest accrued on gross while the setting said net.
+     * The loss allowance the net basis nets off (IFRS 9 5.4.1(b)): the booked
+     * allowance at the start of the month, which is the allowance on the
+     * prior month's loan-book row, at the prior month-end. It pairs with the
+     * opening gross carrying amount, which is the prior month's closing: the
+     * month's interest is the EIR on the amortised cost at the start of the
+     * month, gross less allowance. The month-end runs the ECL before the
+     * revenue (spec v4 6.10.1 and D37), so the prior month's allowance is
+     * written by the time the month's revenue runs.
+     *
+     * The booked allowance is BookedEcl's: the ECL discounted at the EIR
+     * (ecl_value_discounted, CALCULATED_TIME_PHASED; the original EIR, or the
+     * current EIR of a floating-rate loan), or a nil ECL. Nothing stands in
+     * for it (documentation audit of 14 October 2026): until then the engine
+     * read the prior month's undiscounted ecl_value, fell back to the current
+     * month's and then to the legacy expected_loss_provision column, which
+     * held 0.00 on every row, so Stage 3 accrued on gross under a NET label.
+     * A Stage 3 loan without a booked allowance at the prior month-end is
+     * refused with the reason, and the month produces no row for it.
      */
-    private function openingAllowance(string $contractId, string $period, object $loan): float
+    private function openingAllowance(string $contractId, string $period): float
     {
         $prior = CarbonImmutable::createFromFormat('Y-m-d', $period . '-01')->subMonth()->format('Y-m');
-        $previous = $this->loanSnapshot($contractId, $prior);
-        foreach ([$previous->ecl_value ?? null, $loan->ecl_value ?? null, $loan->expected_loss_provision ?? null] as $candidate) {
-            if ($candidate !== null) {
-                return max(0.0, (float) $candidate);
-            }
+        $row = DB::table('loan_books')->where('contract_id', $contractId)
+            ->whereRaw("REPLACE(SUBSTR(reporting_period, 1, 7), '-', '') = ?", [str_replace('-', '', $prior)])
+            ->orderByDesc('id')
+            ->selectRaw(\App\Services\Reports\BookedEcl::basisSql() . ' AS basis, ' . \App\Services\Reports\BookedEcl::sql() . ' AS allowance, ecl_discount_status')
+            ->first();
+        $why = 'Stage 3 accrues on the net carrying amount (IFRS 9 5.4.1(b)), which needs the booked loss allowance at the start of '
+            . $period . ' (the ' . $prior . ' month-end): ';
+        if ($row === null) {
+            throw new RuntimeException($why . "no loan-book row exists for {$prior}.");
         }
-
-        return 0.0;
+        if (in_array($row->basis, ['discounted', 'nil'], true)) {
+            return max(0.0, (float) $row->allowance);
+        }
+        throw new RuntimeException($why . match ($row->basis) {
+            'none' => "no ECL was calculated for {$prior}.",
+            'undiscounted' => "the {$prior} ECL has no discounted (booked) figure: " . \App\Services\Reports\BookedEcl::reason($row->ecl_discount_status) . '.',
+            default => "the {$prior} allowance is on the " . $row->basis . ' basis, outside the EIR engine.',
+        });
     }
 
     private function loanSnapshot(string $contractId, string $period): ?object
@@ -411,9 +438,14 @@ class EirRevenueService
             ->orderByDesc('id')->first();
     }
 
+    /**
+     * The stage the ECL was provided on: after the qualitative triggers, as the
+     * reports and the ECL read it (EclBuildUpService::STAGE_SQL), then the
+     * calculated stage, then the days-past-due stage.
+     */
     private function stage(object $loan): int
     {
-        foreach (['calculated_ifrs9_stage', 'ifrs9stage_post_qualitative', 'ifrs9_stage'] as $field) {
+        foreach (['ifrs9stage_post_qualitative', 'calculated_ifrs9_stage', 'ifrs9stage_pre_qualitative'] as $field) {
             if (isset($loan->{$field}) && is_numeric($loan->{$field})) return (int) $loan->{$field};
         }
         return 0;

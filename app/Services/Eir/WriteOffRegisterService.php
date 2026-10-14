@@ -89,6 +89,10 @@ class WriteOffRegisterService
             if (! $w) {
                 throw new RuntimeException('No such write-off.');
             }
+            // the proposer withdraws; a rejection is a second person's act (documentation audit, 14 October 2026)
+            if ($action === 'reject' && $w->status === 'PROPOSED' && (int) $w->proposed_by === $userId) {
+                throw new RuntimeException('The person who proposed a write-off cannot reject it; withdraw it instead.');
+            }
             $status = match ($action) {
                 'reject' => $w->status === 'PROPOSED' ? 'REJECTED' : null,
                 'withdraw' => $w->status === 'PROPOSED' && (int) $w->proposed_by === $userId ? 'WITHDRAWN' : null,

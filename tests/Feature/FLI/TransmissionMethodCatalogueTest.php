@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Fli;
+namespace Tests\Feature\FLI;
 
 use App\Services\Eir\GovernanceService;
 use App\Services\Fli\TransmissionMethodCatalogue;

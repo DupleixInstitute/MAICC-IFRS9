@@ -26,6 +26,16 @@ class ResetPermissions extends Command
     protected $description = 'Reset permissions table';
 
     /**
+     * The permission seeders, in the order eir:bootstrap runs them
+     * (Bootstrap::stepSeed): the base list, the MAIIC and ticket permissions
+     * that list does not carry, then the cleanup that removes the
+     * credit-scoring-era permissions the base list still creates
+     * (documentation audit, 14 October 2026: this command had re-created
+     * them and dropped every eir.* permission).
+     */
+    public const SEEDERS = ['PermissionsTableSeeder', 'MaiicAdminPermissionsSeeder', 'TicketsPermissionsSeeder', 'LegacyPermissionsCleanupSeeder'];
+
+    /**
      * Create a new command instance.
      *
      * @return void
@@ -46,9 +56,9 @@ class ResetPermissions extends Command
         $this->info("truncating permissions table");
         DB::table('permissions')->truncate();
         $this->info("seeding permissions");
-        Artisan::call('db:seed', [
-            '--class' => '\Database\Seeders\PermissionsTableSeeder'
-        ]);
+        foreach (self::SEEDERS as $seeder) {
+            Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\' . $seeder, '--force' => true]);
+        }
         $this->info("assigning permissions to admin");
         Role::findByName('admin')->syncPermissions(Permission::all());
         Schema::enableForeignKeyConstraints();

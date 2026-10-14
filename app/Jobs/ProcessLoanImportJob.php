@@ -14,6 +14,8 @@ use Illuminate\Queue\SerializesModels;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Exceptions\StagingRuleMissingException;
+use App\Services\Eir\StagingClassifier;
 
 class ProcessLoanImportJob implements ShouldQueue
 {
@@ -28,6 +30,12 @@ class ProcessLoanImportJob implements ShouldQueue
     protected $loanContext;
     protected $portfolio;
     protected $import; // Add import record
+
+    /** The approved staging rules in force at the period end (StagingClassifier); built on first use. */
+    protected ?StagingClassifier $classifier = null;
+
+    /** Loans in arrears whose tenor the report does not give: left unstaged for eir:stage, never guessed. */
+    protected int $unstaged = 0;
 
     public function __construct(string $filePath, string $fileName, string $reportingPeriod, int $portfolioId, Import $import = null)
     {
@@ -74,6 +82,9 @@ class ProcessLoanImportJob implements ShouldQueue
             $this->processCsvContent();
 
             Log::info("Queued import finished. Imported: {$this->importedCount} rows.");
+            if ($this->unstaged > 0) {
+                Log::warning("{$this->unstaged} loan(s) in arrears have no term on the report and were left unstaged for eir:stage.");
+            }
 
             // Update import record with final statistics
             if ($this->import) {
@@ -231,6 +242,9 @@ class ProcessLoanImportJob implements ShouldQueue
         try {
             $data = $this->mapRowToData($row, $periodString);
             return $data; // Return data instead of inserting directly
+        } catch (StagingRuleMissingException $e) {
+            // no approved rule in force: the import fails and says so, it never drops the rows quietly
+            throw $e;
         } catch (\Exception $e) {
            // Log::error("Failed to process row {$this->totalRows}: " . $e->getMessage());
             return null;
@@ -315,8 +329,10 @@ class ProcessLoanImportJob implements ShouldQueue
             'arrears_30_to_90'   => $this->cleanNumeric($row[26] ?? 0),
             'arrears_91_to_180'   => $this->cleanNumeric($row[27] ?? 0),
             'arrears_180_to_270'   => $this->cleanNumeric($row[29] ?? 0),
-            'ifrs9stage_pre_qualitative'  => $this->classifyIFRS9StageF1($row),
-            'ifrs9stage_post_qualitative' => $this->classifyIFRS9StageF1($row),
+            'ifrs9stage_pre_qualitative'  => $stage = $this->stage([
+                '1_30_days' => $row[25] ?? null, '31_90_days' => $row[26] ?? null, '91_180_days' => $row[27] ?? null, '181_270_days' => $row[29] ?? null,
+            ], $row[6] ?? '', $row[7] ?? ''),
+            'ifrs9stage_post_qualitative' => $stage,
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -375,8 +391,10 @@ class ProcessLoanImportJob implements ShouldQueue
             'arrears_30_to_90'   => $this->cleanNumeric($row[25] ?? 0),
             'arrears_91_to_180'   => $this->cleanNumeric($row[26] ?? 0),
             'arrears_180_to_270'   => $this->cleanNumeric($row[28] ?? 0),
-            'ifrs9stage_pre_qualitative'  => $this->classifyIFRS9StageF2($row),
-            'ifrs9stage_post_qualitative' => $this->classifyIFRS9StageF2($row),
+            'ifrs9stage_pre_qualitative'  => $stage = $this->stage([
+                '1_30_days' => $row[24] ?? null, '31_90_days' => $row[25] ?? null, '91_180_days' => $row[26] ?? null, '181_270_days' => $row[28] ?? null,
+            ], $row[5] ?? '', $row[6] ?? ''),
+            'ifrs9stage_post_qualitative' => $stage,
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -529,50 +547,46 @@ class ProcessLoanImportJob implements ShouldQueue
         return $value === '' ? '0' : $value;
     }
 
-    private function classifyIFRS9StageF1($row)
+    /**
+     * The stage of one loan by the approved staging thresholds in force at the
+     * end of the period (StagingThreshold::forFacility through
+     * StagingClassifier; documentation audit of 14 October 2026). Until then
+     * this job staged with a ladder written in code: Stage 2 from 31 days,
+     * Stage 3 from 181, whatever the facility or the approved rule, so a
+     * short-term or Mega Farm loan past 91 days was left in Stage 2.
+     *
+     * The class is the one StagingService reads (Mega Farm by its group or
+     * GL, else DEFAULT) and the tenor is the loan's term in months, from its
+     * start to its maturity. A loan in arrears whose report row gives no term
+     * is left unstaged for eir:stage, never staged on a guessed tenor; a
+     * current loan is Stage 1 under every rule. With no approved rule in force
+     * the import stops (StagingRuleMissingException).
+     *
+     * @param array<string,mixed> $buckets the arrears buckets, keyed as StagingClassifier reads them
+     */
+    private function stage(array $buckets, $startDate, $dueDate): ?string
     {
-        $col_181_270 = $this->cleanNumeric($row[29] ?? 0);
-        $col_91_180  = $this->cleanNumeric($row[27] ?? 0); 
-        $col_31_90   = $this->cleanNumeric($row[26] ?? 0); 
-        $col_1_30    = $this->cleanNumeric($row[25] ?? 0); 
-
-        if ($col_181_270 > 0) {
-            return 3;
+        if ($this->classifier === null) {
+            $period = (string) $this->reportingPeriod;
+            $date = strpos($period, '-') !== false ? Carbon::createFromFormat('Y-m', $period) : Carbon::createFromFormat('Ym', $period);
+            $this->classifier = new StagingClassifier($date->endOfMonth()->toDateString());
         }
-        if ($col_91_180 > 0 || $col_31_90 > 0) {
-            return 2;
+        if ($this->classifier->daysPastDue($buckets) === 0) {
+            return '1';
         }
-        if ($col_1_30 > 0) {
-            return 1;
+        $start = $this->parseDate($startDate);
+        $end = $this->parseDate($dueDate);
+        if (! $start || ! $end || $end <= $start) {
+            $this->unstaged++;
+
+            return null;
         }
-        return 1;
-    }
+        $tenor = (int) Carbon::parse($start)->diffInMonths(Carbon::parse($end));
+        $group = strtolower((string) ($this->loanContext['group'] ?? ''));
+        $code = (string) ($this->loanContext['code'] ?? '');
+        $class = (str_contains($group, 'mega') || in_array($code, \App\Services\MegaFarm\MegaFarmEclService::GLS, true)) ? 'MEGA_FARM' : 'DEFAULT';
 
-    private function classifyIFRS9StageF2($row)
-    {
-        $col_181_270 = $this->cleanNumeric($row[28] ?? 0); // AC (Oldest)
-        $col_91_180  = $this->cleanNumeric($row[26] ?? 0); // AA
-        $col_31_90   = $this->cleanNumeric($row[25] ?? 0); // Z
-        $col_1_30    = $this->cleanNumeric($row[24] ?? 0); // Y
-
-        // 1. Check Oldest Bucket First (Stage 3)
-        if ($col_181_270 > 0) {
-            return 3;
-        }
-
-        // 2. Check Middle Buckets (Stage 2)
-        // Both 91-180 and 31-90 are Stage 2 per your requirement
-        if ($col_91_180 > 0 || $col_31_90 > 0) {
-            return 2;
-        }
-
-        // 3. Check Youngest Bucket (Stage 1)
-        if ($col_1_30 > 0) {
-            return 1;
-        }
-
-        // 4. Default to Stage 1 if all are zero or empty
-        return 1;
+        return $this->classifier->classify($buckets, $class, $tenor);
     }
 
     private function calculateRemainingTenor($dueDateStr, $reportingPeriod)

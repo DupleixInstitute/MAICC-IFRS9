@@ -122,6 +122,29 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * Whether a user may see a menu entry: no permission named, or any one of
+     * the permissions named, separated by '|' as the route middleware takes
+     * them ('permission:settings|eir.fees.import'), so an entry can declare
+     * exactly what its controller enforces.
+     */
+    public static function mayOpen(?object $user, string $permission): bool
+    {
+        if ($permission === '') {
+            return true;
+        }
+        if (! $user) {
+            return false;
+        }
+        foreach (explode('|', $permission) as $one) {
+            if (trim($one) !== '' && $user->can(trim($one))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Drop the menu entries whose 'permissions' the user lacks, and any group
      * left with no children. An entry with no permission stays visible, so
      * only entries that declare one are affected.
@@ -131,8 +154,7 @@ class HandleInertiaRequests extends Middleware
         $user = Auth::user();
         $visible = [];
         foreach ($items ?? [] as $item) {
-            $permission = $item['permissions'] ?? '';
-            if ($permission !== '' && ! ($user && $user->can($permission))) {
+            if (! self::mayOpen($user, (string) ($item['permissions'] ?? ''))) {
                 continue;
             }
             if (! empty($item['dropdown'])) {
@@ -143,7 +165,7 @@ class HandleInertiaRequests extends Middleware
             }
             // A tabbed section keeps the tabs the user may open, and opens the first.
             if (! empty($item['tabs'])) {
-                $item['tabs'] = array_values(array_filter($item['tabs'], fn ($t) => ($t['permissions'] ?? '') === '' || ($user && $user->can($t['permissions']))));
+                $item['tabs'] = array_values(array_filter($item['tabs'], fn ($t) => self::mayOpen($user, (string) ($t['permissions'] ?? ''))));
                 if ($item['tabs'] === []) {
                     continue;
                 }

@@ -15,10 +15,18 @@ use Spatie\Permission\PermissionRegistrar;
  *
  * Also the EIR module's own permissions (spec v3 section 12.1, phase P1):
  * eir.view for the read-only screens, eir.run for calculations and runs,
- * eir.export for downloads and eir.govern for the Governance Centre. Until
- * the other EIR routes move off the broad Settings permission, only
- * eir.view and eir.govern are enforced. The Macro Statistics screen has its
- * own pair, macro.view and macro.manage (spec v4 section 13).
+ * eir.export for downloads and eir.govern for the governed acts (the
+ * Governance Centre, the feed builds and period locks, the take-on, the
+ * write-off, restructure and reset registers, the staging thresholds, the
+ * reopening of a locked EIR), and eir.fees.import for Finance's fee intake.
+ * All five are enforced by controller middleware: eir.view on the EIR
+ * screens, eir.export on the auditor pack and the reconciliation export,
+ * eir.run on the forward-looking correlation run, eir.govern on the governed
+ * acts and eir.fees.import on the fee intake and the Fee Classification
+ * screen. Some EIR screens (the calculations, the accounting rules, the fee
+ * classification's actions) still sit behind the broad settings permission. The Macro
+ * Statistics screen has its own pair, macro.view and macro.manage (spec v4
+ * section 13).
  *
  *   php artisan db:seed --class=MaiicAdminPermissionsSeeder
  */

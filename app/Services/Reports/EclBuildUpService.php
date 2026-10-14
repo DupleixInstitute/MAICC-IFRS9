@@ -45,8 +45,16 @@ use Illuminate\Support\Facades\DB;
  */
 class EclBuildUpService
 {
-    /** The engine's EAD, as SQL. */
-    public const EAD_SQL = 'COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1)';
+    /**
+     * The engine's EAD, as SQL: EclExposure's one rule (floored at nil, nil for
+     * a loan written off to nil). Until 14 October 2026 this was the gross,
+     * unfloored figure, which counted a credit balance as a negative exposure
+     * and the undrawn amount of a loan written off to nil as an exposure.
+     */
+    public static function eadSql(): string
+    {
+        return \App\Services\Ecl\EclExposure::sql();
+    }
 
     /** The stage the engine measured, as SQL. */
     public const STAGE_SQL = 'COALESCE(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative)';

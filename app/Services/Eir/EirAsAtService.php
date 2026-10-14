@@ -178,8 +178,10 @@ class EirAsAtService
         }
         $cumPosted += $contractualAccrued ?? 0.0;
 
-        // remaining expected cash flows: the schedule version in force on the date
-        $version = DB::table('contract_cashflow_schedule')->where('contract_id', $c->contract_id)->where('effective_from', '<=', $asAt->toDateString())->max('schedule_version')
+        // remaining expected cash flows: the schedule version in force on the date, the one that took effect last
+        // (a Reset version is renumbered when the reset pipeline rebuilds, so its number is not its order in time)
+        $version = DB::table('contract_cashflow_schedule')->where('contract_id', $c->contract_id)->where('effective_from', '<=', $asAt->toDateString())
+            ->orderByDesc('effective_from')->orderByDesc('schedule_version')->value('schedule_version')
             ?? DB::table('contract_cashflow_schedule')->where('contract_id', $c->contract_id)->min('schedule_version');
         $remaining = DB::table('contract_cashflow_schedule')->where('contract_id', $c->contract_id)->where('schedule_version', $version)->where('due_date', '>', $asAt->toDateString())
             ->orderBy('due_date')->get(['due_date', 'principal_due', 'interest_due', 'fee_due'])->map(fn ($r) => ['due_date' => $r->due_date, 'principal' => (float) $r->principal_due, 'interest' => (float) $r->interest_due, 'fee' => (float) $r->fee_due])->all();

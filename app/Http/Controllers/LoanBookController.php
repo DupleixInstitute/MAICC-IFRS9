@@ -14,7 +14,6 @@ use Inertia\Inertia;
 use Inertia\Response;
 use League\Csv\Reader;
 use App\Models\LoanBook;
-use App\Models\StageingRule;
 use Illuminate\Http\Request;
 use App\Models\LoanPortfolio;
 use App\Services\Reports\EclBuildUpService;
@@ -287,159 +286,11 @@ class LoanBookController extends Controller
         return app(ImportTemplateController::class)->template('loan-book', app(ImportTemplateBuilder::class));
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:txt,csv'],
-            'loan_portfolio_id' => ['required'],
-            'import_type' => ['required', 'in:legacy,custom'],
-            'mapping' => ['nullable', 'array'], // Only used for custom import
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            $file = $request->file('file');
-            $csv = Reader::createFromPath($file->getPathname(), 'r');
-            $csv->setHeaderOffset(0);
-
-            // Validate CSV structure
-            $headers = $csv->getHeader();
-            $requiredHeaders = [
-                'contract_id',
-                'external_identity_id',
-                'create_date',
-                'due_date',
-                'principal_balance',
-                'overdue_days'
-            ];
-
-            $missingHeaders = array_diff($requiredHeaders, $headers);
-            if (!empty($missingHeaders)) {
-                throw new \Exception('Missing required columns: ' . implode(', ', $missingHeaders));
-            }
-
-            $records = $csv->getRecords();
-            $period = Carbon::createFromFormat('Y-m', $request->reporting_period);
-            $reportingPeriod = $period->format('Ym');
-
-            // Check if records already exist for this period and portfolio
-            $existingCount = LoanBook::where('reporting_period', $reportingPeriod)
-                                   ->where('portfolio_group', $request->portfolio)
-                                   ->count();
-            if ($existingCount > 0) {
-                throw new \Exception("Records already exist for {$period->format('F Y')} in {$request->portfolio} portfolio. Please delete existing records first.");
-            }
-
-            $batchSize = 1000;
-            $batch = [];
-            $processed = 0;
-            $totalRecords = iterator_count($csv->getRecords());
-            $errors = [];
-            $rowNum = 1;
-
-            foreach ($records as $record) {
-                $rowNum++;
-                try {
-                    // Validate required fields
-                    foreach ($requiredHeaders as $field) {
-                        if (empty($record[$field])) {
-                            throw new \Exception("Missing value for {$field}");
-                        }
-                    }
-
-                    // Validate dates
-                    $createDate = Carbon::parse($record['create_date']);
-                    $dueDate = Carbon::parse($record['due_date']);
-
-                    if ($createDate > $dueDate) {
-                        throw new \Exception('Create date cannot be after due date');
-                    }
-
-                    // Validate numeric values
-                    if (!is_numeric($record['principal_balance']) || $record['principal_balance'] < 0) {
-                        throw new \Exception('Invalid principal balance');
-                    }
-
-                    if (!is_numeric($record['overdue_days']) || $record['overdue_days'] < 0) {
-                        throw new \Exception('Invalid overdue days');
-                    }
-
-                    // Calculate expected loss provision based on overdue days
-                    $expectedLossProvision = $this->calculateExpectedLossProvision(
-                        $record['overdue_days'],
-                        $record['principal_balance']
-                    );
-
-                    $batch[] = [
-                        'contract_id' => $record['contract_id'],
-                        'external_identity_id' => $record['external_identity_id'],
-                        'portfolio_group' => $request->portfolio,
-                        'reporting_year' => $period->year,
-                        'reporting_month' => $period->month,
-                        'reporting_period' => $reportingPeriod,
-                        'create_date' => $createDate,
-                        'due_date' => $dueDate,
-                        'principal_balance' => $record['principal_balance'],
-                        'overdue_days' => $record['overdue_days'],
-                        'expected_loss_provision' => $expectedLossProvision,
-                        'overdue_status' => $this->calculateOverdueStatus($record['overdue_days']),
-                        'is_month_end' => true,
-                        'ifrs9_stage' => $this->calculateIfrs9Stage($record, $reportingPeriod),
-                        'ifrs9_stage_prequalitative' => $this->calculateIfrs9Stage($record, $reportingPeriod),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-
-                    $processed++;
-
-                    if (count($batch) >= $batchSize) {
-                        LoanBook::insert($batch);
-                        $batch = [];
-
-                        // Calculate and broadcast progress
-                        $progress = round(($processed / $totalRecords) * 100);
-                        broadcast(new ImportProgress($progress))->toOthers();
-                    }
-                } catch (\Exception $e) {
-                    $errors[] = "Row {$rowNum}: {$e->getMessage()}";
-                }
-            }
-
-            // Insert remaining records
-            if (!empty($batch)) {
-                LoanBook::insert($batch);
-            }
-
-            // If there were any errors, rollback and report them
-            if (!empty($errors)) {
-                DB::rollBack();
-                return response()->json([
-                    'error' => 'Import failed with the following errors:',
-                    'import_errors' => $errors
-                ], 422);
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => "Successfully imported {$processed} loan records for {$period->format('F Y')} ({$request->portfolio} portfolio).",
-                'processed' => $processed,
-                'total' => $totalRecords
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'error' => 'Failed to import loan book: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
     public function summary(Request $request)
     {
         $query = LoanBook::query();
         $this->applyFilters($query, $request);
-        $ead = EclBuildUpService::EAD_SQL;
+        $ead = EclBuildUpService::eadSql();
 
         $result = $query->selectRaw("
             COUNT(*) as total_accounts,
@@ -469,65 +320,6 @@ class LoanBookController extends Controller
             'stage_3_count' => (int) $result->stage_3_count,
         ];
     }
-
-    public static function calculateIfrs9Stage($record, $reportingPeriod)
-    {
-        try {
-            // Load thresholds
-            $rule = StageingRule::first();
-            $stage1 = $rule?->stage_1_threshold ?? 30;
-            $stage3 = $rule?->stage_3_threshold ?? 90;
-
-            // Prefer Days Past Due if available; fallback to days since create_date
-            if (isset($record['overdue_days']) && is_numeric($record['overdue_days'])) {
-                $dpd = (int)$record['overdue_days'];
-            } else {
-                if (empty($record['create_date'])) {
-                    throw new \Exception("Missing create_date");
-                }
-                $createDateFromFile = $record['create_date'] instanceof Carbon
-                    ? $record['create_date']
-                    : Carbon::parse($record['create_date']);
-                $reportingPeriodDate = Carbon::createFromFormat('Ym', $reportingPeriod)->endOfMonth();
-                $dpd = $createDateFromFile->diffInDays($reportingPeriodDate);
-            }
-
-            if ($dpd <= $stage1) {
-                return '1';
-            } elseif ($dpd < $stage3) {
-                return '2';
-            } else {
-                return '3';
-            }
-        } catch (\Exception $e) {
-            Log::error("IFRS9 Stage calculation failed: " . $e->getMessage());
-            return null; 
-        }
-    }
-
-
-    // private function calculateOverdueStatus($days)
-    // {
-    //     if ($days === 0) return 'Current';
-    //     if ($days <= 30) return 'Watch';
-    //     if ($days <= 90) return 'Substandard';
-    //     if ($days <= 180) return 'Doubtful';
-    //     return 'Loss';
-    // }
-
-    private function calculateExpectedLossProvision($overdueDays, $principalBalance)
-    {
-        $provisionRate = match(true) {
-            $overdueDays === 0 => 0.01, // 1% for current loans
-            $overdueDays <= 30 => 0.05, // 5% for watch loans
-            $overdueDays <= 90 => 0.25, // 25% for substandard loans
-            $overdueDays <= 180 => 0.50, // 50% for doubtful loans
-            default => 1.00, // 100% for loss loans
-        };
-
-        return $principalBalance * $provisionRate;
-    }
-
 
     public function createImport(): Response
     {

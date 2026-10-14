@@ -981,6 +981,9 @@ Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], func
     Route::post('/approve-all', [\App\Http\Controllers\EirCalculationController::class, 'approveAll'])->name('approve-all');
     Route::post('/{contractEir}/approve', [\App\Http\Controllers\EirCalculationController::class, 'approve'])->name('approve');
     Route::post('/{contractEir}/reopen', [\App\Http\Controllers\EirCalculationController::class, 'reopen'])->name('reopen');
+    // a reopening is requested by one person and approved by another (EirReopenRequestService)
+    Route::post('/reopen-requests/{reopen}/approve', [\App\Http\Controllers\EirCalculationController::class, 'approveReopen'])->name('reopen.approve');
+    Route::post('/reopen-requests/{reopen}/close', [\App\Http\Controllers\EirCalculationController::class, 'closeReopen'])->name('reopen.close');
 });
 
 // EIR Governance Centre (spec v3 section 8): every calculation convention as
@@ -1307,6 +1310,9 @@ Route::group(['prefix' => 'eir-feed', 'as' => 'eir-feed.'], function () {
     Route::post('/build', [\App\Http\Controllers\EirFeedController::class, 'build'])->name('build');
     Route::post('/build/{build}/approve', [\App\Http\Controllers\EirFeedController::class, 'approve'])->name('approve');
     Route::post('/periods/{period}/lock', [\App\Http\Controllers\EirFeedController::class, 'lockPeriod'])->name('lock-period');
+    // an unlock is requested by one person and approved by another (PeriodUnlockService)
+    Route::post('/unlock-requests/{unlock}/approve', [\App\Http\Controllers\EirFeedController::class, 'approveUnlock'])->name('unlock.approve');
+    Route::post('/unlock-requests/{unlock}/close', [\App\Http\Controllers\EirFeedController::class, 'closeUnlock'])->name('unlock.close');
 });
 // Write-offs: those the ledger carries, and the governed register (spec v4 s.3.8)
 Route::group(['prefix' => 'eir-write-offs', 'as' => 'eir-write-offs.'], function () {

@@ -166,7 +166,7 @@ class Ifrs9NoteDocuments
                 'rows' => [
                     ['key' => 'undiscounted', 'label' => 'ECL at the reporting date, undiscounted (EAD x PD x LGD)', 'values' => $lines['undiscounted']],
                     ['key' => 'projection', 'label' => 'Add: lifetime projection over the reporting-date measure', 'values' => $lines['projection']],
-                    ['key' => 'discounting_effect', 'label' => 'Less: effect of discounting at the original EIR', 'values' => $lines['discounting_effect']],
+                    ['key' => 'discounting_effect', 'label' => 'Less: effect of discounting at the EIR (original; current for a floating-rate loan)', 'values' => $lines['discounting_effect']],
                     ['key' => 'shown', 'label' => 'Loss allowance', 'values' => $lines['shown'], 'total' => true],
                     ['key' => 'not_booked', 'label' => 'Of which with no discounted figure, shown undiscounted (' . number_format($loans['total']) . ' loans)', 'values' => $lines['not_booked'], 'muted' => true],
                 ]];

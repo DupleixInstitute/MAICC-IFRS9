@@ -18,7 +18,7 @@ class EirCoverageServiceTest extends TestCase
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
-        Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('instrument_type')->default('AMORTISED_LOAN'); $t->string('portfolio')->nullable(); $t->string('product_type')->nullable(); $t->date('origination_date')->nullable(); $t->double('drawn_amount')->default(0); $t->integer('payments_per_year')->default(12); $t->string('frequency_source')->nullable(); $t->string('schedule_approval_status')->default('NOT_GENERATED'); $t->string('calculation_status')->default('PENDING'); $t->string('locked_at')->nullable(); $t->timestamps(); });
+        Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('instrument_type')->default('AMORTISED_LOAN'); $t->string('portfolio')->nullable(); $t->string('product_type')->nullable(); $t->date('origination_date')->nullable(); $t->double('drawn_amount')->default(0); $t->integer('payments_per_year')->default(12); $t->string('frequency_source')->nullable(); $t->string('schedule_approval_status')->default('NOT_GENERATED'); $t->string('calculation_status')->default('PENDING'); $t->string('locked_at')->nullable(); $t->string('schedule_source')->nullable(); $t->double('schedule_amortising_balance')->nullable(); $t->timestamps(); });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->smallInteger('schedule_version')->default(1); $t->string('due_date')->nullable(); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); });
         Schema::create('contract_fees', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->double('amount')->default(0); $t->boolean('integral')->nullable(); $t->string('cashflow_direction')->nullable(); $t->string('classification_status')->default('PENDING'); });
         Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->double('carrying_amount')->default(0); });
@@ -213,6 +213,65 @@ class EirCoverageServiceTest extends TestCase
             $actual = collect($row['issues'])->sort()->values()->all();
 
             $this->assertSame($expected, $actual, "Blocker codes diverged for {$row['contract_id']}");
+        }
+    }
+
+    /**
+     * Every code the readiness gate can raise is labelled here, apart from the
+     * two coverage reads as an outcome or a scope. Read from the gate's source,
+     * so a new check there without a label here fails this test.
+     */
+    public function test_every_code_the_readiness_gate_raises_has_a_coverage_label(): void
+    {
+        preg_match_all("/'code' => '([A-Z_]+)'/", file_get_contents(app_path('Services/Eir/EirReadinessService.php')), $m);
+        $codes = array_values(array_unique($m[1]));
+        $this->assertContains('TAKEON_NOT_RECOMPUTED', $codes);
+        $this->assertContains('SCHEDULE_NOT_ON_TRANCHES', $codes);
+        foreach ($codes as $code) {
+            if (in_array($code, EirCoverageService::NOT_BLOCKERS, true)) {
+                continue;
+            }
+            $this->assertArrayHasKey($code, EirCoverageService::ISSUE_LABELS, "{$code} has no coverage label");
+        }
+    }
+
+    /**
+     * The take-on checks, the tranche check and the principal compared with the
+     * balance a generated schedule amortises: the copy of the rules the
+     * coverage used to carry had none of the three (documentation audit,
+     * 14 October 2026). Coverage now runs the gate itself.
+     */
+    public function test_take_on_tranche_and_amortising_balance_checks_reach_the_coverage(): void
+    {
+        Schema::create('contract_takeon', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('basis')->nullable(); $t->string('eir_check')->nullable(); $t->string('eir_check_reason')->nullable(); $t->text('flags')->nullable(); $t->text('recompute_detail')->nullable(); });
+        Schema::create('contract_disbursements', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->integer('tranche_no')->nullable(); $t->date('disbursement_date'); $t->double('amount'); $t->string('reference')->nullable(); $t->string('sub_account_no')->nullable(); $t->string('source_system')->nullable(); $t->string('external_transaction_id')->nullable(); $t->timestamps(); });
+        $takeon = \App\Services\Ebanker\TakeonLandingService::ROUTE;
+
+        // a take-on loan still on its take-on balance, and one whose solve the build refused
+        $this->contract('TK-BALANCE', ['schedule_source' => $takeon]); $this->schedule('TK-BALANCE'); $this->exposure('TK-BALANCE', 400);
+        DB::table('contract_takeon')->insert(['contract_id' => 'TK-BALANCE', 'basis' => 'TAKEON_BALANCE', 'flags' => json_encode(['no origination chain'])]);
+        $this->contract('TK-REFUSED', ['schedule_source' => $takeon]); $this->schedule('TK-REFUSED'); $this->exposure('TK-REFUSED', 300);
+        DB::table('contract_takeon')->insert(['contract_id' => 'TK-REFUSED', 'basis' => 'RECOMPUTED', 'eir_check' => 'FAIL', 'eir_check_reason' => 'residual too large']);
+        // first money advanced after an instalment falls due
+        $this->contract('LATE-DRAW', ['schedule_source' => 'IMPORTED']); $this->schedule('LATE-DRAW'); $this->exposure('LATE-DRAW', 200);
+        DB::table('contract_disbursements')->insert(['contract_id' => 'LATE-DRAW', 'disbursement_date' => '2025-02-15', 'amount' => 1000]);
+        // a generated schedule amortising 1,100 (capitalised moratorium interest): 1,000 drawn is not the basis
+        $this->contract('CAPITALISED', ['schedule_source' => 'GENERATED', 'schedule_amortising_balance' => 1100.0]); $this->exposure('CAPITALISED', 100);
+        $this->schedule('CAPITALISED');
+        DB::table('contract_cashflow_schedule')->where('contract_id', 'CAPITALISED')->update(['principal_due' => 550]);
+
+        $rows = collect((new EirCoverageService())->profile('2025-10')['contracts'])->keyBy('contract_id');
+
+        $this->assertSame(['TAKEON_NOT_RECOMPUTED'], $rows['TK-BALANCE']['issues']);
+        $this->assertSame(['TAKEON_SOLVE_REFUSED'], $rows['TK-REFUSED']['issues']);
+        $this->assertSame(['SCHEDULE_BEFORE_FIRST_DRAWDOWN'], $rows['LATE-DRAW']['issues']);
+        $this->assertSame('READY', $rows['CAPITALISED']['state'], 'the principal is compared with the balance the schedule amortises, as the gate does');
+
+        $readiness = new EirReadinessService();
+        foreach ($rows as $id => $row) {
+            $expected = collect($readiness->assess($id)['issues'])->pluck('code')
+                ->reject(fn ($c) => in_array($c, EirCoverageService::NOT_BLOCKERS, true))->sort()->values()->all();
+            $this->assertSame($expected, collect($row['issues'])->sort()->values()->all(), "Blocker codes diverged for {$id}");
         }
     }
 }

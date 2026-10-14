@@ -40,18 +40,21 @@ class RestructureDetectionWiringTest extends TestCase
         $this->createGovernanceSchema();
         $this->seedGovernanceDefaults();
         Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->string('customer_name')->nullable(); $t->string('external_identity_id')->nullable(); $t->double('interest_rate')->nullable(); });
-        Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('rate_type')->default('FIXED'); $t->timestamps(); });
+        Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id')->unique(); $t->string('rate_type')->default('FIXED'); $t->string('instrument_type')->nullable(); $t->date('origination_date')->nullable(); $t->date('maturity_date')->nullable(); $t->double('contractual_rate')->nullable(); $t->double('markup')->nullable(); $t->string('sub_account_no')->nullable(); $t->timestamps(); });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->smallInteger('schedule_version')->default(1); $t->date('effective_from')->nullable(); $t->date('due_date'); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); $t->timestamps(); });
         Schema::create('reference_rate_series', function (Blueprint $t) { $t->increments('id'); $t->string('index_code'); $t->date('effective_date'); $t->double('rate'); $t->timestamps(); });
         Schema::create('rate_reset_events', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->date('reset_date'); $t->decimal('old_reference_rate', 8, 5); $t->decimal('new_reference_rate', 8, 5); $t->unsignedSmallInteger('new_schedule_version'); $t->integer('recorded_by')->nullable(); $t->timestamps(); });
         Schema::create('reporting_period_locks', function (Blueprint $t) { $t->increments('id'); $t->string('reporting_period'); $t->timestamps(); });
+        // the two migrations that share rate_reset_events, in the order a fresh install runs them
+        (require base_path('database/migrations/2026_10_01_000000_create_eir_rate_periods.php'))->up();
         (require base_path('database/migrations/2026_10_14_230000_restructure_register_and_modifications.php'))->up();
         DB::table('ebanker_loads')->insert(['id' => 1, 'pack_hash' => str_repeat('t', 64), 'pack_name' => 'fixture', 'manifest' => '{}', 'status' => 'LANDED', 'created_at' => now(), 'updated_at' => now()]);
         // the PLR: 25.3 to 30 November 2025, 24.0 from 4 February 2026
         foreach ([['2025-06-01', 25.3], ['2026-02-04', 24.0]] as [$d, $r]) {
             DB::table('reference_rate_series')->insert(['index_code' => 'PLR', 'effective_date' => $d, 'rate' => $r]);
         }
-        DB::table('contract_eir')->insert(['contract_id' => 'F1', 'rate_type' => 'FLOATING', 'created_at' => now(), 'updated_at' => now()]);
+        // drawn 1 July 2025 at 31.3 percent with the PLR at 25.3: the spread locked at drawdown is 6.0
+        DB::table('contract_eir')->insert(['contract_id' => 'F1', 'rate_type' => 'FLOATING', 'origination_date' => '2025-07-01', 'maturity_date' => '2030-06-30', 'contractual_rate' => 0.313, 'created_at' => now(), 'updated_at' => now()]);
         DB::table('contract_eir')->insert(['contract_id' => 'X1', 'rate_type' => 'FIXED', 'created_at' => now(), 'updated_at' => now()]);
         $rates = [
             'F1' => ['2026-01' => 31.3, '2026-02' => 30.0, '2026-03' => 30.5], // moved with the PLR in February; spread 6.0 to 6.5 in March
@@ -93,7 +96,7 @@ class RestructureDetectionWiringTest extends TestCase
         $this->assertSame(0, DB::table('contract_modifications')->count(), 'no schedule version N+1, no modification row');
         $kept = DB::table('restructure_events')->where('detection_key', 'MANUAL|X1')->first();
         $this->assertSame(['PROPOSED', 'Term extended', 7], [$kept->status, $kept->reason, (int) $kept->proposed_by]);
-        $this->assertSame(['DETECTED'], DB::table('rate_reset_events')->distinct()->pluck('status')->all(), 'every move waits for a person');
+        $this->assertSame(['DETECTED'], DB::table('rate_reset_events')->distinct()->pluck('classification_status')->all(), 'every move waits for a person');
         $this->assertSame(0, DB::table('rate_reset_events')->whereNotNull('approved_by')->count());
         $this->assertSame(1, DB::table('restructure_events')->where('status', 'CANDIDATE')->where('source', 'RATE_CHANGE')->count(), 'X1 re-priced in March');
 

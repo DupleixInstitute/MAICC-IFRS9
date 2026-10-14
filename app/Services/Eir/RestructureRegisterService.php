@@ -124,6 +124,10 @@ class RestructureRegisterService
             if (! $e) {
                 throw new RuntimeException('No such event.');
             }
+            // the proposer withdraws; a rejection is a second person's act (documentation audit, 14 October 2026)
+            if ($action === 'reject' && $e->status === 'PROPOSED' && (int) $e->proposed_by === $userId) {
+                throw new RuntimeException('The person who proposed a classification cannot reject it; withdraw it instead.');
+            }
             $ok = match ($action) {
                 'reject' => $e->status === 'PROPOSED',
                 'withdraw' => $e->status === 'PROPOSED' && (int) $e->proposed_by === $userId,
@@ -207,12 +211,14 @@ class RestructureRegisterService
         $old = (int) (DB::table('contract_cashflow_schedule')->where('contract_id', $e->contract_id)->max('schedule_version') ?? 1);
         $new = max($old, 1) + 1;
         $now = now();
+        // typed, where the reset pipeline's schedule_type is in place, so a rebuild of the Reset versions never takes it for one
+        $typed = \Illuminate\Support\Facades\Schema::hasColumn('contract_cashflow_schedule', 'schedule_type') ? ['schedule_type' => 'RESTRUCTURE'] : [];
         foreach ($flows as $f) {
             DB::table('contract_cashflow_schedule')->insert([
                 'contract_id' => $e->contract_id, 'schedule_version' => $new, 'effective_from' => $e->event_date, 'due_date' => $f['due_date'],
                 'principal_due' => round((float) $f['principal'], 2), 'interest_due' => round((float) $f['amount'] - (float) $f['principal'], 2), 'fee_due' => 0,
                 'schedule_source' => 'IMPORTED', 'created_at' => $now, 'updated_at' => $now,
-            ]);
+            ] + $typed);
         }
         $stage = DB::table('loan_books')->where('contract_id', $e->contract_id)->where('reporting_period', substr((string) $e->event_date, 0, 7))
             ->orderByDesc('id')->value('ifrs9stage_post_qualitative');

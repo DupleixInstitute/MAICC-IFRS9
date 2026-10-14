@@ -3,6 +3,7 @@
 namespace App\Services\Eir;
 
 use App\Models\ContractEir;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class EirReadinessService
@@ -10,14 +11,35 @@ class EirReadinessService
     /** @return array{contract_id:string,status:string,ready:bool,issues:list<array{code:string,message:string}>,metrics:array} */
     public function assess(string $contractId): array
     {
-        $issues = [];
         $contract = ContractEir::where('contract_id', $contractId)->first();
         if (! $contract) return $this->blocked($contractId, [['code' => 'CONTRACT_PROFILE_MISSING', 'message' => 'EIR contract profile is missing.']], []);
+
+        return $this->assessContract($contract);
+    }
+
+    /**
+     * The checks on one contract. The version 1 schedule, the fee lines and the
+     * take-on row are read here unless the caller has read them already:
+     * EirCoverageService reads them for the whole book in three queries and
+     * passes each contract's share, so the two run the same checks and cannot
+     * drift (documentation audit, 14 October 2026).
+     *
+     * @param  \Illuminate\Support\Collection|null  $schedule  the contract's version 1 rows, ordered by due date
+     * @param  \Illuminate\Support\Collection|null  $fees  the contract's fee lines not superseded by a higher source
+     * @param  object|false|null  $takeonRow  the contract_takeon row; false when the caller looked and there is none
+     */
+    public function assessContract(ContractEir $contract, ?Collection $schedule = null, ?Collection $fees = null, object|false|null $takeonRow = null): array
+    {
+        $issues = [];
+        $contractId = (string) $contract->contract_id;
         if (! $contract->isInEirScope()) $issues[] = ['code' => 'EQUITY_EXCLUDED', 'message' => 'Equity instruments are outside the EIR engine.'];
         if ($contract->locked_at) $issues[] = ['code' => 'EIR_LOCKED', 'message' => 'The original EIR is already calculated and locked.'];
         if (! $contract->origination_date) $issues[] = ['code' => 'ORIGINATION_DATE_MISSING', 'message' => 'Origination/value date is missing.'];
         $takeon = $contract->schedule_source === \App\Services\Ebanker\TakeonLandingService::ROUTE;
-        $takeonRow = $takeon ? DB::table('contract_takeon')->where('contract_id', $contractId)->first() : null;
+        if ($takeonRow === null) {
+            $takeonRow = $takeon ? DB::table('contract_takeon')->where('contract_id', $contractId)->first() : null;
+        }
+        $takeonRow = $takeonRow ?: null;
         // a take-on loan is solved on the workbook's balance chain, so a loan E-Banker now shows closed still has its EIR
         if (! $takeon && (float) $contract->drawn_amount <= 0) $issues[] = ['code' => 'DRAWN_AMOUNT_MISSING', 'message' => 'Drawn/disbursed amount must be greater than zero.'];
         if (! in_array((int) $contract->payments_per_year, [1, 2, 4, 6, 12], true)) $issues[] = ['code' => 'FREQUENCY_INVALID', 'message' => 'Payment frequency must be annual, semi-annual, quarterly, bi-monthly or monthly.'];
@@ -28,7 +50,7 @@ class EirReadinessService
         if ($contract->frequency_source !== 'STATED') $issues[] = ['code' => 'FREQUENCY_ASSUMED', 'message' => 'Payment frequency was assumed, not stated by a source. Confirm it against the contract master or offer letter before solving.'];
         if ($contract->schedule_approval_status !== 'APPROVED') $issues[] = ['code' => 'SCHEDULE_NOT_APPROVED', 'message' => 'The original schedule is a draft and must be reviewed and approved before EIR calculation.'];
 
-        $schedule = DB::table('contract_cashflow_schedule')->where('contract_id', $contractId)->where('schedule_version', 1)->orderBy('due_date')->get();
+        $schedule ??= DB::table('contract_cashflow_schedule')->where('contract_id', $contractId)->where('schedule_version', 1)->orderBy('due_date')->get();
         if ($schedule->isEmpty()) $issues[] = ['code' => 'ORIGINAL_SCHEDULE_MISSING', 'message' => 'Original contractual schedule (version 1) is missing.'];
         // A take-on loan's schedule is the take-on workbook's, checked by the
         // take-on build as a whole (spec 6.9; results review E2): its dates run
@@ -77,11 +99,7 @@ class EirReadinessService
         if (! $takeon && $expectedPrincipal > 0 && $schedule->isNotEmpty() && abs($principalDue - $expectedPrincipal) > max(1.0, $expectedPrincipal * 0.01)) $issues[] = ['code' => 'PRINCIPAL_NOT_RECONCILED', 'message' => 'Scheduled principal does not reconcile to the expected contractual balance within 1%. Where the schedule was generated before the moratorium shapes were built, generate it again so the balance it amortises is recorded.'];
 
         // a line superseded by a higher source (fee_source_precedence, spec 7.8.2) neither blocks nor enters the EIR
-        $feeQuery = DB::table('contract_fees')->where('contract_id', $contractId);
-        if (DB::getSchemaBuilder()->hasColumn('contract_fees', 'superseded_by_source')) {
-            $feeQuery->whereNull('superseded_by_source');
-        }
-        $fees = $feeQuery->get();
+        $fees ??= self::feeQuery()->where('contract_id', $contractId)->get();
         $unresolved = $fees->whereNotIn('classification_status', ['REVIEWED', 'REJECTED']);
         if ($unresolved->isNotEmpty()) $issues[] = ['code' => 'FEE_CLASSIFICATION_PENDING', 'message' => $unresolved->count() . ' fee/cost line(s) are not independently reviewed.'];
         $reviewedIntegral = $fees->where('classification_status', 'REVIEWED')->where('integral', 1);
@@ -154,6 +172,17 @@ class EirReadinessService
         }
 
         return app(DisbursementService::class)->solvePlan((string) $contract->contract_id, $contract->origination_date);
+    }
+
+    /** The fee lines that count: a line superseded by a higher source (fee_source_precedence, spec 7.8.2) neither blocks nor enters the EIR. */
+    public static function feeQuery(): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('contract_fees');
+        if (DB::getSchemaBuilder()->hasColumn('contract_fees', 'superseded_by_source')) {
+            $query->whereNull('superseded_by_source');
+        }
+
+        return $query;
     }
 
     private function blocked(string $id, array $issues, array $metrics): array

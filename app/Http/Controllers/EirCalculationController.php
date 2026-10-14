@@ -14,7 +14,13 @@ class EirCalculationController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'permission:settings']);
+        $this->middleware('auth');
+        // the calculations themselves sit behind settings; the reopening of a locked EIR is a
+        // governed act under maker-checker (EirReopenRequestService), so a person with
+        // eir.govern reaches the screen and the reopening actions
+        $this->middleware('permission:settings|eir.govern')->only(['index']);
+        $this->middleware('permission:settings')->only(['calculate', 'approve', 'approveAll']);
+        $this->middleware('permission:eir.govern')->only(['reopen', 'approveReopen', 'closeReopen']);
     }
 
     public function index(Request $request)
@@ -68,7 +74,11 @@ class EirCalculationController extends Controller
                 'missing_maker' => $approvalMissingMaker,
                 'admin_override' => $adminOverride,
             ],
-            'canReopen' => $adminOverride,
+            // any person with eir.govern may request a reopening; a different one approves it
+            'canReopen' => (bool) (auth()->user()?->can('eir.govern') ?? false),
+            'canCalculate' => (bool) (auth()->user()?->can('settings') ?? false),
+            'reopenRequests' => app(\App\Services\Eir\EirReopenRequestService::class)->pending(),
+            'me' => $reviewerId,
         ]);
     }
 
@@ -161,39 +171,55 @@ class EirCalculationController extends Controller
         return back()->with('success', $message);
     }
 
-    public function reopen(Request $request, ContractEir $contractEir, EirCalculationService $calculations)
+    /**
+     * Request the reopening of a locked original EIR, with the reason
+     * (documentation audit of 14 October 2026). Until then this aborted unless
+     * the administrator override was in force, so under the default nobody
+     * could reopen a locked EIR. Now one person with eir.govern requests it
+     * and a different person approves it (approveReopen); only then does
+     * EirCalculationService::reopen run.
+     */
+    public function reopen(Request $request, ContractEir $contractEir, \App\Services\Eir\EirReopenRequestService $requests)
     {
-        if (! $this->adminOverride()) {
-            abort(403, 'Only an administrator can reopen a locked original EIR.');
-        }
-
         $data = $request->validate([
             'reason' => ['required', 'string', 'min:10', 'max:500'],
         ]);
-        $oldValues = [
-            'contract_id' => $contractEir->contract_id,
-            'eir_effective_annual' => $contractEir->eir_effective_annual,
-            'locked_at' => $contractEir->locked_at,
-            'locked_by' => $contractEir->locked_by,
-        ];
 
         try {
-            $reopened = $calculations->reopen(
-                $contractEir->contract_id,
-                (int) auth()->id(),
-                $data['reason']
-            );
+            $requests->request($contractEir->contract_id, (int) auth()->id(), $data['reason']);
         } catch (LogicException $e) {
             return back()->withErrors(['reason' => $e->getMessage()]);
         }
 
-        AuditLoggerService::log('Locked Original EIR Reopened', ContractEir::class, $reopened->id, [
-            'old_values' => $oldValues,
-            'new_values' => ['calculation_status' => $reopened->calculation_status, 'locked_at' => null],
-            'meta' => ['reason' => $data['reason'], 'downstream_results_invalidated' => true],
-        ]);
+        return back()->with('success', "Reopening of the original EIR for {$contractEir->contract_id} requested. A different person with EIR governance approves it before the EIR is reopened.");
+    }
+
+    /** A second person approves a reopening; the EIR is then reopened, or the reason it cannot be is shown. */
+    public function approveReopen(int $reopen, \App\Services\Eir\EirReopenRequestService $requests)
+    {
+        try {
+            $reopened = $requests->approve($reopen, (int) auth()->id());
+        } catch (\Throwable $e) {
+            if (! $e instanceof LogicException && ! $e instanceof \App\Support\LockedPeriodException) {
+                throw $e;
+            }
+            return back()->withErrors(['reopen' => $e->getMessage()]);
+        }
 
         return back()->with('success', "Original EIR for {$reopened->contract_id} reopened. Recalculate and obtain independent approval before reuse.");
+    }
+
+    /** Reject a reopening (another person) or withdraw it (the person who asked), with a reason. */
+    public function closeReopen(Request $request, int $reopen, \App\Services\Eir\EirReopenRequestService $requests)
+    {
+        $data = $request->validate(['action' => ['required', 'in:reject,withdraw'], 'reason' => ['required', 'string', 'min:10', 'max:500']]);
+        try {
+            $requests->close($reopen, (int) auth()->id(), $data['action'], $data['reason']);
+        } catch (LogicException $e) {
+            return back()->withErrors(['reopen' => $e->getMessage()]);
+        }
+
+        return back()->with('success', $data['action'] === 'reject' ? 'Reopening rejected; the EIR stays locked.' : 'Reopening withdrawn; the EIR stays locked.');
     }
 
     private function adminOverride(): bool

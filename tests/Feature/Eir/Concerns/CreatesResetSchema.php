@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Schema;
  * EIR feature tests use, and the prime-rate series around JAT Group's life
  * (the repaired file, April 2025 to September 2026). Pair with
  * CreatesGovernanceSchema: the reset services read margin_basis,
- * plr_mid_period, day_count and period_rate_basis.
+ * plr_mid_period, day_count and period_rate_basis. rate_reset_events carries
+ * both owners' columns, as the two migrations leave it: the pipeline's status
+ * and the register's classification_status, one event of each type per date.
  */
 trait CreatesResetSchema
 {
@@ -32,6 +34,7 @@ trait CreatesResetSchema
             $t->string('instrument_type')->default('AMORTISED_LOAN');
             $t->string('portfolio')->nullable();
             $t->string('product_type')->nullable();
+            $t->string('rate_type')->default('FIXED');
             $t->string('interest_policy', 1)->nullable();
             $t->boolean('reprice_flag')->nullable();
             $t->string('origination_date')->nullable();
@@ -67,7 +70,28 @@ trait CreatesResetSchema
             $t->text('note')->nullable();
             $t->unsignedInteger('recorded_by')->nullable();
             $t->timestamps();
-            $t->unique(['contract_id', 'reset_date']);
+            // the register's columns (2026_10_14_230000): its maker-checker state is classification_status
+            $t->string('detection_key')->nullable()->unique();
+            $t->string('account')->nullable();
+            $t->string('reporting_period')->nullable();
+            $t->string('event_type')->nullable();
+            $t->double('old_rate')->nullable();
+            $t->double('new_rate')->nullable();
+            $t->double('old_spread')->nullable();
+            $t->double('new_spread')->nullable();
+            $t->string('evidence')->nullable();
+            $t->string('suggested_classification')->nullable();
+            $t->string('classification')->nullable();
+            $t->string('classification_status')->default('DETECTED');
+            $t->string('reason')->nullable();
+            $t->unsignedInteger('proposed_by')->nullable();
+            $t->timestamp('proposed_at')->nullable();
+            $t->unsignedInteger('approved_by')->nullable();
+            $t->string('approver_label')->nullable();
+            $t->timestamp('approved_at')->nullable();
+            $t->string('close_reason')->nullable();
+            $t->unsignedInteger('restructure_event_id')->nullable();
+            $t->unique(['contract_id', 'reset_date', 'event_type']);
         });
         Schema::create('eir_rate_periods', function (Blueprint $t) {
             $t->increments('id');

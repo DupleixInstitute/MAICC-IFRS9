@@ -18,6 +18,9 @@ class StressTestingReconciliationTest extends TestCase
 
     private const PERIOD = '2099-01';
 
+    /** The booked (discounted) allowance as a share of the undiscounted ECL on every seeded loan. */
+    private const BOOKED = 0.95;
+
     private function admin(): User
     {
         $user = User::factory()->create();
@@ -31,6 +34,9 @@ class StressTestingReconciliationTest extends TestCase
      *   Stage 1: EAD 1,000,000  PD 0.05  LGD 0.40
      *   Stage 2: EAD   500,000  PD 0.20  LGD 0.50
      *   Stage 3: EAD   200,000  PD 0.90  LGD 0.60
+     * Each carries its ECL (EAD x stage PD x LGD, undiscounted) and the booked
+     * allowance discounted at the EIR, 95 percent of it: the stress base is the
+     * booked allowance (documentation audit of 14 October 2026).
      */
     private function seedBook(): void
     {
@@ -40,7 +46,11 @@ class StressTestingReconciliationTest extends TestCase
             [3, 200000.0, 0.90, 0.60],
         ];
         foreach ($rows as [$stage, $ead, $pd, $lgd]) {
+            $ecl = $ead * ($stage === 3 ? 1.0 : $pd) * $lgd;
             DB::table('loan_books')->insert([
+                'ecl_value' => $ecl,
+                'ecl_value_discounted' => round($ecl * self::BOOKED, 2),
+                'ecl_discount_status' => 'CALCULATED_TIME_PHASED',
                 'contract_id' => 'STRESS-' . $stage,
                 'customer_id' => 'CUST-' . $stage,
                 'reporting_period' => self::PERIOD,
@@ -81,9 +91,14 @@ class StressTestingReconciliationTest extends TestCase
                 + 500000 * 0.40 * 0.60   // 120,000
                 + 200000 * 1.00 * 0.70;  // 140,000
 
-        $this->assertEqualsWithDelta($base, $response->json('total_base_ecl'), 0.01);
-        $this->assertEqualsWithDelta($stress, $response->json('total_stress_ecl'), 0.01);
-        $this->assertEqualsWithDelta($stress - $base, $response->json('delta'), 0.01);
+        // the base is the booked allowance, and the stress scales it: both on the booked basis
+        $this->assertEqualsWithDelta($base * self::BOOKED, $response->json('total_base_ecl'), 0.05);
+        $this->assertEqualsWithDelta($stress * self::BOOKED, $response->json('total_stress_ecl'), 0.05);
+        $this->assertEqualsWithDelta(($stress - $base) * self::BOOKED, $response->json('delta'), 0.05);
+        // the undiscounted measure beside it
+        $this->assertEqualsWithDelta($base, $response->json('basis.undiscounted.base_ecl'), 0.05);
+        $this->assertEqualsWithDelta($stress, $response->json('basis.undiscounted.stress_ecl'), 0.05);
+        $this->assertSame('booked', $response->json('basis.base'));
     }
 
     public function test_caps_hold_at_one_hundred_percent()
@@ -99,7 +114,7 @@ class StressTestingReconciliationTest extends TestCase
         ]);
 
         $response->assertOk();
-        $this->assertEqualsWithDelta(1700000.0, $response->json('total_stress_ecl'), 0.01);
+        $this->assertEqualsWithDelta(1700000.0 * self::BOOKED, $response->json('total_stress_ecl'), 0.05);
     }
 
     public function test_macro_run_derives_pd_multiplier_and_matches_driver_equivalent()
@@ -140,5 +155,19 @@ class StressTestingReconciliationTest extends TestCase
         $response = $this->actingAs($this->admin())->get('/ifrs9-reports/sensitivity');
 
         $response->assertRedirect(route('stress-testing.index'));
+    }
+
+    /** A loan with no ECL calculated has no allowance to stress: counted with its exposure, never estimated. */
+    public function test_a_loan_without_an_ecl_is_not_measured_but_counted()
+    {
+        $this->seedBook();
+        DB::table('loan_books')->where('contract_id', 'STRESS-1')->update(['ecl_value' => null, 'ecl_value_discounted' => null, 'ecl_discount_status' => 'NOT_CALCULATED']);
+
+        $response = $this->actingAs($this->admin())->postJson(route('stress-testing.run'), ['period' => self::PERIOD, 's1_pd_mult' => 2, 's2_pd_mult' => 2, 's3_pd_mult' => 1]);
+
+        $response->assertOk();
+        $this->assertSame(1, $response->json('basis.not_measured.loans'));
+        $this->assertEqualsWithDelta(1000000, $response->json('basis.not_measured.exposure'), 0.01);
+        $this->assertEqualsWithDelta((50000 + 120000) * self::BOOKED, $response->json('total_base_ecl'), 0.05);
     }
 }

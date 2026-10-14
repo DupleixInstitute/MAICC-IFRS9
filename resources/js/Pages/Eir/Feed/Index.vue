@@ -115,7 +115,25 @@
           <!-- Periods built -->
           <template v-else-if="tab === 'periods'">
             <div class="border-b border-gray-200 px-5 py-3">
-              <p class="text-sm text-gray-500">The loan book rows built for each period, by method. A flag names a difference from the source, it never hides one. Lock a period once its month-end is signed off: nothing then restates it.</p>
+              <p class="text-sm text-gray-500">The loan book rows built for each period, by method. A flag names a difference from the source, it never hides one. Lock a period once its month-end is signed off: nothing then restates it. Unlocking is requested by one person and approved by another.</p>
+            </div>
+            <!-- unlocks requested by one person, awaiting a second (maker-checker) -->
+            <div v-if="unlockRequests.length" class="border-b border-amber-200 bg-amber-50 px-5 py-3">
+              <div class="text-sm font-semibold text-amber-800">Unlocks awaiting approval ({{ unlockRequests.length }})</div>
+              <ul class="mt-2 divide-y divide-amber-200 dark:divide-amber-700">
+                <li v-for="r in unlockRequests" :key="r.id" class="flex flex-wrap items-start justify-between gap-3 py-2 text-sm">
+                  <div class="min-w-0">
+                    <div class="font-medium text-gray-900">{{ r.period }}</div>
+                    <div class="text-gray-700">{{ r.reason }}</div>
+                    <div class="text-xs text-gray-500">Requested by {{ r.requested_by_name || '-' }}, {{ r.requested_at }}</div>
+                  </div>
+                  <div v-if="canGovern" class="flex items-center gap-1.5">
+                    <button v-if="r.requested_by !== me" type="button" class="maiic-action maiic-action-view" :title="'Approve and unlock ' + r.period" @click="approveUnlock(r)"><font-awesome-icon icon="check"/></button>
+                    <button v-if="r.requested_by !== me" type="button" class="maiic-action maiic-action-delete" title="Reject" @click="closeUnlock(r, 'reject')"><font-awesome-icon icon="times"/></button>
+                    <button v-else type="button" class="maiic-action maiic-action-edit" title="Withdraw" @click="closeUnlock(r, 'withdraw')"><font-awesome-icon icon="ban"/></button>
+                  </div>
+                </li>
+              </ul>
             </div>
             <div class="maiic-table-wrap">
               <table class="maiic-table">
@@ -125,7 +143,8 @@
                     <td>{{ p.reporting_period }}</td><td>{{ p.build_method }}</td><td class="num">{{ fmt(p.n) }}</td><td class="num">{{ fmt(p.flagged) }}</td>
                     <td><span v-if="locks.includes(p.reporting_period)" class="maiic-badge maiic-badge-grey">Locked</span><span v-else class="text-xs text-gray-500 dark:text-slate-400">Open</span></td>
                     <td v-if="canGovern" class="text-right">
-                      <button type="button" class="maiic-action maiic-action-neutral" :title="(locks.includes(p.reporting_period) ? 'Unlock ' : 'Lock ') + p.reporting_period" @click="openLock(p.reporting_period)">
+                      <span v-if="unlockRequested(p.reporting_period)" class="text-xs text-amber-700">Unlock requested</span>
+                      <button v-else type="button" class="maiic-action maiic-action-neutral" :title="(locks.includes(p.reporting_period) ? 'Request the unlock of ' : 'Lock ') + p.reporting_period" @click="openLock(p.reporting_period)">
                         <font-awesome-icon :icon="locks.includes(p.reporting_period) ? 'lock-open' : 'lock'"/>
                       </button>
                     </td>
@@ -231,16 +250,16 @@
     <!-- Lock or unlock a reporting period -->
     <jet-modal :show="!!lockForm.period" max-width="lg" @close="lockForm.period = null">
       <form class="p-6" @submit.prevent="submitLock">
-        <h3 class="text-lg font-semibold text-gray-900">{{ lockForm.unlock ? 'Unlock' : 'Lock' }} {{ lockForm.period }}</h3>
+        <h3 class="text-lg font-semibold text-gray-900">{{ lockForm.unlock ? 'Request the unlock of' : 'Lock' }} {{ lockForm.period }}</h3>
         <p class="mt-2 text-sm text-gray-600" v-if="!lockForm.unlock">A locked period is never restated: the loan book build, staging, the PD, the LGD, the forward-looking route, the ECL, the revenue roll-forward and write-offs all refuse to write it. The governance values in force are kept with the lock.</p>
-        <p class="mt-2 text-sm text-gray-600" v-else>Unlocking lets the period be restated. Give the approval for the restatement as the reason.</p>
+        <p class="mt-2 text-sm text-gray-600" v-else>Unlocking lets the period be restated, so it is not one person's act: this records the request with its reason, and the period stays locked until a different person with EIR governance approves it. Give the approval for the restatement as the reason.</p>
         <label class="mt-4 block"><span class="maiic-flabel">Reason (written to the audit log)</span>
           <textarea v-model="lockForm.reason" rows="3" class="maiic-input" minlength="10" maxlength="500" required></textarea>
         </label>
         <p v-if="$page.props.errors.reason" class="mt-1 text-xs text-red-600">{{ $page.props.errors.reason }}</p>
         <div class="mt-6 flex justify-end gap-2">
           <button type="button" class="secondary-btn" :disabled="locking" @click="lockForm.period = null">Cancel</button>
-          <button type="submit" class="primary-btn" :disabled="locking || lockForm.reason.trim().length < 10">{{ locking ? 'Saving...' : (lockForm.unlock ? 'Unlock the period' : 'Lock the period') }}</button>
+          <button type="submit" class="primary-btn" :disabled="locking || lockForm.reason.trim().length < 10">{{ locking ? 'Saving...' : (lockForm.unlock ? 'Request the unlock' : 'Lock the period') }}</button>
         </div>
       </form>
     </jet-modal>
@@ -254,10 +273,11 @@ import LocalPager from '@/Components/Data/LocalPager.vue'
 import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
 import { router } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
+import { promptReason } from '@/Components/Maiic/promptReason.js'
 
 export default {
   components: { AppLayout, JetModal, LocalPager, ImportSpecPanel },
-  props: { tab: { type: String, default: 'loads' }, tabCounts: Object, loads: Array, queries: Array, builds: Array, periods: Array, routeInForce: String, methodInForce: String, locks: Array, lastLedgerDate: String, canGovern: Boolean, me: Number },
+  props: { tab: { type: String, default: 'loads' }, tabCounts: Object, loads: Array, queries: Array, builds: Array, periods: Array, routeInForce: String, methodInForce: String, locks: Array, unlockRequests: { type: Array, default: () => [] }, lastLedgerDate: String, canGovern: Boolean, me: Number },
   data() {
     return {
       open: null, querySearch: '',
@@ -292,6 +312,17 @@ export default {
     submitLock() {
       this.locking = true
       router.post(route('eir-feed.lock-period', this.lockForm.period), { reason: this.lockForm.reason, unlock: this.lockForm.unlock ? 1 : 0 }, { preserveScroll: true, onSuccess: () => { this.lockForm.period = null }, onFinish: () => { this.locking = false } })
+    },
+    unlockRequested(period) { return this.unlockRequests.some(r => r.period === period) },
+    async approveUnlock(r) {
+      if (!(await confirmDialog({ title: 'Unlock ' + r.period + '?', message: 'Requested by ' + (r.requested_by_name || 'another user') + ': ' + r.reason + '. Once unlocked, every engine may restate the period.', confirmLabel: 'Approve and unlock', tone: 'danger' }))) return
+      router.post(route('eir-feed.unlock.approve', r.id), {}, { preserveScroll: true })
+    },
+    async closeUnlock(r, action) {
+      const words = { reject: 'Reject', withdraw: 'Withdraw' }
+      const reason = await promptReason({ title: words[action] + ' the unlock of ' + r.period, message: 'Give the reason; it is kept with the request and in the audit trail.', confirmLabel: words[action] })
+      if (!reason) return
+      router.post(route('eir-feed.unlock.close', r.id), { action, reason }, { preserveScroll: true })
     },
     async approve(id) {
       if (!(await confirmDialog({ title: 'Approve build ' + id + '?', message: 'The build is written to the loan book. The differences from the previous build are kept on the build.', confirmLabel: 'Approve and build' }))) return

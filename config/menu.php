@@ -118,12 +118,13 @@ return [
             ]),
             $section('EIR Rules', [
                 $tab('Accounting Rules', 'eir-accounting-rules.index', 'settings'),
-                $tab('Fee Classification', 'eir-fee-classification.index', 'settings'),
+                // the fee importer reads the classification too (EirFeeClassificationController::index)
+                $tab('Fee Classification', 'eir-fee-classification.index', 'settings|eir.fees.import'),
             ]),
             // One row: the calculations, the three views of what blocks the
             // rest of the book, then the EIR as at a date and the GL check.
             $section('EIR Calculations', [
-                $tab('Calculations', 'eir-calculations.index', 'settings'),
+                $tab('Calculations', 'eir-calculations.index', 'settings|eir.govern'),
                 $tab('Blockers', 'eir-coverage.index', 'eir.view', ['tab' => 'blockers']),
                 $tab('Coverage by Portfolio', 'eir-coverage.index', 'eir.view', ['tab' => 'portfolios']),
                 $tab('Largest Facilities', 'eir-coverage.index', 'eir.view', ['tab' => 'facilities']),

@@ -341,7 +341,7 @@ class Ifrs9NoteService
     private static function monthTotals(string $period, ?int $portfolioId): array
     {
         $stage = self::STAGE;
-        $ead = 'COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1)';
+        $ead = \App\Services\Ecl\EclExposure::sql(); // the engine's EAD: floored at nil, nil for a loan written off to nil
         $rows = DB::table('loan_books')
             ->selectRaw("{$stage} AS stage, COUNT(*) AS contracts, COUNT(DISTINCT contract_id) AS distinct_contracts,
                 SUM(COALESCE(carrying_amount,0)) AS gross, SUM({$ead}) AS ead, SUM(" . BookedEcl::sql() . ") AS ecl,
@@ -675,7 +675,7 @@ class Ifrs9NoteService
             $bits[] = "Stage {$s} PD " . self::pct($pd) . ', LGD ' . self::pct($lgd);
         }
         $uniform = collect($close['stages'])->every(fn ($m) => $m['pd'][0] === $m['pd'][1] && $m['lgd'][0] === $m['lgd'][1]);
-        $p['parameters'] = 'ECL for each loan is measured at the reporting date as EAD x PD x LGD, where EAD is the carrying amount plus the expected drawn share of undrawn commitments, and is then projected over the loan\'s remaining life and discounted at its original effective interest rate (IFRS 9 5.5.17, B5.5.44): the discounted amount is the loss allowance. Applied at '
+        $p['parameters'] = 'ECL for each loan is measured at the reporting date as EAD x PD x LGD, where EAD is the carrying amount plus the expected drawn share of undrawn commitments, and is then projected over the loan\'s remaining life and discounted at its effective interest rate, the original EIR or, for a floating-rate loan, the current EIR (IFRS 9 5.5.17, B5.5.44): the discounted amount is the loss allowance. Applied at '
             . self::period($closing) . ': ' . implode('; ', $bits) . '.'
             . ($uniform ? ' Every loan in a stage carries the same PD and LGD.' : ' PD or LGD varies within a stage; the figures above are those saved with the ECL run.')
             . ($close['fli_adjusted'] > 0 ? ' The PD includes the forward-looking (macro-economic) adjustment for ' . number_format($close['fli_adjusted']) . ' loans.' : '');
@@ -694,7 +694,7 @@ class Ifrs9NoteService
         $rc = $basis['reconciliation'];
         $p['discounting'] = 'At ' . self::period($closing) . ' the reporting-date ECL is ' . self::money(Attribution::cents($rc['undiscounted']), $r['currency'])
             . '; the lifetime projection adds ' . self::money(Attribution::cents($rc['projection']), $r['currency'])
-            . ' and discounting at the original EIR deducts ' . self::money(Attribution::cents(-$rc['discounting_effect']), $r['currency'])
+            . ' and discounting at the EIR (original; current for a floating-rate loan) deducts ' . self::money(Attribution::cents(-$rc['discounting_effect']), $r['currency'])
             . ', giving the allowance of ' . self::money(Attribution::cents($rc['shown']), $r['currency']) . '. ' . $basis['message'];
 
         $wo = $r['write_offs'];
