@@ -1,0 +1,21 @@
+{
+    "what": "The golden numbers a clean install must reproduce (eir:bootstrap --fresh --with-client-inputs --build --run-engines --verify). Each value was recomputed from the database by App\\Services\\Eir\\BaselineService::goldenActuals(); --verify recomputes it and compares, to the cent for amounts and exactly for counts.",
+    "set_on": "2026-10-14",
+    "commit": "6006a04 (with uncommitted changes)",
+    "database": "maiic_ifrs9_packs",
+    "note": "Phase 1: the data ties of the committed packs only (they depend on the committed files alone); the engine outputs are added from the first full bootstrap run.",
+    "values": {
+        "takeon_worksheet_loans": 77,
+        "takeon_worksheet_301_agree": 76,
+        "takeon_worksheet_303_agree": 76,
+        "takeon_worksheet_305_agree": 72,
+        "premigration_ledger_vs_gl_opening": 0.5
+    },
+    "labels": {
+        "takeon_worksheet_loans": "Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: term loans on the worksheet with take-on postings",
+        "takeon_worksheet_301_agree": "Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose principal taken on (301) = NEWDISBURS_AMT, to the cent",
+        "takeon_worksheet_303_agree": "Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose opening interest (303) = TOTAL_INT_CHARG, to the cent",
+        "takeon_worksheet_305_agree": "Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose opening recoveries (305) = TOTA_REPAY_UPTO, to the cent",
+        "premigration_ledger_vs_gl_opening": "Ledger copy CUMVOUCH_BK240824 (CV_04a) to 31 Dec 2023 against the GL opening balances of 1 Jan 2024 (CV_14), 4 loan GLs: sum of the differences"
+    }
+}

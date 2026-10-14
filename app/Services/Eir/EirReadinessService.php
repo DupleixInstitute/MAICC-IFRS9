@@ -44,7 +44,19 @@ class EirReadinessService
             }
         }
         if (! $takeon && $schedule->contains(fn ($r) => ! $r->due_date || ((float) $r->principal_due + (float) $r->interest_due + (float) $r->fee_due) < 0)) $issues[] = ['code' => 'SCHEDULE_INVALID', 'message' => 'Schedule contains a missing date or negative total cash flow.'];
-        if (! $takeon && $contract->origination_date && $schedule->contains(fn ($r) => $r->due_date <= $contract->origination_date->toDateString())) $issues[] = ['code' => 'SCHEDULE_DATE_INVALID', 'message' => 'Every original contractual cash flow must fall after the origination date.'];
+        // The solve discounts from the first money advanced (DisbursementService::solvePlan,
+        // spec v4 E1), so the dates are checked against that date, not only the signing date:
+        // the gate passed contracts the solver then refused (104430000068, UAT 14 October 2026).
+        $plan = ! $takeon && $contract->origination_date ? $this->solvePlan($contract) : null;
+        if (! $takeon && $contract->origination_date && $schedule->contains(fn ($r) => $r->due_date <= $contract->origination_date->toDateString())) {
+            $issues[] = ['code' => 'SCHEDULE_DATE_INVALID', 'message' => 'Every original contractual cash flow must fall after the origination date.'];
+        } elseif ($plan !== null && $plan['solve_from'] !== $contract->origination_date->toDateString() && ($early = $schedule->filter(fn ($r) => (string) $r->due_date <= $plan['solve_from']))->isNotEmpty()) {
+            $issues[] = ['code' => 'SCHEDULE_BEFORE_FIRST_DRAWDOWN', 'message' => $early->count() . ' instalment(s) of the version 1 schedule fall due on or before ' . $plan['solve_from']
+                . ', the date the tranche register shows the first money advanced, so the EIR cannot be solved from that date. Generate the schedule again from the tranche register and have it reviewed.'];
+        }
+        if ($plan !== null && ($mismatch = $this->trancheMismatch($contract, $plan)) !== null) {
+            $issues[] = ['code' => 'SCHEDULE_NOT_ON_TRANCHES', 'message' => $mismatch];
+        }
         if ($schedule->pluck('due_date')->duplicates()->isNotEmpty()) $issues[] = ['code' => 'SCHEDULE_DATE_DUPLICATE', 'message' => 'Original contractual schedule contains duplicate due dates.'];
 
         $principalDue = (float) $schedule->sum('principal_due');
@@ -73,7 +85,7 @@ class EirReadinessService
         $unresolved = $fees->whereNotIn('classification_status', ['REVIEWED', 'REJECTED']);
         if ($unresolved->isNotEmpty()) $issues[] = ['code' => 'FEE_CLASSIFICATION_PENDING', 'message' => $unresolved->count() . ' fee/cost line(s) are not independently reviewed.'];
         $reviewedIntegral = $fees->where('classification_status', 'REVIEWED')->where('integral', 1);
-        if ($reviewedIntegral->contains(fn ($f) => ! in_array($f->cashflow_direction, ['RECEIVED', 'PAID'], true))) $issues[] = ['code' => 'FEE_DIRECTION_MISSING', 'message' => 'A reviewed integral fee/cost has no cash-flow direction.'];
+        if ($reviewedIntegral->contains(fn ($f) => ! in_array($f->cashflow_direction, ['RECEIVED', 'PAID'], true))) $issues[] = ['code' => 'FEE_DIRECTION_MISSING', 'message' => 'A reviewed integral fee/cost has no cash-flow direction. Return it to classification on Fee Classification, give it its direction and have it reviewed again.'];
 
         $received = (float) $reviewedIntegral->where('cashflow_direction', 'RECEIVED')->sum('amount');
         $paid = (float) $reviewedIntegral->where('cashflow_direction', 'PAID')->sum('amount');
@@ -86,6 +98,62 @@ class EirReadinessService
 
         $metrics = ['drawn_amount' => $drawn, 'expected_contractual_principal' => $expectedPrincipal, 'scheduled_principal' => $principalDue, 'integral_fees_received' => $received, 'integral_costs_paid' => $paid, 'initial_net_investment' => $initialNet, 'schedule_rows' => $schedule->count(), 'unresolved_fee_lines' => $unresolved->count()];
         return $issues === [] ? ['contract_id' => $contractId, 'status' => 'READY', 'ready' => true, 'issues' => [], 'metrics' => $metrics] : $this->blocked($contractId, $issues, $metrics);
+    }
+
+    /**
+     * Why a generated version 1 schedule does not follow the drawdowns the EIR
+     * is solved on, or null when it does (spec v4 E1). The solve takes the money
+     * advanced from the tranche register; a schedule generated before the
+     * register was read (its basis records no drawdown profile) or with none
+     * given treats the facility as drawn in full at signing, so its interest
+     * runs on money not yet lent and the two would be mixed in one EIR. Such a
+     * schedule, even approved, is generated again and reviewed again while the
+     * EIR is not locked (ScheduleWorkflowService::generate).
+     *
+     * @param  array{drawn:?float, solve_from:string, later:list<array>, register:bool}|null  $plan
+     */
+    public function trancheMismatch(ContractEir $contract, ?array $plan = null): ?string
+    {
+        // generate() records the basis of every generated schedule (schedule_basis_sources); a
+        // store without that column (an isolated test schema) holds no basis to judge
+        if ($contract->schedule_source !== 'GENERATED' || ! $contract->origination_date || $contract->locked_at
+            || ! array_key_exists('schedule_basis_sources', $contract->getAttributes())) {
+            return null;
+        }
+        $plan ??= $this->solvePlan($contract);
+        if ($plan === null || ! $plan['register']) {
+            return null;
+        }
+        $origination = $contract->origination_date->toDateString();
+        if ($plan['solve_from'] === $origination && $plan['later'] === []) {
+            return null; // everything drawn by origination: nothing to follow
+        }
+        $basis = (string) $contract->schedule_basis_sources;
+        if (str_contains($basis, 'drawdown_profile=TRANCHES_AS_DRAWN') || str_contains($basis, 'drawdown_profile=DRAWN_BY_THE_START')) {
+            return null;
+        }
+        $tranches = app(DisbursementService::class)->tranchesFor((string) $contract->contract_id);
+        $sum = round((float) array_sum(array_column($tranches, 'amount')), 2);
+        if (count(array_unique(array_column($tranches, 'disbursement_date'))) === 1 && abs($sum - round((float) $contract->drawn_amount, 2)) > 0.01) {
+            // the generator will not follow a single drawdown whose amount the register and the master tell differently
+            return 'The tranche register shows one drawdown of ' . number_format($sum, 2) . " on {$plan['solve_from']}, and the contract master a drawn amount of "
+                . number_format((float) $contract->drawn_amount, 2) . ': the schedule and the EIR would rest on different amounts. Correct the register or the contract master, then generate the schedule again.';
+        }
+        $first = $plan['solve_from'] !== $origination ? "the first money advanced on {$plan['solve_from']}" : "money advanced at origination";
+        $more = count($plan['later']) > 0 ? ' and ' . count($plan['later']) . ' later drawdown(s)' : '';
+
+        return "The version 1 schedule was generated without the tranche register: it treats the facility as drawn in full on {$origination}, while the register shows {$first}{$more}. "
+            . 'Generate the schedule again (it then follows each drawdown) and have a second person approve it before the EIR is calculated.';
+    }
+
+    /** DisbursementService::solvePlan for the contract, or null when no tranche register is held. */
+    private function solvePlan(ContractEir $contract): ?array
+    {
+        if (! DB::getSchemaBuilder()->hasTable('contract_disbursements')) {
+            return null;
+        }
+
+        return app(DisbursementService::class)->solvePlan((string) $contract->contract_id, $contract->origination_date);
     }
 
     private function blocked(string $id, array $issues, array $metrics): array

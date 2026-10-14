@@ -40,13 +40,13 @@
    "reference": "7.20A",
    "section_name": "Gain or loss on derecognition of amortised-cost assets",
    "requirement": "Disclose the gain or loss on derecognition and the reasons.",
-   "status": "Outstanding",
-   "engine_comment": "Modification, the 10 percent test and derecognition on modification are not built (IFRS 9 EIR workbook, 5.4.3 and 3.3.2). The reschedule history (RS_02) landed on 12 October 2026.",
-   "general_comment": "",
-   "compliance_comment": "Outstanding (Dupleix, with the restructure register).",
-   "where_to_see": "",
-   "governance_setting": "",
-   "test": ""
+   "status": "Partially done",
+   "engine_comment": "The IFRS 9 note's section (h) discloses the carrying amount derecognised on a substantial modification and the gain or loss on it, from the restructure register as the revenue run applied it (RestructureRegisterService::ifrs7Disclosures; the 10 percent test against the governed modification_threshold, and the qualitative factors, in ModificationAccountingService), on the screen and in the PDF, Word, Excel and CSV. A candidate found in E-Banker's reschedule history is never disclosed until two people confirm it: the note counts them instead. On the scratch clone maiic_ifrs9_wire of 14 October 2026 (a copy of the restructure build's database, migrated): 0 confirmed, 70 candidates awaiting classification, so the line is nil and says so. A derecognition by sale or transfer has no record in the system.",
+   "general_comment": "Until 14 October 2026 this row was Outstanding: modification and derecognition on modification were not built.",
+   "compliance_comment": "Partially done: built and wired to the note; MAIIC classifies and approves the candidates, and confirms that no loan was sold or transferred.",
+   "where_to_see": "Reports: IFRS 9 note (FS disclosure) /ifrs9-reports/fs-disclosure (h); EIR Data, Restructures & Resets: /eir-restructures",
+   "governance_setting": "modification_threshold",
+   "test": "Tests\\Feature\\Reports\\ModifiedAssetsDisclosureTest::test_the_note_discloses_35j_and_20a_from_the_applied_modifications_and_counts_the_candidates; Tests\\Feature\\Eir\\ModificationAccountingTest::test_derecognition_recognises_version_two_at_its_fair_value_with_a_new_eir"
   },
   {
    "part": "IFRS 7 CREDIT RISK",
@@ -80,25 +80,38 @@
    "section_name": "Reconciliation of the loss allowance",
    "requirement": "Reconcile the opening to the closing loss allowance by class, showing changes from staging transfers, originations, derecognitions, write-offs and remeasurement.",
    "status": "Partially done",
-   "engine_comment": "The IFRS 9 note reconciles opening to closing by stage with transfers, new assets, derecognitions and remeasurement, and refuses a download unless every column ties (EclMovementAttribution). Write-offs are always nil: the note marks no loan as written off (Ifrs9NoteService, written_off false) and its text says so; the ECL Reconciliation export hard-codes 0 (EclReconciliationService), although 22 ledger write-offs of 60,778,466.86 are classified on the fresh bootstrap. The allowance it reconciles is the undiscounted ecl_value.",
-   "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 this row was marked Done.",
-   "compliance_comment": "Partially done: write-offs must come from the classifier and register, and the allowance from the discounted figure.",
+   "engine_comment": "The IFRS 9 note reconciles opening to closing by stage with transfers, new assets, derecognitions, write-offs and remeasurement, and refuses a download unless every check passes (EclMovementAttribution). Since 14 October 2026: the allowance is the booked (discounted) allowance with a table from the undiscounted measure (projection, discounting effect), and the note fails closed while any loan lacks its discounted figure; the write-off line carries the allowance each write-off used, from the ledger's write-offs (WriteOffClassifier) and the approved register (WriteOffSource), and the ECL Reconciliation export and the hub's bridge and charge carry the same. December 2025 to September 2026 on the fresh bootstrap: 20 contracts written off, using 22,262,632.66 of allowance (it had shown nil); 38 loans at September 2026 have no discounted figure, so the note is not yet issuable.",
+   "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 this row was marked Done, with nil write-offs and the undiscounted allowance.",
+   "compliance_comment": "Partially done: built; the note is issuable once the 38 loans carry their discounted allowance.",
    "where_to_see": "Reports: IFRS 9 note (FS disclosure) /ifrs9-reports/fs-disclosure; ECL Reconciliation: /ifrs9-reports/ecl-reconciliation and /report/ecl-reconciliation",
    "governance_setting": "",
-   "test": "Tests\\Unit\\EclMovementAttributionTest::test_every_column_ties; Tests\\Unit\\EclMovementAttributionTest::test_new_derecognised_and_written_off"
+   "test": "Tests\\Unit\\EclMovementAttributionTest::test_every_column_ties; Tests\\Unit\\EclMovementAttributionTest::test_new_derecognised_and_written_off; Tests\\Unit\\EclMovementAttributionTest::test_a_written_off_amount_takes_its_own_line_in_both_books_gone_and_new; Tests\\Feature\\Reports\\BookedAllowanceAndWriteOffsTest::test_the_ifrs9_note_carries_the_booked_allowance_and_the_amounts_written_off"
   },
   {
    "part": "IFRS 7 CREDIT RISK",
    "reference": "7.35I",
    "section_name": "Changes in the gross carrying amount that contributed to changes in the allowance",
    "requirement": "Explain how significant changes in the gross carrying amount contributed to changes in the loss allowance.",
-   "status": "Partially done",
-   "engine_comment": "The loan book of every month from July 2024 holds the gross carrying amount derived from the ledger with its provenance; the IFRS 9 note's gross table and the Gross Movement report render. The Loan Book Reconciliation's write-off line filters contract_status like '%write%' (LoanBookReconciliationService), but the statuses are single letters (A, C, D, F on the fresh bootstrap), so the line is always nil.",
-   "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 this row was marked Done.",
-   "compliance_comment": "Partially done: the write-off line must read the classified write-offs.",
+   "status": "Done",
+   "engine_comment": "The loan book of every month from July 2024 holds the gross carrying amount derived from the ledger with its provenance; the IFRS 9 note's gross table and the Gross Movement report render. Since 14 October 2026 the gross write-off line of the note and the Loan Book Reconciliation's written-off line (with the list) read the ledger's write-offs and the approved register (WriteOffSource); the filter on contract_status that never matched is gone. December 2025 to September 2026: 38,492,032.54 written off (TRF 3 of 29 June 2026).",
+   "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 the write-off line was always nil.",
+   "compliance_comment": "Compliant.",
    "where_to_see": "Reports: IFRS 9 note (FS disclosure) /ifrs9-reports/fs-disclosure; Gross Movement /ifrs9-reports/gross-movement; Loan Book Reconciliation /report/loan-book-reconciliation; Disbursements /report/disbursement-report",
    "governance_setting": "loan_book_build_method",
-   "test": "Tests\\Feature\\Ebanker\\LoanBookBuildServiceTest::test_method_b_derives_the_carrying_amount_from_the_ledger_and_keeps_the_stored_figure_beside_it"
+   "test": "Tests\\Feature\\Ebanker\\LoanBookBuildServiceTest::test_method_b_derives_the_carrying_amount_from_the_ledger_and_keeps_the_stored_figure_beside_it; Tests\\Feature\\Reports\\BookedAllowanceAndWriteOffsTest::test_the_ecl_reconciliation_and_the_loan_book_reconciliation_carry_the_write_offs"
+  },
+  {
+   "part": "IFRS 7 CREDIT RISK",
+   "reference": "7.35J",
+   "section_name": "Modified financial assets",
+   "requirement": "(a) For assets modified in the period while the loss allowance was lifetime ECL: the amortised cost before the modification and the net modification gain or loss; (b) the gross carrying amount at the reporting date of assets modified since initial recognition while on lifetime ECL whose allowance changed to 12-month ECL in the period.",
+   "status": "Done",
+   "engine_comment": "The IFRS 9 note's section (h) gives 35J(a) (count, amortised cost before, net gain or loss), 35J(b) (count and gross carrying amount at the closing month, for loans on lifetime ECL in the period after the modification and on 12-month ECL at its end) and, beside them, the IFRS 9 5.4.3 gain or loss on every modification and the B5.4.6 catch-up, for the period from the day after the opening month-end to the closing month-end, in the note's portfolio scope, from the modifications the revenue run applied (RestructureRegisterService::ifrs7Disclosures). With none it says so; a confirmed modification the revenue run has not applied, or stopped, fails the note's check, so the note is not issued with the disclosure incomplete; the candidates awaiting confirmation are counted, never disclosed. On the scratch clone maiic_ifrs9_wire of 14 October 2026 (a copy of the restructure build's database, migrated): nothing confirmed, 70 candidates awaiting, so the section reads nil with that count.",
+   "general_comment": "New on 14 October 2026.",
+   "compliance_comment": "Compliant: the figures follow once MAIIC confirms a modification.",
+   "where_to_see": "Reports: IFRS 9 note (FS disclosure) /ifrs9-reports/fs-disclosure (h)",
+   "governance_setting": "modification_threshold",
+   "test": "Tests\\Feature\\Reports\\ModifiedAssetsDisclosureTest::test_the_note_discloses_35j_and_20a_from_the_applied_modifications_and_counts_the_candidates; Tests\\Feature\\Reports\\ModifiedAssetsDisclosureTest::test_35jb_needs_the_allowance_to_change_to_12_month_ecl_during_the_period; Tests\\Feature\\Reports\\ModifiedAssetsDisclosureTest::test_a_confirmed_modification_not_applied_by_the_revenue_run_stops_the_note"
   },
   {
    "part": "IFRS 7 CREDIT RISK",
@@ -119,12 +132,12 @@
    "section_name": "Written-off assets still subject to enforcement",
    "requirement": "Disclose the contractual amount outstanding on assets written off in the period that are still subject to enforcement activity.",
    "status": "Partially done",
-   "engine_comment": "Ledger write-offs are classified (22 of 60,778,466.86 on the fresh bootstrap) and the register records any other; neither carries a 'still under enforcement' field, and no disclosure line is produced.",
-   "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 this row said no write-off had been posted since the take-on.",
-   "compliance_comment": "Partially done: Finance states which written-off accounts are under enforcement; Dupleix adds the field and the line.",
-   "where_to_see": "EIR Data, Write-offs: /eir-write-offs",
+   "engine_comment": "Ledger write-offs are classified (22 of 60,778,466.86 on the fresh bootstrap) and the register records any other; the IFRS 9 note lists the write-offs of the period contract by contract and, since 14 October 2026, states the 7.35L amount as not recorded, because neither E-Banker nor the register holds an enforcement status, rather than showing nil.",
+   "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 this row said no write-off had been posted since the take-on, and the note was silent on 7.35L.",
+   "compliance_comment": "Partially done: Finance states which written-off accounts are under enforcement; Dupleix adds the field and the amount.",
+   "where_to_see": "EIR Data, Write-offs: /eir-write-offs; Reports: IFRS 9 note (FS disclosure) /ifrs9-reports/fs-disclosure (g)",
    "governance_setting": "",
-   "test": ""
+   "test": "Tests\\Feature\\Reports\\BookedAllowanceAndWriteOffsTest::test_the_write_offs_come_from_the_ledger_rule_and_the_approved_register_only"
   },
   {
    "part": "IFRS 7 CREDIT RISK",
@@ -191,11 +204,11 @@
    "number": "F3",
    "reference": "7.35H, 7.35I",
    "finding": "Write-offs are nil in the note and the reconciliations",
-   "what_was_found": "Ifrs9NoteService marks no loan written off; EclReconciliationService hard-codes 0; LoanBookReconciliationService filters a status text that never occurs. 22 ledger write-offs of 60,778,466.86 are classified on the fresh bootstrap.",
-   "impact": "The allowance and gross reconciliations misstate write-offs as derecognitions or omit them.",
-   "recommended_action": "Read write-offs from the classifier and approved register entries in all three.",
+   "what_was_found": "Ifrs9NoteService marks no loan written off; EclReconciliationService hard-codes 0; LoanBookReconciliationService filters a status text that never occurs. 22 ledger write-offs of 60,778,466.86 are classified on the fresh bootstrap. Status 14 October 2026: done; all three (and the hub's bridge and charge) read WriteOffSource.",
+   "impact": "None remaining.",
+   "recommended_action": "Done.",
    "owner": "Dupleix",
-   "status": "Open"
+   "status": "Closed"
   },
   {
    "number": "F4",

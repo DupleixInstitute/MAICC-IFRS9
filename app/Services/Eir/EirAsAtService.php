@@ -16,10 +16,15 @@ use RuntimeException;
  * month. A date inside a month starts from the last closing amortised cost
  * the engine holds, rolls any whole months between at the monthly EIR less
  * the cash the ledger shows received in each, and accrues the part month
- * the way section 3 says E-Banker does: simple interest at the contractual
- * rate on the prior month-end balance for the actual days over 365 (system
- * audit of 9 October 2026, finding M13: the part month had compounded the
- * EIR instead). For a take-on loan with no roll-forward yet, the opening is
+ * twice, kept apart (review item R12, built 14 October 2026; until then the
+ * contractual accrual was returned as the EIR interest):
+ *  - the EIR interest: the month's interest at the monthly EIR on the prior
+ *    month-end amortised cost, as the revenue run computes it, for the days of
+ *    the month elapsed (so the month-end equals the run's month), which is what
+ *    moves the amortised cost;
+ *  - the contractual accrual: the way section 3 says E-Banker accrues, simple
+ *    interest at the contractual rate on the prior month-end ledger balance
+ *    for the actual days over 365 (finding M13), accrued and not yet posted. For a take-on loan with no roll-forward yet, the opening is
  * the take-on basis of section 6.9 read from contract_takeon: the
  * recomputed amortised cost at 31 July 2024, or the take-on balance. The
  * gross carrying amount at the date is the ledger's running balance. The
@@ -94,8 +99,10 @@ class EirAsAtService
             $openingPeriod = substr(self::TAKEON_DATE, 0, 7);
         }
 
-        // the amortised cost and the EIR interest at the date
+        // the amortised cost and the EIR interest at the date; the contractual accrual of a part month beside it
         $rolled = [];
+        $contractualAccrued = null;
+        $contractualBasis = null;
         $rate = $c->contractual_rate !== null ? (float) $c->contractual_rate : null;
         $rate = $rate !== null && $rate > 1 ? $rate / 100 : $rate;   // the register holds a fraction; a percent is normalised
         if ($isMonthEnd && $thisMonth !== null) {
@@ -120,14 +127,20 @@ class EirAsAtService
                 $interestPeriod = round($balance * $monthly, 2);
                 $basis = sprintf('prior month-end closing %s for a whole month at the monthly EIR %s (no roll-forward row yet), less cash received %s', number_format($balance, 2), number_format($monthly * 100, 4) . '%', number_format($cashInMonth, 2));
             } else {
-                // the part month: section 3, simple interest at the contractual rate on the prior month-end balance, actual days over 365
+                // the part month (review item R12): the EIR interest is the month's interest at the monthly EIR on the
+                // prior month-end amortised cost for the days elapsed, so the month-end equals the revenue run's month;
+                // the contractual accrual (section 3: the contractual rate, simple, on the prior month-end ledger balance,
+                // actual days over 365) is returned beside it as what E-Banker has accrued and not yet posted
                 $days = $priorEnd->diffInDays($asAt);
+                $daysInMonth = $asAt->daysInMonth;
+                $interestPeriod = round($balance * $monthly * $days / $daysInMonth, 2);
+                $basis = sprintf('prior month-end closing %s at the monthly EIR %s for %d of %d days, less cash received %s', number_format($balance, 2), number_format($monthly * 100, 4) . '%', $days, $daysInMonth, number_format($cashInMonth, 2));
+                $ledgerAtPriorEnd = round(-array_sum(array_map(fn ($p) => $p['date'] <= $priorEnd->toDateString() ? $p['amount'] : 0.0, $ledger)), 2);
                 if ($rate !== null) {
-                    $interestPeriod = round($balance * $rate * $days / 365, 2);
-                    $basis = sprintf('prior month-end closing %s at the contractual rate %s simple on %d/365 days (section 3), less cash received %s', number_format($balance, 2), number_format($rate * 100, 4) . '%', $days, number_format($cashInMonth, 2));
+                    $contractualAccrued = round($ledgerAtPriorEnd * $rate * $days / 365, 2);
+                    $contractualBasis = sprintf('prior month-end ledger balance %s at the contractual rate %s simple on %d/365 days (section 3), accrued and not yet posted', number_format($ledgerAtPriorEnd, 2), number_format($rate * 100, 4) . '%', $days);
                 } else {
-                    $interestPeriod = round($balance * ((1 + $eir) ** ($days / 365) - 1), 2);
-                    $basis = sprintf('prior month-end closing %s on %d/365 days at the EIR daily equivalent, since the contract carries no contractual rate, less cash received %s', number_format($balance, 2), $days, number_format($cashInMonth, 2));
+                    $contractualBasis = 'the contract carries no contractual rate';
                 }
             }
             $amortised = round($balance + $interestPeriod - $cashInMonth, 2);
@@ -152,6 +165,8 @@ class EirAsAtService
                 $ytdPosted -= $p['amount'];
             }
         }
+        // like with like inside a month: the part month's EIR interest is set against the contractual interest posted plus accrued
+        $ytdPosted += $contractualAccrued ?? 0.0;
         // cumulative since the first roll-forward month (or the take-on, where that is the opening)
         $first = $rows->first()?->reporting_period ?? ($prior === null && $opening !== null ? CarbonImmutable::parse($openingPeriod . '-01')->addMonth()->format('Y-m') : null);
         $cumEir = (float) $rows->filter(fn ($r) => $r->reporting_period < $period)->sum('interest_accrued') + array_sum(array_column($rolled, 'interest')) + ($interestPeriod ?? 0.0);
@@ -161,6 +176,7 @@ class EirAsAtService
                 $cumPosted -= $p['amount'];
             }
         }
+        $cumPosted += $contractualAccrued ?? 0.0;
 
         // remaining expected cash flows: the schedule version in force on the date
         $version = DB::table('contract_cashflow_schedule')->where('contract_id', $c->contract_id)->where('effective_from', '<=', $asAt->toDateString())->max('schedule_version')
@@ -186,6 +202,7 @@ class EirAsAtService
                 'origination_date' => $takeon->origination_date, 'setting_value' => $takeon->setting_value],
             'gross_carrying_amount' => $gross, 'gross_basis' => 'ledger running balance of ' . count($ledger) . ' postings on or before the date',
             'interest' => ['eir_period_to_date' => $interestPeriod, 'contractual_period_to_date' => round($postedInMonth, 2),
+                'contractual_accrued_period_to_date' => $contractualAccrued, 'contractual_accrued_basis' => $contractualBasis,
                 'eir_year_to_date' => round($ytdEir, 2), 'contractual_year_to_date' => round($ytdPosted, 2), 'difference_year_to_date' => round($ytdEir - $ytdPosted, 2),
                 'eir_cumulative' => round($cumEir, 2), 'contractual_cumulative' => round($cumPosted, 2), 'difference_cumulative' => round($cumEir - $cumPosted, 2), 'cumulative_from' => $first],
             'roll_forward' => array_merge(

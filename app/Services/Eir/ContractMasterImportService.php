@@ -301,7 +301,8 @@ class ContractMasterImportService
         // The floating flag is stored for cross-check only (D16). Policy P
         // means the loan reprices with the PLR and F means it never does, so
         // a flag of N beside P, or any other flag beside F, is worth a look.
-        // rate_type keeps its own mapping from RATE_BASIS and is not touched.
+        // rate_type is the file's RATE_TYPE where stated, else the policy's (spec 7.2:
+        // P floating, any other policy fixed); the RATE_BASIS alias is gone (audit M15).
         if ($interestPolicy !== null && $floatingFlag !== null) {
             $flagSaysFloating = $floatingFlag !== 'N';
             if (($interestPolicy === 'P' && ! $flagSaysFloating) || ($interestPolicy === 'F' && $flagSaysFloating)) {
@@ -330,7 +331,7 @@ class ContractMasterImportService
             'source_day_count_basis' => $this->text($row['source_day_count_basis'] ?? null),
             'source_compounding' => $this->text($row['source_compounding'] ?? null),
             'disbursement_tranches' => $this->text($row['disbursement_tranches'] ?? null),
-            'rate_type' => $this->rateType($row['rate_type'] ?? null),
+            'rate_type' => $this->rateTypeFor($row['rate_type'] ?? null, $interestPolicy, $rowNotes),
             'reference_rate_at_origination' => $this->rate($row['reference_rate_at_origination'] ?? null),
             'markup' => $this->rate($row['markup'] ?? null),
             'payments_per_year' => $paymentsPerYear = $this->paymentsPerYear($row, $contractId, $unknownFrequencies),
@@ -596,6 +597,27 @@ class ContractMasterImportService
         }
 
         return $amount > 1 ? $amount / 100 : $amount;
+    }
+
+    /**
+     * The rate type: as the file states it (RATE_TYPE), else as E-Banker's
+     * Interest Policy says (P floating, S or M fixed: spec 7.2, the rule the
+     * E-Banker build applies). A stated type that disagrees with the policy
+     * is kept and noted. With neither, null: never a FIXED default.
+     */
+    private function rateTypeFor($stated, ?string $interestPolicy, array &$rowNotes): ?string
+    {
+        $type = $this->rateType($stated);
+        $fromPolicy = match ($interestPolicy) {
+            'P' => 'FLOATING',
+            'S', 'M' => 'FIXED',
+            default => null,
+        };
+        if ($type !== null && $fromPolicy !== null && $type !== $fromPolicy) {
+            $rowNotes[] = "rate type '{$type}' disagrees with interest policy '{$interestPolicy}' ({$fromPolicy}); the stated type is kept";
+        }
+
+        return $type ?? $fromPolicy;
     }
 
     private function rateType($value): ?string

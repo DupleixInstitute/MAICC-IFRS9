@@ -19,13 +19,25 @@ class LandTakeonWorkbook extends Command
         {--original= : Tamanda\'s workbook as received (defaults to the committed copy under docs/bootstrap/takeon)}
         {--mapping= : The mapping workbook with the fee columns (defaults to the committed copy)}
         {--user=}
-        {--build : Also build contract_takeon under takeon_history_basis}
+        {--build : Also propose the build of contract_takeon under takeon_history_basis (a second person approves it)}
+        {--approve-build= : Approve the proposed take-on build with this id and build (a different --user from the proposer)}
         {--dry-run : Run the gates and report; write nothing}';
 
     protected $description = 'Land the take-on schedules workbook through its gates and build the take-on population';
 
     public function handle(TakeonLandingService $service): int
     {
+        if ($this->option('approve-build') !== null) {
+            try {
+                $c = $service->approveBuild((int) $this->option('approve-build'), $this->option('user') !== null ? (int) $this->option('user') : null);
+            } catch (Throwable $e) {
+                $this->error($e->getMessage());
+                return self::FAILURE;
+            }
+            $this->info("Take-on population built on approval under '{$c['setting']}': {$c['accounts']} accounts, {$c['recomputed']} recomputed from origination, {$c['takeon_balance']} starting at the take-on balance, {$c['refused']} refused.");
+
+            return self::SUCCESS;
+        }
         $dir = base_path('docs/bootstrap/takeon');
         $original = $this->option('original') ?? $this->find($dir, 'as received');
         $mapping = $this->option('mapping') ?? $this->find($dir, 'with mapping');
@@ -61,12 +73,12 @@ class LandTakeonWorkbook extends Command
         }
         if ($this->option('build') && ! $this->option('dry-run')) {
             try {
-                $c = $service->build($user);
+                $p = $service->proposeBuild($user);
             } catch (Throwable $e) {
                 $this->error($e->getMessage());
                 return self::FAILURE;
             }
-            $this->info("Take-on population built under '{$c['setting']}': {$c['accounts']} accounts, {$c['recomputed']} recomputed from origination, {$c['takeon_balance']} starting at the take-on balance, {$c['refused']} refused.");
+            $this->info("Take-on build proposed (request {$p['request']}); a second person approves it: php artisan eir:land-takeon --approve-build={$p['request']} --user=<approver>.");
         }
 
         return self::SUCCESS;

@@ -17,7 +17,12 @@ namespace App\Services\Reports;
  *    'contracts' => int,
  *    'opening' => int,       value at P0 in cents (ECL or gross)
  *    'closing' => int,       value at P1 in cents
- *    'written_off' => bool]  only for groups gone at P1: written off, not repaid
+ *    'written_off' => bool,  only for groups gone at P1: written off, not repaid
+ *    'written_off_amount' => ?int]  cents written off in the period (the gross
+ *                            written off, or the allowance that write-off used);
+ *                            the write-off line takes it and the rest of the
+ *                            change stays remeasurement (in both books),
+ *                            originated (new) or derecognised (gone)
  *
  * Rules:
  *  - in both months, stage changed: the opening value moves out of the old
@@ -72,6 +77,10 @@ final class EclMovementAttribution
                 $counts['closing'][$to] += $n;
             }
 
+            // an amount written off in the period, in the same unit as the values (built
+            // 14 October 2026): the gross written off, or the allowance it used
+            $wo = array_key_exists('written_off_amount', $g) && $g['written_off_amount'] !== null ? (int) $g['written_off_amount'] : null;
+
             if ($from !== null && $to !== null) {
                 if ($from !== $to) {
                     $line = 'transfer_' . $to;
@@ -79,15 +88,35 @@ final class EclMovementAttribution
                     $lines[$line][$to] += $open;
                     $counts[$line][$to] += $n;
                 }
-                $lines['remeasurement'][$to] += $close - $open;
+                if ($wo !== null && $wo !== 0) {
+                    // still in the book after a write-off (in part, or at nil): the
+                    // write-off is its own line, the rest of the change remeasurement
+                    $lines['written_off'][$to] -= $wo;
+                    $counts['written_off'][$to] += $n;
+                    $lines['remeasurement'][$to] += $close - $open + $wo;
+                } else {
+                    $lines['remeasurement'][$to] += $close - $open;
+                }
                 $counts['remeasurement'][$to] += $n;
             } elseif ($to !== null) {
-                $lines['originated'][$to] += $close;
+                // new in the period; any amount written off before the close is added back to what was originated
+                $lines['originated'][$to] += $close + (int) $wo;
                 $counts['originated'][$to] += $n;
+                if ($wo) {
+                    $lines['written_off'][$to] -= $wo;
+                    $counts['written_off'][$to] += $n;
+                }
             } elseif ($from !== null) {
-                $line = !empty($g['written_off']) ? 'written_off' : 'derecognised';
-                $lines[$line][$from] -= $open;
-                $counts[$line][$from] += $n;
+                if ($wo !== null) {
+                    // gone from the book: the amount written off, and the rest derecognised
+                    $lines['written_off'][$from] -= $wo;
+                    $lines['derecognised'][$from] -= $open - $wo;
+                    $counts[$wo !== 0 ? 'written_off' : 'derecognised'][$from] += $n;
+                } else {
+                    $line = !empty($g['written_off']) ? 'written_off' : 'derecognised';
+                    $lines[$line][$from] -= $open;
+                    $counts[$line][$from] += $n;
+                }
             }
         }
 

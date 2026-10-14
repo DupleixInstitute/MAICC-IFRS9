@@ -111,8 +111,19 @@ const figures = computed(() => props.report ? [
                         </table>
                     </div>
                     <p class="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
-                        Write-offs: {{ report.write_offs.loans ? report.write_offs.loans + ' loans in the closing book carry a write-off status (' + money(report.write_offs.amount) + ').' : 'no loan carries a write-off status, so loans that leave the book are shown as repaid or derecognised.' }}
+                        Write-offs: {{ report.write_offs.loans ? report.write_offs.loans + ' loans written off between the two month-ends (' + money(report.write_offs.amount) + '), from the ledger by the write-off rule (type 300, a batch debiting GL 1064, an ACCOUNT CLOSURE on a status-H account) and the approved write-off register.' : 'none in the ledger (by the write-off rule) or approved in the write-off register between the two month-ends.' }}
                     </p>
+                    <div v-if="report.write_offs.list && report.write_offs.list.length" class="maiic-table-wrap border-t border-gray-100">
+                        <table class="maiic-table maiic-table-compact">
+                            <thead><tr><th>Date</th><th>Contract</th><th>Customer</th><th class="num">Written off</th><th>Record</th></tr></thead>
+                            <tbody>
+                                <tr v-for="(w, i) in report.write_offs.list" :key="i">
+                                    <td class="whitespace-nowrap">{{ w.date }}</td><td>{{ w.contract_id }}</td><td>{{ w.customer_name || '-' }}</td>
+                                    <td class="num">{{ money(w.amount) }}</td><td class="text-gray-500">{{ w.source === 'ledger' ? 'Ledger' : 'Register' }}: {{ w.reference }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </template>
             <div v-else-if="!error" class="maiic-panel maiic-empty">Choose a portfolio and two periods at the top right, then Run.</div>

@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\ExpectedCreditLossController;
-use App\Services\Ecl\EclDiscountingService;
+use App\Services\Ecl\EclExposure;
 use App\Services\MegaFarm\MegaFarmEclService;
 use App\Support\ReportingPeriodLock;
 use Carbon\CarbonImmutable;
@@ -43,9 +43,7 @@ class SegmentEcl extends Command
 
     protected $description = 'Calculate the ECL of every portfolio of each month after the PD and LGD by segment, failing closed on a missing input';
 
-    private const EAD = 'COALESCE(carrying_amount,0) + COALESCE(commitments,0) * COALESCE(facility_utilisation_rate,1)';
-
-    public function handle(ExpectedCreditLossController $controller, EclDiscountingService $discounting): int
+    public function handle(ExpectedCreditLossController $controller): int
     {
         $from = CarbonImmutable::parse($this->argument('from') . '-01');
         $to = CarbonImmutable::parse(($this->argument('to') ?? $this->argument('from')) . '-01');
@@ -72,12 +70,12 @@ class SegmentEcl extends Command
                 ->distinct()->orderBy('loan_portfolio_id')->pluck('loan_portfolio_id')->map(fn ($v) => (int) $v)->all();
             try {
                 foreach ($portfolios as $pid) {
-                    DB::transaction(function () use ($controller, $discounting, $period, $pid, $pdCol, $lgdCol) {
+                    DB::transaction(function () use ($controller, $period, $pid, $pdCol, $lgdCol) {
                         DB::table('expected_credit_loss')->where('reporting_period', $period)->where('ecl_calculation_level', 'portfolio')->where('ecl_calculation_id', $pid)->delete();
                         $controller->calculateECL(Request::create('/expected-credit-loss/calculations', 'POST', [
                             'ecl_calculation_level' => 'portfolio', 'ecl_calculation_id' => $pid, 'reporting_period' => $period . '-01',
                             'pd_type' => $pdCol, 'lgd_type' => $lgdCol, 'discounting_mode' => $this->option('discounting'),
-                        ]), $discounting);
+                        ]));
                     });
                     set_time_limit(0); // the controller's 300 s is for the web; the console runs every month (audit H14)
                 }
@@ -113,7 +111,7 @@ class SegmentEcl extends Command
     private function check(string $period, string $pdCol, string $lgdCol): array
     {
         $stage = 'COALESCE(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative)';
-        $pd = $pdCol === 'pd_prefli' ? 'COALESCE(pd_prefli, pd_post_fli)' : 'pd_post_fli';
+        $pd = $pdCol === 'pd_prefli' ? 'pd_prefli' : 'pd_post_fli'; // a run before FLI reads the PD before FLI, never the PD after it
         $problems = [];
         if (! DB::table('loan_books')->where('reporting_period', $period)->exists()) {
             return ["The loan book of {$period} is empty."];
@@ -123,7 +121,7 @@ class SegmentEcl extends Command
             return ['Portfolio(s) ' . implode(', ', $mixed) . " mix Mega Farm programme loans with MAIIC's own; run ifrs9:segment-portfolios first (spec v4 section 16)."];
         }
         $programme = MegaFarmEclService::programmePortfolios($period);
-        $exposed = DB::table('loan_books')->where('reporting_period', $period)->whereNotIn('loan_portfolio_id', $programme === [] ? [0] : $programme)->whereRaw('(' . self::EAD . ') <> 0');
+        $exposed = DB::table('loan_books')->where('reporting_period', $period)->whereNotIn('loan_portfolio_id', $programme === [] ? [0] : $programme)->whereRaw(EclExposure::sql() . ' > 0'); // the loans the engine measures: a credit balance and a loan written off to nil carry none
         foreach (["{$stage} IS NULL" => 'no measured stage', "{$pd} IS NULL" => "no {$pdCol}", "{$lgdCol} IS NULL" => "no {$lgdCol}"] as $cond => $what) {
             $ids = (clone $exposed)->whereRaw($cond)->limit(6)->pluck('contract_id');
             $n = (clone $exposed)->whereRaw($cond)->count();

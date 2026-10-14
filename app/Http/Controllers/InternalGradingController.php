@@ -338,6 +338,12 @@ class InternalGradingController extends Controller
             if (! $profile->is_active) {
                 return back()->with('error', 'Profile must be active before updating loan books.');
             }
+            // a locked month is never restated, by this legacy writer either (audit H4)
+            try {
+                \App\Support\ReportingPeriodLock::assertOpen($period, 'the internal-grade PD');
+            } catch (\RuntimeException $e) {
+                return back()->with('error', $e->getMessage());
+            }
 
 
             $rowsUpdated = 0;
@@ -354,11 +360,15 @@ class InternalGradingController extends Controller
 
             $loans = $loansQuery->get();
 
-            DB::transaction(function () use ($loans, $profile, &$rowsUpdated) {
+            // a Stage 1 or 2 loan with no grade mapping, no remaining tenor or no PD
+            // for its tenor is left as it was and named, not given a PD of nil
+            $notGraded = [];
+
+            DB::transaction(function () use ($loans, $profile, &$rowsUpdated, &$notGraded) {
 
                 foreach ($loans as $loan) {
 
-                    $pd = 0;
+                    $pd = null;
                     $stage = trim((string) $loan->ifrs9stage_pre_qualitative);
 
                     Log::debug('PD CALC START', [
@@ -397,7 +407,7 @@ class InternalGradingController extends Controller
 
                             $pd = $mapping->tenorPds
                                 ->firstWhere('tenor_years', 1)
-                                ?->pd_probability ?? 0;
+                                ?->pd_probability;
 
                             Log::info('STAGE 1 PD SET', [
                                 'loan_id' => $loan->id,
@@ -407,9 +417,15 @@ class InternalGradingController extends Controller
 
                         elseif ($stage === '2') {
 
-                            $pd = $mapping->tenorPds
-                                ->firstWhere('tenor_years', (int)$loan->remaining_tenor)
-                                ?->pd_probability ?? 0;
+                            // remaining_tenor is in months (the governed build,
+                            // LoanBookBuildService); the grade curve is by whole
+                            // year, so the remaining life is rounded up to the
+                            // year that covers it (audit C2: months were read as
+                            // years, so 24 months asked for the 24-year PD)
+                            $tenorYears = \App\Support\Tenor::yearsCovering($loan->remaining_tenor);
+                            $pd = $tenorYears === null ? null : $mapping->tenorPds
+                                ->firstWhere('tenor_years', $tenorYears)
+                                ?->pd_probability;
 
                             Log::info('STAGE 2 PD SET', [
                                 'loan_id' => $loan->id,
@@ -423,6 +439,11 @@ class InternalGradingController extends Controller
                         //     'stage' => $stage,
                         //     'grade_code' => $loan->internal_grade_code,
                         // ]);
+                    }
+
+                    if ($pd === null || ($stage !== '3' && ! $mapping)) {
+                        $notGraded[] = $loan->contract_id;
+                        continue;
                     }
 
                     $oldPd = $loan->pd_prefli;
@@ -477,6 +498,7 @@ class InternalGradingController extends Controller
             return back()->with(
                 'success',
                 "Loan books updated successfully in {$timeTaken} minutes. Rows updated: {$rowsUpdated}"
+                . ($notGraded !== [] ? '. Left unchanged, with no grade mapping, remaining tenor or PD for the tenor: ' . count($notGraded) . ' (' . implode(', ', array_slice($notGraded, 0, 10)) . (count($notGraded) > 10 ? ', ...' : '') . ')' : '')
             );
         }
 

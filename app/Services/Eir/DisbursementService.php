@@ -220,6 +220,48 @@ class DisbursementService
         return $flows;
     }
 
+    /**
+     * Where an EIR solve starts and what goes out at that start (spec v4 E1;
+     * results review of 13 October 2026). The contract input and the
+     * readiness check both read this, so the screen gate and the solve agree.
+     *
+     *  - No tranche register for the facility: null drawn (the contract's
+     *    drawn amount stands), solved from origination, nothing later.
+     *  - Tranches drawn by origination: their sum goes out at origination and
+     *    every later tranche follows on its own date.
+     *  - Nothing drawn by origination: the solve starts on the first drawdown
+     *    date and every tranche drawn on that date is the initial investment
+     *    (a disbursement voucher and the capitalised fee debits of the same
+     *    day are one advance); later dates follow. Taking only the first row
+     *    of the day left the others as "later" flows dated on the solve date
+     *    itself, which the solver refuses (104460000112: four tranches on
+     *    23 July 2025).
+     *
+     * @return array{drawn:?float, solve_from:string, later:list<array{due_date:string,amount:float,flow_type:string,reference:?string}>, register:bool}
+     */
+    public function solvePlan(string $contractId, CarbonInterface|string $originationDate): array
+    {
+        $origination = $this->date($originationDate)->toDateString();
+        $tranches = $this->tranchesFor($contractId);
+        $later = $this->laterDrawdownFlows($contractId, $origination);
+        $byOrigination = array_filter($tranches, fn ($t) => $t['disbursement_date'] <= $origination);
+        if ($byOrigination === [] && $later === []) {
+            return ['drawn' => null, 'solve_from' => $origination, 'later' => [], 'register' => false];
+        }
+        $atOrigination = round((float) array_sum(array_column($byOrigination, 'amount')), 2);
+        if ($atOrigination > 0) {
+            return ['drawn' => $atOrigination, 'solve_from' => $origination, 'later' => $later, 'register' => true];
+        }
+        if ($later === []) {
+            return ['drawn' => null, 'solve_from' => $origination, 'later' => [], 'register' => true];
+        }
+        $firstDate = $later[0]['due_date'];
+        $first = array_values(array_filter($later, fn ($f) => $f['due_date'] === $firstDate));
+        $rest = array_values(array_filter($later, fn ($f) => $f['due_date'] !== $firstDate));
+
+        return ['drawn' => round(-1 * (float) array_sum(array_column($first, 'amount')), 2), 'solve_from' => $firstDate, 'later' => $rest, 'register' => true];
+    }
+
     /** @param list<array> $tranches */
     private function assemble(string $contractId, ?string $customer, CarbonImmutable $asOf, array $tranches, $contract, $book): array
     {

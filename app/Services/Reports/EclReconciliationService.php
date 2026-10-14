@@ -39,18 +39,27 @@ class EclReconciliationService
         $rowCount = 0;
         $startTransitionCount = 0;
         $newTransitionCount = 0;
+        // amounts written off between the two month-ends (the ledger by the write-off rule and the
+        // approved register; WriteOffSource), per contract; until 14 October 2026 this was nil
+        $writeOffs = [];
+        foreach (WriteOffSource::between(WriteOffSource::monthEnd($startPeriod), WriteOffSource::monthEnd($endPeriod)) as $w) {
+            $writeOffs[(string) $w['contract_id']] = ($writeOffs[(string) $w['contract_id']] ?? 0) + (float) $w['amount'];
+        }
 
         foreach (self::fetchStartRowsChunked($portfolioId, $startPeriod, $endPeriod, $valueColumn) as $row) {
-            self::processRow($row, $report);
+            self::processRow($row, $report, $writeOffs[(string) $row->contract_id] ?? null, $valueColumn);
             $rowCount++;
             $startTransitionCount++;
         }
 
         foreach (self::fetchNewRowsChunked($portfolioId, $startPeriod, $endPeriod, $valueColumn) as $row) {
-            self::processRow($row, $report);
+            self::processRow($row, $report, $writeOffs[(string) $row->contract_id] ?? null, $valueColumn);
             $rowCount++;
             $newTransitionCount++;
         }
+        $scope = fn ($q) => $q->where('loan_portfolio_id', $portfolioId);
+        $basis = $movementType === 'ecl_value'
+            ? ['start' => BookedEcl::summary($startPeriod, $scope), 'end' => BookedEcl::summary($endPeriod, $scope)] : null;
 
         return [
             'portfolio_id' => $portfolioId,
@@ -60,6 +69,7 @@ class EclReconciliationService
             'movement_label' => self::movementLabel($movementType),
             'report_type' => 'summary',
             'rows' => self::formatRows($report),
+            'basis' => $basis,
             'row_count' => $rowCount,
             'start_transition_count' => $startTransitionCount,
             'new_transition_count' => $newTransitionCount,
@@ -105,6 +115,16 @@ class EclReconciliationService
                     number_format($row['stage_3'], 2, '.', ''),
                     number_format($row['total'], 2, '.', ''),
                 ]);
+            }
+            foreach ($report['basis'] ?? [] as $side => $b) {
+                $r = $b['reconciliation'];
+                fputcsv($handle, []);
+                fputcsv($handle, [($side === 'start' ? 'Opening' : 'Closing') . ' allowance (' . $b['period'] . '): basis', $b['message']]);
+                fputcsv($handle, ['ECL at the reporting date, undiscounted', '', '', '', number_format($r['undiscounted'], 2, '.', '')]);
+                fputcsv($handle, ['Add: lifetime projection over the reporting-date measure', '', '', '', number_format($r['projection'], 2, '.', '')]);
+                fputcsv($handle, ['Less: effect of discounting at the original EIR', '', '', '', number_format($r['discounting_effect'], 2, '.', '')]);
+                fputcsv($handle, ['Allowance shown', '', '', '', number_format($r['shown'], 2, '.', '')]);
+                fputcsv($handle, ['Of which with no discounted figure, shown undiscounted (' . $r['not_booked_loans'] . ' loans)', '', '', '', number_format($r['not_booked'], 2, '.', '')]);
             }
 
             fclose($handle);
@@ -181,6 +201,18 @@ class EclReconciliationService
         ];
     }
 
+    /**
+     * The value of one loan row: the carrying amount, or the booked loss
+     * allowance (discounted at the original EIR where the engine discounted
+     * it; the programme measure for Mega Farm; otherwise the undiscounted ECL,
+     * which the summary counts and names). Built 14 October 2026; it read the
+     * undiscounted ecl_value until then.
+     */
+    private static function valueSql(string $alias, string $valueColumn): string
+    {
+        return $valueColumn === 'carrying_amount' ? "COALESCE({$alias}carrying_amount, 0)" : BookedEcl::sql($alias);
+    }
+
     private static function movementLabel(string $movementType): string
     {
         return $movementType === 'principal_balance' ? 'Carrying Amount' : 'ECL Allowance';
@@ -218,7 +250,8 @@ class EclReconciliationService
 
     /**
      * Build the (unlimited) query for a detailed section. $valueColumn is
-     * internally derived ('carrying_amount' or 'ecl_value'), never user input.
+     * internally derived ('carrying_amount' or 'ecl_value'), never user input;
+     * the ECL is the booked allowance (BookedEcl), not the undiscounted measure.
      */
     private static function detailQuery(
         int $portfolioId,
@@ -241,7 +274,7 @@ class EclReconciliationService
                     'lb_end.contract_id',
                     'lb_end.external_identity_id',
                     'lb_end.calculated_ifrs9_stage as end_stage',
-                    DB::raw("COALESCE(lb_end.{$valueColumn}, 0) as end_movement_value"),
+                    DB::raw(self::valueSql('lb_end.', $valueColumn) . " as end_movement_value"),
                 ])
                 ->orderBy('lb_end.contract_id');
         }
@@ -260,7 +293,7 @@ class EclReconciliationService
                     'lb_start.contract_id',
                     'lb_start.external_identity_id',
                     'lb_start.calculated_ifrs9_stage as start_stage',
-                    DB::raw("COALESCE(lb_start.{$valueColumn}, 0) as start_movement_value"),
+                    DB::raw(self::valueSql('lb_start.', $valueColumn) . " as start_movement_value"),
                 ])
                 ->orderBy('lb_start.contract_id');
         }
@@ -280,9 +313,9 @@ class EclReconciliationService
                 'lb_start.external_identity_id',
                 'lb_start.calculated_ifrs9_stage as start_stage',
                 'lb_end.calculated_ifrs9_stage as end_stage',
-                DB::raw("COALESCE(lb_start.{$valueColumn}, 0) as start_movement_value"),
-                DB::raw("COALESCE(lb_end.{$valueColumn}, 0) as end_movement_value"),
-                DB::raw("(COALESCE(lb_end.{$valueColumn}, 0) - COALESCE(lb_start.{$valueColumn}, 0)) as movement_value"),
+                DB::raw(self::valueSql('lb_start.', $valueColumn) . " as start_movement_value"),
+                DB::raw(self::valueSql('lb_end.', $valueColumn) . " as end_movement_value"),
+                DB::raw("(" . self::valueSql('lb_end.', $valueColumn) . " - " . self::valueSql('lb_start.', $valueColumn) . ") as movement_value"),
             ])
             ->orderBy('lb_start.contract_id');
     }
@@ -375,12 +408,11 @@ class EclReconciliationService
                 'lb_start.contract_id',
                 DB::raw('1 as has_start_record'),
                 DB::raw('(lb_end.contract_id IS NOT NULL) as has_end_record'),
-                DB::raw("COALESCE(lb_start.{$valueColumn}, 0) as start_value"),
+                DB::raw(self::valueSql('lb_start.', $valueColumn) . " as start_value"),
                 'lb_start.calculated_ifrs9_stage as start_stage',
-                DB::raw("COALESCE(lb_end.{$valueColumn}, 0) as end_value"),
+                DB::raw(self::valueSql('lb_end.', $valueColumn) . " as end_value"),
                 'lb_end.calculated_ifrs9_stage as end_stage',
                 'lb_end.contract_status as end_contract_status',
-                DB::raw('0 as is_written_off_in_period'),
             ])
             ->orderBy('lb_start.contract_id');
 
@@ -410,10 +442,9 @@ class EclReconciliationService
                 DB::raw('1 as has_end_record'),
                 DB::raw('0 as start_value'),
                 DB::raw('NULL as start_stage'),
-                DB::raw("COALESCE(lb_end.{$valueColumn}, 0) as end_value"),
+                DB::raw(self::valueSql('lb_end.', $valueColumn) . " as end_value"),
                 'lb_end.calculated_ifrs9_stage as end_stage',
                 'lb_end.contract_status as end_contract_status',
-                DB::raw('0 as is_written_off_in_period'),
             ])
             ->orderBy('lb_end.contract_id');
 
@@ -422,12 +453,32 @@ class EclReconciliationService
         }
     }
 
-    private static function processRow(object $row, array &$report): void
+    /**
+     * $writtenOff is the gross written off on the contract between the two
+     * month-ends (WriteOffSource), or null. On the carrying amount the
+     * write-off line takes it whole; on the allowance it takes the allowance
+     * the write-off used, the opening allowance up to the amount written off.
+     * The rest of the contract's change follows the usual lines.
+     */
+    private static function processRow(object $row, array &$report, ?float $writtenOff = null, string $valueColumn = 'ecl_value'): void
     {
         $startStage = self::normalizeStage($row->start_stage);
         $endStage = self::normalizeStage($row->end_stage);
         $startValue = (float) $row->start_value;
         $endValue = (float) $row->end_value;
+        $hasStart = $row->has_start_record == 1;
+        $hasEnd = $row->has_end_record == 1;
+        $wo = 0.0;
+        if ($writtenOff !== null && $writtenOff > 0) {
+            $wo = $valueColumn === 'carrying_amount' ? $writtenOff : ($hasStart ? max(0.0, min($startValue, $writtenOff)) : 0.0);
+            $woStage = $hasEnd ? $endStage : $startStage;
+            if ($woStage !== null && $wo != 0.0) {
+                $report['Amounts written off'][$woStage] -= $wo;
+                if ($hasEnd) {
+                    $endValue += $wo; // the rest of the change, as if the amount had not been written off
+                }
+            }
+        }
 
         $openingKey = array_key_first($report);
         $closingKey = array_key_last($report);
@@ -438,11 +489,8 @@ class EclReconciliationService
         }
 
         if ($endStage !== null) {
-            $report[$closingKey][$endStage] += $endValue;
+            $report[$closingKey][$endStage] += $endValue - ($hasEnd ? $wo : 0.0);
         }
-
-        $hasStart = $row->has_start_record == 1;
-        $hasEnd = $row->has_end_record == 1;
 
         if ($hasStart && $hasEnd && $startStage !== null && $endStage !== null) {
             if ($startStage !== $endStage) {
@@ -462,11 +510,8 @@ class EclReconciliationService
         }
 
         if ($hasStart && !$hasEnd && $startStage !== null) {
-            if ($row->is_written_off_in_period ?? false) {
-                $report['Amounts written off'][$startStage] -= $startValue;
-            } else {
-                $report['Financial assets derecognised'][$startStage] -= $startValue;
-            }
+            // gone from the book: what was written off is on its own line, the rest derecognised
+            $report['Financial assets derecognised'][$startStage] -= $startValue - $wo;
         }
     }
 

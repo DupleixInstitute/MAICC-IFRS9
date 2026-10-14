@@ -154,6 +154,9 @@ class ReportDownload
                     fputcsv($out, ['Part: ' . $part]);
                 }
                 fputcsv($out, [$sec['heading'] ?? '']);
+                if (! empty($sec['note'])) {
+                    fputcsv($out, [$sec['note']]); // a section's note travels with it (the basis of the allowance, a gap named)
+                }
                 fputcsv($out, $sec['columns'] ?? []);
                 foreach ($sec['rows'] ?? [] as $row) {
                     fputcsv($out, array_map([self::class, 'plain'], array_values($row)));

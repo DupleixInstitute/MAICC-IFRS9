@@ -21,6 +21,8 @@ use Tests\TestCase;
  */
 class OverlayServiceTest extends TestCase
 {
+    use \Tests\Concerns\SeedsGovernedDefaults;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -28,6 +30,8 @@ class OverlayServiceTest extends TestCase
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
+        // the engines read their governed settings with no value in code: the seeded defaults (D21)
+        $this->seedGovernedDefaults(['scenario_minimum_count', 'scenario_weight_bounds', 'scenario_calibration_note', 'overlay_requires_approved_set', 'scenario_weighting_method', 'fli_adjustment_route']);
         Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->timestamps(); });
         Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });
         Schema::create('macro_series', function (Blueprint $t) { $t->increments('id'); $t->string('statistic_code'); $t->string('observation_period'); $t->decimal('value', 18, 6); $t->string('value_type')->default('actual'); });

@@ -498,6 +498,8 @@ class TransitionMatrixController extends Controller
                 }
 
                 $period = substr($validated['reporting_period'], 0, 7);
+                // a locked month is never restated, by this legacy writer either (audit H4)
+                \App\Support\ReportingPeriodLock::assertOpen($period, 'the transition-matrix PD');
                 $totalUpdated = 0;
                 // the PD is assigned by the measured stage the matrix was built on: post-qualitative,
                 // then calculated, then the DPD stage (system audit of 9 October 2026, finding M10)

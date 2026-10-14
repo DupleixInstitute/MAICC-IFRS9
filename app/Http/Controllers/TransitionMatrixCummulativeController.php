@@ -107,6 +107,8 @@ class TransitionMatrixCummulativeController extends Controller
                 }
 
                 $period = substr($validated['reporting_period'], 0, 7);
+                // a locked month is never restated, by this legacy writer either (audit H4)
+                \App\Support\ReportingPeriodLock::assertOpen($period, 'the cumulative transition-matrix PD');
 
                 $totalUpdated = 0;
 

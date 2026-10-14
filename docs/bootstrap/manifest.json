@@ -29,6 +29,20 @@
     "P1_05 interest summary: latest month only (Aug 2026); the table holds no history",
     "P2_13 LOS requests of 8 Oct: REQUEST_STRING is the literal text CLOB; the file is kept for its response strings and keywords; the re-run replaces it"
   ],
+  "not_landed": [
+    {
+      "received_as": "Follow-Up Scripts Resutls/Dupleix_02.zip",
+      "reason": "a zip of the 18 follow-up extracts P1_01 to P3_18 of 7 October 2026; each file in it is byte-identical (same SHA-256) to the file landed from ebanker-pack-2026-10-07"
+    },
+    {
+      "received_as": "Follow-Up Scripts Resutls/GL and ZF loan/P1_05_interest_posted_by_account.csv",
+      "reason": "an earlier cut of P1_05: 12 of the 82 rows (GLs 1050101 and 1050102 only), each identical to its row in the full file, which is landed"
+    },
+    {
+      "received_as": "Follow-Up Scripts Resutls/GL and ZF loan/P2_06_plr_master.csv",
+      "reason": "the afternoon re-export of P2_06, which lost APPLI_FROM_DATE on PLR id 2 (10/13/2020); the morning export is landed (accepted exception above)"
+    }
+  ],
   "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
   "files": [
     {

@@ -249,6 +249,13 @@ class EirFeeClassificationController extends Controller
         $own = $fees->where('classified_by', auth()->id());
         $adminOverride = app(\App\Services\Eir\GovernanceService::class)->adminOverrideAllowed(auth()->user()); // governed (audit H9)
         if ($own->isNotEmpty() && ! $adminOverride) return back()->withErrors(['fee_ids' => 'A classifier cannot review their own decision.']);
+        // an integral line enters the EIR as money received or paid: approving one with no
+        // direction left a reviewed line the EIR could not use and nobody could correct
+        $undirected = $fees->filter(fn ($f) => (bool) $f->integral && ! in_array($f->cashflow_direction, ['RECEIVED', 'PAID'], true));
+        if ($undirected->isNotEmpty()) {
+            return back()->withErrors(['fee_ids' => $undirected->count() . ' integral line(s) have no cash-flow direction (' . $undirected->take(5)->map(fn ($f) => $f->contract_id . ' / ' . $f->fee_type)->implode(', ')
+                . '). Return them to classification so the classifier states whether the fee was received or paid; nothing was approved.']);
+        }
 
         DB::transaction(function () use ($fees) {
             foreach ($fees as $fee) {
@@ -263,5 +270,42 @@ class EirFeeClassificationController extends Controller
             ],
         ]);
         return back()->with('success', $fees->count() . ' classification(s) approved.');
+    }
+
+    /**
+     * Send classified or reviewed lines back to classification, with the
+     * reason (maker-checker): a reviewed line found to be missing a required
+     * field, such as its cash-flow direction, or classified on a wrong basis,
+     * is classified again and reviewed again by a second person. A line of a
+     * contract whose original EIR is locked has entered that EIR and is not
+     * reopened here; the EIR is reopened first (EIR Calculations, Reopen).
+     */
+    public function returnToClassification(Request $request)
+    {
+        $data = $request->validate([
+            'fee_ids' => ['required', 'array', 'min:1'],
+            'fee_ids.*' => ['integer', 'exists:contract_fees,id'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+        $fees = ContractFee::whereIn('id', $data['fee_ids'])->whereIn('classification_status', ['CLASSIFIED', 'REVIEWED'])->get();
+        $locked = DB::table('contract_eir')->whereIn('contract_id', $fees->pluck('contract_id')->unique())->whereNotNull('locked_at')->pluck('contract_id')->all();
+        $blocked = $fees->whereIn('contract_id', $locked);
+        if ($blocked->isNotEmpty()) {
+            return back()->withErrors(['fee_ids' => 'The original EIR of ' . implode(', ', array_slice($locked, 0, 5)) . ' is locked, so its fee lines are part of it: reopen the EIR first. Nothing was returned.']);
+        }
+        if ($fees->isEmpty()) {
+            return back()->withErrors(['fee_ids' => 'Only classified or reviewed lines can be returned to classification.']);
+        }
+        DB::transaction(function () use ($fees, $data) {
+            foreach ($fees as $fee) {
+                $was = $fee->classification_status;
+                $fee->update(['classification_status' => 'PENDING', 'classified_by' => null, 'classified_at' => null, 'reviewed_by' => null, 'reviewed_at' => null]);
+                EirFeeClassificationEvent::create(['contract_fee_id' => $fee->id, 'action' => 'REOPENED', 'integral' => $fee->integral,
+                    'reason' => 'Returned to classification (was ' . strtolower($was) . '): ' . trim($data['reason']), 'performed_by' => auth()->id()]);
+            }
+        });
+        AuditLoggerService::log('EIR Fee Classifications Returned', ContractFee::class, null, ['meta' => ['fee_ids' => $fees->pluck('id')->all(), 'reason' => trim($data['reason'])]]);
+
+        return back()->with('success', $fees->count() . ' line(s) returned to classification. Classify them again; a second person then reviews them.');
     }
 }

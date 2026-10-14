@@ -12,7 +12,7 @@ use Throwable;
  *
  *   php artisan fli:apply 2026-08 --fits                      the applied fits of the period, best first
  *   php artisan fli:apply 2026-08 --propose=372 --user=1
- *   php artisan fli:apply 2026-08 --approve=372 --user=2      (or --bootstrap)
+ *   php artisan fli:apply 2026-08 --approve=372 --user=2      a second, named person
  *   php artisan fli:apply 2026-08 --user=1                    apply the route in force to every loan
  */
 class FliApply extends Command
@@ -39,8 +39,16 @@ class FliApply extends Command
                 return self::SUCCESS;
             }
             if ($this->option('approve')) {
-                $service->approveFit((int) $this->option('approve'), $user, $this->option('bootstrap') ? \App\Services\Scenario\ScenarioSetService::BOOTSTRAP_LABEL : null);
-                $this->info('Fit ' . $this->option('approve') . ' approved' . ($this->option('bootstrap') ? ' under the bootstrap label (not a MAIIC approval)' : '') . '.');
+                // a fit is approved by a second, named person (spec 6.10.1 step 6; audit C9):
+                // the bootstrap gives no fit approval and a run without --user names no one
+                if ($this->option('bootstrap')) {
+                    throw new \RuntimeException('A forward-looking fit is approved by a second, named person, never under the bootstrap label (spec 6.10.1 step 6). Pass --user with the approver.');
+                }
+                if ($user === null) {
+                    throw new \RuntimeException('Approving a fit needs --user: the approver must be a different person from the proposer, and named.');
+                }
+                $service->approveFit((int) $this->option('approve'), $user);
+                $this->info('Fit ' . $this->option('approve') . ' approved by user ' . $user . '.');
                 return self::SUCCESS;
             }
             $r = $service->apply($period, $user);

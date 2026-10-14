@@ -92,13 +92,13 @@
    "reference": "12",
    "section_name": "Write off loss facilities in the following quarter",
    "requirement": "Write off all facilities classified as loss from the books in the quarter following the one in which the loss classification was made.",
-   "status": "Outstanding",
-   "engine_comment": "Not built: nothing records when a facility first became loss, so the age of a loss classification is unknown and no facility is flagged as due for write-off. The write-off register is not linked to the RBM Return. On the fresh bootstrap at September 2026, 10 medium- and long-term facilities of 1,511.0m are in the loss class.",
-   "general_comment": "Figures from the fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2), main book (the six MAIIC and FInES loan GLs) at September 2026.",
-   "compliance_comment": "Outstanding (Dupleix): a loss-since date and a due-for-write-off flag on the Return.",
-   "where_to_see": "Reports: RBM Return (provisional) /rbm-return; /eir-write-offs",
+   "status": "Partially done",
+   "engine_comment": "Built 14 October 2026: the RBM Return's section 'Loss facilities to be written off' lists each loss facility with the month it became loss on the loan books (the unbroken run of loss classification by days past due and term; 'at or before' where the run reaches the first month held), its age in months, the quarter-end by which it must be written off and its status (overdue, due this quarter, due next quarter). On the fresh bootstrap at September 2026: 10 facilities of 1,510,956,083.45, 7 of them (1,030,047,803.06) past the write-off quarter. The write-off itself is a person's act in the write-off register; the system shows the deadline, it does not write off.",
+   "general_comment": "Figures from the fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2), main book (the six MAIIC and FInES loan GLs) at September 2026. Until 14 October 2026 this row was Outstanding.",
+   "compliance_comment": "Partially done: the list and the deadline are built; the overdue facilities are for Credit and Finance to write off (or explain) in the register.",
+   "where_to_see": "Reports: RBM Return (provisional) /rbm-return (Loss facilities to be written off); /eir-write-offs",
    "governance_setting": "",
-   "test": ""
+   "test": "Tests\\Feature\\Rbm\\RbmReturnServiceTest::test_loss_facilities_are_listed_with_the_quarter_they_must_be_written_off_by"
   },
   {
    "part": "PART III - REQUIREMENTS",
@@ -106,12 +106,12 @@
    "section_name": "Non-accrual: cease accrual, reverse uncollected interest, recognise interest only when received in cash",
    "requirement": "Place all non-performing facilities on non-accrual: cease accruing interest in income, reverse uncollected interest previously accrued, and recognise interest only when received in cash.",
    "status": "Partially done",
-   "engine_comment": "Section C of the RBM Return reports, for the non-performing facilities, one period's contractual interest posted by E-Banker less the EIR interest recognised on the net basis. That is not the directive's measure: it is not cumulative, it is not on the cash basis (interest received), and GL 1320 (interest in suspense) is read nowhere. Under IFRS 9 the EIR engine recognises Stage 3 interest on the net carrying amount (5.4.1(b)), which is not the directive's cash basis either.",
-   "general_comment": "",
-   "compliance_comment": "Partially done: the gap between the posted and the recognised interest is shown; the directive's suspense balance is not computed or tied to GL 1320.",
+   "engine_comment": "Section C of the RBM Return reports the month's contractual interest posted less the EIR interest on the net basis and, since 14 October 2026, the cumulative measure: the contractual interest charged on each facility non-performing at the month-end since the month it became non-performing on the loan books, with the cash received in the same window beside it and GL 1320 from the trial balance as the tie (with the difference). At September 2026 on the fresh bootstrap: 821,916,269.33 charged since non-performing on 50 facilities, 760,304,079.21 received; the trial balances from March 2026 carry no 1320 line (the last held is 21,865,867.35 credit at February 2026, unchanged since January 2025, so E-Banker posts no suspense). Not measured: the part of the cash received that is interest, because the ledger does not split a repayment, so the cash-basis income the directive allows is shown as a named gap.",
+   "general_comment": "Until 14 October 2026 section C was one period's figure only and GL 1320 was read nowhere.",
+   "compliance_comment": "Partially done: the cumulative suspense and the GL 1320 tie are built; the cash-basis split and Finance's posting of suspense are open.",
    "where_to_see": "Reports: RBM Return (provisional) /rbm-return (section C); EIR Calculations, GL Reconciliation: /eir-reconciliation",
    "governance_setting": "stage3_interest_basis",
-   "test": ""
+   "test": "Tests\\Feature\\Rbm\\RbmReturnServiceTest::test_cumulative_interest_in_suspense_is_measured_and_tied_to_gl_1320"
   },
   {
    "part": "PART III - REQUIREMENTS",
@@ -144,10 +144,10 @@
    "reference": "14 and Schedule",
    "section_name": "Minimum provisions by class",
    "requirement": "Provide at least 0 percent on standard, 5 on special mention, 20 on substandard, 50 on doubtful and 100 on loss.",
-   "status": "Partially done",
-   "engine_comment": "The RBM Return (section B) and the RBM Classification report apply the five rates to the gross carrying amount. The Provision Comparison report applies the same rates to EAD (carrying amount plus undrawn commitments; Ifrs9ReportsController::provisionComparison), so two screens give different minimums for one month. An unused helper (Ifrs9ReportsController::rbmRate) still holds wrong rates (1, 1, 50 percent). The directive says nothing of netting security; the Return does not net it.",
-   "general_comment": "Until 14 October 2026 this row was keyed '12' and said 'net of eligible security', which is not in the Gazette.",
-   "compliance_comment": "Partially done: the rates are right on the Return; the Provision Comparison must use the same base.",
+   "status": "Done",
+   "engine_comment": "The RBM Return (section B), the RBM Classification report and, since 14 October 2026, the Provision Comparison report apply the five rates to the gross carrying amount (the Provision Comparison had used EAD); the unused helper with wrong rates (Ifrs9ReportsController::rbmRate) is deleted. The IFRS 9 allowance set against the minimum is the booked (discounted) allowance, with any loan that has no discounted figure counted and named. The directive says nothing of netting security; the Return does not net it.",
+   "general_comment": "Until 14 October 2026 this row was keyed '12' and said 'net of eligible security', which is not in the Gazette; and it was Partially done (two bases).",
+   "compliance_comment": "Compliant.",
    "where_to_see": "Reports: RBM Return (provisional) /rbm-return (section B); Reports: RBM Classification /ifrs9-reports/rbm-classification; IFRS 9 vs RBM /ifrs9-reports/ifrs9-vs-rbm; Reports: Provision Comparison /ifrs9-reports/provision-comparison",
    "governance_setting": "",
    "test": "Tests\\Feature\\Rbm\\RbmReturnServiceTest::test_the_return_fills_the_sections_from_the_book"
@@ -158,12 +158,12 @@
    "section_name": "Excess of the regulatory provision over IFRS to a loan loss reserve",
    "requirement": "Where the directive's provisions exceed the IFRS impairment, the excess is an appropriation of retained earnings to a loan loss reserve.",
    "status": "Partially done",
-   "engine_comment": "Section B's totals set the minimum provision against the IFRS 9 allowance and show the higher of the two; there is no line labelled loan loss reserve. On the fresh bootstrap at September 2026 the minimum is about 3.62bn against an IFRS 9 allowance of 11.57bn (undiscounted), so the reserve is nil in total, although the loss class alone carries a 1.51bn minimum against 0.86bn of allowance.",
-   "general_comment": "Figures from the fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2), main book (the six MAIIC and FInES loan GLs) at September 2026.",
-   "compliance_comment": "Partially done: the comparison is there; the reserve line is not.",
+   "engine_comment": "Section B's totals set the minimum provision against the IFRS 9 allowance, show the higher of the two and, since 14 October 2026, a line labelled loan loss reserve (paragraph 15(1)): the minimum over the allowance. On the fresh bootstrap at September 2026 the minimum is 3,618,045,560.09 against an IFRS 9 allowance of 11,579,201,589.52 (booked; 38 loans at their undiscounted ECL of 4,460,558,036.40 because they have no discounted figure), so the reserve is nil in total, although the loss class alone carries a 1.51bn minimum against 0.89bn of allowance. The reserve is computed in total, as the paragraph reads.",
+   "general_comment": "Figures from the fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2), main book (the six MAIIC and FInES loan GLs) at September 2026. Until 14 October 2026 there was no reserve line.",
+   "compliance_comment": "Partially done: the reserve line is built; the appropriation is a Finance entry, and the allowance it rests on is not wholly discounted yet.",
    "where_to_see": "Reports: RBM Return (provisional) /rbm-return (section B totals)",
    "governance_setting": "",
-   "test": ""
+   "test": "Tests\\Feature\\Rbm\\RbmReturnServiceTest::test_the_allowance_is_the_booked_discounted_allowance_and_a_gap_is_named"
   },
   {
    "part": "PART III - REQUIREMENTS",
@@ -184,7 +184,7 @@
    "section_name": "Report loan loss reserves on the call report as prescribed",
    "requirement": "Report loan loss reserves separately on the call report in the form the Registrar prescribes.",
    "status": "Partially done",
-   "engine_comment": "RbmReturnService fills a provisional return (A classification by class and term, B minimum provision against the IFRS 9 allowance, C interest in suspense, D restructured facilities, E security held) on the screen and as CSV, Excel and PDF. The prescribed call report form is not in the repository, the reserve is not a line of its own, section D is empty, and the section headings on the screen and the download cite the wrong paragraphs (RbmReturnController: 'sections 9 to 11', 'section 12', 'section 15', 'section 17'; they should be 10, 14 and 15, 16(1) and 15(3)).",
+   "engine_comment": "RbmReturnService fills a provisional return (A classification by class and term, B minimum provision against the IFRS 9 allowance, C interest in suspense, D restructured facilities, E security held) on the screen and as CSV, Excel and PDF. The prescribed call report form is not in the repository, the reserve is not a line of its own, section D lists only restructures confirmed on the register (none yet), and the section headings on the screen and the download cite the wrong paragraphs (RbmReturnController: 'sections 9 to 11', 'section 12', 'section 15', 'section 17'; they should be 10, 14 and 15, 16(1) and 15(3)).",
    "general_comment": "Until 14 October 2026 this row was keyed '17', which is the monetary penalties paragraph.",
    "compliance_comment": "Partially done: the lines are filled; the prescribed form, the reserve line and the citations are owed.",
    "where_to_see": "Reports: RBM Return (provisional) /rbm-return",
@@ -196,13 +196,13 @@
    "reference": "16(1)",
    "section_name": "No restructure, renegotiation, roll-over or modification without Board approval",
    "requirement": "An institution shall not restructure, renegotiate, roll over or modify the terms of a credit facility unless approved by the Board.",
-   "status": "Outstanding",
-   "engine_comment": "Not built: there is no restructure register and no record of Board approval. E-Banker's reschedule history (RS_02a to RS_02g, landed 12 October 2026; 46,230 RS_02a rows on the fresh bootstrap) is read only to find the instalment chart in force for staging (InstalmentChartHistory); section D of the Return is null (RbmReturnService: 'awaited from the vendor', which is stale).",
-   "general_comment": "Until 14 October 2026 this row was keyed '15' and waited on the vendor; the data has arrived and the register is Dupleix's build.",
-   "compliance_comment": "Outstanding (Dupleix): a restructure register from RS_02 with the Board approval reference, feeding section D.",
-   "where_to_see": "Reports: RBM Return (provisional) /rbm-return (section D); Imports & Feeds, E-Banker Loads: /eir-feed",
-   "governance_setting": "rate_change_classification (not read yet); modification_threshold (not read yet)",
-   "test": ""
+   "status": "Partially done",
+   "engine_comment": "The restructure register (EIR Data, Restructures & Resets) holds the candidates the detector finds in E-Banker's reschedule history (RS_02a to RS_02f), the migration worksheet and the rate moves of fixed-rate loans; the bootstrap and the month-end run the detector only, and a candidate becomes a restructure only when one person classifies it with a reason and Board approval reference and another approves. Section D of the Return lists every facility with a confirmed restructure by the month-end with its Board approval, counts those restructured in the month and those without a Board approval recorded (flagged in red), and counts the candidates awaiting confirmation without reporting them; on the screen and in the CSV, Excel and PDF. On the scratch clone maiic_ifrs9_wire of 14 October 2026 (a copy of the restructure build's database, migrated): 70 candidates and 323 rate moves recorded, none confirmed, so section D lists no facility and says so.",
+   "general_comment": "Until 14 October 2026 this row was Outstanding: no register existed and section D was null.",
+   "compliance_comment": "Partially done: built; Credit classifies the candidates and MAIIC records the Board approval of each restructure it confirms.",
+   "where_to_see": "Reports: RBM Return (provisional) /rbm-return (section D); EIR Data, Restructures & Resets: /eir-restructures",
+   "governance_setting": "rate_change_classification; modification_threshold",
+   "test": "Tests\\Feature\\Rbm\\RbmReturnServiceTest::test_section_d_lists_the_confirmed_restructures_with_their_board_approval; Tests\\Feature\\Eir\\RestructureRegisterTest::test_the_rbm_section_d_reports_only_confirmed_restructures_and_names_a_missing_board_approval; Tests\\Feature\\Eir\\RestructureDetectionWiringTest::test_the_detection_step_finds_and_never_confirms_and_the_bootstrap_line_counts_the_candidates"
   },
   {
    "part": "PART III - REQUIREMENTS",
@@ -262,19 +262,19 @@
    "number": "F1",
    "reference": "16(1)",
    "finding": "No restructure register",
-   "what_was_found": "E-Banker's reschedule history (RS_02a to RS_02g) landed on 12 October 2026 and is read only for the instalment chart in force; no register of restructures with their Board approval exists and section D of the Return is null. (Until 14 October 2026 this finding said Barry was to obtain the Reschedule Report; it has arrived.)",
-   "impact": "Restructured facilities cannot be reported or shown to have Board approval; IFRS 9 modification (5.4.3) waits on the same register.",
-   "recommended_action": "Dupleix builds the register from RS_02 (candidates confirmed by Credit), records the Board approval reference and fills section D.",
-   "owner": "Dupleix / Credit",
-   "status": "Open"
+   "what_was_found": "E-Banker's reschedule history (RS_02a to RS_02g) landed on 12 October 2026 and was read only for the instalment chart in force; no register of restructures with their Board approval existed and section D of the Return was null. Status 14 October 2026: built and wired (uncommitted in the working tree): the register with maker-checker and the Board approval reference, the detector in the bootstrap and the month-end (detection only), and section D listing the confirmed restructures with their Board approval. On the scratch clone 70 candidates await classification.",
+   "impact": "Until the candidates are classified the Return reports no restructured facility.",
+   "recommended_action": "Credit classifies the candidates; MAIIC records the Board approval of each restructure it confirms.",
+   "owner": "Credit / MAIIC",
+   "status": "In progress"
   },
   {
    "number": "F2",
    "reference": "15(3)",
    "finding": "The prescribed call report form is not in the repository",
-   "what_was_found": "The provisional return fills every line in the directive's order; the Registrar's own form has not been supplied, the loan loss reserve has no line, and the headings cite wrong paragraphs (sections 9 to 11, 12, 15, 17).",
-   "impact": "The return is still transcribed by hand and its citations mislead.",
-   "recommended_action": "MAIIC Risk supplies the current form; Dupleix re-orders and re-words the lines to it, adds the reserve line and corrects the citations to 10, 14, 13, 16(1) and 15(3).",
+   "what_was_found": "The provisional return fills every line in the directive's order; the Registrar's own form has not been supplied, the loan loss reserve has no line, and the headings cite wrong paragraphs (sections 9 to 11, 12, 15, 17). Status 14 October 2026: the citations are corrected (10 and 11, 12, 13, 14 and the Schedule, 15, 16(1), 15(3)) and the reserve line added; the form is still awaited.",
+   "impact": "The return is still transcribed by hand.",
+   "recommended_action": "MAIIC Risk supplies the current form; Dupleix re-orders and re-words the lines to it.",
    "owner": "MAIIC Risk / Dupleix",
    "status": "Open"
   },
@@ -292,21 +292,21 @@
    "number": "F4",
    "reference": "12, 13(3)",
    "finding": "Loss-age write-off and restoration to accrual are not built",
-   "what_was_found": "No loss-since date exists, so the paragraph 12 write-off deadline cannot be shown (10 loss facilities of 1,511.0m at September 2026 on the fresh bootstrap); a facility returns to accrual when its days fall, not when its arrears are paid.",
-   "impact": "The Return can carry loss facilities past the deadline and restore accrual too early.",
-   "recommended_action": "Dupleix adds the loss-since date with a due-for-write-off flag, and an arrears-nil condition before restoration.",
-   "owner": "Dupleix",
-   "status": "Open"
+   "what_was_found": "No loss-since date exists, so the paragraph 12 write-off deadline cannot be shown (10 loss facilities of 1,511.0m at September 2026 on the fresh bootstrap); a facility returns to accrual when its days fall, not when its arrears are paid. Status 14 October 2026: paragraph 12 is built (loss since, age, write-off quarter, status; 7 of the 10 overdue); 13(3) is not.",
+   "impact": "The Return can restore accrual too early.",
+   "recommended_action": "Dupleix adds an arrears-nil condition before restoration; Credit and Finance act on the 7 overdue loss facilities.",
+   "owner": "Dupleix / Credit",
+   "status": "In progress"
   },
   {
    "number": "F5",
    "reference": "13(1)",
    "finding": "Interest in suspense is not the directive's measure",
-   "what_was_found": "Section C is one period's posted contractual interest less EIR interest; GL 1320 is not read and nothing is on the cash basis.",
-   "impact": "The suspense figure on the Return does not tie to the ledger.",
-   "recommended_action": "Compute the cumulative uncollected interest on non-performing facilities on the cash basis and tie it to GL 1320.",
-   "owner": "Dupleix / Finance",
-   "status": "Open"
+   "what_was_found": "Section C is one period's posted contractual interest less EIR interest; GL 1320 is not read and nothing is on the cash basis. Status 14 October 2026: the cumulative interest charged since each facility became non-performing is computed and set against GL 1320; the cash-basis split is a named gap and the trial balances carry no 1320 line from March 2026.",
+   "impact": "The suspense on the Return does not yet tie to a posted suspense balance.",
+   "recommended_action": "Finance posts (or confirms) interest suspense on GL 1320; the cash received is split between principal and interest (allocation rule from Finance) so the cash-basis income can be deducted.",
+   "owner": "Finance / Dupleix",
+   "status": "In progress"
   },
   {
    "number": "F6",
@@ -322,11 +322,11 @@
    "number": "F7",
    "reference": "14 and Schedule",
    "finding": "Two bases for the minimum provision",
-   "what_was_found": "The Return applies the rates to the gross carrying amount, the Provision Comparison report to EAD; an unused helper holds wrong rates.",
-   "impact": "Two screens disagree for one month.",
-   "recommended_action": "Put the Provision Comparison on the gross carrying amount and delete the unused helper.",
+   "what_was_found": "The Return applies the rates to the gross carrying amount, the Provision Comparison report to EAD; an unused helper holds wrong rates. Status 14 October 2026: done, both on the gross carrying amount; the helper is deleted.",
+   "impact": "None remaining.",
+   "recommended_action": "Done.",
    "owner": "Dupleix",
-   "status": "Open"
+   "status": "Closed"
   }
  ]
 }

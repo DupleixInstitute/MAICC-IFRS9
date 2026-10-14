@@ -6,7 +6,7 @@ Malawi Agricultural and Industrial Investment Company (MAIIC) - IFRS 9 EIR and E
 
 Source: IFRS 9 Financial Instruments as issued by the IASB, section 5.5 and B5.5.1 to B5.5.55; 5.4.4 and B5.4.9 (write-off). The Reserve Bank of Malawi Financial Services (Credit Risk Management for Development Finance Institutions) Directive 2018 (docs/regulatory). Specification: docs/MAIIC_EIR_Engine_Specification_v4_2026-10-07.md sections 3.6, 13, 14, 15, 16.
 
-Generated 2026-10-14 08:30:38; the Baselines were read from the database `maiic_ifrs9_results2`.
+Generated 2026-10-14 10:44:30; the Baselines were read from the database `maiic_ifrs9_wire`.
 
 ## Status summary
 
@@ -27,7 +27,7 @@ Generated 2026-10-14 08:30:38; the Baselines were read from the database `maiic_
 | 5.5.1 | A loss allowance for expected credit losses | Done |  | Tests\Feature\Ecl\EclGoldenNumberTest::it_computes_golden_ecl_per_stage_for_prefli_collection_lgd; Tests\Feature\Ecl\TimePhasedEclServiceTest |
 | 5.5.3 | Lifetime ECL on a significant increase in credit risk | Done | dpd_basis | Tests\Feature\Ecl\TimePhasedEclServiceTest::test_a_stage_two_lifetime_compounds_beyond_the_twelve_month_pd; Tests\Feature\Eir\StagingServiceTest::test_the_trigger_reads_the_chart_in_force_at_the_month_end_not_a_later_one |
 | 5.5.5 | 12-month ECL where credit risk has not increased significantly | Done |  | Tests\Feature\Ecl\TimePhasedEclServiceTest::test_stage_one_builds_a_twelve_month_marginal_pd_curve_and_discounts_each_shortfall |
-| 5.5.9 to 5.5.11 | Determining a significant increase in credit risk; the 30-days-past-due rebuttable presumption | Done | dpd_basis; staging_rebuttal (shown, not read) | Tests\Feature\Eir\StagingThresholdSeederTest::test_the_long_term_stage_2_rebuttal_is_inactive_until_signed; Tests\Feature\Eir\StagingServiceTest |
+| 5.5.9 to 5.5.11 | Determining a significant increase in credit risk; the 30-days-past-due rebuttable presumption | Done | dpd_basis; staging_rebuttal (recorded, not yet applied) | Tests\Feature\Eir\StagingThresholdSeederTest::test_the_long_term_stage_2_rebuttal_is_inactive_until_signed; Tests\Feature\Eir\GoLiveControlsTest::test_a_threshold_is_proposed_by_one_person_and_approved_by_another_before_staging_reads_it; Tests\Feature\Eir\StagingClassifierTest::test_with_no_rule_in_force_the_classifier_stops_and_names_it; Tests\Feature\Eir\StagingServiceTest |
 | B5.5.37 | Definition of default; the 90-days-past-due rebuttable presumption | Done | dpd_basis; stage3_missed_instalments | Tests\Feature\Eir\StagingServiceTest::test_the_directive_thresholds_by_tenor_class_and_the_bucket_fallback; Tests\Feature\Eir\StagingThresholdSeederTest::test_medium_and_long_term_facilities_are_stage_3_at_181_days_with_the_rebuttal_cited |
 | **5.5 MEASUREMENT** | | | | |
 | 5.5.17 | Measurement of expected credit losses | Partially done | scenario_weighting_method; fli_adjustment_route | Tests\Feature\FLI\FliRouteServiceTest::test_the_ecl_on_the_post_fli_pd_is_the_weighted_ecl_across_scenarios; Tests\Feature\Ecl\TimePhasedEclServiceTest::test_scenario_weights_combine_into_one_allowance |
@@ -36,15 +36,15 @@ Generated 2026-10-14 08:30:38; the Baselines were read from the database `maiic_
 | B5.5.52 (transmission) | How forward-looking information reaches the PD | Done | fli_transmission_method; fli_asset_correlation | Tests\Feature\FLI\TransmissionMethodCatalogueTest |
 | B5.5.1 to B5.5.6, B5.5.28 to B5.5.30 | Collective assessment and segmentation | Done | pd_segmentation_basis; pd_segment_min_observations; pd_segment_thin_rule; lgd_segment_min_cohort | Tests\Feature\Pd\PdSegmentationTest::test_each_portfolio_gets_its_own_pd_or_its_parents_with_the_lineage_recorded; Tests\Feature\Ecl\MegaFarmProgrammeSeparationTest::test_the_programme_portfolio_is_kept_out_of_the_maiic_scope_and_a_blended_book_is_refused |
 | B5.5.55 | Loss given default and collateral | Partially done | lgd_segment_min_cohort | Tests\Feature\Pd\PdAndLgdEngineTest::test_a_loan_closed_at_nil_is_not_a_cure_and_a_nil_start_balance_is_no_member |
-| 5.5.17(b), B5.5.44 | Time value of money | Partially done |  | Tests\Feature\Ecl\EclDiscountRateServiceTest::test_an_unlocked_or_missing_eir_is_unresolved_never_defaulted; Tests\Feature\Ecl\EclGoldenNumberTest::discounted_mode_keeps_undiscounted_ecl_and_names_unresolved_contracts |
+| 5.5.17(b), B5.5.44 | Time value of money | Partially done |  | Tests\Feature\Ecl\EclDiscountRateServiceTest::test_an_unlocked_or_missing_eir_is_unresolved_never_defaulted; Tests\Feature\Ecl\EclDiscountRateServiceTest::test_a_floating_facility_is_discounted_at_its_current_eir_not_the_original; Tests\Feature\Ecl\TimePhasedEclFloatingRateTest::test_a_floating_loan_with_no_rate_charged_for_the_month_is_unresolved_never_discounted_at_the_original_eir; Tests\Feature\Ecl\EclGoldenNumberTest::discounted_mode_without_the_time_phased_engine_is_refused_never_proxied; Tests\Feature\Reports\BookedAllowanceAndWriteOffsTest::test_the_basis_of_the_allowance_names_the_loans_without_a_discounted_figure |
 | **5.5 WRITE-OFF AND PRESENTATION** | | | | |
-| 5.4.4, B5.4.9 | Write-off | Evidence needed from MAIIC |  | Tests\Feature\Eir\WriteOffTest::test_a_closure_credit_in_a_batch_that_debits_the_write_off_gl_is_a_write_off; Tests\Feature\Pd\PdSegmentationTest::test_a_nil_start_balance_is_no_observation_and_a_write_off_in_the_window_is_a_default |
+| 5.4.4, B5.4.9 | Write-off | Evidence needed from MAIIC |  | Tests\Feature\Eir\WriteOffTest::test_a_closure_credit_in_a_batch_that_debits_the_write_off_gl_is_a_write_off; Tests\Feature\Eir\WriteOffTest::test_a_write_off_batch_in_the_monthly_ledger_feed_is_read; Tests\Feature\Pd\PdSegmentationTest::test_a_nil_start_balance_is_no_observation_and_a_write_off_in_the_window_is_a_default |
 | **THE MEGA FARM PROGRAMME** | | | | |
 | 16 | The Mega Farm loans in the allowance | Evidence needed from MAIIC | mega_farms_scope; megafarm_pd_method; megafarm_scalar_ceiling | Tests\Feature\Ecl\MegaFarmProgrammeSeparationTest::test_the_programme_lgd_is_its_own_cohort_and_a_missing_cohort_declines |
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-14 08:30:38 from maiic_ifrs9_results2.
+Generated 2026-10-14 10:44:30 from maiic_ifrs9_wire.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
@@ -58,6 +58,60 @@ Generated 2026-10-14 08:30:38 from maiic_ifrs9_results2.
 | Loan book 1050201 at 31 Dec 2025 against the trial balance (accepted exception, spec 3.5: -400,000.00) | 1,402,393,139.46 | 1,401,993,139.46 | PASS |
 | Loan book 1050202 at 31 Dec 2025 against the trial balance (accepted exception, spec 3.5: 1,000,000.00) | 3,808,288,656.15 | 3,809,288,656.15 | PASS |
 | Loan book 1050401 at 31 Dec 2025 against the trial balance | 1,827,148,120.69 | 1,827,148,120.69 | PASS |
+| Pack inventory: ebanker-pack-2026-10-09: every file as committed and landed with its manifest rows and SHA-256; 13 received files not landed, each with its reason in the manifest | 12 extracts, 111,513 rows | 12 extracts, 111,513 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12: every file as committed and landed with its manifest rows and SHA-256; 2 received files not landed, each with its reason in the manifest | 39 extracts, 511,785 rows | 39 extracts, 511,785 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12-p5: every file as committed and landed with its manifest rows and SHA-256; 1 received files not landed, each with its reason in the manifest | 8 extracts, 470 rows | 8 extracts, 470 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12-p6: every file as committed and landed with its manifest rows and SHA-256; 0 received files not landed, each with its reason in the manifest | 3 extracts, 236 rows | 3 extracts, 236 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-13-p7: every file as committed and landed with its manifest rows and SHA-256; 0 received files not landed, each with its reason in the manifest | 6 extracts, 32,244 rows | 6 extracts, 32,244 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-13-p8: every file as committed and landed with its manifest rows and SHA-256; 6 received files not landed, each with its reason in the manifest | 4 extracts, 103 rows | 4 extracts, 103 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-14: every file as committed and landed with its manifest rows and SHA-256; 13 received files not landed, each with its reason in the manifest | 2 extracts, 426 rows | 2 extracts, 426 rows | PASS |
+| Pack inventory: manifest.json (packs 1 and 2, data dictionary, trial balances, take-on): every file as committed and landed with its manifest rows and SHA-256; 3 received files not landed, each with its reason in the manifest; 30 workbooks and scripts, 23 landed by the bootstrap | 54 extracts, 85,174 rows, 23 workbooks | 54 extracts, 85,174 rows, 23 workbooks | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: term loans on the worksheet with take-on postings | 77.00 | 77.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose principal taken on (301) = NEWDISBURS_AMT, to the cent | 76.00 | 76.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose opening interest (303) = TOTAL_INT_CHARG, to the cent | 76.00 | 76.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose opening recoveries (305) = TOTA_REPAY_UPTO, to the cent | 72.00 | 72.00 | PASS |
+| Ledger copy CUMVOUCH_BK240824 (CV_04a) to 31 Dec 2023 against the GL opening balances of 1 Jan 2024 (CV_14), 4 loan GLs: sum of the differences | 0.50 | 0.50 | PASS |
+| Loan book 2025-12, MAIIC's loan GLs: carrying amount | no golden value committed (book_2025-12_maiic_amount) | 14,841,212,779.54 | FAIL |
+| Loan book 2025-12, MAIIC's loan GLs: rows | no golden value committed (book_2025-12_maiic_loans) | 123.00 | FAIL |
+| Loan book 2025-12, Mega Farm programme GLs: carrying amount | no golden value committed (book_2025-12_megafarm_amount) | 54,498,560,819.60 | FAIL |
+| Loan book 2025-12, Mega Farm programme GLs: accounts with a balance | no golden value committed (book_2025-12_megafarm_accounts) | 3,671.00 | FAIL |
+| Loan book 2026-09, MAIIC's loan GLs: carrying amount | no golden value committed (book_2026-09_maiic_amount) | 23,189,580,235.43 | FAIL |
+| Loan book 2026-09, MAIIC's loan GLs: rows | no golden value committed (book_2026-09_maiic_loans) | 134.00 | FAIL |
+| Loan book 2026-09, Mega Farm programme GLs: carrying amount | no golden value committed (book_2026-09_megafarm_amount) | 56,180,761,113.43 | FAIL |
+| Loan book 2026-09, Mega Farm programme GLs: accounts with a balance | no golden value committed (book_2026-09_megafarm_accounts) | 3,618.00 | FAIL |
+| Ledger write-offs on MAIIC loans (WriteOffClassifier): postings | no golden value committed (ledger_writeoffs_postings) | 22.00 | FAIL |
+| Ledger write-offs on MAIIC loans (WriteOffClassifier): amount | no golden value committed (ledger_writeoffs_amount) | 60,778,466.86 | FAIL |
+| ECL 2025-12, MAIIC's book: undiscounted | no golden value committed (ecl_2025-12_maiic_undiscounted) | 3,955,543,846.37 | FAIL |
+| ECL 2025-12, MAIIC's book: discounted at the EIR (booked) | no golden value committed (ecl_2025-12_maiic_discounted) | 2,593,174,242.30 | FAIL |
+| ECL 2025-12, MAIIC's book: loans discounted at the EIR | no golden value committed (ecl_2025-12_maiic_discounted_loans) | 56.00 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 1: discounted | no golden value committed (ecl_2025-12_maiic_stage1_discounted) | 61,318,291.61 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 2: discounted | no golden value committed (ecl_2025-12_maiic_stage2_discounted) | 315,409,106.41 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 3: discounted | no golden value committed (ecl_2025-12_maiic_stage3_discounted) | 2,216,446,844.28 | FAIL |
+| ECL 2025-12, Mega Farm programme (latest run) | no golden value committed (ecl_2025-12_megafarm_programme) | none | FAIL |
+| ECL 2025-12, Mega Farm: MAIIC's share | no golden value committed (ecl_2025-12_megafarm_maiic_share) | none | FAIL |
+| ECL 2026-09, MAIIC's book: undiscounted | no golden value committed (ecl_2026-09_maiic_undiscounted) | 11,569,458,915.88 | FAIL |
+| ECL 2026-09, MAIIC's book: discounted at the EIR (booked) | no golden value committed (ecl_2026-09_maiic_discounted) | 7,118,643,553.12 | FAIL |
+| ECL 2026-09, MAIIC's book: loans discounted at the EIR | no golden value committed (ecl_2026-09_maiic_discounted_loans) | 62.00 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 1: discounted | no golden value committed (ecl_2026-09_maiic_stage1_discounted) | 219,546,033.90 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 2: discounted | no golden value committed (ecl_2026-09_maiic_stage2_discounted) | 183,786,390.69 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 3: discounted | no golden value committed (ecl_2026-09_maiic_stage3_discounted) | 6,715,311,128.53 | FAIL |
+| ECL 2026-09, Mega Farm programme (latest run) | no golden value committed (ecl_2026-09_megafarm_programme) | 45,782,301,503.37 | FAIL |
+| ECL 2026-09, Mega Farm: MAIIC's share | no golden value committed (ecl_2026-09_megafarm_maiic_share) | 2,289,115,075.17 | FAIL |
+| EIR contracts locked | no golden value committed (eir_contracts_locked) | 14.00 | FAIL |
+| EIR contracts blocked | no golden value committed (eir_contracts_blocked) | 33.00 | FAIL |
+| EIR contracts solved (an EIR computed) | no golden value committed (eir_contracts_solved) | 14.00 | FAIL |
+| EIR contracts in the contract master | no golden value committed (eir_contracts) | 144.00 | FAIL |
+| Revenue 2024: EIR interest recognised | no golden value committed (revenue_2024_eir_interest) | 25,532,678.70 | FAIL |
+| Revenue 2024: cash received | no golden value committed (revenue_2024_cash_received) | 34,200,000.00 | FAIL |
+| Revenue 2024: roll-forward rows | no golden value committed (revenue_2024_rows) | 20.00 | FAIL |
+| Revenue 2025: EIR interest recognised | no golden value committed (revenue_2025_eir_interest) | 663,970,866.88 | FAIL |
+| Revenue 2025: cash received | no golden value committed (revenue_2025_cash_received) | 1,158,267,060.20 | FAIL |
+| Revenue 2025: roll-forward rows | no golden value committed (revenue_2025_rows) | 126.00 | FAIL |
+| Revenue 2026: EIR interest recognised | no golden value committed (revenue_2026_eir_interest) | 544,517,024.26 | FAIL |
+| Revenue 2026: cash received | no golden value committed (revenue_2026_cash_received) | 2,381,610,987.63 | FAIL |
+| Revenue 2026: roll-forward rows | no golden value committed (revenue_2026_rows) | 113.00 | FAIL |
+| RBM return 2026-09: facilities classified loss (paragraph 12 list) | no golden value committed (rbm_2026-09_loss_facilities) | 10.00 | FAIL |
+| RBM return 2026-09: balance of the loss list | no golden value committed (rbm_2026-09_loss_balance) | 1,510,956,083.45 | FAIL |
 
 ## Findings - items that need a decision or a fix
 
@@ -82,12 +136,12 @@ Generated 2026-10-14 08:30:38 from maiic_ifrs9_results2.
 - **Recommended action:** The CFO confirms D30 and the provisioning method; the next bootstrap on 216aee2 restages the programme on the chart in force.
 - **Owner:** Dr Thom / Dupleix
 
-### F4. The reports carry the undiscounted allowance (5.5.17(b)) - Open
+### F4. The reports carry the undiscounted allowance (5.5.17(b)) - In progress
 
-- **What was found:** The discounted allowance is held in ecl_value_discounted; the IFRS 9 note, ECL reconciliation, RBM Return and other reports read ecl_value.
-- **Impact:** The disclosed allowance is undiscounted.
-- **Recommended action:** Point the note and the reports at the booked (discounted) allowance, with the undiscounted measure as a reconciling line.
-- **Owner:** Dupleix
+- **What was found:** The discounted allowance is held in ecl_value_discounted; the IFRS 9 note, ECL reconciliation, RBM Return and other reports read ecl_value. Status 14 October 2026: the reports carry the booked allowance with the undiscounted measure as a reconciling line, and name the loans with no discounted figure (38 at September 2026); the note fails closed until there are none.
+- **Impact:** The disclosed allowance is not wholly discounted until those loans carry a locked EIR.
+- **Recommended action:** Lock the EIRs of the named loans (fee reviews), then run the month-end ECL again.
+- **Owner:** Dupleix / MAIIC reviewers
 
 ### F5. Collateral is not in the LGD (B5.5.55) - Open
 
@@ -133,12 +187,12 @@ Generated 2026-10-14 08:30:38 from maiic_ifrs9_results2.
 **5.5.9 to 5.5.11. Determining a significant increase in credit risk; the 30-days-past-due rebuttable presumption** - *Done*
 
 - **What it requires:** Assess the change in the risk of default since initial recognition using reasonable and supportable information; there is a rebuttable presumption that credit risk has increased significantly when payments are more than 30 days past due.
-- **What the engine does:** Stage 2 from 31 days past due in every facility class, counted from the oldest overdue instalment, with the bucket ageing beside it. The rebuttal is recorded on the threshold rows (staging_thresholds.rebuttal_basis); the LONG_TERM row proposing Stage 2 at 91 days for medium- and long-term facilities only is seeded future-dated (2099) and inactive pending CFO sign-off. The threshold rows are seeded and read-only on screen (a change is a release, not a setting). The staging_rebuttal catalogue setting is shown on Settings but read by no engine.
-- **General comment:** The O13 rebuttal paper of 8 October 2026.
+- **What the engine does:** Stage 2 from 31 days past due in every facility class, counted from the oldest overdue instalment, with the bucket ageing beside it. The rebuttal is recorded on the threshold rows (staging_thresholds.rebuttal_basis); the LONG_TERM row proposing Stage 2 at 91 days for medium- and long-term facilities only is seeded future-dated (2099) and inactive pending CFO sign-off. Since 14 October 2026 a threshold row is proposed by one person and approved by another on Settings, Staging basis, forward only and never into a locked month, and staging reads only approved rows, at the period end, with no 31/181 fallback in the legacy importer (audit H11). The staging_rebuttal catalogue setting is marked recorded, not yet applied: the rebuttal is the threshold row with its evidence.
+- **General comment:** The O13 rebuttal paper of 8 October 2026. Until 14 October 2026 the threshold rows were seeded and read-only on screen.
 - **Compliance comment:** Compliant; the presumption is applied and the rebuttal awaits the CFO.
 - **Where to see it:** Settings, Staging basis: /setting?tab=staging; IFRS 9 Model Setup, Staging & SICR Rules: /sicr-groups; Governance: Governance Centre /eir-governance
-- **Governance setting:** `dpd_basis; staging_rebuttal (shown, not read)`
-- **Test that proves it:** `Tests\Feature\Eir\StagingThresholdSeederTest::test_the_long_term_stage_2_rebuttal_is_inactive_until_signed; Tests\Feature\Eir\StagingServiceTest`
+- **Governance setting:** `dpd_basis; staging_rebuttal (recorded, not yet applied)`
+- **Test that proves it:** `Tests\Feature\Eir\StagingThresholdSeederTest::test_the_long_term_stage_2_rebuttal_is_inactive_until_signed; Tests\Feature\Eir\GoLiveControlsTest::test_a_threshold_is_proposed_by_one_person_and_approved_by_another_before_staging_reads_it; Tests\Feature\Eir\StagingClassifierTest::test_with_no_rule_in_force_the_classifier_stops_and_names_it; Tests\Feature\Eir\StagingServiceTest`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 **B5.5.37. Definition of default; the 90-days-past-due rebuttable presumption** - *Done*
@@ -223,11 +277,11 @@ Generated 2026-10-14 08:30:38 from maiic_ifrs9_results2.
 **5.5.17(b), B5.5.44. Time value of money** - *Partially done*
 
 - **What it requires:** Discount the expected credit losses at the EIR determined at initial recognition (or an approximation).
-- **What the engine does:** EclDiscountRateService takes the loan's locked EIR; an unlocked or missing EIR is unresolved, never defaulted, and a floating loan's rate is labelled a proxy; a Stage 3 loss at the reporting date needs no rate. Since 216aee2 the month-end and the bootstrap run discounted by default: ecl_value keeps the engine's measure and ecl_value_discounted holds the discounted allowance, shown on the ECL screen. But the IFRS 9 note, the ECL reconciliation, the RBM Return and the other reports still read ecl_value, so the figure they carry is undiscounted. On the fresh bootstrap at September 2026, 62 main-book loans are discounted (7.12bn) and 72 are unresolved.
-- **General comment:** Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 the row said 'the contractual rate where none is locked', which the code never did.
-- **Compliance comment:** Partially done: the discounted allowance is computed; the reports must carry it.
+- **What the engine does:** TimePhasedEclService discounts each loan's expected shortfalls at its locked original EIR and a floating-rate loan's at its current EIR for the month (EIR_CURRENT_FLOATING: the rate the revenue run accrued at, or the same D38 re-estimation from the rate charged; B5.5.44); an unlocked or missing EIR, or a floating loan with no current EIR, is unresolved with the reason, never defaulted or given the original rate; a Stage 3 loss at the reporting date needs no rate. Since 14 October 2026 EclDiscountRateService (the LGD recovery discounting) applies the same rule, so no basis is labelled EIR_ORIGINAL_FLOATING_PROXY any more. Since 216aee2 the month-end and the bootstrap run discounted by default: ecl_value keeps the engine's measure and ecl_value_discounted holds the discounted allowance, shown on the ECL screen. Since 14 October 2026 every report carries the booked allowance (BookedEcl: discounted at the original EIR; the Mega Farm programme measure; a loan with no discounted figure at its undiscounted ECL, counted and named), with the reconciliation from the reporting-date measure (the lifetime projection and the effect of discounting); the IFRS 9 note fails closed while any loan lacks its discounted allowance. On the fresh bootstrap at September 2026, 62 main-book loans are discounted (7,118,643,553.12) and 38 with an ECL have no discounted figure (4,460,558,036.40 undiscounted; most without a locked EIR).
+- **General comment:** Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 the row said 'the contractual rate where none is locked', which the code never did; and the reports read the undiscounted ecl_value.
+- **Compliance comment:** Partially done: the reports carry the discounted allowance; 38 loans still need a locked EIR before the allowance is wholly discounted.
 - **Where to see it:** ECL Processing, ECL Calculation: /expected-credit-loss/list
-- **Test that proves it:** `Tests\Feature\Ecl\EclDiscountRateServiceTest::test_an_unlocked_or_missing_eir_is_unresolved_never_defaulted; Tests\Feature\Ecl\EclGoldenNumberTest::discounted_mode_keeps_undiscounted_ecl_and_names_unresolved_contracts`
+- **Test that proves it:** `Tests\Feature\Ecl\EclDiscountRateServiceTest::test_an_unlocked_or_missing_eir_is_unresolved_never_defaulted; Tests\Feature\Ecl\EclDiscountRateServiceTest::test_a_floating_facility_is_discounted_at_its_current_eir_not_the_original; Tests\Feature\Ecl\TimePhasedEclFloatingRateTest::test_a_floating_loan_with_no_rate_charged_for_the_month_is_unresolved_never_discounted_at_the_original_eir; Tests\Feature\Ecl\EclGoldenNumberTest::discounted_mode_without_the_time_phased_engine_is_refused_never_proxied; Tests\Feature\Reports\BookedAllowanceAndWriteOffsTest::test_the_basis_of_the_allowance_names_the_loans_without_a_discounted_figure`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 ### 5.5 WRITE-OFF AND PRESENTATION
@@ -235,11 +289,11 @@ Generated 2026-10-14 08:30:38 from maiic_ifrs9_results2.
 **5.4.4, B5.4.9. Write-off** - *Evidence needed from MAIIC*
 
 - **What it requires:** Write off the gross carrying amount when there is no reasonable expectation of recovery.
-- **What the engine does:** WriteOffClassifier (220a5a6) identifies ledger write-offs (type 300; a batch debiting GL 1064; ACCOUNT CLOSURE on a status-H account) for the loan-book build, the contract inputs and the EIR cash; the PD cohort counts a write-off as a default (216aee2); the register records a write-off not on the loan account under two-person approval. On the fresh bootstrap: 22 ledger write-offs of 60,778,466.86; the register is empty.
+- **What the engine does:** WriteOffClassifier (220a5a6) identifies ledger write-offs (type 300; a batch debiting GL 1064; ACCOUNT CLOSURE on a status-H account) for the loan-book build, the contract inputs and the EIR cash; the PD cohort counts a write-off as a default (216aee2); the register records a write-off not on the loan account under two-person approval; since 14 October 2026 the same source (WriteOffSource) feeds the IFRS 9 note, the reconciliations and the RBM Return, and the monthly feed M09_01 is read for write-off batch legs. On the fresh bootstrap: 22 ledger write-offs of 60,778,466.86 (20 of them, 38,492,032.54, between December 2025 and September 2026); the register is empty.
 - **General comment:** Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 the row said no write-off had been posted since the take-on.
 - **Compliance comment:** Evidence needed: MAIIC's write-off policy and Finance's confirmation of status H.
 - **Where to see it:** EIR Data, Write-offs: /eir-write-offs
-- **Test that proves it:** `Tests\Feature\Eir\WriteOffTest::test_a_closure_credit_in_a_batch_that_debits_the_write_off_gl_is_a_write_off; Tests\Feature\Pd\PdSegmentationTest::test_a_nil_start_balance_is_no_observation_and_a_write_off_in_the_window_is_a_default`
+- **Test that proves it:** `Tests\Feature\Eir\WriteOffTest::test_a_closure_credit_in_a_batch_that_debits_the_write_off_gl_is_a_write_off; Tests\Feature\Eir\WriteOffTest::test_a_write_off_batch_in_the_monthly_ledger_feed_is_read; Tests\Feature\Pd\PdSegmentationTest::test_a_nil_start_balance_is_no_observation_and_a_write_off_in_the_window_is_a_default`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 ### THE MEGA FARM PROGRAMME

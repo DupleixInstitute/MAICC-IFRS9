@@ -113,6 +113,7 @@ return [
                 $tab('Reference Rates', 'eir-reference-rates.index', 'eir.view'),
                 $tab('Trial Balances', 'eir-trial-balances.index', 'eir.view'),
                 $tab('Write-offs', 'eir-write-offs.index', 'eir.view'),
+                $tab('Restructures & Resets', 'eir-restructures.index', 'eir.view'),
                 $tab('Schedule Review', 'eir-data.index', 'eir.view', ['tab' => 'schedules']),
             ]),
             $section('EIR Rules', [

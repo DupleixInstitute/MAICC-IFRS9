@@ -355,7 +355,7 @@ class PackLandingService
         } elseif (! mb_check_encoding($text, 'UTF-8')) {
             $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
         }
-        $lines = preg_split("/\r\n|\n|\r/", $text);
+        $lines = $this->records($text);
         $headers = null; $rows = []; $errors = [];
         foreach ($lines as $n => $line) {
             if (trim($line) === '') continue;
@@ -382,6 +382,39 @@ class PackLandingService
     }
 
     private bool $dropFirst = false;
+
+    /**
+     * The file's records, keyed by the number of the physical line each starts on
+     * (0-based). A record is one line, except where a quoted value holds a line
+     * break: SQL Developer writes a narrative with an embedded new line inside its
+     * quotes (pack 7, CV_04a3, PARTICULARS "Wrong account for transport refund"),
+     * so a line whose quotes do not balance is joined to the next, with the break
+     * kept inside the value as received. A line whose quotes balance is a record
+     * on its own, exactly as before; every file landed before 14 October 2026 has
+     * balanced quotes on every line, so it reads the same.
+     *
+     * @return array<int, string>
+     */
+    private function records(string $text): array
+    {
+        $parts = preg_split("/(\r\n|\n|\r)/", $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $out = [];
+        $buffer = null; $start = 0; $line = 0;
+        for ($i = 0, $n = count($parts); $i < $n; $i += 2, $line++) {
+            $piece = $parts[$i];
+            if ($buffer === null) {
+                $buffer = $piece; $start = $line;
+            } else {
+                $buffer .= ($parts[$i - 1] ?? "\n") . $piece;
+            }
+            if (substr_count($buffer, '"') % 2 === 0 || $i + 2 >= $n) {
+                $out[$start] = $buffer;
+                $buffer = null;
+            }
+        }
+
+        return $out;
+    }
 
     private function dateFormat(array $manifest): string
     {

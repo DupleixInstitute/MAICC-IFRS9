@@ -9,8 +9,11 @@ use Illuminate\Support\Facades\DB;
  * The query register of the E-Banker feed (spec v4 section 6.4): each extract
  * the landing zone knows, its source table, the column that is its key, the
  * account and date columns, and whether it is pulled incrementally by key.
- * Idempotent on query_id. The SQL text itself is loaded from the committed
- * query files by the bootstrap; here is the shape.
+ * Idempotent on query_id. The register holds the shape only: its sql and
+ * sha256 columns are not filled by this seeder or by the bootstrap. The SQL
+ * text lives in the committed files under docs/bootstrap/queries, which the
+ * E-Banker Feed screen hands out as one download (EirFeedController::queries)
+ * (corrected 14 October 2026; it said the bootstrap loads the SQL text).
  */
 class EbankerQuerySeeder extends Seeder
 {
@@ -62,6 +65,32 @@ class EbankerQuerySeeder extends Seeder
             ['TB_02', 'Trial balance history probe (counts)', 'TRIAL_BALANCE_HISTORY', 'MONTH', null, null, false],
             ['CV_01', 'Old ledger probe (counts)', 'CUMOVUCH_OLD', 'YEAR', null, null, false],
             ['TB_03', 'Trial balance rows (E-Banker)', 'TRIAL_BALANCE_HISTORY', 'GLCODE,TRANSACTION_DATE', null, 'TRANSACTION_DATE', false],
+            // packs 5 to 8 (12 and 13 October 2026). Each has its own id, outside the families
+            // LandingZoneReader reads for the engines (LEDGER, TRIAL_BALANCE, ACCOUNT_MASTER,
+            // LOAN_MASTER, CHARGES), so landing them moves no engine figure: GL_04c, GL_06a,
+            // GL_06b, GL_07 and GL_08a are slices of the live ledger already landed, TB_04 and
+            // TB_05 of the stored trial balance (TB_03), and CV_04a/CV_04b are the ledger copies
+            // from before the July 2024 migration, whose posting ids come from other sequences
+            ['P2_13b', 'LOS request payloads, pieces 3 and 4 of the long requests', 'LOS_REQUEST_DETAILS', 'LOS_REQ_ID', null, null, false],
+            ['GL_06a', 'GL 6730 postings Jun to Sep 2026, with audit columns', 'CUMVOUCH', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['GL_06b', 'Postings of exactly 88,000, Jul and Aug 2026', 'CUMVOUCH', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['GL_06d', 'GL 6730 year-opening balances', 'GL_OPENING_BALANCE', 'GL_OPENING_BAL_DET_ID', null, 'FINYEARSTARTDATE', false],
+            ['TB_04', 'Stored trial balance, GL 6730, 25 Jun to 5 Aug 2026', 'TRIAL_BALANCE_HISTORY', 'GLCODE,TRANSACTION_DATE', null, 'TRANSACTION_DATE', false],
+            ['GL_04c', 'Fee income GL legs, all columns (the GL_04a legs)', 'CUMVOUCH', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['GL_07', 'GL 2010 batch legs since 2024 (fees cleared through 2010)', 'CUMVOUCH', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['CV_02', 'Ledger-copy tables probe (names, statistics row counts)', 'ALL_TABLES', 'TABLE_NAME', null, null, false], // OWNER|TABLE_NAME would pass the 60 characters of source_key
+            ['GL_08a', 'GL 6730 postings Jan to Jun 2026, with audit columns', 'CUMVOUCH', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['TB_05', 'Stored trial balance, GL 6730, 2 Jan to 25 Jun 2026', 'TRIAL_BALANCE_HISTORY', 'GLCODE,TRANSACTION_DATE', null, 'TRANSACTION_DATE', false],
+            ['CV_03', 'Ledger copies: postings and accounts by year', null, 'TABLE_NAME,YEAR', null, null, false],
+            ['CV_04a', 'Ledger copy CUMVOUCH_BK240824 (2018 to 15 Aug 2024), pre-migration', 'CUMVOUCH_BK240824', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['CV_04b', 'Ledger copy CUMVOUCH_BAK (2000 to 27 Mar 2024, earlier chart)', 'CUMVOUCH_BAK', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['CV_05a', 'Account master rows of the old 00010075 block', 'ACMASTER', 'NEW_AC_NUMBER', 'NEW_AC_NUMBER', 'ACCOUNT_OPEN_DATE', false],
+            ['CV_05b', 'Loan master rows of the old 00010075 block', 'ACLOANMASTER', 'NEW_AC_NUMBER', 'NEW_AC_NUMBER', 'SANCTION_DATE', false],
+            ['CV_06', 'Migration tables probe (names, statistics row counts)', 'ALL_TABLES', 'OWNER,TABLE_NAME', null, null, false],
+            ['CV_07', 'Account-mapping columns probe (names only)', 'ALL_TAB_COLUMNS', null, null, null, false], // keyed by row: OWNER|TABLE_NAME|COLUMN_NAME passes the 60 characters of source_key
+            // pack 9 (14 October 2026): the migration worksheet and the GL opening balances of 2024
+            ['CV_10', 'Migration worksheet (OPENING_BAL), take-on of 31 Jul 2024', 'OPENING_BAL', 'OP_BAL_DET_ID', 'ACCNO', null, false],
+            ['CV_14', 'GL opening balances of 1 Jan 2024 (backup of 24 Aug 2024)', 'GL_OPENING_BALANCE_BK240824', 'GL_OPENING_BAL_DET_ID', null, 'FINYEARSTARTDATE', false],
             // packs 3 and 4 (9 and 11 October 2026)
             ['SM_01',  'Scheme master',                         'SCHEME_MASTER',           'SCHEME_MST_ID',       null,            null,                   false],
             ['CT_01',  'Row counts of the reschedule, write-off and charges tables', null,  'TABLE_NAME',          null,            null,                   false],

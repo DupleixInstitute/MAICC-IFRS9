@@ -1,0 +1,87 @@
+{
+  "pack": "MAIIC E-Banker pack 9, received 14 October 2026",
+  "assembled": "2026-10-14",
+  "period": "2026-09",
+  "source": "E-Banker (Virtual Galaxy CBS, schemas VGCBS and MAIIC_ORA_LIVE), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 9 - 13 Oct 2026.sql, uploaded to OneDrive by Vanessa Magaleta on 14 October 2026 at 09:09; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
+  "date_format": "m/d/Y",
+  "scope_scheme_ids": [],
+  "accepted_exceptions": [
+    "RUN 0 not applied: every date is m/d/yyyy; the manifest declares the format (D23)",
+    "CV_10 and CV_14 are migration-time references (31 July 2024 and 1 January 2024); they are not monthly feed queries and carry no row date the ledger readers use"
+  ],
+  "not_landed": [
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_08_table_counts.csv",
+      "reason": "row counts of the pack 9 tables (RUN 1); a probe, not data"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_09a_account_no_mapp.csv",
+      "reason": "ACCOUNT_NO_MAPP is empty: E-Banker keeps no old-to-new account map there"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_09b_new_acmap.csv",
+      "reason": "NEW_ACMAP is empty"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_11a_t_account.csv",
+      "reason": "T_ACCOUNT is empty"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_11b_t_accountbalance.csv",
+      "reason": "T_ACCOUNTBALANCE is empty"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_12a_old_block_g_acmaster.csv",
+      "reason": "no row of the 00010075 block in G_ACMASTER"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_12b_old_block_acmaster_mw.csv",
+      "reason": "one row: 000100750000001, an expense account (GL 6000), not a loan"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_12c_old_block_acmaster_nf.csv",
+      "reason": "ACMASTER_NF is empty"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_12d_acmaster_05082024_loans.csv",
+      "reason": "no row matched the loan GLs or the old block; follow-up RUN 5d-2 asked"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_12e_temp_master.csv",
+      "reason": "TEMP_MASTER is empty"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_13_cumovuch_old_profile.csv",
+      "reason": "a count profile of CUMOVUCH_OLD (13,359 rows, 2018-2022) under account blocks that match no loan; the table itself is not requested"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/OD_01_overdue_details.csv",
+      "reason": "a 21-row fragment (SQL Developer stopped at 100 MB); RUN 8 was split into 8a, 8b and 8c, which supersede it"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/OD_01_overdue_details.png",
+      "reason": "a screenshot of the RUN 8 grid sent with the OD_01 fragment, not an extract"
+    }
+  ],
+  "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "CV_10_opening_bal.csv",
+      "query_id": "CV_10",
+      "kind": "pack 9 RUN 3: OPENING_BAL, the July 2024 migration worksheet (78 term loans taken on at 31 July 2024 plus 17 GL 2000 supplier balances); per loan the sanction, disbursement, restructure date and amount, rate, tenor, balance, interest charged and repaid, overdue amounts and NEWDISBURS_AMT; ties to the 301/303/305 take-on postings on 76 of 77 loans (pack 9 results review)",
+      "rows": 95,
+      "sha256": "737e39de241a4d73d043b9e41770c9e6725b73990d5b941a67037d9ebbadb07f",
+      "bytes": 26804,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_10_opening_bal.csv"
+    },
+    {
+      "file": "CV_14_gl_opening_balance_bk240824.csv",
+      "query_id": "CV_14",
+      "kind": "pack 9 RUN 7: GL_OPENING_BALANCE_BK240824, the GL opening balances of financial year 2024 (1 January 2024); the loan GLs tie to the pack 7 ledger copy CUMVOUCH_BK240824 to 31 December 2023 within 0.50",
+      "rows": 331,
+      "sha256": "f04ad85fa28096cdb426c154ff67d25d8ac70f4b55af627e660cf6b0eb1249e0",
+      "bytes": 67506,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 9/Export Results/CV_14_gl_opening_balance_bk240824.csv"
+    }
+  ]
+}

@@ -21,6 +21,8 @@ use Tests\TestCase;
  */
 class MegaFarmProgrammeSeparationTest extends TestCase
 {
+    use \Tests\Concerns\SeedsGovernedDefaults;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -28,6 +30,8 @@ class MegaFarmProgrammeSeparationTest extends TestCase
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
+        // the engines read their governed settings with no value in code: the seeded defaults (D21)
+        $this->seedGovernedDefaults(['mega_farms_scope', 'megafarm_pd_method', 'megafarm_scalar_ceiling']);
         Schema::create('loan_books', function (Blueprint $t) {
             $t->increments('id');
             foreach (['contract_id', 'reporting_period', 'product_group', 'product_code', 'ifrs9stage_post_qualitative', 'calculated_ifrs9_stage', 'fli_route', 'fli_method'] as $c) { $t->string($c)->nullable(); }
@@ -110,5 +114,41 @@ class MegaFarmProgrammeSeparationTest extends TestCase
         $this->assertEqualsWithDelta(0.625, $r['scalar'], 1e-9);
         $this->assertSame(1.0, $r['pd_by_stage']['3']);
         $this->assertEqualsWithDelta(0.5, $r['pd_by_stage']['1'], 1e-9);
+    }
+
+    /** A scope that states no MAIIC share is declined with the reason; the share used to fall back to 100 percent. */
+    public function test_a_scope_that_states_no_share_is_declined_not_taken_as_one_hundred_percent(): void
+    {
+        DB::table('governance_settings')->insert(['key' => 'mega_farms_scope', 'value' => 'In scope, stage and interest basis confirmed first', 'options' => '[]', 'label' => 'scope', 'description' => '',
+            'effective_from' => '2020-01-01', 'status' => 'APPROVED', 'created_at' => now(), 'updated_at' => now()]);
+        $this->loan('F1', '2025-12', 2, '1050302', 'Mega Farm Seed Loans', '1', 50);
+        $r = (new MegaFarmEclService(new GovernanceService()))->run('2025-12');
+        $this->assertStringContainsString('states no MAIIC share', (string) $r['declined']);
+        $this->assertSame(0.0, $r['maiic_ecl']);
+        $this->assertSame(0.05, MegaFarmEclService::shareFromScope('Out of EIR engine; in ECL module; 5 percent share on net'));
+        $this->assertNull(MegaFarmEclService::shareFromScope('In scope, stage and interest basis confirmed first'));
+    }
+
+    /** A programme loan with no stage is not taken as Stage 1; a missing governed setting stops the run. */
+    public function test_an_unstaged_loan_is_declined_and_a_missing_setting_stops_the_run(): void
+    {
+        $this->loan('F1', '2025-12', 2, '1050302', 'Mega Farm Seed Loans', '1', 50);
+        DB::table('loan_books')->where('contract_id', 'F1')->update(['ifrs9stage_post_qualitative' => null]);
+        $r = (new MegaFarmEclService(new GovernanceService()))->run('2025-12');
+        $this->assertStringContainsString('carry no stage', (string) $r['declined']);
+
+        DB::table('governance_settings')->where('key', 'megafarm_scalar_ceiling')->delete();
+        $this->expectException(\App\Exceptions\GovernanceSettingMissingException::class);
+        (new MegaFarmEclService(new GovernanceService()))->run('2025-12');
+    }
+
+    /** A locked month is never restated by the programme ECL (audit H4). */
+    public function test_a_locked_month_is_refused(): void
+    {
+        Schema::create('reporting_period_locks', function (Blueprint $t) { $t->increments('id'); $t->string('reporting_period')->unique(); $t->integer('locked_by')->nullable(); $t->timestamp('locked_at')->nullable(); $t->string('reason')->nullable(); $t->timestamps(); });
+        DB::table('reporting_period_locks')->insert(['reporting_period' => '2025-12', 'locked_at' => now(), 'reason' => 'closed']);
+        $this->loan('F1', '2025-12', 2, '1050302', 'Mega Farm Seed Loans', '1', 50);
+        $this->expectExceptionMessage('Reporting period 2025-12 is locked');
+        (new MegaFarmEclService(new GovernanceService()))->run('2025-12');
     }
 }

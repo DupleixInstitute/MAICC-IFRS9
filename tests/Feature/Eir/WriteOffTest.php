@@ -50,6 +50,21 @@ class WriteOffTest extends TestCase
         $this->assertNull($c->rule($credit, '2026-06-30', '000104420000007'));
     }
 
+    /** A write-off batch whose GL leg arrives in the monthly ledger feed (M09_01) marks the loan credit (added 14 October 2026). */
+    public function test_a_write_off_batch_in_the_monthly_ledger_feed_is_read(): void
+    {
+        $this->assertContains('M09_01', WriteOffClassifier::GL_LEG_QUERIES);
+        $zone = $this->createMock(LandingZoneReader::class);
+        $zone->method('family')->willReturnCallback(fn (array $ids) => in_array('M09_01', $ids, true) ? [$this->leg('2026-10-30', 'TRF', '9', '1064', -1000.0), $this->leg('2026-10-30', 'TRF', '9', '1050101', 1000.0)] : []);
+        $zone->method('accountMaster')->willReturn([]);
+        $c = new WriteOffClassifier($zone);
+
+        $credit = ['TRANTYPE' => '305', 'TRANSAMT' => '1000', 'BATCH_TYPE' => 'TRF', 'BATCH_NUMBER' => '9'];
+        $this->assertSame('batch 2026-10-30 TRF 9 debits GL 1064', $c->rule($credit, '2026-10-30', 'A'));
+        // the loan leg itself (a credit on a loan GL) does not mark a batch
+        $this->assertNull($c->rule(['TRANTYPE' => '305', 'TRANSAMT' => '1000', 'BATCH_TYPE' => 'TRF', 'BATCH_NUMBER' => '10'], '2026-10-30', 'A'));
+    }
+
     public function test_type_300_is_a_write_off_and_an_ordinary_repayment_is_not(): void
     {
         $c = $this->classifier([]);

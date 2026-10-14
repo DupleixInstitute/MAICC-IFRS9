@@ -154,4 +154,26 @@ class EclMovementAttributionTest extends TestCase
         $this->assertSame(1000, A::roundTo(999500, 1000) * 1000 / 1000);
         $this->assertSame(-1, A::roundTo(-50000, 100000));
     }
+    /** A write-off amount (built 14 October 2026): the write-off line takes it; the rest follows the usual lines, and every column ties. */
+    public function test_a_written_off_amount_takes_its_own_line_in_both_books_gone_and_new(): void
+    {
+        $r = A::attribute([
+            // in both books: 500 to nil after 480 written off; stage 3 throughout
+            ['from' => 3, 'to' => 3, 'contracts' => 1, 'opening' => 500, 'closing' => 0, 'written_off_amount' => 480],
+            // gone from the book: 200 opening, 150 of it written off, the rest repaid
+            ['from' => 2, 'to' => null, 'contracts' => 1, 'opening' => 200, 'closing' => 0, 'written_off_amount' => 150],
+            // new in the period and written off in part: 300 at the close after 40 written off
+            ['from' => null, 'to' => 1, 'contracts' => 1, 'opening' => 0, 'closing' => 300, 'written_off_amount' => 40],
+        ]);
+        $l = $r['lines'];
+        $this->assertTrue($r['check']['ok'], implode(' ', $r['check']['messages']));
+        $this->assertSame(-480, $l['written_off'][3]);
+        $this->assertSame(-20, $l['remeasurement'][3]);
+        $this->assertSame(-150, $l['written_off'][2]);
+        $this->assertSame(-50, $l['derecognised'][2]);
+        $this->assertSame(340, $l['originated'][1]);
+        $this->assertSame(-40, $l['written_off'][1]);
+        $this->assertSame(-670, $l['written_off']['total']);
+        $this->assertSame(1, $r['contracts']['written_off'][2]);
+    }
 }

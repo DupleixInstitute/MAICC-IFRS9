@@ -81,28 +81,47 @@ class StagingClassifierTest extends TestCase
         $this->createTable();
         $this->seedDefault();
 
-        $classifier = new StagingClassifier();
+        $classifier = new StagingClassifier('2026-08-31');
         foreach ($this->legacyExpectations() as [$row, $expected]) {
             $this->assertSame($expected, $classifier->classify($row), json_encode($row));
         }
     }
 
-    public function test_matches_legacy_ladder_with_empty_config_table(): void
+    /** With no rule in force the import stops; it no longer falls back to a 31/181 ladder in code (H11). */
+    public function test_with_no_rule_in_force_the_classifier_stops_and_names_it(): void
     {
         $this->createTable();
 
-        $classifier = new StagingClassifier();
-        foreach ($this->legacyExpectations() as [$row, $expected]) {
-            $this->assertSame($expected, $classifier->classify($row), json_encode($row));
-        }
+        $classifier = new StagingClassifier('2026-08-31');
+        $this->assertSame('1', $classifier->classify([]), 'a loan with no arrears needs no rule');
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('No approved staging threshold is in force');
+        $classifier->classify(['31_90_days' => '100']);
     }
 
-    public function test_matches_legacy_ladder_with_no_table_at_all(): void
+    /** The rule is read at the period end, not today: a rule effective later does not govern an earlier month. */
+    public function test_the_rule_is_read_at_the_period_end_not_today(): void
     {
-        $classifier = new StagingClassifier();
-        foreach ($this->legacyExpectations() as [$row, $expected]) {
-            $this->assertSame($expected, $classifier->classify($row), json_encode($row));
-        }
+        $this->createTable();
+        $this->seedDefault();
+        StagingThreshold::create(['facility_class' => 'DEFAULT', 'min_tenor_months' => 0, 'stage2_dpd' => 61, 'stage3_dpd' => 181, 'effective_from' => '2026-06-01']);
+
+        $this->assertSame('2', (new StagingClassifier('2026-05-31'))->classify(['31_90_days' => '100']));
+        $this->assertSame('1', (new StagingClassifier('2026-08-31'))->classify(['31_90_days' => '100']), 'the 31-90 bucket reads as 31 days, under the 61 in force from June');
+        $this->assertSame('2', (new StagingClassifier('2026-08-31'))->classify(['91_180_days' => '100']));
+    }
+
+    /** A proposed row (maker-checker, H11) does not govern until a second person approves it. */
+    public function test_a_proposed_rule_does_not_govern(): void
+    {
+        $this->createTable();
+        Schema::table('staging_thresholds', function (Blueprint $t) {
+            $t->string('status', 20)->default('APPROVED'); $t->unsignedBigInteger('proposed_by')->nullable(); $t->unsignedBigInteger('approved_by')->nullable(); $t->timestamp('approved_at')->nullable(); $t->string('reason', 500)->nullable();
+        });
+        $this->seedDefault();
+        StagingThreshold::create(['facility_class' => 'DEFAULT', 'min_tenor_months' => 0, 'stage2_dpd' => 31, 'stage3_dpd' => 91, 'effective_from' => '2026-01-01', 'status' => 'PROPOSED', 'proposed_by' => 1]);
+
+        $this->assertSame('2', (new StagingClassifier('2026-08-31'))->classify(['91_180_days' => '100']), 'the proposal (Stage 3 at 91) is not in force');
     }
 
     public function test_future_dated_rule_is_inactive(): void
@@ -120,7 +139,7 @@ class StagingClassifierTest extends TestCase
 
         // Even asking for LONG_TERM with qualifying tenor: the future-dated
         // rule must not govern; DEFAULT (31 DPD) still applies.
-        $classifier = new StagingClassifier();
+        $classifier = new StagingClassifier('2026-08-31');
         $this->assertSame('2', $classifier->classify(['31_90_days' => '100'], 'LONG_TERM', 60));
     }
 
@@ -139,12 +158,12 @@ class StagingClassifierTest extends TestCase
 
         // 31-90 bucket: DEFAULT stages it 2; the active LONG_TERM rule
         // (90-day backstop) keeps a long-tenor facility in stage 1.
-        $long = new StagingClassifier();
+        $long = new StagingClassifier('2026-08-31');
         $this->assertSame('1', $long->classify(['31_90_days' => '100'], 'LONG_TERM', 60));
         $this->assertSame('2', $long->classify(['91_180_days' => '100'], 'LONG_TERM', 60));
 
         // A short-tenor facility never picks up the LONG_TERM rule.
-        $short = new StagingClassifier();
+        $short = new StagingClassifier('2026-08-31');
         $this->assertSame('2', $short->classify(['31_90_days' => '100'], 'LONG_TERM', 12));
     }
 }

@@ -66,6 +66,25 @@
               </tbody>
             </table>
           </div>
+          <div v-if="outOfScope.length" class="border-t border-gray-200 bg-gray-50 p-4">
+            <h4 class="text-sm font-semibold text-gray-900">Out of scope, not blockers</h4>
+            <p class="mt-1 text-xs text-gray-500">Outside the EIR engine by decision, so left out of the in-scope book, the coverage figures and the % of book above.</p>
+            <table class="mt-2 min-w-full">
+              <thead>
+                <tr><th class="th">Reason</th><th class="th text-right">Contracts</th><th class="th text-right">Exposure</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="o in outOfScope" :key="o.code">
+                  <td class="td">
+                    <div class="font-semibold text-gray-900">{{ o.label }}</div>
+                    <div class="font-mono text-xs text-gray-500">{{ o.code }}</div>
+                  </td>
+                  <td class="td text-right tabular-nums">{{ number(o.contracts) }}</td>
+                  <td class="td text-right tabular-nums">{{ money(o.exposure) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </template>
 
         <!-- By portfolio -->
@@ -119,7 +138,8 @@
                   <td class="td">
                     <div class="flex flex-wrap gap-1">
                       <span v-for="code in c.issues" :key="code" class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px] text-gray-700">{{ code }}</span>
-                      <span v-if="!c.issues.length" class="text-xs text-gray-400">-</span>
+                      <span v-if="!c.issues.length && c.scope_reason" class="text-xs text-gray-500">{{ scopeLabel(c.scope_reason) }}</span>
+                      <span v-else-if="!c.issues.length" class="text-xs text-gray-400">-</span>
                     </div>
                   </td>
                 </tr>
@@ -149,6 +169,7 @@ const props = defineProps({
   summary: { type: Object, required: true },
   states: { type: Object, required: true },
   issues: { type: Array, default: () => [] },
+  outOfScope: { type: Array, default: () => [] },
   portfolioBreakdown: { type: Array, default: () => [] },
   contracts: { type: Array, default: () => [] },
   contractsTotal: { type: Number, default: 0 },
@@ -223,6 +244,9 @@ const stateLabel = (s) => ({
   LOCKED: 'Locked', CALCULATED: 'Awaiting approval', READY: 'Ready to solve',
   BLOCKED: 'Blocked', OUT_OF_SCOPE: 'Out of scope',
 }[s] || s)
+
+// The out-of-scope reason's wording comes from the server, the same as the blockers'.
+const scopeLabel = (code) => (props.outOfScope.find((o) => o.code === code) || {}).label || code
 
 const stateClass = (s) => {
   const base = 'inline-flex rounded-full px-2 py-0.5 text-xs font-semibold '

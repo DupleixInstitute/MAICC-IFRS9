@@ -86,21 +86,40 @@ class MegaFarmEclService
     /** @return array{period:string,scope:string,method:string,loans:int,gross:float,by_stage:array,pd_by_stage:array,scalar:?float,lgd:float,programme_ecl:float,share:float,maiic_ecl:float,declined:?string,basis:array} */
     public function run(string $period, ?int $userId = null, ?string $label = null): array
     {
+        // a locked month is never restated (audit H4)
+        \App\Support\ReportingPeriodLock::assertOpen($period, 'the Mega Farm programme ECL');
         $asOf = CarbonImmutable::parse($period . '-01')->endOfMonth();
-        $scope = $this->setting('mega_farms_scope', 'Out of EIR engine; in ECL module; 5 percent share on net', $asOf);
-        $method = $this->setting('megafarm_pd_method', 'Agricultural-sector PD scaled to the programme', $asOf);
-        $ceiling = (float) (preg_match('/(\d+)/', $this->setting('megafarm_scalar_ceiling', '40 times the sector PD', $asOf), $m) ? $m[1] : 40);
-        $share = preg_match('/(\d+(?:\.\d+)?)\s*percent share/', $scope, $m) ? (float) $m[1] / 100 : 1.0;
-        $loans = $this->loans($period)->get(['id', 'contract_id', 'product_group', 'ifrs9stage_post_qualitative', 'carrying_amount', 'commitments', 'facility_utilisation_rate', 'lgd_value', 'collection_lgd', 'pd_prefli']);
+        // the three settings are read from the Governance Centre with no value in
+        // code: a missing approved value stops the run (GovernanceSettingMissingException)
+        $scope = $this->setting('mega_farms_scope', $asOf);
+        $method = $this->setting('megafarm_pd_method', $asOf);
+        $ceilingText = $this->setting('megafarm_scalar_ceiling', $asOf);
+        if (preg_match('/(\d+(?:\.\d+)?)/', $ceilingText, $m) !== 1) {
+            throw new RuntimeException("The governed scalar ceiling '{$ceilingText}' names no number; the Mega Farm run stops.");
+        }
+        $ceiling = (float) $m[1];
+        $loans = $this->loans($period)->get(array_merge(['id', 'contract_id', 'product_group', 'ifrs9stage_post_qualitative', 'carrying_amount', 'commitments', 'facility_utilisation_rate', 'lgd_value', 'collection_lgd', 'pd_prefli'],
+            \App\Services\Ecl\EclExposure::hasBasis() ? ['build_basis'] : []));
         if ($loans->isEmpty()) {
             throw new RuntimeException("No Mega Farm loans in the book for {$period}.");
         }
+        // MAIIC's share is the one the governed scope states. A scope that states
+        // none is declined; it used to fall back to 100 percent (audit, 14 October 2026)
+        $share = self::shareFromScope($scope);
         if (str_starts_with($scope, 'Out of scope entirely')) {
-            return $this->record($period, $scope, $method, $loans, [], null, 0.0, 0.0, $share, 'out of scope entirely by the governed setting; disclosed, not provided', [], $userId, $label);
+            return $this->record($period, $scope, $method, $loans, [], null, 0.0, 0.0, $share ?? 0.0, 'out of scope entirely by the governed setting; disclosed, not provided', [], $userId, $label);
+        }
+        if ($share === null) {
+            return $this->record($period, $scope, $method, $loans, [], null, 0.0, 0.0, 0.0, "the governed scope '{$scope}' states no MAIIC share of the programme; a share is not assumed", [], $userId, $label);
+        }
+        // a programme loan with no stage is not taken as Stage 1: staging runs first
+        $unstaged = $loans->filter(fn ($l) => $l->ifrs9stage_post_qualitative === null || trim((string) $l->ifrs9stage_post_qualitative) === '')->count();
+        if ($unstaged > 0) {
+            return $this->record($period, $scope, $method, $loans, [], null, 0.0, 0.0, $share, "{$unstaged} programme loans carry no stage for {$period}: run staging first", [], $userId, $label);
         }
         $byStage = [];
         foreach ($loans as $l) {
-            $s = (string) ($l->ifrs9stage_post_qualitative ?? '1');
+            $s = (string) $l->ifrs9stage_post_qualitative;
             $byStage[$s] = ($byStage[$s] ?? 0) + (float) $l->carrying_amount;
         }
         ksort($byStage);
@@ -143,6 +162,17 @@ class MegaFarmEclService
             default:
                 $declined = 'expert judgement needs an approved overlay with its reason; none is recorded';
         }
+        if ($declined === null) {
+            // every stage the programme holds needs its PD: Stage 3 is 1; a Stage 1 or 2
+            // with no sector PD is declined, not given another stage's PD or nil
+            if (isset($byStage['3'])) {
+                $pdByStage['3'] = 1.0;
+            }
+            $missing = array_values(array_diff(array_map('strval', array_keys($byStage)), array_map('strval', array_keys($pdByStage))));
+            if ($missing !== []) {
+                $declined = 'no PD for programme loans in stage ' . implode(', ', $missing) . ': MAIIC\'s agricultural book holds no PD for that stage in the period';
+            }
+        }
         if ($declined !== null) {
             return $this->record($period, $scope, $method, $loans, $byStage, null, 0.0, 0.0, $share, $declined, $basis, $userId, $label);
         }
@@ -155,15 +185,16 @@ class MegaFarmEclService
         $basis['lgd'] = $lgd;
         $basis['lgd_basis'] = $lgdBasis;
         $programme = 0.0;
-        DB::transaction(function () use ($loans, $pdByStage, $lgd, $share, &$programme) {
+        DB::transaction(function () use ($loans, $pdByStage, $lgd, $share, $method, &$programme) {
             foreach ($loans as $l) {
-                $s = (string) ($l->ifrs9stage_post_qualitative ?? '1');
-                $pd = $pdByStage[$s] ?? ($s === '3' ? 1.0 : ($pdByStage['1'] ?? 0.0));
-                // a credit balance is owed to the farmer, not an exposure (spec 3.8): no negative allowance
-                $ead = max(0.0, (float) $l->carrying_amount + (float) $l->commitments * (float) ($l->facility_utilisation_rate ?? 1));
+                $s = (string) $l->ifrs9stage_post_qualitative;
+                $pd = $pdByStage[$s];
+                // the engine's EAD (EclExposure): a credit balance is owed to the farmer, not an exposure
+                // (spec 3.8), so no negative allowance; a loan written off to nil has no exposure at all
+                $ead = \App\Services\Ecl\EclExposure::of($l);
                 $ecl = $ead * $pd * $lgd;
                 $programme += $ecl;
-                DB::table('loan_books')->where('id', $l->id)->update(['pd_prefli' => round($pd, 8), 'pd_post_fli' => round($pd, 8), 'lgd_value' => round($lgd, 8), 'ead' => round($ead, 2), 'ecl_value' => round($ecl * $share, 2), 'fli_route' => 'Mega Farm programme (D30)', 'fli_method' => $this->setting('megafarm_pd_method', 'Agricultural-sector PD scaled to the programme', CarbonImmutable::today())]);
+                DB::table('loan_books')->where('id', $l->id)->update(['pd_prefli' => round($pd, 8), 'pd_post_fli' => round($pd, 8), 'lgd_value' => round($lgd, 8), 'ead' => round($ead, 2), 'ecl_value' => round($ecl * $share, 2), 'fli_route' => 'Mega Farm programme (D30)', 'fli_method' => $method]);
             }
         });
 
@@ -254,12 +285,18 @@ class MegaFarmEclService
         return $result;
     }
 
-    private function setting(string $key, string $default, CarbonImmutable $asOf): string
+    /**
+     * MAIIC's share of the programme as the governed scope states it ("5 percent
+     * share on net" gives 0.05), or null when the scope states none.
+     */
+    public static function shareFromScope(string $scope): ?float
     {
-        try {
-            return $this->governance->get($key, $asOf);
-        } catch (Throwable) {
-            return $default;
-        }
+        return preg_match('/(\d+(?:\.\d+)?)\s*percent share/i', $scope, $m) === 1 ? (float) $m[1] / 100 : null;
+    }
+
+    /** The governed value in force; with no approved value the run stops (no value in code). */
+    private function setting(string $key, CarbonImmutable $asOf): string
+    {
+        return $this->governance->get($key, $asOf);
     }
 }

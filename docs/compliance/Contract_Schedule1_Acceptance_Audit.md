@@ -6,7 +6,7 @@ Malawi Agricultural and Industrial Investment Company (MAIIC) - IFRS 9 EIR and E
 
 Source: The implementation agreement between MAIIC and Dupleix Institute, Schedule 1 (solution components; deliverable 2 the migration reconciliation report; deliverables 5, 6 and 7 the manuals), as the manuals cite it. Spec v4 section 8 (the build plan, P4b to P10) and section 12.
 
-Generated 2026-10-14 08:30:21; the Baselines were read from the database `maiic_ifrs9_results2`.
+Generated 2026-10-14 10:44:03; the Baselines were read from the database `maiic_ifrs9_wire`.
 
 ## Status summary
 
@@ -28,7 +28,7 @@ Generated 2026-10-14 08:30:21; the Baselines were read from the database `maiic_
 | S1.2 | Collateral module | Partially done |  | Tests\Feature\Imports\ImportValidationTest::test_a_collateral_file_missing_a_required_column_is_refused_and_nothing_is_written |
 | S1.3 | EIR module and revenue recognition | Partially done | day_count; stage3_interest_basis; fee_source_precedence; takeon_eir_plausibility; partly_drawn_interest_basis | Tests\Feature\Eir\EirCalculationWorkflowTest; Tests\Feature\Eir\EirAsAtServiceTest; Tests\Feature\Eir\TakeonAndTrancheEirInputTest |
 | S1.4 | IFRS 9 model set-up: SICR and staging, PD, LGD, forward-looking information | Done | dpd_basis; stage3_missed_instalments; stage_cure_months; pd_segmentation_basis; lgd_segment_min_cohort; fli_transmission_method | Tests\Feature\Eir\GovernanceServiceTest; Tests\Feature\Pd\PdAndLgdEngineTest; Tests\Feature\Pd\PdSegmentationTest; Tests\Feature\FLI\FliRouteServiceTest |
-| S1.5 | ECL engine | Partially done | scenario_weighting_method | Tests\Feature\Ecl\TimePhasedEclServiceTest; Tests\Feature\Ecl\EclGoldenNumberTest::discounted_mode_keeps_undiscounted_ecl_and_names_unresolved_contracts; Tests\Feature\Scenario\ScenarioSetServiceTest |
+| S1.5 | ECL engine | Partially done | scenario_weighting_method | Tests\Feature\Ecl\TimePhasedEclServiceTest; Tests\Feature\Ecl\EclGoldenNumberTest::discounted_mode_without_the_time_phased_engine_is_refused_never_proxied; Tests\Feature\Scenario\ScenarioSetServiceTest |
 | S1.6 | Reports | Done |  | Tests\Feature\Ifrs9ReportDownloadTest::test_report_downloads_as_pdf; Tests\Feature\Pd\SegmentReportsRenderTest::test_the_reports_with_the_pd_parts_render_and_download |
 | S1.7 | Audit trail | Done | maker_checker_admin_override | Tests\Feature\Eir\GovernanceServiceTest::test_every_proposal_and_approval_is_audit_logged_with_old_and_new_values; Tests\Feature\Compliance\ComplianceAuditServiceTest |
 | S1.8 | Dashboard and workspace | Done |  | Tests\Feature\DashboardChartsTest::test_every_month_of_ecl_by_portfolio_adds_back_to_the_trend_total |
@@ -49,7 +49,7 @@ Generated 2026-10-14 08:30:21; the Baselines were read from the database `maiic_
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-14 08:30:21 from maiic_ifrs9_results2.
+Generated 2026-10-14 10:44:03 from maiic_ifrs9_wire.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
@@ -63,6 +63,60 @@ Generated 2026-10-14 08:30:21 from maiic_ifrs9_results2.
 | Loan book 1050201 at 31 Dec 2025 against the trial balance (accepted exception, spec 3.5: -400,000.00) | 1,402,393,139.46 | 1,401,993,139.46 | PASS |
 | Loan book 1050202 at 31 Dec 2025 against the trial balance (accepted exception, spec 3.5: 1,000,000.00) | 3,808,288,656.15 | 3,809,288,656.15 | PASS |
 | Loan book 1050401 at 31 Dec 2025 against the trial balance | 1,827,148,120.69 | 1,827,148,120.69 | PASS |
+| Pack inventory: ebanker-pack-2026-10-09: every file as committed and landed with its manifest rows and SHA-256; 13 received files not landed, each with its reason in the manifest | 12 extracts, 111,513 rows | 12 extracts, 111,513 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12: every file as committed and landed with its manifest rows and SHA-256; 2 received files not landed, each with its reason in the manifest | 39 extracts, 511,785 rows | 39 extracts, 511,785 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12-p5: every file as committed and landed with its manifest rows and SHA-256; 1 received files not landed, each with its reason in the manifest | 8 extracts, 470 rows | 8 extracts, 470 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12-p6: every file as committed and landed with its manifest rows and SHA-256; 0 received files not landed, each with its reason in the manifest | 3 extracts, 236 rows | 3 extracts, 236 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-13-p7: every file as committed and landed with its manifest rows and SHA-256; 0 received files not landed, each with its reason in the manifest | 6 extracts, 32,244 rows | 6 extracts, 32,244 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-13-p8: every file as committed and landed with its manifest rows and SHA-256; 6 received files not landed, each with its reason in the manifest | 4 extracts, 103 rows | 4 extracts, 103 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-14: every file as committed and landed with its manifest rows and SHA-256; 13 received files not landed, each with its reason in the manifest | 2 extracts, 426 rows | 2 extracts, 426 rows | PASS |
+| Pack inventory: manifest.json (packs 1 and 2, data dictionary, trial balances, take-on): every file as committed and landed with its manifest rows and SHA-256; 3 received files not landed, each with its reason in the manifest; 30 workbooks and scripts, 23 landed by the bootstrap | 54 extracts, 85,174 rows, 23 workbooks | 54 extracts, 85,174 rows, 23 workbooks | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: term loans on the worksheet with take-on postings | 77.00 | 77.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose principal taken on (301) = NEWDISBURS_AMT, to the cent | 76.00 | 76.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose opening interest (303) = TOTAL_INT_CHARG, to the cent | 76.00 | 76.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose opening recoveries (305) = TOTA_REPAY_UPTO, to the cent | 72.00 | 72.00 | PASS |
+| Ledger copy CUMVOUCH_BK240824 (CV_04a) to 31 Dec 2023 against the GL opening balances of 1 Jan 2024 (CV_14), 4 loan GLs: sum of the differences | 0.50 | 0.50 | PASS |
+| Loan book 2025-12, MAIIC's loan GLs: carrying amount | no golden value committed (book_2025-12_maiic_amount) | 14,841,212,779.54 | FAIL |
+| Loan book 2025-12, MAIIC's loan GLs: rows | no golden value committed (book_2025-12_maiic_loans) | 123.00 | FAIL |
+| Loan book 2025-12, Mega Farm programme GLs: carrying amount | no golden value committed (book_2025-12_megafarm_amount) | 54,498,560,819.60 | FAIL |
+| Loan book 2025-12, Mega Farm programme GLs: accounts with a balance | no golden value committed (book_2025-12_megafarm_accounts) | 3,671.00 | FAIL |
+| Loan book 2026-09, MAIIC's loan GLs: carrying amount | no golden value committed (book_2026-09_maiic_amount) | 23,189,580,235.43 | FAIL |
+| Loan book 2026-09, MAIIC's loan GLs: rows | no golden value committed (book_2026-09_maiic_loans) | 134.00 | FAIL |
+| Loan book 2026-09, Mega Farm programme GLs: carrying amount | no golden value committed (book_2026-09_megafarm_amount) | 56,180,761,113.43 | FAIL |
+| Loan book 2026-09, Mega Farm programme GLs: accounts with a balance | no golden value committed (book_2026-09_megafarm_accounts) | 3,618.00 | FAIL |
+| Ledger write-offs on MAIIC loans (WriteOffClassifier): postings | no golden value committed (ledger_writeoffs_postings) | 22.00 | FAIL |
+| Ledger write-offs on MAIIC loans (WriteOffClassifier): amount | no golden value committed (ledger_writeoffs_amount) | 60,778,466.86 | FAIL |
+| ECL 2025-12, MAIIC's book: undiscounted | no golden value committed (ecl_2025-12_maiic_undiscounted) | 3,955,543,846.37 | FAIL |
+| ECL 2025-12, MAIIC's book: discounted at the EIR (booked) | no golden value committed (ecl_2025-12_maiic_discounted) | 2,593,174,242.30 | FAIL |
+| ECL 2025-12, MAIIC's book: loans discounted at the EIR | no golden value committed (ecl_2025-12_maiic_discounted_loans) | 56.00 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 1: discounted | no golden value committed (ecl_2025-12_maiic_stage1_discounted) | 61,318,291.61 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 2: discounted | no golden value committed (ecl_2025-12_maiic_stage2_discounted) | 315,409,106.41 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 3: discounted | no golden value committed (ecl_2025-12_maiic_stage3_discounted) | 2,216,446,844.28 | FAIL |
+| ECL 2025-12, Mega Farm programme (latest run) | no golden value committed (ecl_2025-12_megafarm_programme) | none | FAIL |
+| ECL 2025-12, Mega Farm: MAIIC's share | no golden value committed (ecl_2025-12_megafarm_maiic_share) | none | FAIL |
+| ECL 2026-09, MAIIC's book: undiscounted | no golden value committed (ecl_2026-09_maiic_undiscounted) | 11,569,458,915.88 | FAIL |
+| ECL 2026-09, MAIIC's book: discounted at the EIR (booked) | no golden value committed (ecl_2026-09_maiic_discounted) | 7,118,643,553.12 | FAIL |
+| ECL 2026-09, MAIIC's book: loans discounted at the EIR | no golden value committed (ecl_2026-09_maiic_discounted_loans) | 62.00 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 1: discounted | no golden value committed (ecl_2026-09_maiic_stage1_discounted) | 219,546,033.90 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 2: discounted | no golden value committed (ecl_2026-09_maiic_stage2_discounted) | 183,786,390.69 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 3: discounted | no golden value committed (ecl_2026-09_maiic_stage3_discounted) | 6,715,311,128.53 | FAIL |
+| ECL 2026-09, Mega Farm programme (latest run) | no golden value committed (ecl_2026-09_megafarm_programme) | 45,782,301,503.37 | FAIL |
+| ECL 2026-09, Mega Farm: MAIIC's share | no golden value committed (ecl_2026-09_megafarm_maiic_share) | 2,289,115,075.17 | FAIL |
+| EIR contracts locked | no golden value committed (eir_contracts_locked) | 14.00 | FAIL |
+| EIR contracts blocked | no golden value committed (eir_contracts_blocked) | 33.00 | FAIL |
+| EIR contracts solved (an EIR computed) | no golden value committed (eir_contracts_solved) | 14.00 | FAIL |
+| EIR contracts in the contract master | no golden value committed (eir_contracts) | 144.00 | FAIL |
+| Revenue 2024: EIR interest recognised | no golden value committed (revenue_2024_eir_interest) | 25,532,678.70 | FAIL |
+| Revenue 2024: cash received | no golden value committed (revenue_2024_cash_received) | 34,200,000.00 | FAIL |
+| Revenue 2024: roll-forward rows | no golden value committed (revenue_2024_rows) | 20.00 | FAIL |
+| Revenue 2025: EIR interest recognised | no golden value committed (revenue_2025_eir_interest) | 663,970,866.88 | FAIL |
+| Revenue 2025: cash received | no golden value committed (revenue_2025_cash_received) | 1,158,267,060.20 | FAIL |
+| Revenue 2025: roll-forward rows | no golden value committed (revenue_2025_rows) | 126.00 | FAIL |
+| Revenue 2026: EIR interest recognised | no golden value committed (revenue_2026_eir_interest) | 544,517,024.26 | FAIL |
+| Revenue 2026: cash received | no golden value committed (revenue_2026_cash_received) | 2,381,610,987.63 | FAIL |
+| Revenue 2026: roll-forward rows | no golden value committed (revenue_2026_rows) | 113.00 | FAIL |
+| RBM return 2026-09: facilities classified loss (paragraph 12 list) | no golden value committed (rbm_2026-09_loss_facilities) | 10.00 | FAIL |
+| RBM return 2026-09: balance of the loss list | no golden value committed (rbm_2026-09_loss_balance) | 1,510,956,083.45 | FAIL |
 
 ## Findings - items that need a decision or a fix
 
@@ -121,7 +175,7 @@ Generated 2026-10-14 08:30:21 from maiic_ifrs9_results2.
 **S1.3. EIR module and revenue recognition** - *Partially done*
 
 - **What it requires:** Solve the EIR per facility from its contractual flows and fees, roll the amortised cost forward monthly, and reconcile to the general ledger.
-- **What the engine does:** Built: the EIR solver on dated flows (tranche-timed and take-on EIRs, 216aee2), the fee routes with source precedence, the monthly roll-forward with ledger cash, the GL reconciliation, the EIR as at any date, write-offs classified. Not built: modification and restructuring (5.4.3, 3.3.2), the B5.4.6 catch-up, rate reset events, the journal proposal (D6). On the fresh bootstrap 14 of 144 EIRs are locked, 33 are blocked at the fee gate and 97 have no approved schedule.
+- **What the engine does:** Built: the EIR solver on dated flows (tranche-timed and take-on EIRs, 216aee2), the fee routes with source precedence, the monthly roll-forward with ledger cash, the GL reconciliation, the EIR as at any date, write-offs classified. Built 14 October 2026 (uncommitted): the restructure register and rate-reset register with maker-checker, modification, derecognition and the B5.4.6 catch-up in the revenue run, detection in the bootstrap and the month-end (nothing confirmed: 70 candidates await Credit on the scratch clone). Not built: the journal proposal (D6). On the fresh bootstrap 14 of 144 EIRs are locked, 33 are blocked at the fee gate and 97 have no approved schedule.
 - **General comment:** Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 this row was Done and said '31 solved, 12 locked, 19 awaiting'.
 - **Compliance comment:** Partially done; see the IFRS 9 EIR workbook.
 - **Where to see it:** EIR & Revenue Recognition: /eir-calculations; /eir-as-at; /eir-reconciliation
@@ -148,7 +202,7 @@ Generated 2026-10-14 08:30:21 from maiic_ifrs9_results2.
 - **Compliance comment:** Partially done: the reports must carry the discounted allowance; the figures await MAIIC's reviews.
 - **Where to see it:** ECL Processing, ECL Calculation: /expected-credit-loss/list
 - **Governance setting:** `scenario_weighting_method`
-- **Test that proves it:** `Tests\Feature\Ecl\TimePhasedEclServiceTest; Tests\Feature\Ecl\EclGoldenNumberTest::discounted_mode_keeps_undiscounted_ecl_and_names_unresolved_contracts; Tests\Feature\Scenario\ScenarioSetServiceTest`
+- **Test that proves it:** `Tests\Feature\Ecl\TimePhasedEclServiceTest; Tests\Feature\Ecl\EclGoldenNumberTest::discounted_mode_without_the_time_phased_engine_is_refused_never_proxied; Tests\Feature\Scenario\ScenarioSetServiceTest`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 **S1.6. Reports** - *Done*

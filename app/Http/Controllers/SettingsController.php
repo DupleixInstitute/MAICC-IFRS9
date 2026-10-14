@@ -130,6 +130,8 @@ class SettingsController extends Controller
 
         $thresholds = [];
         try {
+            $hasStatus = \Illuminate\Support\Facades\Schema::hasColumn('staging_thresholds', 'status');
+            $names = $hasStatus ? \App\Models\User::query()->whereIn('id', StagingThreshold::query()->pluck('proposed_by')->merge(StagingThreshold::query()->pluck('approved_by'))->filter()->unique())->pluck('name', 'id') : collect();
             $thresholds = StagingThreshold::query()
                 ->orderBy('facility_class')->orderBy('min_tenor_months')->orderBy('effective_from')
                 ->get()
@@ -140,10 +142,16 @@ class SettingsController extends Controller
                     'stage2_dpd' => $row->stage2_dpd,
                     'stage3_dpd' => $row->stage3_dpd,
                     'effective_from' => $row->effective_from?->toDateString(),
-                    'in_force' => $row->effective_from !== null && $row->effective_from->toDateString() <= $today,
+                    // maker-checker (H11): only an approved row whose date has come governs
+                    'status' => $hasStatus ? $row->status : 'APPROVED',
+                    'proposer' => $hasStatus && $row->proposed_by ? $names->get($row->proposed_by) : null,
+                    'proposed_by' => $hasStatus ? $row->proposed_by : null,
+                    'approver' => $hasStatus && $row->approved_by ? $names->get($row->approved_by) : null,
+                    'reason' => $hasStatus ? $row->reason : null,
+                    'in_force' => (! $hasStatus || $row->status === StagingThreshold::STATUS_APPROVED) && $row->effective_from !== null && $row->effective_from->toDateString() <= $today,
                 ])->all();
         } catch (\Throwable) {
-            // table absent: the classifier falls back to its own ladder
+            // table absent: shown as none loaded; staging then stops and names the missing rule
         }
 
         return ['governed' => $governed, 'thresholds' => $thresholds];

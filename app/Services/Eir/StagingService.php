@@ -248,9 +248,9 @@ class StagingService
     }
 
     /** @return array{0:int,1:int} */
-    private function thresholds(string $class, int $tenorMonths, ?CarbonImmutable $asOf = null): array
+    private function thresholds(string $class, int $tenorMonths, CarbonImmutable $asOf): array
     {
-        $t = StagingThreshold::forFacility($class, $tenorMonths, $asOf?->toDateString());
+        $t = StagingThreshold::forFacility($class, $tenorMonths, $asOf->toDateString());
         if ($t === null) {
             // no silent default (D21): a month without a rule in force is an error to fix, not a 31/181 to assume
             throw new \RuntimeException("No staging threshold is in force for facility class '{$class}' (tenor {$tenorMonths} months)" . ($asOf ? " at {$asOf->toDateString()}" : '') . '. Seed or approve one on the Staging & SICR Rules screen.');

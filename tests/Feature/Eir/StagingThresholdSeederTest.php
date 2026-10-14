@@ -47,7 +47,7 @@ class StagingThresholdSeederTest extends TestCase
 
     public function test_short_term_facilities_are_stage_3_at_91_days_as_the_directive_classifies_them(): void
     {
-        $rule = StagingThreshold::forFacility(null, 12);
+        $rule = StagingThreshold::forFacility(null, 12, now()->toDateString());
         $this->assertSame(31, (int) $rule->stage2_dpd);
         $this->assertSame(91, (int) $rule->stage3_dpd);
         $this->assertStringContainsString('s.10(c)(i)', $rule->rebuttal_basis);
@@ -56,7 +56,7 @@ class StagingThresholdSeederTest extends TestCase
     public function test_medium_and_long_term_facilities_are_stage_3_at_181_days_with_the_rebuttal_cited(): void
     {
         foreach ([13, 36, 120] as $tenor) {
-            $rule = StagingThreshold::forFacility(null, $tenor);
+            $rule = StagingThreshold::forFacility(null, $tenor, now()->toDateString());
             $this->assertSame(31, (int) $rule->stage2_dpd, "tenor {$tenor}");
             $this->assertSame(181, (int) $rule->stage3_dpd, "tenor {$tenor}");
             $this->assertStringContainsString('B5.5.37', $rule->rebuttal_basis);
@@ -66,14 +66,14 @@ class StagingThresholdSeederTest extends TestCase
 
     public function test_mega_farm_facilities_are_short_term_whatever_their_tenor(): void
     {
-        $rule = StagingThreshold::forFacility('MEGA_FARM', 60);
+        $rule = StagingThreshold::forFacility('MEGA_FARM', 60, now()->toDateString());
         $this->assertSame('MEGA_FARM', $rule->facility_class);
         $this->assertSame(91, (int) $rule->stage3_dpd);
     }
 
     public function test_the_long_term_stage_2_rebuttal_is_inactive_until_signed(): void
     {
-        $rule = StagingThreshold::forFacility('LONG_TERM', 60);
+        $rule = StagingThreshold::forFacility('LONG_TERM', 60, now()->toDateString());
         // The future-dated LONG_TERM row must not govern; the DEFAULT medium/long row does.
         $this->assertSame('DEFAULT', $rule->facility_class);
         $this->assertSame(31, (int) $rule->stage2_dpd);

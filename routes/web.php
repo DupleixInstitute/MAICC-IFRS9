@@ -587,6 +587,10 @@ Route::group(['prefix' => 'setting', 'middleware' => ['auth', 'permission:settin
     Route::post('/update', [SettingsController::class, 'update'])->name('settings.update');
     Route::get('/loan-bands', [SettingsController::class, 'loanBands'])->name('settings.loan_bands');
     Route::post('/store-loan-bands', [SettingsController::class, 'storeLoanBands'])->name('settings.other.store-bands');
+    // the days-past-due thresholds under maker-checker (system audit H11)
+    Route::post('/staging-thresholds/propose', [\App\Http\Controllers\StagingThresholdController::class, 'propose'])->name('settings.staging-thresholds.propose');
+    Route::post('/staging-thresholds/{threshold}/approve', [\App\Http\Controllers\StagingThresholdController::class, 'approve'])->name('settings.staging-thresholds.approve');
+    Route::post('/staging-thresholds/{threshold}/reject', [\App\Http\Controllers\StagingThresholdController::class, 'reject'])->name('settings.staging-thresholds.reject');
 });
 //reports
 Route::group(['prefix' => 'report'], function () {
@@ -967,6 +971,7 @@ Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classificat
     Route::post('/rematch', [\App\Http\Controllers\EirFeeClassificationController::class, 'rematch'])->name('rematch');
     Route::post('/classify', [\App\Http\Controllers\EirFeeClassificationController::class, 'classify'])->name('classify');
     Route::post('/review', [\App\Http\Controllers\EirFeeClassificationController::class, 'review'])->name('review');
+    Route::post('/return', [\App\Http\Controllers\EirFeeClassificationController::class, 'returnToClassification'])->name('return');
     Route::post('/held/{held}/tie', [\App\Http\Controllers\EirFeeClassificationController::class, 'tieHeld'])->name('tie-held');
 });
 
@@ -1309,6 +1314,17 @@ Route::group(['prefix' => 'eir-write-offs', 'as' => 'eir-write-offs.'], function
     Route::post('/', [\App\Http\Controllers\EirWriteOffController::class, 'store'])->name('store');
     Route::post('/{id}/approve', [\App\Http\Controllers\EirWriteOffController::class, 'approve'])->name('approve');
     Route::post('/{id}/close', [\App\Http\Controllers\EirWriteOffController::class, 'close'])->name('close');
+});
+// Restructures and rate resets: the candidates, the governed register, the reset register (spec v4 s.3.9, P5 to P7)
+Route::group(['prefix' => 'eir-restructures', 'as' => 'eir-restructures.'], function () {
+    Route::get('/', [\App\Http\Controllers\EirRestructureController::class, 'index'])->name('index');
+    Route::post('/detect', [\App\Http\Controllers\EirRestructureController::class, 'detect'])->name('detect');
+    Route::post('/resets/propose', [\App\Http\Controllers\EirRestructureController::class, 'proposeResets'])->name('resets.propose');
+    Route::post('/resets/approve', [\App\Http\Controllers\EirRestructureController::class, 'approveResets'])->name('resets.approve');
+    Route::post('/resets/{id}/close', [\App\Http\Controllers\EirRestructureController::class, 'closeReset'])->name('resets.close');
+    Route::post('/{id}/propose', [\App\Http\Controllers\EirRestructureController::class, 'propose'])->name('propose');
+    Route::post('/{id}/approve', [\App\Http\Controllers\EirRestructureController::class, 'approve'])->name('approve');
+    Route::post('/{id}/close', [\App\Http\Controllers\EirRestructureController::class, 'close'])->name('close');
 });
 // Finance's monthly trial balance, from the screen, through the landing zone's gates
 Route::group(['prefix' => 'eir-trial-balances', 'as' => 'eir-trial-balances.'], function () {

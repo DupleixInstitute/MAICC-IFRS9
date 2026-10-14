@@ -1,0 +1,95 @@
+{
+  "pack": "MAIIC E-Banker pack 5, received 12 October 2026",
+  "assembled": "2026-10-12",
+  "period": "2026-09",
+  "source": "E-Banker (Virtual Galaxy CBS, schema VGCBS), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 5 - 12 Oct 2026.sql; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
+  "date_format": "m/d/Y",
+  "scope_scheme_ids": [],
+  "accepted_exceptions": [
+    "RUN 0 not applied: every date is m/d/yyyy; the manifest declares the format (D23)",
+    "Every pack 5 query has its own query id, outside the ledger, trial balance and charges families the engines read: GL_04c repeats the 205 GL_04a fee legs with all columns, GL_06a, GL_06b and GL_07 are slices of the live ledger already landed in P1_01 and M09_01, and TB_04 slices E-Banker's stored trial balance (TB_03); landing them under their own ids keeps every engine figure unchanged",
+    "GL_06b returned no rows (no posting of exactly 88,000 in July and August 2026); it is landed as an empty file so the load records that the ledger was searched",
+    "P2_13b carries no account column: it is joined to P2_13 on LOS_REQ_ID"
+  ],
+  "not_landed": [
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/CHECK_GL_07_row_counts.csv",
+      "reason": "check file (the row count of RUN 3b, 19, which GL_07 matches); never landed, as the pack 4 CHECK files (spec v4 6.4)"
+    }
+  ],
+  "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "P2_13b_los_requests_text_part2.csv",
+      "query_id": "P2_13b",
+      "kind": "pack 5 RUN 1: pieces 3 and 4 of the 64 LOS request payloads longer than two pieces (P2_13 of pack 4 holds pieces 1 and 2); joined on LOS_REQ_ID, 64 requests complete; 34 of the pieces mention a fee",
+      "rows": 64,
+      "sha256": "1c88d10145c4dc24bcbdf75c0453dc0024a76a582cb68d352da5d567fbe3549a",
+      "bytes": 120808,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/P2_13b_los_requests_text_part2.csv"
+    },
+    {
+      "file": "GL_06a_6730_postings_jun_sep.csv",
+      "query_id": "GL_06a",
+      "kind": "pack 5 RUN 2a: the postings to GL 6730 (Fines Expenses) from June to September 2026 with their audit columns (the 88,000 question)",
+      "rows": 5,
+      "sha256": "b3f6e006436fd9c8b9b4f3b4929c6bce444615c6dec7ef8a1e8d87740fc25b16",
+      "bytes": 2365,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/GL_06a_6730_postings_jun_sep.csv"
+    },
+    {
+      "file": "GL_06b_88000_postings.csv",
+      "query_id": "GL_06b",
+      "kind": "pack 5 RUN 2b: every posting of exactly 88,000 in July and August 2026; none",
+      "rows": 0,
+      "sha256": "7ee27445dd9b4748ea617909edeb20bedf9d029f7533320a80c8cefda2201afb",
+      "bytes": 377,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/GL_06b_88000_postings.csv"
+    },
+    {
+      "file": "TB_04_6730_history_jul_aug.csv",
+      "query_id": "TB_04",
+      "kind": "pack 5 RUN 2c: E-Banker's stored daily trial balance rows for GL 6730, 25 June to 5 August 2026",
+      "rows": 42,
+      "sha256": "6d03176ecc5fcb7022b30574748d5aef1918c02c57e3f8ff8747ff302413a15e",
+      "bytes": 10717,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/TB_04_6730_history_jul_aug.csv"
+    },
+    {
+      "file": "GL_06d_6730_opening_balances.csv",
+      "query_id": "GL_06d",
+      "kind": "pack 5 RUN 2d: the year-opening balance rows of GL 6730 (1 January 2024)",
+      "rows": 1,
+      "sha256": "91ad37932d53adbbfe652132f7498e888b1310c6dc5a6640e396ca8d001218d5",
+      "bytes": 613,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/GL_06d_6730_opening_balances.csv"
+    },
+    {
+      "file": "GL_04c_fee_gl_legs_all_columns.csv",
+      "query_id": "GL_04c",
+      "kind": "pack 5 RUN 3a: the 205 fee income GL legs of GL_04a with all 83 ledger columns; ties to GL_04a; none of the columns carries a loan account on the 107 unlinked fee lines",
+      "rows": 205,
+      "sha256": "c03c6534695fec469ec3a066392aec1f6c651d32ce3118eaba10ad0187139a81",
+      "bytes": 135851,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/GL_04c_fee_gl_legs_all_columns.csv"
+    },
+    {
+      "file": "GL_07_gl2010_batch_legs.csv",
+      "query_id": "GL_07",
+      "kind": "pack 5 RUN 3b: the 19 legs of the 6 batches touching GL 2010 (Working Capital Loan) since 2024; ties to its control count (CHECK_GL_07); links three October 2024 fees (Mafeni, Agwenda x2) to their loan through GL 2010",
+      "rows": 19,
+      "sha256": "ccb10a989ef4c8f349e4398c32824608b42fcfc5f65db9be2c543c3e82648cce",
+      "bytes": 3447,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/GL_07_gl2010_batch_legs.csv"
+    },
+    {
+      "file": "CV_02_ledger_tables_probe.csv",
+      "query_id": "CV_02",
+      "kind": "pack 5 RUN 4: the 134 tables whose names match the ledger-copy patterns, with the statistics row counts of 13 June 2026; names and counts only",
+      "rows": 134,
+      "sha256": "6f36d235b3ed5ea8e9323604f76fa9c4cc90ad83e643f6f38daa8ae87184b8d9",
+      "bytes": 10778,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 5/Export Results/CV_02_ledger_tables_probe.csv"
+    }
+  ]
+}

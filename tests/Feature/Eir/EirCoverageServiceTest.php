@@ -127,6 +127,53 @@ class EirCoverageServiceTest extends TestCase
         $this->assertEqualsWithDelta(1_000, $profile['summary']['exposure_in_scope'], 0.01);
     }
 
+    /**
+     * The Mega Farm programme is out of the EIR engine (spec v4 section 16,
+     * D30), so its loans have no EIR profile by design. They are counted as
+     * out of scope with the reason, never as CONTRACT_PROFILE_MISSING, and
+     * stay out of the in-scope book, the blockers' % of book and the
+     * portfolio coverage.
+     */
+    public function test_mega_farm_loans_are_out_of_scope_not_missing_a_profile(): void
+    {
+        Schema::table('loan_books', function (Blueprint $t) { $t->string('product_code')->nullable(); $t->string('product_group')->nullable(); });
+        $gl = \App\Services\MegaFarm\MegaFarmEclService::GLS[0];
+        DB::table('loan_books')->insert(['contract_id' => 'MF-1', 'reporting_period' => '2025-10', 'carrying_amount' => 7_000, 'product_code' => $gl]);
+        DB::table('loan_books')->insert(['contract_id' => 'MF-2', 'reporting_period' => '2025-10', 'carrying_amount' => 3_000, 'product_code' => $gl]);
+        // A MAIIC loan with no profile is still a blocker, and a ready one is the control.
+        DB::table('loan_books')->insert(['contract_id' => 'NO-PROFILE', 'reporting_period' => '2025-10', 'carrying_amount' => 500, 'product_code' => '1050101']);
+        $this->contract('LOAN'); $this->schedule('LOAN');
+        DB::table('loan_books')->insert(['contract_id' => 'LOAN', 'reporting_period' => '2025-10', 'carrying_amount' => 500, 'product_code' => '1050101']);
+
+        $profile = (new EirCoverageService())->profile('2025-10');
+        $rows = collect($profile['contracts'])->keyBy('contract_id');
+
+        foreach (['MF-1', 'MF-2'] as $id) {
+            $this->assertSame('OUT_OF_SCOPE', $rows[$id]['state']);
+            $this->assertSame([], $rows[$id]['issues']);
+            $this->assertSame('MEGA_FARM', $rows[$id]['scope_reason']);
+        }
+        $this->assertSame(['CONTRACT_PROFILE_MISSING'], $rows['NO-PROFILE']['issues']);
+
+        $missing = collect($profile['issues'])->firstWhere('code', 'CONTRACT_PROFILE_MISSING');
+        $this->assertSame(1, $missing['contracts']);
+        $this->assertSame(50.0, $missing['exposure_percent']); // of the 1,000 in-scope book, not of 11,000
+
+        $this->assertSame(2, $profile['summary']['in_scope']);
+        $this->assertSame(2, $profile['summary']['out_of_scope']);
+        $this->assertEqualsWithDelta(1_000, $profile['summary']['exposure_in_scope'], 0.01);
+        $this->assertSame(2, $profile['states']['OUT_OF_SCOPE']['contracts']);
+        $this->assertSame(1, $profile['states']['BLOCKED']['contracts']);
+
+        $this->assertCount(1, $profile['out_of_scope']);
+        $this->assertSame('MEGA_FARM', $profile['out_of_scope'][0]['code']);
+        $this->assertStringContainsString('D30', $profile['out_of_scope'][0]['label']);
+        $this->assertSame(2, $profile['out_of_scope'][0]['contracts']);
+        $this->assertEqualsWithDelta(10_000, $profile['out_of_scope'][0]['exposure'], 0.01);
+
+        $this->assertSame(2, array_sum(array_column($profile['portfolios'], 'contracts')));
+    }
+
     public function test_a_contract_off_the_tape_stays_visible_in_its_own_report(): void
     {
         $this->contract('OFF-TAPE', ['locked_at' => '2025-05-01']); $this->schedule('OFF-TAPE');

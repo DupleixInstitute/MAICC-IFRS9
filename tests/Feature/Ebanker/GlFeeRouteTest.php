@@ -241,4 +241,99 @@ class GlFeeRouteTest extends TestCase
         $this->assertSame(3, DB::table('contract_disbursements')->count());
         $this->assertEquals(47653000, DB::table('contract_disbursements')->where('contract_id', '104430000085')->sum('capitalised_fees'));
     }
+
+    /** Spec 6.4: the fee GL gate at the door. A pack whose GL_04a month differs from the trial balance is refused; a month with no trial balance yet is listed, not refused. */
+    public function test_the_fee_gl_gate_refuses_a_pack_whose_fee_movement_differs_from_the_trial_balance(): void
+    {
+        $gates = new \App\Services\Ebanker\PackGates(new \App\Services\Ebanker\LandingZoneReader(), app(\App\Services\Ebanker\PackLandingService::class));
+        $query = (object) ['query_id' => 'GL_04a'];
+        $row = fn ($voucher, $gl, $date, $amount) => ['CUMVOUCH_DET_ID' => $voucher, 'AC_GLCODE' => $gl, 'CB_GLCODE' => $gl, 'NEW_AC_NUMBER' => '000101890000001', 'TRANSACTION_DATE' => $date,
+            'TRANSAMT' => (string) $amount, 'TRANTYPE' => '401', 'BATCH_TYPE' => 'DISB', 'BATCH_NUMBER' => '9', 'PASS_FLAG' => 'Y', 'DELETE_FLAG' => 'N'];
+
+        // a re-pull of August that agrees (the pack's rows over the landed ones)
+        $same = $gates->acrossPack([['file' => 'GL_04a.csv', 'query' => $query, 'headers' => [], 'rows' => [$row('102', '4873', '2025-08-08', 30000000)]]], 'Y-m-d')['fee_gl'];
+        $this->assertSame('PASS', $same['result']);
+        $this->assertSame('ERROR', $same['level']);
+
+        // a pack that carries 1,000,000 more of arrangement fees in August than the trial balance moved
+        $more = $gates->acrossPack([['file' => 'GL_04a.csv', 'query' => $query, 'headers' => [], 'rows' => [$row('102', '4873', '2025-08-08', 30000000), $row('105', '4873', '2025-08-20', 1000000)]]], 'Y-m-d')['fee_gl'];
+        $this->assertSame('FAIL', $more['result']);
+        $this->assertStringContainsString('fee GL 4873, 2025-08', $more['failures'][0]);
+
+        // a month whose trial balance has not landed is listed and checked again by the build
+        $noTb = $gates->acrossPack([['file' => 'GL_04a.csv', 'query' => $query, 'headers' => [], 'rows' => [$row('700', '4873', '2026-10-05', 500000)]]], 'Y-m-d')['fee_gl'];
+        $this->assertSame('SKIPPED', $noTb['result']);
+        $this->assertSame(['2026-10'], $noTb['months_without_tb']);
+    }
+
+    /** One GL_07 leg (pack 5 RUN 3b: every leg of the batches touching GL 2010). */
+    private function gl2010(string $voucher, string $account, string $gl, string $date, float $amount, string $batch, string $narration): void
+    {
+        $this->raw('GL_07', $voucher, $account, $date, ['CUMVOUCH_DET_ID' => $voucher, 'AC_GLCODE' => $gl, 'CB_GLCODE' => $gl, 'NEW_AC_NUMBER' => $account, 'TRANSAMT' => (string) $amount,
+            'TRANTYPE' => $amount < 0 ? '400' : '401', 'BATCH_TYPE' => 'TRF', 'BATCH_NUMBER' => $batch, 'PARTICULARS' => $narration, 'PASS_FLAG' => 'Y', 'DELETE_FLAG' => 'N']);
+    }
+
+    /**
+     * Pack 5 results review, RUN 3: in October 2024 a drawdown was posted loan debit / GL 2010 credit,
+     * and a second batch paid 2010 out to the bank net of the fee and credited the fee GL. The fee
+     * batch has no loan leg; GL_07 ties it to the loan drawn into 2010 by the amount the batch clears.
+     * The line lands PENDING (never reviewed by the build), a second build loads nothing twice, a line
+     * a person tied by hand stays as tied, and a batch whose 2010 amount two loans drew stays held.
+     */
+    public function test_a_fee_paid_out_through_gl_2010_is_tied_to_the_loan_drawn_into_2010(): void
+    {
+        $mafeni = '000104460000104'; $agwenda = '000104430000064'; $twinA = '000104430000090'; $twinB = '000104430000091';
+        foreach ([[$mafeni, 'Mafeni'], [$agwenda, 'Agwenda'], [$twinA, 'Twin A'], [$twinB, 'Twin B']] as [$acc, $name]) {
+            $this->raw('P1_02', 'M' . $acc, $acc, '2024-07-01', ['NEW_AC_NUMBER' => $acc, 'GLCODE' => '1050202', 'ACCOUNT_NAME' => $name, 'STATUS_CODE' => 'A']);
+            DB::table('contract_eir')->insert(['contract_id' => ltrim($acc, '0'), 'origination_date' => '2024-10-03', 'drawn_amount' => 1, 'schedule_source' => 'GENERATED', 'created_at' => now(), 'updated_at' => now()]);
+        }
+        // Mafeni: drawn into 2010 (TRF 17), then 2010 paid out net of the 4,250,000 fee (TRF 25)
+        $this->gl2010('25800', $mafeni, '1050202', '2024-10-03', -200000000, '17', '');
+        $this->gl2010('25805', '000105310000001', '2010', '2024-10-03', 200000000, '17', 'Working Capital Loan');
+        $this->gl2010('25792', '000103270000001', '1001', '2024-10-03', 195750000, '25', '');
+        $this->gl2010('25795', '000101890000001', '4873', '2024-10-03', 4250000, '25', 'Mafeni');
+        $this->gl2010('25804', '000105310000001', '2010', '2024-10-03', -200000000, '25', 'loan draw down Mafeni');
+        $this->leg('25792', '000103270000001', '1001', '2024-10-03', 195750000, 'DR', '401', 'TRF', '25', '');
+        $this->leg('25795', '000101890000001', '4873', '2024-10-03', 4250000, 'CR', '401', 'TRF', '25', 'Mafeni', true);
+        // Agwenda: two fees in one clearing batch (TRF 204) of the drawdown in TRF 189
+        $this->gl2010('26260', $agwenda, '1050102', '2024-10-23', -21295000, '189', '');
+        $this->gl2010('26298', '000105310000001', '2010', '2024-10-23', 21295000, '189', 'Working Capital Loan');
+        $this->gl2010('26299', '000105310000001', '2010', '2024-10-23', -21295000, '204', 'loan draw down');
+        $this->gl2010('26310', '000101870000001', '4871', '2024-10-23', 1205000, '204', 'Agwenda');
+        $this->gl2010('26311', '000101890000001', '4873', '2024-10-23', 1500000, '204', 'Agwenda');
+        $this->leg('26310', '000101870000001', '4871', '2024-10-23', 1205000, 'CR', '401', 'TRF', '204', 'Agwenda', true);
+        $this->leg('26311', '000101890000001', '4873', '2024-10-23', 1500000, 'CR', '401', 'TRF', '204', 'Agwenda', true);
+        // two loans drew 9,000,000 into 2010 the same day: the clearing batch cannot say whose fee it is
+        $this->gl2010('27001', $twinA, '1050102', '2024-10-28', -9000000, '300', '');
+        $this->gl2010('27002', '000105310000001', '2010', '2024-10-28', 9000000, '300', 'Working Capital Loan');
+        $this->gl2010('27003', $twinB, '1050102', '2024-10-28', -9000000, '301', '');
+        $this->gl2010('27004', '000105310000001', '2010', '2024-10-28', 9000000, '301', 'Working Capital Loan');
+        $this->gl2010('27005', '000105310000001', '2010', '2024-10-28', -9000000, '302', 'loan draw down');
+        $this->gl2010('27006', '000101890000001', '4873', '2024-10-28', 450000, '302', 'arrangement');
+        $this->leg('27006', '000101890000001', '4873', '2024-10-28', 450000, 'CR', '401', 'TRF', '302', 'arrangement', true);
+
+        $r = $this->build();
+
+        $this->assertSame(3, $r['assigned']['by_rule'][GlFeeBuildService::RULE_CLEARING]);
+        $m = DB::table('contract_fees')->where('external_transaction_id', 'GL_04a:25795')->first();
+        $this->assertSame('104460000104', $m->contract_id);
+        $this->assertEquals(4250000, (float) $m->amount);
+        $this->assertSame('PENDING', $m->classification_status, 'the build ties the line; a person classifies and reviews it');
+        $this->assertStringContainsString('GL 2010', $m->description);
+        $this->assertEquals([1205000, 1500000], DB::table('contract_fees')->where('contract_id', '104430000064')->orderBy('amount')->pluck('amount')->map(fn ($a) => (float) $a)->all());
+        $this->assertSame(0, DB::table('fee_gl_unassigned')->whereIn('external_transaction_id', ['GL_04a:25795', 'GL_04a:26310', 'GL_04a:26311'])->count());
+        $twin = DB::table('fee_gl_unassigned')->where('external_transaction_id', 'GL_04a:27006')->first();
+        $this->assertNotNull($twin, 'two loans drew the amount the batch clears: held, not guessed');
+        $this->assertStringContainsString('2 loans were drawn into GL 2010', $twin->reason);
+
+        // a second build loads nothing twice
+        $this->assertSame(0, $this->build()['loaded']['loaded_rows']);
+        $this->assertSame(1, DB::table('contract_fees')->where('external_transaction_id', 'GL_04a:25795')->count());
+
+        // a line a person tied by hand before the route existed stays as tied, once
+        DB::table('contract_fees')->where('external_transaction_id', 'GL_04a:26311')->update(['contract_id' => '104430000090', 'description' => 'tied by hand']);
+        $this->build();
+        $this->assertSame(1, DB::table('contract_fees')->where('external_transaction_id', 'GL_04a:26311')->count());
+        $this->assertSame('104430000090', DB::table('contract_fees')->where('external_transaction_id', 'GL_04a:26311')->value('contract_id'));
+    }
 }

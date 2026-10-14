@@ -2,7 +2,9 @@
 
 namespace App\Services\Eir;
 
+use App\Services\MegaFarm\MegaFarmEclService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Portfolio-wide EIR coverage and the blockers standing behind the gap.
@@ -54,7 +56,17 @@ class EirCoverageService
     ];
 
     /**
-     * @return array{period:?string,summary:array,states:array,issues:list<array>,portfolios:list<array>,contracts:list<array>}
+     * Why an out-of-scope contract is out of scope. These are not blockers:
+     * no data fix brings them into the EIR, so they are counted apart and
+     * left out of the in-scope population.
+     */
+    public const SCOPE_REASONS = [
+        'MEGA_FARM' => "Mega Farm programme, out of the EIR's scope (D30)",
+        'EQUITY_EXCLUDED' => 'Equity instrument, outside the EIR engine',
+    ];
+
+    /**
+     * @return array{period:?string,summary:array,states:array,issues:list<array>,out_of_scope:list<array>,portfolios:list<array>,contracts:list<array>}
      */
     public function profile(?string $period = null, ?string $portfolio = null): array
     {
@@ -71,6 +83,7 @@ class EirCoverageService
 
         $schedules = $this->scheduleAggregates();
         $fees = $this->feeAggregates();
+        $megaFarm = $this->megaFarmContracts($period);
 
         $rows = [];
         foreach ($population as $contractId) {
@@ -78,10 +91,19 @@ class EirCoverageService
             if ($portfolio !== null && $portfolio !== '' && (string) ($contract->portfolio ?? '') !== $portfolio) {
                 continue;
             }
+            $onTape = isset($exposure[$contractId]);
+            // The Mega Farm programme is Government money MAIIC runs on its
+            // behalf: out of the EIR engine and provided in the ECL module
+            // (spec v4 section 16, D30). Its loans carry no EIR profile by
+            // design, so they are out of scope, not "profile missing".
+            if (isset($megaFarm[$contractId])) {
+                $rows[] = $this->row((string) $contractId, $contract, self::STATE_OUT_OF_SCOPE, [], (float) ($exposure[$contractId] ?? 0.0), $onTape, 'MEGA_FARM');
+                continue;
+            }
             $rows[] = $this->assess(
                 (string) $contractId, $contract,
                 $schedules[$contractId] ?? null, $fees[$contractId] ?? null,
-                (float) ($exposure[$contractId] ?? 0.0), isset($exposure[$contractId])
+                (float) ($exposure[$contractId] ?? 0.0), $onTape
             );
         }
 
@@ -90,6 +112,7 @@ class EirCoverageService
             'summary' => $this->summary($rows),
             'states' => $this->byState($rows),
             'issues' => $this->byIssue($rows),
+            'out_of_scope' => $this->byScopeReason($rows),
             'portfolios' => $this->byPortfolio($rows),
             'contracts' => $rows,
         ];
@@ -105,7 +128,7 @@ class EirCoverageService
         }
 
         if (($contract->instrument_type ?? null) === 'EQUITY_EXCLUDED') {
-            return $this->row($contractId, $contract, self::STATE_OUT_OF_SCOPE, [], $exposure, $onTape);
+            return $this->row($contractId, $contract, self::STATE_OUT_OF_SCOPE, [], $exposure, $onTape, 'EQUITY_EXCLUDED');
         }
 
         if (! $contract->origination_date) $issues[] = 'ORIGINATION_DATE_MISSING';
@@ -147,7 +170,7 @@ class EirCoverageService
         return $this->row($contractId, $contract, self::STATE_READY, [], $exposure, $onTape);
     }
 
-    private function row(string $contractId, ?object $contract, string $state, array $issues, float $exposure, bool $onTape): array
+    private function row(string $contractId, ?object $contract, string $state, array $issues, float $exposure, bool $onTape, ?string $scopeReason = null): array
     {
         return [
             'contract_id' => $contractId,
@@ -155,6 +178,7 @@ class EirCoverageService
             'product_type' => $contract->product_type ?? null,
             'state' => $state,
             'issues' => $issues,
+            'scope_reason' => $scopeReason,
             'exposure' => round($exposure, 2),
             'on_tape' => $onTape,
             'drawn_amount' => $contract ? (float) $contract->drawn_amount : null,
@@ -171,6 +195,7 @@ class EirCoverageService
         return [
             'contracts' => count($rows),
             'in_scope' => count($inScope),
+            'out_of_scope' => count($rows) - count($inScope),
             'covered' => count($covered),
             'coverage_percent' => count($inScope) > 0 ? round(count($covered) / count($inScope) * 100, 2) : 0.0,
             'exposure_in_scope' => round($exposureIn, 2),
@@ -228,10 +253,38 @@ class EirCoverageService
         return $issues;
     }
 
+    /** Out-of-scope contracts by reason: shown apart from the blockers, never among them. */
+    private function byScopeReason(array $rows): array
+    {
+        $reasons = [];
+        foreach ($rows as $row) {
+            if ($row['state'] !== self::STATE_OUT_OF_SCOPE) {
+                continue;
+            }
+            $code = (string) $row['scope_reason'];
+            $reasons[$code] ??= ['code' => $code, 'label' => self::SCOPE_REASONS[$code] ?? $code, 'contracts' => 0, 'exposure' => 0.0];
+            $reasons[$code]['contracts']++;
+            $reasons[$code]['exposure'] += $row['exposure'];
+        }
+
+        $reasons = array_values(array_map(function ($r) {
+            $r['exposure'] = round($r['exposure'], 2);
+
+            return $r;
+        }, $reasons));
+        usort($reasons, fn ($a, $b) => $b['exposure'] <=> $a['exposure'] ?: $b['contracts'] <=> $a['contracts']);
+
+        return $reasons;
+    }
+
+    /** Coverage of the in-scope book: an out-of-scope contract would read as uncovered. */
     private function byPortfolio(array $rows): array
     {
         $portfolios = [];
         foreach ($rows as $row) {
+            if ($row['state'] === self::STATE_OUT_OF_SCOPE) {
+                continue;
+            }
             $key = $row['portfolio'] ?? 'Unassigned';
             $portfolios[$key] ??= ['portfolio' => $key, 'contracts' => 0, 'covered' => 0, 'exposure' => 0.0, 'exposure_covered' => 0.0];
             $portfolios[$key]['contracts']++;
@@ -290,6 +343,27 @@ class EirCoverageService
             ->selectRaw('contract_id, SUM(COALESCE(carrying_amount, 0)) as exposure')
             ->groupBy('contract_id')->pluck('exposure', 'contract_id')
             ->map(fn ($v) => (float) $v)->all();
+    }
+
+    /**
+     * The period's Mega Farm programme loans, identified as the Mega Farm
+     * module identifies them (MegaFarmEclService::loans: a programme GL
+     * 1050301-1050307 or a Mega Farm product group), on the same period match
+     * as the exposure above. A tape without those columns has no way to tell
+     * a programme loan, so none is assumed.
+     *
+     * @return array<string,true>
+     */
+    private function megaFarmContracts(?string $period): array
+    {
+        if ($period === null || ! Schema::hasColumn('loan_books', 'product_code') || ! Schema::hasColumn('loan_books', 'product_group')) {
+            return [];
+        }
+
+        return app(MegaFarmEclService::class)->loans(null)
+            ->whereRaw('SUBSTR(reporting_period, 1, 7) = ?', [$period])
+            ->distinct()->pluck('contract_id')
+            ->mapWithKeys(fn ($id) => [(string) $id => true])->all();
     }
 
     public function availablePeriods(): array

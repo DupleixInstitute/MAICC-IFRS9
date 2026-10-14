@@ -15,9 +15,13 @@ class EirRevenueService
 {
     private readonly GovernanceService $governance;
 
+    /** Confirmed restructures (5.4.3, 3.2.3, B5.4.6), applied to the closing of their month (spec P6, P7). */
+    private readonly ModificationAccountingService $modifications;
+
     public function __construct(?GovernanceService $governance = null)
     {
         $this->governance = $governance ?? app(GovernanceService::class);
+        $this->modifications = new ModificationAccountingService($this->governance);
     }
 
     /**
@@ -73,6 +77,7 @@ class EirRevenueService
                 if ($existing && ! $recalculate) {
                     return $this->result($existing, 'UNCHANGED');
                 }
+                $this->modifications->assertBookedBefore($contractId, $period);
                 if ($existing) {
                     $superseded = $this->supersede($contractId, $period, $userId, (string) $reason);
                 }
@@ -94,7 +99,7 @@ class EirRevenueService
                 $stage = $this->stage($loan);
                 if (! in_array($stage, [1, 2, 3], true)) throw new RuntimeException("The IFRS 9 stage for {$period} is missing or invalid.");
                 $allowance = $this->openingAllowance($contractId, $period, $loan);
-                $eirAnnual = $this->eirInForce($contract, $loan);
+                $eirAnnual = $this->eirInForce($contract, $loan, $period);
                 $monthlyRate = pow(1 + $eirAnnual, 1 / 12) - 1;
                 // Stage 3 accrues on the basis governed for this period
                 // (stage3_interest_basis, IFRS 9 5.4.1(b) by default); a
@@ -121,6 +126,12 @@ class EirRevenueService
                 }
                 // a write-off or a settlement in kind leaves the gross without being cash
                 $closing = max(0.0, $opening + $advances + $interest + $unwind - $cash['amount'] - $cash['derecognised']);
+                // a confirmed restructure of the month moves the gross carrying amount at its close: the modified
+                // flows at the EIR the month accrued at (5.4.3, B5.4.6), or derecognition and version N+1 (3.2.3)
+                $mod = $this->modifications->apply($contract, $period, $closing, $eirAnnual, $stage, (string) ($contract->source_day_count_basis ?? 'ACT/365'));
+                if ($mod !== null) {
+                    $closing = max(0.0, $mod['closing']);
+                }
 
                 $row = EirAmortisation::create([
                     'contract_id' => $contractId,
@@ -138,11 +149,14 @@ class EirRevenueService
                     'modification_gain_loss' => round(-$cash['derecognised'], 2), // derecognition without cash, disclosed on the row
                     'closing_gross' => round($closing, 2),
                     'ecl_allowance' => round($allowance, 2),
-                ]);
+                ] + ($mod === null ? [] : ['modification_adjustment' => $mod['adjustment'], 'adjustment_kind' => $mod['kind'], 'schedule_version' => $mod['version']]));
 
                 return $this->result($row, $superseded > 0 ? 'RECALCULATED' : 'CREATED', $cash['unclassified'], $superseded);
             });
         } catch (\Throwable $e) {
+            if ($e instanceof ModificationBlockedException) {
+                ModificationAccountingService::recordBlocked($e); // after the rollback, so the register shows why
+            }
             return ['contract_id' => $contractId, 'reporting_period' => $period, 'status' => 'BLOCKED', 'error' => $e->getMessage()];
         }
     }
@@ -157,10 +171,17 @@ class EirRevenueService
      * loan was lent at is put right: Chipala Investment was lent at 30.0 percent and
      * its schedule built at 26.1.
      */
-    private function eirInForce(ContractEir $contract, object $loan): float
+    private function eirInForce(ContractEir $contract, object $loan, ?string $period = null): float
     {
         $locked = (float) $contract->eir_effective_annual;
         $built = $this->scheduleRate($contract);
+        // after a confirmed restructure: the EIR of version N+1 (derecognition) or the revised EIR after
+        // modification fees, at the rate it was set at; a modification kept inside the original EIR moves
+        // the rate the re-estimation starts from by its own change in the contractual rate (spec P7)
+        if ($period !== null && ($basis = $this->modifications->basisBefore((string) $contract->contract_id, $period)) !== null) {
+            $locked = $basis['eir'] ?? $locked;
+            $built = ($basis['built'] ?? $built) + $basis['shift'];
+        }
         $charged = isset($loan->interest_rate) && is_numeric($loan->interest_rate) ? (float) $loan->interest_rate / 100 : null;
         if (strtoupper((string) $contract->rate_type) !== 'FLOATING' || $built <= 0 || $charged === null || $charged <= 0) {
             return $locked;
@@ -168,6 +189,33 @@ class EirRevenueService
         $nominal = 12 * (pow(1 + $locked, 1 / 12) - 1) + ($charged - $built);
 
         return pow(1 + max(0.0, $nominal) / 12, 12) - 1;
+    }
+
+    /**
+     * The current EIR of a floating-rate loan for a month (decision D38, IFRS 9 B5.4.5), for
+     * the ECL's discount rate (B5.5.44 asks for the current EIR of a floating-rate asset).
+     * The rate the roll-forward accrued at for the month (eir_annual) where it ran; otherwise
+     * the same re-estimation from the month's loan-book rate. Null where the loan is not
+     * floating, or the month's charged rate or the rate the schedule was built at is unknown:
+     * never the locked rate in its place.
+     */
+    public function currentFloatingEir(ContractEir $contract, object $loan, string $period): ?float
+    {
+        if (strtoupper((string) $contract->rate_type) !== 'FLOATING') {
+            return null;
+        }
+        $period = $this->normalisePeriod($period);
+        // without the month's charged rate the roll-forward itself fell back to the locked rate: not a current EIR
+        $charged = isset($loan->interest_rate) && is_numeric($loan->interest_rate) && (float) $loan->interest_rate > 0;
+        if (! $charged || $contract->eir_effective_annual === null || $this->scheduleRate($contract) <= 0) {
+            return null;
+        }
+        $accrued = EirAmortisation::where('contract_id', $contract->contract_id)->where('reporting_period', $period)->value('eir_annual');
+        if ($accrued !== null && (float) $accrued > 0) {
+            return (float) $accrued;
+        }
+
+        return $this->eirInForce($contract, $loan, $period);
     }
 
     /**
@@ -439,7 +487,7 @@ class EirRevenueService
     private function scheduledCash(string $contractId, CarbonImmutable $start, CarbonImmutable $end): float
     {
         return (float) DB::table('contract_cashflow_schedule')->where('contract_id', $contractId)
-            ->where('schedule_version', 1)
+            ->where('schedule_version', ModificationAccountingService::versionInForce($contractId, $start->toDateString()))
             ->whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
             ->selectRaw('COALESCE(SUM(principal_due + interest_due + fee_due), 0) as due')->value('due');
     }
@@ -490,7 +538,7 @@ class EirRevenueService
                 'superseded_at' => now(),
                 'superseded_by' => $userId,
                 'supersession_reason' => mb_substr($reason, 0, 500),
-            ]);
+            ] + (isset($row->modification_adjustment) ? ['modification_adjustment' => $row->modification_adjustment, 'adjustment_kind' => $row->adjustment_kind, 'schedule_version' => $row->schedule_version] : []));
         }
 
         EirAmortisation::where('contract_id', $contractId)->where('reporting_period', '>=', $fromPeriod)->delete();

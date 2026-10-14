@@ -88,6 +88,9 @@ class Ifrs9ReportExport implements FromArray, WithEvents, WithTitle, ShouldAutoS
         foreach ($r['sections'] ?? [] as $sec) {
             $this->rows[] = [$sec['heading'] ?? ''];
             $this->meta['sectionHeadingRows'][] = count($this->rows);
+            if (! empty($sec['note'])) {
+                $this->rows[] = [$sec['note']]; // a section's note travels with it (the basis of the allowance, a gap named)
+            }
 
             $cols = $sec['columns'] ?? [];
             if (empty($sec['rows'])) {

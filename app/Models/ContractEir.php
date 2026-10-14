@@ -79,6 +79,10 @@ class ContractEir extends Model
         'schedule_generated_at',
         'schedule_approved_at',
         'schedule_approved_by',
+        // maker-checker on the schedule (O18) and the bootstrap label; the over-sanction flag (spec 7.3)
+        'schedule_prepared_by',
+        'schedule_approver_label',
+        'over_sanction_amount',
         // What the generator decided, recorded beside the terms it decided it
         // from (P4): the balance the instalments retire, the shapes and the
         // day count in force when the draft was built.
@@ -100,6 +104,7 @@ class ContractEir extends Model
         'calculated_by',
         'locked_at',
         'locked_by',
+        'locked_label',
     ];
 
     protected $casts = [

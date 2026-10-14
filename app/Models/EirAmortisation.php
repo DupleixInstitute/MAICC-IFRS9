@@ -25,6 +25,9 @@ class EirAmortisation extends Model
         'modification_gain_loss',
         'closing_gross',
         'ecl_allowance',
+        'modification_adjustment',
+        'adjustment_kind',
+        'schedule_version',
     ];
 
     protected $casts = [
@@ -36,6 +39,7 @@ class EirAmortisation extends Model
         'unwind_amount'          => 'float',
         'cash_received'          => 'float',
         'modification_gain_loss' => 'float',
+        'modification_adjustment' => 'float',
         'closing_gross'          => 'float',
         'ecl_allowance'          => 'float',
     ];

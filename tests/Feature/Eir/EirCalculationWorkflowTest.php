@@ -37,14 +37,14 @@ class EirCalculationWorkflowTest extends TestCase
             $t->enum('rate_source', ['SOLVED_EIR', 'CONTRACTUAL_PROXY'])->default('CONTRACTUAL_PROXY'); $t->integer('solver_iterations')->nullable(); $t->double('solver_residual')->nullable();
             $t->string('solver_method')->nullable(); $t->json('input_snapshot')->nullable(); $t->string('calculation_status')->default('PENDING');
             $t->text('calculation_error')->nullable(); $t->string('calculated_at')->nullable(); $t->integer('calculated_by')->nullable();
-            $t->string('locked_at')->nullable(); $t->integer('locked_by')->nullable(); $t->timestamps();
+            $t->string('locked_at')->nullable(); $t->integer('locked_by')->nullable(); $t->string('locked_label')->nullable(); $t->timestamps();
         });
         Schema::create('contract_cashflow_schedule', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->integer('schedule_version')->default(1); $t->string('due_date'); $t->double('principal_due')->default(0); $t->double('interest_due')->default(0); $t->double('fee_due')->default(0); });
         Schema::create('contract_fees', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('fee_type')->default('other'); $t->string('description')->nullable(); $t->double('amount'); $t->boolean('integral')->nullable(); $t->string('classification_status')->default('PENDING'); $t->string('cashflow_direction')->nullable(); $t->string('transaction_date')->nullable(); $t->string('source_reference')->nullable(); $t->string('gl_account_ref')->nullable(); });
         Schema::create('eir_calculation_history', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->double('eir_period')->nullable(); $t->double('eir_nominal_annual')->nullable(); $t->double('eir_effective_annual')->nullable(); $t->string('rate_source')->nullable(); $t->integer('solver_iterations')->nullable(); $t->double('solver_residual')->nullable(); $t->string('solver_method')->nullable(); $t->json('input_snapshot')->nullable(); $t->string('calculation_status'); $t->text('calculation_error')->nullable(); $t->string('calculated_at')->nullable(); $t->integer('calculated_by')->nullable(); $t->string('locked_at')->nullable(); $t->integer('locked_by')->nullable(); $t->string('archive_action'); $t->string('archive_reason'); $t->integer('archived_by')->nullable(); $t->string('archived_at'); $t->timestamps(); });
         Schema::create('eir_amortisation', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->double('opening_gross'); $t->double('advances')->default(0); $t->string('opening_basis', 12)->nullable(); $t->double('eir_annual')->nullable(); $t->double('opening_arrears')->default(0); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->timestamps(); });
         Schema::create('eir_amortisation_history', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period'); $t->double('opening_gross'); $t->double('advances')->default(0); $t->string('opening_basis', 12)->nullable(); $t->double('eir_annual')->nullable(); $t->double('opening_arrears')->default(0); $t->double('interest_accrued'); $t->string('interest_basis'); $t->double('unwind_amount'); $t->double('cash_received'); $t->string('cash_source'); $t->double('modification_gain_loss'); $t->double('closing_gross'); $t->double('ecl_allowance'); $t->string('originally_created_at')->nullable(); $t->string('superseded_at'); $t->integer('superseded_by')->nullable(); $t->string('supersession_reason'); $t->timestamps(); });
-        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->double('ecl_value_discounted')->nullable(); $t->double('ecl_discounting_effect')->nullable(); $t->double('ecl_discount_rate')->nullable(); $t->string('ecl_discount_rate_source')->nullable(); $t->string('ecl_discount_status')->default('NOT_CALCULATED'); $t->double('ecl_discount_horizon_years')->nullable(); $t->string('ecl_calculation_run_id')->nullable(); $t->string('ecl_calculated_at')->nullable(); });
+        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('reporting_period')->nullable(); $t->double('ecl_value_discounted')->nullable(); $t->double('ecl_discounting_effect')->nullable(); $t->double('ecl_discount_rate')->nullable(); $t->string('ecl_discount_rate_source')->nullable(); $t->string('ecl_discount_status')->default('NOT_CALCULATED'); $t->double('ecl_discount_horizon_years')->nullable(); $t->string('ecl_calculation_run_id')->nullable(); $t->string('ecl_calculated_at')->nullable(); });
     }
 
     private function service(): EirCalculationService
@@ -226,5 +226,48 @@ class EirCalculationWorkflowTest extends TestCase
 
         $recalculated = $service->calculate('C-1', 40);
         $this->assertSame('CALCULATED', $recalculated['status']);
+    }
+
+    public function test_the_bootstrap_label_locks_in_place_of_a_second_person_and_is_recorded(): void
+    {
+        $this->seedContract('OWN');
+        $service = $this->service();
+        $service->calculate('OWN', 10);
+
+        $locked = $service->lock('OWN', 10, false, \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL);
+
+        $this->assertSame('LOCKED', $locked->calculation_status);
+        $this->assertSame(\App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL, DB::table('contract_eir')->where('contract_id', 'OWN')->value('locked_label'));
+    }
+
+    public function test_no_other_label_may_stand_in_for_the_second_person(): void
+    {
+        $this->seedContract('OWN');
+        $service = $this->service();
+        $service->calculate('OWN', 10);
+
+        $this->expectException(\LogicException::class);
+        $service->lock('OWN', 10, false, 'Approved by the board');
+    }
+
+    public function test_reopening_is_refused_while_a_month_it_reached_is_locked(): void
+    {
+        Schema::create('reporting_period_locks', function (Blueprint $t) { $t->increments('id'); $t->string('reporting_period')->unique(); $t->integer('locked_by')->nullable(); $t->timestamp('locked_at')->nullable(); $t->string('reason')->nullable(); $t->timestamps(); });
+        $this->seedContract();
+        $service = $this->service();
+        $service->calculate('C-1', 10);
+        $service->lock('C-1', 20);
+        DB::table('eir_amortisation')->insert(['contract_id'=>'C-1','reporting_period'=>'2025-01','opening_gross'=>1000,
+            'interest_accrued'=>10,'interest_basis'=>'GROSS','unwind_amount'=>0,'cash_received'=>0,'cash_source'=>'DERIVED',
+            'modification_gain_loss'=>0,'closing_gross'=>1010,'ecl_allowance'=>25,'created_at'=>now(),'updated_at'=>now()]);
+        DB::table('reporting_period_locks')->insert(['reporting_period'=>'2025-01','locked_by'=>1,'locked_at'=>now(),'reason'=>'Year-end closed']);
+
+        try {
+            $service->reopen('C-1', 30, 'Correcting an approved fee classification.');
+            $this->fail('A locked month must refuse the reopening.');
+        } catch (\App\Support\LockedPeriodException $e) {
+            $this->assertSame('LOCKED', DB::table('contract_eir')->where('contract_id', 'C-1')->value('calculation_status'));
+            $this->assertSame(1, DB::table('eir_amortisation')->count());
+        }
     }
 }

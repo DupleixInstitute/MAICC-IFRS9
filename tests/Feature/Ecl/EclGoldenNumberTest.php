@@ -149,9 +149,9 @@ class EclGoldenNumberTest extends TestCase
              'pd_prefli' => 0.02, 'pd_post_fli' => 0.05, 'customer_lgd' => 0.50, 'collection_lgd' => 0.40,
              'carrying_amount' => 100000, 'commitments' => 0, 'facility_utilisation_rate' => null],
 
-            // Stage 1 — B: pd_prefli null -> COALESCE to pd_post_fli; EAD adds commitments * util.
+            // Stage 1 - B: a pre-FLI run reads pd_prefli only (no fallback to pd_post_fli); EAD adds commitments * util.
             ['reporting_period' => '2025-11', 'loan_portfolio_id' => 1, 'ifrs9stage_pre_qualitative' => '1',
-             'pd_prefli' => null, 'pd_post_fli' => 0.10, 'customer_lgd' => 0.70, 'collection_lgd' => 0.50,
+             'pd_prefli' => 0.10, 'pd_post_fli' => 0.10, 'customer_lgd' => 0.70, 'collection_lgd' => 0.50,
              'carrying_amount' => 200000, 'commitments' => 50000, 'facility_utilisation_rate' => 0.5],
 
             // Stage 2 — C.
@@ -198,10 +198,7 @@ class EclGoldenNumberTest extends TestCase
             'discounting_mode'      => $discountingMode,
         ]);
 
-        app(ExpectedCreditLossController::class)->calculateECL(
-            $request,
-            app(\App\Services\Ecl\EclDiscountingService::class)
-        );
+        app(ExpectedCreditLossController::class)->calculateECL($request);
     }
 
     private function eclRow(string $stage): object
@@ -299,8 +296,16 @@ class EclGoldenNumberTest extends TestCase
         $this->assertEqualsWithDelta(0.275, (float) $s1->lgd_value_used, 1e-9); // avg(0.20,0.35)
     }
 
-    /** @test */
-    public function discounted_mode_keeps_undiscounted_ecl_and_names_unresolved_contracts(): void
+    /**
+     * Discounted ECL is the time-phased engine's or nothing (14 October 2026).
+     * This schema has no ecl_projection_runs, so the run used to fall back to a
+     * single-horizon proxy (EclDiscountingService, CALCULATED_HORIZON_PROXY:
+     * 10,000 / 1.1 = 9,090.91 on LOCKED-1); it is now refused with the reason
+     * and nothing is written. WrittenOffNilEclTest covers the engine itself.
+     *
+     * @test
+     */
+    public function discounted_mode_without_the_time_phased_engine_is_refused_never_proxied(): void
     {
         DB::table('contract_eir')->insert([
             'contract_id' => 'LOCKED-1', 'eir_effective_annual' => 0.10,
@@ -312,30 +317,19 @@ class EclGoldenNumberTest extends TestCase
              'ifrs9stage_pre_qualitative' => '1', 'remaining_tenor' => 12, // months (audit C2)
              'pd_prefli' => 0.10, 'collection_lgd' => 0.50, 'carrying_amount' => 200000,
              'commitments' => 0, 'facility_utilisation_rate' => 1],
-            ['contract_id' => 'NO-EIR', 'reporting_period' => '2025-11', 'loan_portfolio_id' => 1,
-             'ifrs9stage_pre_qualitative' => '1', 'remaining_tenor' => 12, // months (audit C2)
-             'pd_prefli' => 0.10, 'collection_lgd' => 0.50, 'carrying_amount' => 100000,
-             'commitments' => 0, 'facility_utilisation_rate' => 1],
         ]);
 
-        $this->runEcl('pd_prefli', 'collection_lgd', 'discounted');
+        try {
+            $this->runEcl('pd_prefli', 'collection_lgd', 'discounted');
+            $this->fail('A discounted run without the time-phased engine was not refused.');
+        } catch (\App\Services\Ecl\EclRunRefused $e) {
+            $this->assertStringContainsString('No proxy is applied', $e->getMessage());
+        }
 
         $locked = DB::table('loan_books')->where('contract_id', 'LOCKED-1')->first();
-        $this->assertEqualsWithDelta(10000, (float) $locked->ecl_value, 0.001);
-        $this->assertEqualsWithDelta(9090.91, (float) $locked->ecl_value_discounted, 0.01);
-        $this->assertEqualsWithDelta(909.09, (float) $locked->ecl_discounting_effect, 0.01);
-        $this->assertSame('EIR_ORIGINAL', $locked->ecl_discount_rate_source);
-        $this->assertSame('CALCULATED_HORIZON_PROXY', $locked->ecl_discount_status);
-
-        $missing = DB::table('loan_books')->where('contract_id', 'NO-EIR')->first();
-        $this->assertEqualsWithDelta(5000, (float) $missing->ecl_value, 0.001);
-        $this->assertNull($missing->ecl_value_discounted);
-        $this->assertSame('EIR_UNAVAILABLE', $missing->ecl_discount_status);
-
-        $aggregate = $this->eclRow('1');
-        $this->assertEqualsWithDelta(15000, (float) $aggregate->total_ecl, 0.001);
-        $this->assertEqualsWithDelta(9090.91, (float) $aggregate->total_ecl_discounted, 0.01);
-        $this->assertSame('PARTIAL', $aggregate->discount_status);
-        $this->assertSame(1, (int) $aggregate->discount_unresolved_loans);
+        $this->assertNull($locked->ecl_value);
+        $this->assertNull($locked->ecl_value_discounted);
+        $this->assertSame('NOT_CALCULATED', $locked->ecl_discount_status);
+        $this->assertSame(0, DB::table('expected_credit_loss')->count());
     }
 }

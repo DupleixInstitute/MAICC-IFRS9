@@ -68,12 +68,12 @@ class ContractMasterImport
             'INTEREST_RATE' => 'contractual_rate',
             'INTEREST RATE' => 'contractual_rate',
             'CONTRACTUAL_RATE' => 'contractual_rate',
-            // The delivered RATE_BASIS column carries Fixed/Variable — it is
-            // the rate type, not a day-count or accrual basis. Mapping it to
-            // the free-text rate_basis column would leave rate_type on its
-            // FIXED default for the 204 variable-rate facilities in the book.
-            'RATE_BASIS' => 'rate_type',
-            'RATE BASIS' => 'rate_type',
+            // RATE_BASIS is not mapped (system audit M15, spec 7.2). It was read
+            // as the rate type, but the rate type is derived from E-Banker's
+            // INTEREST_POLICY (P floating, any other policy fixed) and a
+            // RATE_BASIS column has carried the opposite sense in a delivered
+            // file; a column whose meaning is not certain is not read. A file
+            // states the rate type as RATE_TYPE.
             'RATE_TYPE' => 'rate_type',
             'RATE TYPE' => 'rate_type',
             'INTEREST_BASIS' => 'rate_basis',

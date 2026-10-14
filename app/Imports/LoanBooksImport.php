@@ -113,13 +113,23 @@ class LoanBooksImport implements ToCollection, WithHeadingRow, WithEvents, WithC
 
     public function classifyIFRS9Stage($row)
     {
-        // DPD waterfall now lives in staging_thresholds configuration
-        // (docs/EIR_Build.md Phase 2.4). The seeded DEFAULT rule reproduces
-        // the ladder previously hardcoded here; with no configuration the
-        // classifier falls back to that same ladder.
-        $this->stagingClassifier ??= new \App\Services\Eir\StagingClassifier();
+        // DPD waterfall lives in staging_thresholds configuration, read at the
+        // end of the reporting period being imported (audit H11); with no
+        // approved rule in force the import stops and says so.
+        $this->stagingClassifier ??= new \App\Services\Eir\StagingClassifier($this->stagingAsOf());
 
         return $this->stagingClassifier->classify($row);
+    }
+
+    /** The end of the reporting period being imported: the date the staging rules are read at (H11). */
+    protected function stagingAsOf(): string
+    {
+        $period = (string) ($this->mapping['reporting_period'] ?? $this->import->settings['reporting_period'] ?? '');
+        if (preg_match('/^(\d{4})-(\d{2})/', $period, $m) !== 1) {
+            throw new \RuntimeException('The import names no reporting period (YYYY-MM), so the staging rules in force cannot be read; the period is not assumed to be this month.');
+        }
+
+        return \Carbon\Carbon::create((int) $m[1], (int) $m[2], 1)->endOfMonth()->toDateString();
     }
 
     protected function normalizeKey($key): string

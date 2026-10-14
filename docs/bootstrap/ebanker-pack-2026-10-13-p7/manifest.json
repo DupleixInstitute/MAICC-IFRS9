@@ -1,0 +1,72 @@
+{
+  "pack": "MAIIC E-Banker pack 7, received 13 October 2026",
+  "assembled": "2026-10-13",
+  "period": "2026-09",
+  "source": "E-Banker (Virtual Galaxy CBS, schema VGCBS), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 7 - 12 Oct 2026.sql; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
+  "date_format": "m/d/Y",
+  "scope_scheme_ids": [],
+  "accepted_exceptions": [
+    "RUN 0 not applied: every date is m/d/yyyy; the manifest declares the format (D23)",
+    "CV_04a (CUMVOUCH_BK240824, a copy of the ledger taken on 24 August 2024) and CV_04b (CUMVOUCH_BAK, an older copy under the earlier chart) are the ledger before the July 2024 migration. They land under their own query ids, outside the LEDGER family (LandingZoneReader::LEDGER), so the loan book, the EIR, the staging and the ECL read none of them; their posting ids come from other sequences than the live CUMVOUCH and must never be merged on id with it",
+    "Each copy arrives in three parts by year (a1 to a3, b1 to b3); the keys do not overlap across the parts of one copy; each part's rows equal the pack 6 count by year (CV_03)",
+    "CV_04a loan GLs net to the 1 January 2024 GL opening balances of CV_14 (pack 9) within 0.50 (pack 9 results review)"
+  ],
+  "not_landed": [],
+  "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "CV_04a1_bk240824_2018_2022.csv",
+      "query_id": "CV_04a",
+      "kind": "pack 7 RUN 1a: CUMVOUCH_BK240824 (ledger copy of 24 August 2024), postings 2018 to 2022, all 84 columns; 3,530 rows as counted in CV_03",
+      "rows": 3530,
+      "sha256": "f223854306d7580996796c7ace897efb08730143ca73577bdc7cf0649b84e79a",
+      "bytes": 1706284,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 7/Export Results/CV_04a1_bk240824_2018_2022.csv"
+    },
+    {
+      "file": "CV_04a2_bk240824_2023.csv",
+      "query_id": "CV_04a",
+      "kind": "pack 7 RUN 1b: CUMVOUCH_BK240824, postings of 2023; 2,083 rows as counted in CV_03",
+      "rows": 2083,
+      "sha256": "a90b91f6e8dae5ce77dae3eb41b6d6d1389cf2d1fe378274a90528323d101af4",
+      "bytes": 1044620,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 7/Export Results/CV_04a2_bk240824_2023.csv"
+    },
+    {
+      "file": "CV_04a3_bk240824_2024.csv",
+      "query_id": "CV_04a",
+      "kind": "pack 7 RUN 1c: CUMVOUCH_BK240824, postings 1 January to 15 August 2024; 6,851 rows as counted in CV_03",
+      "rows": 6851,
+      "sha256": "bcdd74a75195c1a77d4c65b466a16abba0d95e90602ffef5173fc0844901d333",
+      "bytes": 3790439,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 7/Export Results/CV_04a3_bk240824_2024.csv"
+    },
+    {
+      "file": "CV_04b1_bak_2000_2021.csv",
+      "query_id": "CV_04b",
+      "kind": "pack 7 RUN 2a: CUMVOUCH_BAK (older ledger copy, loan GLs 1050, 1052, 1053), postings 2000 to 2021; 7,019 rows as counted in CV_03 (the complete pack 7 copy)",
+      "rows": 7019,
+      "sha256": "a47847fe4db41f5d0cd4617ea49ec3d13285c2c2c77721247eb21d95626e51c2",
+      "bytes": 3651988,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 7/Export Results/CV_04b1_bak_2000_2021.csv"
+    },
+    {
+      "file": "CV_04b2_bak_2022.csv",
+      "query_id": "CV_04b",
+      "kind": "pack 7 RUN 2b: CUMVOUCH_BAK, postings of 2022; 5,639 rows as counted in CV_03 (the complete pack 7 copy)",
+      "rows": 5639,
+      "sha256": "880464dc4998f196a2d74ad6a0fab4e8ceca7eec3533ca35e936453c0355afcf",
+      "bytes": 2953989,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 7/Export Results/CV_04b2_bak_2022.csv"
+    },
+    {
+      "file": "CV_04b3_bak_2023_2024.csv",
+      "query_id": "CV_04b",
+      "kind": "pack 7 RUN 2c: CUMVOUCH_BAK, postings 3 January 2023 to 27 March 2024; 7,122 rows as counted in CV_03",
+      "rows": 7122,
+      "sha256": "354d70176dd0f2c902cf2b3b1fe6319993b5aefc10ee340dfcc919c7c99d179c",
+      "bytes": 3747576,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 7/Export Results/CV_04b3_bak_2023_2024.csv"
+    }
+  ]
+}

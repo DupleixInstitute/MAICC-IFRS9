@@ -326,6 +326,12 @@ class CollateralController extends Controller
             $reportingYear = $request->input('reporting_year');
             $reportingMonth = $request->input('reporting_month');
             $reportingPeriod = date('Y-m-d', strtotime("{$reportingYear}-{$reportingMonth}-01"));
+            // a locked month is never restated, by this legacy writer either (audit H4)
+            try {
+                \App\Support\ReportingPeriodLock::assertOpen(substr($reportingPeriod, 0, 7), 'the collateral allocation');
+            } catch (\RuntimeException $e) {
+                return back()->with('error', $e->getMessage());
+            }
             // the register date chosen on the screen; with none, every register date counts
             $period = $request->input('registration_date') ?: null;
 
@@ -473,7 +479,9 @@ class CollateralController extends Controller
                         ]
                     );
 
-                    // Update customer LGD based on coverage (per contract_id)
+                    // Update customer LGD based on coverage, on the allocation's own month only:
+                    // the update ran on every month of the contract, so it restated past and
+                    // locked months with this month's coverage (audit H4)
                     DB::statement("
                         UPDATE loan_books
                         SET 
@@ -481,11 +489,15 @@ class CollateralController extends Controller
                             allocated_gross_value = ?,
                             allocated_discounted_value = ?
                         WHERE contract_id = ?
+                        AND reporting_year = ?
+                        AND reporting_month = ?
                     ", [
                         $coverage,
                         $allocatedGrossValue,
                         $allocatedDiscountedValue,
                         $loan->contract_id,
+                        $reportingYear,
+                        $reportingMonth,
                     ]);
 
                     $available -= $share;
@@ -508,6 +520,12 @@ class CollateralController extends Controller
                 if (!$loanBook) {
                     return back()->with('error', 'Loan book entry not found for the given contract ID.');
                 }
+                // a locked month is never restated, by this legacy writer either (audit H4)
+                try {
+                    \App\Support\ReportingPeriodLock::assertOpen((string) $loanBook->reporting_period, 'the customer LGD');
+                } catch (\RuntimeException $e) {
+                    return back()->with('error', $e->getMessage());
+                }
 
                 // Recalculate customer LGD based on existing collateral allocations
                 $totalDiscountedCollateral = CollateralAllocation::where('contract_id', $loanBook->contract_id)
@@ -517,7 +535,7 @@ class CollateralController extends Controller
                             ? min(($totalDiscountedCollateral / $loanBook->carrying_amount) * 100, 100) 
                             : 0;
 
-                $customerLgd = GREATEST(1 - ($coverage / 100), 0);
+                $customerLgd = max(1 - ($coverage / 100), 0);
 
                 $loanBook->customer_lgd = $customerLgd;
                 $loanBook->save();

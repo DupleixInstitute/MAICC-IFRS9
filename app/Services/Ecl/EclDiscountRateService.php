@@ -3,6 +3,7 @@
 namespace App\Services\Ecl;
 
 use App\Models\ContractEir;
+use App\Services\Eir\EirRevenueService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,6 +25,14 @@ use Illuminate\Support\Facades\DB;
  * an allowance for a facility whose discounting basis was unknown. A payment
  * whose rate cannot be resolved is now returned as unresolved and excluded by
  * the caller, named.
+ *
+ * A floating-rate facility is discounted at its current EIR (IFRS 9 B5.5.44),
+ * the EIR in force for the period as the revenue engine re-estimates it from
+ * the rate charged (decision D38, EirRevenueService::currentFloatingEir), the
+ * same rate TimePhasedEclService discounts the allowance at. Where it cannot
+ * be determined the payment is unresolved with the reason; the original EIR
+ * is never used in its place (it was, labelled EIR_ORIGINAL_FLOATING_PROXY,
+ * until 14 October 2026).
  */
 class EclDiscountRateService
 {
@@ -34,7 +43,7 @@ class EclDiscountRateService
 
     /** The basis actually applied to a given payment. */
     public const APPLIED_EIR_ORIGINAL = 'EIR_ORIGINAL';
-    public const APPLIED_EIR_FLOATING_PROXY = 'EIR_ORIGINAL_FLOATING_PROXY';
+    public const APPLIED_EIR_CURRENT_FLOATING = 'EIR_CURRENT_FLOATING';
     public const APPLIED_LOAN_BOOK = 'LOAN_BOOK_CONTRACTUAL';
     public const APPLIED_MANUAL = 'MANUAL';
 
@@ -75,17 +84,24 @@ class EclDiscountRateService
     }
 
     /**
-     * The locked original EIR. A floating facility should strictly be
-     * discounted at its current effective rate; no reset history has been
-     * recorded yet, so the original stands in and is labelled as a proxy
-     * rather than presented as the current rate.
+     * The locked original EIR of a fixed-rate facility; the current EIR of a floating-rate
+     * facility for the period (B5.5.44), from the month's charged rate on the loan book.
      */
     private function fromLockedEir(array $pairs): array
     {
         $contractIds = array_values(array_unique(array_column($pairs, 'contract_id')));
         $contracts = ContractEir::whereIn('contract_id', $contractIds)
             ->whereNotNull('locked_at')->whereNotNull('eir_effective_annual')
-            ->get(['contract_id', 'eir_effective_annual', 'rate_type'])->keyBy('contract_id');
+            ->get()->keyBy('contract_id');
+        $floating = $contracts->filter(fn ($c) => strtoupper((string) $c->rate_type) === 'FLOATING');
+        $charged = [];
+        if ($floating->isNotEmpty()) {
+            foreach (DB::table('loan_books')->whereIn('contract_id', $floating->keys()->all())->whereNotNull('interest_rate')
+                ->orderBy('id')->get(['contract_id', 'reporting_period', 'interest_rate']) as $row) {
+                $charged[$row->contract_id . '|' . $this->periodKey((string) $row->reporting_period)] = $row->interest_rate;
+            }
+        }
+        $revenue = $floating->isNotEmpty() ? app(EirRevenueService::class) : null;
 
         $rates = [];
         $unresolved = [];
@@ -102,12 +118,26 @@ class EclDiscountRateService
                 continue;
             }
 
-            $rates[$key] = [
-                'rate' => $rate,
-                'applied_source' => $contract->rate_type === 'FLOATING'
-                    ? self::APPLIED_EIR_FLOATING_PROXY
-                    : self::APPLIED_EIR_ORIGINAL,
-            ];
+            if ($floating->has($pair['contract_id'])) {
+                try {
+                    $current = $revenue->currentFloatingEir($contract, (object) ['interest_rate' => $charged[$key] ?? null], $pair['period']);
+                } catch (\InvalidArgumentException $e) {
+                    $unresolved[$key] = 'Floating-rate loan: ' . $e->getMessage();
+                    continue;
+                }
+                if ($current === null) {
+                    $unresolved[$key] = 'Floating-rate loan: its current EIR for ' . $pair['period'] . ' cannot be determined (no loan-book rate charged for the month, or no rate the locked schedule was built at), and the original EIR is not used in its place (IFRS 9 B5.5.44).';
+                    continue;
+                }
+                if ($current <= 0) {
+                    $unresolved[$key] = 'The current EIR of the floating-rate loan is not positive (' . $current . ').';
+                    continue;
+                }
+                $rates[$key] = ['rate' => $current, 'applied_source' => self::APPLIED_EIR_CURRENT_FLOATING];
+                continue;
+            }
+
+            $rates[$key] = ['rate' => $rate, 'applied_source' => self::APPLIED_EIR_ORIGINAL];
         }
 
         return ['rates' => $rates, 'unresolved' => $unresolved];
@@ -116,7 +146,7 @@ class EclDiscountRateService
     /**
      * The contractual rate off the monthly tape. Stored as a percentage
      * (34.19 means 34.19%), unlike every other rate in the system, so it is
-     * converted here — discounting at 3,419% would reduce a payment one year
+     * converted here: discounting at 3,419% would reduce a payment one year
      * out to under 3% of its value.
      */
     private function fromLoanBook(array $pairs): array

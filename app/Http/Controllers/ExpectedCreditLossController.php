@@ -6,7 +6,8 @@ use App\Models\LoanPortfolio;
 use App\Models\IndustryType;
 use App\Models\ReportingPeriods;
 use App\Models\ExpectedCreditLoss;
-use App\Services\Ecl\EclDiscountingService;
+use App\Services\Ecl\EclExposure;
+use App\Services\Ecl\EclRunRefused;
 use App\Services\Ecl\TimePhasedEclService;
 use App\Services\Reports\EclBuildUpService;
 use Carbon\Carbon;
@@ -26,15 +27,11 @@ class ExpectedCreditLossController extends Controller
             | GET THE LATEST CALCULATED REPORTING PERIOD
             |--------------------------------------------------------------------------
             */
-            try {
-                $latestPeriod = ReportingPeriods::where('ecl_calculated', 1)
-                    ->orderByDesc('period')
-                    ->value(DB::raw("DATE_FORMAT(period, '%Y-%m')"));
-            } catch (\Exception $e) {
-                // Fallback: get the latest period from loan_books if reporting_periods is not accessible
-                $latestPeriod = LoanBook::max('reporting_period');
-                \Log::warning('Reporting periods table not accessible, using loan_books fallback: ' . $e->getMessage());
-            }
+            // the latest month the ECL was calculated for; an unreadable table is an error, never
+            // replaced by the latest month loaded (that month may hold no ECL at all)
+            $latestPeriod = ReportingPeriods::where('ecl_calculated', 1)
+                ->orderByDesc('period')
+                ->value(DB::raw("DATE_FORMAT(period, '%Y-%m')"));
 
             /*
             |--------------------------------------------------------------------------
@@ -101,7 +98,7 @@ class ExpectedCreditLossController extends Controller
             // for the total row and the build-up (ECL before FLI, the
             // forward-looking effect, overlays, booked ECL).
             $buildUpService = app(EclBuildUpService::class);
-            $population = (clone $query)->toBase()->get(array_map(fn ($c) => 'loan_books.' . $c, EclBuildUpService::COLUMNS));
+            $population = (clone $query)->toBase()->get(array_map(fn ($c) => 'loan_books.' . $c, EclBuildUpService::columns()));
             $viewPeriod = ($request->filled('year') && $request->filled('month'))
                 ? sprintf('%04d-%02d', (int) $request->input('year'), (int) $request->input('month'))
                 : $latestPeriod;
@@ -112,7 +109,7 @@ class ExpectedCreditLossController extends Controller
             $loanBooks = $query->paginate(15)->withQueryString();
             $loanBooks->setCollection($loanBooks->getCollection()->map(function ($loan) {
                 $loan->setAttribute('lineage', EclBuildUpService::lineage((object) $loan->getAttributes()));
-                $loan->makeHidden(['build_basis', 'fli_by_scenario']);
+                $loan->makeHidden(['build_basis', 'fli_by_scenario', 'ecl_by_scenario']);
 
                 return $loan;
             }));
@@ -196,27 +193,15 @@ class ExpectedCreditLossController extends Controller
         public function summary(Request $request)
         {
             // Get the latest and previous ECL calculation periods
-            try {
-                $latestPeriod = ExpectedCreditLoss::select('reporting_period')
-                    ->orderBy('reporting_period', 'desc')
-                    ->value('reporting_period');
-                
-                $previousPeriod = ExpectedCreditLoss::select('reporting_period')
-                    ->where('reporting_period', '!=', $latestPeriod)
-                    ->orderBy('reporting_period', 'desc')
-                    ->value('reporting_period');
-            } catch (\Exception $e) {
-                // Fallback: get periods from loan_books if ExpectedCreditLoss is not accessible
-                $periods = LoanBook::select('reporting_period')
-                    ->distinct()
-                    ->orderBy('reporting_period', 'desc')
-                    ->pluck('reporting_period')
-                    ->toArray();
-                
-                $latestPeriod = $periods[0] ?? null;
-                $previousPeriod = $periods[1] ?? null;
-                \Log::warning('ExpectedCreditLoss table not accessible, using loan_books fallback: ' . $e->getMessage());
-            }
+            // the periods the ECL was calculated for, never the loaded months in their place
+            $latestPeriod = ExpectedCreditLoss::select('reporting_period')
+                ->orderBy('reporting_period', 'desc')
+                ->value('reporting_period');
+
+            $previousPeriod = ExpectedCreditLoss::select('reporting_period')
+                ->where('reporting_period', '!=', $latestPeriod)
+                ->orderBy('reporting_period', 'desc')
+                ->value('reporting_period');
 
             // Get current loan book data
             $query = LoanBook::query()
@@ -285,23 +270,12 @@ class ExpectedCreditLossController extends Controller
             $lossChangePercent = $previousData && $previousData->total_loss > 0 ? (($lossChange / $previousData->total_loss) * 100) : 0;
 
             // Get summary data
-            try {
-                $totalCalculations = ExpectedCreditLoss::select('reporting_period')->distinct()->count();
-                $periods = ExpectedCreditLoss::select('reporting_period')
-                    ->distinct()
-                    ->orderBy('reporting_period', 'desc')
-                    ->pluck('reporting_period')
-                    ->take(5);
-            } catch (\Exception $e) {
-                // Fallback: use loan_books data
-                $totalCalculations = LoanBook::select('reporting_period')->distinct()->count();
-                $periods = LoanBook::select('reporting_period')
-                    ->distinct()
-                    ->orderBy('reporting_period', 'desc')
-                    ->pluck('reporting_period')
-                    ->take(5);
-                \Log::warning('ExpectedCreditLoss table not accessible for summary, using loan_books fallback: ' . $e->getMessage());
-            }
+            $totalCalculations = ExpectedCreditLoss::select('reporting_period')->distinct()->count();
+            $periods = ExpectedCreditLoss::select('reporting_period')
+                ->distinct()
+                ->orderBy('reporting_period', 'desc')
+                ->pluck('reporting_period')
+                ->take(5);
 
             $summary = [
                 'total_calculations' => $totalCalculations,
@@ -365,7 +339,7 @@ class ExpectedCreditLossController extends Controller
                 ]);
             }
 
-         public function calculateECL(Request $request, EclDiscountingService $discounting, ?TimePhasedEclService $timePhased = null)
+         public function calculateECL(Request $request, ?TimePhasedEclService $timePhased = null)
             {
                 if (! app()->runningInConsole()) {
                     ini_set('max_execution_time', 300); // the web request only: on the console it capped the bootstrap (audit H14)
@@ -401,8 +375,9 @@ class ExpectedCreditLossController extends Controller
                 | PD & LGD EXPRESSIONS
                 |--------------------------------------------------------------------------
                 */
+                // a run before FLI reads the PD before FLI only: a missing one is refused, never taken from after FLI
                 $pdExpr = $validated['pd_type'] === 'pd_prefli'
-                    ? 'COALESCE(pd_prefli, pd_post_fli)'
+                    ? 'pd_prefli'
                     : 'pd_post_fli';
 
                 /*
@@ -452,7 +427,10 @@ class ExpectedCreditLossController extends Controller
                 | exposure but no PD (Stage 1 or 2) or no LGD would silently carry
                 | zero ECL. Refuse the run instead and name the gap.
                 */
-                $exposedSql = '(IFNULL(carrying_amount, 0) + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1)) > 0';
+                // the engine's EAD (EclExposure): floored at nil, and nil for a loan written off to nil
+                $hasBasis = EclExposure::hasBasis();
+                $eadSql = EclExposure::sql($hasBasis);
+                $exposedSql = "{$eadSql} > 0";
                 $lgdMissingSql = $validated['lgd_type'] === 'both'
                     ? '(customer_lgd IS NULL OR collection_lgd IS NULL)'
                     : "({$lgdExpr} IS NULL)";
@@ -466,6 +444,22 @@ class ExpectedCreditLossController extends Controller
                         . $missing->implode(', ') . '. Run staging, the PD and LGD engines (and the forward-looking route for pd_post_fli) first.';
                     if (app()->runningInConsole()) {
                         throw new \RuntimeException($message);
+                    }
+
+                    return redirect()->route('expected-credit-loss.index')->with('error', $message);
+                }
+
+                /*
+                | Discounted ECL is the time-phased engine's or nothing. It used to fall
+                | back to a single-horizon proxy (EclDiscountingService) when a run had
+                | neither the governed scenario set on its loans nor the legacy
+                | assumptions; the run is now refused with the reason instead, and the
+                | engine refuses a run with no scenario set itself.
+                */
+                if ($discountingMode === 'discounted' && ! \Schema::hasTable('ecl_projection_runs')) {
+                    $message = "Discounted ECL not calculated for {$period}: the time-phased engine's tables (ecl_projection_runs) are not installed; run the migrations. No proxy is applied.";
+                    if (app()->runningInConsole()) {
+                        throw new EclRunRefused($message);
                     }
 
                     return redirect()->route('expected-credit-loss.index')->with('error', $message);
@@ -510,9 +504,7 @@ class ExpectedCreditLossController extends Controller
                         UPDATE loan_books
                         SET
                             lgd_value = IFNULL($lgdExpr, 0),
-                            ecl_value = IFNULL($stagePdExpr, 0) * IFNULL($lgdExpr, 0)
-                                * (CASE WHEN (IFNULL(carrying_amount, 0) + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1)) > 0
-                                    THEN (IFNULL(carrying_amount, 0) + IFNULL(commitments, 0) * IFNULL(facility_utilisation_rate, 1)) ELSE 0 END)
+                            ecl_value = IFNULL($stagePdExpr, 0) * IFNULL($lgdExpr, 0) * $eadSql
                         WHERE $baseWhere
                     ", $bindings);
 
@@ -520,24 +512,15 @@ class ExpectedCreditLossController extends Controller
                     $discountResult = ['calculated' => 0, 'unresolved' => 0, 'statuses' => []];
 
                     if ($discountingMode === 'discounted') {
-                        $loans = (clone $scope)->get();
-                        // The complete time-phased engine is authoritative on
-                        // current schemas. The fallback keeps isolated legacy
-                        // test schemas operational and remains visibly labelled.
-                        // the time-phased engine runs on the governed set the route wrote on
-                        // the loans (fli_by_scenario) as well as on the legacy assumptions; it
-                        // used to need the legacy table, so a book run under the governed set
-                        // fell to the horizon proxy below
-                        $governedOnLoans = \Schema::hasColumn('loan_books', 'fli_by_scenario') && $loans->contains(fn ($l) => ! empty($l->fli_by_scenario) && $l->fli_by_scenario !== '[]');
-                        if (\Schema::hasTable('ecl_projection_runs') && ($governedOnLoans || DB::table('ecl_scenario_assumptions')->where('status','APPROVED')->exists())) {
-                            $discountResult = ($timePhased ?? app(TimePhasedEclService::class))->run(
-                                $loans, $period, $validated['lgd_type'], auth()->id()
-                            );
-                        } else {
-                            $discountResult = $discounting->apply($loans, $period, $runId);
-                        }
+                        // the time-phased engine, on the governed set the route wrote on the loans
+                        // or the approved legacy assumptions; with neither it refuses the run
+                        // (EclRunRefused) and the transaction is rolled back whole
+                        $discountResult = ($timePhased ?? app(TimePhasedEclService::class))->run(
+                            (clone $scope)->get(), $period, $validated['lgd_type'], auth()->id(), $validated['pd_type']
+                        );
                     } else {
-                        (clone $scope)->update([
+                        // an undiscounted run leaves nothing of an earlier discounted one on the loans
+                        (clone $scope)->update((\Schema::hasColumn('loan_books', 'ecl_by_scenario') ? ['ecl_by_scenario' => null] : []) + [
                             'ecl_value_discounted' => null,
                             'ecl_discounting_effect' => null,
                             'ecl_discount_rate' => null,
@@ -557,7 +540,7 @@ class ExpectedCreditLossController extends Controller
                     $grouped = DB::table('loan_books')
                         ->selectRaw("
                             {$stageExpr} AS ifrs9stage_post_qualitative,
-                            SUM(COALESCE(carrying_amount, 0) + COALESCE(commitments, 0) * COALESCE(facility_utilisation_rate, 1)) AS total_ead,
+                            SUM(" . EclExposure::unflooredSql($hasBasis) . ") AS total_ead,
                             SUM(ecl_value) AS total_ecl,
                             SUM(ecl_value_discounted) AS total_ecl_discounted,
                             SUM(ecl_discounting_effect) AS total_discounting_effect,
@@ -627,6 +610,9 @@ class ExpectedCreditLossController extends Controller
                     DB::commit();
                 } catch (\Throwable $e) {
                     DB::rollBack();
+                    if ($e instanceof EclRunRefused && ! app()->runningInConsole()) {
+                        return redirect()->route('expected-credit-loss.index')->with('error', $e->getMessage());
+                    }
                     throw $e;
                 } finally {
                     if ($useLock) {

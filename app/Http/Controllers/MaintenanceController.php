@@ -58,7 +58,7 @@ class MaintenanceController extends Controller
             ['key' => 'month-end', 'group' => 'month', 'step' => 2, 'period' => true,
                 'label' => 'Run the month-end calculations',
                 'command' => 'maiic:task month-end {period} --user={user}',
-                'description' => 'In order: staging, the PD and LGD by segment, the forward-looking route with the scenario projection, the ECL and the month record, the EIR revenue, then the Mega Farm programme. It stops at the first step that cannot run and says why.',
+                'description' => 'In order: the scheme settings and the over-sanction flag, the restructure candidates and rate moves from the E-Banker reschedule history (found only: nothing is confirmed until two people do so on EIR Data, Restructures & Resets), staging, the PD and LGD by segment, the forward-looking route with the scenario projection, the ECL and the month record, the actual cash from the ledger, the GL fee postings with the fee GL gate, the EIR revenue, then the Mega Farm programme. It stops at the first step that cannot run and says why.',
                 'danger' => 'caution', 'note' => 'Needs an approved loan book build, a model version in force and an approved scenario set. A second person then signs the month off on Forward-Looking Information, Overview.'],
             ['key' => 'fli-correlate', 'group' => 'month', 'step' => 3, 'period' => true,
                 'label' => 'Recalibrate the forward-looking model',

@@ -1,0 +1,43 @@
+{
+  "pack": "MAIIC E-Banker pack 6, received 12 October 2026",
+  "assembled": "2026-10-12",
+  "period": "2026-09",
+  "source": "E-Banker (Virtual Galaxy CBS, schema VGCBS), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 6 - 12 Oct 2026.sql; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
+  "date_format": "m/d/Y",
+  "scope_scheme_ids": [],
+  "accepted_exceptions": [
+    "RUN 0 not applied: every date is m/d/yyyy; the manifest declares the format (D23)",
+    "GL_08a is a slice of the live ledger (P1_01) and TB_05 of E-Banker's stored trial balance (TB_03); each has its own query id outside the families the engines read, so no engine figure moves"
+  ],
+  "not_landed": [],
+  "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "GL_08a_6730_postings_jan_jun.csv",
+      "query_id": "GL_08a",
+      "kind": "pack 6 RUN 1a: the 22 postings to GL 6730 from 1 January to 25 June 2026 with their audit columns; finds posting 368352 (88,000, 15 May 2026, batch TRF 4) that the stored trial balance history left out",
+      "rows": 22,
+      "sha256": "7c28abc576825c77f0f80e74e8cc5d3963c337ff726ed51f4e7669d3e4090374",
+      "bytes": 8706,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 6/Export Results/GL_08a_6730_postings_jan_jun.csv"
+    },
+    {
+      "file": "TB_05_6730_history_jan_jun.csv",
+      "query_id": "TB_05",
+      "kind": "pack 6 RUN 1b: E-Banker's stored daily trial balance rows for GL 6730, 2 January to 25 June 2026",
+      "rows": 175,
+      "sha256": "41e9959e61eeb03552c0681068e2616e63d86638af13e79cdf22e3e139556942",
+      "bytes": 41477,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 6/Export Results/TB_05_6730_history_jan_jun.csv"
+    },
+    {
+      "file": "CV_03_ledger_copies_by_year.csv",
+      "query_id": "CV_03",
+      "kind": "pack 6 RUN 2: postings and accounts by year in each of the eight ledger copies (CUMVOUCH_BK240824, CUMVOUCH_BAK, CUMVOUCH_NF, CUMVOUCH_CHET13062025 and the small working copies); the control counts for pack 7",
+      "rows": 39,
+      "sha256": "08afd2ec89c218596ba93ac96d69889359ab55b9754e95a0ac9845264ec357ee",
+      "bytes": 2567,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 6/Export Results/CV_03_ledger_copies_by_year.csv"
+    }
+  ]
+}

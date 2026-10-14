@@ -30,7 +30,9 @@ use Throwable;
  * Steps: 1 migrate:fresh (refused if user data exists unless --force-wipe);
  * 2 seed; 3 land the committed pack; 4 land the take-on workbook; 5 build the
  * loan books, the take-on population and the contract inputs, then the
- * version 1 schedules; 6 run the engine chain of 6.10.1 synchronously;
+ * version 1 schedules, then detect the restructure candidates and the rate
+ * moves (detection only: the bootstrap never classifies, confirms or
+ * approves one); 6 run the engine chain of 6.10.1 synchronously;
  * 7 verify the baselines and the golden numbers of 6.10.2, exit non-zero on
  * any FAIL. Every step is idempotent. Anything the bootstrap approves is
  * stamped with the automated label, never a MAIIC approval.
@@ -47,7 +49,8 @@ class Bootstrap extends Command
         {--from=2024-07 : First period to build and run}
         {--to= : Last period (default: the last month-end in the pack)}
         {--user=1 : The system user the bootstrap records its loads against}
-        {--inputs=docs/bootstrap : Folder of the committed inputs}';
+        {--inputs=docs/bootstrap : Folder of the committed inputs}
+        {--live-macro : Fetch the World Bank series live instead of the committed snapshot (the results then depend on the day it runs)}';
 
     protected $description = 'Clean install: seed, land the committed client inputs, build, run the engines, verify the golden numbers';
 
@@ -103,7 +106,7 @@ class Bootstrap extends Command
     {
         Artisan::call('migrate', ['--force' => true]);
         $classes = ['PermissionsTableSeeder', 'RolesTableSeeder', 'MaiicAdminPermissionsSeeder', 'TicketsPermissionsSeeder', 'UsersTableSeeder', 'GovernanceSettingsSeeder', 'StagingThresholdSeeder', 'SicrQualitativeFactorsSeeder',
-            'EbankerQuerySeeder', 'MacroSeriesSeeder', 'MaiicTransitionProfileSeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder', 'EclScenarioAssumptionSeeder',
+            'EbankerQuerySeeder', 'MacroSeriesSeeder', 'MaiicTransitionProfileSeeder', 'HelpContentSeeder', 'HelpAdminContentSeeder', 'EirAccountingRuleSeeder', 'GlAccountScopeSeeder', 'ScenarioSetSeeder',
             'IndustryTypeSeeder', 'CreditLossDefinitionSeeder', 'TransitionProfileDefinitionSeeder', 'TransitionProfileOptionSeeder'];
         $ran = [];
         foreach ($classes as $c) {
@@ -224,15 +227,23 @@ class Bootstrap extends Command
         $this->note('5a loan books', "{$r['status']} (build {$r['build_id']}): " . count($r['periods']) . " periods {$from}..{$to} by {$methods}, {$rows} rows, {$flagged} flagged");
 
         try {
-            $t = app(TakeonLandingService::class)->build($user);
-            $this->note('5b take-on population', "{$t['accounts']} accounts: {$t['recomputed']} recomputed, {$t['takeon_balance']} at take-on balance, {$t['refused']} refused; take-on EIR check {$t['eir_check_pass']} pass, {$t['eir_check_refused']} refused; take-on fees " . json_encode(array_intersect_key($t['fees'] ?? [], array_flip(['loaded_rows', 'amounts_changed']))) . ' landed PENDING');
+            // the Build with approval (spec 6.9): proposed, then approved under the bootstrap label (not a MAIIC approval)
+            $takeon = app(TakeonLandingService::class);
+            $request = $takeon->proposeBuild($user, 'eir:bootstrap');
+            $t = $takeon->approveBuild($request['request'], $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+            $this->note('5b take-on population', "build request {$request['request']} approved under the bootstrap label; " . "{$t['accounts']} accounts: {$t['recomputed']} recomputed, {$t['takeon_balance']} at take-on balance, {$t['refused']} refused; take-on EIR check {$t['eir_check_pass']} pass, {$t['eir_check_refused']} refused; take-on fees " . json_encode(array_intersect_key($t['fees'] ?? [], array_flip(['loaded_rows', 'amounts_changed']))) . ' landed PENDING');
         } catch (Throwable $e) {
             $this->note('5b take-on population', 'SKIPPED: ' . $e->getMessage());
         }
 
         $inputs = app(ContractInputsBuildService::class);
         $cm = $inputs->contractMaster();
-        $this->note('5c contract master', "{$cm['rows']} rows: {$cm['result']['created']} created, {$cm['result']['updated']} updated, {$cm['result']['unchanged']} unchanged, " . count($cm['result']['held']) . ' held, ' . count($cm['result']['skipped']) . ' skipped');
+        $this->note('5c contract master', "{$cm['rows']} rows: {$cm['result']['created']} created, {$cm['result']['updated']} updated, {$cm['result']['unchanged']} unchanged, " . count($cm['result']['held']) . ' held, ' . count($cm['result']['skipped']) . ' skipped'
+            . '; drawn above the sanction, flagged for Credit (spec 7.3): ' . ($cm['result']['over_sanction']['flagged'] ?? 0));
+        // the scheme settings, so a schedule reads the interest and instalment basis its scheme states (spec v3 6.3)
+        $sc = $inputs->schemes();
+        $this->note('5c scheme settings', "{$sc['rows']} schemes in SM_01 and DD_10: {$sc['upserted']} loaded ({$sc['from_dd10']} with DD_10), " . count($sc['refused']) . ' refused'
+            . ($sc['refused'] !== [] ? ': ' . json_encode($sc['refused']) : ''));
         $rr = $inputs->referenceRates($user);
         $this->note('5d PLR series', "{$rr['rows']} rows: " . ($rr['result']['loaded_rows'] ?? 0) . ' loaded, ' . ($rr['result']['rate_changes'] ?? 0) . ' rate changes');
         $fe = $inputs->fees();
@@ -272,7 +283,8 @@ class Bootstrap extends Command
         $approved = 0; $refused = [];
         foreach (ContractEir::query()->whereIn('schedule_approval_status', ['DRAFT', 'PENDING_REVIEW'])->get() as $c) {
             try {
-                $workflow->approve($c, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+                // labelled, never a MAIIC approval: the label is recorded on the contract (schedule_approver_label)
+                $workflow->approve($c, $user, LoanBookBuildService::BOOTSTRAP_LABEL, LoanBookBuildService::BOOTSTRAP_LABEL);
                 $approved++;
             } catch (Throwable $e) {
                 $refused[] = $c->contract_id . ': ' . $e->getMessage();
@@ -280,13 +292,54 @@ class Bootstrap extends Command
         }
         $this->note('5h schedules v1', json_encode(array_intersect_key($gen, array_flip(['generated', 'skipped', 'eligible', 'held']))) . "; approved under the bootstrap label: {$approved}; refused: " . count($refused));
 
+        // 5i restructure candidates and rate moves (spec v4 section 3.9, P5): detection only, once the ledger,
+        // the instalment chart history, the PLR series and the contract master are in, and before staging.
+        // Nothing is classified, proposed, confirmed or approved here, under any label (review item R10): each
+        // candidate and each move waits for one person's classification and another's approval.
+        try {
+            $code = Artisan::call('eir:restructure-candidates');
+            $out = trim(preg_replace('/\s+/', ' ', Artisan::output()));
+            if ($code !== 0) {
+                throw new \RuntimeException($out);
+            }
+            $this->note('5i restructure candidates', self::restructureLine());
+        } catch (Throwable $e) {
+            $this->note('5i restructure candidates', 'NOT RUN: ' . substr($e->getMessage(), 0, 200));
+        }
+
         return $to;
+    }
+
+    /**
+     * The bootstrap's line for the restructure detection, from the register itself: the
+     * candidates found (by evidence), those that cannot be booked as they stand, and the rate
+     * moves recorded; and that nothing is confirmed. Public for the wiring test.
+     */
+    public static function restructureLine(): string
+    {
+        $events = DB::table('restructure_events');
+        $candidates = (clone $events)->where('status', 'CANDIDATE')->count();
+        $fromRates = (clone $events)->where('status', 'CANDIDATE')->where('source', 'RATE_CHANGE')->count();
+        $incomplete = (clone $events)->where('status', 'CANDIDATE')->whereNotNull('incomplete_reason')->count();
+        $proposed = (clone $events)->where('status', 'PROPOSED')->count();
+        $confirmed = (clone $events)->where('status', 'CONFIRMED')->count();
+        $moves = DB::getSchemaBuilder()->hasColumn('rate_reset_events', 'event_type')
+            ? DB::table('rate_reset_events')->whereNotNull('detection_key')->selectRaw('event_type, status, count(*) n')->groupBy('event_type', 'status')->get()
+            : collect();
+        $byType = fn (string $t) => (int) $moves->where('event_type', $t)->sum('n');
+
+        return sprintf('%d candidate%s found and awaiting a person\'s classification (%d from the reschedule history and the migration worksheet, %d from rate moves of fixed-rate loans; %d cannot be booked as they stand: no date, old terms or new schedule); '
+            . '%d rate move%s recorded on the rate-reset register (%d PLR resets, %d spread changes), %d awaiting classification; nothing was confirmed or approved by the bootstrap (%d proposed and %d confirmed by people are kept as they were).',
+            $candidates, $candidates === 1 ? '' : 's', $candidates - $fromRates, $fromRates, $incomplete,
+            (int) $moves->sum('n'), (int) $moves->sum('n') === 1 ? '' : 's', $byType('PLR_RESET'), $byType('SPREAD_CHANGE'), (int) $moves->where('status', 'DETECTED')->sum('n'),
+            $proposed, $confirmed);
     }
 
     private function stepEngines(int $user, ?string $to): void
     {
-        // 1 macro statistics: live from the World Bank, else the committed snapshot
-        Artisan::call('macro:import-worldbank', ['--user' => $user, '--from' => 2000]);
+        // 1 macro statistics: the committed snapshot, so every install starts from the same series and
+        // reproduces the same results; --live-macro fetches from the World Bank instead
+        Artisan::call('macro:import-worldbank', ['--user' => $user, '--from' => 2000] + ($this->option('live-macro') ? [] : ['--offline' => true]));
         $out = Artisan::output();
         $this->note('6.1 macro statistics', trim(preg_replace('/\s+/', ' ', (string) (preg_match('/(\d+ series fetched live.*?skipped\.)/s', $out, $m) ? $m[1] : substr($out, -200)))));
 
@@ -311,13 +364,13 @@ class Bootstrap extends Command
             try {
                 $calc->calculate($c->contract_id, $user);
                 $solved++;
-                $calc->lock($c->contract_id, $user, true);
+                $calc->lock($c->contract_id, $user, false, LoanBookBuildService::BOOTSTRAP_LABEL);
                 $locked++;
             } catch (Throwable $e) {
                 $failed[] = $c->contract_id . ': ' . substr($e->getMessage(), 0, 80);
             }
         }
-        $this->note('6.9 EIR solved and locked', "{$solved} solved, {$locked} locked (administrator override under the bootstrap label); " . count($failed) . ' not solved' . ($failed !== [] ? ': ' . implode(' | ', array_slice($failed, 0, 3)) : ''));
+        $this->note('6.9 EIR solved and locked', "{$solved} solved, {$locked} locked under the bootstrap label (automated data-readiness, not a MAIIC approval); " . count($failed) . ' not solved' . ($failed !== [] ? ': ' . implode(' | ', array_slice($failed, 0, 3)) : ''));
         // The book split into its programmes (ifrs9:segment-portfolios): the
         // Mega Farm schemes get their own portfolio, so MAIIC's PD, LGD and ECL
         // are measured on MAIIC's loans only and the programme is provided by

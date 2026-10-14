@@ -35,14 +35,15 @@ class EirScheduleController extends Controller
             'comparison'=>$workflow->comparison($contractEir),
         ]);
     }
-    public function generateAll(ScheduleWorkflowService $workflow)
+    public function generateAll(Request $request, ScheduleWorkflowService $workflow)
     {
-        $r=$workflow->generateEligible();
+        // the person who generates is recorded, so a second person approves (O18)
+        $r=$workflow->generateEligible((int)$request->user()->id);
         return back()->with('success',"Generated {$r['generated']} draft schedule(s); {$r['skipped']} skipped.");
     }
-    public function generate(ContractEir $contractEir, ScheduleWorkflowService $workflow)
+    public function generate(Request $request, ContractEir $contractEir, ScheduleWorkflowService $workflow)
     {
-        try { $r=$workflow->generate($contractEir); return back()->with('success',"Generated {$r['rows']} draft rows for {$contractEir->contract_id}."); }
+        try { $r=$workflow->generate($contractEir,(int)$request->user()->id); return back()->with('success',"Generated {$r['rows']} draft rows for {$contractEir->contract_id}."); }
         catch (\Throwable $e) { return back()->with('error',$e->getMessage()); }
     }
     public function approve(Request $request, ContractEir $contractEir, ScheduleWorkflowService $workflow)

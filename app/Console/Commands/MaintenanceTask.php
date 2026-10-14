@@ -12,7 +12,7 @@ use Throwable;
  * it. The single steps remain artisan commands of their own.
  *
  *   php artisan maiic:task update                      migrate, then the permission, governance and SICR seeders
- *   php artisan maiic:task month-end 2026-08 --user=1  stage, PD and LGD, forward-looking route and ECL and record, EIR revenue, Mega Farm
+ *   php artisan maiic:task month-end 2026-08 --user=1  scheme settings, restructure candidates and rate moves (detection only), stage, PD and LGD, forward-looking route and ECL and record, ledger cash, GL fees, EIR revenue, Mega Farm
  *   php artisan maiic:task refresh-data                World Bank macro series, then the E-Banker feed folder
  *   php artisan maiic:task health-check                system snapshot, migration status, golden numbers, report smoke test
  */
@@ -33,38 +33,7 @@ class MaintenanceTask extends Command
             return self::FAILURE;
         }
         $u = $user !== '' ? ['--user' => $user] : [];
-        $steps = match ($task) {
-            'update' => [
-                ['Database update', 'migrate', ['--force' => true]],
-                // a stale cached permission list made the seeders below fail (UI audit, 14 Oct 2026)
-                ['Permission cache cleared', 'permission:cache-reset', []],
-                ['Permissions', 'db:seed', ['--class' => 'MaiicAdminPermissionsSeeder', '--force' => true]],
-                ['Support ticket permissions', 'db:seed', ['--class' => 'TicketsPermissionsSeeder', '--force' => true]],
-                ['Governance Centre defaults (additive)', 'db:seed', ['--class' => 'GovernanceSettingsSeeder', '--force' => true]],
-                ['Qualitative SICR factors (additive)', 'db:seed', ['--class' => 'SicrQualitativeFactorsSeeder', '--force' => true]],
-            ],
-            'month-end' => [
-                ['Clients for new loan-book customers', 'clients:link-loan-book', $u],
-                ['Programme portfolios (the Mega Farm schemes kept apart from the MAIIC book)', 'ifrs9:segment-portfolios', []],
-                ['Stage the book', 'eir:stage', ['from' => $period] + $u],
-                ['PD and LGD by segment', 'ifrs9:segment-parameters', ['from' => $period] + $u],
-                ['Forward-looking route, projection, ECL and the month record', 'fli:month-end', ['period' => $period, '--all' => true] + $u],
-                ['Actual cash from the E-Banker ledger', 'eir:load-ledger-cash', $u],
-                ['EIR revenue', 'eir:run-revenue', ['period' => $period] + $u],
-                ['Mega Farm programme (when the month has Mega Farm loans)', 'megafarm:ecl', ['period' => $period] + $u, true],
-            ],
-            'refresh-data' => [
-                ['World Bank macro series', 'macro:import-worldbank', []],
-                ['E-Banker packs in the feed folder', 'eir:poll-feed-folder', []],
-            ],
-            'health-check' => [
-                ['System snapshot', 'about', []],
-                ['Database update status', 'migrate:status', []],
-                ['Golden numbers and acceptance ties', 'eir:baselines', []],
-                ['Every report and its PDF', 'ifrs9:smoke-reports', []],
-            ],
-            default => null,
-        };
+        $steps = self::steps($task, $period, $u);
         if ($steps === null) {
             $this->error("Unknown job {$task}.");
 
@@ -109,5 +78,55 @@ class MaintenanceTask extends Command
         $this->info("All {$n} steps done.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The steps of a job, in order: [label, command, arguments, optional?]. Public so the order
+     * can be tested without running a step.
+     *
+     * @return list<array>|null
+     */
+    public static function steps(string $task, string $period, array $u): ?array
+    {
+        return match ($task) {
+            'update' => [
+                ['Database update', 'migrate', ['--force' => true]],
+                // a stale cached permission list made the seeders below fail (UI audit, 14 Oct 2026)
+                ['Permission cache cleared', 'permission:cache-reset', []],
+                ['Permissions', 'db:seed', ['--class' => 'MaiicAdminPermissionsSeeder', '--force' => true]],
+                ['Support ticket permissions', 'db:seed', ['--class' => 'TicketsPermissionsSeeder', '--force' => true]],
+                ['Governance Centre defaults (additive)', 'db:seed', ['--class' => 'GovernanceSettingsSeeder', '--force' => true]],
+                ['Qualitative SICR factors (additive)', 'db:seed', ['--class' => 'SicrQualitativeFactorsSeeder', '--force' => true]],
+            ],
+            'month-end' => [
+                ['Clients for new loan-book customers', 'clients:link-loan-book', $u],
+                // the scheme master of the pack (SM_01, DD_10 where it lacks a field) so a schedule reads its scheme's interest basis; the over-sanction flag (spec 7.3)
+                ['Scheme settings and the over-sanction flag', 'eir:load-schemes', []],
+                ['Programme portfolios (the Mega Farm schemes kept apart from the MAIIC book)', 'ifrs9:segment-portfolios', []],
+                // detection only, from the landed pack's reschedule history and the loan book's rates, before staging:
+                // each candidate and each rate move waits for one person's classification and another's approval on
+                // EIR Data, Restructures & Resets; nothing is confirmed or approved here (spec v4 3.9, P5; review item R10)
+                ['Restructure candidates and rate moves (detection only, nothing is confirmed)', 'eir:restructure-candidates', []],
+                ['Stage the book', 'eir:stage', ['from' => $period] + $u],
+                ['PD and LGD by segment', 'ifrs9:segment-parameters', ['from' => $period] + $u],
+                ['Forward-looking route, projection, ECL and the month record', 'fli:month-end', ['period' => $period, '--all' => true] + $u],
+                ['Actual cash from the E-Banker ledger', 'eir:load-ledger-cash', $u],
+                // the month's GL_04 fee postings tied to their loans (PENDING for Fee Classification), the precedence, and the fee GL gate against the trial balance (spec 7.8.3 to 7.8.5)
+                ['GL fee postings tied to their loans, and the fee GL gate', 'eir:build-gl-fees', $u],
+                ['EIR revenue', 'eir:run-revenue', ['period' => $period] + $u],
+                ['Mega Farm programme (when the month has Mega Farm loans)', 'megafarm:ecl', ['period' => $period] + $u, true],
+            ],
+            'refresh-data' => [
+                ['World Bank macro series', 'macro:import-worldbank', []],
+                ['E-Banker packs in the feed folder', 'eir:poll-feed-folder', []],
+            ],
+            'health-check' => [
+                ['System snapshot', 'about', []],
+                ['Database update status', 'migrate:status', []],
+                ['Golden numbers and acceptance ties', 'eir:baselines', []],
+                ['Every report and its PDF', 'ifrs9:smoke-reports', []],
+            ],
+            default => null,
+        };
     }
 }

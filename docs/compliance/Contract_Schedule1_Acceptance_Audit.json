@@ -41,7 +41,7 @@
    "section_name": "EIR module and revenue recognition",
    "requirement": "Solve the EIR per facility from its contractual flows and fees, roll the amortised cost forward monthly, and reconcile to the general ledger.",
    "status": "Partially done",
-   "engine_comment": "Built: the EIR solver on dated flows (tranche-timed and take-on EIRs, 216aee2), the fee routes with source precedence, the monthly roll-forward with ledger cash, the GL reconciliation, the EIR as at any date, write-offs classified. Not built: modification and restructuring (5.4.3, 3.3.2), the B5.4.6 catch-up, rate reset events, the journal proposal (D6). On the fresh bootstrap 14 of 144 EIRs are locked, 33 are blocked at the fee gate and 97 have no approved schedule.",
+   "engine_comment": "Built: the EIR solver on dated flows (tranche-timed and take-on EIRs, 216aee2), the fee routes with source precedence, the monthly roll-forward with ledger cash, the GL reconciliation, the EIR as at any date, write-offs classified. Built 14 October 2026 (uncommitted): the restructure register and rate-reset register with maker-checker, modification, derecognition and the B5.4.6 catch-up in the revenue run, detection in the bootstrap and the month-end (nothing confirmed: 70 candidates await Credit on the scratch clone). Not built: the journal proposal (D6). On the fresh bootstrap 14 of 144 EIRs are locked, 33 are blocked at the fee gate and 97 have no approved schedule.",
    "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 this row was Done and said '31 solved, 12 locked, 19 awaiting'.",
    "compliance_comment": "Partially done; see the IFRS 9 EIR workbook.",
    "where_to_see": "EIR & Revenue Recognition: /eir-calculations; /eir-as-at; /eir-reconciliation",
@@ -72,7 +72,7 @@
    "compliance_comment": "Partially done: the reports must carry the discounted allowance; the figures await MAIIC's reviews.",
    "where_to_see": "ECL Processing, ECL Calculation: /expected-credit-loss/list",
    "governance_setting": "scenario_weighting_method",
-   "test": "Tests\\Feature\\Ecl\\TimePhasedEclServiceTest; Tests\\Feature\\Ecl\\EclGoldenNumberTest::discounted_mode_keeps_undiscounted_ecl_and_names_unresolved_contracts; Tests\\Feature\\Scenario\\ScenarioSetServiceTest"
+   "test": "Tests\\Feature\\Ecl\\TimePhasedEclServiceTest; Tests\\Feature\\Ecl\\EclGoldenNumberTest::discounted_mode_without_the_time_phased_engine_is_refused_never_proxied; Tests\\Feature\\Scenario\\ScenarioSetServiceTest"
   },
   {
    "part": "SOLUTION COMPONENTS",

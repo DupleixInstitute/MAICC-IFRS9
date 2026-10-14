@@ -87,27 +87,17 @@ class EirContractInputService
         | EIR of a two-tranche facility far above its contractual rate. With
         | no tranche register the drawn amount stands, as before.
         */
-        $later = [];
-        $atOrigination = null;
-        if ($this->disbursements !== null && $contract->origination_date) {
-            $later = $this->disbursements->laterDrawdownFlows($contractId, $contract->origination_date);
-            $origination = $contract->origination_date->toDateString();
-            $byOrigination = array_filter($this->disbursements->tranchesFor($contractId), fn ($t) => $t['disbursement_date'] <= $origination);
-            if ($byOrigination !== [] || $later !== []) {
-                $atOrigination = (float) array_sum(array_column($byOrigination, 'amount'));
-            }
-        }
-        $drawn = $atOrigination !== null && $atOrigination > 0 ? $atOrigination : (float) $contract->drawn_amount;
-        $solveFrom = $contract->origination_date->toDateString();
-        if ($atOrigination !== null && $atOrigination <= 0 && $later !== []) {
-            // nothing drawn at signature: the first tranche is the initial
-            // investment, on its own date, and the rest follow. Discounting from
-            // the signing date counted the weeks before any money went out
-            // (Mphunzitsi SACCO: signed 15 July 2025, first drawn 8 August).
-            $first = array_shift($later);
-            $drawn = -(float) $first['amount'];
-            $solveFrom = (string) $first['due_date'];
-        }
+        // Nothing drawn at signature: the first drawdown (every tranche of that
+        // day) is the initial investment, on its own date, and the rest follow.
+        // Discounting from the signing date counted the weeks before any money
+        // went out (Mphunzitsi SACCO: signed 15 July 2025, first drawn 8 August).
+        // DisbursementService::solvePlan is the one rule; the readiness check reads it too.
+        $plan = $this->disbursements !== null && $contract->origination_date
+            ? $this->disbursements->solvePlan($contractId, $contract->origination_date)
+            : ['drawn' => null, 'solve_from' => $contract->origination_date->toDateString(), 'later' => [], 'register' => false];
+        $later = $plan['later'];
+        $drawn = $plan['drawn'] ?? (float) $contract->drawn_amount;
+        $solveFrom = $plan['solve_from'];
         $initialNet = $drawn - $received + $paid;
         foreach ($later as $flow) {
             $cashFlows[] = [

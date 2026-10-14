@@ -34,6 +34,9 @@ final class RegressionEngine
 
     private Guardrail $guardrail;
 
+    /** @var array<string,array{0:array,1:array,2:array}> the inputs as at a period, read once per instance */
+    private array $prepared = [];
+
     public function __construct(string $connection, GovernedValues $gov, ?Guardrail $guardrail = null)
     {
         $this->connection = $connection;
@@ -60,10 +63,7 @@ final class RegressionEngine
         // 5.5.17(c), B5.5.49 to B5.5.51): the fit for period P sees no
         // observation, and no interpolation, that was not knowable by the end of P.
         $asOf = AsAtSeries::ym($asOfPeriod);
-        $xSeries = AsAtSeries::macro($this->connection, $asOf, ['actual']);
-        $ySeries = AsAtSeries::proxies($this->connection, $asOf);
-        // Same governed historical horizon as the sweep (fli.max_history_years).
-        [$xSeries, $ySeries] = $this->capHorizon($xSeries, $ySeries, max(1, $this->gov->int('fli.max_history_years')));
+        [$xSeries, $ySeries] = $this->asAtInputs($asOf);
         $definitions = $this->loadDefinitions();
         $lagGrid = $this->gov->lagGrid();
         $cutoff = $this->gov->float('fli.r2_cutoff.default');
@@ -157,11 +157,7 @@ final class RegressionEngine
         // verdict was reached under, so a re-sweep on the same inputs reuses the
         // fit already recorded (keeping its approval) instead of appending a
         // copy, while a changed setting or a changed observation records anew.
-        $inputsHash = hash('sha256', json_encode([
-            'x' => $cand['x'], 'y' => $cand['y'], 'lag' => $lag,
-            'periods' => $aligned['periods'], 'xvals' => $aligned['x'], 'yvals' => $aligned['y'],
-            'guardrail' => [$cand['cutoff'] ?? $cutoff, $minObs, $alpha, $cand['expected_sign'], $this->gov->string('fli.sign_test.mode')],
-        ]));
+        $inputsHash = $this->inputsHash($cand, $lag, $aligned, $cutoff, $minObs, $alpha);
 
         $nYears = $this->annualEquivalent($aligned['periods'] ?? []);
         $existing = $this->db()->table('fli_fits')->where('fli_relationship_id', $relId)
@@ -203,6 +199,65 @@ final class RegressionEngine
             'sign_warning' => $verdictData['sign_warning'],
             'reasons' => $verdictData['reasons'],
         ];
+    }
+
+    /**
+     * The inputs hash a sweep run now would record for one relationship of a
+     * period: the driver and the credit-loss measure as knowable at the end
+     * of the period (AsAtSeries, the same governed history cap), aligned at
+     * the relationship's lag, with the governed guardrail settings, exactly
+     * as fitOne hashes them. A fit whose stored hash differs was estimated
+     * on data, or under settings, that have since changed: a sweep now would
+     * record a new fit and not reuse it. Read-only: nothing is written.
+     * Null when the driver or the measure is not held as at the period.
+     */
+    public function currentInputsHash(string $asOfPeriod, string $statisticCode, string $proxyCode, int $lag): ?string
+    {
+        $asOf = AsAtSeries::ym($asOfPeriod);
+        if (! isset($this->prepared[$asOf])) {
+            [$xSeries, $ySeries] = $this->asAtInputs($asOf);
+            $this->prepared[$asOf] = [$xSeries, $ySeries, $this->buildCandidates($xSeries, $ySeries, $this->loadDefinitions(), $this->gov->float('fli.r2_cutoff.default'))];
+        }
+        [$xSeries, $ySeries, $candidates] = $this->prepared[$asOf];
+        $cand = $candidates[$statisticCode . '|' . $proxyCode] ?? null;
+        if ($cand === null || ! isset($xSeries[$cand['x']], $ySeries[$cand['y']])) {
+            return null;
+        }
+        $aligned = SeriesAligner::align($xSeries[$cand['x']], $ySeries[$cand['y']], $lag);
+
+        return $this->inputsHash($cand, $lag, $aligned, $this->gov->float('fli.r2_cutoff.default'), $this->gov->int('stats.min_obs'), $this->gov->float('stats.alpha'));
+    }
+
+    /**
+     * The macro actuals and the credit-loss measures knowable at the end of
+     * the period, capped to the governed history (fli.max_history_years), as
+     * every fit of the period reads them.
+     *
+     * @return array{0:array<string,array<string,float>>,1:array<string,array<string,float>>}
+     */
+    private function asAtInputs(string $asOf): array
+    {
+        $xSeries = AsAtSeries::macro($this->connection, $asOf, ['actual']);
+        $ySeries = AsAtSeries::proxies($this->connection, $asOf);
+
+        // Same governed historical horizon as the sweep (fli.max_history_years).
+        return $this->capHorizon($xSeries, $ySeries, max(1, $this->gov->int('fli.max_history_years')));
+    }
+
+    /**
+     * The hash covers the data AND the governed guardrail settings the
+     * verdict was reached under (see fitOne).
+     *
+     * @param array{x:string,y:string,expected_sign:?string,cutoff?:float} $cand
+     * @param array{x:array<int,float>,y:array<int,float>,periods:array<int,string>} $aligned
+     */
+    private function inputsHash(array $cand, int $lag, array $aligned, float $cutoff, int $minObs, float $alpha): string
+    {
+        return hash('sha256', json_encode([
+            'x' => $cand['x'], 'y' => $cand['y'], 'lag' => $lag,
+            'periods' => $aligned['periods'], 'xvals' => $aligned['x'], 'yvals' => $aligned['y'],
+            'guardrail' => [$cand['cutoff'] ?? $cutoff, $minObs, $alpha, $cand['expected_sign'], $this->gov->string('fli.sign_test.mode')],
+        ]));
     }
 
     /**

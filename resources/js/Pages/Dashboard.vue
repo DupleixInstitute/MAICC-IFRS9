@@ -786,6 +786,8 @@ const buildSteps = computed(() => {
         { label: 'ECL before FLI', value: pre, sign: '', pct: null, ...seg(0, pre), bar: 'bg-slate-400', total: false, note: 'EAD x PD before FLI over the horizon x LGD' },
         { label: 'Forward-looking effect', value: model, sign: model > 0 ? '+' : '', pct: pct(model), ...seg(pre, model), bar: model >= 0 ? 'bg-amber-500' : 'bg-maiic-400', total: false, note: 'The macro adjustment to the PD, weighted across the scenario set' },
         { label: 'Manual overlays', value: ov, sign: ov > 0 ? '+' : '', pct: ov ? pct(ov) : null, ...seg(pre + model, ov), bar: 'bg-maiicgold-500', total: false, note: overlayNote },
+        // the Mega Farm programme is measured by its own engine (D30), outside the forward-looking build-up
+        ...(b.programme ? [{ label: 'Mega Farm programme', value: Number(b.programme.ecl || 0), sign: '+', pct: null, ...seg(pre + model + ov, Number(b.programme.ecl || 0)), bar: 'bg-slate-500', total: false, note: b.programme.loans + ' loans, measured by the programme engine on its own PD and LGD' }] : []),
         { label: 'ECL booked', value: final, sign: '', pct: null, ...seg(0, final), bar: 'bg-maiic-600', total: true, note: null },
     ]
 })

@@ -60,17 +60,21 @@ class LoanBookBuildService
     {
     }
 
-    /** The method in force on a month-end: the Governance Centre setting's letter (section 6.2). */
+    /**
+     * The method in force on a month-end: the Governance Centre setting's
+     * letter (section 6.2). No method is assumed: with no approved value the
+     * build stops (GovernanceSettingMissingException), and a value the build
+     * does not know is refused with its name (it used to fall back to B).
+     */
     public function methodInForce(string $monthEnd): string
     {
-        try {
-            $value = $this->governance->get('loan_book_build_method', CarbonImmutable::parse($monthEnd));
-        } catch (Throwable) {
-            $value = 'B';
-        }
+        $value = $this->governance->get('loan_book_build_method', CarbonImmutable::parse($monthEnd));
         $letter = strtoupper(substr(trim($value), 0, 1));
+        if (! isset(self::METHODS[$letter])) {
+            throw new RuntimeException("The governed loan book build method '{$value}' in force at {$monthEnd} is not one the build knows (A, B or C).");
+        }
 
-        return isset(self::METHODS[$letter]) ? $letter : 'B';
+        return $letter;
     }
 
     /**
@@ -671,10 +675,10 @@ class LoanBookBuildService
     {
         $odDate = $this->date($p['OVERDUE_PRINCI_DATE'] ?? '');
         $inArrears = array_sum($arrears) > 0 || $this->num($p['ARREAS_TOTAL'] ?? 0) > 0;
-        $basis = 'Oldest';
-        try {
-            $basis = $this->governance->get('dpd_basis', CarbonImmutable::parse($monthEnd));
-        } catch (Throwable) {
+        // the governed basis, never assumed: with no approved value the build stops (decision D31)
+        $basis = $this->governance->get('dpd_basis', CarbonImmutable::parse($monthEnd));
+        if (! str_starts_with($basis, 'Oldest') && ! str_starts_with($basis, 'Bucket')) {
+            throw new RuntimeException("The governed days-past-due basis '{$basis}' is not one the build knows.");
         }
         if (str_starts_with($basis, 'Oldest') && $odDate !== null && $inArrears) {
             return [max(0, CarbonImmutable::parse($odDate)->diffInDays(CarbonImmutable::parse($monthEnd), false)), $odDate];
@@ -730,6 +734,17 @@ class LoanBookBuildService
         if ($due !== null && $due->lt($end) && (float) $v['commitments'] > 0) {
             $basis = $v['build_basis'] ?? [];
             $basis['undrawn_after_maturity'] = round((float) $v['commitments'], 2);
+            $v['build_basis'] = $basis;
+            $v['commitments'] = 0.0;
+        }
+        // a loan written off to a nil (or credit) balance is closed: the write-off ends the facility, so
+        // what was left undrawn on it can no longer be drawn and is no exposure (104420000007, written off
+        // in June 2026, carried 162.6m undrawn into the EAD and the ECL of every later month; review of
+        // 14 October 2026). The ECL engines apply the same rule (EclExposure); the undrawn amount is kept
+        // on the build basis.
+        if ($carrying <= 0 && (float) ($v['build_basis']['ledger']['written_off'] ?? 0) > 0 && (float) $v['commitments'] > 0) {
+            $basis = $v['build_basis'];
+            $basis['undrawn_after_write_off'] = round((float) $v['commitments'], 2);
             $v['build_basis'] = $basis;
             $v['commitments'] = 0.0;
         }

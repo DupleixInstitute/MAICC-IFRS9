@@ -24,7 +24,10 @@ class EclProjectionController extends Controller
             ->groupBy('contract_id','ifrs9_stage')->orderBy('contract_id')->get():collect();
         return Inertia::render('ExpectedCreditLoss/Projections',['run'=>$run,'rows'=>$rows,'contracts'=>$contracts,
             'runs'=>$discounted()->latest('id')->limit(20)->get(),
-            'scenarios'=>DB::table('ecl_scenario_assumptions')->where('status','APPROVED')->orderByDesc('weight')->get(),
+            // the scenarios the run itself projected, with their weights (the governed set on the loans);
+            // the legacy synthetic ecl_scenario_assumptions set is no longer seeded (audit H3, 14 October 2026)
+            'scenarios'=>$runId?DB::table('ecl_cashflow_projections')->where('run_id',$runId)->selectRaw('scenario_code, scenario_code AS name, MAX(scenario_weight) AS weight')
+                ->groupBy('scenario_code')->orderByDesc('weight')->get():collect(),
             'filters'=>['run_id'=>$runId,'search'=>$search,'scenario'=>$scenario]]);
     }
 }

@@ -3,7 +3,7 @@
 namespace App\Services\Eir;
 
 use App\Models\StagingThreshold;
-use Throwable;
+use RuntimeException;
 
 /**
  * DPD staging waterfall as configuration (docs/EIR_Build.md §4 Phase 2).
@@ -12,12 +12,12 @@ use Throwable;
  * 271–360 days); the loan's DPD is taken as the lower bound of the highest
  * non-empty bucket, then compared to the governing staging_thresholds row.
  *
- * The seeded DEFAULT rule (stage 2 at 31 DPD, stage 3 at 181 DPD)
- * reproduces the previously hardcoded ladder exactly, so behaviour does
- * not change until a differently-configured rule — e.g. the RBM-based
- * 90-day backstop for long-tenor facilities (2025 review finding 1) —
- * is signed off and activated. When no configuration exists at all
- * (fresh install, mid-migration), the same hardcoded ladder applies.
+ * The rule is the approved staging_thresholds row in force at the end of
+ * the reporting period the import is for, not at today's date, so a re-run
+ * of a past month keeps the rules that governed it (D21; system audit of
+ * 9 October 2026, H11). With no rule in force the import stops and names
+ * what is missing: until 14 October 2026 it fell back to a ladder written
+ * in code (stage 2 at 31 days, stage 3 at 181).
  */
 class StagingClassifier
 {
@@ -30,12 +30,13 @@ class StagingClassifier
         1   => ['1_30_days', '1-30_days'],
     ];
 
-    /** The pre-config ladder: stage 2 from 31 DPD, stage 3 from 181 DPD. */
-    private const FALLBACK_STAGE2_DPD = 31;
-    private const FALLBACK_STAGE3_DPD = 181;
+    /** @var array<string, array{0:int,1:int}> the rule per class and tenor, read once per import */
+    private array $cached = [];
 
-    private ?StagingThreshold $cached = null;
-    private bool $resolved = false;
+    /** @param string $asOf the reporting period end the rows are staged at (Y-m-d) */
+    public function __construct(private readonly string $asOf)
+    {
+    }
 
     /**
      * @param array   $row          normalised import row (arrears buckets)
@@ -78,21 +79,17 @@ class StagingClassifier
     /** @return array{0:int,1:int} [stage2_dpd, stage3_dpd] */
     private function thresholds(?string $facilityClass, int $tenorMonths): array
     {
-        // One lookup per import run; the rule set does not change mid-file.
-        if (! $this->resolved) {
-            try {
-                $this->cached = StagingThreshold::forFacility($facilityClass, $tenorMonths);
-            } catch (Throwable) {
-                // Table absent (fresh install, tests without migrations):
-                // fall through to the hardcoded ladder.
-                $this->cached = null;
+        $key = ($facilityClass ?? 'DEFAULT') . '|' . $tenorMonths;
+        if (! isset($this->cached[$key])) {
+            $rule = StagingThreshold::forFacility($facilityClass, $tenorMonths, $this->asOf);
+            if ($rule === null) {
+                throw new RuntimeException('No approved staging threshold is in force for facility class ' . ($facilityClass ?? 'DEFAULT')
+                    . " (tenor {$tenorMonths} months) at {$this->asOf}. Approve one on Settings, Staging basis; the import does not assume 31 and 181 days.");
             }
-            $this->resolved = true;
+            $this->cached[$key] = [(int) $rule->stage2_dpd, (int) $rule->stage3_dpd];
         }
 
-        return $this->cached
-            ? [(int) $this->cached->stage2_dpd, (int) $this->cached->stage3_dpd]
-            : [self::FALLBACK_STAGE2_DPD, self::FALLBACK_STAGE3_DPD];
+        return $this->cached[$key];
     }
 
     /**

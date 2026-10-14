@@ -114,13 +114,14 @@ class MappedFileReaderTest extends TestCase
     }
 
     /**
-     * The delivered RATE_BASIS column holds Fixed/Variable — the rate type.
-     * Mapped anywhere else, 204 of the book's 362 facilities keep rate_type
-     * on its FIXED default while actually being floating.
+     * RATE_BASIS is no longer read as the rate type (system audit M15, spec
+     * 7.2): the rate type is the file's RATE_TYPE, else E-Banker's Interest
+     * Policy. A RATE_BASIS header now maps to the free-text rate_basis.
      */
-    public function test_rate_basis_column_maps_to_rate_type(): void
+    public function test_rate_basis_is_not_read_as_the_rate_type(): void
     {
-        $this->assertSame('rate_type', ContractMasterImport::aliases()['RATE_BASIS']);
+        $this->assertArrayNotHasKey('RATE_BASIS', ContractMasterImport::aliases());
+        $this->assertSame('rate_type', ContractMasterImport::aliases()['RATE_TYPE']);
         $this->assertSame('maturity_date', ContractMasterImport::aliases()['CONTRACTUAL_MATURITY_DATE']);
         $this->assertSame('closure_date', ContractMasterImport::aliases()['ACTUAL_CLOSURE_DATE']);
         $this->assertSame('moratorium_months', ContractMasterImport::aliases()['PRINCIPAL_GRACE_PERIOD']);

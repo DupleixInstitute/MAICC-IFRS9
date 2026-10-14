@@ -29,8 +29,13 @@ class WriteOffClassifier
     /** GL codes a write-off batch debits. */
     public const WRITE_OFF_GLS = ['1064'];
 
-    /** Query ids that carry GL legs of batches (the write-off legs, and the year-end interest legs). */
-    public const GL_LEG_QUERIES = ['GL_05', 'GL_03'];
+    /**
+     * Query ids that carry GL legs of batches: the write-off legs (GL_05), the year-end
+     * interest legs (GL_03) and the monthly ledger feed (M09_01), through which future
+     * write-off batches arrive with the month's postings (added 14 October 2026). Only a
+     * debit to a write-off GL marks a batch, so the loan legs of M09_01 never do.
+     */
+    public const GL_LEG_QUERIES = ['GL_05', 'GL_03', 'M09_01'];
 
     private ?array $batches = null;
 

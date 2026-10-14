@@ -68,6 +68,10 @@ class EirTakeonController extends Controller
         return Inertia::render('Eir/Takeon/Index', [
             'load' => $load ? ['id' => $load->id, 'pack' => $load->pack_name, 'status' => $load->status, 'loaded_at' => $load->loaded_at, 'manifest' => json_decode($load->manifest, true), 'summary' => (json_decode($load->gates, true) ?? [])['summary'] ?? []] : null,
             'blocks' => $blocks, 'population' => $population, 'basisInForce' => $basis,
+            // the Build with approval (spec 6.9): the open proposal, so the screen offers the approval to a second person
+            'pendingBuild' => ($pb = app(TakeonLandingService::class)->pendingBuild()) ? ['id' => $pb->id, 'load_id' => $pb->load_id, 'proposed_by' => $pb->proposed_by,
+                'proposer' => DB::table('users')->where('id', $pb->proposed_by)->value('name'), 'proposed_at' => $pb->proposed_at, 'reason' => $pb->reason] : null,
+            'userId' => auth()->id(),
             'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
             // the view the section tab opened (config/menu.php) and the count on each tab
             'tab' => request('tab') === 'population' ? 'population' : 'blocks',
@@ -164,14 +168,26 @@ class EirTakeonController extends Controller
         return back()->with('success', "Block {$b->block_no}: fees recorded" . ($total !== null ? ' (total ' . number_format($total, 2) . ')' : ' (no fee row)') . '.');
     }
 
+    /**
+     * The Build with approval (spec 6.9): with no open proposal the first
+     * press proposes the build; a different person's press approves the open
+     * proposal and builds. The proposer pressing again is refused.
+     */
     public function build(Request $request, TakeonLandingService $service)
     {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
         try {
-            $c = $service->build($request->user()->id);
+            $pending = $service->pendingBuild();
+            if ($pending === null) {
+                $service->proposeBuild($request->user()->id, $data['reason'] ?? null);
+
+                return back()->with('success', 'Build proposed. A second person approves it on this screen; nothing is built until then.');
+            }
+            $c = $service->approveBuild((int) $pending->id, $request->user()->id);
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', "Take-on population built: {$c['accounts']} accounts, {$c['recomputed']} recomputed from origination, {$c['takeon_balance']} at the take-on balance, {$c['refused']} refused.");
+        return back()->with('success', "Take-on population built on approval: {$c['accounts']} accounts, {$c['recomputed']} recomputed from origination, {$c['takeon_balance']} at the take-on balance, {$c['refused']} refused.");
     }
 }

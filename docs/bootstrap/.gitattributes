@@ -1,0 +1,9 @@
+# The client inputs are kept byte for byte as received: each manifest records the
+# SHA-256 of the file as MAIIC sent it, and the landing gates refuse a file whose
+# hash differs. The repository's "* text=auto" would store these files with LF and
+# hand them back with CRLF only where core.autocrlf is true, so a clone on a Linux
+# server (or with autocrlf off) would get other bytes and every pack would be
+# quarantined. No line-ending conversion here, in either direction (14 October 2026).
+*.csv -text
+*.json -text
+*.sql -text

@@ -63,6 +63,34 @@
     {
       "received_as": "Received 9 October/M09_03_loan_book_runs.csv and Pack 3/M09_03_loan_book_runs_sep.csv",
       "reason": "byte-identical to run 3/M09_03_loan_book_runs_sep.csv, which is landed"
+    },
+    {
+      "received_as": "Received 9 October/Pack 3/run 7/CT_01_table_counts.csv",
+      "reason": "byte-identical to run 6/CT_01_table_counts.csv (same SHA-256), which is landed"
+    },
+    {
+      "received_as": "Received 9 October/Pack 3/run 2/Screenshot 2026-10-09 113656.png",
+      "reason": "a screenshot of the RUN 2 grid sent with the pack, not an extract"
+    },
+    {
+      "received_as": "Received 9 October/Pack 3/Big files/SET ECHO OFF.txt",
+      "reason": "the SPOOL settings MAIIC ICT used for the big exports (a script, not an extract)"
+    },
+    {
+      "received_as": "Received 9 October/Pack 3/Big files/test spool.txt",
+      "reason": "a SPOOL test script (not an extract)"
+    },
+    {
+      "received_as": "Received 9 October/Pack 3/BIG FILES - export MF_03 with SPOOL (result set exceeds 100 MB).txt",
+      "reason": "our instructions for the SPOOL export, returned with the pack (not an extract)"
+    },
+    {
+      "received_as": "Received 9 October/Pack 3/RUN 0 - check the date format before exporting.txt",
+      "reason": "our RUN 0 instructions, returned with the pack (not an extract)"
+    },
+    {
+      "received_as": "Received 9 October/Pack 3/corrected scripts/run 2 correction.txt",
+      "reason": "the corrected SQL of RUN 2 (P2_13 as text), run in pack 4 RUN 2; a script, not an extract"
     }
   ],
   "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",

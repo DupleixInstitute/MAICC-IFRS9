@@ -151,6 +151,67 @@
     <p>{{ $para }}</p>
 @endforeach
 
+@if (! empty($note['basis']))
+<div style="page-break-inside: avoid">
+<h2>(f) The loss allowance: undiscounted measure to the discounted allowance</h2>
+<p class="cap">The allowance is the expected credit loss projected over the loan's life and discounted at its original effective interest rate (IFRS 9 5.5.17, B5.5.44). A loan with no discounted figure is shown at its undiscounted ECL and counted on the last line.</p>
+<table class="fs">
+    <col class="lbl"><col><col><col><col>
+    <thead><tr><th class="l"></th><th>Stage 1</th><th>Stage 2</th><th>Stage 3</th><th>Total</th></tr></thead>
+    <tbody>
+        @foreach (['closing', 'opening'] as $side)
+            @if (! empty($note['basis'][$side]))
+                <tr class="opening"><td class="l" colspan="5">{{ $note['basis'][$side]['label'] }} ({{ $note['unit']['heading'] }})</td></tr>
+                @foreach ($note['basis'][$side]['rows'] as $r)
+                    <tr class="{{ ! empty($r['total']) ? 'rule' : (! empty($r['muted']) ? 'muted' : '') }}">
+                        <td class="l">{{ $r['label'] }}</td>
+                        @foreach ($cols as $c)<td>{{ $fmt($r['values'][$c]) }}</td>@endforeach
+                    </tr>
+                @endforeach
+            @endif
+        @endforeach
+    </tbody>
+</table>
+</div>
+@endif
+
+@if (! empty($note['write_offs']))
+<h2>(g) Amounts written off</h2>
+<p class="cap">Each write-off between {{ $note['opening_label'] }} and {{ $note['closing_label'] }}, from the ledger (the write-off rule) and the approved write-off register (IFRS 7.35I, 35L).</p>
+@if ($note['write_offs']['rows'])
+<table class="fs">
+    <thead><tr><th class="l">Date</th><th class="l">Contract</th><th class="l">Customer</th><th>Amount ({{ $note['unit']['heading'] }})</th></tr></thead>
+    <tbody>
+        @foreach ($note['write_offs']['rows'] as $w)
+            <tr><td class="l">{{ $w['date'] }}</td><td class="l">{{ $w['contract_id'] }}</td><td class="l">{{ $w['customer_name'] }}</td><td>{{ $fmt($w['amount']) }}</td></tr>
+        @endforeach
+        <tr class="closing"><td class="l" colspan="3">Total written off</td><td>{{ $fmt($note['write_offs']['total']) }}</td></tr>
+    </tbody>
+</table>
+@else
+<p>No loan was written off in the period.</p>
+@endif
+<p>Amounts written off still subject to enforcement activity (IFRS 7.35L): {{ $note['write_offs']['enforcement'] }}</p>
+@endif
+
+@if (! empty($note['modifications']))
+<div style="page-break-inside: avoid">
+<h2>(h) Modified financial assets</h2>
+<p class="cap">{{ $note['modifications']['caption'] }}</p>
+@if ($note['modifications']['rows'])
+<table class="fs">
+    <thead><tr><th class="l">Reference</th><th class="l"></th><th>Contracts</th><th>{{ $note['unit']['heading'] }}</th></tr></thead>
+    <tbody>
+        @foreach ($note['modifications']['rows'] as $r)
+            <tr><td class="l" style="white-space: nowrap">{{ $r['ref'] }}</td><td class="l">{{ $r['label'] }}</td><td>{{ $r['contracts'] === null ? '' : N::count($r['contracts']) }}</td><td>{{ $fmt($r['amount']) }}</td></tr>
+        @endforeach
+    </tbody>
+</table>
+@endif
+<p>{{ $note['modifications']['message'] }}</p>
+</div>
+@endif
+
 <div class="pb"></div>
 <h1>Workings and checks</h1>
 <p class="sub">Supporting information for the preparer and the auditor. Not part of the published note.</p>
@@ -202,7 +263,7 @@
 </table>
 
 <div class="note-box">
-    Source: the loan books (ECL value, carrying amount and stage after the qualitative triggers) for {{ $note['opening_label'] }} and {{ $note['closing_label'] }}, checked against the saved ECL runs. Built {{ $note['built_at'] }}.
+    Source: the loan books (the loss allowance discounted at the original EIR, carrying amount and stage after the qualitative triggers), the ledger's write-offs, the approved write-off register and the confirmed restructure register for {{ $note['opening_label'] }} and {{ $note['closing_label'] }}, checked against the saved ECL runs. Built {{ $note['built_at'] }}.
 </div>
 </body>
 </html>

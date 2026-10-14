@@ -91,8 +91,8 @@ class CalculateDiscountingJob implements ShouldQueue
                             'interest_rate' => $resolved['rate'],
                             'discounting_days' => $discountingDays,
                             // The basis actually applied, not the basis asked
-                            // for: a floating facility discounted at its
-                            // original EIR must not read as the current rate.
+                            // for: EIR_ORIGINAL, or EIR_CURRENT_FLOATING for a
+                            // floating facility (IFRS 9 B5.5.44).
                             'discount_rate_source' => $resolved['applied_source'],
                             'payment_amount' => $payment->payment_amount,
                             'discounted_amount' => $discountedAmount,

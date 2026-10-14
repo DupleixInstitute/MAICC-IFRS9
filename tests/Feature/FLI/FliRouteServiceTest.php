@@ -5,8 +5,10 @@ namespace Tests\Feature\FLI;
 use App\Services\Eir\GovernanceService;
 use App\Services\Fli\FliRouteService;
 use App\Services\Fli\OverlayService;
+use App\Services\Fli\RegressionEngine;
 use App\Services\Fli\TransmissionMethodCatalogue;
 use App\Services\Scenario\ScenarioSetService;
+use App\Support\Fli\GovernedValues;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -23,6 +25,8 @@ use Tests\TestCase;
  */
 class FliRouteServiceTest extends TestCase
 {
+    use \Tests\Concerns\SeedsGovernedDefaults;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -45,6 +49,8 @@ class FliRouteServiceTest extends TestCase
         // the route is a Governance Centre setting; the table so a test can put "Manual overlay" in force
         Schema::create('governance_settings', function (Blueprint $t) { $t->increments('id'); $t->string('key', 60); $t->string('value', 60); $t->text('options'); $t->string('label'); $t->text('description'); $t->string('effective_from'); $t->integer('set_by')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approved_at')->nullable(); $t->string('reason', 500)->nullable(); $t->string('status', 20)->default('PROPOSED'); $t->timestamps(); });
         DB::table('users')->insert([['id' => 1, 'name' => 'Maker', 'created_at' => now(), 'updated_at' => now()], ['id' => 2, 'name' => 'Checker', 'created_at' => now(), 'updated_at' => now()]]);
+        // the route and the scenario rules read their settings with no value in code: the seeded defaults (D21)
+        $this->seedGovernedDefaults(['scenario_minimum_count', 'scenario_weight_bounds', 'scenario_calibration_note', 'overlay_requires_approved_set', 'scenario_weighting_method', 'fli_adjustment_route']);
         DB::table('macro_series')->insert(['statistic_code' => 'PLR', 'observation_period' => '202608', 'value' => 20.0, 'value_type' => 'actual']);
         DB::table('fli_relationships')->insert(['id' => 1, 'statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'r2_cutoff' => 0.3, 'lag_months' => 0, 'created_at' => now(), 'updated_at' => now()]);
         // proxy = 0.01 x PLR + 0.1: at 20 the proxy is 0.3; a PLR five points higher gives 0.35, an adjustment of one sixth
@@ -54,6 +60,25 @@ class FliRouteServiceTest extends TestCase
             ['contract_id' => 'A', 'reporting_period' => '2026-08', 'ifrs9stage_post_qualitative' => '1', 'pd_prefli' => 0.30],
             ['contract_id' => 'B', 'reporting_period' => '2026-08', 'ifrs9stage_post_qualitative' => '3', 'pd_prefli' => 0.30],
         ]);
+        // what a fit is checked against before it is proposed or approved (UI audit item 3): the governed
+        // guardrail settings its inputs hash is taken under, the credit-loss measure it was estimated on, the
+        // governed forecast horizon the projection reads, and each fit stamped with the hash of the data held
+        GovernedValues::ensureDefaults('sqlite');
+        foreach (['202512' => 0.28, '202601' => 0.29, '202607' => 0.30] as $p => $v) {
+            DB::table('credit_loss_series')->insert(['proxy_code' => 'STAGE3_SHARE', 'proxy_name' => 'Stage 3 share', 'observation_period' => $p, 'value' => $v]);
+        }
+        DB::table('governance_settings')->insert(['key' => 'fli_forecast_horizon', 'value' => '3 years, then 2 years back to the long-run PD', 'options' => json_encode(['3 years, then 2 years back to the long-run PD']), 'label' => 'horizon', 'description' => '', 'effective_from' => '1900-01-01', 'status' => 'APPROVED', 'created_at' => now(), 'updated_at' => now()]);
+        $this->stampFit(10);
+        $this->stampFit(11);
+    }
+
+    /** The inputs hash a sweep would record for the fit on the data now held, as at its period. */
+    private function stampFit(int $id): void
+    {
+        $f = DB::table('fli_fits as f')->join('fli_relationships as r', 'r.id', '=', 'f.fli_relationship_id')->where('f.id', $id)->first(['f.reporting_period', 'r.statistic_code', 'r.proxy_code', 'r.lag_months']);
+        $hash = (new RegressionEngine('sqlite', new GovernedValues($f->reporting_period, 'sqlite')))->currentInputsHash($f->reporting_period, $f->statistic_code, $f->proxy_code, (int) $f->lag_months);
+        $this->assertNotNull($hash, "fit {$id}: the fixture holds its driver and its measure");
+        DB::table('fli_fits')->where('id', $id)->update(['inputs_hash' => $hash, 'computed_at' => now()]);
     }
 
     private function service(): FliRouteService
@@ -85,6 +110,7 @@ class FliRouteServiceTest extends TestCase
         } catch (RuntimeException $e) {
             $this->assertStringContainsString('declined by the guardrail', $e->getMessage());
         }
+        $this->approvedSet();
         $this->service()->proposeFit(10, 1);
         try {
             $this->service()->approveFit(10, 1);
@@ -170,14 +196,27 @@ class FliRouteServiceTest extends TestCase
         $this->assertSame(3, $r['adjusted']);
     }
 
-    /** A fit for January 2026 on PLR, lag in months, approved by two people; one Stage 1 loan in January. */
-    private function januaryFit(int $lag): void
+    /**
+     * A fit for January 2026 on PLR, lag in months, estimated on the data held; with the approved set of
+     * January it is proposed and approved by two people, or (propose false) published as approved, as a
+     * version published before its data went missing would be. One Stage 1 loan in January. Returns the set.
+     */
+    private function januaryFit(int $lag, bool $propose = true): int
     {
         DB::table('fli_relationships')->insert(['id' => 2, 'statistic_code' => 'PLR', 'proxy_code' => 'STAGE3_SHARE', 'r2_cutoff' => 0.3, 'lag_months' => $lag, 'created_at' => now(), 'updated_at' => now()]);
         DB::table('fli_fits')->insert(['id' => 20, 'fli_relationship_id' => 2, 'reporting_period' => '202601', 'slope' => 0.01, 'intercept' => 0.1, 'correlation_r' => 0.9, 'r_squared' => 0.81, 'n_obs' => 24, 'verdict' => 'applied']);
-        $this->service()->proposeFit(20, 1);
-        $this->service()->approveFit(20, 2);
+        $this->stampFit(20);
+        $setId = $this->approvedSet('2026-01');
+        if ($propose) {
+            $this->service()->proposeFit(20, 1);
+            $this->service()->approveFit(20, 2);
+        } else {
+            DB::table('fli_fits')->where('id', 20)->update(['approval_status' => 'APPROVED', 'proposed_by' => 1, 'approved_by' => 2, 'approved_at' => now()]);
+            (new \App\Services\Fli\FliModelRegistry())->publishFromFit(20, 2);
+        }
         DB::table('loan_books')->insert(['contract_id' => 'E', 'reporting_period' => '2026-01', 'ifrs9stage_post_qualitative' => '1', 'pd_prefli' => 0.30, 'remaining_tenor' => 24]);
+
+        return $setId;
     }
 
     /**
@@ -194,8 +233,7 @@ class FliRouteServiceTest extends TestCase
             ['statistic_code' => 'PLR', 'observation_period' => '202504', 'value' => 26.0, 'value_type' => 'actual'],
             ['statistic_code' => 'PLR', 'observation_period' => '202601', 'value' => 25.3, 'value_type' => 'actual'],
         ]);
-        $this->januaryFit(9);
-        $setId = $this->approvedSet('2026-01');
+        $setId = $this->januaryFit(9);
         $r = $this->service()->apply('2026-01', 1);
 
         $this->assertSame('202504', (string) $r['base_driver']['base_period']);
@@ -227,7 +265,6 @@ class FliRouteServiceTest extends TestCase
             ['statistic_code' => 'PLR', 'observation_period' => '202601', 'value' => 25.3, 'value_type' => 'actual'],
         ]);
         $this->januaryFit(12);
-        $this->approvedSet('2026-01');
         $r = $this->service()->apply('2026-01', 1);
         $expected = (0.01 * 25.3 + 0.1) / (0.01 * 24.0 + 0.1) - 1;
         foreach (['Base', 'Up', 'Down'] as $name) {
@@ -237,12 +274,15 @@ class FliRouteServiceTest extends TestCase
         $this->assertStringContainsString('actual 202601', $r['base_driver']['window_driver_source']);
     }
 
-    /** No actual at P - lag known at the period: the route refuses, and no loan is touched. */
+    /**
+     * No actual at P - lag known at the period: the route refuses, and no loan is touched. Such a fit can
+     * no longer be proposed or approved (see the fit-applicability tests below); the route still fails
+     * closed for a version published before, or one whose data was withdrawn after it was published.
+     */
     public function test_the_route_fails_closed_when_the_lagged_base_is_not_known_at_the_period(): void
     {
         DB::table('macro_series')->insert(['statistic_code' => 'PLR', 'observation_period' => '202601', 'value' => 25.3, 'value_type' => 'actual']);
-        $this->januaryFit(9);
-        $this->approvedSet('2026-01');
+        $this->januaryFit(9, false);
         try {
             $this->service()->apply('2026-01', 1);
             $this->fail('the route ran without the lagged base');
@@ -291,6 +331,7 @@ class FliRouteServiceTest extends TestCase
     /** FLI module D-F1, D-F2: approving a fit publishes a version that governs its month and every later one until replaced. */
     public function test_an_approved_fit_is_a_version_in_force_from_its_month_until_a_later_one(): void
     {
+        $this->approvedSet();
         $this->service()->proposeFit(10, 1);
         $this->service()->approveFit(10, 2);
         $registry = new \App\Services\Fli\FliModelRegistry();
@@ -308,6 +349,8 @@ class FliRouteServiceTest extends TestCase
         Schema::create('macro_statistics', function (Blueprint $t) { $t->increments('id'); $t->string('statistic_code'); $t->string('statistic_name')->nullable(); });
         DB::table('macro_statistics')->insert(['statistic_code' => 'PLR', 'statistic_name' => 'Prime lending rate']);
         DB::table('credit_loss_series')->insert(['proxy_code' => 'STAGE3_SHARE', 'proxy_name' => 'Stage 3 share', 'observation_period' => '202608', 'value' => 0.3]);
+        $this->stampFit(10); // the fit as a sweep records it on the August measure just added
+        $this->approvedSet();
         $this->service()->proposeFit(10, 1);
         $this->service()->approveFit(10, 2);
         $registry = new \App\Services\Fli\FliModelRegistry();
@@ -353,5 +396,34 @@ class FliRouteServiceTest extends TestCase
             'double_count_review' => 'the model reads the PLR with a nine-month lag; the overlay covers the rate rise announced after the month-end'], 1);
         $overlays->approve($reviewed, 2);
         $this->assertSame('APPROVED', DB::table('fli_overlays')->where('id', $reviewed)->value('status'));
+    }
+
+    /** Audit C9 residual: a null approver (fli:apply --approve with no --user) skipped the different-person check. */
+    public function test_a_fit_is_not_approved_without_a_named_approver_or_a_named_proposer(): void
+    {
+        $this->approvedSet(); // a fit is proposed only with the scenario paths its horizon needs (UI audit item 3)
+        $this->service()->proposeFit(10, 1);
+        try {
+            $this->service()->approveFit(10, null);
+            $this->fail('a fit was approved with no approver named');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('different person', $e->getMessage());
+        }
+        DB::table('fli_fits')->where('id', 10)->update(['proposed_by' => null]);
+        try {
+            $this->service()->approveFit(10, 2);
+            $this->fail('a fit with no named proposer was approved');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('both must be named', $e->getMessage());
+        }
+        $this->assertSame('PROPOSED', DB::table('fli_fits')->where('id', 10)->value('approval_status'));
+    }
+
+    /** The route reads its settings with no value in code: a missing approved value stops it, naming the key. */
+    public function test_the_route_stops_when_its_governed_setting_has_no_approved_value(): void
+    {
+        DB::table('governance_settings')->where('key', 'fli_adjustment_route')->delete();
+        $this->expectException(\App\Exceptions\GovernanceSettingMissingException::class);
+        $this->service()->apply('2026-08', 1);
     }
 }

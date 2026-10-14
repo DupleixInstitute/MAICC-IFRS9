@@ -223,8 +223,8 @@ class OverlayService
     public function loansOf(string $period): Collection
     {
         return DB::table('loan_books')->where('reporting_period', $period)
-            ->selectRaw('id, contract_id, product_group, coalesce(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative) as stage, coalesce(pd_prefli, pd_value, `12m_pd`) as pd_prefli, pd_post_fli, ecl_value, remaining_tenor')
-            ->whereRaw('coalesce(pd_prefli, pd_value, `12m_pd`) is not null')->whereNotNull('ecl_value')->get();
+            ->selectRaw('id, contract_id, product_group, coalesce(ifrs9stage_post_qualitative, calculated_ifrs9_stage, ifrs9stage_pre_qualitative) as stage, coalesce(pd_prefli, pd_value) as pd_prefli, pd_post_fli, ecl_value, remaining_tenor')
+            ->whereRaw('coalesce(pd_prefli, pd_value) is not null')->whereNotNull('ecl_value')->get();
     }
 
     /**

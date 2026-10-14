@@ -57,12 +57,27 @@ class LoanBookReconciliationService
             ->selectRaw('SUM(lb_start.carrying_amount - lb_end.carrying_amount) as total_repayment')
             ->value('total_repayment') ?? 0;
 
-        // Get write-offs during the period
-        $writeOffs = DB::table('loan_books')
-            ->where('loan_portfolio_id', $portfolioId)
-            ->where('reporting_period', $endPeriod)
-            ->where('contract_status', 'like', '%write%')
-            ->sum('carrying_amount');
+        // Write-offs during the period: the ledger's (the WriteOffClassifier's rule) and the approved
+        // register's, on the portfolio's contracts (spec v4 3.8; built 14 October 2026). The loan book's
+        // contract_status carries no write-off marker, so the old filter on it never matched. A contract
+        // written off still in the closing book had its write-off netted in the repayment line, and one
+        // that left the book was not in the repayment line at all; both are taken out here.
+        $woByContract = [];
+        foreach (WriteOffSource::between(WriteOffSource::monthEnd($startPeriod), WriteOffSource::monthEnd($endPeriod)) as $w) {
+            $woByContract[(string) $w['contract_id']] = ($woByContract[(string) $w['contract_id']] ?? 0) + (float) $w['amount'];
+        }
+        $held = $woByContract ? DB::table('loan_books')->where('loan_portfolio_id', $portfolioId)->whereIn('reporting_period', [$startPeriod, $endPeriod])
+            ->whereIn('contract_id', array_map('strval', array_keys($woByContract)))->get(['contract_id', 'reporting_period'])->groupBy('contract_id') : collect();
+        $writeOffs = 0.0;
+        foreach ($held as $cid => $rows) {
+            $writeOffs += $woByContract[(string) $cid];
+            if ($rows->pluck('reporting_period')->contains($startPeriod) && $rows->pluck('reporting_period')->contains($endPeriod)) {
+                $repayments -= $woByContract[(string) $cid]; // in both books: the write-off was inside the balance change
+            } elseif (! $rows->pluck('reporting_period')->contains($startPeriod)) {
+                $newDisbursements += $woByContract[(string) $cid]; // new and written off in the period
+            }
+        }
+        $writeOffs = round($writeOffs, 2);
 
         return [
             'portfolio_id' => $portfolioId,

@@ -36,7 +36,7 @@ class FliImpactService
         $per = array_fill_keys(array_keys($scenarios), 0.0);
         $booked = 0.0;
         $measured = 0;
-        foreach ($this->buildUp->loans($period) as $l) {
+        foreach ($this->buildUp->split($this->buildUp->loans($period), $period)[1] as $l) { // the MAIIC engine's loans; the Mega Farm programme is measured by its own engine (D30)
             $x = EclBuildUpService::lineage($l);
             if ($x['ecl'] === null || ! $x['ties']) {
                 continue;

@@ -10,8 +10,17 @@ use RuntimeException;
 /** IFRS 9 time-phased expected cash-shortfall engine (monthly discretisation). */
 class TimePhasedEclService
 {
-    public function run(Collection $loans, string $reportingPeriod, string $lgdField='collection_lgd', ?int $userId=null): array
+    /** The term-structure sources this engine writes, so a rerun can clear its own rows. */
+    public const TERM_SOURCES=['TWELVE_MONTH_PD_CONSTANT_HAZARD','DEFAULTED_RESOLUTION_HORIZON','DEFAULTED_RECOVERY_SCHEDULE'];
+    private bool $onSet=false;
+    private bool $byScenarioColumn=false;
+    private string $pdField='pd_post_fli';
+    /** @var array<int,Collection> the scenarios of each governed set, by set id */
+    private array $setScenarios=[];
+
+    public function run(Collection $loans, string $reportingPeriod, string $lgdField='collection_lgd', ?int $userId=null, string $pdField='pd_post_fli'): array
     {
+        $this->pdField=$pdField==='pd_prefli'?'pd_prefli':'pd_post_fli';
         $asOf=CarbonImmutable::parse(substr($reportingPeriod,0,7).'-01')->endOfMonth();
         // One weighting (spec 15.5; audit H3): the governed set's scenarios and
         // weights, with the per-scenario PD the route wrote on each loan, when
@@ -19,10 +28,19 @@ class TimePhasedEclService
         // no loan carries a per-scenario PD.
         $legacyScenarios=DB::table('ecl_scenario_assumptions')->where('status','APPROVED')
             ->whereDate('effective_from','<=',$asOf)->where(fn($q)=>$q->whereNull('effective_to')->orWhereDate('effective_to','>=',$asOf))->get();
-        $anyChain=$loans->contains(fn($l)=>isset($l->fli_by_scenario)&&$l->fli_by_scenario!==null&&$l->fli_by_scenario!=='[]');
-        if($legacyScenarios->isEmpty()&&!$anyChain) throw new RuntimeException('No approved scenario set covers the reporting period: neither a governed set written on the loans by the route nor the legacy assumptions.');
-        if($legacyScenarios->isNotEmpty()&&abs((float)$legacyScenarios->sum('weight')-1)>1e-8) throw new RuntimeException('Approved ECL scenario weights must sum to 1.');
-        $scenarios=$legacyScenarios;
+        // A run is on the governed set when any of its loans carries the set or a
+        // per-scenario PD from the route. Then every loan is measured under that
+        // set and the legacy table is never mixed in: its LGD and EAD multipliers
+        // (0.9 and 0.98 up, 1.2 and 1.05 down) reached the Stage 3 loans, which the
+        // route leaves without a per-scenario PD, and lifted their discounted
+        // allowance 2.84 percent above the undiscounted one (UAT, 2026-09).
+        $this->onSet=$loans->contains(fn($l)=>(isset($l->fli_by_scenario)&&$l->fli_by_scenario!==null&&$l->fli_by_scenario!==''&&$l->fli_by_scenario!=='[]')||!empty($l->fli_set_id??null));
+        $this->setScenarios=[];
+        // the run is refused whole, with its reason: no loan is given a proxy horizon or rate instead
+        if($this->pdField!=='pd_prefli'&&$legacyScenarios->isEmpty()&&!$this->onSet) throw new EclRunRefused('Discounted ECL not calculated for '.$asOf->format('Y-m').': no approved scenario set covers the reporting period, neither a governed set written on the loans by the forward-looking route nor approved legacy assumptions. Apply the route (or approve the assumptions) first; no proxy is applied.');
+        if($this->pdField!=='pd_prefli'&&!$this->onSet&&abs((float)$legacyScenarios->sum('weight')-1)>1e-8) throw new EclRunRefused('Discounted ECL not calculated for '.$asOf->format('Y-m').': the approved ECL scenario weights must sum to 1.');
+        $scenarios=$this->onSet?collect():$legacyScenarios;
+        $this->byScenarioColumn=\Illuminate\Support\Facades\Schema::hasColumn('loan_books','ecl_by_scenario');
 
         $runId=(string)Str::uuid();
         DB::table('ecl_projection_runs')->insert(['run_id'=>$runId,'reporting_period'=>$asOf->format('Y-m'),
@@ -38,7 +56,7 @@ class TimePhasedEclService
                 // discounting its own projection. Overwriting ecl_value with the projected
                 // undiscounted shortfall broke that reconciliation, so the month-end could
                 // not run discounted at all (results review of 13 October 2026).
-                DB::table('loan_books')->where('id',$loan->id)->update([
+                DB::table('loan_books')->where('id',$loan->id)->update(($this->byScenarioColumn?['ecl_by_scenario'=>json_encode($result['by_scenario'])]:[])+[
                     'ecl_value_discounted'=>round($result['discounted'],2),
                     'ecl_discounting_effect'=>round($result['undiscounted']-$result['discounted'],2),
                     'ecl_discount_rate'=>$result['rate'],'ecl_discount_rate_source'=>$result['rate_source'],
@@ -48,14 +66,18 @@ class TimePhasedEclService
                 $processed++;$totalUndisc+=$result['undiscounted'];$totalDisc+=$result['discounted'];
             }catch(\Throwable $e){
                 $id=(string)($loan->contract_id??'row-'.$loan->id);$exceptions[$id]=$e->getMessage();
-                DB::table('loan_books')->where('id',$loan->id)->update(['ecl_value_discounted'=>null,
+                // a loan refused part-way (the invariant below) leaves none of its projected rows on the run,
+                // and no term structure from this run or an earlier one for the month
+                DB::table('ecl_cashflow_projections')->where('run_id',$runId)->where('contract_id',$id)->delete();
+                $this->clearTermStructure($id,$asOf);
+                DB::table('loan_books')->where('id',$loan->id)->update(($this->byScenarioColumn?['ecl_by_scenario'=>null]:[])+['ecl_value_discounted'=>null,
                     'ecl_discounting_effect'=>null,'ecl_discount_rate'=>null,'ecl_discount_rate_source'=>null,
                     'ecl_discount_status'=>'TIME_PHASED_UNRESOLVED','ecl_calculation_run_id'=>$runId,'ecl_calculated_at'=>now()]);
             }
         }
         DB::table('ecl_projection_runs')->where('run_id',$runId)->update(['status'=>'COMPLETED','contracts_processed'=>$processed,
             'contracts_unresolved'=>count($exceptions),'undiscounted_ecl'=>round($totalUndisc,2),'discounted_ecl'=>round($totalDisc,2),
-            'exceptions'=>json_encode($exceptions),'input_snapshot'=>json_encode(['scenario_codes'=>$scenarios->pluck('scenario_code')->all(),'lgd_field'=>$lgdField]),
+            'exceptions'=>json_encode($exceptions),'input_snapshot'=>json_encode(['scenario_codes'=>$this->onSet?'the governed set on each loan':$scenarios->pluck('scenario_code')->all(),'lgd_field'=>$lgdField,'pd_field'=>$this->pdField]),
             'completed_at'=>now(),'updated_at'=>now()]);
         return ['run_id'=>$runId,'calculated'=>$processed,'unresolved'=>count($exceptions),'undiscounted'=>$totalUndisc,'discounted'=>$totalDisc,'exceptions'=>$exceptions];
     }
@@ -63,7 +85,17 @@ class TimePhasedEclService
     private function projectLoan(object $loan,CarbonImmutable $asOf,Collection $scenarios,string $runId,string $lgdField): array
     {
         $id=trim((string)($loan->contract_id??''));if($id==='')throw new RuntimeException('Contract ID is missing.');
-        $stage=(int)($loan->calculated_ifrs9_stage??$loan->ifrs9stage_post_qualitative??$loan->ifrs9stage_pre_qualitative??0);
+        // the term structure an earlier run of the month wrote for this loan goes first, so a loan
+        // whose horizon shortened, or that no longer has an exposure, keeps no row from before
+        $this->clearTermStructure($id,$asOf);
+        // the engine's EAD (EclExposure): a nil or credit balance is no exposure (spec 3.8), and a loan
+        // written off to nil has none either, its undrawn amount included. The allowance is then nil,
+        // measured, not unresolved: no discount rate enters a nil loss
+        $ead=EclExposure::of($loan);
+        if($ead<=0)return ['undiscounted'=>0.0,'discounted'=>0.0,'rate'=>null,'rate_source'=>EclExposure::closedByWriteOff($loan)?'NO_EXPOSURE_WRITTEN_OFF':'NO_EXPOSURE','horizon'=>0.0,'by_scenario'=>[]];
+        // the stage the ECL engine measures: post qualitative first (ExpectedCreditLossController $stageExpr);
+        // reading the calculated stage first measured a qualitatively moved loan on another horizon
+        $stage=(int)($loan->ifrs9stage_post_qualitative??$loan->calculated_ifrs9_stage??$loan->ifrs9stage_pre_qualitative??0);
         if(!in_array($stage,[1,2,3],true))throw new RuntimeException('IFRS 9 stage is unavailable.');
         $eir=DB::table('contract_eir')->where('contract_id',$id)->whereNotNull('locked_at')->whereNotNull('eir_effective_annual')->first();
         // A defaulted loan with no approved recovery plan is measured at the
@@ -74,14 +106,30 @@ class TimePhasedEclService
             ->where('status','APPROVED')->whereDate('recovery_date','>',$asOf)->exists();
         if(!$eir&&!$stage3AtDate)throw new RuntimeException('A locked original EIR is unavailable.');
         $rate=$eir?(float)$eir->eir_effective_annual:0.0;if($eir&&$rate<=-1)throw new RuntimeException('Locked EIR is unusable.');
-        $ead=(float)($loan->carrying_amount??0)+(float)($loan->commitments??0)*(float)($loan->facility_utilisation_rate??1);
-        if($ead<=0)throw new RuntimeException('EAD is not positive.');
-        $basePd=(float)($loan->pd_post_fli??$loan->pd_prefli??0);if($stage===3)$basePd=1.0;
-        $scenarios=$this->scenariosFor($loan,$basePd,$scenarios); // the legacy assumptions arrive as $scenarios; the loan's own set replaces them
+        // a negative rate discounts with a factor above one, so the discounted loss would exceed the undiscounted
+        if($eir&&(float)$eir->eir_effective_annual<0)throw new RuntimeException('The locked EIR is negative ('.$eir->eir_effective_annual.'); a discount factor above one is not applied.');
+        // A floating-rate loan is discounted at its current EIR (IFRS 9 B5.5.44): the EIR in force at the
+        // reporting date as the revenue engine re-estimates it from the rate charged (decision D38,
+        // EirRevenueService::currentFloatingEir). Where it cannot be determined the loan is named and left
+        // unresolved; the original EIR is never used in its place (it was, labelled EIR_ORIGINAL_FLOATING_PROXY,
+        // until 14 October 2026). A loss measured at the reporting date takes no discount rate.
+        $floating=$eir&&strtoupper((string)$eir->rate_type)==='FLOATING';
+        if($floating&&!$stage3AtDate){
+            $current=$this->currentFloatingEir($id,$loan,$asOf);
+            if($current===null)throw new RuntimeException('Floating-rate loan: its current EIR at '.$asOf->toDateString().' cannot be determined (no loan-book rate charged for '.$asOf->format('Y-m').', or no rate the locked schedule was built at), and the original EIR is not used in its place (IFRS 9 B5.5.44).');
+            if($current<=0)throw new RuntimeException('The current EIR of the floating-rate loan is not positive ('.$current.').');
+            $rate=$current;
+        }
+        // the PD the run measures, as the engine reads it: pd_post_fli, or pd_prefli on a run before FLI (never the one for the other)
+        // a missing PD or LGD is refused with the loan named, never read as nil
+        $pdRaw=$this->pdField==='pd_prefli'?($loan->pd_prefli??null):($loan->pd_post_fli??null);
+        if($stage!==3&&$pdRaw===null)throw new RuntimeException("The PD ({$this->pdField}) is unavailable.");
+        $basePd=$stage===3?1.0:(float)$pdRaw;
+        $scenarios=$this->scenariosFor($loan,$basePd,$scenarios,$stage); // the legacy assumptions arrive as $scenarios (only off the governed set)
         if($basePd<0||$basePd>1)throw new RuntimeException('PD must be between 0 and 1.');
-        $baseLgd=$lgdField==='both'
-            ? (float)($loan->customer_lgd??0)*(float)($loan->collection_lgd??0)
-            : (float)($loan->{$lgdField}??0);
+        $lgdParts=$lgdField==='both'?[$loan->customer_lgd??null,$loan->collection_lgd??null]:[$loan->{$lgdField}??null];
+        if(in_array(null,$lgdParts,true))throw new RuntimeException("The LGD ({$lgdField}) is unavailable.");
+        $baseLgd=array_product(array_map('floatval',$lgdParts));
         $recoveries=DB::table('ecl_recovery_cashflows')->where('contract_id',$id)->where('reporting_period',$asOf->format('Y-m'))
             ->where('status','APPROVED')->whereDate('recovery_date','>',$asOf)->orderBy('recovery_date')->get();
         if($stage===3 && $recoveries->isNotEmpty()) $baseLgd=max(0,min(1,1-(float)$recoveries->sum('expected_recovery')/$ead));
@@ -90,20 +138,22 @@ class TimePhasedEclService
         $principalByMonth=DB::table('contract_cashflow_schedule')->where('contract_id',$id)->where('schedule_version',1)
             ->whereDate('due_date','>',$asOf)->selectRaw("SUBSTR(due_date,1,7) ym, SUM(principal_due) principal")
             ->groupByRaw("SUBSTR(due_date,1,7)")->pluck('principal','ym');
-        $rateSource=!$eir?'NONE_LOSS_AT_REPORTING_DATE':($eir->rate_type==='FLOATING'?'EIR_ORIGINAL_FLOATING_PROXY':'EIR_ORIGINAL');
+        $rateSource=!$eir?'NONE_LOSS_AT_REPORTING_DATE':($floating?($stage3AtDate?'NONE_LOSS_AT_REPORTING_DATE':'EIR_CURRENT_FLOATING'):'EIR_ORIGINAL');
         $recoveryShares=$stage===3?$this->recoveryShares($recoveries,$asOf,$months):[];
         $pdSource=$stage===3
             ?($recoveryShares===[]?'DEFAULTED_RESOLUTION_HORIZON':'DEFAULTED_RECOVERY_SCHEDULE')
             :'TWELVE_MONTH_PD_CONSTANT_HAZARD';
-        $weightedUndisc=0.0;$weightedDisc=0.0;$maxExponent=0.0;
+        $weightedUndisc=0.0;$weightedDisc=0.0;$maxExponent=0.0;$byScenario=[];
 
         foreach($scenarios as $scenario){
+            $u0=$weightedUndisc;$d0=$weightedDisc;$w=(float)$scenario->weight;
             if($stage===3){
                 // Default has occurred: the loss is measured at the reporting
                 // date, not projected along a schedule nobody is paying
                 // (system audit of 9 October 2026, finding C3).
                 [$undisc,$disc,$exp]=$this->stageThree($runId,$id,$asOf,$ead,$baseLgd,$recoveries,$rate,$scenario,$rateSource,$pdSource,$lgdField);
                 $weightedUndisc+=$undisc*(float)$scenario->weight;$weightedDisc+=$disc*(float)$scenario->weight;$maxExponent=max($maxExponent,$exp);
+                $byScenario[$scenario->scenario_code]=['weight'=>$w,'undiscounted'=>$undisc,'discounted'=>$disc];
                 continue;
             }
             $scenarioPd=min(1,max(0,$basePd*(float)$scenario->pd_multiplier));
@@ -151,28 +201,85 @@ class TimePhasedEclService
                     'survival_open'=>$survival,'marginal_pd'=>$marginal,'cumulative_pd'=>$cumulative,'source'=>$pdSource,'created_at'=>now(),'updated_at'=>now()]);
                 $weightedUndisc+=$shortfall*(float)$scenario->weight;$weightedDisc+=$weighted;$survival=max(0,$survival-$marginal);$opening=max(0,$opening-$scheduled);$maxExponent=max($maxExponent,$exponent);
             }
+            $byScenario[$scenario->scenario_code]=['weight'=>$w,'undiscounted'=>$w>0?($weightedUndisc-$u0)/$w:0.0,'discounted'=>$w>0?($weightedDisc-$d0)/$w:0.0];
         }
-        return ['undiscounted'=>$weightedUndisc,'discounted'=>$weightedDisc,'rate'=>$eir?$rate:null,'rate_source'=>$rateSource,'horizon'=>$maxExponent];
+        // The invariant (UI end-to-end audit, item 4): at a rate of nil or more,
+        // discounting a loss dated on or after the reporting date never raises
+        // it. The one exception is a defaulted loan with an approved recovery
+        // plan, whose loss is the exposure less the present value of later
+        // recoveries: discounting a recovery raises the loss (IFRS 9 B5.5.33).
+        $planned=$stage===3&&$recoveries->isNotEmpty();
+        if(!$planned&&$weightedDisc>$weightedUndisc+1e-6*max(1.0,$weightedUndisc))
+            throw new RuntimeException('The discounted loss ('.round($weightedDisc,2).') is above the undiscounted ('.round($weightedUndisc,2).'); the projection is refused.');
+        return ['undiscounted'=>$weightedUndisc,'discounted'=>$weightedDisc,'rate'=>$eir?$rate:null,'rate_source'=>$rateSource,'horizon'=>$maxExponent,'by_scenario'=>$byScenario];
     }
 
     /**
-     * The scenarios a loan is measured under: the governed set written on the
-     * loan by the route (each scenario's PD becomes a multiplier on the base,
-     * so the loop below reproduces it exactly; LGD and EAD unshocked, weights
-     * from the set), else the legacy assumptions table.
+     * The scenarios a loan is measured under.
+     *
+     *  - A run before FLI (pd_prefli): one scenario at the PD before FLI, no
+     *    shock; the scenario PDs the route wrote are post-FLI and do not apply.
+     *  - Off the governed set (no loan of the run carries it): the legacy
+     *    approved assumptions, as before.
+     *  - On the set, a loan with the per-scenario PD the route wrote: each
+     *    scenario's PD becomes a multiplier on the base, so the loop reproduces
+     *    it exactly; LGD and EAD are not shocked (D-F8) and the weights are the
+     *    set's.
+     *  - On the set, a defaulted loan (the route writes it no PD): the set's
+     *    scenarios and weights with no shock, since no scenario moves a default
+     *    that has happened (D-F5); its loss is the same in every scenario.
+     *  - On the set, a performing loan with no per-scenario PD: refused, never
+     *    measured on the legacy table or on the base PD alone.
      */
-    private function scenariosFor(object $loan,float $basePd,Collection $legacy): Collection
+    /** The current EIR of a floating-rate loan at the reporting date, or null (fail closed, never the original EIR). */
+    private function currentFloatingEir(string $id,object $loan,CarbonImmutable $asOf): ?float
     {
-        $by=isset($loan->fli_by_scenario)&&$loan->fli_by_scenario!==null?(json_decode((string)$loan->fli_by_scenario,true)?:[]):[];
-        if($by===[]) return $legacy;
-        $out=collect();$sum=0.0;
-        foreach($by as $name=>$s){$sum+=(float)($s['weight']??0);}
-        if($sum<=0) return $legacy;
-        foreach($by as $name=>$s){
-            $pd=(float)($s['pd']??$basePd);
-            $out->push((object)['scenario_code'=>$name,'name'=>$name,'weight'=>(float)$s['weight']/$sum,'pd_multiplier'=>$basePd>0?$pd/$basePd:1.0,'lgd_multiplier'=>1.0,'ead_multiplier'=>1.0]);
+        $contract=\App\Models\ContractEir::where('contract_id',$id)->first();
+        if(!$contract)return null;
+        // the month's charged rate: on the loan as passed, else its own loan-book row of the month
+        if(!isset($loan->interest_rate)||!is_numeric($loan->interest_rate)){
+            $loan=(object)['interest_rate'=>DB::table('loan_books')->where('contract_id',$id)->where('reporting_period',$asOf->format('Y-m'))->orderByDesc('id')->value('interest_rate')];
         }
-        return $out;
+
+        return app(\App\Services\Eir\EirRevenueService::class)->currentFloatingEir($contract,$loan,$asOf->format('Y-m'));
+    }
+
+    private function scenariosFor(object $loan,float $basePd,Collection $legacy,int $stage): Collection
+    {
+        if($this->pdField==='pd_prefli') return collect([(object)['scenario_code'=>'Before FLI','name'=>'Before FLI','weight'=>1.0,'pd_multiplier'=>1.0,'lgd_multiplier'=>1.0,'ead_multiplier'=>1.0]]);
+        if(!$this->onSet) return $legacy;
+        $by=isset($loan->fli_by_scenario)&&$loan->fli_by_scenario!==null&&$loan->fli_by_scenario!==''?(json_decode((string)$loan->fli_by_scenario,true)?:[]):[];
+        $sum=0.0;
+        foreach($by as $s){$sum+=(float)($s['weight']??0);}
+        if($by!==[]&&$sum>0){
+            $out=collect();
+            foreach($by as $name=>$s){
+                if(!isset($s['pd'])) throw new RuntimeException("Scenario {$name} carries no PD on the loan; apply the forward-looking route again.");
+                $pd=(float)$s['pd'];
+                $out->push((object)['scenario_code'=>$name,'name'=>$name,'weight'=>(float)$s['weight']/$sum,'pd_multiplier'=>$basePd>0?$pd/$basePd:1.0,'lgd_multiplier'=>1.0,'ead_multiplier'=>1.0]);
+            }
+            return $out;
+        }
+        $setId=(int)($loan->fli_set_id??0);
+        if($stage===3&&$setId>0) return $this->setScenarios[$setId]??=$this->neutralSet($setId);
+        throw new RuntimeException($setId>0
+            ?'The loan carries the scenario set but no per-scenario PD from the route; apply the forward-looking route again.'
+            :'The loan is not on the scenario set the rest of the run is measured under; apply the forward-looking route to every loan of the month.');
+    }
+
+    /** Removes the term structure this engine wrote for a loan's month (FLI projection rows are not its own). */
+    private function clearTermStructure(string $id,CarbonImmutable $asOf): void
+    {
+        DB::table('ecl_pd_term_structures')->where('contract_id',$id)->where('reporting_period',$asOf->format('Y-m'))->whereIn('source',self::TERM_SOURCES)->delete();
+    }
+
+    /** The scenarios of a governed set with their weights and no shock. */
+    private function neutralSet(int $setId): Collection
+    {
+        $rows=DB::table('governed_scenarios')->where('set_id',$setId)->orderBy('order_position')->get(['name','weight']);
+        $sum=(float)$rows->sum('weight');
+        if($rows->isEmpty()||$sum<=0) throw new RuntimeException("Scenario set {$setId} holds no weighted scenario.");
+        return $rows->map(fn($r)=>(object)['scenario_code'=>$r->name,'name'=>$r->name,'weight'=>(float)$r->weight/$sum,'pd_multiplier'=>1.0,'lgd_multiplier'=>1.0,'ead_multiplier'=>1.0])->values();
     }
 
     /**

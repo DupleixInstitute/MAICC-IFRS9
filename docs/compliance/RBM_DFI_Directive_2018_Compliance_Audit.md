@@ -6,15 +6,15 @@ Malawi Agricultural and Industrial Investment Company (MAIIC) - IFRS 9 EIR and E
 
 Source: docs/regulatory/RBM Financial Services (Credit Risk Management for DFIs) Directive 2018 pp42-47.pdf (Gazette 13 July 2018, pages 680 to 685). Spec v4 section 3.6, decision D31; the O13 rebuttal paper of 8 October 2026.
 
-Generated 2026-10-14 08:30:44; the Baselines were read from the database `maiic_ifrs9_results2`.
+Generated 2026-10-14 10:44:41; the Baselines were read from the database `maiic_ifrs9_wire`.
 
 ## Status summary
 
 | Status | Meaning | Sections |
 |---|---|---|
-| **Done** | Implemented in the system and visible in an approved output; the test in column 11 fails if the behaviour changes. | 4 |
-| **Partially done** | The mechanics are in place, but a parameter, an input or a piece of evidence still differs from the requirement. | 5 |
-| **Outstanding** | Required for MAIIC and not built. | 4 |
+| **Done** | Implemented in the system and visible in an approved output; the test in column 11 fails if the behaviour changes. | 5 |
+| **Partially done** | The mechanics are in place, but a parameter, an input or a piece of evidence still differs from the requirement. | 6 |
+| **Outstanding** | Required for MAIIC and not built. | 2 |
 | **Not applicable, documented** | Does not apply to MAIIC by a recorded decision or fact (reason and reference given); revisit if the facts change. | 4 |
 | **Evidence needed from MAIIC** | The system is ready; MAIIC must supply a document, minute or dataset before the row can be closed. | 2 |
 | **Total** | | 19 |
@@ -31,15 +31,15 @@ Generated 2026-10-14 08:30:44; the Baselines were read from the database `maiic_
 | 10 | Classification of credit facilities | Done | dpd_basis | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_directive_bands_by_term; Tests\Feature\Rbm\RbmReturnServiceTest::test_the_rbm_classification_report_agrees_with_the_return_on_every_loan |
 | 11(1), 11(2) | Quarterly review of all facilities; prompt reclassification | Done | dpd_basis; stage3_missed_instalments | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_return_fills_the_sections_from_the_book |
 | 11(3) | Review each large exposure individually | Partially done |  |  |
-| 12 | Write off loss facilities in the following quarter | Outstanding |  |  |
-| 13(1) | Non-accrual: cease accrual, reverse uncollected interest, recognise interest only when received in cash | Partially done | stage3_interest_basis |  |
+| 12 | Write off loss facilities in the following quarter | Partially done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_loss_facilities_are_listed_with_the_quarter_they_must_be_written_off_by |
+| 13(1) | Non-accrual: cease accrual, reverse uncollected interest, recognise interest only when received in cash | Partially done | stage3_interest_basis | Tests\Feature\Rbm\RbmReturnServiceTest::test_cumulative_interest_in_suspense_is_measured_and_tied_to_gl_1320 |
 | 13(2) | Non-accrual regardless of collateral | Done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_directive_bands_by_term |
 | 13(3) | Restore to accrual only when all arrears are paid | Outstanding | stage_cure_months (IFRS 9 stage only) |  |
-| 14 and Schedule | Minimum provisions by class | Partially done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_return_fills_the_sections_from_the_book |
-| 15(1) | Excess of the regulatory provision over IFRS to a loan loss reserve | Partially done |  |  |
+| 14 and Schedule | Minimum provisions by class | Done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_return_fills_the_sections_from_the_book |
+| 15(1) | Excess of the regulatory provision over IFRS to a loan loss reserve | Partially done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_allowance_is_the_booked_discounted_allowance_and_a_gap_is_named |
 | 15(2), 15(4) | The reserve is not capital; released only after recoveries or with the Registrar's approval | Not applicable, documented |  |  |
 | 15(3) | Report loan loss reserves on the call report as prescribed | Partially done | dpd_basis | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_return_fills_the_sections_from_the_book |
-| 16(1) | No restructure, renegotiation, roll-over or modification without Board approval | Outstanding | rate_change_classification (not read yet); modification_threshold (not read yet) |  |
+| 16(1) | No restructure, renegotiation, roll-over or modification without Board approval | Partially done | rate_change_classification; modification_threshold | Tests\Feature\Rbm\RbmReturnServiceTest::test_section_d_lists_the_confirmed_restructures_with_their_board_approval; Tests\Feature\Eir\RestructureRegisterTest::test_the_rbm_section_d_reports_only_confirmed_restructures_and_names_a_missing_board_approval; Tests\Feature\Eir\RestructureDetectionWiringTest::test_the_detection_step_finds_and_never_confirms_and_the_bootstrap_line_counts_the_candidates |
 | 16(2) | Single borrower or group limit of 25 percent of core capital | Outstanding |  |  |
 | 16(3) | No overdraft facilities | Not applicable, documented |  |  |
 | 3 to 9 | Objectives; Board and executive duties; lending criteria; funding records; internal audit; independent risk function | Not applicable, documented |  |  |
@@ -48,7 +48,7 @@ Generated 2026-10-14 08:30:44; the Baselines were read from the database `maiic_
 
 ## Baselines - the acceptance ties read from the system
 
-Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
+Generated 2026-10-14 10:44:41 from maiic_ifrs9_wire.
 
 | Tie | Expected | System figure | Result |
 |---|---|---|---|
@@ -62,21 +62,75 @@ Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
 | Loan book 1050201 at 31 Dec 2025 against the trial balance (accepted exception, spec 3.5: -400,000.00) | 1,402,393,139.46 | 1,401,993,139.46 | PASS |
 | Loan book 1050202 at 31 Dec 2025 against the trial balance (accepted exception, spec 3.5: 1,000,000.00) | 3,808,288,656.15 | 3,809,288,656.15 | PASS |
 | Loan book 1050401 at 31 Dec 2025 against the trial balance | 1,827,148,120.69 | 1,827,148,120.69 | PASS |
+| Pack inventory: ebanker-pack-2026-10-09: every file as committed and landed with its manifest rows and SHA-256; 13 received files not landed, each with its reason in the manifest | 12 extracts, 111,513 rows | 12 extracts, 111,513 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12: every file as committed and landed with its manifest rows and SHA-256; 2 received files not landed, each with its reason in the manifest | 39 extracts, 511,785 rows | 39 extracts, 511,785 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12-p5: every file as committed and landed with its manifest rows and SHA-256; 1 received files not landed, each with its reason in the manifest | 8 extracts, 470 rows | 8 extracts, 470 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-12-p6: every file as committed and landed with its manifest rows and SHA-256; 0 received files not landed, each with its reason in the manifest | 3 extracts, 236 rows | 3 extracts, 236 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-13-p7: every file as committed and landed with its manifest rows and SHA-256; 0 received files not landed, each with its reason in the manifest | 6 extracts, 32,244 rows | 6 extracts, 32,244 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-13-p8: every file as committed and landed with its manifest rows and SHA-256; 6 received files not landed, each with its reason in the manifest | 4 extracts, 103 rows | 4 extracts, 103 rows | PASS |
+| Pack inventory: ebanker-pack-2026-10-14: every file as committed and landed with its manifest rows and SHA-256; 13 received files not landed, each with its reason in the manifest | 2 extracts, 426 rows | 2 extracts, 426 rows | PASS |
+| Pack inventory: manifest.json (packs 1 and 2, data dictionary, trial balances, take-on): every file as committed and landed with its manifest rows and SHA-256; 3 received files not landed, each with its reason in the manifest; 30 workbooks and scripts, 23 landed by the bootstrap | 54 extracts, 85,174 rows, 23 workbooks | 54 extracts, 85,174 rows, 23 workbooks | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: term loans on the worksheet with take-on postings | 77.00 | 77.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose principal taken on (301) = NEWDISBURS_AMT, to the cent | 76.00 | 76.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose opening interest (303) = TOTAL_INT_CHARG, to the cent | 76.00 | 76.00 | PASS |
+| Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: loans whose opening recoveries (305) = TOTA_REPAY_UPTO, to the cent | 72.00 | 72.00 | PASS |
+| Ledger copy CUMVOUCH_BK240824 (CV_04a) to 31 Dec 2023 against the GL opening balances of 1 Jan 2024 (CV_14), 4 loan GLs: sum of the differences | 0.50 | 0.50 | PASS |
+| Loan book 2025-12, MAIIC's loan GLs: carrying amount | no golden value committed (book_2025-12_maiic_amount) | 14,841,212,779.54 | FAIL |
+| Loan book 2025-12, MAIIC's loan GLs: rows | no golden value committed (book_2025-12_maiic_loans) | 123.00 | FAIL |
+| Loan book 2025-12, Mega Farm programme GLs: carrying amount | no golden value committed (book_2025-12_megafarm_amount) | 54,498,560,819.60 | FAIL |
+| Loan book 2025-12, Mega Farm programme GLs: accounts with a balance | no golden value committed (book_2025-12_megafarm_accounts) | 3,671.00 | FAIL |
+| Loan book 2026-09, MAIIC's loan GLs: carrying amount | no golden value committed (book_2026-09_maiic_amount) | 23,189,580,235.43 | FAIL |
+| Loan book 2026-09, MAIIC's loan GLs: rows | no golden value committed (book_2026-09_maiic_loans) | 134.00 | FAIL |
+| Loan book 2026-09, Mega Farm programme GLs: carrying amount | no golden value committed (book_2026-09_megafarm_amount) | 56,180,761,113.43 | FAIL |
+| Loan book 2026-09, Mega Farm programme GLs: accounts with a balance | no golden value committed (book_2026-09_megafarm_accounts) | 3,618.00 | FAIL |
+| Ledger write-offs on MAIIC loans (WriteOffClassifier): postings | no golden value committed (ledger_writeoffs_postings) | 22.00 | FAIL |
+| Ledger write-offs on MAIIC loans (WriteOffClassifier): amount | no golden value committed (ledger_writeoffs_amount) | 60,778,466.86 | FAIL |
+| ECL 2025-12, MAIIC's book: undiscounted | no golden value committed (ecl_2025-12_maiic_undiscounted) | 3,955,543,846.37 | FAIL |
+| ECL 2025-12, MAIIC's book: discounted at the EIR (booked) | no golden value committed (ecl_2025-12_maiic_discounted) | 2,593,174,242.30 | FAIL |
+| ECL 2025-12, MAIIC's book: loans discounted at the EIR | no golden value committed (ecl_2025-12_maiic_discounted_loans) | 56.00 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 1: discounted | no golden value committed (ecl_2025-12_maiic_stage1_discounted) | 61,318,291.61 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 2: discounted | no golden value committed (ecl_2025-12_maiic_stage2_discounted) | 315,409,106.41 | FAIL |
+| ECL 2025-12, MAIIC's book, stage 3: discounted | no golden value committed (ecl_2025-12_maiic_stage3_discounted) | 2,216,446,844.28 | FAIL |
+| ECL 2025-12, Mega Farm programme (latest run) | no golden value committed (ecl_2025-12_megafarm_programme) | none | FAIL |
+| ECL 2025-12, Mega Farm: MAIIC's share | no golden value committed (ecl_2025-12_megafarm_maiic_share) | none | FAIL |
+| ECL 2026-09, MAIIC's book: undiscounted | no golden value committed (ecl_2026-09_maiic_undiscounted) | 11,569,458,915.88 | FAIL |
+| ECL 2026-09, MAIIC's book: discounted at the EIR (booked) | no golden value committed (ecl_2026-09_maiic_discounted) | 7,118,643,553.12 | FAIL |
+| ECL 2026-09, MAIIC's book: loans discounted at the EIR | no golden value committed (ecl_2026-09_maiic_discounted_loans) | 62.00 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 1: discounted | no golden value committed (ecl_2026-09_maiic_stage1_discounted) | 219,546,033.90 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 2: discounted | no golden value committed (ecl_2026-09_maiic_stage2_discounted) | 183,786,390.69 | FAIL |
+| ECL 2026-09, MAIIC's book, stage 3: discounted | no golden value committed (ecl_2026-09_maiic_stage3_discounted) | 6,715,311,128.53 | FAIL |
+| ECL 2026-09, Mega Farm programme (latest run) | no golden value committed (ecl_2026-09_megafarm_programme) | 45,782,301,503.37 | FAIL |
+| ECL 2026-09, Mega Farm: MAIIC's share | no golden value committed (ecl_2026-09_megafarm_maiic_share) | 2,289,115,075.17 | FAIL |
+| EIR contracts locked | no golden value committed (eir_contracts_locked) | 14.00 | FAIL |
+| EIR contracts blocked | no golden value committed (eir_contracts_blocked) | 33.00 | FAIL |
+| EIR contracts solved (an EIR computed) | no golden value committed (eir_contracts_solved) | 14.00 | FAIL |
+| EIR contracts in the contract master | no golden value committed (eir_contracts) | 144.00 | FAIL |
+| Revenue 2024: EIR interest recognised | no golden value committed (revenue_2024_eir_interest) | 25,532,678.70 | FAIL |
+| Revenue 2024: cash received | no golden value committed (revenue_2024_cash_received) | 34,200,000.00 | FAIL |
+| Revenue 2024: roll-forward rows | no golden value committed (revenue_2024_rows) | 20.00 | FAIL |
+| Revenue 2025: EIR interest recognised | no golden value committed (revenue_2025_eir_interest) | 663,970,866.88 | FAIL |
+| Revenue 2025: cash received | no golden value committed (revenue_2025_cash_received) | 1,158,267,060.20 | FAIL |
+| Revenue 2025: roll-forward rows | no golden value committed (revenue_2025_rows) | 126.00 | FAIL |
+| Revenue 2026: EIR interest recognised | no golden value committed (revenue_2026_eir_interest) | 544,517,024.26 | FAIL |
+| Revenue 2026: cash received | no golden value committed (revenue_2026_cash_received) | 2,381,610,987.63 | FAIL |
+| Revenue 2026: roll-forward rows | no golden value committed (revenue_2026_rows) | 113.00 | FAIL |
+| RBM return 2026-09: facilities classified loss (paragraph 12 list) | no golden value committed (rbm_2026-09_loss_facilities) | 10.00 | FAIL |
+| RBM return 2026-09: balance of the loss list | no golden value committed (rbm_2026-09_loss_balance) | 1,510,956,083.45 | FAIL |
 
 ## Findings - items that need a decision or a fix
 
-### F1. No restructure register (16(1)) - Open
+### F1. No restructure register (16(1)) - In progress
 
-- **What was found:** E-Banker's reschedule history (RS_02a to RS_02g) landed on 12 October 2026 and is read only for the instalment chart in force; no register of restructures with their Board approval exists and section D of the Return is null. (Until 14 October 2026 this finding said Barry was to obtain the Reschedule Report; it has arrived.)
-- **Impact:** Restructured facilities cannot be reported or shown to have Board approval; IFRS 9 modification (5.4.3) waits on the same register.
-- **Recommended action:** Dupleix builds the register from RS_02 (candidates confirmed by Credit), records the Board approval reference and fills section D.
-- **Owner:** Dupleix / Credit
+- **What was found:** E-Banker's reschedule history (RS_02a to RS_02g) landed on 12 October 2026 and was read only for the instalment chart in force; no register of restructures with their Board approval existed and section D of the Return was null. Status 14 October 2026: built and wired (uncommitted in the working tree): the register with maker-checker and the Board approval reference, the detector in the bootstrap and the month-end (detection only), and section D listing the confirmed restructures with their Board approval. On the scratch clone 70 candidates await classification.
+- **Impact:** Until the candidates are classified the Return reports no restructured facility.
+- **Recommended action:** Credit classifies the candidates; MAIIC records the Board approval of each restructure it confirms.
+- **Owner:** Credit / MAIIC
 
 ### F2. The prescribed call report form is not in the repository (15(3)) - Open
 
-- **What was found:** The provisional return fills every line in the directive's order; the Registrar's own form has not been supplied, the loan loss reserve has no line, and the headings cite wrong paragraphs (sections 9 to 11, 12, 15, 17).
-- **Impact:** The return is still transcribed by hand and its citations mislead.
-- **Recommended action:** MAIIC Risk supplies the current form; Dupleix re-orders and re-words the lines to it, adds the reserve line and corrects the citations to 10, 14, 13, 16(1) and 15(3).
+- **What was found:** The provisional return fills every line in the directive's order; the Registrar's own form has not been supplied, the loan loss reserve has no line, and the headings cite wrong paragraphs (sections 9 to 11, 12, 15, 17). Status 14 October 2026: the citations are corrected (10 and 11, 12, 13, 14 and the Schedule, 15, 16(1), 15(3)) and the reserve line added; the form is still awaited.
+- **Impact:** The return is still transcribed by hand.
+- **Recommended action:** MAIIC Risk supplies the current form; Dupleix re-orders and re-words the lines to it.
 - **Owner:** MAIIC Risk / Dupleix
 
 ### F3. The RBM Classification report's day bands differed from the directive's (10) - Closed
@@ -86,19 +140,19 @@ Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
 - **Recommended action:** Done.
 - **Owner:** Dupleix
 
-### F4. Loss-age write-off and restoration to accrual are not built (12, 13(3)) - Open
+### F4. Loss-age write-off and restoration to accrual are not built (12, 13(3)) - In progress
 
-- **What was found:** No loss-since date exists, so the paragraph 12 write-off deadline cannot be shown (10 loss facilities of 1,511.0m at September 2026 on the fresh bootstrap); a facility returns to accrual when its days fall, not when its arrears are paid.
-- **Impact:** The Return can carry loss facilities past the deadline and restore accrual too early.
-- **Recommended action:** Dupleix adds the loss-since date with a due-for-write-off flag, and an arrears-nil condition before restoration.
-- **Owner:** Dupleix
+- **What was found:** No loss-since date exists, so the paragraph 12 write-off deadline cannot be shown (10 loss facilities of 1,511.0m at September 2026 on the fresh bootstrap); a facility returns to accrual when its days fall, not when its arrears are paid. Status 14 October 2026: paragraph 12 is built (loss since, age, write-off quarter, status; 7 of the 10 overdue); 13(3) is not.
+- **Impact:** The Return can restore accrual too early.
+- **Recommended action:** Dupleix adds an arrears-nil condition before restoration; Credit and Finance act on the 7 overdue loss facilities.
+- **Owner:** Dupleix / Credit
 
-### F5. Interest in suspense is not the directive's measure (13(1)) - Open
+### F5. Interest in suspense is not the directive's measure (13(1)) - In progress
 
-- **What was found:** Section C is one period's posted contractual interest less EIR interest; GL 1320 is not read and nothing is on the cash basis.
-- **Impact:** The suspense figure on the Return does not tie to the ledger.
-- **Recommended action:** Compute the cumulative uncollected interest on non-performing facilities on the cash basis and tie it to GL 1320.
-- **Owner:** Dupleix / Finance
+- **What was found:** Section C is one period's posted contractual interest less EIR interest; GL 1320 is not read and nothing is on the cash basis. Status 14 October 2026: the cumulative interest charged since each facility became non-performing is computed and set against GL 1320; the cash-basis split is a named gap and the trial balances carry no 1320 line from March 2026.
+- **Impact:** The suspense on the Return does not yet tie to a posted suspense balance.
+- **Recommended action:** Finance posts (or confirms) interest suspense on GL 1320; the cash received is split between principal and interest (allocation rule from Finance) so the cash-basis income can be deducted.
+- **Owner:** Finance / Dupleix
 
 ### F6. Large exposures and the 25 percent limit need core capital (11(3), 16(2)) - Open
 
@@ -107,11 +161,11 @@ Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
 - **Recommended action:** Finance supplies core capital quarterly; Dupleix adds the two tests and borrower grouping.
 - **Owner:** Finance / Dupleix
 
-### F7. Two bases for the minimum provision (14 and Schedule) - Open
+### F7. Two bases for the minimum provision (14 and Schedule) - Closed
 
-- **What was found:** The Return applies the rates to the gross carrying amount, the Provision Comparison report to EAD; an unused helper holds wrong rates.
-- **Impact:** Two screens disagree for one month.
-- **Recommended action:** Put the Provision Comparison on the gross carrying amount and delete the unused helper.
+- **What was found:** The Return applies the rates to the gross carrying amount, the Provision Comparison report to EAD; an unused helper holds wrong rates. Status 14 October 2026: done, both on the gross carrying amount; the helper is deleted.
+- **Impact:** None remaining.
+- **Recommended action:** Done.
 - **Owner:** Dupleix
 
 ## Section-by-section audit
@@ -179,22 +233,25 @@ Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
 - **Where to see it:** Reports: Concentration and large exposures /ifrs9-reports/concentration
 - **Reviewer sign-off:** ____________________   Date: ____________
 
-**12. Write off loss facilities in the following quarter** - *Outstanding*
+**12. Write off loss facilities in the following quarter** - *Partially done*
 
 - **What it requires:** Write off all facilities classified as loss from the books in the quarter following the one in which the loss classification was made.
-- **What the engine does:** Not built: nothing records when a facility first became loss, so the age of a loss classification is unknown and no facility is flagged as due for write-off. The write-off register is not linked to the RBM Return. On the fresh bootstrap at September 2026, 10 medium- and long-term facilities of 1,511.0m are in the loss class.
-- **General comment:** Figures from the fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2), main book (the six MAIIC and FInES loan GLs) at September 2026.
-- **Compliance comment:** Outstanding (Dupleix): a loss-since date and a due-for-write-off flag on the Return.
-- **Where to see it:** Reports: RBM Return (provisional) /rbm-return; /eir-write-offs
+- **What the engine does:** Built 14 October 2026: the RBM Return's section 'Loss facilities to be written off' lists each loss facility with the month it became loss on the loan books (the unbroken run of loss classification by days past due and term; 'at or before' where the run reaches the first month held), its age in months, the quarter-end by which it must be written off and its status (overdue, due this quarter, due next quarter). On the fresh bootstrap at September 2026: 10 facilities of 1,510,956,083.45, 7 of them (1,030,047,803.06) past the write-off quarter. The write-off itself is a person's act in the write-off register; the system shows the deadline, it does not write off.
+- **General comment:** Figures from the fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2), main book (the six MAIIC and FInES loan GLs) at September 2026. Until 14 October 2026 this row was Outstanding.
+- **Compliance comment:** Partially done: the list and the deadline are built; the overdue facilities are for Credit and Finance to write off (or explain) in the register.
+- **Where to see it:** Reports: RBM Return (provisional) /rbm-return (Loss facilities to be written off); /eir-write-offs
+- **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_loss_facilities_are_listed_with_the_quarter_they_must_be_written_off_by`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 **13(1). Non-accrual: cease accrual, reverse uncollected interest, recognise interest only when received in cash** - *Partially done*
 
 - **What it requires:** Place all non-performing facilities on non-accrual: cease accruing interest in income, reverse uncollected interest previously accrued, and recognise interest only when received in cash.
-- **What the engine does:** Section C of the RBM Return reports, for the non-performing facilities, one period's contractual interest posted by E-Banker less the EIR interest recognised on the net basis. That is not the directive's measure: it is not cumulative, it is not on the cash basis (interest received), and GL 1320 (interest in suspense) is read nowhere. Under IFRS 9 the EIR engine recognises Stage 3 interest on the net carrying amount (5.4.1(b)), which is not the directive's cash basis either.
-- **Compliance comment:** Partially done: the gap between the posted and the recognised interest is shown; the directive's suspense balance is not computed or tied to GL 1320.
+- **What the engine does:** Section C of the RBM Return reports the month's contractual interest posted less the EIR interest on the net basis and, since 14 October 2026, the cumulative measure: the contractual interest charged on each facility non-performing at the month-end since the month it became non-performing on the loan books, with the cash received in the same window beside it and GL 1320 from the trial balance as the tie (with the difference). At September 2026 on the fresh bootstrap: 821,916,269.33 charged since non-performing on 50 facilities, 760,304,079.21 received; the trial balances from March 2026 carry no 1320 line (the last held is 21,865,867.35 credit at February 2026, unchanged since January 2025, so E-Banker posts no suspense). Not measured: the part of the cash received that is interest, because the ledger does not split a repayment, so the cash-basis income the directive allows is shown as a named gap.
+- **General comment:** Until 14 October 2026 section C was one period's figure only and GL 1320 was read nowhere.
+- **Compliance comment:** Partially done: the cumulative suspense and the GL 1320 tie are built; the cash-basis split and Finance's posting of suspense are open.
 - **Where to see it:** Reports: RBM Return (provisional) /rbm-return (section C); EIR Calculations, GL Reconciliation: /eir-reconciliation
 - **Governance setting:** `stage3_interest_basis`
+- **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_cumulative_interest_in_suspense_is_measured_and_tied_to_gl_1320`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 **13(2). Non-accrual regardless of collateral** - *Done*
@@ -215,12 +272,12 @@ Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
 - **Governance setting:** `stage_cure_months (IFRS 9 stage only)`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
-**14 and Schedule. Minimum provisions by class** - *Partially done*
+**14 and Schedule. Minimum provisions by class** - *Done*
 
 - **What it requires:** Provide at least 0 percent on standard, 5 on special mention, 20 on substandard, 50 on doubtful and 100 on loss.
-- **What the engine does:** The RBM Return (section B) and the RBM Classification report apply the five rates to the gross carrying amount. The Provision Comparison report applies the same rates to EAD (carrying amount plus undrawn commitments; Ifrs9ReportsController::provisionComparison), so two screens give different minimums for one month. An unused helper (Ifrs9ReportsController::rbmRate) still holds wrong rates (1, 1, 50 percent). The directive says nothing of netting security; the Return does not net it.
-- **General comment:** Until 14 October 2026 this row was keyed '12' and said 'net of eligible security', which is not in the Gazette.
-- **Compliance comment:** Partially done: the rates are right on the Return; the Provision Comparison must use the same base.
+- **What the engine does:** The RBM Return (section B), the RBM Classification report and, since 14 October 2026, the Provision Comparison report apply the five rates to the gross carrying amount (the Provision Comparison had used EAD); the unused helper with wrong rates (Ifrs9ReportsController::rbmRate) is deleted. The IFRS 9 allowance set against the minimum is the booked (discounted) allowance, with any loan that has no discounted figure counted and named. The directive says nothing of netting security; the Return does not net it.
+- **General comment:** Until 14 October 2026 this row was keyed '12' and said 'net of eligible security', which is not in the Gazette; and it was Partially done (two bases).
+- **Compliance comment:** Compliant.
 - **Where to see it:** Reports: RBM Return (provisional) /rbm-return (section B); Reports: RBM Classification /ifrs9-reports/rbm-classification; IFRS 9 vs RBM /ifrs9-reports/ifrs9-vs-rbm; Reports: Provision Comparison /ifrs9-reports/provision-comparison
 - **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_the_return_fills_the_sections_from_the_book`
 - **Reviewer sign-off:** ____________________   Date: ____________
@@ -228,10 +285,11 @@ Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
 **15(1). Excess of the regulatory provision over IFRS to a loan loss reserve** - *Partially done*
 
 - **What it requires:** Where the directive's provisions exceed the IFRS impairment, the excess is an appropriation of retained earnings to a loan loss reserve.
-- **What the engine does:** Section B's totals set the minimum provision against the IFRS 9 allowance and show the higher of the two; there is no line labelled loan loss reserve. On the fresh bootstrap at September 2026 the minimum is about 3.62bn against an IFRS 9 allowance of 11.57bn (undiscounted), so the reserve is nil in total, although the loss class alone carries a 1.51bn minimum against 0.86bn of allowance.
-- **General comment:** Figures from the fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2), main book (the six MAIIC and FInES loan GLs) at September 2026.
-- **Compliance comment:** Partially done: the comparison is there; the reserve line is not.
+- **What the engine does:** Section B's totals set the minimum provision against the IFRS 9 allowance, show the higher of the two and, since 14 October 2026, a line labelled loan loss reserve (paragraph 15(1)): the minimum over the allowance. On the fresh bootstrap at September 2026 the minimum is 3,618,045,560.09 against an IFRS 9 allowance of 11,579,201,589.52 (booked; 38 loans at their undiscounted ECL of 4,460,558,036.40 because they have no discounted figure), so the reserve is nil in total, although the loss class alone carries a 1.51bn minimum against 0.89bn of allowance. The reserve is computed in total, as the paragraph reads.
+- **General comment:** Figures from the fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2), main book (the six MAIIC and FInES loan GLs) at September 2026. Until 14 October 2026 there was no reserve line.
+- **Compliance comment:** Partially done: the reserve line is built; the appropriation is a Finance entry, and the allowance it rests on is not wholly discounted yet.
 - **Where to see it:** Reports: RBM Return (provisional) /rbm-return (section B totals)
+- **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_the_allowance_is_the_booked_discounted_allowance_and_a_gap_is_named`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 **15(2), 15(4). The reserve is not capital; released only after recoveries or with the Registrar's approval** - *Not applicable, documented*
@@ -246,7 +304,7 @@ Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
 **15(3). Report loan loss reserves on the call report as prescribed** - *Partially done*
 
 - **What it requires:** Report loan loss reserves separately on the call report in the form the Registrar prescribes.
-- **What the engine does:** RbmReturnService fills a provisional return (A classification by class and term, B minimum provision against the IFRS 9 allowance, C interest in suspense, D restructured facilities, E security held) on the screen and as CSV, Excel and PDF. The prescribed call report form is not in the repository, the reserve is not a line of its own, section D is empty, and the section headings on the screen and the download cite the wrong paragraphs (RbmReturnController: 'sections 9 to 11', 'section 12', 'section 15', 'section 17'; they should be 10, 14 and 15, 16(1) and 15(3)).
+- **What the engine does:** RbmReturnService fills a provisional return (A classification by class and term, B minimum provision against the IFRS 9 allowance, C interest in suspense, D restructured facilities, E security held) on the screen and as CSV, Excel and PDF. The prescribed call report form is not in the repository, the reserve is not a line of its own, section D lists only restructures confirmed on the register (none yet), and the section headings on the screen and the download cite the wrong paragraphs (RbmReturnController: 'sections 9 to 11', 'section 12', 'section 15', 'section 17'; they should be 10, 14 and 15, 16(1) and 15(3)).
 - **General comment:** Until 14 October 2026 this row was keyed '17', which is the monetary penalties paragraph.
 - **Compliance comment:** Partially done: the lines are filled; the prescribed form, the reserve line and the citations are owed.
 - **Where to see it:** Reports: RBM Return (provisional) /rbm-return
@@ -254,14 +312,15 @@ Generated 2026-10-14 08:30:44 from maiic_ifrs9_results2.
 - **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_the_return_fills_the_sections_from_the_book`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
-**16(1). No restructure, renegotiation, roll-over or modification without Board approval** - *Outstanding*
+**16(1). No restructure, renegotiation, roll-over or modification without Board approval** - *Partially done*
 
 - **What it requires:** An institution shall not restructure, renegotiate, roll over or modify the terms of a credit facility unless approved by the Board.
-- **What the engine does:** Not built: there is no restructure register and no record of Board approval. E-Banker's reschedule history (RS_02a to RS_02g, landed 12 October 2026; 46,230 RS_02a rows on the fresh bootstrap) is read only to find the instalment chart in force for staging (InstalmentChartHistory); section D of the Return is null (RbmReturnService: 'awaited from the vendor', which is stale).
-- **General comment:** Until 14 October 2026 this row was keyed '15' and waited on the vendor; the data has arrived and the register is Dupleix's build.
-- **Compliance comment:** Outstanding (Dupleix): a restructure register from RS_02 with the Board approval reference, feeding section D.
-- **Where to see it:** Reports: RBM Return (provisional) /rbm-return (section D); Imports & Feeds, E-Banker Loads: /eir-feed
-- **Governance setting:** `rate_change_classification (not read yet); modification_threshold (not read yet)`
+- **What the engine does:** The restructure register (EIR Data, Restructures & Resets) holds the candidates the detector finds in E-Banker's reschedule history (RS_02a to RS_02f), the migration worksheet and the rate moves of fixed-rate loans; the bootstrap and the month-end run the detector only, and a candidate becomes a restructure only when one person classifies it with a reason and Board approval reference and another approves. Section D of the Return lists every facility with a confirmed restructure by the month-end with its Board approval, counts those restructured in the month and those without a Board approval recorded (flagged in red), and counts the candidates awaiting confirmation without reporting them; on the screen and in the CSV, Excel and PDF. On the scratch clone maiic_ifrs9_wire of 14 October 2026 (a copy of the restructure build's database, migrated): 70 candidates and 323 rate moves recorded, none confirmed, so section D lists no facility and says so.
+- **General comment:** Until 14 October 2026 this row was Outstanding: no register existed and section D was null.
+- **Compliance comment:** Partially done: built; Credit classifies the candidates and MAIIC records the Board approval of each restructure it confirms.
+- **Where to see it:** Reports: RBM Return (provisional) /rbm-return (section D); EIR Data, Restructures & Resets: /eir-restructures
+- **Governance setting:** `rate_change_classification; modification_threshold`
+- **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_section_d_lists_the_confirmed_restructures_with_their_board_approval; Tests\Feature\Eir\RestructureRegisterTest::test_the_rbm_section_d_reports_only_confirmed_restructures_and_names_a_missing_board_approval; Tests\Feature\Eir\RestructureDetectionWiringTest::test_the_detection_step_finds_and_never_confirms_and_the_bootstrap_line_counts_the_candidates`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 **16(2). Single borrower or group limit of 25 percent of core capital** - *Outstanding*

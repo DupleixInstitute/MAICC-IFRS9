@@ -30,6 +30,9 @@ class EirAmortisationHistory extends Model
         'superseded_at',
         'superseded_by',
         'supersession_reason',
+        'modification_adjustment',
+        'adjustment_kind',
+        'schedule_version',
     ];
 
     protected $casts = [
@@ -41,6 +44,7 @@ class EirAmortisationHistory extends Model
         'unwind_amount'          => 'float',
         'cash_received'          => 'float',
         'modification_gain_loss' => 'float',
+        'modification_adjustment' => 'float',
         'closing_gross'          => 'float',
         'ecl_allowance'          => 'float',
         'originally_created_at'  => 'datetime',

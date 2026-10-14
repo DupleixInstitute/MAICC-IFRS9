@@ -54,12 +54,12 @@
    "section_name": "Determining a significant increase in credit risk; the 30-days-past-due rebuttable presumption",
    "requirement": "Assess the change in the risk of default since initial recognition using reasonable and supportable information; there is a rebuttable presumption that credit risk has increased significantly when payments are more than 30 days past due.",
    "status": "Done",
-   "engine_comment": "Stage 2 from 31 days past due in every facility class, counted from the oldest overdue instalment, with the bucket ageing beside it. The rebuttal is recorded on the threshold rows (staging_thresholds.rebuttal_basis); the LONG_TERM row proposing Stage 2 at 91 days for medium- and long-term facilities only is seeded future-dated (2099) and inactive pending CFO sign-off. The threshold rows are seeded and read-only on screen (a change is a release, not a setting). The staging_rebuttal catalogue setting is shown on Settings but read by no engine.",
-   "general_comment": "The O13 rebuttal paper of 8 October 2026.",
+   "engine_comment": "Stage 2 from 31 days past due in every facility class, counted from the oldest overdue instalment, with the bucket ageing beside it. The rebuttal is recorded on the threshold rows (staging_thresholds.rebuttal_basis); the LONG_TERM row proposing Stage 2 at 91 days for medium- and long-term facilities only is seeded future-dated (2099) and inactive pending CFO sign-off. Since 14 October 2026 a threshold row is proposed by one person and approved by another on Settings, Staging basis, forward only and never into a locked month, and staging reads only approved rows, at the period end, with no 31/181 fallback in the legacy importer (audit H11). The staging_rebuttal catalogue setting is marked recorded, not yet applied: the rebuttal is the threshold row with its evidence.",
+   "general_comment": "The O13 rebuttal paper of 8 October 2026. Until 14 October 2026 the threshold rows were seeded and read-only on screen.",
    "compliance_comment": "Compliant; the presumption is applied and the rebuttal awaits the CFO.",
    "where_to_see": "Settings, Staging basis: /setting?tab=staging; IFRS 9 Model Setup, Staging & SICR Rules: /sicr-groups; Governance: Governance Centre /eir-governance",
-   "governance_setting": "dpd_basis; staging_rebuttal (shown, not read)",
-   "test": "Tests\\Feature\\Eir\\StagingThresholdSeederTest::test_the_long_term_stage_2_rebuttal_is_inactive_until_signed; Tests\\Feature\\Eir\\StagingServiceTest"
+   "governance_setting": "dpd_basis; staging_rebuttal (recorded, not yet applied)",
+   "test": "Tests\\Feature\\Eir\\StagingThresholdSeederTest::test_the_long_term_stage_2_rebuttal_is_inactive_until_signed; Tests\\Feature\\Eir\\GoLiveControlsTest::test_a_threshold_is_proposed_by_one_person_and_approved_by_another_before_staging_reads_it; Tests\\Feature\\Eir\\StagingClassifierTest::test_with_no_rule_in_force_the_classifier_stops_and_names_it; Tests\\Feature\\Eir\\StagingServiceTest"
   },
   {
    "part": "5.5 RECOGNITION OF EXPECTED CREDIT LOSSES",
@@ -158,12 +158,12 @@
    "section_name": "Time value of money",
    "requirement": "Discount the expected credit losses at the EIR determined at initial recognition (or an approximation).",
    "status": "Partially done",
-   "engine_comment": "EclDiscountRateService takes the loan's locked EIR; an unlocked or missing EIR is unresolved, never defaulted, and a floating loan's rate is labelled a proxy; a Stage 3 loss at the reporting date needs no rate. Since 216aee2 the month-end and the bootstrap run discounted by default: ecl_value keeps the engine's measure and ecl_value_discounted holds the discounted allowance, shown on the ECL screen. But the IFRS 9 note, the ECL reconciliation, the RBM Return and the other reports still read ecl_value, so the figure they carry is undiscounted. On the fresh bootstrap at September 2026, 62 main-book loans are discounted (7.12bn) and 72 are unresolved.",
-   "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 the row said 'the contractual rate where none is locked', which the code never did.",
-   "compliance_comment": "Partially done: the discounted allowance is computed; the reports must carry it.",
+   "engine_comment": "TimePhasedEclService discounts each loan's expected shortfalls at its locked original EIR and a floating-rate loan's at its current EIR for the month (EIR_CURRENT_FLOATING: the rate the revenue run accrued at, or the same D38 re-estimation from the rate charged; B5.5.44); an unlocked or missing EIR, or a floating loan with no current EIR, is unresolved with the reason, never defaulted or given the original rate; a Stage 3 loss at the reporting date needs no rate. Since 14 October 2026 EclDiscountRateService (the LGD recovery discounting) applies the same rule, so no basis is labelled EIR_ORIGINAL_FLOATING_PROXY any more. Since 216aee2 the month-end and the bootstrap run discounted by default: ecl_value keeps the engine's measure and ecl_value_discounted holds the discounted allowance, shown on the ECL screen. Since 14 October 2026 every report carries the booked allowance (BookedEcl: discounted at the original EIR; the Mega Farm programme measure; a loan with no discounted figure at its undiscounted ECL, counted and named), with the reconciliation from the reporting-date measure (the lifetime projection and the effect of discounting); the IFRS 9 note fails closed while any loan lacks its discounted allowance. On the fresh bootstrap at September 2026, 62 main-book loans are discounted (7,118,643,553.12) and 38 with an ECL have no discounted figure (4,460,558,036.40 undiscounted; most without a locked EIR).",
+   "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 the row said 'the contractual rate where none is locked', which the code never did; and the reports read the undiscounted ecl_value.",
+   "compliance_comment": "Partially done: the reports carry the discounted allowance; 38 loans still need a locked EIR before the allowance is wholly discounted.",
    "where_to_see": "ECL Processing, ECL Calculation: /expected-credit-loss/list",
    "governance_setting": "",
-   "test": "Tests\\Feature\\Ecl\\EclDiscountRateServiceTest::test_an_unlocked_or_missing_eir_is_unresolved_never_defaulted; Tests\\Feature\\Ecl\\EclGoldenNumberTest::discounted_mode_keeps_undiscounted_ecl_and_names_unresolved_contracts"
+   "test": "Tests\\Feature\\Ecl\\EclDiscountRateServiceTest::test_an_unlocked_or_missing_eir_is_unresolved_never_defaulted; Tests\\Feature\\Ecl\\EclDiscountRateServiceTest::test_a_floating_facility_is_discounted_at_its_current_eir_not_the_original; Tests\\Feature\\Ecl\\TimePhasedEclFloatingRateTest::test_a_floating_loan_with_no_rate_charged_for_the_month_is_unresolved_never_discounted_at_the_original_eir; Tests\\Feature\\Ecl\\EclGoldenNumberTest::discounted_mode_without_the_time_phased_engine_is_refused_never_proxied; Tests\\Feature\\Reports\\BookedAllowanceAndWriteOffsTest::test_the_basis_of_the_allowance_names_the_loans_without_a_discounted_figure"
   },
   {
    "part": "5.5 WRITE-OFF AND PRESENTATION",
@@ -171,12 +171,12 @@
    "section_name": "Write-off",
    "requirement": "Write off the gross carrying amount when there is no reasonable expectation of recovery.",
    "status": "Evidence needed from MAIIC",
-   "engine_comment": "WriteOffClassifier (220a5a6) identifies ledger write-offs (type 300; a batch debiting GL 1064; ACCOUNT CLOSURE on a status-H account) for the loan-book build, the contract inputs and the EIR cash; the PD cohort counts a write-off as a default (216aee2); the register records a write-off not on the loan account under two-person approval. On the fresh bootstrap: 22 ledger write-offs of 60,778,466.86; the register is empty.",
+   "engine_comment": "WriteOffClassifier (220a5a6) identifies ledger write-offs (type 300; a batch debiting GL 1064; ACCOUNT CLOSURE on a status-H account) for the loan-book build, the contract inputs and the EIR cash; the PD cohort counts a write-off as a default (216aee2); the register records a write-off not on the loan account under two-person approval; since 14 October 2026 the same source (WriteOffSource) feeds the IFRS 9 note, the reconciliations and the RBM Return, and the monthly feed M09_01 is read for write-off batch legs. On the fresh bootstrap: 22 ledger write-offs of 60,778,466.86 (20 of them, 38,492,032.54, between December 2025 and September 2026); the register is empty.",
    "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Until 14 October 2026 the row said no write-off had been posted since the take-on.",
    "compliance_comment": "Evidence needed: MAIIC's write-off policy and Finance's confirmation of status H.",
    "where_to_see": "EIR Data, Write-offs: /eir-write-offs",
    "governance_setting": "",
-   "test": "Tests\\Feature\\Eir\\WriteOffTest::test_a_closure_credit_in_a_batch_that_debits_the_write_off_gl_is_a_write_off; Tests\\Feature\\Pd\\PdSegmentationTest::test_a_nil_start_balance_is_no_observation_and_a_write_off_in_the_window_is_a_default"
+   "test": "Tests\\Feature\\Eir\\WriteOffTest::test_a_closure_credit_in_a_batch_that_debits_the_write_off_gl_is_a_write_off; Tests\\Feature\\Eir\\WriteOffTest::test_a_write_off_batch_in_the_monthly_ledger_feed_is_read; Tests\\Feature\\Pd\\PdSegmentationTest::test_a_nil_start_balance_is_no_observation_and_a_write_off_in_the_window_is_a_default"
   },
   {
    "part": "THE MEGA FARM PROGRAMME",
@@ -227,11 +227,11 @@
    "number": "F4",
    "reference": "5.5.17(b)",
    "finding": "The reports carry the undiscounted allowance",
-   "what_was_found": "The discounted allowance is held in ecl_value_discounted; the IFRS 9 note, ECL reconciliation, RBM Return and other reports read ecl_value.",
-   "impact": "The disclosed allowance is undiscounted.",
-   "recommended_action": "Point the note and the reports at the booked (discounted) allowance, with the undiscounted measure as a reconciling line.",
-   "owner": "Dupleix",
-   "status": "Open"
+   "what_was_found": "The discounted allowance is held in ecl_value_discounted; the IFRS 9 note, ECL reconciliation, RBM Return and other reports read ecl_value. Status 14 October 2026: the reports carry the booked allowance with the undiscounted measure as a reconciling line, and name the loans with no discounted figure (38 at September 2026); the note fails closed until there are none.",
+   "impact": "The disclosed allowance is not wholly discounted until those loans carry a locked EIR.",
+   "recommended_action": "Lock the EIRs of the named loans (fee reviews), then run the month-end ECL again.",
+   "owner": "Dupleix / MAIIC reviewers",
+   "status": "In progress"
   },
   {
    "number": "F5",

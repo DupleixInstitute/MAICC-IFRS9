@@ -1,0 +1,79 @@
+{
+  "pack": "MAIIC E-Banker pack 8, received 13 October 2026",
+  "assembled": "2026-10-13",
+  "period": "2026-09",
+  "source": "E-Banker (Virtual Galaxy CBS, schema VGCBS), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 8 - 13 Oct 2026.sql; RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed, debits negative",
+  "date_format": "m/d/Y",
+  "scope_scheme_ids": [],
+  "accepted_exceptions": [
+    "RUN 0 not applied: every date is m/d/yyyy; the manifest declares the format (D23)",
+    "CV_05a and CV_05b read the account and loan masters for the old 00010075 block of CUMVOUCH_BAK; they land under their own query ids, outside the ACCOUNT_MASTER and LOAN_MASTER families, so no build reads them",
+    "CV_05b returned no rows (none of the old loans is in ACLOANMASTER); it is landed as an empty file so the load records that the table was searched",
+    "CV_06 and CV_07 are probes of table and column names (no client data); landed for the record of where the migration working is kept"
+  ],
+  "not_landed": [
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_04a1_bk240824_2018_2022.csv",
+      "reason": "byte-identical to the pack 7 file (same SHA-256), which is landed"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_04a2_bk240824_2023.csv",
+      "reason": "byte-identical to the pack 7 file (same SHA-256), which is landed"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_04a3_bk240824_2024.csv",
+      "reason": "byte-identical to the pack 7 file (same SHA-256), which is landed"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_04b3_bak_2023_2024.csv",
+      "reason": "byte-identical to the pack 7 file (same SHA-256), which is landed"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_04b1_bak_2000_2021.csv",
+      "reason": "truncated copy: 5,980 rows against 7,019 in pack 7; every row it holds is in the pack 7 file with the same values (an export that stopped early); the complete pack 7 file is landed"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_04b2_bak_2022.csv",
+      "reason": "truncated copy: 4,465 rows against 5,639 in pack 7; every row it holds is in the pack 7 file with the same values; the complete pack 7 file is landed"
+    }
+  ],
+  "classification": "MAIIC client data: borrower names and balances. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "CV_05a_old_accounts_master.csv",
+      "query_id": "CV_05a",
+      "kind": "pack 8 RUN 1a: ACMASTER rows asked for the old 00010075 block and two control accounts: 3 rows, all control accounts (000100750000001 Term Loans, 000101270000001 GL 1053, 000101350000001 GL 1052), no borrower",
+      "rows": 3,
+      "sha256": "72610687e4eb4720f6207d3872fa8ad75ea4ace869eeae00c3d77f0512a52361",
+      "bytes": 5045,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_05a_old_accounts_master.csv"
+    },
+    {
+      "file": "CV_05b_old_accounts_loan_master.csv",
+      "query_id": "CV_05b",
+      "kind": "pack 8 RUN 1b: ACLOANMASTER rows for the same accounts; none",
+      "rows": 0,
+      "sha256": "df1752973ad7b66eac48a90fe25dbbff8d248b4db2cd7072bcecdfd92bea02c5",
+      "bytes": 1392,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_05b_old_accounts_loan_master.csv"
+    },
+    {
+      "file": "CV_06_migration_tables_probe.csv",
+      "query_id": "CV_06",
+      "kind": "pack 8 RUN 2: the 53 tables that may hold the migration working (opening balances, old ledgers, account maps), with the statistics row counts of 13 June 2026; names only",
+      "rows": 53,
+      "sha256": "998aa40271288e61a0b50aa2ca2f321634002382b4eab6e9a2119cc331719769",
+      "bytes": 3554,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_06_migration_tables_probe.csv"
+    },
+    {
+      "file": "CV_07_account_mapping_columns_probe.csv",
+      "query_id": "CV_07",
+      "kind": "pack 8 RUN 3: the 47 columns that may map old account numbers to new (ACCOUNT_NO_MAPP, NEW_ACMAP, T_ACCOUNT, TEMP_MASTER and others); names only",
+      "rows": 47,
+      "sha256": "b88211387361b8438befecb4bd5788e2e6a75027045045cd9812d9936b7737db",
+      "bytes": 3073,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 8/Export Results/CV_07_account_mapping_columns_probe.csv"
+    }
+  ]
+}

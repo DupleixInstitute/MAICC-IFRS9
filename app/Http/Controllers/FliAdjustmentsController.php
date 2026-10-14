@@ -35,7 +35,9 @@ class FliAdjustmentsController extends Controller
             ->selectRaw('count(*) n, round(avg(pd_prefli), 6) pre, round(avg(pd_post_fli), 6) post, round(avg(fli_adj), 6) adj, max(fli_route) route, max(fli_method) method, max(fli_fit_id) fit, max(fli_set_id) set_id, sum(fli_adj <> 0) adjusted')->first();
         // the codes in plain words for the screen; the approved fit pinned with who approved it and when
         $plain = new FliPlainLanguage();
-        $fits = $fits->map(fn ($f) => (array) $f + ['driver_name' => $plain->driver($f->statistic_code), 'proxy_name' => $plain->proxy($f->proxy_code)['name'], 'declined_plain' => $plain->declined($f->declined_reason)])->values();
+        $fits = $fits->map(fn ($f) => (array) $f + ['driver_name' => $plain->driver($f->statistic_code), 'proxy_name' => $plain->proxy($f->proxy_code)['name'], 'declined_plain' => $plain->declined($f->declined_reason),
+            // why a fit offered for proposal or approval cannot be (UI audit item 3): the same check propose and approve run
+            'blocked' => $f->verdict === 'applied' && in_array($f->approval_status, ['NONE', 'PROPOSED'], true) ? $this->blocked($route, (int) $f->id) : null])->values();
         $approved = $route->approvedFit($period);
         $approvedCard = null;
         if ($approved) {
@@ -76,6 +78,18 @@ class FliAdjustmentsController extends Controller
         }
 
         return back()->with('success', "Route applied for {$data['period']}: {$r['adjusted']} loans adjusted, {$r['held']} held" . ($r['note'] ? ' (' . $r['note'] . ')' : '') . '.');
+    }
+
+    /** The reasons a fit cannot be proposed or approved, or null when it can; a check that fails counts as a reason (fail closed). */
+    private function blocked(FliRouteService $route, int $fitId): ?string
+    {
+        try {
+            $check = $route->fitApplicability($fitId);
+        } catch (Throwable $e) {
+            return $e->getMessage();
+        }
+
+        return $check['applicable'] ? null : implode(' ', $check['reasons']);
     }
 
     private function act(callable $fn, string $ok)

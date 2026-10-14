@@ -387,4 +387,39 @@ class TakeonLandingServiceTest extends TestCase
         $this->assertSame($first['load_id'], $second['load_id']);
         $this->assertSame(2, DB::table('takeon_blocks')->count());
     }
+
+    /** Spec 6.9, the Build with approval: one person proposes, a different person approves, and only the approval builds. */
+    public function test_the_build_is_proposed_by_one_person_and_approved_by_another(): void
+    {
+        (require base_path('database/migrations/2026_10_14_220000_go_live_controls.php'))->up();
+        $this->service()->land($this->dir . '/original.xlsx', $this->dir . '/mapping.xlsx', 1);
+        $request = $this->service()->proposeBuild(1, 'first build');
+        $this->assertSame(0, DB::table('contract_takeon')->count(), 'a proposal builds nothing');
+        foreach ([1, null] as $approver) {
+            try {
+                $this->service()->approveBuild($request['request'], $approver);
+                $this->fail('the build was approved by ' . ($approver === null ? 'no one' : 'its proposer'));
+            } catch (\RuntimeException $e) {
+                $this->assertStringContainsString('different person', $e->getMessage());
+            }
+        }
+        try {
+            $this->service()->approveBuild($request['request'], 1, 'Administrator');
+            $this->fail('a label other than the bootstrap label stood in for an approver');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Only the bootstrap label', $e->getMessage());
+        }
+        $c = $this->service()->approveBuild($request['request'], 2);
+        $this->assertSame(2, $c['accounts']);
+        $row = DB::table('takeon_build_requests')->where('id', $request['request'])->first();
+        $this->assertSame('APPROVED', $row->status);
+        $this->assertSame(2, (int) $row->approved_by);
+        $this->assertNull($row->approver_label);
+        $this->assertNull($this->service()->pendingBuild());
+
+        // the bootstrap may approve under its own label, which is recorded
+        $again = $this->service()->proposeBuild(1);
+        $this->service()->approveBuild($again['request'], 1, \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL);
+        $this->assertSame(\App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL, DB::table('takeon_build_requests')->where('id', $again['request'])->value('approver_label'));
+    }
 }

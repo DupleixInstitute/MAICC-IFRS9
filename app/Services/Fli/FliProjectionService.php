@@ -53,6 +53,19 @@ class FliProjectionService
         } catch (Throwable $e) {
             throw new RuntimeException('No forecast horizon is in force (Governance Centre, fli_forecast_horizon): the projection cannot run.');
         }
+
+        return self::parseHorizon($v);
+    }
+
+    /**
+     * The years of scenario path and of reversion a governed horizon names
+     * ('3 years, then 2 years back to the long-run PD'). The route reads it
+     * too, to know which forecast years a fit needs before it is approved.
+     *
+     * @return array{horizon:int,reversion:int,label:string}
+     */
+    public static function parseHorizon(string $v): array
+    {
         if (! preg_match('/(\d+)\s*years?,\s*then\s*(\d+)\s*years?/i', $v, $m)) {
             throw new RuntimeException("The forecast horizon in force ('{$v}') does not name the years of the path and of the reversion.");
         }

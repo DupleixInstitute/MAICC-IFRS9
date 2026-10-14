@@ -77,7 +77,8 @@
                     :class="palette(a.index).card" @click="openDetail(s)">
               <div class="flex items-start justify-between gap-2">
                 <div class="text-sm font-semibold text-gray-900 group-hover:text-maiic-800 dark:text-slate-100">{{ s.label }}</div>
-                <span v-if="!s.in_force" class="shrink-0 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:border-rose-400/40 dark:bg-rose-400/10 dark:text-rose-200">no value</span>
+                <span v-if="s.applied === false" class="shrink-0 rounded-full border border-gray-300 bg-gray-50 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:border-slate-500 dark:bg-slate-700/60 dark:text-slate-300" :title="s.not_applied_note">recorded, not yet applied</span>
+                <span v-else-if="!s.in_force" class="shrink-0 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:border-rose-400/40 dark:bg-rose-400/10 dark:text-rose-200">no value</span>
                 <span v-else-if="hasPending(s)" class="shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-200">awaiting approval</span>
                 <span v-else-if="s.in_force.value === s.default" class="shrink-0 rounded-full border border-maiic-200 bg-maiic-50 px-2 py-0.5 text-[10px] font-semibold text-maiic-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300">recommended</span>
                 <span v-else class="shrink-0 rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-800 dark:border-sky-400/40 dark:bg-sky-400/10 dark:text-sky-200">changed</span>
@@ -130,6 +131,7 @@
           </div>
         </div>
         <p class="mt-3 text-sm leading-relaxed text-gray-600 dark:text-slate-300">{{ plain(detail.description) }}</p>
+        <p v-if="detail.applied === false" class="mt-2 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"><strong>Recorded, not yet applied.</strong> No engine reads this setting yet: changing it changes no figure. {{ detail.not_applied_note }}</p>
 
         <div class="mt-4 grid gap-4 md:grid-cols-2">
           <div class="rounded-lg border border-gray-200 p-3 dark:border-slate-700">

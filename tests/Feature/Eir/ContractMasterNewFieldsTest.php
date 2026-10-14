@@ -188,7 +188,7 @@ class ContractMasterNewFieldsTest extends TestCase
         $this->assertSame('LOS-2025-0417', $c->los_application_no);
         $this->assertSame('PR-88213', $c->los_process_ref);
         $this->assertNull($c->predecessor_sub_account);
-        // The existing rate_type mapping from RATE_BASIS is untouched (D16).
+        // rate_type is the stated RATE_TYPE (the RATE_BASIS alias is gone, audit M15).
         $this->assertSame('FLOATING', $c->rate_type);
         // The spread is derived later, by SpreadDerivationService; the import leaves it alone.
         $this->assertNull($c->spread_over_prime);
@@ -293,7 +293,8 @@ class ContractMasterNewFieldsTest extends TestCase
         $c = $this->contract();
         $this->assertSame('N', $c->floating_flag);
         $this->assertSame(1, (int) $c->reprice_flag, 'the policy decides');
-        $this->assertSame('FIXED', $c->rate_type, 'rate_type still comes from RATE_BASIS, never from the flag');
+        $this->assertSame('FIXED', $c->rate_type, 'rate_type is the stated type, never the flag');
+        $this->assertStringContainsString("rate type 'FIXED' disagrees with interest policy 'P'", $result['notes']['104450000053']);
 
         $agreeing = app(ContractMasterImportService::class)->import([$this->row(['interest_policy' => 'F', 'floating_flag' => 'N'])]);
         $this->assertSame([], $agreeing['notes']);

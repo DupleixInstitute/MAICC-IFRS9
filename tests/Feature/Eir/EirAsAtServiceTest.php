@@ -85,18 +85,31 @@ class EirAsAtServiceTest extends TestCase
         $this->assertSame(1, $v['eir']['schedule_version']);
     }
 
-    /** Finding M13 (a): the part month is simple interest at the contractual rate on ACT/365, not the EIR compounded. */
-    public function test_a_date_inside_a_month_accrues_the_part_month_at_the_contractual_rate_on_actual_days_less_cash_received(): void
+    /**
+     * Review item R12 (built 14 October 2026): inside a month the EIR interest is the monthly EIR on the prior
+     * month-end amortised cost for the days elapsed (so the month-end equals the revenue run's month), and the
+     * contractual accrual (finding M13: the contractual rate, simple, ACT/365, on the prior month-end ledger
+     * balance) is its own figure. The test had asserted the defect: the contractual accrual returned as the EIR interest.
+     */
+    public function test_a_date_inside_a_month_accrues_the_eir_interest_and_the_contractual_accrual_apart(): void
     {
         $v = $this->service()->contract('104420000005', '2026-01-15');
         $this->assertFalse($v['is_month_end']);
-        $expectedInterest = round(943500 * 0.26 * 15 / 365, 2);
+        $monthly = 1.30 ** (1 / 12) - 1;
+        $expectedInterest = round(943500 * $monthly * 15 / 31, 2);
         $this->assertEquals($expectedInterest, $v['interest']['eir_period_to_date']);
         $this->assertEquals(round(943500 + $expectedInterest - 30000, 2), $v['amortised_cost']);
-        $this->assertStringContainsString('contractual rate 26.0000% simple on 15/365 days (section 3)', $v['amortised_cost_basis']);
+        $this->assertStringContainsString('at the monthly EIR', $v['amortised_cost_basis']);
+        $this->assertStringContainsString('for 15 of 31 days', $v['amortised_cost_basis']);
+        // the contractual accrual, at 26 percent simple on the 941,500 the ledger held at 31 December, for 15/365 days
+        $accrued = round(941500 * 0.26 * 15 / 365, 2);
+        $this->assertEquals($accrued, $v['interest']['contractual_accrued_period_to_date']);
+        $this->assertStringContainsString('contractual rate 26.0000% simple on 15/365 days (section 3)', $v['interest']['contractual_accrued_basis']);
+        $this->assertNotEquals($v['interest']['contractual_accrued_period_to_date'], $v['interest']['eir_period_to_date']);
         $this->assertEquals(911500, $v['gross_carrying_amount']);            // 941,500 - 30,000 received on 10 Jan
         $this->assertEquals(0, $v['interest']['contractual_period_to_date']);  // the January charge is posted on the 31st
         $this->assertEquals($expectedInterest, $v['interest']['eir_year_to_date']);
+        $this->assertEquals($accrued, $v['interest']['contractual_year_to_date']);   // posted (nil) plus accrued: like with like
         $this->assertSame(0, $v['inputs']['months_rolled']);
         $this->assertSame('roll-forward row for 2025-12', $v['opening']['basis']);
         $this->assertNull($v['takeon']);
@@ -110,14 +123,15 @@ class EirAsAtServiceTest extends TestCase
         $monthly = 1.30 ** (1 / 12) - 1;
         $janInterest = round(943500 * $monthly, 2);
         $janClosing = round(943500 + $janInterest - 30000, 2);   // January rolled: interest at the monthly EIR, less the 30,000 received on 10 Jan
-        $febInterest = round($janClosing * 0.26 * 10 / 365, 2);  // then the part month at the contractual rate
+        $febInterest = round($janClosing * $monthly * 10 / 28, 2);  // then the part month at the monthly EIR for 10 of 28 days
         $this->assertSame(1, $v['inputs']['months_rolled']);
         $this->assertEquals($janClosing, end($v['roll_forward'])['closing']);
         $this->assertSame('2026-01', end($v['roll_forward'])['period']);
         $this->assertEquals($febInterest, $v['interest']['eir_period_to_date']);
         $this->assertEquals(round($janClosing + $febInterest - 40000, 2), $v['amortised_cost']);
         $this->assertEquals(round($janInterest + $febInterest, 2), $v['interest']['eir_year_to_date']);
-        $this->assertEquals(20000, $v['interest']['contractual_year_to_date']);
+        // posted (20,000 in January) plus February accrued at the contractual rate on the 931,500 the ledger held at 31 January
+        $this->assertEquals(round(20000 + round(931500 * 0.26 * 10 / 365, 2), 2), $v['interest']['contractual_year_to_date']);
         $this->assertStringContainsString('1 month(s) rolled from the roll-forward row for 2025-12', $v['amortised_cost_basis']);
     }
 
@@ -140,7 +154,7 @@ class EirAsAtServiceTest extends TestCase
         $this->assertEquals(842000.50, $v['opening']['amount']);
         $this->assertSame('2024-07', $v['opening']['period']);
         $this->assertStringContainsString('take-on basis RECOMPUTED: amortised cost 842,000.50', $v['amortised_cost_basis']);
-        $expectedInterest = round(842000.50 * 0.26 * 20 / 365, 2);
+        $expectedInterest = round(842000.50 * (1.30 ** (1 / 12) - 1) * 20 / 31, 2);   // the part month at the monthly EIR, 20 of 31 days (R12)
         $this->assertEquals($expectedInterest, $v['interest']['eir_period_to_date']);
         $this->assertEquals(round(842000.50 + $expectedInterest - 30000, 2), $v['amortised_cost']);
         $this->assertSame('RECOMPUTED', $v['takeon']['basis']);
@@ -152,7 +166,7 @@ class EirAsAtServiceTest extends TestCase
         $v = $this->service()->contract('104420000005', '2024-08-20');
         $this->assertEquals(850000, $v['opening']['amount']);
         $this->assertStringContainsString('take-on basis TAKEON_BALANCE: E-Banker take-on balance 850,000.00', $v['amortised_cost_basis']);
-        $this->assertEquals(round(850000 + round(850000 * 0.26 * 20 / 365, 2) - 30000, 2), $v['amortised_cost']);
+        $this->assertEquals(round(850000 + round(850000 * (1.30 ** (1 / 12) - 1) * 20 / 31, 2) - 30000, 2), $v['amortised_cost']);
 
         // a date before the take-on has no opening at all
         $v = $this->service()->contract('104420000005', '2024-06-30');

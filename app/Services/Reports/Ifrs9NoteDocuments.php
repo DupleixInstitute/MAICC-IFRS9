@@ -86,8 +86,104 @@ class Ifrs9NoteDocuments
         $note['contracts'] = $report['ecl']['contracts'];
         $note['paragraphs'] = $report['methodology']['paragraphs'];
         $note['groups'] = $report['groups'];
+        $note['basis'] = self::basis($report, $unit);
+        $note['write_offs'] = self::writeOffs($report, $unit);
+        $note['modifications'] = self::modifications($report, $unit);
 
         return $note;
+    }
+
+    /**
+     * (h) Modified financial assets: IFRS 7.35J(a), 35J(b) and 20A, and the IFRS 9 B5.4.6
+     * catch-up, from the confirmed and applied restructure register. No row when there is
+     * nothing to disclose: the message says so, and how many candidates await confirmation.
+     */
+    private static function modifications(array $report, array $unit): ?array
+    {
+        $m = $report['modifications'] ?? null;
+        if ($m === null) {
+            return null;
+        }
+        $amt = fn ($v) => (int) round(Attribution::cents((float) $v) / $unit['step']);
+        $rows = [];
+        if ($m['installed'] && ! $m['none']) {
+            $closing = Ifrs9NoteService::period($report['closing_period']);
+            $rows = [
+                ['key' => 'lifetime_cost', 'ref' => 'IFRS 7.35J(a)', 'label' => 'Modified in the period while the loss allowance was lifetime ECL: amortised cost before the modification',
+                    'contracts' => $m['lifetime_ecl_modified']['count'], 'amount' => $amt($m['lifetime_ecl_modified']['amortised_cost_before'])],
+                ['key' => 'lifetime_gain', 'ref' => 'IFRS 7.35J(a)', 'label' => 'Net modification gain / (loss) on those assets',
+                    'contracts' => null, 'amount' => $amt($m['lifetime_ecl_modified']['net_gain_loss'])],
+                ['key' => 'now_12_month', 'ref' => 'IFRS 7.35J(b)', 'label' => 'Modified since initial recognition while the allowance was lifetime ECL, allowance changed to 12-month ECL in the period: gross carrying amount at ' . $closing,
+                    'contracts' => $m['lifetime_modified_now_12_month']['count'], 'amount' => $amt($m['lifetime_modified_now_12_month']['gross_carrying_amount'])],
+                ['key' => 'all_gain', 'ref' => 'IFRS 9 5.4.3', 'label' => 'All modifications in the period that did not derecognise the asset: net modification gain / (loss)',
+                    'contracts' => $m['all_modified']['count'], 'amount' => $amt($m['all_modified']['net_gain_loss'])],
+                ['key' => 'derecognised_cost', 'ref' => 'IFRS 7.20A', 'label' => 'Derecognised on a substantial modification: carrying amount derecognised',
+                    'contracts' => $m['derecognised']['count'], 'amount' => $amt($m['derecognised']['carrying_amount'])],
+                ['key' => 'derecognised_gain', 'ref' => 'IFRS 7.20A', 'label' => 'Gain / (loss) on that derecognition',
+                    'contracts' => null, 'amount' => $amt($m['derecognised']['gain_loss'])],
+                ['key' => 'catch_up', 'ref' => 'IFRS 9 B5.4.6', 'label' => 'Revised estimates of the contractual cash flows: catch-up adjustment to the gross carrying amount',
+                    'contracts' => $m['catch_up']['count'], 'amount' => $amt($m['catch_up']['adjustment'])],
+            ];
+        }
+
+        return ['installed' => (bool) $m['installed'], 'none' => (bool) $m['none'], 'message' => (string) $m['message'], 'rows' => $rows,
+            'candidates' => (int) ($m['candidates'] ?? 0), 'proposed' => (int) ($m['proposed'] ?? 0), 'pending' => (int) ($m['pending'] ?? 0), 'blocked' => (int) ($m['blocked'] ?? 0),
+            'caption' => 'Loans whose contractual cash flows were modified or revised in the period, from the restructure register (classified by one person and approved by another) as the revenue run applied them (IFRS 7.35J, 20A; IFRS 9 5.4.3, B5.4.6). The reconciliations in (a) and (b) have no line of their own for these amounts.'];
+    }
+
+    /**
+     * (f) The basis of the loss allowance by stage at each month: the reporting-date
+     * ECL, the lifetime projection, the discounting at the EIR and the allowance,
+     * with the part on no discounted figure shown on its own line. Each figure is
+     * rounded on its own; the rounding is absorbed in the projection line so the
+     * column casts to the allowance.
+     */
+    private static function basis(array $report, array $unit): array
+    {
+        $r = fn (float $v) => (int) round(Attribution::cents($v) / $unit['step']);
+        $out = [];
+        foreach (['closing' => $report['closing_period'], 'opening' => $report['opening_period']] as $side => $period) {
+            $summary = $report['basis'][$period] ?? null;
+            if (! $summary) {
+                continue;
+            }
+            $lines = ['undiscounted' => [], 'projection' => [], 'discounting_effect' => [], 'shown' => [], 'not_booked' => []];
+            $loans = [];
+            foreach ([1, 2, 3] as $s) {
+                $st = $summary['stages'][$s] ?? ['undiscounted' => 0, 'projection' => 0, 'discounting_effect' => 0, 'shown' => 0, 'not_booked' => 0, 'not_booked_loans' => 0];
+                $lines['undiscounted'][$s] = $r($st['undiscounted']);
+                $lines['discounting_effect'][$s] = $r($st['discounting_effect']);
+                $lines['shown'][$s] = $r($st['shown']);
+                $lines['projection'][$s] = $lines['shown'][$s] - $lines['undiscounted'][$s] - $lines['discounting_effect'][$s];
+                $lines['not_booked'][$s] = $r($st['not_booked']);
+                $loans[$s] = (int) $st['not_booked_loans'];
+            }
+            foreach ($lines as $k => $v) {
+                $lines[$k]['total'] = array_sum($v);
+            }
+            $loans['total'] = array_sum($loans);
+            $out[$side] = ['period' => $period, 'label' => Ifrs9NoteService::period($period), 'status' => $summary['status'], 'message' => $summary['message'],
+                'rows' => [
+                    ['key' => 'undiscounted', 'label' => 'ECL at the reporting date, undiscounted (EAD x PD x LGD)', 'values' => $lines['undiscounted']],
+                    ['key' => 'projection', 'label' => 'Add: lifetime projection over the reporting-date measure', 'values' => $lines['projection']],
+                    ['key' => 'discounting_effect', 'label' => 'Less: effect of discounting at the original EIR', 'values' => $lines['discounting_effect']],
+                    ['key' => 'shown', 'label' => 'Loss allowance', 'values' => $lines['shown'], 'total' => true],
+                    ['key' => 'not_booked', 'label' => 'Of which with no discounted figure, shown undiscounted (' . number_format($loans['total']) . ' loans)', 'values' => $lines['not_booked'], 'muted' => true],
+                ]];
+        }
+
+        return $out;
+    }
+
+    /** (g) The amounts written off in the period, contract by contract, and the IFRS 7.35L statement. */
+    private static function writeOffs(array $report, array $unit): array
+    {
+        $rows = array_map(fn ($w) => ['date' => $w['date'], 'contract_id' => $w['contract_id'], 'customer_name' => $w['customer_name'] ?: '-',
+            'amount' => (int) round(Attribution::cents($w['amount']) / $unit['step']), 'source' => $w['source'] === 'ledger' ? 'Ledger (' . $w['reference'] . ')' : 'Register (' . $w['reference'] . ')'],
+            $report['write_offs'] ?? []);
+
+        return ['rows' => $rows, 'total' => array_sum(array_column($rows, 'amount')), 'enforcement' => $report['enforcement'] ?? null,
+            'outside' => count($report['write_offs_outside'] ?? [])];
     }
 
     private static function table(array $attr, array $unit, array $labels, string $title, string $caption): array
@@ -263,6 +359,45 @@ class Ifrs9NoteDocuments
             $doc->paragraph($para);
         }
 
+        if (! empty($note['basis'])) {
+            $doc->heading('(f) The loss allowance: undiscounted measure to the discounted allowance', 2);
+            $doc->paragraph('The allowance is the expected credit loss projected over the loan\'s life and discounted at its original effective interest rate (IFRS 9 5.5.17, B5.5.44). A loan with no discounted figure is shown at its undiscounted ECL and counted on the last line.', ['italic' => true, 'size' => 16, 'color' => '6B7280', 'after' => 80]);
+            $rows = [];
+            foreach (['closing', 'opening'] as $side) {
+                if (empty($note['basis'][$side])) {
+                    continue;
+                }
+                $rows[] = ['cells' => [$note['basis'][$side]['label']], 'bold' => true, 'span' => true];
+                foreach ($note['basis'][$side]['rows'] as $r) {
+                    $rows[] = ['cells' => array_merge([$r['label']], array_map(fn ($c) => $fmt($r['values'][$c]), $cols)), 'bold' => ! empty($r['total']),
+                        'top' => ! empty($r['total']) ? 'single' : null, 'color' => ! empty($r['muted']) ? '4B5563' : null];
+                }
+            }
+            $doc->table($widths, $rows, ['cells' => ['', 'Stage 1', 'Stage 2', 'Stage 3', 'Total']]);
+        }
+        if (! empty($note['write_offs'])) {
+            $doc->heading('(g) Amounts written off', 2);
+            if ($note['write_offs']['rows']) {
+                $rows = array_map(fn ($w) => ['cells' => [$w['date'] . '  ' . $w['contract_id'] . '  ' . $w['customer_name'], $fmt($w['amount'])]], $note['write_offs']['rows']);
+                $rows[] = ['cells' => ['Total written off', $fmt($note['write_offs']['total'])], 'bold' => true, 'top' => 'single', 'bottom' => 'double'];
+                $doc->table([['width' => 7288, 'align' => 'left'], ['width' => 2350]], $rows, ['cells' => ['Date, contract and customer', $note['unit']['heading']]]);
+            } else {
+                $doc->paragraph('No loan was written off in the period.');
+            }
+            $doc->paragraph('Amounts written off still subject to enforcement activity (IFRS 7.35L): ' . $note['write_offs']['enforcement']);
+        }
+        if (! empty($note['modifications'])) {
+            $mo = $note['modifications'];
+            $doc->heading('(h) Modified financial assets', 2);
+            $doc->paragraph($mo['caption'], ['italic' => true, 'size' => 16, 'color' => '6B7280', 'after' => 80]);
+            if ($mo['rows']) {
+                $rows = array_map(fn ($r) => ['cells' => [$r['ref'], $r['label'], $r['contracts'] === null ? '' : self::count($r['contracts']), $fmt($r['amount'])]], $mo['rows']);
+                $doc->table([['width' => 1500, 'align' => 'left'], ['width' => 5338, 'align' => 'left'], ['width' => 1100], ['width' => 1700]], $rows,
+                    ['cells' => ['Reference', '', 'Contracts', $note['unit']['heading']]]);
+            }
+            $doc->paragraph($mo['message']);
+        }
+
         $doc->pageBreak();
         $doc->heading('Workings and checks (not part of the published note)', 2);
         foreach (['ecl' => 'loss allowance', 'gross' => 'gross carrying amount'] as $key => $what) {
@@ -322,6 +457,30 @@ class Ifrs9NoteDocuments
             'rows' => [array_merge(['ECL charge / (release) for the period'], array_map(fn ($c) => $fmt($note['charge'][$c]), $cols))]];
         $sections[] = ['heading' => '(e) Basis of measurement', 'columns' => ['Topic', 'Basis'], 'align' => ['l', 'l'],
             'rows' => array_map(fn ($k, $v) => [ucfirst(str_replace('_', ' ', $k)), $v], array_keys($note['paragraphs']), $note['paragraphs'])];
+        if (! empty($note['basis'])) {
+            $rows = [];
+            foreach (['closing', 'opening'] as $side) {
+                foreach ($note['basis'][$side]['rows'] ?? [] as $r) {
+                    $rows[] = array_merge([$note['basis'][$side]['label'] . ': ' . $r['label']], array_map(fn ($c) => $fmt($r['values'][$c]), $cols));
+                }
+            }
+            $sections[] = ['heading' => '(f) The loss allowance: undiscounted measure to the discounted allowance', 'note' => $note['basis']['closing']['message'] ?? null,
+                'columns' => $head, 'align' => $align, 'rows' => $rows];
+        }
+        if (! empty($note['write_offs'])) {
+            $sections[] = ['heading' => '(g) Amounts written off', 'note' => 'Still subject to enforcement activity (IFRS 7.35L): ' . $note['write_offs']['enforcement'],
+                'columns' => ['Date', 'Contract', 'Customer', 'Amount (' . $note['unit']['heading'] . ')', 'Record'], 'align' => ['l', 'l', 'l', 'r', 'l'],
+                'rows' => array_merge(array_map(fn ($w) => [$w['date'], $w['contract_id'], $w['customer_name'], $fmt($w['amount']), $w['source']], $note['write_offs']['rows']),
+                    [['Total written off', '', '', $fmt($note['write_offs']['total']), '']])];
+        }
+        if (! empty($note['modifications'])) {
+            $mo = $note['modifications'];
+            $sections[] = ['heading' => '(h) Modified financial assets', 'note' => $mo['caption'] . ' ' . $mo['message'],
+                'columns' => ['Reference', 'Line', 'Contracts', 'Amount (' . $note['unit']['heading'] . ')'], 'align' => ['l', 'l', 'r', 'r'],
+                'rows' => $mo['rows']
+                    ? array_map(fn ($r) => [$r['ref'], $r['label'], $r['contracts'] === null ? '' : self::count($r['contracts']), $fmt($r['amount'])], $mo['rows'])
+                    : [['IFRS 7.35J, 20A', $mo['message'], '', '']]];
+        }
         foreach (['ecl' => 'loss allowance', 'gross' => 'gross carrying amount'] as $key => $what) {
             if ($recon = $note['tables'][$key]['recon']) {
                 $sections[] = ['heading' => 'Workings: rounding reconciliation, ' . $what, 'columns' => $head, 'align' => $align,

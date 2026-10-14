@@ -56,6 +56,9 @@ class EirCoverageController extends Controller
             'summary' => $profile['summary'],
             'states' => $profile['states'],
             'issues' => $profile['issues'],
+            // Out of scope by reason (the Mega Farm programme under D30,
+            // equity): shown beside the blockers, never counted among them.
+            'outOfScope' => $profile['out_of_scope'],
             'portfolioBreakdown' => $profile['portfolios'],
             'contracts' => array_slice(array_values($contracts), 0, self::DRILLDOWN_LIMIT),
             'contractsTotal' => count($contracts),

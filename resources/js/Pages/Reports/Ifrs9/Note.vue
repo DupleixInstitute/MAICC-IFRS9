@@ -104,7 +104,7 @@ const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 
         </template>
 
         <div class="w-full space-y-4">
-            <div v-if="error || (note && note.status === 'no_ecl')" class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div v-if="error || (note && note.status === 'no_ecl')" class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 <ReportIcon name="alert" class="mt-0.5 h-5 w-5 flex-none text-amber-600"/>
                 <p>{{ error || note.message }}</p>
             </div>
@@ -112,11 +112,11 @@ const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 
             <template v-if="hasTables">
                 <div v-if="note.status === 'failed'" class="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800">
                     <ReportIcon name="alert" class="h-5 w-5 flex-none text-red-600"/>
-                    Do not use this note: {{ note.message }} Downloads are stopped until it ties. See Workings and checks ({{ failed }} failed).
+                    Do not use this note: {{ note.message }} Downloads are stopped until every check passes. See Workings and checks ({{ failed }} failed).
                 </div>
                 <p v-else class="flex items-center gap-2 text-sm text-maiic-800">
                     <ReportIcon name="check" class="h-5 w-5 text-maiic-600"/>
-                    Every column of both reconciliations ties, and the figures agree with the loan book and the saved ECL runs. {{ note.scope }}; amounts in {{ note.unit.label }}.
+                    Every column of both reconciliations ties, every loan carries its discounted allowance, and the figures agree with the loan book and the saved ECL runs. {{ note.scope }}; amounts in {{ note.unit.label }}.
                 </p>
 
                 <KpiRow :items="figures"/>
@@ -178,6 +178,76 @@ const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 
                         <section>
                             <h3 class="font-semibold text-gray-900">(e) Basis of measurement</h3>
                             <p v-for="(p, k) in note.paragraphs" :key="k" class="mt-2 max-w-5xl text-sm leading-relaxed text-gray-700">{{ p }}</p>
+                        </section>
+
+                        <section v-if="note.basis">
+                            <h3 class="font-semibold text-gray-900">(f) The loss allowance: undiscounted measure to the discounted allowance</h3>
+                            <p class="mb-2 text-xs text-gray-500">The allowance is the expected credit loss projected over the loan's life and discounted at its original effective interest rate (IFRS 9 5.5.17, B5.5.44). A loan with no discounted figure is shown at its undiscounted ECL and counted on the last line.</p>
+                            <div class="maiic-table-wrap rounded-lg border border-gray-200">
+                                <table class="maiic-table">
+                                    <thead><tr><th class="w-[34%]"></th><th class="num">Stage 1</th><th class="num">Stage 2</th><th class="num">Stage 3</th><th class="num">Total</th></tr></thead>
+                                    <tbody>
+                                        <template v-for="side in ['closing', 'opening']" :key="'b' + side">
+                                            <template v-if="note.basis[side]">
+                                                <tr><td colspan="5" class="font-bold text-maiic-800">{{ note.basis[side].label }}</td></tr>
+                                                <tr v-for="r in note.basis[side].rows" :key="side + r.key" :class="{ 'font-bold': r.total, 'text-gray-500': r.muted }">
+                                                    <td>{{ r.label }}</td>
+                                                    <td v-for="c in COLS" :key="c" class="num">{{ amount(r.values[c]) }}</td>
+                                                </tr>
+                                            </template>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p v-for="side in ['closing', 'opening']" :key="'m' + side" v-show="note.basis[side] && note.basis[side].status === 'mixed'"
+                               class="mt-2 max-w-5xl rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                {{ note.basis[side] ? note.basis[side].label + ': ' + note.basis[side].message : '' }}
+                            </p>
+                        </section>
+
+                        <section v-if="note.write_offs">
+                            <h3 class="font-semibold text-gray-900">(g) Amounts written off</h3>
+                            <p class="mb-2 text-xs text-gray-500">Each write-off between {{ note.opening_label }} and {{ note.closing_label }}, from the ledger (the write-off rule) and the approved write-off register (IFRS 7.35I, 35L).</p>
+                            <div v-if="note.write_offs.rows.length" class="maiic-table-wrap rounded-lg border border-gray-200">
+                                <table class="maiic-table">
+                                    <thead><tr><th>Date</th><th>Contract</th><th>Customer</th><th class="num">Amount ({{ note.unit.heading }})</th><th>Record</th></tr></thead>
+                                    <tbody>
+                                        <tr v-for="(w, i) in note.write_offs.rows" :key="i">
+                                            <td class="whitespace-nowrap">{{ w.date }}</td><td>{{ w.contract_id }}</td><td>{{ w.customer_name }}</td>
+                                            <td class="num">{{ amount(w.amount) }}</td><td class="text-gray-500">{{ w.source }}</td>
+                                        </tr>
+                                        <tr class="total"><td colspan="3">Total written off</td><td class="num">{{ amount(note.write_offs.total) }}</td><td></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p v-else class="text-sm text-gray-700">No loan was written off in the period.</p>
+                            <p class="mt-2 max-w-5xl text-sm leading-relaxed text-gray-700">Amounts written off still subject to enforcement activity (IFRS 7.35L): {{ note.write_offs.enforcement }}</p>
+                        </section>
+
+                        <section v-if="note.modifications">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <h3 class="font-semibold text-gray-900">(h) Modified financial assets</h3>
+                                <span v-if="note.modifications.candidates + note.modifications.proposed > 0" class="maiic-badge maiic-badge-gold"
+                                      :title="note.modifications.candidates + ' not yet classified, ' + note.modifications.proposed + ' proposed and awaiting a second person'">
+                                    {{ note.modifications.candidates + note.modifications.proposed }} candidate{{ note.modifications.candidates + note.modifications.proposed === 1 ? '' : 's' }} awaiting confirmation
+                                </span>
+                            </div>
+                            <p class="mb-2 text-xs text-gray-500">{{ note.modifications.caption }}</p>
+                            <div v-if="note.modifications.rows.length" class="maiic-table-wrap rounded-lg border border-gray-200 dark:border-slate-700">
+                                <table class="maiic-table">
+                                    <thead><tr><th class="w-32">Reference</th><th></th><th class="num">Contracts</th><th class="num">{{ note.unit.heading }}</th></tr></thead>
+                                    <tbody>
+                                        <tr v-for="r in note.modifications.rows" :key="r.key">
+                                            <td class="whitespace-nowrap text-gray-500">{{ r.ref }}</td><td>{{ r.label }}</td>
+                                            <td class="num">{{ r.contracts === null ? '' : count(r.contracts) }}</td><td class="num">{{ amount(r.amount) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="mt-2 max-w-5xl text-sm leading-relaxed"
+                               :class="note.modifications.pending + note.modifications.blocked > 0 ? 'rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200' : 'text-gray-700'">
+                                {{ note.modifications.message }}
+                            </p>
                         </section>
                     </div>
 

@@ -97,9 +97,19 @@ class EirCalculationService
         }
     }
 
-    public function lock(string $contractId, int $reviewerId, bool $allowMakerCheckerOverride = false): ContractEir
+    /**
+     * Lock an original EIR: a second person approves the calculation. The bootstrap's automated
+     * data-readiness label (LoanBookBuildService::BOOTSTRAP_LABEL) may lock in place of that person;
+     * the lock then carries the label, so it is never read as a MAIIC approval (audit M8/H9).
+     */
+    public function lock(string $contractId, int $reviewerId, bool $allowMakerCheckerOverride = false, ?string $label = null): ContractEir
     {
-        return DB::transaction(function () use ($contractId, $reviewerId, $allowMakerCheckerOverride) {
+        if ($label !== null && $label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL) {
+            throw new LogicException('Only the bootstrap label may lock an EIR in place of a second person.');
+        }
+        $allowMakerCheckerOverride = $allowMakerCheckerOverride || $label !== null;
+
+        return DB::transaction(function () use ($contractId, $reviewerId, $allowMakerCheckerOverride, $label) {
             $contract = ContractEir::where('contract_id', $contractId)->lockForUpdate()->firstOrFail();
             if ($contract->locked_at !== null) return $contract;
             if ($contract->calculation_status !== 'CALCULATED' || $contract->eir_period === null) {
@@ -116,6 +126,7 @@ class EirCalculationService
                 'calculation_status' => 'LOCKED',
                 'locked_at' => now(),
                 'locked_by' => $reviewerId,
+                'locked_label' => $label,
             ]);
 
             return $contract->fresh();
@@ -162,6 +173,14 @@ class EirCalculationService
             $contract = ContractEir::where('contract_id', $contractId)->lockForUpdate()->firstOrFail();
             if ($contract->locked_at === null || $contract->calculation_status !== 'LOCKED') {
                 throw new LogicException('Only a locked original EIR can be reopened.');
+            }
+            // reopening removes the roll-forward and the discounted ECL of every month it reached, so a
+            // closed month among them refuses it (audit H4): reopen the month first, with its reason
+            $periods = DB::table('eir_amortisation')->where('contract_id', $contractId)->distinct()->pluck('reporting_period')
+                ->merge(DB::table('loan_books')->where('contract_id', $contractId)->whereNotNull('ecl_value_discounted')->distinct()->pluck('reporting_period'))
+                ->unique()->sort()->values();
+            foreach ($periods as $period) {
+                \App\Support\ReportingPeriodLock::assertOpen((string) $period, 'reopening the EIR of ' . $contractId);
             }
 
             DB::table('eir_calculation_history')->insert([

@@ -247,7 +247,7 @@ class ScheduleShapeGovernanceTest extends TestCase
             'maturity_date' => '2028-08-24',
             'approved_amount' => 108_431_000,
             'drawn_amount' => 108_431_000,
-            'contractual_rate' => 10.0,
+            'contractual_rate' => 0.10, // a fraction, as contract_eir holds it (audit L5)
             'payments_per_year' => 12,
             'frequency_source' => 'STATED',
             'moratorium_months' => 0,
@@ -288,6 +288,7 @@ class ScheduleShapeGovernanceTest extends TestCase
             $t->string('schedule_generated_at')->nullable();
             $t->string('schedule_approved_at')->nullable();
             $t->integer('schedule_approved_by')->nullable();
+            $t->integer('schedule_prepared_by')->nullable(); $t->string('schedule_approver_label')->nullable(); // maker-checker on the schedule (O18)
             $t->double('schedule_amortising_balance')->nullable();
             $t->string('schedule_moratorium_type', 20)->nullable();
             $t->char('schedule_emi_calc_type', 1)->nullable();
@@ -392,7 +393,7 @@ class ScheduleShapeGovernanceTest extends TestCase
         }
 
         return $this->seedContract('104430000085', ['origination_date' => '2025-07-15', 'interest_start_date' => '2025-07-15', 'maturity_date' => '2027-07-15',
-            'approved_amount' => 1047653000, 'drawn_amount' => 1047653000, 'contractual_rate' => 29.0, 'schedule_approval_status' => 'NOT_GENERATED']);
+            'approved_amount' => 1047653000, 'drawn_amount' => 1047653000, 'contractual_rate' => 0.29, 'schedule_approval_status' => 'NOT_GENERATED']);
     }
 
     private function interestPosting(string $date, float $amount, string $span): void

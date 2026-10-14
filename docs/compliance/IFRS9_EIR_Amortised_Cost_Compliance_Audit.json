@@ -28,7 +28,7 @@
    "section_name": "Amortised cost",
    "requirement": "The amount at initial recognition minus principal repayments, plus or minus the cumulative amortisation using the effective interest method of any difference between that initial amount and the maturity amount, adjusted for any loss allowance.",
    "status": "Done",
-   "engine_comment": "eir:run-revenue rolls each locked contract forward monthly (eir_amortisation: opening, advances, EIR interest, cash received, closing), opening at the prior month-end (opening_basis), with the arrears at take-on (D39) and cash from the ledger wherever the feed covers the month. On the fresh bootstrap: 13 contracts, 259 monthly rows from July 2024 to September 2026, 255 of them on ledger cash and 4 on the schedule. EirAsAtService gives the amortised cost at any date; inside a month it accrues the part-month at the contractual rate, not the EIR (review item R12, finding F5).",
+   "engine_comment": "eir:run-revenue rolls each locked contract forward monthly (eir_amortisation: opening, advances, EIR interest, cash received, closing), opening at the prior month-end (opening_basis), with the arrears at take-on (D39) and cash from the ledger wherever the feed covers the month. On the fresh bootstrap: 13 contracts, 259 monthly rows from July 2024 to September 2026, 255 of them on ledger cash and 4 on the schedule. EirAsAtService gives the amortised cost at any date; inside a month it accrues the part-month at the monthly EIR on the amortised cost for the days elapsed and returns the contractual accrual apart (review item R12, finding F5, built 14 October 2026; it had accrued at the contractual rate and called it EIR interest).",
    "general_comment": "Fresh bootstrap maiic_ifrs9_results2 (13 October 2026, before commit 216aee2). Ledger cash first is decision D35 in code; the cash_source setting is not read.",
    "compliance_comment": "Compliant at month-ends for the loans with a locked EIR; the loss allowance is applied in the ECL module.",
    "where_to_see": "EIR Calculations, EIR as at a Date: /eir-as-at; EIR Calculations, GL Reconciliation: /eir-reconciliation",
@@ -105,13 +105,13 @@
    "reference": "5.4.3",
    "section_name": "Modification of contractual cash flows",
    "requirement": "When the contractual cash flows are renegotiated or modified and the asset is not derecognised, recalculate the gross carrying amount as the present value of the modified flows at the original EIR and recognise a modification gain or loss; costs and fees incurred adjust the carrying amount and are amortised over the remaining term.",
-   "status": "Outstanding",
-   "engine_comment": "Not built: there is no contract_modifications record, no schedule version above 1 and no writer of rate_reset_events (it is only read, by EirAsAtService and the audit trace). The modification_gain_loss column carries only a derecognition without cash (EirRevenueService). E-Banker's reschedule history (RS_02a to RS_02g) landed on 12 October 2026 and is read only for the instalment chart in force used by staging.",
-   "general_comment": "Until 14 October 2026 this row was Partially done and said the restructure history was awaited from the vendor; it has arrived and the build is Dupleix's (spec P7). The row labelled B5.4.6 repeated this requirement and is folded in here.",
-   "compliance_comment": "Outstanding (Dupleix).",
-   "where_to_see": "EIR Calculations, Calculations: /eir-calculations; Blockers: /eir-coverage; EIR Calculations, EIR as at a Date: /eir-as-at",
-   "governance_setting": "modification_threshold (not read yet); rate_change_classification (not read yet)",
-   "test": ""
+   "status": "Partially done",
+   "engine_comment": "Built 14 October 2026 (uncommitted in the working tree): the restructure register (RestructureCandidateService finds candidates in RS_02a to RS_02f, the migration worksheet and the rate moves of fixed-rate loans; RestructureRegisterService, one person classifies and another approves), schedule version N+1 from E-Banker's chart after the event, and ModificationAccountingService in the revenue run of the event's month: the modified flows at the original EIR (as re-estimated for a floating loan), the gain or loss, fees through a revised EIR; a month after an unbooked event is refused. The bootstrap and the month-end run the detector only. On the scratch clone maiic_ifrs9_wire of 14 October 2026 (a copy of the restructure build's database, migrated): 70 candidates, none confirmed, so no modification is booked.",
+   "general_comment": "Until 14 October 2026 this row was Outstanding: there was no contract_modifications record and no schedule version above 1.",
+   "compliance_comment": "Partially done: built; Credit classifies and approves the candidates, and the IFRS 7.35J disclosure follows in the IFRS 9 note.",
+   "where_to_see": "EIR Calculations, Calculations: /eir-calculations; Blockers: /eir-coverage; EIR Calculations, EIR as at a Date: /eir-as-at; EIR Data, Restructures & Resets: /eir-restructures",
+   "governance_setting": "modification_threshold; rate_change_classification",
+   "test": "Tests\\Feature\\Eir\\ModificationAccountingTest::test_a_modification_below_the_threshold_resets_the_gross_carrying_amount_at_the_original_eir_with_a_gain_or_loss; Tests\\Feature\\Eir\\ModificationAccountingTest::test_fees_on_a_modification_adjust_the_carrying_amount_and_revise_the_eir; Tests\\Feature\\Eir\\RestructureRegisterTest::test_a_confirmed_modification_needs_two_people_and_loads_schedule_version_two"
   },
   {
    "part": "5.4 AMORTISED COST MEASUREMENT",
@@ -158,12 +158,12 @@
    "section_name": "The period of amortisation: the expected life",
    "requirement": "Fees, points, transaction costs and premiums or discounts are amortised over the expected life of the instrument, using contractual terms where the cash flows or life cannot be reliably estimated.",
    "status": "Done",
-   "engine_comment": "The version 1 schedule is generated from the contractual terms (contract master, scheme settings, instalment chart, the tranche register for a facility still drawing down) and approved before the solve; a take-on loan's schedule is the take-on workbook's, checked against its own rates before use (takeon_eir_plausibility, 216aee2). No behavioural prepayment estimate is made: expected_cashflow_basis is in the catalogue but no engine reads it, so the basis is contractual in code.",
+   "engine_comment": "The version 1 schedule is generated from the contractual terms (contract master, scheme settings loaded from the scheme master SM_01 with DD_10 where it lacks a field, instalment chart, the tranche register for a facility still drawing down) and approved before the solve by a person other than the one who prepared it (schedule_approval_control, O18; the bootstrap approves under its own label, recorded on the contract); a take-on loan's schedule is the take-on workbook's, checked against its own rates before use (takeon_eir_plausibility, 216aee2). No behavioural prepayment estimate is made: expected_cashflow_basis is in the catalogue but no engine reads it, so the basis is contractual in code.",
    "general_comment": "Until 14 October 2026 this row was labelled B5.4.3.",
    "compliance_comment": "Compliant on the contractual basis, which the standard allows where estimates are unreliable.",
    "where_to_see": "EIR Calculations, Calculations: /eir-calculations; Blockers: /eir-coverage; EIR Data, Schedule Review: /eir-data?tab=schedules",
-   "governance_setting": "partly_drawn_interest_basis; takeon_eir_plausibility; expected_cashflow_basis (not read: contractual in code)",
-   "test": "Tests\\Feature\\Eir\\ScheduleComparisonTest; Tests\\Feature\\Eir\\ScheduleShapeGovernanceTest::test_the_governed_balance_wise_option_takes_the_drawn_balance_without_reading_the_postings; Tests\\Feature\\Eir\\TakeonAndTrancheEirInputTest::test_a_takeon_solve_the_check_refused_is_named_and_not_used"
+   "governance_setting": "partly_drawn_interest_basis; takeon_eir_plausibility; schedule_approval_control; expected_cashflow_basis (not read: contractual in code)",
+   "test": "Tests\\Feature\\Eir\\ScheduleComparisonTest; Tests\\Feature\\Eir\\GoLiveControlsTest::test_the_person_who_prepared_a_schedule_cannot_approve_it; Tests\\Feature\\Eir\\GoLiveControlsTest::test_the_scheme_settings_load_from_sm_01_with_dd_10_where_it_lacks_them_and_over_sanction_is_flagged; Tests\\Feature\\Eir\\ScheduleShapeGovernanceTest::test_the_governed_balance_wise_option_takes_the_drawn_balance_without_reading_the_postings; Tests\\Feature\\Eir\\TakeonAndTrancheEirInputTest::test_a_takeon_solve_the_check_refused_is_named_and_not_used"
   },
   {
    "part": "B5.4 EFFECTIVE INTEREST METHOD",
@@ -171,38 +171,38 @@
    "section_name": "Floating-rate instruments",
    "requirement": "For floating-rate assets, periodic re-estimation of cash flows to reflect movements in market rates alters the effective interest rate.",
    "status": "Partially done",
-   "engine_comment": "A floating-rate loan's EIR for each month is the locked nominal EIR moved by the change from the rate its schedule was built on to the rate E-Banker charged in the month (EirRevenueService::eirInForce, decision D38), stored as eir_annual on the roll-forward row; the PLR series is held. Not built: rate reset events (no writer of rate_reset_events) and a re-solved schedule at a reset; the mid-month PLR and reset settings are in the catalogue but not read.",
+   "engine_comment": "A floating-rate loan's EIR for each month is the locked nominal EIR moved by the change from the rate its schedule was built on to the rate E-Banker charged in the month (EirRevenueService::eirInForce, decision D38), stored as eir_annual on the roll-forward row; the PLR series is held. Since 14 October 2026 (uncommitted) RateResetService records each move of a floating loan's rate on rate_reset_events (a PLR reset, or a spread change for a person to classify, with maker-checker; the bootstrap and the month-end detect only; 323 moves on the scratch clone, none approved). Not built: the mid-month PLR and reset settings are in the catalogue but not read.",
    "general_comment": "Until 14 October 2026 this row was labelled B5.4.4 and marked Done.",
-   "compliance_comment": "Partially done: the monthly re-estimation is built; reset events are not.",
+   "compliance_comment": "Partially done: the monthly re-estimation and the reset register are built; the mid-month PLR setting is not read.",
    "where_to_see": "EIR Data, Reference Rates: /eir-reference-rates; EIR Calculations, EIR as at a Date: /eir-as-at",
-   "governance_setting": "plr_mid_period (not read yet); reset_trigger (not read yet); rate_change_classification (not read yet)",
-   "test": "Tests\\Feature\\Eir\\EirRevenueServiceTest::test_a_floating_rate_loan_accrues_at_the_eir_moved_with_the_rate_charged; Tests\\Feature\\Eir\\EirRevenueServiceTest::test_a_fixed_rate_loan_keeps_its_locked_eir"
+   "governance_setting": "plr_mid_period (not read yet); reset_trigger (not read yet); rate_change_classification",
+   "test": "Tests\\Feature\\Eir\\RateResetTest::test_the_detector_splits_plr_resets_from_spread_changes_and_sends_a_fixed_rate_move_to_the_register; Tests\\Feature\\Eir\\EirRevenueServiceTest::test_a_floating_rate_loan_accrues_at_the_eir_moved_with_the_rate_charged; Tests\\Feature\\Eir\\EirRevenueServiceTest::test_a_fixed_rate_loan_keeps_its_locked_eir"
   },
   {
    "part": "B5.4 EFFECTIVE INTEREST METHOD",
    "reference": "B5.4.6",
    "section_name": "Revised estimates of payments or receipts: the catch-up adjustment",
    "requirement": "When an entity revises its estimates of payments or receipts (excluding modifications and changes in expected credit losses), it adjusts the gross carrying amount to the present value of the revised flows at the original EIR and recognises the adjustment in profit or loss.",
-   "status": "Outstanding",
-   "engine_comment": "Not built: no schedule version above 1 is ever created for a fixed-rate loan and no catch-up adjustment is computed; modification_gain_loss carries only a derecognition without cash. (The floating-rate re-estimation of B5.4.5 is built.)",
-   "general_comment": "Until 14 October 2026 this row was labelled B5.4.5 and marked Done on the basis of mechanics that do not exist.",
-   "compliance_comment": "Outstanding (Dupleix, spec P6).",
-   "where_to_see": "EIR Calculations, EIR as at a Date: /eir-as-at",
+   "status": "Partially done",
+   "engine_comment": "Built 14 October 2026 (uncommitted): a confirmed revised estimate, or a contractual reset of a fixed-rate loan, loads schedule version N+1 and the revenue run of its month sets the gross carrying amount to the revised flows at the original EIR, the catch-up to profit or loss (ModificationAccountingService, treatment CATCH_UP); the IFRS 9 note discloses it in section (h). Nothing is confirmed on the scratch clone, so no catch-up is booked.",
+   "general_comment": "Until 14 October 2026 this row was Outstanding: no schedule version above 1 was created.",
+   "compliance_comment": "Partially done: built; the revised estimates wait on Credit's classification of the candidates.",
+   "where_to_see": "EIR Calculations, EIR as at a Date: /eir-as-at; Reports: IFRS 9 note (FS disclosure) /ifrs9-reports/fs-disclosure (h)",
    "governance_setting": "",
-   "test": ""
+   "test": "Tests\\Feature\\Eir\\ModificationAccountingTest::test_a_revised_estimate_takes_the_b546_catch_up_and_keeps_the_eir"
   },
   {
    "part": "3.3 DERECOGNITION",
    "reference": "3.3.2",
    "section_name": "Extinguishment and substantial modification",
    "requirement": "A financial liability (and by analogy an asset whose terms are substantially modified) is derecognised when the terms are substantially different; a modification that is not substantial is accounted for under 5.4.3.",
-   "status": "Outstanding",
-   "engine_comment": "The 10 percent test of B3.3.6 is not built, and neither is 5.4.3.",
-   "general_comment": "The reschedule history it needs (RS_02) landed on 12 October 2026; until 14 October 2026 this row waited on it.",
-   "compliance_comment": "Outstanding (Dupleix, spec P7).",
+   "status": "Partially done",
+   "engine_comment": "Built 14 October 2026 (uncommitted): the 10 percent test of B3.3.6 by analogy against the governed modification_threshold, with the qualitative factors (counterparty, currency, SPPI, instrument) recorded on the register; at or above it, or with a factor, the loan is derecognised and version N+1 recognised at its recorded fair value with a new EIR; a credit-impaired loan derecognised this way is POCI and fails closed (no credit-adjusted EIR is held). Nothing is confirmed on the scratch clone.",
+   "general_comment": "Until 14 October 2026 this row was Outstanding.",
+   "compliance_comment": "Partially done: built; review item R14 records that the 10 percent test is written for liabilities, so it is MAIIC's governed asset policy.",
    "where_to_see": "EIR Calculations, Calculations: /eir-calculations; Blockers: /eir-coverage",
-   "governance_setting": "modification_threshold (not read yet)",
-   "test": ""
+   "governance_setting": "modification_threshold",
+   "test": "Tests\\Feature\\Eir\\ModificationAccountingTest::test_a_change_at_or_above_the_threshold_derecognises_and_fails_closed_without_a_fair_value; Tests\\Feature\\Eir\\ModificationAccountingTest::test_a_qualitative_factor_derecognises_whatever_the_ten_percent_test_says; Tests\\Feature\\Eir\\ModificationAccountingTest::test_a_credit_impaired_loan_derecognised_is_poci_and_fails_closed"
   },
   {
    "part": "3.3 DERECOGNITION",
@@ -236,12 +236,12 @@
    "section_name": "Governed conventions under maker-checker",
    "requirement": "Every accounting judgement the engine makes must be a documented, approved policy choice (IAS 8.10 to 8.12), not a constant in code.",
    "status": "Partially done",
-   "engine_comment": "61 settings in the Governance Centre catalogue, each with options, a seeded default effective from inception, a proposer and an approver; a calculation that needs a setting with no approved value stops and says so; a locked period keeps the values it was run under. But 20 of the 61 are read by no engine (plr_mid_period, reset_trigger, rate_source_precedence, margin_basis, cash_source, manual_policy_handling, modification_threshold, counter_reset_handling, contractual_record, expected_cashflow_basis, history_before_dec_2025, trueup_gl_account, auditor_export_format, keyman_insurance_treatment, nascomex_preference_shares, staging_rebuttal, rate_change_classification, schedule_approval_control, historic_materiality_assessment, fee_reclass_journal), and some readers fall back to a constant when no value is approved (FliRouteService::setting; LoanBookBuildService::methodInForce falls back to method B; MegaFarmEclService takes a share of 1.0 when the scope text has none).",
-   "general_comment": "Until 14 October 2026 the row said 48 settings and was marked Done.",
-   "compliance_comment": "Partially done: the mechanism is sound; 20 settings look governed but change nothing, and three readers fail open.",
+   "engine_comment": "61 settings in the Governance Centre catalogue, each with options, a seeded default effective from inception, a proposer and an approver; a calculation that needs a setting with no approved value stops and says so; a locked period keeps the values it was run under. Since the go-live controls of 14 October 2026 the readers that fell back to a constant stop instead (FliRouteService::setting, LoanBookBuildService::methodInForce and the dpd_basis read, the three Mega Farm settings and the share, the four scenario-set rules, which also read 'No bounds' and 'Not required' as they say), schedule_approval_control is enforced, and the 17 settings still read by no engine are marked 'recorded, not yet applied' in the Governance Centre with what the engine does instead (GovernanceService::notYetApplied; a test fails if an engine reads one of them while it is so marked).",
+   "general_comment": "Until 14 October 2026 the row said 48 settings and was marked Done; on 14 October it said 20 settings were read by nothing and three readers failed open.",
+   "compliance_comment": "Partially done: the mechanism is sound and no setting looks governed when it is not; 17 settings await their engines (P5 to P7, O4, O10, O12, O13, O20, O21).",
    "where_to_see": "Governance: Governance Centre /eir-governance",
    "governance_setting": "(all 61 catalogue settings)",
-   "test": "Tests\\Feature\\Eir\\GovernanceServiceTest::test_a_missing_setting_throws_a_named_exception_instead_of_defaulting; Tests\\Feature\\Eir\\EirGovernanceControllerTest"
+   "test": "Tests\\Feature\\Eir\\GovernanceServiceTest::test_a_missing_setting_throws_a_named_exception_instead_of_defaulting; Tests\\Feature\\Eir\\GoLiveControlsTest::test_a_setting_marked_not_yet_applied_is_read_by_no_engine; Tests\\Feature\\Ebanker\\LoanBookBuildServiceTest::test_the_method_and_the_dpd_basis_fail_closed_without_an_approved_value; Tests\\Feature\\FLI\\FliRouteServiceTest::test_the_route_stops_when_its_governed_setting_has_no_approved_value; Tests\\Feature\\Eir\\EirGovernanceControllerTest"
   }
  ],
  "findings": [
@@ -269,11 +269,11 @@
    "number": "F3",
    "reference": "5.4.3, B5.4.6, 3.3.2",
    "finding": "Modification, catch-up and the 10 percent test are not built",
-   "what_was_found": "E-Banker's reschedule history (RS_02a to RS_02g) landed on 12 October 2026 and is used only for the instalment chart in force; there is no modification record, no schedule version above 1, no catch-up and no 10 percent test. (Until 14 October 2026 this finding said Barry was to obtain the Reschedule Report.)",
-   "impact": "Modification gains and losses, catch-up adjustments and any derecognition are not recognised; IFRS 7.20A and RBM 16(1) wait on the same work.",
-   "recommended_action": "Dupleix builds the restructure register from RS_02 (Credit confirms the candidates), version N+1 schedules at the original EIR, the B5.4.6 catch-up and the B3.3.6 test.",
-   "owner": "Dupleix / Credit",
-   "status": "Open"
+   "what_was_found": "E-Banker's reschedule history (RS_02a to RS_02g) landed on 12 October 2026 and was used only for the instalment chart in force; there was no modification record, no schedule version above 1, no catch-up and no 10 percent test. Status 14 October 2026: built and wired (uncommitted in the working tree): the restructure register with maker-checker, version N+1, the modification test, the catch-up and derecognition in the revenue run, the detector in the bootstrap and the month-end (detection only), IFRS 7.35J and 20A in the IFRS 9 note, section D of the RBM return. On the scratch clone 70 candidates await classification.",
+   "impact": "Until the candidates are classified no modification is booked.",
+   "recommended_action": "Credit classifies the candidates and a second person approves; Finance records the fair value of any that derecognise.",
+   "owner": "Credit / Finance",
+   "status": "In progress"
   },
   {
    "number": "F4",
@@ -289,11 +289,11 @@
    "number": "F5",
    "reference": "A.AC",
    "finding": "Inside a month the as-at report accrues at the contractual rate",
-   "what_was_found": "EirAsAtService accrues the part-month at the contractual rate on actual days and reports it as EIR interest (review item R12); the test asserts that behaviour.",
-   "impact": "An as-at date between month-ends is not at the EIR.",
-   "recommended_action": "Accrue the part-month at the month's EIR and label the contractual figure separately.",
+   "what_was_found": "EirAsAtService accrues the part-month at the contractual rate on actual days and reports it as EIR interest (review item R12); the test asserts that behaviour. Status 14 October 2026: done; the EIR interest is the monthly EIR on the amortised cost for the days elapsed (ties to the revenue run at month-end) and the contractual accrual is returned apart; the test is corrected.",
+   "impact": "A Stage 3 loan's part month is accrued on the gross amortised cost; the month-end row nets the allowance.",
+   "recommended_action": "Done.",
    "owner": "Dupleix",
-   "status": "Open"
+   "status": "Closed"
   },
   {
    "number": "F6",

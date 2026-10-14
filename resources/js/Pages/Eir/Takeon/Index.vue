@@ -2,7 +2,9 @@
   <app-layout title="Take-on Schedules" description="The take-on workbook as loaded: each block with its account mapping, fees and checks, and the take-on population built from it">
     <template #actions>
       <button v-if="canGovern && tab === 'blocks'" type="button" class="primary-btn" @click="uploadOpen = true"><font-awesome-icon icon="upload" /> Load take-on workbook</button>
-      <button v-if="canGovern && load" type="button" class="secondary-btn" title="Build the take-on population under the basis in force; the previous build is replaced" @click="build">Build the take-on population</button>
+      <button v-if="canGovern && load && !pendingBuild" type="button" class="secondary-btn" title="Propose the build of the take-on population under the basis in force; a second person approves it, and only the approval builds" @click="build">Propose the take-on build</button>
+      <button v-if="canGovern && pendingBuild && pendingBuild.proposed_by !== userId" type="button" class="primary-btn" :title="'Proposed by ' + (pendingBuild.proposer || 'another person') + '; approving builds the population and replaces the previous build'" @click="build">Approve and build</button>
+      <span v-if="pendingBuild && pendingBuild.proposed_by === userId" class="maiic-badge maiic-badge-gold" title="The person who proposed the build cannot approve it">Build proposed by you: a second person approves</span>
     </template>
 
     <div class="space-y-5">
@@ -107,7 +109,7 @@
                     <td class="num">{{ c.schedule_lines_written || '-' }}</td>
                     <td class="min-w-[14rem] text-xs text-amber-700">{{ c.flags.join('; ') }}</td>
                   </tr>
-                  <tr v-if="!filteredPopulation.length"><td colspan="18" class="maiic-empty">{{ population.length ? 'No account matches the search.' : 'Not built yet. Load the workbook, then use Build the take-on population (top right).' }}</td></tr>
+                  <tr v-if="!filteredPopulation.length"><td colspan="18" class="maiic-empty">{{ population.length ? 'No account matches the search.' : 'Not built yet. Load the workbook, then propose the take-on build (top right); a second person approves it.' }}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -152,7 +154,7 @@
             <p class="font-semibold text-gray-800">What happens</p>
             <ul class="mt-1 list-disc space-y-0.5 pl-5">
               <li>Each block is checked: an account for it, its principal against E-Banker's take-on posting of 31 July 2024, a fee row. A block that fails is flagged or refused, with the cell named.</li>
-              <li>Loading the workbook does not change any EIR. <strong>Build the take-on population</strong> does: where a block is mapped and has its fees, the EIR is solved from origination with the fees; otherwise the loan starts at its take-on balance.</li>
+              <li>Loading the workbook does not change any EIR. <strong>The approved take-on build</strong> does: where a block is mapped and has its fees, the EIR is solved from origination with the fees; otherwise the loan starts at its take-on balance.</li>
               <li>A later, corrected workbook is loaded the same way; the earlier load is kept.</li>
             </ul>
           </div>
@@ -181,7 +183,7 @@ import { confirmDialog } from '@/Components/confirmDialog'
 
 export default {
   components: { AppLayout, LocalPager, JetModal, ImportSpecPanel },
-  props: { tab: { type: String, default: 'blocks' }, tabCounts: Object, load: Object, blocks: Array, population: Array, basisInForce: String, canGovern: Boolean },
+  props: { tab: { type: String, default: 'blocks' }, tabCounts: Object, load: Object, blocks: Array, population: Array, basisInForce: String, canGovern: Boolean, pendingBuild: Object, userId: Number },
   data() {
     return {
       files: { original: null, mapping: null }, edit: null, open: null, uploading: false, uploadOpen: false,
@@ -207,7 +209,11 @@ export default {
       router.post(route('eir-takeon.upload'), { original: this.files.original, mapping: this.files.mapping, check_only: checkOnly ? 1 : 0 }, { forceFormData: true, preserveScroll: true, onFinish: () => { this.uploading = false; if (!checkOnly) this.uploadOpen = false } })
     },
     async build() {
-      if (!(await confirmDialog({ title: 'Build the take-on population?', message: 'It is built under the basis in force and replaces the previous build.', confirmLabel: 'Build' }))) return
+      const approving = !!this.pendingBuild
+      const ok = await confirmDialog(approving
+        ? { title: 'Approve and build the take-on population?', message: 'Proposed by ' + (this.pendingBuild.proposer || 'another person') + '. It is built under the basis in force and replaces the previous build.', confirmLabel: 'Approve and build' }
+        : { title: 'Propose the take-on build?', message: 'A second person approves it on this screen; only the approval builds.', confirmLabel: 'Propose' })
+      if (!ok) return
       router.post(route('eir-takeon.build'), {}, { preserveScroll: true })
     },
     confirm() {

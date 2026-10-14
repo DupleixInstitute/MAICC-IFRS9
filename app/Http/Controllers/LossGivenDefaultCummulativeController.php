@@ -319,6 +319,12 @@ class LossGivenDefaultCummulativeController extends Controller
 
                 $rowsUpdated = 0;
                 $period = Carbon::parse($validated['reporting_period'])->format('Y-m');
+                // a locked month is never restated, by this legacy writer either (audit H4)
+                try {
+                    \App\Support\ReportingPeriodLock::assertOpen($period, 'the cumulative LGD');
+                } catch (\RuntimeException $e) {
+                    return back()->with('error', $e->getMessage());
+                }
                 $collectionLgd = $lgd->lgd_cummulative; // Check if this is the correct column name
 
                 // Update loan_books table based on include_customer_lgd

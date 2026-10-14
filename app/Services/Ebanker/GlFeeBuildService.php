@@ -31,6 +31,14 @@ use Illuminate\Support\Facades\DB;
  *  - several: the loan whose own debit in the batch is the fee's amount, then
  *    the loan whose account name the fee's narration carries; anything else
  *    is held, never guessed;
+ *  - none, but the batch clears money out of GL 2010 (Working Capital Loan)
+ *    and GL_07 (pack 5) shows exactly one loan drawn into 2010 by that same
+ *    amount on or before the fee's date: the fee is that loan's. In October
+ *    2024 a drawdown was posted loan debit / 2010 credit, then a second batch
+ *    paid 2010 out to the bank net of the fee and credited the fee GL (pack 5
+ *    results review, RUN 3: Mafeni 4,250,000; Agwenda 1,205,000 and
+ *    1,500,000). The link is E-Banker's own postings, never a name or amount
+ *    guess elsewhere;
  *  - none, or a Mega Farm programme loan (outside the EIR, decision D30): held
  *    in fee_gl_unassigned with the reason, never dropped.
  *
@@ -53,6 +61,11 @@ class GlFeeBuildService
 
     public const GL_FEE_LEGS = ['GL_04a'];
     public const GL_FEE_BATCHES = ['GL_04b'];
+    /** Every leg of the batches touching GL 2010 since 2024 (pack 5 RUN 3b). */
+    public const GL_2010_BATCHES = ['GL_07'];
+    /** The clearing GL a drawdown passed through before the bank paid it out net of the fee. */
+    public const CLEARING_GL = '2010';
+    public const RULE_CLEARING = 'the loan drawn through GL 2010 that the batch clears (GL_07)';
 
     /** The fee type each fee GL stands for: 4874 is insurance income, 4875 guarantee fees. */
     private const TYPE_BY_GL = ['4873' => 'arrangement', '4871' => 'legal', '4874' => 'other', '4875' => 'other'];
@@ -79,8 +92,12 @@ class GlFeeBuildService
         $tiedByHand = DB::table('contract_fees')->where('source_system', self::SOURCE)->where('external_transaction_id', 'like', 'GL_04a:%')
             ->pluck('external_transaction_id')->flip()->all();
         $drawnOn = $this->drawdownsByDate();
+        $cleared = $this->clearedThrough2010();
         foreach ($legs as $leg) {
-            [$contract, $rule, $reason, $loans] = $this->assign($leg, $batches[$leg['batch']] ?? [], $names);
+            [$contract, $rule, $reason, $loans] = $this->assign($leg, $batches[$leg['batch']] ?? [], $names, $cleared[$leg['batch']] ?? null);
+            if ($rule === self::RULE_CLEARING && isset($tiedByHand['GL_04a:' . $leg['voucher']])) {
+                continue; // a person tied it before the GL 2010 route existed: that tie stands and the line is not loaded twice
+            }
             if ($contract === null) {
                 if (isset($tiedByHand['GL_04a:' . $leg['voucher']])) {
                     continue;
@@ -248,8 +265,56 @@ class GlFeeBuildService
         return $out;
     }
 
+    /**
+     * The fee batches that pay money out of GL 2010, each with the one loan whose drawdown put that
+     * money into 2010 (GL_07). A fee batch's 2010 debit of X is matched to a batch dated on or before
+     * it with a 2010 credit of X and a debit of X on exactly one in-scope loan account; a batch with
+     * no such drawdown, or with more than one candidate loan, gets no loan and its fee stays held.
+     *
+     * @return array<string, array{account:?string, reason:?string}> keyed by fee batch
+     */
+    private function clearedThrough2010(): array
+    {
+        $byBatch = [];
+        foreach ($this->zone->family(self::GL_2010_BATCHES) as $r) {
+            $leg = self::leg($r);
+            if ($leg !== null) {
+                $byBatch[$leg['batch']][] = $leg;
+            }
+        }
+        $out = [];
+        foreach ($byBatch as $batch => $legs) {
+            $paidOut = array_filter($legs, fn ($l) => $l['gl'] === self::CLEARING_GL && $l['amount'] < 0);
+            if ($paidOut === [] || array_filter($legs, fn ($l) => in_array($l['gl'], self::FEE_GLS, true)) === []) {
+                continue;
+            }
+            $date = $legs[0]['date'];
+            $loans = [];
+            foreach ($paidOut as $out2010) {
+                $x = -$out2010['amount'];
+                foreach ($byBatch as $other => $olegs) {
+                    if ($other === $batch || $olegs[0]['date'] > $date) {
+                        continue;
+                    }
+                    $into = array_filter($olegs, fn ($l) => $l['gl'] === self::CLEARING_GL && abs($l['amount'] - $x) < 0.01);
+                    $drawn = array_filter($olegs, fn ($l) => isset(LandingZoneReader::LOAN_GLS[$l['gl']]) && abs(-$l['amount'] - $x) < 0.01);
+                    if ($into !== [] && $drawn !== []) {
+                        foreach ($drawn as $d) {
+                            $loans[$d['account']] = $other;
+                        }
+                    }
+                }
+            }
+            $out[$batch] = count($loans) === 1
+                ? ['account' => (string) array_key_first($loans), 'reason' => null]
+                : ['account' => null, 'reason' => $loans === [] ? 'the batch pays money out of GL 2010 but no loan drawdown into 2010 of that amount is in GL_07' : count($loans) . ' loans were drawn into GL 2010 by that amount; held, not guessed'];
+        }
+
+        return $out;
+    }
+
     /** @return array{0:?string, 1:?string, 2:?string, 3:list<string>} the contract, the rule, the reason it is held, the loans in the batch */
-    private function assign(array $leg, array $batchLegs, array $names): array
+    private function assign(array $leg, array $batchLegs, array $names, ?array $cleared = null): array
     {
         $loanLegs = []; $programme = [];
         foreach ($batchLegs as $l) {
@@ -260,6 +325,13 @@ class GlFeeBuildService
             }
         }
         $loans = array_values(array_unique(array_column($loanLegs, 'account')));
+        if ($loans === [] && $programme === [] && $cleared !== null) {
+            if ($cleared['account'] !== null) {
+                return [ltrim($cleared['account'], '0'), self::RULE_CLEARING, null, [$cleared['account']]];
+            }
+
+            return [null, null, 'NO_LOAN_IN_BATCH: no loan account is a leg of the batch, and ' . $cleared['reason'], []];
+        }
         if ($loans === []) {
             return $programme !== []
                 ? [null, null, 'MEGA_FARM: the only loan in the batch is a Mega Farm programme account, outside the EIR (decision D30)', array_values(array_unique($programme))]
@@ -289,7 +361,7 @@ class GlFeeBuildService
      * closing vouchers are not movement and are left out, as the trial
      * balance reads December pre-closing.
      */
-    private function gate(array $legs): array
+    public function gate(array $legs): array
     {
         $byMonth = [];
         foreach ($legs as $l) {
@@ -316,8 +388,8 @@ class GlFeeBuildService
     {
         $out = [];
         foreach ($this->zone->family(self::GL_FEE_LEGS) as $r) {
-            $leg = $this->leg($r);
-            if ($leg === null || ! in_array($leg['gl'], self::FEE_GLS, true) || $leg['batch_type'] === 'YRCLO' || in_array($leg['type'], ['800', '801'], true)) {
+            $leg = self::leg($r);
+            if (! self::isGateLeg($leg)) {
                 continue;
             }
             $out[] = $leg;
@@ -341,7 +413,14 @@ class GlFeeBuildService
         return $out;
     }
 
-    private function leg(array $r): ?array
+    /** A posted fee leg the gate counts: on a fee GL, not a year-end closing voucher (R04). */
+    public static function isGateLeg(?array $leg): bool
+    {
+        return $leg !== null && in_array($leg['gl'], self::FEE_GLS, true) && $leg['batch_type'] !== 'YRCLO' && ! in_array($leg['type'], ['800', '801'], true);
+    }
+
+    /** One landed row as a leg ({source_key, row_date, account, payload}); null for a deleted, unpassed, undated or nil row. */
+    public static function leg(array $r): ?array
     {
         $p = $r['payload'];
         if (strtoupper((string) ($p['DELETE_FLAG'] ?? 'N')) === 'Y' || strtoupper((string) ($p['PASS_FLAG'] ?? 'Y')) === 'N' || $r['row_date'] === null) {

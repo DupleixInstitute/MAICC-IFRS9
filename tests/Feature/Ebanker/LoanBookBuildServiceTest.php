@@ -48,6 +48,12 @@ class LoanBookBuildServiceTest extends TestCase
             (require base_path("database/migrations/{$m}.php"))->up();
         }
         (new EbankerQuerySeeder())->run();
+        // the build reads its method and the days-past-due basis from the Governance Centre with no value in code
+        Schema::create('governance_settings', function (Blueprint $t) { $t->increments('id'); $t->string('key', 60); $t->string('value'); $t->text('options'); $t->string('label'); $t->text('description'); $t->string('effective_from'); $t->integer('set_by')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approved_at')->nullable(); $t->string('reason', 500)->nullable(); $t->string('status', 20)->default('PROPOSED'); $t->timestamps(); });
+        foreach (['loan_book_build_method', 'dpd_basis'] as $key) {
+            $def = GovernanceService::catalogue()[$key];
+            DB::table('governance_settings')->insert(['key' => $key, 'value' => $def['default'], 'options' => json_encode($def['options']), 'label' => $def['label'], 'description' => '', 'effective_from' => '1900-01-01', 'status' => 'APPROVED', 'created_at' => now(), 'updated_at' => now()]);
+        }
         DB::table('users')->insert([['id' => 1, 'name' => 'Maker', 'created_at' => now(), 'updated_at' => now()], ['id' => 2, 'name' => 'Checker', 'created_at' => now(), 'updated_at' => now()]]);
         DB::table('loan_portfolios')->insert(['id' => 1, 'name' => 'Loans']);
         DB::table('ebanker_loads')->insert(['id' => 1, 'pack_hash' => str_repeat('a', 64), 'pack_name' => 'fixture', 'manifest' => '{}', 'status' => 'LANDED', 'created_at' => now(), 'updated_at' => now()]);
@@ -277,6 +283,21 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertEquals(2000000, json_decode($matured->build_basis, true)['undrawn_after_maturity']);
     }
 
+    /** A loan written off to nil is closed: its undrawn amount leaves the EAD (104420000007, 162.6m undrawn after its June 2026 write-off). */
+    public function test_an_undrawn_amount_on_a_loan_written_off_to_nil_is_no_exposure(): void
+    {
+        // the 8m balance at the end of August written off (type 300): nil carrying amount, 2m once left undrawn
+        $this->raw('P1_01', '106', '000104420000005', '2024-08-31', ['CUMVOUCH_DET_ID' => '106', 'NEW_AC_NUMBER' => '000104420000005', 'TRANSACTION_DATE' => '8/31/2024', 'TRANSAMT' => '8000000.00', 'TRANTYPE' => '300', 'DELETE_FLAG' => 'N']);
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $row = DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->first();
+        $this->assertEquals(0, $row->carrying_amount);
+        $this->assertEquals(0, $row->commitments);
+        $this->assertEquals(0, $row->ead);
+        $basis = json_decode($row->build_basis, true);
+        $this->assertEquals(8000000, $basis['ledger']['written_off']);
+        $this->assertEquals(2000000, $basis['undrawn_after_write_off']);
+    }
+
     public function test_method_a_copies_the_stored_run_and_derives_marked_where_none_exists(): void
     {
         $this->service()->build('2024-07', '2024-08', 'A', 1, 2);
@@ -378,5 +399,25 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertSame('BUILT', $r['status']);
         $this->assertSame('B', $r['periods']['2024-08']['method']); // no governance table: the recommended method
         $this->assertSame(LoanBookBuildService::BOOTSTRAP_LABEL, DB::table('loan_book_builds')->first()->approver_label);
+    }
+
+    /** The build method and the days-past-due basis are governed with no value in code (audit, 14 October 2026). */
+    public function test_the_method_and_the_dpd_basis_fail_closed_without_an_approved_value(): void
+    {
+        $this->assertSame('B', $this->service()->methodInForce('2024-08-31'));
+        DB::table('governance_settings')->where('key', 'loan_book_build_method')->update(['value' => 'Z: not a method']);
+        try {
+            $this->service()->methodInForce('2024-08-31');
+            $this->fail('an unknown method was taken as B');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('not one the build knows', $e->getMessage());
+        }
+        DB::table('governance_settings')->where('key', 'loan_book_build_method')->delete();
+        try {
+            $this->service()->methodInForce('2024-08-31');
+            $this->fail('a missing method was taken as B');
+        } catch (\App\Exceptions\GovernanceSettingMissingException $e) {
+            $this->assertStringContainsString('loan_book_build_method', $e->getMessage());
+        }
     }
 }

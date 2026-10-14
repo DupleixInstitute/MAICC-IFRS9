@@ -72,6 +72,8 @@ class EirDataController extends Controller
             $readiness=$workflow->readiness($contract); $comparison=$workflow->comparison($contract);
             $contract->setAttribute('generation_ready',$readiness['ready']);
             $contract->setAttribute('generation_issues',$readiness['issues']);
+            // an approved schedule generated without the tranche register is generated again (spec v4 E1)
+            $contract->setAttribute('tranche_mismatch',$contract->schedule_approval_status==='APPROVED' ? app(\App\Services\Eir\EirReadinessService::class)->trancheMismatch($contract) : null);
             $contract->setAttribute('comparison',$comparison);
             $contract->setAttribute('remaining_rows',$comparison['remaining_rows']);
             return $contract;

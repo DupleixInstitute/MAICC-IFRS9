@@ -119,9 +119,43 @@ class EclBuildUpServiceTest extends TestCase
         $this->assertNull($b['pre_fli']);
         $this->assertStringContainsString('Run the ECL again', $b['reason']);
 
+        // a stale ECL stays stale whether or not it was also discounted
         $tp = $this->service()->buildUp(collect([$this->loan(['ecl_value' => 999.99, 'ecl_discount_status' => 'CALCULATED_TIME_PHASED'])]), '2026-08');
         $this->assertFalse($tp['available']);
-        $this->assertStringContainsString('time-phased', $tp['reason']);
+        $this->assertStringContainsString('Run the ECL again', $tp['reason']);
+    }
+
+    /**
+     * The time-phased engine leaves ecl_value as the engine measure and
+     * writes the discounted allowance beside it, so a discounted month still
+     * splits before and after FLI (UI end-to-end audit of 14 October 2026:
+     * the month record refused every discounted month), and discounted()
+     * reconciles the engine measure to the discounted allowance.
+     */
+    public function test_a_discounted_month_still_builds_up_and_reconciles_to_the_discounted_allowance(): void
+    {
+        $a = $this->loan(['id' => 1, 'contract_id' => 'A']);
+        $a->ecl_value = $this->booked($a);
+        $a->ecl_discount_status = 'CALCULATED_TIME_PHASED';
+        $a->ecl_value_discounted = round($a->ecl_value * 0.9, 2);
+        $a->ecl_discounting_effect = round($a->ecl_value * 0.05, 2); // time-phased undiscounted is 0.95 of the engine measure
+        $b = $this->loan(['id' => 2, 'contract_id' => 'B']);
+        $b->ecl_value = $this->booked($b);
+        $b->ecl_discount_status = 'TIME_PHASED_UNRESOLVED';
+
+        $up = $this->service()->buildUp(collect([$a, $b]), '2026-08');
+        $this->assertTrue($up['available'], (string) $up['reason']);
+        $this->assertSame('post_fli', $up['basis']);
+        $this->assertEqualsWithDelta($up['final'], $up['pre_fli'] + $up['fli_total'], 0.011);
+
+        $d = EclBuildUpService::discounted(collect([$a, $b]));
+        $this->assertSame(1, $d['discounted_loans']);
+        $this->assertSame(1, $d['unresolved_loans']);
+        $this->assertFalse($d['complete']);
+        $this->assertEqualsWithDelta($b->ecl_value, $d['unresolved_ecl'], 0.005);
+        // engine measure + projection effect + discounting effect = discounted allowance
+        $this->assertEqualsWithDelta($d['discounted'], $d['engine_ecl'] + $d['projection_effect'] + $d['discounting_effect'], 0.011);
+        $this->assertEqualsWithDelta($a->ecl_value_discounted, $d['discounted'], 0.005);
     }
 
     public function test_breakdowns_keep_six_groups_and_tie_to_the_total(): void

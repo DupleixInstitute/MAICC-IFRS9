@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\ExpectedCreditLossController;
-use App\Services\Ecl\EclDiscountingService;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
 
@@ -25,7 +24,7 @@ class RecalculateEcl extends Command
 
     protected $description = 'Recalculate IFRS 9 ECL for a reporting period (CLI wrapper around the ECL controller).';
 
-    public function handle(ExpectedCreditLossController $controller, EclDiscountingService $discounting): int
+    public function handle(ExpectedCreditLossController $controller): int
     {
         $period = $this->argument('period');
         $level  = $this->option('level');
@@ -48,7 +47,7 @@ class RecalculateEcl extends Command
 
         try {
             $request = Request::create('/expected-credit-loss/calculations', 'POST', $payload);
-            $controller->calculateECL($request, $discounting);
+            $controller->calculateECL($request);
         } catch (\Throwable $e) {
             $this->error('ECL calculation failed: ' . $e->getMessage());
             $this->line($e->getFile() . ':' . $e->getLine());
