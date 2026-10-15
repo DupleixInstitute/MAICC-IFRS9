@@ -423,7 +423,7 @@ class GovernanceService
             ],
             'dpd_basis' => [
                 'label' => 'Days-past-due basis',
-                'description' => 'The Reserve Bank\'s directive for development finance institutions counts days overdue from the instalment that fell due. The core system also ages the overdue amounts by bucket, and the two can differ on a partly cured account whose overdue date was never reset. The engine counts from the oldest unpaid instalment, as the directive does, and shows the bucket ageing beside it (spec v4 section 3.6, decision D31).',
+                'description' => 'The Reserve Bank\'s directive for development finance institutions counts days overdue from the instalment that fell due. The core system also ages the overdue amounts by bucket, and the two can differ on a partly cured account whose overdue date was never reset. The engine counts from the oldest unpaid instalment, as the directive does, and shows the bucket ageing beside it (spec v4 section 3.6, decision D31). This setting governs the build\'s day count, which the RBM return reads. Staging reads it only under the Custom preset; under a named staging policy the policy sets the staging basis (Staging Module Specification v1, section 3).',
                 'options' => ['Oldest overdue instalment (the directive)', 'Bucket ageing of the overdue amounts'],
                 'default' => 'Oldest overdue instalment (the directive)',
             ],
@@ -431,13 +431,79 @@ class GovernanceService
                 'label' => 'Missed-instalment trigger for Stage 3',
                 'description' => 'MAIIC\'s accounting policy (2025 statements, note 22.8.1) treats a loan as defaulted when the borrower has missed this many consecutive contractual payments, beside the day count. The trigger is read from the instalment plan and the ledger (spec v4 section 3.6, decision D31).',
                 'options' => ['4 consecutive', '3 consecutive', '6 consecutive', 'Not applied'],
-                'default' => '4 consecutive',
+                'default' => 'Not applied',
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025), which staged on days alone. Staging reads it only under the Custom preset (Staging Module Specification v1, section 3).',
             ],
             'stage_cure_months' => [
                 'label' => 'Months a loan stays in its stage after it cures',
-                'description' => 'A loan whose days past due fall back below a stage threshold is held at its prior stage until it has been below that threshold for this many consecutive month-ends, the current one included; it moves down on the month that completes the count. A move up is immediate. The directive classifies by how long instalments are overdue and expects a cured facility to prove itself before it is upgraded (spec v4 section 3.6; the directive\'s section 15; system audit of 9 October 2026, finding M11).',
+                'description' => 'A loan whose days past due fall back below a stage threshold is held at its prior stage until it has been below that threshold for this many consecutive month-ends, the current one included; it moves down on the month that completes the count. A move up is immediate. The directive classifies by how long instalments are overdue and expects a cured facility to prove itself before it is upgraded (spec v4 section 3.6; the directive\'s section 15; system audit of 9 October 2026, finding M11). Read by staging only under the Custom preset. 0 months is MAIIC\'s staging policy as at 31 December 2025.',
                 'options' => ['0 months (no probation)', '3 months', '6 months', '12 months'],
-                'default' => '3 months',
+                'default' => '0 months (no probation)',
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025), which had no probation. Staging reads it only under the Custom preset (Staging Module Specification v1, section 3).',
+            ],
+            // Staging Module Specification v1, section 3 (15 October 2026): every staging rule a governed setting
+            'staging_preset' => [
+                'label' => 'Staging policy in force',
+                'description' => 'Which staging policy stages the book. Single-ladder staging is MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025): one ladder for every facility, 1 to 30 days Stage 1, 31 to 180 days Stage 2, 181 days and over Stage 3, on the bucket ageing, with no missed-instalment trigger, no qualitative register and no probation. Directive-aligned staging follows the RBM directive and MAIIC\'s 2025 accounting policy: thresholds by facility term (short-term 91, medium and long-term 181), the oldest overdue instalment, the count from maturity, the schedule recount, 4 missed instalments, the qualitative register, and a cure that needs the arrears cleared and then 3 months. It is never in force until MAIIC adopts it: proposed here with the Board or Credit Committee decision and approved by a second person; nothing switches it on by date. Under a named policy the policy governs every staging rule; under Custom each staging setting below governs.',
+                'options' => [StagingPolicy::PRESET_SINGLE, StagingPolicy::PRESET_DIRECTIVE, StagingPolicy::PRESET_CUSTOM],
+                'default' => StagingPolicy::PRESET_SINGLE,
+                'seed_reason' => 'Seeded as MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025), in force for every period until MAIIC adopts another by governed approval (Staging Module Specification v1, section 3).',
+            ],
+            'staging_threshold_profile' => [
+                'label' => 'Stage 3 threshold profile',
+                'description' => 'The days past due at which a facility enters Stage 3. One threshold for every facility is MAIIC\'s staging policy as at 31 December 2025 (181 days, whatever the term). By facility term is the directive (section 10): 91 days for a short-term facility, 181 for a medium or long-term one, read from the approved staging_thresholds rows by tenor. The IFRS 9 presumption is 91 days for every facility (IFRS 9 B5.5.37). Read only under the Custom preset.',
+                'options' => [StagingPolicy::PROFILE_SINGLE, StagingPolicy::PROFILE_BY_TERM, StagingPolicy::PROFILE_IFRS9],
+                'default' => StagingPolicy::PROFILE_SINGLE,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
+            ],
+            'stage2_threshold_medium_long' => [
+                'label' => 'Stage 2 threshold for medium and long-term facilities',
+                'description' => 'The days past due at which a facility over 12 months enters Stage 2. 31 days is the IFRS 9 presumption (5.5.11) and MAIIC\'s staging policy as at 31 December 2025. 91 days is the directive\'s first medium and long-term class; it rebuts the 30-day presumption and needs documented evidence before it is approved. Read only under the Custom preset.',
+                'options' => [StagingPolicy::STAGE2_31, StagingPolicy::STAGE2_91],
+                'default' => StagingPolicy::STAGE2_31,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
+            ],
+            'staging_mega_farm_term' => [
+                'label' => 'Mega Farm facilities',
+                'description' => 'How a Mega Farm facility is classed for staging. The same threshold as every facility is MAIIC\'s staging policy as at 31 December 2025. By tenor treats it as any facility of its term. Always short-term stages it on the 91-day MEGA_FARM threshold rows, as the current build did. Read only under the Custom preset.',
+                'options' => [StagingPolicy::MF_SAME, StagingPolicy::MF_BY_TENOR, StagingPolicy::MF_SHORT],
+                'default' => StagingPolicy::MF_SAME,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
+            ],
+            'dpd_after_maturity' => [
+                'label' => 'Days past due after maturity',
+                'description' => 'A loan past its maturity date with a balance outstanding. Core-system ageing only reads the core system\'s day count, as MAIIC\'s staging policy as at 31 December 2025 did, so a matured loan whose instalments were rescheduled can read current. Count from maturity takes the days since maturity when that is longer, as the directive\'s classification by overdue period implies. Read only under the Custom preset; it takes effect on the staging day count in section 2 of the build.',
+                'options' => [StagingPolicy::MATURITY_CORE, StagingPolicy::MATURITY_COUNT],
+                'default' => StagingPolicy::MATURITY_CORE,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
+            ],
+            'dpd_schedule_correction' => [
+                'label' => 'Schedule correction of the day count',
+                'description' => 'Whether the core system\'s day count is taken as given, as MAIIC\'s staging policy as at 31 December 2025 did, or recounted against the instalment schedule in force and the ledger, which corrects a count left stale by a reschedule. Read only under the Custom preset; it takes effect on the staging day count in section 2 of the build.',
+                'options' => [StagingPolicy::SCHEDULE_AS_GIVEN, StagingPolicy::SCHEDULE_RECOUNT],
+                'default' => StagingPolicy::SCHEDULE_AS_GIVEN,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
+            ],
+            'sicr_qualitative_register' => [
+                'label' => 'Qualitative SICR register',
+                'description' => 'Whether the approved entries of the qualitative SICR register (watch list, restructure, forbearance, Stage 3 indicators) lift a loan\'s stage. Not applied is MAIIC\'s staging policy as at 31 December 2025, which staged on days alone. Read only under the Custom preset.',
+                'options' => [StagingPolicy::APPLIED, StagingPolicy::NOT_APPLIED],
+                'default' => StagingPolicy::NOT_APPLIED,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
+            ],
+            'sicr_pd_change' => [
+                'label' => 'SICR on the change in PD since origination',
+                'description' => 'Whether a loan whose lifetime PD has at least doubled since origination moves to Stage 2 (IFRS 9 5.5.9). Not applied is MAIIC\'s staging policy as at 31 December 2025 and the directive-aligned policy. The option is recorded now and built later, once each loan\'s PD at origination is kept.',
+                'options' => [StagingPolicy::NOT_APPLIED, StagingPolicy::PD_DOUBLED],
+                'default' => StagingPolicy::NOT_APPLIED,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025) (Staging Module Specification v1, section 3).',
+            ],
+            'stage_cure_test' => [
+                'label' => 'What a loan must do to cure',
+                'description' => 'What lets a loan move down a stage. Months below the threshold holds it for the cure months only, as MAIIC\'s staging policy as at 31 December 2025 did (with 0 months, it moves down at once). All arrears cleared moves it down only when nothing is overdue (the directive, section 13(3)). Arrears cleared, then the months needs both. Read only under the Custom preset.',
+                'options' => [StagingPolicy::CURE_MONTHS, StagingPolicy::CURE_CLEARED, StagingPolicy::CURE_BOTH],
+                'default' => StagingPolicy::CURE_MONTHS,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
             ],
             // PD and LGD by segment (9 October 2026): the book split into its real programmes
             'pd_segmentation_basis' => [
@@ -500,6 +566,9 @@ class GovernanceService
             'staging_rebuttal' => 'A rebuttal is a staging_thresholds row with its evidence, proposed and approved on Settings, Staging basis; this setting is not read.',
             'historic_materiality_assessment' => 'The historic materiality figure is not reproduced yet (O20).',
             'fee_reclass_journal' => 'No fee reclassification journal is proposed yet (O21).',
+            'dpd_after_maturity' => 'Staging reads the build\'s day count, which already counts from maturity on the build path; the separate staging day count that applies this setting comes in section 2 of the staging build.',
+            'dpd_schedule_correction' => 'Staging reads the build\'s day count, which already recounts against the schedule in force on the build path; the separate staging day count that applies this setting comes in section 2 of the staging build.',
+            'sicr_pd_change' => 'No loan\'s PD at origination is kept yet, so the PD-change test is not built; staging never applies it.',
         ];
     }
 
@@ -687,9 +756,73 @@ class GovernanceService
                     'first_period_applied' => $effective->format('Y-m'),
                 ],
             ]);
+            $this->carryStagingPolicy($setting, $effective, $approverId);
 
             return $setting->fresh();
         });
+    }
+
+    /**
+     * A change to one staging setting while a named staging policy is in force
+     * turns the policy to Custom (Staging Module Specification v1, setting 12).
+     * Under Custom every staging setting governs, so each one is first carried
+     * at the value the named policy gave it, from the same date, and only then
+     * is the policy set to Custom: the approved change is the only rule that
+     * moves. The carried rows are approved with the change they follow, name
+     * it in their reason, and are audit-logged.
+     */
+    private function carryStagingPolicy(GovernanceSetting $setting, CarbonImmutable $effective, int $approverId): void
+    {
+        if (! isset(StagingPolicy::SETTINGS[$setting->key])) {
+            return;
+        }
+        $preset = $this->inForce(StagingPolicy::PRESET, $effective)?->value;
+        if (! isset(StagingPolicy::PRESETS[$preset])) {
+            return;
+        }
+        $reason = "Carried with the approval of {$setting->key} (change #{$setting->id}): the staging policy '{$preset}' turns to Custom, and every other staging setting keeps the value that policy gave it.";
+        $carried = [];
+        foreach (StagingPolicy::PRESETS[$preset] as $key => $value) {
+            if ($key !== $setting->key && $this->carry($key, $value, $effective, $setting, $approverId, $reason)) {
+                $carried[$key] = $value;
+            }
+        }
+        $this->carry(StagingPolicy::PRESET, StagingPolicy::PRESET_CUSTOM, $effective, $setting, $approverId, $reason);
+        $this->memo = [];
+        AuditLoggerService::log('Staging Policy Turned Custom', GovernanceSetting::class, $setting->id, [
+            'old_values' => ['staging_preset' => $preset],
+            'new_values' => ['staging_preset' => StagingPolicy::PRESET_CUSTOM, 'changed' => [$setting->key => $setting->value], 'carried' => $carried, 'effective_from' => $effective->toDateString()],
+            'meta' => ['proposed_by' => $setting->set_by, 'approved_by' => $approverId],
+        ]);
+    }
+
+    /** One approved value from a date, superseding the one in force; false when it is already in force. */
+    private function carry(string $key, string $value, CarbonImmutable $effective, GovernanceSetting $cause, int $approverId, string $reason): bool
+    {
+        $current = $this->inForce($key, $effective);
+        if ($current !== null && $current->value === $value) {
+            return false;
+        }
+        $definition = self::catalogue()[$key];
+        if ($current !== null) {
+            GovernanceSettingHistory::create([
+                'setting_id' => $current->id, 'key' => $current->key, 'value' => $current->value, 'options' => $current->options,
+                'label' => $current->label, 'description' => $current->description, 'effective_from' => $current->effective_from->toDateString(),
+                'set_by' => $current->set_by, 'approved_by' => $current->approved_by, 'approved_at' => $current->approved_at,
+                'reason' => $current->reason, 'status' => $current->status, 'superseded_at' => now(), 'superseded_by' => $approverId,
+                'superseded_by_setting_id' => $cause->id,
+            ]);
+        }
+        $attributes = ['value' => $value, 'options' => $definition['options'], 'label' => $definition['label'], 'description' => $definition['description'],
+            'set_by' => $cause->set_by, 'approved_by' => $approverId, 'approved_at' => now(), 'reason' => mb_substr($reason, 0, 500), 'status' => GovernanceSetting::STATUS_APPROVED];
+        if ($current !== null && $current->effective_from->toDateString() === $effective->toDateString()) {
+            $current->update($attributes);
+        } else {
+            GovernanceSetting::create($attributes + ['key' => $key, 'effective_from' => $effective->toDateString()]);
+        }
+        $this->memo = [];
+
+        return true;
     }
 
     /**

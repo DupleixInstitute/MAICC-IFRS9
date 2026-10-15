@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Eir\Concerns;
 
+use App\Services\Eir\StagingPolicy;
 use Database\Seeders\GovernanceSettingsSeeder;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -94,5 +96,25 @@ trait CreatesGovernanceSchema
     protected function seedGovernanceDefaults(): void
     {
         (new GovernanceSettingsSeeder())->run();
+    }
+
+    /**
+     * Stage under the directive-aligned policy instead of the seeded
+     * single-ladder default (Staging Module Specification v1, section 3), for a
+     * test of the directive's mechanics. With overrides, the Custom preset with
+     * every staging setting at its directive-aligned value and the overrides on
+     * top, e.g. ['stage_cure_months' => '0 months (no probation)'].
+     *
+     * @param array<string,string> $overrides
+     */
+    protected function stageDirectiveAligned(array $overrides = []): void
+    {
+        $preset = $overrides === [] ? StagingPolicy::PRESET_DIRECTIVE : StagingPolicy::PRESET_CUSTOM;
+        DB::table('governance_settings')->where('key', StagingPolicy::PRESET)->update(['value' => $preset]);
+        if ($overrides !== []) {
+            foreach ($overrides + StagingPolicy::PRESETS[StagingPolicy::PRESET_DIRECTIVE] as $key => $value) {
+                DB::table('governance_settings')->where('key', $key)->update(['value' => $value]);
+            }
+        }
     }
 }

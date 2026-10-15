@@ -106,6 +106,32 @@ class StagingThresholdSeeder extends Seeder
             ]
         );
 
-        $this->command?->info('Staging thresholds seeded: short-term 31/91, medium and long-term 31/181, Mega Farm 31/91, long-term Stage 2 proposal inactive.');
+        // The Stage 3 threshold profiles of the staging_threshold_profile setting
+        // (Staging Module Specification v1, section 3). The DEFAULT rows above are
+        // the "by facility term" profile; these two serve the other profiles.
+        StagingThreshold::updateOrCreate(
+            ['facility_class' => \App\Services\Eir\StagingPolicy::CLASS_SINGLE, 'min_tenor_months' => 0],
+            [
+                'stage2_dpd'     => 31,
+                'stage3_dpd'     => 181,
+                'rebuttal_basis' => 'One threshold for every facility: Stage 2 from 31 days, Stage 3 from 181 days past due, whatever '
+                    . 'the term. ' . \App\Services\Eir\StagingPolicy::POLICY_2025 . ' It rebuts the IFRS 9 B5.5.37 90-day presumption '
+                    . 'for every facility, the short-term book included, which the directive does not support (Staging Module '
+                    . 'Specification v1, section 2.3: an accepted departure until MAIIC adopts another staging policy).',
+                'effective_from' => '1900-01-01',
+            ]
+        );
+        StagingThreshold::updateOrCreate(
+            ['facility_class' => \App\Services\Eir\StagingPolicy::CLASS_IFRS9, 'min_tenor_months' => 0],
+            [
+                'stage2_dpd'     => 31,
+                'stage3_dpd'     => 91,
+                'rebuttal_basis' => 'The IFRS 9 presumptions for every facility: a significant increase in credit risk at 30 days '
+                    . '(B5.5.11) and default no later than 90 days past due (B5.5.37), with no rebuttal.',
+                'effective_from' => '1900-01-01',
+            ]
+        );
+
+        $this->command?->info('Staging thresholds seeded: short-term 31/91, medium and long-term 31/181, Mega Farm 31/91, single ladder 31/181, IFRS 9 presumption 31/91, long-term Stage 2 proposal inactive.');
     }
 }

@@ -60,7 +60,7 @@ class AuditTraceController extends Controller
                 $add((string) $a->created_at, "Roll-forward {$a->reporting_period}", 'opening ' . number_format((float) $a->opening_gross, 2) . ', EIR interest ' . number_format((float) $a->interest_accrued, 2) . " ({$a->interest_basis}), cash " . number_format((float) $a->cash_received, 2) . " ({$a->cash_source}), closing " . number_format((float) $a->closing_gross, 2), 'eir_amortisation');
             }
             // the loan's months and the governance values each ran under
-            $keys = ['loan_book_build_method', 'dpd_basis', 'stage3_missed_instalments', 'stage_cure_months', 'stage3_interest_basis', 'fli_adjustment_route', 'fli_transmission_method', 'scenario_weighting_method', 'plr_mid_period'];
+            $keys = ['loan_book_build_method', 'staging_preset', 'staging_threshold_profile', 'stage2_threshold_medium_long', 'staging_mega_farm_term', 'dpd_basis', 'dpd_after_maturity', 'dpd_schedule_correction', 'stage3_missed_instalments', 'sicr_qualitative_register', 'stage_cure_months', 'stage_cure_test', 'stage3_interest_basis', 'fli_adjustment_route', 'fli_transmission_method', 'scenario_weighting_method', 'plr_mid_period'];
             // the qualitative SICR triggers on the loan or its customer, to show which were in force at each month-end
             $customerIds = DB::table('loan_books')->where('contract_id', $contract)->whereNotNull('customer_id')->distinct()->pluck('customer_id')->map(fn ($c) => (string) $c)->all();
             $triggers = DB::getSchemaBuilder()->hasColumn('finance_sicr_triggers', 'status') ? DB::table('finance_sicr_triggers as t')->leftJoin('finance_sicr_items as i', 'i.id', '=', 't.item_id')

@@ -38,11 +38,25 @@ class StagingThresholdSeederTest extends TestCase
         (new StagingThresholdSeeder())->run();
     }
 
-    public function test_the_seeder_writes_four_rows_once_and_is_idempotent(): void
+    public function test_the_seeder_writes_six_rows_once_and_is_idempotent(): void
     {
-        $this->assertSame(4, StagingThreshold::count());
+        $this->assertSame(6, StagingThreshold::count());
         (new StagingThresholdSeeder())->run();
-        $this->assertSame(4, StagingThreshold::count());
+        $this->assertSame(6, StagingThreshold::count());
+    }
+
+    /** The rows of the other two Stage 3 profiles (Staging Module Specification v1, setting 1), read only by their own class. */
+    public function test_the_single_ladder_and_ifrs9_profile_rows_are_read_only_by_their_class(): void
+    {
+        $single = StagingThreshold::forFacility(\App\Services\Eir\StagingPolicy::CLASS_SINGLE, 6, now()->toDateString(), true);
+        $this->assertSame([31, 181], [$single->stage2_dpd, $single->stage3_dpd]);
+        $this->assertStringContainsString('31 December 2025', $single->rebuttal_basis);
+        $ifrs9 = StagingThreshold::forFacility(\App\Services\Eir\StagingPolicy::CLASS_IFRS9, 60, now()->toDateString(), true);
+        $this->assertSame([31, 91], [$ifrs9->stage2_dpd, $ifrs9->stage3_dpd]);
+        // the by-term lookup never picks them up
+        $this->assertSame('DEFAULT', StagingThreshold::forFacility(null, 6, now()->toDateString())->facility_class);
+        // an exact lookup of a class with no row finds nothing, never the DEFAULT row
+        $this->assertNull(StagingThreshold::forFacility('NO_SUCH_CLASS', 6, now()->toDateString(), true));
     }
 
     public function test_short_term_facilities_are_stage_3_at_91_days_as_the_directive_classifies_them(): void
