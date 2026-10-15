@@ -85,7 +85,7 @@ class MappedFileReader
         'fees'     => [
             'description', 'transaction_date', 'cashflow_direction', 'currency',
             'source_system', 'source_reference', 'external_transaction_id',
-            'basis', 'gl_account_ref',
+            'basis', 'gl_account_ref', 'integral',
         ],
         'contract_master' => [
             'run_id', 'customer_id', 'customer_name', 'portfolio', 'sub_account_no', 'gl_account_code', 'currency',

@@ -1001,4 +1001,35 @@ class EirIntakeServicesTest extends TestCase
         $this->assertSame(0, $result['loaded_rows']);
         $this->assertSame(2, $result['skipped_rows']);
     }
+
+    public function test_a_stated_treatment_arrives_classified_by_the_loader_and_a_reload_fills_a_pending_line(): void
+    {
+        if (! Schema::hasTable('eir_fee_classification_events')) {
+            Schema::create('eir_fee_classification_events', function (Blueprint $t) { $t->increments('id'); $t->integer('contract_fee_id'); $t->string('action'); $t->boolean('integral')->nullable(); $t->text('reason')->nullable(); $t->integer('accounting_rule_id')->nullable(); $t->integer('performed_by')->nullable(); $t->timestamps(); });
+        }
+        $row = fn (string $ext, array $more = []) => $more + ['contract_id' => 'C-20', 'fee_type' => 'arrangement', 'amount' => 500_000.0, 'cashflow_direction' => 'RECEIVED',
+            'source_system' => 'MAIIC Finance EIR assessment 2025', 'external_transaction_id' => $ext];
+
+        $r = (new FeeImportService())->import([
+            $row('A', ['integral' => 'Yes']),
+            $row('B', ['integral' => 'no']),
+            $row('C', ['integral' => '']),
+            $row('D', ['integral' => 'yes', 'cashflow_direction' => null]),
+        ], null, 7, 'fees 2025.csv');
+
+        $fee = fn (string $ext) => DB::table('contract_fees')->where('external_transaction_id', $ext)->first();
+        $this->assertSame(2, $r['classified_from_file']);
+        $this->assertSame(['CLASSIFIED', 1, 7], [$fee('A')->classification_status, (int) $fee('A')->integral, (int) $fee('A')->classified_by]);
+        $this->assertStringContainsString('fees 2025.csv: integral = yes', $fee('A')->classification_reason);
+        $this->assertSame(['CLASSIFIED', 0], [$fee('B')->classification_status, (int) $fee('B')->integral]);
+        $this->assertSame('PENDING', $fee('C')->classification_status, 'blank states nothing');
+        $this->assertSame('PENDING', $fee('D')->classification_status, 'no direction: it cannot enter the EIR, so it waits');
+        $this->assertSame(2, DB::table('eir_fee_classification_events')->where('action', 'CLASSIFIED')->count(), 'each classification is an event');
+
+        // a re-load with the column fills the pending line, never changes a classified one
+        $again = (new FeeImportService())->import([$row('B', ['integral' => 'yes']), $row('C', ['integral' => 'yes'])], null, 8, 'fees 2025 v2.csv');
+        $this->assertSame([0, 1], [$again['loaded_rows'], $again['filled_on_reload']]);
+        $this->assertSame(['CLASSIFIED', 1, 8], [$fee('C')->classification_status, (int) $fee('C')->integral, (int) $fee('C')->classified_by]);
+        $this->assertSame(0, (int) $fee('B')->integral, 'a classified line keeps its treatment');
+    }
 }

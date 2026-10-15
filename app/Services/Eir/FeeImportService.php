@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\DB;
  * line nets against the legal fee) — but they are counted and reported so
  * a sign-convention problem in a file is visible at import time, alongside
  * the per-type totals the operator eyeballs against the GL.
+ *
+ * A file may state the treatment in an optional integral column (yes or no; blank states nothing). A line
+ * it states arrives CLASSIFIED with that treatment, the file named as the reason and the person who loaded
+ * it as the classifier, so a second person reviews it before it enters the EIR (maker-checker). A re-load
+ * fills the treatment of a line still PENDING; it never changes a classified or reviewed line. A line with
+ * no cash-flow direction stays PENDING whatever the file states, since it cannot enter the EIR.
  */
 class FeeImportService
 {
@@ -27,7 +33,7 @@ class FeeImportService
      *   totals_by_type: array<string,float>
      * }
      */
-    public function import(array $rows, ?FeeRuleMatcher $matcher = null): array
+    public function import(array $rows, ?FeeRuleMatcher $matcher = null, ?int $userId = null, ?string $origin = null): array
     {
         $matcher ??= app(FeeRuleMatcher::class);
         $inserts       = [];
@@ -37,6 +43,8 @@ class FeeImportService
         $totals        = [];
         $years         = [];
         $now           = now();
+        $stated        = [];
+        $filled        = 0;
 
         foreach ($rows as $row) {
             $contractId = ContractId::normalise($row['contract_id'] ?? null);
@@ -62,9 +70,14 @@ class FeeImportService
             $sourceSystem = trim((string) ($row['source_system'] ?? '')) ?: null;
             $externalId = trim((string) ($row['external_transaction_id'] ?? '')) ?: null;
 
-            if ($sourceSystem && $externalId && DB::table('contract_fees')
+            $integral = self::statedIntegral($row['integral'] ?? null);
+            if ($sourceSystem && $externalId && ($existing = DB::table('contract_fees')
                 ->where('source_system', $sourceSystem)
-                ->where('external_transaction_id', $externalId)->exists()) {
+                ->where('external_transaction_id', $externalId)->first())) {
+                if ($integral !== null && $existing->classification_status === 'PENDING' && $existing->cashflow_direction !== null) {
+                    $this->classifyFromFile((int) $existing->id, $integral, $userId, $origin, $now);
+                    $filled++;
+                }
                 $skipped++;
                 continue;
             }
@@ -77,6 +90,7 @@ class FeeImportService
             ];
             $rule = $matcher->match($candidate);
 
+            $stated[] = $integral !== null && $candidate['cashflow_direction'] !== null ? $integral : null;
             $inserts[] = [
                 'contract_id'    => $contractId,
                 'fee_type'       => $type,
@@ -105,10 +119,15 @@ class FeeImportService
             }
         }
 
+        $classified = 0;
         if ($inserts !== []) {
-            DB::transaction(function () use ($inserts) {
-                foreach (array_chunk($inserts, 500) as $chunk) {
-                    DB::table('contract_fees')->insert($chunk);
+            DB::transaction(function () use ($inserts, $stated, $userId, $origin, $now, &$classified) {
+                foreach ($inserts as $i => $insert) {
+                    $id = DB::table('contract_fees')->insertGetId($insert);
+                    if ($stated[$i] !== null) {
+                        $this->classifyFromFile($id, $stated[$i], $userId, $origin, $now);
+                        $classified++;
+                    }
                 }
             });
             // a fee recorded for a loan whose EIR is already locked flags that EIR for review (EirLockReviewService)
@@ -122,6 +141,29 @@ class FeeImportService
             'negative_lines' => $negativeLines,
             'totals_by_type' => array_map(fn ($v) => round($v, 2), $totals),
             'years'          => array_map('intval', array_keys($years)),
+            'classified_from_file' => $classified,
+            'filled_on_reload' => $filled,
         ];
+    }
+
+    /** yes or no, as the file states it; null when blank or not a yes or no. */
+    public static function statedIntegral(mixed $value): ?bool
+    {
+        return match (mb_strtolower(trim((string) $value))) {
+            'yes', 'y', 'true', '1', 'integral' => true,
+            'no', 'n', 'false', '0', 'non-integral' => false,
+            default => null,
+        };
+    }
+
+    /** The treatment the file states, recorded as a classification by the person who loaded it. */
+    private function classifyFromFile(int $feeId, bool $integral, ?int $userId, ?string $origin, $now): void
+    {
+        $reason = 'Stated in the source file' . ($origin ? ' ' . $origin : '') . ': integral = ' . ($integral ? 'yes' : 'no')
+            . '. Classified on load by the person who loaded it; a second person reviews it before it enters the EIR.';
+        DB::table('contract_fees')->where('id', $feeId)->update(['integral' => $integral, 'classification_status' => 'CLASSIFIED',
+            'classification_reason' => mb_substr($reason, 0, 2000), 'classified_by' => $userId, 'classified_at' => $now, 'updated_at' => $now]);
+        DB::table('eir_fee_classification_events')->insert(['contract_fee_id' => $feeId, 'action' => 'CLASSIFIED', 'integral' => $integral,
+            'reason' => mb_substr($reason, 0, 2000), 'performed_by' => $userId, 'created_at' => $now, 'updated_at' => $now]);
     }
 }

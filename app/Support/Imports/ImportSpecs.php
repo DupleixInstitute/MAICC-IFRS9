@@ -542,6 +542,7 @@ class ImportSpecs
     private const EIR_STEPS = [
         'contract_transactions' => ['scheduled_actual_flag is Scheduled or Actual. Rows marked Scheduled are kept as the remaining schedule; rows marked Actual are kept as transaction evidence.'],
         'fees' => ['fee_type is one of arrangement, legal, appraisal, default, levy or other; another value loads as other. cashflow_direction is RECEIVED or PAID.',
+            'Optional: integral = yes or no states the treatment (for example Finance includes its arrangement and legal fees in its EIR assessment, so yes). Such a line arrives classified by the person who loads the file and waits for a second person to review it; loading the file again fills the treatment of a line still pending.',
             'Give every fee its date (transaction_date). gl_account_ref names the fee GL (4871 legal, 4873 arrangement, 4874, 4875); arrangement and legal fees default to 4873 and 4871.',
             "Each line must be accounted for by a GL fee posting: the same amount (within the recon_tolerance band) on its loan, its customer's name, or the same amount near the date; a fee posted in parts or with its corrections, or one posting paying two loans' fees, is recognised.",
             'The file must be complete: in each month from its first to its last matched posting, every fee posting on those GLs must be in the file (a posting and its reversal cancel). A line that repeats a fee the take-on workbook holds for its loan (same type and amount) is refused, as it would count twice; so are lines dated before the first GL fee posting held.',
@@ -641,6 +642,7 @@ class ImportSpecs
             'external_transaction_id' => ['type' => 'text', 'description' => 'Unique id of the fee in the source system.'],
             'basis' => ['type' => 'enum', 'description' => 'Whether the fee is on the approved or the drawn amount. Blank is ON_APPROVED.', 'allowed' => ['ON_APPROVED', 'ON_DRAWN']],
             'gl_account_ref' => ['type' => 'code', 'description' => 'GL account the fee was credited to.'],
+            'integral' => ['type' => 'enum', 'description' => 'The treatment the file states: yes (part of the EIR) or no. The line then arrives classified, with the person who loads it as the classifier, and waits for a second person to review it. Blank leaves the line pending for classification.', 'allowed' => ['yes', 'no']],
             'transaction_type' => ['type' => 'text', 'description' => 'Kind of transaction, e.g. Disbursement or Principal+Interest.'],
             'principal_component' => $amount('Principal part of the transaction.'),
             'interest_component' => $amount('Interest part of the transaction.'),

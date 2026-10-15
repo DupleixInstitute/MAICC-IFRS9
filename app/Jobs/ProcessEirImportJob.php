@@ -167,7 +167,7 @@ class ProcessEirImportJob implements ShouldQueue
         $user = (int) ($this->userId ?? auth()->id() ?? 0);
 
         return DB::transaction(function () use ($rows, $tie, $fees, $glFees, $precedence, $user) {
-            $result = $fees->import($rows);
+            $result = $fees->import($rows, null, $user ?: null, $this->originalName);
             $tied = 0;
             foreach ($tie['ties'] as $t) {
                 $glFees->assignHeld((int) $t['held_id'], (string) $t['contract_id'], $user,
