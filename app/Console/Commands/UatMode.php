@@ -18,7 +18,7 @@ use Throwable;
  */
 class UatMode extends Command
 {
-    protected $signature = 'governance:uat-mode {action : on, off or status} {--user= : the person switching it}';
+    protected $signature = 'governance:uat-mode {action : on, off or status} {--user= : the id of the person switching it (required for on and off)}';
 
     protected $description = 'Switch UAT mode (the maker-checker override for administrators) on or off from the server console; on only on a non-production server';
 
@@ -35,8 +35,15 @@ class UatMode extends Command
 
             return self::FAILURE;
         }
+        // the record always names who switched it (review of 15 October 2026)
+        $user = $this->option('user') !== null ? \App\Models\User::find((int) $this->option('user')) : null;
+        if ($user === null) {
+            $this->error('Name the person switching UAT mode with --user=ID (their user id); the change is recorded against them.');
+
+            return self::FAILURE;
+        }
         try {
-            $row = $governance->switchUatMode($action === 'on', $this->option('user') !== null ? (int) $this->option('user') : null);
+            $row = $governance->switchUatMode($action === 'on', (int) $user->id);
         } catch (Throwable $e) {
             $this->error($e->getMessage());
 

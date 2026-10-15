@@ -82,15 +82,15 @@ class FliRouteService
         if ($fit->approval_status !== 'PROPOSED') {
             throw new RuntimeException("Fit {$fitId} is not proposed.");
         }
-        // a named approver who is not the named proposer (audit C9 residual: a null approver skipped the check)
-        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && ($approverId === null || $fit->proposed_by === null || ((int) $fit->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Forward-looking fit', 'fli_fits', (int) $fitId, $approverId)))) {
-            throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer, and both must be named.');
-        }
         // the data may have moved since the proposal: checked again at approval
         $this->assertApplicable($fitId, 'approved');
         // approving publishes the model version from the fit's own month: refused before anything is
         // written when that month is locked (Staging Module Specification v1, section 8.8, item 4)
         \App\Support\ReportingPeriodLock::assertNotBackDated(substr((string) $fit->reporting_period, 0, 4) . '-' . substr((string) $fit->reporting_period, 4, 2), "Approving fit {$fitId}");
+        // a named approver who is not the named proposer (audit C9 residual: a null approver skipped the check)
+        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && ($approverId === null || $fit->proposed_by === null || ((int) $fit->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Forward-looking fit', 'fli_fits', (int) $fitId, $approverId)))) {
+            throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer, and both must be named.');
+        }
         DB::transaction(function () use ($fit, $fitId, $approverId, $label) {
             // one approved fit per period: an earlier one for the same period is superseded
             DB::table('fli_fits')->where('reporting_period', $fit->reporting_period)->where('approval_status', 'APPROVED')->update(['approval_status' => 'REJECTED', 'approval_note' => 'superseded by fit ' . $fitId]);

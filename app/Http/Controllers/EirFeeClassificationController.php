@@ -339,9 +339,6 @@ class EirFeeClassificationController extends Controller
         $data = $request->validate(['fee_ids' => ['required', 'array', 'min:1'], 'fee_ids.*' => ['integer', 'exists:contract_fees,id']]);
         $fees = ContractFee::whereIn('id', $data['fee_ids'])->where('classification_status', 'CLASSIFIED')->get();
         $own = $fees->where('classified_by', auth()->id());
-        // the one maker-checker check (Staging Module Specification v1, section 8.9): recorded when used
-        $adminOverride = $own->isNotEmpty() && \App\Support\MakerChecker::selfApprovalAllowed('Fee classification review', ContractFee::class, $own->pluck('id')->implode(','), (int) auth()->id());
-        if ($own->isNotEmpty() && ! $adminOverride) return back()->withErrors(['fee_ids' => 'A classifier cannot review their own decision.']);
         // an integral line enters the EIR as money received or paid: approving one with no
         // direction left a reviewed line the EIR could not use and nobody could correct
         $undirected = $fees->filter(fn ($f) => (bool) $f->integral && ! in_array($f->cashflow_direction, ['RECEIVED', 'PAID'], true));
@@ -349,6 +346,9 @@ class EirFeeClassificationController extends Controller
             return back()->withErrors(['fee_ids' => $undirected->count() . ' integral line(s) have no cash-flow direction (' . $undirected->take(5)->map(fn ($f) => $f->contract_id . ' / ' . $f->fee_type)->implode(', ')
                 . '). Return them to classification so the classifier states whether the fee was received or paid; nothing was approved.']);
         }
+        // the one maker-checker check (Staging Module Specification v1, section 8.9): recorded when used
+        $adminOverride = $own->isNotEmpty() && \App\Support\MakerChecker::selfApprovalAllowed('Fee classification review', ContractFee::class, $own->pluck('id')->implode(','), (int) auth()->id());
+        if ($own->isNotEmpty() && ! $adminOverride) return back()->withErrors(['fee_ids' => 'A classifier cannot review their own decision.']);
 
         DB::transaction(function () use ($fees) {
             foreach ($fees as $fee) {

@@ -91,11 +91,11 @@ class OverlayService
         if ($o->status !== 'PROPOSED') {
             throw new RuntimeException("Overlay {$overlayId} is {$o->status}, not proposed.");
         }
-        if ($label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $o->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Forward-looking overlay', 'fli_overlays', (int) $o->id, $approverId)) {
-            throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
-        }
         if ($clash = $this->doubleCount($o)) {
             throw new RuntimeException($clash);
+        }
+        if ($label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $o->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Forward-looking overlay', 'fli_overlays', (int) $o->id, $approverId)) {
+            throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         DB::table('fli_overlays')->where('id', $overlayId)->update(['status' => 'APPROVED', 'approved_by' => $approverId, 'approver_label' => $label, 'approved_at' => now(), 'updated_at' => now()]);
         AuditLoggerService::log('FLI Overlay Approved', 'fli_overlays', $overlayId, ['reporting_period' => $o->reporting_period, 'meta' => ['approved_by' => $approverId, 'label' => $label]]);

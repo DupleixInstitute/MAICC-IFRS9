@@ -61,11 +61,16 @@ final class ReportingPeriodLock
      * person approves the unlock the month is no longer locked, and the change
      * can be made.
      *
+     * A change with an end date ($until) governs only the month-ends from its
+     * effective date to its end, so only those are protected.
+     *
      * @throws BackDatedChangeException
      */
-    public static function assertNotBackDated(string $effectiveFrom, string $what): void
+    public static function assertNotBackDated(string $effectiveFrom, string $what, ?string $until = null): void
     {
-        $locked = self::lockedFrom($effectiveFrom);
+        // a change that also ends (a SICR trigger with an end date) affects only the month-ends up to its end
+        $locked = array_values(array_filter(self::lockedFrom($effectiveFrom),
+            fn ($p) => $until === null || \Carbon\CarbonImmutable::parse($p . '-01')->endOfMonth()->toDateString() <= substr($until, 0, 10)));
         if ($locked !== []) {
             throw new BackDatedChangeException($what, $effectiveFrom, $locked);
         }

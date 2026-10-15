@@ -118,11 +118,11 @@ class FliModelRegistry
         if ($v->status !== 'PROPOSED') {
             throw new RuntimeException("Version {$v->version} is {$v->status}, not proposed.");
         }
+        // checked again on approval: the month may have been locked since the proposal
+        \App\Support\ReportingPeriodLock::assertNotBackDated((string) $v->effective_from, "Forward-looking model version {$v->version}");
         if ($label === null && $approverId !== null && (int) $v->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('External forward-looking model', 'fli_model_versions', (int) $v->id, $approverId)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
-        // checked again on approval: the month may have been locked since the proposal
-        \App\Support\ReportingPeriodLock::assertNotBackDated((string) $v->effective_from, "Forward-looking model version {$v->version}");
         DB::transaction(function () use ($v, $approverId, $label) {
             DB::table('fli_model_versions')->where('model_id', $v->model_id)->where('effective_from', $v->effective_from)->where('status', 'PUBLISHED')->update(['status' => 'SUPERSEDED', 'updated_at' => now()]);
             DB::table('fli_model_versions')->where('id', $v->id)->update(['status' => 'PUBLISHED', 'published_by' => $approverId, 'approver_label' => $label, 'published_at' => now(), 'updated_at' => now()]);

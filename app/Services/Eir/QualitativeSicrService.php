@@ -67,7 +67,7 @@ class QualitativeSicrService
             throw new RuntimeException('The end date cannot be before the date the trigger applies from.');
         }
         // no back-dating into a locked month (Staging Module Specification v1, section 8.8, item 4)
-        \App\Support\ReportingPeriodLock::assertNotBackDated($from, 'A SICR trigger');
+        \App\Support\ReportingPeriodLock::assertNotBackDated($from, 'A SICR trigger', $to);
 
         if ($scope === 'contract') {
             $contract = ltrim(trim((string) ($data['contract_id'] ?? '')), '0');
@@ -110,6 +110,8 @@ class QualitativeSicrService
         if ($t->status !== 'PROPOSED') {
             throw new RuntimeException("Trigger {$triggerId} is " . strtolower($t->status) . ', not waiting for approval.');
         }
+        // checked again on approval: the month may have been locked since the trigger was raised
+        \App\Support\ReportingPeriodLock::assertNotBackDated((string) $t->effective_from, "SICR trigger {$triggerId}", $t->effective_to === null ? null : (string) $t->effective_to);
         if ($label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $t->triggered_by === $approverId) {
             // the one maker-checker check (section 8.9): the override only on a non-production server, and recorded
             if (! $allowMakerCheckerOverride || ! \App\Support\MakerChecker::environmentAllows()) {
@@ -117,8 +119,6 @@ class QualitativeSicrService
             }
             \App\Support\MakerChecker::recordUse('SICR trigger', 'finance_sicr_triggers', $triggerId, $approverId);
         }
-        // checked again on approval: the month may have been locked since the trigger was raised
-        \App\Support\ReportingPeriodLock::assertNotBackDated((string) $t->effective_from, "SICR trigger {$triggerId}");
         DB::table('finance_sicr_triggers')->where('id', $triggerId)->update(['status' => 'APPROVED', 'approved_by' => $approverId, 'approver_label' => $label, 'approved_at' => now(), 'updated_at' => now()]);
         AuditLoggerService::log('SICR Trigger Approved', 'finance_sicr_triggers', $triggerId, ['new_values' => $this->auditKey($t) + ['stage_implied' => (int) $t->stage_implied, 'effective_from' => $t->effective_from, 'effective_to' => $t->effective_to],
             'meta' => ['approved_by' => $approverId, 'label' => $label]]);

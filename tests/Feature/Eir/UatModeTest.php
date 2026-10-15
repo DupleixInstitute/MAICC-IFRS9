@@ -141,7 +141,7 @@ class UatModeTest extends TestCase
             } catch (\LogicException $e) {
                 $this->assertStringContainsString('production server', $e->getMessage());
             }
-            $this->assertSame(1, Artisan::call('governance:uat-mode', ['action' => 'on']));
+            $this->assertSame(1, Artisan::call('governance:uat-mode', ['action' => 'on', '--user' => $this->admin->id]));
             $this->assertStringContainsString('production server', Artisan::output());
         } finally {
             $t->approve($row->id, $this->admin->id);
@@ -195,5 +195,33 @@ class UatModeTest extends TestCase
         (new GovernanceSettingsSeeder())->run();
         $row = DB::table('governance_settings')->where('key', MakerChecker::SETTING)->first();
         $this->assertSame([MakerChecker::ALLOWED, GovernanceSettingsSeeder::UAT_REASON], [$row->value, $row->reason]);
+    }
+
+    /** The command names who switches UAT mode: without a known person it refuses (review of 15 October 2026). */
+    public function test_the_uat_command_needs_the_person_switching_it(): void
+    {
+        $this->assertSame(1, Artisan::call('governance:uat-mode', ['action' => 'on']));
+        $this->assertSame(1, Artisan::call('governance:uat-mode', ['action' => 'on', '--user' => 999999]));
+        $this->assertFalse(MakerChecker::overrideInForce());
+        $this->assertSame(0, DB::table('audit_logs')->where('action', 'UAT Mode Switched From The Console')->count(), 'nothing was switched or recorded');
+    }
+
+    /** A self-approval refused by a later check leaves no "override used" entry (review of 15 October 2026). */
+    public function test_a_refused_self_approval_records_no_override(): void
+    {
+        $this->uatOn();
+        (new \Database\Seeders\SicrQualitativeFactorsSeeder())->run();
+        DB::table('loan_books')->insert(['contract_id' => '104420000005', 'customer_id' => '737', 'reporting_period' => '2026-07', 'reporting_year' => 2026, 'reporting_month' => 7, 'external_identity_id' => '000104420000005']);
+        $item = (int) DB::table('finance_sicr_items')->where('name', 'Breach of a financial covenant')->value('id');
+        $register = new QualitativeSicrService();
+        $id = $register->propose(['item_id' => $item, 'scope' => 'contract', 'contract_id' => '104420000005', 'reason' => 'Covenant test failed', 'evidence' => 'Management accounts, file CF-12', 'effective_from' => '2026-07-01'], $this->admin->id);
+        // the month is locked after the trigger was raised: the approval is refused by the back-dating rule
+        DB::table('reporting_period_locks')->insert(['reporting_period' => '2026-07', 'locked_by' => $this->second->id, 'locked_at' => now(), 'reason' => 'Reported']);
+        try {
+            $register->approve($id, $this->admin->id, true);
+            $this->fail('approved a trigger inside a locked month');
+        } catch (\App\Support\BackDatedChangeException) {
+        }
+        $this->assertSame(0, DB::table('audit_logs')->where('action', MakerChecker::AUDIT_ACTION)->count());
     }
 }

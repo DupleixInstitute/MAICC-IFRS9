@@ -196,7 +196,8 @@ class LoanBookBuildService
         if ($b === null || $b->status !== 'PROPOSED') {
             throw new RuntimeException("Build {$buildId} is not awaiting approval.");
         }
-        if ((int) $b->requested_by === $approvedBy && ! \App\Support\MakerChecker::selfApprovalAllowed('Loan book build', 'loan_book_builds', (int) $b->id, $approvedBy)) {
+        // decided here without recording: build() checks the same two people again and records the one use
+        if ((int) $b->requested_by === $approvedBy && ! \App\Support\MakerChecker::allowedFor(\App\Models\User::find($approvedBy))) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the requester.');
         }
         DB::table('loan_book_builds')->where('id', $buildId)->update(['status' => 'REJECTED', 'note' => 'Superseded by the approved build', 'updated_at' => now()]);

@@ -105,6 +105,9 @@ class NoBackDatingTest extends TestCase
         $raise = fn (string $from) => $register->propose(['item_id' => $item, 'scope' => 'contract', 'contract_id' => '104420000005', 'reason' => 'Covenant test failed', 'evidence' => 'Management accounts, credit file CF-12', 'effective_from' => $from], $this->maker);
 
         $this->refused(fn () => $raise('2026-09-10'), ['2026-09']);
+        // a trigger that ended before the locked months covers none of their month-ends: allowed (review of 15 October 2026)
+        $ended = $register->propose(['item_id' => $item, 'scope' => 'contract', 'contract_id' => '104420000005', 'reason' => 'Covenant test failed in July', 'evidence' => 'Management accounts, credit file CF-12', 'effective_from' => '2026-07-01', 'effective_to' => '2026-07-20'], $this->maker);
+        $this->assertGreaterThan(0, $ended);
 
         // a trigger in force since July: closing it in August would uncover the locked August and September month-ends
         DB::table('reporting_period_locks')->delete();
