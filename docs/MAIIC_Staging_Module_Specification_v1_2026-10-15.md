@@ -231,6 +231,29 @@ Outside the Governance Centre, about twenty other workflows decide something tha
 
 The Governance Centre gains an **Approvals** view across all of the above and the Centre's own settings: everything awaiting a decision, with who proposed it and when; and everything decided, with the decision, the reasons and the documents. It filters by workflow, person, status and date, exports to PDF and Excel, and is included in the auditor's pack. One shared document store serves every workflow, so a minute attached once can be linked to the several decisions it covers.
 
+### 8.8 The record of what each month ran on
+
+An auditor looking at a month a year later needs to know exactly what that month's figures were computed with: which settings, rules, models, data and code. Today that can only be partly reconstructed:
+
+- The settings can be looked up by their effective dates, but **a setting can be back-dated into a locked month**. The only date rule is that a change must be later than the setting's last approved change, so a setting unchanged since installation could today be given an effective date of 1 March 2025. March 2025 stays locked and its figures do not move, but a lookup for March would now return the new value, not the one March ran on.
+- A month can be built and run several times before it is locked, and **nothing marks which run produced the reported figures**.
+- The figures also depend on inputs held outside the Governance Centre: the staging threshold rows, the approved fee rules, the scenario set, the overlays, the forward-looking model, the query versions, the data loads and the code. The loan book build records its data loads and the forward-looking module already snapshots its own inputs each month (`fli_run_snapshots`), but nothing brings them together.
+
+The following closes those gaps.
+
+| # | Change | What it gives the auditor |
+|---|---|---|
+| 1 | **A run record for every month-end run.** Who ran it, when, the code version (the repository commit) and a **frozen snapshot of every input**: each Governance Centre setting with its value, effective date, proposer and approver; the staging threshold rows; the fee rules in use with their approvals; the scenario set and version; the overlays; the forward-looking model version and the forward-looking snapshot; the query register versions; the data loads with their watermarks; and the loan book build. The snapshot is fingerprinted. | Exactly what the month ran on, in one place, as it was at the time |
+| 2 | **Every result row carries its run number.** Loan book, stage, PD, LGD, ECL, revenue and Mega Farm rows record the run that wrote them. | A trace from any loan's figure to its run and that run's snapshot |
+| 3 | **The lock names the run of record.** Locking a month records which run produced the reported figures. Earlier runs of the month are kept and marked superseded. | No doubt about which run the reported figures came from |
+| 4 | **No back-dating into a locked month.** A change to any governed setting or rule cannot take effect inside a locked month unless it goes through the reopen-and-restate approval (section 8.6, period lock and unlock) with its documents. | The settings looked up for a locked month can never change |
+| 5 | **"Settings in force" and "What changed".** For any month, a report of everything in its run record; and a comparison of two months showing every setting, rule, model, data load and code change between them. Both export to PDF and Excel and are sheets in the month's audit workbook and the auditor's pack. | The auditor reads the record instead of reconstructing it |
+| 6 | **Re-performance.** A locked month can be re-run from its frozen snapshot into a separate workspace, with the comparison-run machinery of section 4, and the result checked against the stored figures, loan by loan. | Proof that the reported figures can be reproduced, not only stated |
+
+**Where this applies.** Every engine of the month-end (build, staging, PD and LGD, ECL, forward-looking route, scenarios, Mega Farm, revenue, reports) writes into the one run record of the month-end job. A run outside the month-end job (an engine run by hand on a screen) gets a run record of its own, marked as such, and can never be the run of record.
+
+**The bootstrap.** Each bootstrap run also writes run records, labelled as bootstrap runs, so the regression check can compare a rebuilt month with the record of the previous rebuild.
+
 ## 9. Decisions owed
 
 | Ref | Decision | Owner | Recommendation |
@@ -244,6 +267,7 @@ The Governance Centre gains an **Approvals** view across all of the above and th
 | S7 | Who may view the supporting documents | MAIIC ICT, with Dr Thom | Users holding the governance permission, and the auditors through the auditor's pack |
 | S8 | Which other approvals require a supporting document (section 8.6) | Dr Thom, with Finance and Credit | As marked in the tables of section 8.6 |
 | S9 | Whether a fee rule already approved by the person who wrote it must be approved again by a second person | Dr Thom | Yes: every rule the matcher uses is re-approved under maker-checker before the fee review starts |
+| S10 | Whether to apply the no-back-dating rule (section 8.8, item 4) ahead of the rest of this build | Dr Thom | Yes: it is a small change and protects the locked months now |
 
 ## 10. Acceptance
 
@@ -262,6 +286,10 @@ The Governance Centre gains an **Approvals** view across all of the above and th
 13. **Other approvals.** Every workflow of section 8.6 records its proposal, decision (approve, reject or withdraw) and documents in the same log, and refuses approval without the evidence its table marks as required.
 14. **Fee rulebook control.** The person who wrote or changed a fee rule cannot approve it; approval and switching a rule on or off need a reason and a second person; the matcher uses only rules approved that way.
 15. **Approvals register.** The Approvals view lists every pending and decided item across all workflows and reconciles to the audit log.
+16. **Run record.** Every month-end run writes a run record with the frozen snapshot of section 8.8; its fingerprint verifies; every result row of the month carries the run number.
+17. **Run of record.** Locking a month names the run whose figures were reported; a later rebuild of an unlocked month supersedes earlier runs and keeps them.
+18. **No back-dating.** A setting or rule change with an effective date inside a locked month is refused unless approved through reopen-and-restate with documents.
+19. **Re-performance.** Re-running a locked month from its snapshot reproduces its stored stages, ECL and revenue loan by loan, or names each difference.
 
 ## 11. Build order
 
@@ -271,6 +299,7 @@ The Governance Centre gains an **Approvals** view across all of the above and th
 | 2 | The comparison run: tables, command, panel, export, audit-workbook sheet | About 1 day |
 | 3 | The governance change log of sections 8.1 to 8.5: reject and withdraw, the seeding entries, supporting documents on private storage with fingerprints, required evidence, the History view and export, the append-only guard and the chain check | About 2 days |
 | 3a | The other approvals of section 8.6 on the same log and document store, the fee rulebook's maker-checker first; the Approvals view of section 8.7 | About 2.5 days |
+| 3b | The run record of section 8.8: snapshot, run numbers on result rows, run of record at lock, the no-back-dating rule, the Settings in force and What changed reports, re-performance | About 2 days |
 | 4 | Tests for each acceptance point; a bootstrap check | About half a day |
 | 5 | Release to MAIIC's server by the release steps of the integration document (section 2.2): push, pull, migrate, bootstrap with the nine ties passing, then the comparison runs for December 2025 and September 2026 | With MAIIC ICT |
 | Later | Setting 9, once each loan's PD at origination is kept | To be planned |
@@ -291,4 +320,7 @@ The Governance Centre gains an **Approvals** view across all of the above and th
 | **Maker-checker** | One person proposes a change and a second person approves it |
 | **Supporting document** | A file attached to a governance change as its evidence: a minute, a policy paper, an analysis or correspondence |
 | **Append-only** | A record that can be added to but never changed or deleted |
+| **Run record** | The frozen record of everything one month-end run used: settings, rules, models, data loads and code |
+| **Run of record** | The run whose figures were reported for a month, named when the month is locked |
+| **Re-performance** | Re-running a locked month from its run record to show the reported figures can be reproduced |
 | **Chain check** | A test that each audit entry still carries the fingerprint of the one before it, so that a changed or removed entry is found |
