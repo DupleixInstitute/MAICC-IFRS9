@@ -227,4 +227,33 @@ class EirFeeReadinessControlTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $reviews->raise('900000000104', 'Finance workbook shows fees for this loan.', ['evidence' => 'workbook'], 1);
     }
+
+    public function test_a_fee_line_on_the_wrong_loan_is_moved_with_the_reason_and_classified_again(): void
+    {
+        $this->contract('900000000301');
+        $this->contract('900000000302');
+        $id = $this->fee('900000000301', 'arrangement', 4_800_000, 'MAIIC Finance EIR assessment 2025', '2025-04-01');
+        DB::table('contract_fees')->where('id', $id)->update(['classification_status' => 'REVIEWED', 'integral' => true, 'cashflow_direction' => 'RECEIVED']);
+        $user = \App\Models\User::factory()->create();
+        $move = function (array $body) use ($id, $user) {
+            $this->actingAs($user);
+            $request = \Illuminate\Http\Request::create('/eir-fee-classification/fee/' . $id . '/move', 'POST', $body);
+            $request->setLaravelSession(app('session.store'));
+            $request->setUserResolver(fn () => $user);
+            app()->instance('request', $request);
+
+            return app(\App\Http\Controllers\EirFeeClassificationController::class)->moveFee($request, \App\Models\ContractFee::findOrFail($id));
+        };
+
+        DB::table('contract_eir')->where('contract_id', '900000000302')->update(['locked_at' => now(), 'calculation_status' => 'LOCKED']);
+        $move(['contract_id' => '900000000302', 'reason' => 'The rows carried each other fees.']);
+        $this->assertSame('900000000301', DB::table('contract_fees')->where('id', $id)->value('contract_id'), 'a locked EIR is reopened first');
+
+        DB::table('contract_eir')->where('contract_id', '900000000302')->update(['locked_at' => null, 'calculation_status' => 'PENDING']);
+        $move(['contract_id' => '900000000302', 'transaction_date' => '2025-06-19', 'reason' => 'The rows carried each other fees.']);
+        $fee = DB::table('contract_fees')->where('id', $id)->first();
+        $this->assertSame(['900000000302', '2025-06-19', 'PENDING', null], [$fee->contract_id, substr((string) $fee->transaction_date, 0, 10), $fee->classification_status, $fee->reviewed_by]);
+        $event = DB::table('eir_fee_classification_events')->where('contract_fee_id', $id)->where('action', 'REOPENED')->first();
+        $this->assertStringContainsString('Moved from loan 900000000301 to loan 900000000302, dated 2025-06-19 (was 2025-04-01)', $event->reason);
+    }
 }

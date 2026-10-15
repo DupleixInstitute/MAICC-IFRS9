@@ -18,9 +18,9 @@ class EirFeeClassificationController extends Controller
         $this->middleware('auth');
         // the list and the fee GL check are readable with eir.fees.import; classifying and reviewing stay with settings
         $this->middleware('permission:settings|eir.fees.import')->only('index');
-        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate', 'decideOverlap']);
+        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee']);
         // tying a held GL fee line to a loan is a governed, audit-logged act (spec 7.8.4)
-        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate', 'decideOverlap']);
+        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee']);
     }
 
     /**
@@ -113,6 +113,49 @@ class EirFeeClassificationController extends Controller
         }
 
         return back()->with('success', 'The fee line is tied to loan ' . ltrim(trim($data['contract_id']), '0') . '. It now waits on the list below for its classification and review.');
+    }
+
+    /**
+     * Move a fee line loaded against the wrong loan to the right one (for example a source file whose rows carried
+     * each other's fees), with the reason and, where the file had it wrong too, the right date. Neither loan's EIR
+     * may be locked: a locked EIR is reopened first, since its fees are part of it. The line goes back to PENDING,
+     * so it is classified and reviewed again on its new loan; the move is an event on the line and an audit entry,
+     * and the fee source precedence is applied again for both loans.
+     */
+    public function moveFee(Request $request, ContractFee $fee)
+    {
+        $data = $request->validate([
+            'contract_id' => ['required', 'string', 'max:60'],
+            'transaction_date' => ['nullable', 'date'],
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+        $target = \App\Support\ContractId::normalise($data['contract_id']);
+        if ($target === null || ! DB::table('contract_eir')->where('contract_id', $target)->exists()) {
+            return back()->withErrors(['contract_id' => "No loan {$data['contract_id']} in the contract master."]);
+        }
+        if ($target === $fee->contract_id && empty($data['transaction_date'])) {
+            return back()->withErrors(['contract_id' => 'The line is already on that loan.']);
+        }
+        $locked = DB::table('contract_eir')->whereIn('contract_id', [$fee->contract_id, $target])->whereNotNull('locked_at')->pluck('contract_id')->all();
+        if ($locked !== []) {
+            return back()->withErrors(['contract_id' => 'The EIR of ' . implode(' and ', $locked) . ' is locked, so its fee lines are part of it: request and approve its reopening first.']);
+        }
+        $from = $fee->contract_id;
+        $fromDate = $fee->transaction_date ? substr((string) $fee->transaction_date, 0, 10) : null;
+        $toDate = $data['transaction_date'] ?? $fromDate;
+        $reason = 'Moved from loan ' . $from . ' to loan ' . $target . ($toDate !== $fromDate ? ", dated {$toDate} (was " . ($fromDate ?? 'undated') . ')' : '') . ': ' . trim($data['reason']);
+        DB::transaction(function () use ($fee, $target, $toDate, $reason, $request) {
+            $fee->update(['contract_id' => $target, 'transaction_date' => $toDate, 'classification_status' => 'PENDING', 'integral' => null,
+                'classified_by' => null, 'classified_at' => null, 'reviewed_by' => null, 'reviewed_at' => null]);
+            EirFeeClassificationEvent::create(['contract_fee_id' => $fee->id, 'action' => 'REOPENED', 'integral' => null, // reopened for classification on its new loan
+                'reason' => mb_substr($reason, 0, 2000), 'performed_by' => (int) $request->user()->id]);
+        });
+        AuditLoggerService::log('EIR Fee Line Moved To Another Loan', ContractFee::class, $fee->id, [
+            'old_values' => ['contract_id' => $from, 'transaction_date' => $fromDate], 'new_values' => ['contract_id' => $target, 'transaction_date' => $toDate], 'meta' => ['reason' => trim($data['reason'])]]);
+        \App\Support\LedgerReadLimits::raise();
+        app(\App\Services\Eir\FeeSourcePrecedence::class)->apply((int) $request->user()->id);
+
+        return back()->with('success', "The fee line is moved from loan {$from} to loan {$target}. It is pending again: classify it and have a second person review it.");
     }
 
     /** The fee lines the screen's filters select (status, fee or cost type, GL, contract). */
