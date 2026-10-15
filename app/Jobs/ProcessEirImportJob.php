@@ -9,6 +9,9 @@ use App\Services\Eir\ContractTransactionImportService;
 use App\Services\Eir\DisbursementImportService;
 use App\Services\Eir\FeeImportService;
 use App\Services\Eir\FeeGlReconciliationService;
+use App\Services\Eir\FeeSourcePrecedence;
+use App\Services\Eir\FeeWorkbookTieOut;
+use App\Services\Ebanker\GlFeeBuildService;
 use App\Services\Eir\GlInterestImportService;
 use App\Services\Eir\ReferenceRateImportService;
 use App\Services\Eir\ScheduleImportService;
@@ -18,6 +21,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -51,6 +55,9 @@ class ProcessEirImportJob implements ShouldQueue
         ReferenceRateImportService $referenceRates,
         DisbursementImportService $disbursements,
         FeeGlReconciliationService $feeGl,
+        FeeWorkbookTieOut $tieOut,
+        GlFeeBuildService $glFees,
+        FeeSourcePrecedence $precedence,
     ): void {
         $import = Import::findOrFail($this->importId);
         $import->update(['status' => 'processing', 'started_at' => now()]);
@@ -71,10 +78,19 @@ class ProcessEirImportJob implements ShouldQueue
                 unset($transforms['disbursement_date']);
             }
             $read = $reader->read(Storage::path($this->storedPath), $this->importType, $this->mapping, $transforms);
+            if ($this->importType === 'fees') {
+                // Finance's fee workbook is proved against the GL fee postings first; a file that fails loads nothing
+                $tie = $tieOut->check($read['rows']);
+                if ($tie['status'] !== 'PASS') {
+                    $this->refuseFees($import, $exceptionPath, $tie);
+
+                    return;
+                }
+            }
             $result = match ($this->importType) {
                 'contract_master' => $master->import($read['rows']),
                 'schedule' => $schedules->import($read['rows']),
-                'fees' => $fees->import($read['rows']),
+                'fees' => $this->loadFees($read['rows'], $tie, $fees, $glFees, $precedence),
                 'contract_transactions' => $transactions->import($read['rows']),
                 'gl_interest' => $glInterest->import($read['rows']),
                 'reference_rates' => $referenceRates->import($read['rows'], importId: $import->id, userId: $this->userId ?? auth()->id()),
@@ -139,6 +155,57 @@ class ProcessEirImportJob implements ShouldQueue
      * already have been reconciled, is not a failure but it is not silent
      * either.
      */
+    /**
+     * Load the proved fee lines and tie each held GL posting a line accounts for
+     * to that line's loan (GlFeeBuildService::assignHeld, audited), all or nothing,
+     * then apply fee_source_precedence once more. What a person should still look
+     * at (a match on amount and date only, a difference within the band, a posting
+     * the system tied to another loan) goes to the exception file as notes.
+     */
+    private function loadFees(array $rows, array $tie, FeeImportService $fees, GlFeeBuildService $glFees, FeeSourcePrecedence $precedence): array
+    {
+        $user = (int) ($this->userId ?? auth()->id() ?? 0);
+
+        return DB::transaction(function () use ($rows, $tie, $fees, $glFees, $precedence, $user) {
+            $result = $fees->import($rows);
+            $tied = 0;
+            foreach ($tie['ties'] as $t) {
+                $glFees->assignHeld((int) $t['held_id'], (string) $t['contract_id'], $user,
+                    "Finance fee workbook {$this->originalName}, row {$t['row']}: the line accounts for this GL posting ({$t['posting']}, amount, GL and date)");
+                $tied++;
+            }
+            $result['precedence'] = array_diff_key($precedence->apply($user), ['exceptions' => 1]);
+            $notes = [];
+            foreach ($tie['lines'] as $l) {
+                $how = implode('; ', $l['how']);
+                if (str_contains($how, 'no name') || abs((float) ($l['difference'] ?? 0)) >= 0.01) {
+                    $notes[] = "Row {$l['row']}, loan {$l['contract_id']}, GL {$l['gl']}: {$how}" . (abs((float) ($l['difference'] ?? 0)) >= 0.01 ? ' (difference ' . number_format((float) $l['difference'], 2) . ', within the band)' : '');
+                }
+            }
+            foreach ($tie['conflicts'] as $c) {
+                $notes[] = "Row {$c['row']}, loan {$c['contract_id']}: {$c['note']}";
+            }
+            $result['notes'] = $notes;
+            $result['tie_out'] = ['status' => $tie['status'], 'lines' => count($tie['lines']), 'held_postings_tied' => $tied, 'conflicts' => count($tie['conflicts']), 'coverage' => $tie['coverage']];
+
+            return $result;
+        });
+    }
+
+    /** A fee file that does not tie to the GL: nothing loads; every reason is in the exception file. */
+    private function refuseFees(Import $import, string $path, array $tie): void
+    {
+        $rows = array_map(fn ($r) => ['scope' => $r['row'] === null ? 'file' : "row {$r['row']}" . ($r['contract_id'] ? " / {$r['contract_id']}" : ''),
+            'status' => 'refused', 'reason' => $r['reason']], $tie['refusals']);
+        foreach ($tie['conflicts'] as $c) {
+            $rows[] = ['scope' => "row {$c['row']} / {$c['contract_id']}", 'status' => 'notes', 'reason' => $c['note']];
+        }
+        $this->writeExceptionFile($path, $rows);
+        $import->update(['status' => 'failed', 'records' => 0, 'failed_records' => count($tie['refusals']), 'failed_file_path' => $path, 'completed_at' => now()]);
+        AuditLoggerService::log(action: 'EIR Fee Workbook Refused', entityType: 'Import', entityId: $import->id,
+            data: ['meta' => ['file' => $this->originalName, 'refusals' => count($tie['refusals']), 'first' => array_slice($tie['refusals'], 0, 5)]]);
+    }
+
     private function failureRows(array $result): array
     {
         $rows = [];

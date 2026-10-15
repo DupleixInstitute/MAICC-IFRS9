@@ -532,7 +532,7 @@ class ImportSpecs
     private const EIR_TITLES = [
         'contract_master' => ['contract master (Extract A)', 'One row per loan account with its contractual terms. Only the account number is required; each term found is stored and a term left blank does not overwrite one held.'],
         'schedule' => ['repayment schedules', 'One dated row per instalment of a contract: principal and interest due, and the fee due where there is one.'],
-        'fees' => ['fees', 'One row per fee charged on a contract. Fees are matched to the fee classification rules and wait for review before they enter the EIR.'],
+        'fees' => ['fees', "Finance's fee workbook: one row per fee received on a loan, with its date and GL. Before anything loads, the file is proved against the GL fee postings the system holds; a file that does not tie loads nothing. Fees are then matched to the fee classification rules and wait for review before they enter the EIR."],
         'contract_transactions' => ['contract transactions (Extract B)', 'Scheduled and actual cash flows per loan account. Scheduled rows become the remaining schedule; actual rows are kept as evidence.'],
         'gl_interest' => ['GL interest (Extract C)', 'The interest income the ledger posted per loan per month, for the GL reconciliation.'],
         'reference_rates' => ['reference rates (File C)', 'The dated reference-rate series (PLR) that floating loans reprice from.'],
@@ -541,7 +541,11 @@ class ImportSpecs
 
     private const EIR_STEPS = [
         'contract_transactions' => ['scheduled_actual_flag is Scheduled or Actual. Rows marked Scheduled are kept as the remaining schedule; rows marked Actual are kept as transaction evidence.'],
-        'fees' => ['fee_type is one of arrangement, legal, appraisal, default, levy or other; another value loads as other. cashflow_direction is RECEIVED or PAID.'],
+        'fees' => ['fee_type is one of arrangement, legal, appraisal, default, levy or other; another value loads as other. cashflow_direction is RECEIVED or PAID.',
+            'Give every fee its date (transaction_date). gl_account_ref names the fee GL (4871 legal, 4873 arrangement, 4874, 4875); arrangement and legal fees default to 4873 and 4871.',
+            "Each line must be accounted for by a GL fee posting: the same amount (within the recon_tolerance band) on its loan, its customer's name, or the same amount near the date; a fee posted in parts or with its corrections, or one posting paying two loans' fees, is recognised.",
+            'The file must be complete: in each month from its first to its last matched posting, every fee posting on those GLs must be in the file (a posting and its reversal cancel). Take-on loans are refused (their fees come from the take-on workbook), as are lines dated before the first GL fee posting held.',
+            "When the file ties, it loads, and each held posting a line accounts for is tied to that line's loan (recorded on Fee Classification). The exception file lists every refusal, every match on amount and date only, and every posting the system had tied to another loan."],
         'reference_rates' => ['Write dates year first (YYYY-MM-DD); dates must rise down the file. Rates are percentages between 1 and 100, such as 25.30.'],
         'disbursements' => ['One row per tranche, dates written year first (YYYY-MM-DD). Every amount must be above zero.'],
         'gl_interest' => ['period_month 1 to 12 is a month; 0 marks an annual summary row, which is kept out of the reconciliation.'],
@@ -551,7 +555,7 @@ class ImportSpecs
     private const EIR_VALUE_REQUIRED = [
         'contract_master' => ['contract_id'],
         'schedule' => ['contract_id', 'due_date'],
-        'fees' => ['contract_id', 'amount'],
+        'fees' => ['contract_id', 'amount', 'transaction_date'],
         'contract_transactions' => ['contract_id', 'transaction_date', 'scheduled_actual_flag'],
         'gl_interest' => ['contract_id', 'period_year', 'period_month'],
         'reference_rates' => ['effective_date', 'rate'],
