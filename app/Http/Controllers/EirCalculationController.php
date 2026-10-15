@@ -80,6 +80,8 @@ class EirCalculationController extends Controller
             'reopenRequests' => app(\App\Services\Eir\EirReopenRequestService::class)->pending(),
             // locked EIRs with fee evidence that was not in their inputs (EirLockReviewService, 15 October 2026)
             'lockReviews' => app(\App\Services\Eir\EirLockReviewService::class)->open(),
+            // the contracts readiness clears (no blocker), not yet calculated: "Calculate all ready" sends them in one go
+            'readyIds' => $this->readyIds(),
             'me' => $reviewerId,
         ]);
     }
@@ -95,6 +97,16 @@ class EirCalculationController extends Controller
         }
 
         return back()->with('success', 'The review flag is cleared, with the reason recorded.');
+    }
+
+    /** @return list<string> unlocked contracts not yet calculated whose readiness reports no blocker */
+    private function readyIds(): array
+    {
+        $readiness = app(\App\Services\Eir\EirReadinessService::class);
+
+        return ContractEir::query()->whereNull('locked_at')->whereIn('calculation_status', ['PENDING', 'BLOCKED', 'REOPENED'])->orderBy('contract_id')->get()
+            ->filter(fn (ContractEir $c) => array_diff(array_column($readiness->assessContract($c)['issues'] ?? [], 'code'), ['EIR_LOCKED']) === [])
+            ->pluck('contract_id')->values()->all();
     }
 
     public function calculate(Request $request)

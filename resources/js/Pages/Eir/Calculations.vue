@@ -8,6 +8,8 @@
     </template>
     <template #actions>
       <button v-if="selected.length && canCalculate" type="button" class="secondary-btn" @click="calculate">Calculate selected ({{ selected.length }})</button>
+      <button v-if="readyIds.length && canCalculate && !selected.length" type="button" class="secondary-btn" :disabled="calculatingReady"
+              title="Every contract whose readiness reports no blocker and that is not yet calculated" @click="calculateReady">{{ calculatingReady ? 'Calculating...' : `Calculate all ready (${readyIds.length})` }}</button>
       <button
         v-if="Number(approvalSummary.total || 0) > 0 && canCalculate"
         type="button"
@@ -203,13 +205,14 @@ export default {
     approvalSummary: { type: Object, default: () => ({}) },
     canReopen: { type: Boolean, default: false },
     canCalculate: { type: Boolean, default: false },
+    readyIds: { type: Array, default: () => [] },
     reopenRequests: { type: Array, default: () => [] },
     lockReviews: { type: Array, default: () => [] },
     me: { type: Number, default: null },
     errors: { type: Object, default: () => ({}) },
   },
   data() {
-    return {
+    return { calculatingReady: false,
       statuses: ['PENDING', 'REOPENED', 'BLOCKED', 'CALCULATED', 'LOCKED'],
       selected: [],
       bulkApproving: false,
@@ -279,6 +282,10 @@ export default {
     },
     go(url) {
       if (url) router.get(url, {}, { preserveState: false, preserveScroll: true })
+    },
+    calculateReady() {
+      this.calculatingReady = true
+      this.$inertia.post(this.route('eir-calculations.calculate'), { contract_ids: this.readyIds }, { preserveScroll: true, onFinish: () => { this.calculatingReady = false } })
     },
     calculate() {
       this.$inertia.post(this.route('eir-calculations.calculate'), { contract_ids: this.selected }, {
