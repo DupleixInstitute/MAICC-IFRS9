@@ -29,6 +29,8 @@ class InternalGradingController extends Controller
                 ->get(),
             'portfolios' => LoanPortfolio::select('id', 'name')->orderBy('name')->get(),
             'sectors' => IndustryType::select('code', 'name')->orderBy('name')->get(),
+            // Update loan book is offered only where the Governance Centre lets internal grades feed the PD (spec v4 section 17)
+            'pdFeedOn' => app(\App\Services\Ifrs9\SpBasisEclService::class)->feedOn(),
         ]);
     }
 
@@ -334,6 +336,10 @@ class InternalGradingController extends Controller
             $period  = Carbon::parse($validated['reporting_period'])->format('Y-m');
             $scope   = $validated['scope'];
 
+            // internal grades feed the engine's PD only where the Governance Centre says so (internal_grade_pd_feed, spec v4 section 17)
+            if (! app(\App\Services\Ifrs9\SpBasisEclService::class)->feedOn()) {
+                return back()->with('error', 'Internal grades do not write PDs to the loan book: they are a comparison only (S&P basis). Whether S&P rates should feed the PD is Dr Thom\'s decision D4 (Governance Centre, "Internal grades: may a profile write its PDs to the loan book?").');
+            }
             // Prevent active profile updates if needed
             if (! $profile->is_active) {
                 return back()->with('error', 'Profile must be active before updating loan books.');

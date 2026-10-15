@@ -65,9 +65,10 @@ class GovernanceServiceTest extends TestCase
         // plus fee_gl_reconciliation (11 Oct 2026, spec v4 section 7.4),
         // plus the three forward-looking module settings (13 Oct 2026, FLI module v1),
         // plus fee_source_precedence and takeon_eir_plausibility (14 Oct 2026, results review E2 and E3),
-        // plus fli_without_model (14 Oct 2026, FLI module D-F1 note).
-        $this->assertSame(62, GovernanceSetting::count());
-        $this->assertSame(62, GovernanceSetting::where('status', 'APPROVED')->count());
+        // plus fli_without_model (14 Oct 2026, FLI module D-F1 note),
+        // plus the four S&P basis settings and internal_grade_pd_feed (15 Oct 2026, spec v4 section 17).
+        $this->assertSame(67, GovernanceSetting::count());
+        $this->assertSame(67, GovernanceSetting::where('status', 'APPROVED')->count());
 
         foreach (GovernanceService::catalogue() as $key => $definition) {
             $this->assertSame($definition['default'], $this->service()->get($key), $key);
@@ -98,7 +99,7 @@ class GovernanceServiceTest extends TestCase
 
         // Running it again changes nothing: an approved MAIIC change is never overwritten.
         $this->seedGovernanceDefaults();
-        $this->assertSame(62, GovernanceSetting::count());
+        $this->assertSame(67, GovernanceSetting::count());
     }
 
     /** Audit finding H10: the generator resolves settings at origination, and MAIIC's earliest contract is March 2020. */

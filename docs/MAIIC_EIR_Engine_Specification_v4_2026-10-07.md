@@ -1775,7 +1775,38 @@ Not built:
 
 The 13 October bootstrap's September 2026 run shows 3,692 loans, K56.18 billion gross, a programme ECL of K45.78 billion and K2.29 billion written as MAIIC's 5 percent. None of it is a MAIIC approval.
 
-## 17. Glossary of the new terms
+## 17. The S&P basis: the December 2025 model's PD method as an alternative (added 15 October 2026)
+
+**Purpose.** MAIIC's December 2025 ECL model takes its PD from S&P's average cumulative default rates for emerging-market corporates (`PDs-S&P`), through an internal grade read from the arrears bracket. The system measures its PD from MAIIC's own defaults (section 14 and the results review, section 2.2). Whether S&P rates should feed the system at all, alone or blended with the measured rate, is Dr Thom's decision D4. Until he decides, the S&P basis runs the model's method on the system's data **beside** the booked figures, so the two can be compared loan by loan. It is an alternative, not an input: no engine, report, month-end record or golden number reads it.
+
+**Inputs.** The month's loan book (days past due, the system's stage, EAD, LGD, interest rate, maturity) and the active internal grading profile (the S&P grading of the December 2025 model, loaded by the bootstrap from `docs/bootstrap/models`, 8 grades with cumulative rates for 1 to 10 years). The loans are those the system measures in the main ECL: a loan with an LGD and an EAD in the month, the Mega Farm programme's loans excluded by the programme module's own definition (`MegaFarmEclService::loans`), since the programme is measured by its own module and, at MAIIC, by a separate model.
+
+**Method** (each choice a governed setting, seeded as the model has it, with the seed reason saying it is a technical default for the comparison and not a MAIIC approval):
+
+| Step | The December 2025 model | Setting | Options |
+|---|---|---|---|
+| Stage | The arrears bracket: 0 to 30 days Stage 1, 31 to 180 Stage 2, over 180 Stage 3 (`PortfolioReport!AP`, `ECLComp!P:R`) | `sp_basis_staging` | The model's bracket; the system's own stage |
+| Grade | From the same bracket: 0 to 30 days grade 3 (A), 31 to 90 grade 6 (B), 91 to 180 grade 8 (CCC), over 180 grade 10 (default) | `sp_basis_grades` | The model's map |
+| PD | Stage 1 the grade's one-year cumulative rate; Stage 2 its cumulative rate to maturity (whole years, at least one, at most the profile's longest tenor); Stage 3 100 percent (`ECLComp!AK:AR`) | - | - |
+| Forward-looking | PD x (1 + the forecast T-bill rate, 15.75 percent), capped at 100 percent (`TBRateForecasts` row 20; question D3) | `sp_basis_macro_factor` | T-bill 15.75 percent; NPL change 27.2 percent; none |
+| Recovery | The present value of 46.98 percent of EAD received 360 days out at the loan's rate, deducted from EAD before PD and LGD (`ECLComp!CB7`, `BE`, `BB`; counted twice with the collateral LGD, results review section 2.3) | `sp_basis_recovery` | The model's deduction; none |
+| EAD, LGD | The model's EAD (carrying amount plus off balance sheet) and collateral LGD | - | The system's own EAD and LGD (the system holds no security register for most loans, so the model's collateral LGD cannot be rebuilt) |
+| ECL | PD x LGD x (EAD - recovery), floored at nil, undiscounted | - | - |
+
+**Outputs.** `sp_basis_runs` (one per month and run: the profile, the settings used, the totals by stage on both bases, the notes) and `sp_basis_results` (one row per loan: days past due, the S&P stage, grade and rating, horizon, the S&P rate, the factor, the PD applied, LGD, EAD, the recovery deducted, the S&P basis ECL, and beside them the system's stage, 12-month PD and undiscounted ECL). A later run of a month is kept beside the earlier one; the screen shows the latest. Built by `SpBasisEclService`; `php artisan ifrs9:sp-basis 2025-12 2026-09`; screen Internal Grades > S&P basis ECL (`internal-grading.sp-basis`), running it needs the `settings` permission; every run is audit-logged. Refused, with the reason, when no profile is active, when the profile lacks a grade the bracket map needs, when a setting has no value in force, or when the month has no measured loan.
+
+**First runs, 15 October 2026 (production):**
+
+| Month | Loans | S&P basis ECL | Of which Stage 1 / 2 / 3 | System ECL, undiscounted |
+|---|---:|---:|---|---:|
+| December 2025 | 112 | 1,281.2 million | 1.2 / 400.7 / 879.4 | 4,633.4 million |
+| September 2026 | 98 | 4,536.3 million | 1.4 / 883.1 / 3,651.8 | 10,654.6 million |
+
+The model itself reported 488.5 million at December 2025 (Stage 1 1.4, Stage 2 63.1, Stage 3 424.0). The S&P basis on the system's data is higher mainly because it stages from E-Banker's days past due rather than the model's typed ageing (results review section 2.1) and uses the system's LGD rather than the collateral LGD; its Stage 1 (1.2 million) is close to the model's (1.4 million), since both apply grade A's 0.03 percent. The system's own ECL is higher again because its PD is measured from MAIIC's defaults (16.0 percent in Stage 1 at December 2025 against 0.035 percent).
+
+**Tests.** `SpBasisEclServiceTest`: the model's arithmetic for each stage (grade, horizon, factor, recovery), the options, the exclusions, the refusals, and that `loan_books` is left as it was.
+
+## 18. Glossary of the new terms
 
 - **Narration**: the text E-Banker writes on each posting. On an interest posting it states the period and the rate, which is how section 3.1 was proven.
 - **Stored loan book**: the table behind the printed Loan Book Report, one row per account per run.

@@ -8,6 +8,7 @@
         </template>
         <template #actions>
             <button type="button" class="secondary-btn" @click="openSp"><font-awesome-icon icon="upload" /> Import S&amp;P table</button>
+            <Link :href="route('internal-grading.sp-basis')" class="secondary-btn" title="The December 2025 model's PD method beside the system's ECL, for comparison only">S&amp;P basis ECL</Link>
             <button type="button" class="primary-btn" @click="openCreateProfile">New profile</button>
         </template>
 
@@ -44,7 +45,8 @@
                                         <i v-if="profile.is_active" class="fas fa-unlock text-maiic-600 dark:text-emerald-400"></i>
                                         <i v-else class="fas fa-lock text-red-600 dark:text-red-400"></i>
                                     </button>
-                                    <button v-if="profile.is_active" type="button" class="rounded bg-maiic-500 px-2 py-1 text-xs text-white hover:bg-maiic-600" title="Update the loan book with this profile's PDs" @click="openLoanBookModal(profile)">Update loan book</button>
+                                    <button v-if="profile.is_active && pdFeedOn" type="button" class="rounded bg-maiic-500 px-2 py-1 text-xs text-white hover:bg-maiic-600" title="Update the loan book with this profile's PDs" @click="openLoanBookModal(profile)">Update loan book</button>
+                                    <Link v-else-if="profile.is_active" :href="route('internal-grading.sp-basis')" class="rounded border border-maiic-300 px-2 py-1 text-xs text-maiic-700 hover:bg-maiic-50 dark:text-maiic-300" title="Internal grades are a comparison only: they do not write PDs to the loan book (Governance Centre)">S&amp;P basis</Link>
                                 </div>
                             </td>
                         </tr>
@@ -305,7 +307,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import GradesPdMatrix from './GradesPdMatrix.vue'
 import ImportSpecPanel from '@/Components/Imports/ImportSpecPanel.vue'
@@ -315,7 +317,8 @@ import '@fortawesome/fontawesome-free/css/all.css';
 defineProps(
     { profiles: Array,
         portfolios: Array,
-        sectors: Array
+        sectors: Array,
+        pdFeedOn: { type: Boolean, default: false },
     }
      )
 

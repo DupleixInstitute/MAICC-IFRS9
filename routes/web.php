@@ -1174,6 +1174,12 @@ Route::prefix('forecasting')->group(function () {
         Route::post('/internal-grading/import-sp', [InternalGradingController::class, 'importSp'])
             ->name('internal-grading.import-sp');
 
+        // The S&P basis: the December 2025 model's PD method beside the system's ECL, comparison only (spec v4 section 17)
+        Route::get('/internal-grading/sp-basis', [\App\Http\Controllers\SpBasisController::class, 'index'])
+            ->name('internal-grading.sp-basis');
+        Route::post('/internal-grading/sp-basis/run', [\App\Http\Controllers\SpBasisController::class, 'run'])
+            ->middleware('permission:settings')->name('internal-grading.sp-basis.run');
+
         // Grades + PD Curves per profile
         Route::get('/internal-grading/{profile}', [InternalGradingController::class, 'index'])
             ->name('internal-grading.grades');
@@ -1198,7 +1204,7 @@ Route::prefix('forecasting')->group(function () {
             ->name('internal-grading.profile.toggle');
 
         Route::post( '/internal-grading/loanbook/update-with-pd', [InternalGradingController::class, 'updateLoanBookWithPD'])
-            ->name('internal-grading.loanbook.updateWithPD');
+            ->middleware('permission:settings')->name('internal-grading.loanbook.updateWithPD');
         });
 
 // ============================================================================

@@ -361,6 +361,42 @@ class GovernanceService
                 'options' => ['10 percent month on month', '5 percent month on month', '20 percent month on month'],
                 'default' => '10 percent month on month',
             ],
+            // The S&P basis: an alternative ECL on the December 2025 model's method, for comparison only (spec v4 section 17, 15 October 2026)
+            'sp_basis_staging' => [
+                'label' => 'S&P basis: how a loan is staged',
+                'description' => 'The stage the S&P basis comparison uses. Under the seeded option it is the December 2025 model\'s: the arrears bracket of the days past due, 0 to 30 days Stage 1, 31 to 180 Stage 2, over 180 Stage 3 (PortfolioReport!AP, ECLComp!P:R). Under the other it is the system\'s own stage. The S&P basis is a comparison: it changes no booked figure.',
+                'options' => [\App\Services\Ifrs9\SpBasisEclService::STAGING_MODEL, \App\Services\Ifrs9\SpBasisEclService::STAGING_SYSTEM],
+                'default' => \App\Services\Ifrs9\SpBasisEclService::STAGING_MODEL,
+                'seed_reason' => \App\Services\Ifrs9\SpBasisEclService::SEED_REASON,
+            ],
+            'sp_basis_grades' => [
+                'label' => 'S&P basis: the grade for each arrears bracket',
+                'description' => 'The internal grade (and so the S&P rating and its cumulative default rates) given to a loan by its days past due, as the December 2025 model maps it: 0 to 30 days grade 3 (A), 31 to 90 grade 6 (B), 91 to 180 grade 8 (CCC), over 180 grade 10 (default). The grades are read from the active internal grading profile.',
+                'options' => [\App\Services\Ifrs9\SpBasisEclService::GRADES_MODEL],
+                'default' => \App\Services\Ifrs9\SpBasisEclService::GRADES_MODEL,
+                'seed_reason' => \App\Services\Ifrs9\SpBasisEclService::SEED_REASON,
+            ],
+            'sp_basis_macro_factor' => [
+                'label' => 'S&P basis: the forward-looking factor on the PD',
+                'description' => 'The December 2025 model multiplies every PD by one plus the forecast T-bill rate (TBRateForecasts row 20, 15.75 percent), not by the NPL-change row headed as the PD adjustment (27.2 percent); question D3 to Dr Thom. The options are those two and none. A PD is capped at 100 percent.',
+                'options' => [\App\Services\Ifrs9\SpBasisEclService::MACRO_TBILL, \App\Services\Ifrs9\SpBasisEclService::MACRO_NPL, \App\Services\Ifrs9\SpBasisEclService::MACRO_NONE],
+                'default' => \App\Services\Ifrs9\SpBasisEclService::MACRO_TBILL,
+                'seed_reason' => \App\Services\Ifrs9\SpBasisEclService::SEED_REASON,
+            ],
+            'internal_grade_pd_feed' => [
+                'label' => 'Internal grades: may a profile write its PDs to the loan book?',
+                'description' => 'The Update loan book action on Internal Grades writes an active profile\'s PDs over the loan book\'s PD before FLI, which the ECL engine reads. Under the seeded option it is switched off: internal grades (the S&P grading of the December 2025 model) are a comparison only, run on the S&P basis screen (spec v4 section 17), and the engine\'s PD stays the one measured from MAIIC\'s defaults. Whether S&P rates should feed the PD, alone or blended, is Dr Thom\'s decision D4; the other option turns the action on.',
+                'options' => [\App\Services\Ifrs9\SpBasisEclService::FEED_OFF, \App\Services\Ifrs9\SpBasisEclService::FEED_ON],
+                'default' => \App\Services\Ifrs9\SpBasisEclService::FEED_OFF,
+                'seed_reason' => 'Technical default, not a MAIIC approval: keeps the engine results as measured while the S&P basis is a comparison; decision D4 for Dr Thom (spec v4 section 17, 15 October 2026)',
+            ],
+            'sp_basis_recovery' => [
+                'label' => 'S&P basis: the model\'s typed recovery deduction',
+                'description' => 'The December 2025 model deducts the present value of 46.98 percent of EAD, received 360 days out and discounted at the loan\'s rate, from every loan before PD and LGD (ECLComp!CB7, BE, BB), although its LGD already counts collateral recoveries (results review section 2.3, question D3). Seeded as the model has it, so the S&P basis reproduces the model; the other option leaves it out.',
+                'options' => [\App\Services\Ifrs9\SpBasisEclService::RECOVERY_MODEL, \App\Services\Ifrs9\SpBasisEclService::RECOVERY_NONE],
+                'default' => \App\Services\Ifrs9\SpBasisEclService::RECOVERY_MODEL,
+                'seed_reason' => \App\Services\Ifrs9\SpBasisEclService::SEED_REASON,
+            ],
             'scenario_minimum_count' => [
                 'label' => 'Minimum scenarios in a set',
                 'description' => 'A scenario set cannot be proposed with fewer scenarios than this (spec v4 section 15.6). Three is the practice: a base, an upside and a downside.',
