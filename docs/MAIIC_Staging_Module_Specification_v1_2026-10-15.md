@@ -318,17 +318,17 @@ During user acceptance testing one administrator needs to move through the workf
 
 ## 11. Build order
 
-The work is done in four phases, in the order below, so that the parts that protect the locked months and unblock decisions are built first. The build is done on its own branch, and each phase is merged and released when all its sections are complete and confirmed (section 11.1). The sizes are Dupleix's estimates of the build.
+The work is done in four phases, in the order below. Governed staging comes first, because it is the purpose of this specification; the protection of locked months and UAT mode follow, then the fee rulebook control, then the rest of the governance record. The build is done on its own branch, and each phase is merged and released when all its sections are complete and confirmed (section 11.1). The sizes are Dupleix's estimates of the build.
 
 | Phase | Work | Sections | Acceptance | Size |
 |---|---|---|---|---|
-| **1. Protect the locked months, and UAT mode** | The no-back-dating rule: no change to a governed setting or rule takes effect inside a locked month except through reopen-and-restate with documents (decision S10). UAT mode: one maker-checker check for every workflow, the production guard, the UAT seeding, the self-approval label, the banner and the self-approvals report (decision S11). Both touch the governance service and share one release | 8.8 item 4, 8.9 | 18, 20 to 23 | About 2 to 2.5 days |
-| **2. Governed staging** | The settings, the presets and their seeding, with single-ladder staging as the default; `StagingService` reading every rule from the settings; `staging_dpd` beside `overdue_days`; the comparison run with its tables, command, panel, export and audit-workbook sheet; then, after the phase is merged and released, the comparison runs for December 2025 and September 2026 on MAIIC's server | 3, 4, 5, 6, 7 | 1 to 8 | About 3 days |
+| **1. Governed staging** | The settings, the presets and their seeding, with single-ladder staging as the default; `StagingService` reading every rule from the settings; `staging_dpd` beside `overdue_days`; the comparison run with its tables, command, panel, export and audit-workbook sheet; then, after the phase is merged and released, the comparison runs for December 2025 and September 2026 on MAIIC's server | 3, 4, 5, 6, 7 | 1 to 8 | About 3 days |
+| **2. Protect the locked months, and UAT mode** | The no-back-dating rule: no change to a governed setting or rule takes effect inside a locked month except through reopen-and-restate with documents (decision S10). UAT mode: one maker-checker check for every workflow, the production guard, the UAT seeding, the self-approval label, the banner and the self-approvals report (decision S11). Both touch the governance service and share one release | 8.8 item 4, 8.9 | 18, 20 to 23 | About 2 to 2.5 days |
 | **3. Fee rulebook control** | Second-person approval with a reason, reject and withdraw, switching a rule on or off as a proposal; then the re-approval of every rule the matcher uses (decision S9), so that the fee review can start on controlled rules | 8.6 (fee rulebook) | 14 | About half a day |
 | **4. The governance and audit record** | The Governance Centre change log (reject and withdraw, seeding entries, supporting documents on private storage, required evidence, history view, append-only chained log); the other approvals on the same log and document store, and the Approvals view; the run record, run numbers on result rows, run of record at lock, the two reports and re-performance | 8.1 to 8.5, 8.6, 8.7, 8.8 | 9 to 13, 15 to 17, 19 | About 5.5 days |
 | Later | Setting 9, once each loan's PD at origination is kept | 3 | | To be planned |
 
-The total is about 11 to 11.5 days of build. The first phase also brings UAT mode, so that once phase 1 is released, testing on MAIIC's server can run without waiting for a second person on each step; the first three phases, about 6 days, bring the protection of locked months, UAT mode, governed staging and the controlled fee rulebook. The fee rulebook joins the shared maker-checker check of UAT mode when phase 3 gives it maker-checker. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first merge, since every merge and release depends on the bootstrap passing.
+The total is about 11 to 11.5 days of build. Governed staging is merged and released after about 3 days; the protection of locked months and UAT mode about 2.5 days later, after which testing on MAIIC's server can run without waiting for a second person on each step; the controlled fee rulebook after about 6 days in all. Until phase 2 is released, a setting can still be back-dated into a locked month (section 8.8), so no governed change should be approved with an effective date inside a locked month in the meantime. The fee rulebook joins the shared maker-checker check of UAT mode when phase 3 gives it maker-checker. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first merge, since every merge and release depends on the bootstrap passing.
 
 ### 11.1 How the build is run
 
@@ -344,13 +344,13 @@ The total is about 11 to 11.5 days of build. The first phase also brings UAT mod
 
 | # | Section | Phase | Acceptance tests closed |
 |---|---|---|---|
-| 1 | 8.8 item 4: no back-dating into a locked month | 1 | 18 |
-| 2 | 8.9: UAT mode | 1 | 20 to 23 |
-| **M1** | **Merge and release phase 1** | 1 | 18, 20 to 23 re-run on the merged code |
-| 3 | 3: the settings and presets | 2 | 1 to 3, 7 |
-| 4 | 5: the separate staging day count, the RBM return on the directive's count | 2 | 6 |
-| 5 | 4: the staging comparison run | 2 | 4, 5 |
-| **M2** | **Merge and release phase 2**, then the comparison runs for December 2025 and September 2026 on MAIIC's server | 2 | 1 to 8 |
+| 1 | 3: the settings and presets | 1 | 1 to 3, 7 |
+| 2 | 5: the separate staging day count, the RBM return on the directive's count | 1 | 6 |
+| 3 | 4: the staging comparison run | 1 | 4, 5 |
+| **M1** | **Merge and release phase 1**, then the comparison runs for December 2025 and September 2026 on MAIIC's server | 1 | 1 to 8 |
+| 4 | 8.8 item 4: no back-dating into a locked month | 2 | 18 |
+| 5 | 8.9: UAT mode | 2 | 20 to 23 |
+| **M2** | **Merge and release phase 2** | 2 | 18, 20 to 23 re-run on the merged code |
 | 6 | 8.6: fee rulebook control, then the re-approval of the rules in use (decision S9) | 3 | 14 |
 | **M3** | **Merge and release phase 3** | 3 | 14 |
 | 7 | 8.1 to 8.5: the Governance Centre change log | 4 | 9 to 12 |
@@ -359,7 +359,7 @@ The total is about 11 to 11.5 days of build. The first phase also brings UAT mod
 | 10 | 8.8: the run record | 4 | 16, 17, 19 |
 | **M4** | **Merge and release phase 4**: all 23 acceptance tests, the full test suite and a bootstrap on a fresh database with the nine ties passing | 4 | All |
 
-**Why this way.** Each phase reaches MAIIC's server as soon as it is complete, so the protection of the locked months and UAT mode (phase 1), governed staging (phase 2) and the controlled fee rulebook (phase 3) are in use without waiting for the rest; and each merge is small enough to review on its own.
+**Why this way.** Each phase reaches MAIIC's server as soon as it is complete, so governed staging (phase 1), the protection of the locked months and UAT mode (phase 2) and the controlled fee rulebook (phase 3) are in use without waiting for the rest; and each merge is small enough to review on its own.
 
 ## 12. Glossary
 
