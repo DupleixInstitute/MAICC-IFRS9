@@ -107,6 +107,23 @@ trait CreatesGovernanceSchema
      *
      * @param array<string,string> $overrides
      */
+    /**
+     * A supporting document on a proposal, for a setting whose approval needs
+     * one (Staging Module Specification v1, section 8.3).
+     */
+    protected function attachEvidence(int $settingId, string $name = 'Board minute.pdf'): void
+    {
+        if (! Schema::hasTable('supporting_documents')) {
+            Schema::create('supporting_documents', function (Blueprint $t) {
+                $t->increments('id'); $t->string('documentable_type'); $t->unsignedBigInteger('documentable_id'); $t->string('disk')->default('local'); $t->string('path');
+                $t->string('original_name'); $t->string('mime_type')->nullable(); $t->unsignedBigInteger('size')->default(0); $t->string('extension')->nullable();
+                $t->string('document_type')->nullable(); $t->string('description')->nullable(); $t->string('hash')->nullable(); $t->unsignedBigInteger('uploaded_by')->nullable(); $t->timestamps(); $t->softDeletes();
+            });
+        }
+        DB::table('supporting_documents')->insert(['documentable_type' => \App\Models\GovernanceSetting::class, 'documentable_id' => $settingId, 'disk' => 'local', 'path' => 'governance-documents/' . $settingId . '/x.pdf',
+            'original_name' => $name, 'document_type' => 'minute', 'hash' => str_repeat('a', 64), 'created_at' => now(), 'updated_at' => now()]);
+    }
+
     protected function stageDirectiveAligned(array $overrides = []): void
     {
         $preset = $overrides === [] ? StagingPolicy::PRESET_DIRECTIVE : StagingPolicy::PRESET_CUSTOM;

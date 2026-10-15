@@ -732,6 +732,12 @@ Route::group(['prefix' => 'eir-governance', 'as' => 'eir-governance.'], function
     Route::post('/propose', [\App\Http\Controllers\EirGovernanceController::class, 'propose'])->name('propose');
     Route::post('/{setting}/approve', [\App\Http\Controllers\EirGovernanceController::class, 'approve'])->name('approve');
     Route::get('/self-approvals', [\App\Http\Controllers\EirGovernanceController::class, 'selfApprovals'])->name('self-approvals');
+    // the change log (Staging Module Specification v1, sections 8.2 to 8.4)
+    Route::post('/{setting}/review', [\App\Http\Controllers\EirGovernanceController::class, 'review'])->name('review');
+    Route::post('/{setting}/documents', [\App\Http\Controllers\EirGovernanceController::class, 'attachDocument'])->name('documents.attach');
+    Route::post('/documents/{document}/remove', [\App\Http\Controllers\EirGovernanceController::class, 'removeDocument'])->name('documents.remove');
+    Route::get('/documents/{document}', [\App\Http\Controllers\EirGovernanceController::class, 'openDocument'])->whereNumber('document')->name('documents.open');
+    Route::get('/history/{key}', [\App\Http\Controllers\EirGovernanceController::class, 'history'])->name('history');
 });
 
 // Manual authoring routes. MUST stay behind auth + settings permission:

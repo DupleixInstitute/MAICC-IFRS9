@@ -172,9 +172,13 @@
               <span class="font-semibold">{{ r.state === 'PROPOSED' ? 'Awaiting approval' : 'Approved, applies from ' + r.effective_from }}:</span> {{ $filters.plain(r.value) }}<span v-if="r.state === 'PROPOSED'"> from {{ r.effective_from }}</span>
               <div class="text-xs text-gray-600 dark:text-slate-300">Proposed by {{ r.proposer || 'unknown' }}<span v-if="r.approver">, approved by {{ r.approver }}</span>; <span class="italic">{{ r.reason }}</span></div>
             </div>
-            <button v-if="r.state === 'PROPOSED'" type="button" class="primary-btn" :disabled="!canApprove(r) || processing" :title="canApprove(r) ? 'Approve this change' : 'The person who proposed a change cannot approve it'" @click="approve(r)">Approve</button>
+            <div v-if="r.state === 'PROPOSED'" class="flex items-center gap-2">
+              <Link :href="route('eir-governance.history', detail.key)" class="secondary-btn" title="Attach documents, reject or withdraw">Documents, reject, withdraw</Link>
+              <button type="button" class="primary-btn" :disabled="!canApprove(r) || processing" :title="canApprove(r) ? 'Approve this change' : 'The person who proposed a change cannot approve it'" @click="approve(r)">Approve</button>
+            </div>
           </div>
         </div>
+        <div class="mt-3 text-right"><Link :href="route('eir-governance.history', detail.key)" class="text-xs text-sky-700 underline dark:text-sky-300">History of {{ detail.label }}: every change, the reasons and the documents</Link></div>
 
         <div class="mt-5">
           <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Every value of {{ detail.label }}</div>
@@ -254,6 +258,7 @@ import JetDialogModal from '@/Jetstream/DialogModal.vue'
 import JetModal from '@/Jetstream/Modal.vue'
 import Notice from '@/Components/Maiic/Notice.vue'
 import RowPager from '@/Components/Maiic/RowPager.vue'
+import { Link } from '@inertiajs/vue3'
 
 // Setting areas (display grouping only; the engine reads keys).
 const AREAS = [
@@ -289,7 +294,7 @@ const PALETTES = [
 const blank = (asOf) => ({ key: '', value: '', effective_from: asOf, reason: '' })
 
 export default {
-  components: { AppLayout, JetDialogModal, JetModal, Notice, RowPager },
+  components: { AppLayout, JetDialogModal, JetModal, Notice, RowPager, Link },
   props: {
     settings: Array,
     asOf: String,

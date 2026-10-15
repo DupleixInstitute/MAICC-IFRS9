@@ -779,6 +779,13 @@ class Bootstrap extends Command
         }
         $this->table(['Golden number / baseline', 'Expected', 'Actual', 'Result'], $rows);
         $this->note('7 verify', count($checks) . ' checks, ' . $failed . ' FAIL');
+        // the audit log as an unbroken chain (Staging Module Specification v1, section 8.5): a check of its own,
+        // beside the golden numbers, so the golden count does not change
+        $chain = \App\Support\AuditChain::verify();
+        $this->note('7 audit chain', $chain['intact']
+            ? "intact: {$chain['entries']} chained entries; append-only guard " . ($chain['guard'] ? 'installed' : 'not installed')
+            : "BROKEN at entry {$chain['first_broken']}: {$chain['reason']}");
+        $failed += $chain['intact'] ? 0 : 1;
 
         return $failed;
     }

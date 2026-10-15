@@ -108,6 +108,24 @@ class ComplianceAudits extends Command
             fclose($csv);
             $files[] = $name;
         }
+        // every governed change up to the period end, with its reasons, decisions and documents (Staging Module
+        // Specification v1, section 8.4): the history of each Governance Centre setting
+        if (\Illuminate\Support\Facades\Schema::hasTable('governance_settings')) {
+            $end = \Carbon\CarbonImmutable::parse($period . '-01')->endOfMonth()->toDateString();
+            $names = DB::table('users')->pluck('name', 'id');
+            $docs = \Illuminate\Support\Facades\Schema::hasTable('supporting_documents')
+                ? DB::table('supporting_documents')->where('documentable_type', \App\Models\GovernanceSetting::class)->get()->groupBy('documentable_id') : collect();
+            $name = "Governance changes to {$end}.csv";
+            $csv = fopen($tmp . '/' . $name, 'w');
+            fputcsv($csv, ['Setting', 'Change', 'Value', 'Effective from', 'Status', 'Proposed by', 'Reason', 'Approved by', 'Approved at', 'Rejected or withdrawn by', 'Why', 'Documents (SHA-256)']);
+            foreach (DB::table('governance_settings')->whereDate('created_at', '<=', $end)->orderBy('key')->orderBy('effective_from')->orderBy('id')->get() as $s) {
+                fputcsv($csv, [$s->key, $s->id, $s->value, substr((string) $s->effective_from, 0, 10), $s->status, $s->set_by ? ($names[$s->set_by] ?? $s->set_by) : 'installation', $s->reason,
+                    $s->approved_by ? ($names[$s->approved_by] ?? $s->approved_by) : null, $s->approved_at, ($s->reviewed_by ?? null) ? ($names[$s->reviewed_by] ?? $s->reviewed_by) : null, $s->review_reason ?? null,
+                    collect($docs->get($s->id, []))->map(fn ($d) => $d->original_name . ($d->deleted_at ? ' (removed)' : '') . ' ' . $d->hash)->implode('; ')]);
+            }
+            fclose($csv);
+            $files[] = $name;
+        }
         // the manifest
         $manifest = ['pack' => "MAIIC auditor's pack {$period}", 'built_at' => now()->toDateTimeString(), 'files' => []];
         foreach ($files as $f) {

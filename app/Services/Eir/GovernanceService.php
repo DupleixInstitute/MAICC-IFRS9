@@ -448,6 +448,7 @@ class GovernanceService
                 'description' => 'Which staging policy stages the book. Single-ladder staging is MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025): one ladder for every facility, 1 to 30 days Stage 1, 31 to 180 days Stage 2, 181 days and over Stage 3, on the bucket ageing with a matured loan counted from its maturity, with no missed-instalment trigger, no qualitative register and no probation. Directive-aligned staging follows the RBM directive and MAIIC\'s 2025 accounting policy: thresholds by facility term (short-term 91, medium and long-term 181), the oldest overdue instalment, the count from maturity, the schedule recount, 4 missed instalments, the qualitative register, and a cure that needs the arrears cleared and then 3 months. It is never in force until MAIIC adopts it: proposed here with the Board or Credit Committee decision and approved by a second person; nothing switches it on by date. Under a named policy the policy governs every staging rule; under Custom each staging setting below governs.',
                 'options' => [StagingPolicy::PRESET_SINGLE, StagingPolicy::PRESET_DIRECTIVE, StagingPolicy::PRESET_CUSTOM],
                 'default' => StagingPolicy::PRESET_SINGLE,
+                'evidence_required' => true,
                 'seed_reason' => 'Seeded as MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025), in force for every period until MAIIC adopts another by governed approval (Staging Module Specification v1, section 3).',
             ],
             'staging_threshold_profile' => [
@@ -455,6 +456,7 @@ class GovernanceService
                 'description' => 'The days past due at which a facility enters Stage 3. One threshold for every facility is MAIIC\'s staging policy as at 31 December 2025 (181 days, whatever the term). By facility term is the directive (section 10): 91 days for a short-term facility, 181 for a medium or long-term one, read from the approved staging_thresholds rows by tenor. The IFRS 9 presumption is 91 days for every facility (IFRS 9 B5.5.37). Read only under the Custom preset.',
                 'options' => [StagingPolicy::PROFILE_SINGLE, StagingPolicy::PROFILE_BY_TERM, StagingPolicy::PROFILE_IFRS9],
                 'default' => StagingPolicy::PROFILE_SINGLE,
+                'evidence_required' => true,
                 'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
             ],
             'stage2_threshold_medium_long' => [
@@ -462,6 +464,7 @@ class GovernanceService
                 'description' => 'The days past due at which a facility over 12 months enters Stage 2. 31 days is the IFRS 9 presumption (5.5.11) and MAIIC\'s staging policy as at 31 December 2025. 91 days is the directive\'s first medium and long-term class; it rebuts the 30-day presumption and needs documented evidence before it is approved. Read only under the Custom preset.',
                 'options' => [StagingPolicy::STAGE2_31, StagingPolicy::STAGE2_91],
                 'default' => StagingPolicy::STAGE2_31,
+                'evidence_required' => true,
                 'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
             ],
             'staging_mega_farm_term' => [
@@ -688,7 +691,7 @@ class GovernanceService
                 'description' => $definition['description'],
                 'effective_from' => $effective->toDateString(),
                 'set_by' => $userId,
-                'reason' => mb_substr($reason, 0, 500),
+                'reason' => $reason,
                 'status' => GovernanceSetting::STATUS_PROPOSED,
             ]);
 
@@ -728,6 +731,7 @@ class GovernanceService
                     : 'The person who proposed a change cannot approve it.');
             }
             $this->assertOverrideMayBeAllowed($setting->key, $setting->value);
+            $this->assertEvidence($setting);
             if ($override && (int) $setting->set_by === $approverId) {
                 \App\Support\MakerChecker::recordUse('Governance Centre setting', GovernanceSetting::class, $setting->id, $approverId);
             }
@@ -777,6 +781,7 @@ class GovernanceService
                 ],
             ]);
             $this->carryStagingPolicy($setting, $effective, $approverId);
+            $this->logPresetApplied($setting, $superseded, $approverId);
 
             return $setting->fresh();
         });
@@ -834,7 +839,7 @@ class GovernanceService
             ]);
         }
         $attributes = ['value' => $value, 'options' => $definition['options'], 'label' => $definition['label'], 'description' => $definition['description'],
-            'set_by' => $cause->set_by, 'approved_by' => $approverId, 'approved_at' => now(), 'reason' => mb_substr($reason, 0, 500), 'status' => GovernanceSetting::STATUS_APPROVED];
+            'set_by' => $cause->set_by, 'approved_by' => $approverId, 'approved_at' => now(), 'reason' => $reason, 'status' => GovernanceSetting::STATUS_APPROVED];
         if ($current !== null && $current->effective_from->toDateString() === $effective->toDateString()) {
             $current->update($attributes);
         } else {
@@ -996,7 +1001,7 @@ class GovernanceService
                 ]);
             }
             $attributes = ['value' => $value, 'options' => $definition['options'], 'label' => $definition['label'], 'description' => $definition['description'],
-                'set_by' => $userId, 'approved_by' => null, 'approved_at' => now(), 'reason' => mb_substr($reason, 0, 500), 'status' => GovernanceSetting::STATUS_APPROVED];
+                'set_by' => $userId, 'approved_by' => null, 'approved_at' => now(), 'reason' => $reason, 'status' => GovernanceSetting::STATUS_APPROVED];
             if ($current !== null && $current->effective_from->toDateString() === $today->toDateString()) {
                 $current->update($attributes);
                 $row = $current->fresh();
@@ -1012,6 +1017,92 @@ class GovernanceService
 
             return $row;
         });
+    }
+
+    /**
+     * Reject a proposal (Staging Module Specification v1, section 8.2): by a
+     * person other than its proposer, with a reason. It stays on record as
+     * REJECTED with its documents.
+     */
+    public function reject(int $settingId, int $userId, string $reason): GovernanceSetting
+    {
+        return $this->review($settingId, $userId, $reason, GovernanceSetting::STATUS_REJECTED);
+    }
+
+    /** Withdraw a proposal: by its proposer, with a reason. It stays on record as WITHDRAWN. */
+    public function withdraw(int $settingId, int $userId, string $reason): GovernanceSetting
+    {
+        return $this->review($settingId, $userId, $reason, GovernanceSetting::STATUS_WITHDRAWN);
+    }
+
+    private function review(int $settingId, int $userId, string $reason, string $status): GovernanceSetting
+    {
+        $reason = trim($reason);
+        if (mb_strlen($reason) < 10) {
+            throw new InvalidArgumentException(($status === GovernanceSetting::STATUS_REJECTED ? 'A rejection' : 'A withdrawal') . ' needs a specific reason of at least 10 characters.');
+        }
+
+        return DB::transaction(function () use ($settingId, $userId, $reason, $status) {
+            $setting = GovernanceSetting::query()->lockForUpdate()->findOrFail($settingId);
+            if ($setting->status !== GovernanceSetting::STATUS_PROPOSED) {
+                throw new LogicException('Only a proposed change can be ' . strtolower($status) . '.');
+            }
+            if ($status === GovernanceSetting::STATUS_WITHDRAWN && $setting->set_by !== null && (int) $setting->set_by !== $userId) {
+                throw new LogicException('Only the person who proposed the change can withdraw it; a second person rejects it instead.');
+            }
+            $setting->update(['status' => $status, 'reviewed_by' => $userId, 'reviewed_at' => now(), 'review_reason' => $reason]);
+            AuditLoggerService::log($status === GovernanceSetting::STATUS_REJECTED ? 'EIR Governance Setting Rejected' : 'EIR Governance Setting Withdrawn', GovernanceSetting::class, $setting->id, [
+                'new_values' => ['key' => $setting->key, 'value' => $setting->value, 'effective_from' => $setting->effective_from->toDateString(), 'reason' => $reason],
+                'meta' => ['user' => $userId, 'proposed_by' => $setting->set_by],
+            ]);
+
+            return $setting->fresh();
+        });
+    }
+
+    /** The settings whose approval needs at least one supporting document (section 8.3), from the catalogue. */
+    public static function evidenceRequired(string $key): bool
+    {
+        return (bool) (self::catalogue()[$key]['evidence_required'] ?? false);
+    }
+
+    private function assertEvidence(GovernanceSetting $setting): void
+    {
+        if (! self::evidenceRequired($setting->key)) {
+            return;
+        }
+        $documents = \Illuminate\Support\Facades\Schema::hasTable('supporting_documents')
+            ? \App\Models\SupportingDocument::query()->where('documentable_type', GovernanceSetting::class)->where('documentable_id', $setting->id)->count() : 0;
+        if ($documents === 0) {
+            throw new LogicException("A change to '{$setting->label}' needs a supporting document before it is approved: attach the minute, decision or analysis behind it (Staging Module Specification v1, section 8.3).");
+        }
+    }
+
+    /**
+     * A staging policy applied (section 8.2): one entry for the policy and one
+     * for each staging rule whose value it changes, all linked to the change.
+     */
+    private function logPresetApplied(GovernanceSetting $setting, ?GovernanceSetting $superseded, int $approverId): void
+    {
+        if ($setting->key !== StagingPolicy::PRESET || ! isset(StagingPolicy::PRESETS[$setting->value])) {
+            return;
+        }
+        $before = $superseded !== null && isset(StagingPolicy::PRESETS[$superseded->value]) ? StagingPolicy::PRESETS[$superseded->value] : [];
+        $after = StagingPolicy::PRESETS[$setting->value];
+        AuditLoggerService::log('Staging Preset Applied', GovernanceSetting::class, $setting->id, [
+            'old_values' => $superseded ? ['staging_preset' => $superseded->value] : null,
+            'new_values' => ['staging_preset' => $setting->value, 'effective_from' => $setting->effective_from->toDateString(), 'rules' => $after],
+            'meta' => ['user' => $approverId, 'change' => $setting->id],
+        ]);
+        foreach ($after as $key => $value) {
+            if (($before[$key] ?? null) !== $value) {
+                AuditLoggerService::log('Staging Rule Set By Preset', GovernanceSetting::class, $setting->id, [
+                    'old_values' => isset($before[$key]) ? [$key => $before[$key]] : null,
+                    'new_values' => [$key => $value, 'by_preset' => $setting->value, 'effective_from' => $setting->effective_from->toDateString()],
+                    'meta' => ['user' => $approverId, 'change' => $setting->id],
+                ]);
+            }
+        }
     }
 
     /** The production guard (section 8.9, item 2): the override cannot be allowed on a production server. */
@@ -1059,6 +1150,8 @@ class GovernanceService
         $effective = $row->effective_from->toDateString();
         $state = match (true) {
             $row->status === GovernanceSetting::STATUS_PROPOSED => 'PROPOSED',
+            $row->status === GovernanceSetting::STATUS_REJECTED => 'REJECTED',
+            $row->status === GovernanceSetting::STATUS_WITHDRAWN => 'WITHDRAWN',
             $inForce !== null && $row->id === $inForce->id => 'IN_FORCE',
             $effective > $asOf->toDateString() => 'UPCOMING',
             default => 'PAST',
