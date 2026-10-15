@@ -318,17 +318,45 @@ During user acceptance testing one administrator needs to move through the workf
 
 ## 11. Build order
 
-The work is done in four phases, so that the parts that protect the locked months and unblock decisions arrive first. Each phase is tested, released to MAIIC's server by the release steps of the integration document (section 2.2: push, pull, migrate, bootstrap with the nine ties passing) and only then followed by the next. The sizes are Dupleix's estimates of the build, before release.
+The work is done in four phases, in the order below, so that the parts that protect the locked months and unblock decisions are built first. The whole build is done on its own branch and merged once, when every section is complete and confirmed (section 11.1). The sizes are Dupleix's estimates of the build.
 
 | Phase | Work | Sections | Acceptance | Size |
 |---|---|---|---|---|
 | **1. Protect the locked months, and UAT mode** | The no-back-dating rule: no change to a governed setting or rule takes effect inside a locked month except through reopen-and-restate with documents (decision S10). UAT mode: one maker-checker check for every workflow, the production guard, the UAT seeding, the self-approval label, the banner and the self-approvals report (decision S11). Both touch the governance service and share one release | 8.8 item 4, 8.9 | 18, 20 to 23 | About 2 to 2.5 days |
-| **2. Governed staging** | The settings, the presets and their seeding, with single-ladder staging as the default; `StagingService` reading every rule from the settings; `staging_dpd` beside `overdue_days`; the comparison run with its tables, command, panel, export and audit-workbook sheet; then the comparison runs for December 2025 and September 2026 on MAIIC's server | 3, 4, 5, 6, 7 | 1 to 8 | About 3 days |
+| **2. Governed staging** | The settings, the presets and their seeding, with single-ladder staging as the default; `StagingService` reading every rule from the settings; `staging_dpd` beside `overdue_days`; the comparison run with its tables, command, panel, export and audit-workbook sheet; then the comparison runs for December 2025 and September 2026 on the branch's bootstrap database | 3, 4, 5, 6, 7 | 1 to 8 | About 3 days |
 | **3. Fee rulebook control** | Second-person approval with a reason, reject and withdraw, switching a rule on or off as a proposal; then the re-approval of every rule the matcher uses (decision S9), so that the fee review can start on controlled rules | 8.6 (fee rulebook) | 14 | About half a day |
 | **4. The governance and audit record** | The Governance Centre change log (reject and withdraw, seeding entries, supporting documents on private storage, required evidence, history view, append-only chained log); the other approvals on the same log and document store, and the Approvals view; the run record, run numbers on result rows, run of record at lock, the two reports and re-performance | 8.1 to 8.5, 8.6, 8.7, 8.8 | 9 to 13, 15 to 17, 19 | About 5.5 days |
 | Later | Setting 9, once each loan's PD at origination is kept | 3 | | To be planned |
 
-The total is about 11 to 11.5 days of build. The first phase now also brings UAT mode, so that testing can run on MAIIC's server without waiting for a second person on each step; the first three phases, about 6 days, bring the protection of locked months, UAT mode, governed staging and the controlled fee rulebook. The fee rulebook joins the shared maker-checker check of UAT mode when phase 3 gives it maker-checker. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first release, since each release depends on the bootstrap passing on MAIIC's server.
+The total is about 11 to 11.5 days of build. The first phase also brings UAT mode, so that once the build is released, testing on MAIIC's server can run without waiting for a second person on each step; the first three phases, about 6 days, bring the protection of locked months, UAT mode, governed staging and the controlled fee rulebook. The fee rulebook joins the shared maker-checker check of UAT mode when phase 3 gives it maker-checker. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the merge, since the merge and the release depend on the bootstrap passing.
+
+### 11.1 How the build is run: one branch, a confirmation at the start and end of each section
+
+**One branch.** The whole build is done on a branch of its own, `staging-governance`, taken from the main development branch (`eir_revenue_recognition`) when the build starts. Nothing from it reaches the main branch, `master` or MAIIC's server until the complete build is finished, tested and confirmed. The branch is pushed to the repository after each section so that the work is backed up and visible, but it is not merged. It is brought up to date with the main branch (rebased) at the start of each section, so that colleagues' work in the same files is taken in as it happens and the final merge is clean.
+
+**A confirmation before each section starts.** Before work on a section begins, Dupleix states what the section will build, the files it will change, the tests it will add and its estimated size, and waits for Edward's confirmation to start. A section can be deferred, reordered or narrowed at this point.
+
+**A confirmation when each section ends.** When a section is built, Dupleix reports what was built, the commits, the tests and their results, the bootstrap result on the branch (the nine golden ties), and anything found along the way that changes the plan, and waits for Edward's confirmation that the section is complete. Only then does the next section start. A section that is not confirmed is reworked on the branch.
+
+**The sections, in order.** Each row is one start-and-end confirmation:
+
+| # | Section | Phase | Acceptance tests closed |
+|---|---|---|---|
+| 1 | 8.8 item 4: no back-dating into a locked month | 1 | 18 |
+| 2 | 8.9: UAT mode | 1 | 20 to 23 |
+| 3 | 3: the settings and presets | 2 | 1 to 3, 7 |
+| 4 | 5: the separate staging day count, the RBM return on the directive's count | 2 | 6 |
+| 5 | 4: the staging comparison run | 2 | 4, 5 |
+| 6 | 8.6: fee rulebook control | 3 | 14 |
+| 7 | 8.1 to 8.5: the Governance Centre change log | 4 | 9 to 12 |
+| 8 | 8.6: the other approvals | 4 | 13 |
+| 9 | 8.7: the register of approvals | 4 | 15 |
+| 10 | 8.8: the run record | 4 | 16, 17, 19 |
+| 11 | The complete build: all 23 acceptance tests, the full test suite and a bootstrap on a fresh database with the nine ties passing | All | 8 and all |
+
+**The merge.** When section 11 is confirmed, the branch is rebased onto the main branch one last time, the full tests and the bootstrap are run again, and the complete build is merged into `eir_revenue_recognition` and `master` in one step, with a merge note listing every section, its confirmation and the decisions (section 9) it rests on. It is then released to MAIIC's server once, by the release steps of the integration document (section 2.2: push, pull, migrate, bootstrap with the nine ties passing).
+
+**What this means for the order.** Because nothing is merged until the end, the protections of phase 1 (no back-dating, UAT mode) and the fee rulebook control of phase 3 reach MAIIC's server with the complete build, not earlier. If one of them is needed sooner, it can be taken out of the branch as its own small merge, with Edward's confirmation, and the rest of the build continues on the branch.
 
 ## 12. Glossary
 
