@@ -635,15 +635,35 @@ class Ifrs9NoteService
             ->whereDate('effective_from', '<=', $asOf)
             ->orderBy('facility_class')->orderBy('min_tenor_months')->orderByDesc('effective_from')->get()
             ->unique(fn ($t) => $t->facility_class . '|' . $t->min_tenor_months);
-        $out = [];
+        // only the classes the staging policy in force reads (Staging Module Specification v1, section 3):
+        // the single-ladder and IFRS 9 profile rows are not thresholds of the by-term policy, nor the reverse
+        $policy = null;
+        $unread = null;
+        try {
+            if (! Schema::hasTable('governance_settings')) {
+                throw \App\Exceptions\GovernanceSettingMissingException::forKey(\App\Services\Eir\StagingPolicy::PRESET, $asOf);
+            }
+            $policy = \App\Services\Eir\StagingPolicy::at(new \App\Services\Eir\GovernanceService(), \Carbon\CarbonImmutable::parse($asOf));
+            $rows = $rows->whereIn('facility_class', $policy->thresholdClasses());
+        } catch (\App\Exceptions\GovernanceSettingMissingException $e) {
+            // a database without the staging settings lists every approved row, and the note says so; any other
+            // error is not hidden (review of 15 October 2026)
+            $unread = $e->getMessage();
+        }
+        $out = $unread === null ? [] : ['the staging policy in force at ' . $asOf . ' could not be read (' . rtrim($unread, '.') . '), so every approved threshold row is listed'];
         foreach ($rows as $t) {
+            $s2 = $policy === null ? (int) $t->stage2_dpd : $policy->stage2((int) $t->stage2_dpd, (int) $t->min_tenor_months, (int) $t->stage3_dpd);
+            $s2Long = $policy === null || (int) $t->min_tenor_months > 12 ? $s2 : $policy->stage2((int) $t->stage2_dpd, 13, (int) $t->stage3_dpd);
+            $s2Text = $s2Long === $s2 ? "{$s2} days past due" : "{$s2} days past due ({$s2Long} for facilities over 12 months)";
             $who = match (true) {
+                $t->facility_class === \App\Services\Eir\StagingPolicy::CLASS_SINGLE => 'every facility, whatever its term',
+                $t->facility_class === \App\Services\Eir\StagingPolicy::CLASS_IFRS9 => 'every facility',
                 $t->facility_class === 'DEFAULT' && (int) $t->min_tenor_months === 0 => 'short-term facilities (repayment within 12 months)',
                 $t->facility_class === 'DEFAULT' => 'medium- and long-term facilities (over ' . ((int) $t->min_tenor_months - 1) . ' months)',
                 $t->facility_class === 'MEGA_FARM' => 'Mega Farm programme facilities',
                 default => strtolower(str_replace('_', ' ', $t->facility_class)) . ' facilities' . ((int) $t->min_tenor_months > 0 ? ' (from ' . (int) $t->min_tenor_months . ' months)' : ''),
             };
-            $out[] = "{$who}: Stage 2 from {$t->stage2_dpd} days past due and Stage 3 from {$t->stage3_dpd} days";
+            $out[] = "{$who}: Stage 2 from {$s2Text} and Stage 3 from {$t->stage3_dpd} days";
         }
 
         return $out;

@@ -7,6 +7,7 @@ use App\Services\Eir\StagingClassifier;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 /**
@@ -17,6 +18,8 @@ use Tests\TestCase;
  */
 class StagingClassifierTest extends TestCase
 {
+    use CreatesGovernanceSchema;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -29,6 +32,9 @@ class StagingClassifierTest extends TestCase
         ]);
         DB::purge('sqlite');
         DB::reconnect('sqlite');
+        // the threshold row a facility is staged on follows the staging policy in force; these
+        // tests are of the by-term rows, so the directive-aligned policy (the seeded default is single-ladder)
+        $this->createGovernanceSchema(); $this->seedGovernanceDefaults(); $this->stageDirectiveAligned();
     }
 
     private function createTable(): void
@@ -143,27 +149,25 @@ class StagingClassifierTest extends TestCase
         $this->assertSame('2', $classifier->classify(['31_90_days' => '100'], 'LONG_TERM', 60));
     }
 
-    public function test_activated_long_term_rule_rebuts_thirty_dpd(): void
+    /**
+     * The rebuttal of the 30-day presumption for medium and long-term
+     * facilities is the governed Stage 2 setting (Staging Module Specification
+     * v1, setting 2), approved with its evidence, not a LONG_TERM row the
+     * policy does not read.
+     */
+    public function test_the_stage_2_setting_rebuts_thirty_dpd_for_medium_and_long_term_facilities(): void
     {
         $this->createTable();
         $this->seedDefault();
-        StagingThreshold::create([
-            'facility_class'   => 'LONG_TERM',
-            'min_tenor_months' => 36,
-            'stage2_dpd'       => 91,
-            'stage3_dpd'       => 181,
-            'rebuttal_basis'   => 'RBM directive — signed',
-            'effective_from'   => '2026-01-01',
-        ]);
+        $this->stageDirectiveAligned(['stage2_threshold_medium_long' => \App\Services\Eir\StagingPolicy::STAGE2_91]);
 
-        // 31-90 bucket: DEFAULT stages it 2; the active LONG_TERM rule
-        // (90-day backstop) keeps a long-tenor facility in stage 1.
+        // 31-90 bucket: a long-tenor facility stays in stage 1, 91 days moves it to 2
         $long = new StagingClassifier('2026-08-31');
-        $this->assertSame('1', $long->classify(['31_90_days' => '100'], 'LONG_TERM', 60));
-        $this->assertSame('2', $long->classify(['91_180_days' => '100'], 'LONG_TERM', 60));
+        $this->assertSame('1', $long->classify(['31_90_days' => '100'], null, 60));
+        $this->assertSame('2', $long->classify(['91_180_days' => '100'], null, 60));
 
-        // A short-tenor facility never picks up the LONG_TERM rule.
+        // a short-tenor facility keeps the 30-day presumption
         $short = new StagingClassifier('2026-08-31');
-        $this->assertSame('2', $short->classify(['31_90_days' => '100'], 'LONG_TERM', 12));
+        $this->assertSame('2', $short->classify(['31_90_days' => '100'], null, 12));
     }
 }

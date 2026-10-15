@@ -7,6 +7,7 @@ use App\Jobs\ProcessLoanImportJob;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Feature\Eir\Concerns\CreatesGovernanceSchema;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,8 @@ use Tests\TestCase;
  */
 class LoanReportImportStagingTest extends TestCase
 {
+    use CreatesGovernanceSchema;
+
     protected $seed = false;
 
     protected function setUp(): void
@@ -43,6 +46,9 @@ class LoanReportImportStagingTest extends TestCase
             $t->date('effective_from'); $t->string('status')->default('APPROVED'); $t->integer('proposed_by')->nullable(); $t->integer('approved_by')->nullable(); $t->timestamp('approved_at')->nullable(); $t->string('reason')->nullable(); $t->timestamps();
         });
         DB::table('loan_portfolios')->insert(['id' => 1, 'name' => 'MAIIC Agricultural']);
+        // the threshold row a facility is staged on follows the staging policy in force; these
+        // tests are of the by-term rows, so the directive-aligned policy (the seeded default is single-ladder)
+        $this->createGovernanceSchema(); $this->seedGovernanceDefaults(); $this->stageDirectiveAligned();
     }
 
     /** A Format 2 report row: serial, customer, -, contract, name, start, maturity, ..., the arrears buckets at 24, 25, 26 and 28. */

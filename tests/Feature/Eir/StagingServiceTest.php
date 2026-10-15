@@ -33,6 +33,8 @@ class StagingServiceTest extends TestCase
         DB::purge('sqlite'); DB::reconnect('sqlite');
         // the missed-instalment trigger is a governed value with no default in code (audit H11)
         $this->createGovernanceSchema(); $this->seedGovernanceDefaults();
+        // these tests are of the directive's mechanics; the seeded default is single-ladder staging
+        $this->stageDirectiveAligned();
         if (! Schema::hasTable('users')) { Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->timestamps(); }); }
         if (! Schema::hasTable('audit_logs')) Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });
         Schema::create('staging_thresholds', function (Blueprint $t) { $t->increments('id'); $t->string('facility_class'); $t->integer('min_tenor_months'); $t->integer('stage2_dpd'); $t->integer('stage3_dpd'); $t->text('rebuttal_basis')->nullable(); $t->string('approved_by')->nullable(); $t->date('approved_at')->nullable(); $t->date('effective_from'); $t->timestamps(); });
@@ -79,10 +81,14 @@ class StagingServiceTest extends TestCase
      * A Mega Farm account whose product group carries only its GL code (a book
      * built before the trial balance titles were read: "GL 1050302") is still
      * the programme: 100 days past due is Stage 3 on the directive's 91, not
-     * Stage 2 on the 181 of a medium-term facility (spec 3.6, D31).
+     * Stage 2 on the 181 of a medium-term facility (spec 3.6, D31), when the
+     * Mega Farm setting classes it as always short-term (Staging Module
+     * Specification v1, setting 3; the directive-aligned policy classes it by
+     * tenor, decision S3).
      */
     public function test_a_mega_farm_account_is_staged_on_its_gl_as_well_as_its_name(): void
     {
+        $this->stageDirectiveAligned(['staging_mega_farm_term' => \App\Services\Eir\StagingPolicy::MF_SHORT]);
         DB::table('loan_books')->insert([
             ['contract_id' => 'mf-by-gl', 'reporting_period' => '2025-12', 'product_group' => 'GL 1050302', 'product_code' => '1050302', 'tenor' => 36, 'overdue_days' => 100],
             ['contract_id' => 'maiic-36', 'reporting_period' => '2025-12', 'product_group' => 'MAIIC Agricultural Loans', 'product_code' => '1050101', 'tenor' => 36, 'overdue_days' => 100],
@@ -234,7 +240,7 @@ class StagingServiceTest extends TestCase
 
     public function test_a_cure_period_of_zero_months_releases_a_cured_loan_at_once(): void
     {
-        DB::table('governance_settings')->where('key', 'stage_cure_months')->update(['value' => '0 months (no probation)']);
+        $this->stageDirectiveAligned(['stage_cure_months' => '0 months (no probation)']);
         DB::table('loan_books')->insert(['contract_id' => 'cured', 'reporting_period' => '2025-09', 'tenor' => 36, 'overdue_days' => 200, 'ifrs9stage_pre_qualitative' => '3', 'ifrs9stage_post_qualitative' => '3']);
         DB::table('loan_books')->insert(['contract_id' => 'cured', 'reporting_period' => '2025-10', 'tenor' => 36, 'overdue_days' => 0]);
         $c = (new StagingService(new GovernanceService(), new LandingZoneReader()))->stage('2025-10', 1);

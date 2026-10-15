@@ -49,7 +49,7 @@ MAIIC has not adopted a new staging policy. The system should therefore stage th
 With the 31 December 2025 policy in force, the system will knowingly depart from the directive and from MAIIC's published policy in the ways below. Each is recorded in the Governance Centre against the setting that causes it, and each is measured by the comparison run every month:
 
 1. **Short-term facilities 91 to 180 days overdue stay in Stage 2.** The directive classes them substandard and IFRS 9 presumes default at 90 days; a short-term facility has no rebuttal.
-2. **Matured loans with an unpaid balance can read as current.** Bucket ageing takes E-Banker's report as it stands, and that report leaves the arrears empty on many matured loans. On the system's data, the Mega Farm bullet loans that matured in 2025 read 0 days on about 47 billion kwacha. The December workbooks had them in Stage 3 only because their own loan book had the arrears filled in.
+2. **Matured loans with an unpaid balance are counted from their maturity** (decided by Edward Mazibuko, 15 October 2026). Bucket ageing takes E-Banker's report as it stands, and that report leaves the arrears empty on many matured loans: on the system's data, the Mega Farm bullet loans that matured in 2025 read 0 days on about 47 billion kwacha. The December workbooks had them past due because their own loan book had the arrears filled in. The 31 December 2025 policy therefore counts a matured loan still owing from its maturity date when that is longer (setting 5), so the system reproduces the December result instead of reading those loans as current. On the bootstrap of 15 October 2026, leaving this count out would have taken the Mega Farm provision at September 2026 from about K44.7 billion to K0.09 billion. This is not a departure from the directive, which classifies by how long the amount has been overdue.
 3. **The missed-instalment default is not applied**, although MAIIC's 2025 financial statements (note 22.8.1) describe it as the policy.
 4. **Two proven E-Banker report defects are left uncorrected**: arrears aged from deleted instalment definitions, and collapsed schedules that show a paid-up loan as wholly overdue.
 5. **A loan leaves its stage on its first good month-end**, with no probation.
@@ -66,7 +66,7 @@ Each setting below is a Governance Centre setting with options, a default, a des
 | 2 | `stage2_threshold_medium_long`: where Stage 2 starts for medium and long-term facilities | 31 days · 91 days, with documented rebuttal evidence | 31 days | 31 days | Both policies keep IFRS 9's 30-day presumption. The 91-day option needs Dr Thom's decision O13 and documented evidence that late payment does not signal higher risk for this book |
 | 3 | `staging_mega_farm_term`: how Mega Farm loans are classed | Same threshold as every facility · By tenor · Always short-term (91) | Same threshold as every facility | By tenor | The directive classes by repayment period, and some Mega Farm loans run five years. "Always short-term" rests on the seasonal-finance argument, which Finance has not confirmed (spec v4, section 16) |
 | 4 | `dpd_basis`: how staging counts days past due | Bucket ageing of the overdue amounts · Oldest overdue instalment | Bucket ageing | Oldest overdue instalment | Exists today. Buckets cannot tell 200 days from 900. **This setting governs staging only; the RBM return always uses the directive's count (section 5)** |
-| 5 | `dpd_after_maturity`: a matured loan still owing | Core-system ageing only · Count from maturity when longer | Core-system ageing only | Count from maturity | Without the maturity count, matured bullet loans can read current (section 2.3, item 2) |
+| 5 | `dpd_after_maturity`: a matured loan still owing | Core-system ageing only · Count from maturity when longer | Count from maturity | Count from maturity | The December workbooks' loan book showed matured loans as past due; E-Banker's report leaves their arrears empty, so without the count they read current (section 2.3, item 2; decided 15 October 2026) |
 | 6 | `dpd_schedule_correction`: when the loan book report contradicts the schedule in force | Core-system report as given · Recount against the schedule in force and the ledger | Report as given | Recount | Corrects two proven E-Banker defects; every corrected row is flagged with the reason |
 | 7 | `stage3_missed_instalments`: default on missed payments | Not applied · 3 · 4 · 6 consecutive | Not applied | 4 consecutive | Exists today. MAIIC's published policy (2025 statements, note 22.8.1) is 4 |
 | 8 | `sicr_qualitative_register`: approved qualitative triggers | Not applied · Applied | Not applied | Applied | IFRS 9 B5.5.17 expects qualitative evidence beyond days past due. Only triggers approved on the register count |
@@ -109,6 +109,12 @@ The comparison run answers one question: *what would this month's stages and ECL
 
 A summary gives the count and carrying amount moving between each pair of stages, the ECL effect in total and by reason, and the effect on Stage 3 interest. It is on the Staging & SICR Rules screen, it can be exported, and it is shown on each month's audit workbook.
 
+**How the figures are worked out** (decided by Edward Mazibuko, 15 October 2026):
+
+- **The ECL effect is an estimate.** The booked ECL exists only at the booked stage, so a loan that moves is given the booked coverage of its new stage: the ECL over EAD of the loans booked in that stage in the same portfolio (or in the whole book, where the portfolio has none), applied to the loan's own EAD. A loan that does not move keeps its booked ECL. This shows the direction and size of the change; it is not a full ECL run, and nothing booked is affected by it.
+- **The cure reads the earlier months as booked.** The comparison answers what would change if the policy were adopted from the month compared, and months before adoption stay as booked.
+- **The day counts are exact.** The build keeps each loan's component counts (oldest overdue instalment and bucket ageing, each as reported and recounted, and the days since maturity), so any mix of settings is counted exactly, and the reason for a difference is never given to the wrong setting.
+
 **Uses.** It shows each month what adopting directive-aligned staging would change. It reproduces the December 2025 method on the system's data for comparison with the workbooks. And it lets a single setting be tested before it is proposed.
 
 ## 5. Staging and the RBM return stay separate
@@ -131,7 +137,7 @@ The RBM return classifies facilities under the directive's own bands: by term, o
 | Restructure register | Yes | Records the stage at the event |
 | IFRS 9 note and reports | Yes | By booked stage |
 | RBM return and RBM classification | **No** | Directive day count, always (section 5) |
-| Golden ties of the bootstrap | No | None of the nine reads the stage |
+| Golden numbers of the bootstrap | Yes, in part | The verify's 98 checks include the ECL by stage, the discounted allowance, the Mega Farm provision and the EIR revenue, which follow the stage; the ledger, take-on, GL and RBM ties do not. A change of staging policy moves the former, so the golden numbers are set again from the bootstrap of the merged phase once the policy is accepted |
 
 ## 7. Data and code
 
@@ -299,7 +305,7 @@ During user acceptance testing one administrator needs to move through the workf
 5. **Comparison.** The comparison run for December 2025 and for September 2026 lists every loan whose stage differs between the two presets, each with its reason and ECL effect, and its totals reconcile to the two stagings.
 6. **RBM return unchanged.** The RBM return for a month is identical whichever staging policy is in force.
 7. **No silent default.** Removing a staging setting for a month stops staging with a named error, as today.
-8. **Regression.** The bootstrap's nine golden ties still pass.
+8. **Regression.** On a fresh bootstrap every verify check that does not follow the stage still passes (ledger, take-on, GL and RBM ties); the checks that follow the stage (ECL, discounted allowance, Mega Farm provision, EIR revenue) move only as the comparison run explains, and are set again from that bootstrap once Edward accepts them (section 6).
 9. **Every change logged.** Seeding, proposing, adding or removing a document, approving, rejecting, withdrawing, applying a preset and using the override each write one audit entry with the fields of section 8.2, and the setting's History view shows them in order.
 10. **Required evidence.** A staging preset or a Stage 2 rebuttal cannot be approved without at least one supporting document; the refusal names what is missing.
 11. **Documents safe.** An uploaded document is stored outside the public web folder, cannot be opened without the governance permission, and a file altered on disk is reported as altered when opened.
@@ -336,9 +342,9 @@ The total is about 11 to 11.5 days of build. Governed staging is merged and rele
 
 **A confirmation before each section starts.** Before work on a section begins, Dupleix states what the section will build, the files it will change, the tests it will add and its estimated size, and waits for Edward's confirmation to start. A section can be deferred, reordered or narrowed at this point.
 
-**A confirmation when each section ends.** When a section is built, Dupleix reports what was built, the commits, the tests and their results, the bootstrap result on the branch (the nine golden ties), and anything found along the way that changes the plan, and waits for Edward's confirmation that the section is complete. Only then does the next section start. A section that is not confirmed is reworked on the branch.
+**A confirmation when each section ends.** When a section is built, Dupleix reports what was built, the commits, the tests and their results, the bootstrap result on the branch (the verify checks, section 6), and anything found along the way that changes the plan, and waits for Edward's confirmation that the section is complete. Only then does the next section start. A section that is not confirmed is reworked on the branch.
 
-**A merge at the end of each phase.** When every section of a phase is confirmed, the branch is rebased onto the main branch, the full test suite and a bootstrap on a fresh database are run (the nine ties must pass), and the phase is merged into `eir_revenue_recognition` and `master` with a merge note listing its sections, their confirmations and the decisions (section 9) they rest on. The phase is then released to MAIIC's server by the release steps of the integration document (section 2.2: push, pull, migrate, bootstrap with the nine ties passing). The next phase continues on the same branch, rebased onto the merged main branch.
+**A merge at the end of each phase.** When every section of a phase is confirmed, the branch is rebased onto the main branch, the full test suite and a bootstrap on a fresh database are run (the verify checks must pass, or move only as section 6 allows), and the phase is merged into `eir_revenue_recognition` and `master` with a merge note listing its sections, their confirmations and the decisions (section 9) they rest on. The phase is then released to MAIIC's server by the release steps of the integration document (section 2.2: push, pull, migrate, bootstrap with the verify checks passing). The next phase continues on the same branch, rebased onto the merged main branch.
 
 **The sections and merges, in order.** Each section row is one start-and-end confirmation; each merge row is one merge and release:
 
@@ -357,7 +363,7 @@ The total is about 11 to 11.5 days of build. Governed staging is merged and rele
 | 8 | 8.6: the other approvals | 4 | 13 |
 | 9 | 8.7: the register of approvals | 4 | 15 |
 | 10 | 8.8: the run record | 4 | 16, 17, 19 |
-| **M4** | **Merge and release phase 4**: all 23 acceptance tests, the full test suite and a bootstrap on a fresh database with the nine ties passing | 4 | All |
+| **M4** | **Merge and release phase 4**: all 23 acceptance tests, the full test suite and a bootstrap on a fresh database with the verify checks passing | 4 | All |
 
 **Why this way.** Each phase reaches MAIIC's server as soon as it is complete, so governed staging (phase 1), the protection of the locked months and UAT mode (phase 2) and the controlled fee rulebook (phase 3) are in use without waiting for the rest; and each merge is small enough to review on its own.
 

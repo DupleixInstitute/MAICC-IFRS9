@@ -14,8 +14,18 @@ use Throwable;
  * Stages a built loan book for a period (spec v4 section 3.6, decision D31;
  * engine step 3 of 6.10.1).
  *
+ * Every rule below is a governed setting, resolved as at the month-end by
+ * StagingPolicy (Staging Module Specification v1, section 3): the staging
+ * policy in force (staging_preset) sets them all, or under Custom each
+ * setting does. Single-ladder staging, MAIIC's staging policy as at 31
+ * December 2025, is the seeded default: one threshold of 181 days for every
+ * facility on the bucket ageing, with no missed-instalment trigger, no
+ * qualitative register and no probation. What follows describes the rules
+ * the directive-aligned policy turns on.
+ *
  * Two triggers, both governed:
- *   days past due    counted on the governed basis (dpd_basis) by the build
+ *   days past due    the staging count the build wrote (staging_dpd) under the
+ *                    staging settings, or derived from the row (section 5)
  *                    and compared with the staging_thresholds row for the
  *                    facility class and tenor: the directive's 91 days for
  *                    short-term and Mega Farm facilities, 181 for medium and
@@ -78,29 +88,81 @@ class StagingService
         if (! $dryRun) {
             \App\Support\ReportingPeriodLock::assertOpen($period, 'staging');
         }
+        // every rule as at the month-end, from the policy in force; a missing setting stops here (D21)
+        $policy = StagingPolicy::at($this->governance, CarbonImmutable::parse($period . '-01')->endOfMonth());
+        $e = $this->evaluate($period, $policy);
+        [$counts, $applied, $notEvaluated] = [$e['counts'], $e['applied'], $e['not_evaluated']];
+        $missedTrigger = $policy->missedInstalments();
+        if (! $dryRun) {
+            DB::transaction(function () use ($e, $period, $counts, $userId, $missedTrigger, $applied, $notEvaluated, $policy) {
+                foreach ($e['loans'] as $u) {
+                    DB::table('loan_books')->where('id', $u['id'])->update([
+                        'ifrs9stage_pre_qualitative' => (string) $u['pre'], 'ifrs9stage_post_qualitative' => (string) $u['stage'],
+                        'calculated_ifrs9_stage' => (string) $u['stage'], 'ifrs9_stage' => $u['stage'], 'sicr' => $u['sicr'],
+                    ]);
+                }
+                // the qualitative triggers each loan was staged under, by contract, for the audit trail
+                AuditLoggerService::log('Loan Book Staged', 'loan_books', null, ['reporting_period' => $period, 'rows_affected' => $counts['rows'],
+                    'new_values' => $counts + ['staging_policy' => $policy->toArray(), 'missed_instalment_trigger' => $missedTrigger, 'qualitative' => $applied, 'instalment_trigger_not_evaluated' => $notEvaluated], 'meta' => ['user' => $userId]]);
+            });
+        }
+
+        return $counts + ['staging_preset' => $policy->preset];
+    }
+
+    /**
+     * The stage of every loan of a month under a set of staging rules, written
+     * nowhere: stage() writes it under the rules in force, and the staging
+     * comparison (StagingComparisonService) reads it under any other. The cure
+     * reads the prior months as booked.
+     *
+     * @return array{loans:array<string,array{id:int,stage:int,pre:int,dpd:int,reason:?string,sicr:int}>,counts:array,applied:array,not_evaluated:array}
+     */
+    public function evaluate(string $period, StagingPolicy $policy): array
+    {
         $monthEnd = CarbonImmutable::parse($period . '-01')->endOfMonth();
-        $missedTrigger = $this->missedTrigger($monthEnd);
-        $cureMonths = $this->cureMonths($monthEnd);
+        $missedTrigger = $policy->missedInstalments();
+        $cureMonths = $policy->cureMonths();
+        $cureTest = $policy->cureTest();
+        $qualitativeApplied = $policy->qualitativeApplied();
+        // the staging day count the build wrote (section 5), where the table has it
+        $stagingCount = \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'staging_dpd');
+        $basisInForce = $policy->dpdBasisLabel();
         $rows = DB::table('loan_books')->where('reporting_period', $period)
-            ->get(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360']);
+            ->get(array_merge(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'], $stagingCount ? ['staging_dpd', 'staging_dpd_basis'] : [], \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'build_basis') ? ['build_basis'] : [], \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'due_date') ? ['due_date'] : []));
         $asOf = $monthEnd->toDateString();
         $customers = $rows->pluck('customer_id', 'contract_id')->map(fn ($c) => $c === null ? null : (string) $c)->all();
-        [$priorStage, $dpdHistory] = $this->priorMonths($period, $cureMonths, $customers);
-        $qualMap = $this->qualitative->mapAt($monthEnd->toDateString());
-        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0, 'instalments_no_chart' => 0, 'instalments_chart_contradicts_ledger' => 0];
+        [$priorStage, $dpdHistory] = $this->priorMonths($period, $cureMonths, $customers, $qualitativeApplied);
+        $qualMap = $qualitativeApplied ? $this->qualitative->mapAt($monthEnd->toDateString()) : [];
+        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0, 'instalments_no_chart' => 0, 'instalments_chart_contradicts_ledger' => 0, 'staging_dpd_derived' => 0];
         $applied = [];
         $notEvaluated = [];
-        $updates = [];
+        $loans = [];
         foreach ($rows as $r) {
             // the programme is known by its GL (1050301 to 1050307) as well as by its name:
             // a book built before the GL titles were read named it "GL 1050301" and was
             // staged at 181 days instead of the directive's 91
-            $class = (str_contains(strtolower((string) $r->product_group), 'mega') || in_array((string) $r->product_code, \App\Services\MegaFarm\MegaFarmEclService::GLS, true)) ? 'MEGA_FARM' : 'DEFAULT';
-            [$s2, $s3] = $this->thresholds($class, (int) $r->tenor, $monthEnd);
-            // the build counts days from the oldest overdue instalment; a row with no
-            // count (loaded by the report importer, or the Mega Farm book) ages by bucket
-            $dpd = self::daysPastDueOf($r);
-            if ($dpd > 0 && (int) $r->overdue_days === 0) { $counts['by_bucket']++; }
+            $megaFarm = str_contains(strtolower((string) $r->product_group), 'mega') || in_array((string) $r->product_code, \App\Services\MegaFarm\MegaFarmEclService::GLS, true);
+            [$s2, $s3] = $this->thresholds($policy, $megaFarm, (int) $r->tenor, $monthEnd);
+            // the staging day count (section 5): from the counts the build kept on the row, exact under
+            // any rules; else the build's staging_dpd when it was counted on the basis of these rules;
+            // otherwise (a row the report importer or the Mega Farm book loaded, or a book built before
+            // section 5) derived from the row on the governed basis, the bucket ageing or the build's
+            // directive count, and counted
+            $kept = is_string($r->build_basis ?? null) ? (json_decode($r->build_basis, true)['dpd_counts'] ?? null) : null;
+            if (is_array($kept) && count(array_intersect_key($kept, array_flip(['oldest', 'oldest_recounted', 'bucket', 'bucket_recounted', 'since_maturity']))) === 5) {
+                $dpd = $policy->stagingDays(array_map('intval', $kept));
+            } elseif ($stagingCount && $r->staging_dpd !== null && $r->staging_dpd_basis === $basisInForce) {
+                $dpd = (int) $r->staging_dpd;
+            } else {
+                $dpd = $policy->bucketBasis() ? self::bucketDays($r) : self::daysPastDueOf($r);
+                // a matured loan still owing, counted from its maturity when the rules say so and the row has a due date
+                if ($policy->value('dpd_after_maturity') === StagingPolicy::MATURITY_COUNT && ! empty($r->due_date) && (float) ($r->carrying_amount ?? 0) > 0.005 && (string) $r->due_date < $asOf) {
+                    $dpd = max($dpd, (int) CarbonImmutable::parse((string) $r->due_date)->diffInDays($monthEnd));
+                }
+                $counts['staging_dpd_derived']++;
+            }
+            if ($dpd > 0 && ($policy->bucketBasis() || (int) $r->overdue_days === 0)) { $counts['by_bucket']++; }
             $pre = $dpd >= $s3 ? 3 : ($dpd >= $s2 ? 2 : 1);
             $post = $pre;
             $reason = $pre > 1 ? 'dpd' : null;
@@ -123,7 +185,7 @@ class StagingService
                 }
             }
             // the qualitative triggers in force at the month-end (B5.5.17, Appendix A)
-            $qual = QualitativeSicrService::forLoan($qualMap, (string) $r->contract_id, $r->customer_id === null ? null : (string) $r->customer_id);
+            $qual = $qualitativeApplied ? QualitativeSicrService::forLoan($qualMap, (string) $r->contract_id, $r->customer_id === null ? null : (string) $r->customer_id) : ['stage' => 0, 'ids' => []];
             if ($qual['ids'] !== []) {
                 $applied[(string) $r->contract_id] = ['stage' => $qual['stage'], 'triggers' => $qual['ids']];
             }
@@ -135,18 +197,9 @@ class StagingService
             // been below the threshold for the governed number of consecutive
             // month-ends; this month counts, the prior months by their DPD stage
             $prior = $priorStage[$r->contract_id] ?? 0;
-            if ($cureMonths > 0 && $prior > $post) {
-                $below = 1;
-                foreach ($dpdHistory[$r->contract_id] ?? [] as $monthStage) {
-                    if ($monthStage === null || $monthStage >= $prior) {
-                        break;
-                    }
-                    $below++;
-                }
-                if ($below < $cureMonths) {
-                    $post = $prior;
-                    $reason = 'cure';
-                }
+            if ($prior > $post && $this->heldByCure($cureTest, $cureMonths, $r, $dpd, $dpdHistory[$r->contract_id] ?? [], $prior)) {
+                $post = $prior;
+                $reason = 'cure';
             }
             $counts['rows']++;
             $counts['stage' . $post]++;
@@ -155,24 +208,48 @@ class StagingService
             if ($reason === 'sicr') { $counts['by_sicr']++; }
             if ($reason === 'credit_impaired') { $counts['by_credit_impaired']++; }
             if ($reason === 'cure') { $counts['held_by_cure']++; }
-            $updates[] = ['id' => $r->id, 'pre' => (string) $pre, 'post' => (string) $post, 'sicr' => $qual['ids'] !== [] ? 1 : 0];
+            $loans[(string) $r->contract_id] = ['id' => (int) $r->id, 'stage' => $post, 'pre' => $pre, 'dpd' => $dpd, 'reason' => $reason, 'sicr' => $qual['ids'] !== [] ? 1 : 0];
         }
         $counts['qualitative_triggers'] = count(array_unique(array_merge([], ...array_column($applied, 'triggers'))));
-        if (! $dryRun) {
-            DB::transaction(function () use ($updates, $period, $counts, $userId, $missedTrigger, $applied, $notEvaluated) {
-                foreach ($updates as $u) {
-                    DB::table('loan_books')->where('id', $u['id'])->update([
-                        'ifrs9stage_pre_qualitative' => $u['pre'], 'ifrs9stage_post_qualitative' => $u['post'],
-                        'calculated_ifrs9_stage' => $u['post'], 'ifrs9_stage' => (int) $u['post'], 'sicr' => $u['sicr'],
-                    ]);
-                }
-                // the qualitative triggers each loan was staged under, by contract, for the audit trail
-                AuditLoggerService::log('Loan Book Staged', 'loan_books', null, ['reporting_period' => $period, 'rows_affected' => $counts['rows'],
-                    'new_values' => $counts + ['missed_instalment_trigger' => $missedTrigger, 'qualitative' => $applied, 'instalment_trigger_not_evaluated' => $notEvaluated], 'meta' => ['user' => $userId]]);
-            });
+
+        return ['loans' => $loans, 'counts' => $counts, 'applied' => $applied, 'not_evaluated' => $notEvaluated];
+    }
+
+    /**
+     * Whether a loan whose measured stage would move it down is held at its
+     * prior stage, under the governed cure test (stage_cure_test):
+     *   months below the threshold  held until it has been below the threshold
+     *                               for the cure months, this month included
+     *                               (0 months: it moves down at once)
+     *   all arrears cleared         held while anything is overdue (the
+     *                               directive, section 13(3))
+     *   arrears cleared, then the months  both
+     *
+     * @param list<?int> $history the prior month-ends' DPD stages, newest first
+     */
+    private function heldByCure(string $cureTest, int $cureMonths, object $r, int $dpd, array $history, int $prior): bool
+    {
+        if ($cureTest !== StagingPolicy::CURE_MONTHS && ! self::arrearsCleared($r, $dpd)) {
+            return true;
+        }
+        if ($cureTest === StagingPolicy::CURE_CLEARED || $cureMonths <= 0) {
+            return false;
+        }
+        $below = 1;
+        foreach ($history as $monthStage) {
+            if ($monthStage === null || $monthStage >= $prior) {
+                break;
+            }
+            $below++;
         }
 
-        return $counts;
+        return $below < $cureMonths;
+    }
+
+    /** Nothing overdue on the row: no days past due and every arrears bucket empty. */
+    private static function arrearsCleared(object $r, int $dpd): bool
+    {
+        return $dpd === 0 && self::bucketDays($r) === 0;
     }
 
     /**
@@ -183,7 +260,7 @@ class StagingService
      *
      * @return array{0:array<string,int>,1:array<string,list<?int>>}
      */
-    private function priorMonths(string $period, int $cureMonths, array $customers = []): array
+    private function priorMonths(string $period, int $cureMonths, array $customers = [], bool $qualitativeApplied = true): array
     {
         $priorPeriod = CarbonImmutable::parse($period . '-01')->subMonth();
         $prior = DB::table('loan_books')->where('reporting_period', $priorPeriod->format('Y-m'))->whereNotNull('ifrs9stage_post_qualitative')
@@ -203,7 +280,7 @@ class StagingService
         // a month-end a qualitative trigger covered counts at the stage the trigger implied
         $qualByMonth = [];
         foreach ($months as $m) {
-            $qualByMonth[$m] = $this->qualitative->mapAt(CarbonImmutable::parse($m . '-01')->endOfMonth()->toDateString());
+            $qualByMonth[$m] = $qualitativeApplied ? $this->qualitative->mapAt(CarbonImmutable::parse($m . '-01')->endOfMonth()->toDateString()) : [];
         }
         $history = [];
         foreach ($prior as $contract => $stage) {
@@ -220,15 +297,6 @@ class StagingService
         return [$prior, $history];
     }
 
-    private function cureMonths(CarbonImmutable $asOf): int
-    {
-        // no default in code (D21): the governed value or a named error
-        $v = $this->governance->get('stage_cure_months', $asOf);
-
-        return (int) (preg_match('/^(\d+)/', $v, $m) ? $m[1] : 0);
-    }
-
-    /** Lower bound of the highest non-empty arrears bucket; 0 = current. */
     /**
      * The days past due staging reads from a loan-book row: the build's count, or with no count
      * (a row loaded by the report importer, or the Mega Farm book) the lower bound of the highest
@@ -244,7 +312,8 @@ class StagingService
         return $dpd === 0 && ! $counted ? self::bucketDays($r) : $dpd;
     }
 
-    private static function bucketDays(object $r): int
+    /** Lower bound of the highest non-empty arrears bucket; 0 = current. Public so a comparison reads the bucket ageing staging reads. */
+    public static function bucketDays(object $r): int
     {
         foreach ([271 => 'arrears_271_to_360', 181 => 'arrears_180_to_270', 91 => 'arrears_91_to_180', 31 => 'arrears_30_to_90', 1 => 'arrears_1_to_30'] as $lower => $col) {
             $v = (float) str_replace(',', '', (string) ($r->{$col} ?? '0'));
@@ -256,23 +325,24 @@ class StagingService
         return 0;
     }
 
-    /** @return array{0:int,1:int} */
-    private function thresholds(string $class, int $tenorMonths, CarbonImmutable $asOf): array
+    /**
+     * The Stage 2 and Stage 3 thresholds of a facility under the policy in force:
+     * the staging_thresholds row of the profile's class, or by tenor, then the
+     * Stage 2 setting for medium and long-term facilities.
+     *
+     * @return array{0:int,1:int}
+     */
+    private function thresholds(StagingPolicy $policy, bool $megaFarm, int $tenorMonths, CarbonImmutable $asOf): array
     {
-        $t = StagingThreshold::forFacility($class, $tenorMonths, $asOf->toDateString());
+        [$class, $exact] = $policy->thresholdClass($megaFarm);
+        $t = StagingThreshold::forFacility($class, $tenorMonths, $asOf->toDateString(), $exact);
         if ($t === null) {
             // no silent default (D21): a month without a rule in force is an error to fix, not a 31/181 to assume
             throw new \RuntimeException("No staging threshold is in force for facility class '{$class}' (tenor {$tenorMonths} months)" . ($asOf ? " at {$asOf->toDateString()}" : '') . '. Seed or approve one on the Staging & SICR Rules screen.');
         }
 
-        return [(int) $t->stage2_dpd, (int) $t->stage3_dpd];
-    }
+        $s3 = (int) $t->stage3_dpd;
 
-    private function missedTrigger(CarbonImmutable $asOf): int
-    {
-        // no default in code (D21): the governed value or a named error
-        $v = $this->governance->get('stage3_missed_instalments', $asOf);
-
-        return (int) (preg_match('/^(\d+)/', $v, $m) ? $m[1] : 0);
+        return [$policy->stage2((int) $t->stage2_dpd, $tenorMonths, $s3), $s3];
     }
 }

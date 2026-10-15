@@ -46,8 +46,10 @@ class StagingThreshold extends Model
      * RBM-based 90-day long-tenor backstop) is seeded with a far-future
      * effective_from and only governs once that date is brought forward.
      */
-    public static function forFacility(?string $facilityClass, int $tenorMonths, string $asOf): ?self
+    public static function forFacility(?string $facilityClass, int $tenorMonths, string $asOf, bool $exact = false): ?self
     {
+        // $exact: only a row of the class itself; a threshold profile (SINGLE_LADDER,
+        // IFRS9_PRESUMPTION) never falls back to the by-term DEFAULT rows unnoticed
         // as at the period end, not today: a re-run of a past month keeps the
         // rules that governed it (D21; system audit of 9 October 2026, H11)
         $query = static::query();
@@ -56,7 +58,7 @@ class StagingThreshold extends Model
         }
 
         return $query
-            ->whereIn('facility_class', array_filter([$facilityClass, 'DEFAULT']))
+            ->whereIn('facility_class', $exact ? [$facilityClass] : array_filter([$facilityClass, 'DEFAULT']))
             ->where('min_tenor_months', '<=', $tenorMonths)
             ->whereDate('effective_from', '<=', $asOf)
             ->orderByRaw("facility_class = 'DEFAULT'")

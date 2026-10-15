@@ -140,6 +140,7 @@ return [
                 $tab('SICR Groups', 'sicr-groups.index'),
                 $tab('SICR Alert Items', 'sicr-items.index'),
                 $tab('SICR Trigger Alerts', 'sicr-triggers.index'),
+                $tab('Staging Comparison', 'staging-comparison.index'),
             ]),
             $section('PD Model', [
                 $tab('Transition Profiles', 'transition-profiles.index'),

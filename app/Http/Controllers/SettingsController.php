@@ -29,9 +29,18 @@ class SettingsController extends Controller
 
     /** Governed staging settings shown read only, with a one-line help each. */
     private const STAGING_GOVERNED = [
-        'dpd_basis' => 'Which date days past due are counted from when a month-end loan book is built.',
+        'staging_preset' => 'The staging policy in force. Under a named policy it sets every rule below; under Custom each setting below governs.',
+        'staging_threshold_profile' => 'The days past due at which a facility enters Stage 3: one threshold for all, by facility term, or the IFRS 9 90 days.',
+        'stage2_threshold_medium_long' => 'The days past due at which a facility over 12 months enters Stage 2.',
+        'staging_mega_farm_term' => 'Whether a Mega Farm loan is staged like any facility, by its tenor, or always as short-term.',
+        'dpd_basis' => 'How staging counts days past due: bucket ageing or the oldest overdue instalment. The RBM return always keeps the directive count.',
+        'dpd_after_maturity' => 'Whether a matured loan with a balance counts its days from maturity.',
+        'dpd_schedule_correction' => 'Whether the core system day count is recounted against the schedule in force.',
         'stage3_missed_instalments' => 'A loan that misses this many instalments in a row goes to Stage 3, whatever its days past due.',
+        'sicr_qualitative_register' => 'Whether the approved qualitative SICR register lifts the stage of a loan.',
+        'sicr_pd_change' => 'Whether a doubling of PD since origination moves a loan to Stage 2 (a later build).',
         'stage_cure_months' => 'How many month-ends a loan stays in its stage after it catches up, before it moves down.',
+        'stage_cure_test' => 'What a loan must do to move down a stage: months below the threshold, arrears cleared, or both.',
         'staging_rebuttal' => 'Whether the 30-day Stage 2 rule may be set aside for a loan, with evidence approved by a second person.',
     ];
 

@@ -28,17 +28,44 @@ class GovernanceSettingsSeeder extends Seeder
     public const EFFECTIVE_FROM = '1900-01-01';
     public const REASON = 'Dupleix recommended default (spec v3 section 8)';
 
+    /**
+     * The staging rules an existing database ran before the Staging Module
+     * (Staging Module Specification v1, section 3; review of 15 October 2026):
+     * thresholds by facility term with Mega Farm always short-term, the
+     * directive's count from the oldest overdue instalment with the count from
+     * maturity and the schedule recount, the qualitative register applied, and a
+     * cure by months below the threshold. The missed-instalment trigger and the
+     * cure months keep the values the database already holds.
+     */
+    public const STAGING_BEFORE_THE_MODULE = [
+        \App\Services\Eir\StagingPolicy::PRESET => \App\Services\Eir\StagingPolicy::PRESET_CUSTOM,
+        'staging_threshold_profile' => \App\Services\Eir\StagingPolicy::PROFILE_BY_TERM,
+        'stage2_threshold_medium_long' => \App\Services\Eir\StagingPolicy::STAGE2_31,
+        'staging_mega_farm_term' => \App\Services\Eir\StagingPolicy::MF_SHORT,
+        'dpd_after_maturity' => \App\Services\Eir\StagingPolicy::MATURITY_COUNT,
+        'dpd_schedule_correction' => \App\Services\Eir\StagingPolicy::SCHEDULE_RECOUNT,
+        'sicr_qualitative_register' => \App\Services\Eir\StagingPolicy::APPLIED,
+        'sicr_pd_change' => \App\Services\Eir\StagingPolicy::NOT_APPLIED,
+        'stage_cure_test' => \App\Services\Eir\StagingPolicy::CURE_MONTHS,
+    ];
+
+    public const EXISTING_REASON = 'Seeded on a database in use before the Staging Module (15 October 2026), at the staging rules it already ran (Custom), so nothing it stages changes and no locked month reads a rule it did not run on. Not a MAIIC decision: MAIIC adopts single-ladder or directive-aligned staging by a proposal, its supporting document and a second person\'s approval (Staging Module Specification v1, section 3.2).';
+
     public function run(): void
     {
         $seeded = 0;
+        // a database that staged before the Staging Module holds these settings already: it keeps its staging
+        // (a fresh install starts with single-ladder staging, the 31 December 2025 policy)
+        $existing = GovernanceSetting::where('key', 'stage3_missed_instalments')->exists();
         foreach (GovernanceService::catalogue() as $key => $definition) {
             if (GovernanceSetting::where('key', $key)->exists()) {
                 continue;
             }
+            $kept = $existing && array_key_exists($key, self::STAGING_BEFORE_THE_MODULE);
 
             GovernanceSetting::create([
                 'key' => $key,
-                'value' => $definition['default'],
+                'value' => $kept ? self::STAGING_BEFORE_THE_MODULE[$key] : $definition['default'],
                 'options' => $definition['options'],
                 'label' => $definition['label'],
                 'description' => $definition['description'],
@@ -47,7 +74,7 @@ class GovernanceSettingsSeeder extends Seeder
                 'approved_by' => null,
                 'approved_at' => now(),
                 // a technical default names itself as one, never as a MAIIC approval (fli_without_model, 14 October 2026)
-                'reason' => $definition['seed_reason'] ?? self::REASON,
+                'reason' => $kept ? self::EXISTING_REASON : ($definition['seed_reason'] ?? self::REASON),
                 'status' => GovernanceSetting::STATUS_APPROVED,
             ]);
             $seeded++;

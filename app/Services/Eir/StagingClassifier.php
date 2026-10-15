@@ -18,6 +18,13 @@ use RuntimeException;
  * 9 October 2026, H11). With no rule in force the import stops and names
  * what is missing: until 14 October 2026 it fell back to a ladder written
  * in code (stage 2 at 31 days, stage 3 at 181).
+ *
+ * Which row governs follows the staging policy in force at that date
+ * (StagingPolicy; Staging Module Specification v1, section 3), as
+ * StagingService reads it: the threshold profile and the Mega Farm class
+ * choose the row, and the Stage 2 setting for medium and long-term
+ * facilities applies. The import stages on days alone; eir:stage restages
+ * the book with the policy's other rules.
  */
 class StagingClassifier
 {
@@ -32,6 +39,9 @@ class StagingClassifier
 
     /** @var array<string, array{0:int,1:int}> the rule per class and tenor, read once per import */
     private array $cached = [];
+
+    /** The staging policy in force at $asOf, read on first use. */
+    private ?StagingPolicy $policy = null;
 
     /** @param string $asOf the reporting period end the rows are staged at (Y-m-d) */
     public function __construct(private readonly string $asOf)
@@ -81,12 +91,15 @@ class StagingClassifier
     {
         $key = ($facilityClass ?? 'DEFAULT') . '|' . $tenorMonths;
         if (! isset($this->cached[$key])) {
-            $rule = StagingThreshold::forFacility($facilityClass, $tenorMonths, $this->asOf);
+            $this->policy ??= StagingPolicy::at(new GovernanceService(), \Carbon\CarbonImmutable::parse($this->asOf));
+            [$class, $exact] = $this->policy->thresholdClass($facilityClass === StagingPolicy::CLASS_MEGA);
+            $rule = StagingThreshold::forFacility($class, $tenorMonths, $this->asOf, $exact);
             if ($rule === null) {
-                throw new \App\Exceptions\StagingRuleMissingException('No approved staging threshold is in force for facility class ' . ($facilityClass ?? 'DEFAULT')
+                throw new \App\Exceptions\StagingRuleMissingException('No approved staging threshold is in force for facility class ' . $class
                     . " (tenor {$tenorMonths} months) at {$this->asOf}. Approve one on Settings, Staging basis; the import does not assume 31 and 181 days.");
             }
-            $this->cached[$key] = [(int) $rule->stage2_dpd, (int) $rule->stage3_dpd];
+            $s3 = (int) $rule->stage3_dpd;
+            $this->cached[$key] = [$this->policy->stage2((int) $rule->stage2_dpd, $tenorMonths, $s3), $s3];
         }
 
         return $this->cached[$key];

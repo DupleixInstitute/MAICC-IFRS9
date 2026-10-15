@@ -93,6 +93,21 @@ class ComplianceAudits extends Command
         $ecl = DB::table('loan_books')->where('reporting_period', $period)->selectRaw('ifrs9stage_post_qualitative stage, count(*) loans, round(sum(carrying_amount), 2) carrying, round(sum(ecl_value), 2) ecl')->groupBy('ifrs9stage_post_qualitative')->get();
         file_put_contents($tmp . "/ECL by stage {$period}.json", json_encode($ecl, JSON_PRETTY_PRINT));
         $files[] = "ECL by stage {$period}.json";
+        // the latest staging comparison run of the period (Staging Module Specification v1, section 4): the stages
+        // and ECL under the other policy beside those booked, with the setting behind each difference
+        $run = \Illuminate\Support\Facades\Schema::hasTable('staging_comparison_runs')
+            ? DB::table('staging_comparison_runs')->where('reporting_period', $period)->orderByDesc('id')->first() : null;
+        if ($run !== null) {
+            $name = "Staging comparison {$period}.csv";
+            $csv = fopen($tmp . '/' . $name, 'w');
+            fputcsv($csv, ["Staging comparison run {$run->id} of {$run->created_at}: booked under '{$run->booked_preset}', compared with '{$run->compared_preset}'. Nothing booked was changed."]);
+            fputcsv($csv, ['Contract', 'Customer', 'Portfolio', 'Term (months)', 'Booked stage', 'Compared stage', 'Days (booked rules)', 'Days (compared rules)', 'Reason', 'Carrying amount', 'EAD', 'Booked ECL', 'Compared ECL', 'ECL effect', 'Stage 3 interest effect', 'RBM class']);
+            foreach (DB::table('staging_comparison_rows')->where('run_id', $run->id)->orderBy('contract_id')->get() as $r) {
+                fputcsv($csv, [$r->contract_id, $r->customer_name, $r->product_group, $r->tenor, $r->booked_stage, $r->compared_stage, $r->booked_dpd, $r->compared_dpd, $r->reason, $r->carrying_amount, $r->ead, $r->booked_ecl, $r->compared_ecl, $r->ecl_effect, $r->stage3_interest_effect, $r->rbm_class]);
+            }
+            fclose($csv);
+            $files[] = $name;
+        }
         // the manifest
         $manifest = ['pack' => "MAIIC auditor's pack {$period}", 'built_at' => now()->toDateTimeString(), 'files' => []];
         foreach ($files as $f) {

@@ -49,7 +49,7 @@ class SicrQualitativeTriggerTest extends TestCase
         $this->createSicrSchema();
         (new SicrQualitativeFactorsSeeder())->run();
         // the missed-instalment trigger is off here so the landing zone is not needed
-        DB::table('governance_settings')->where('key', 'stage3_missed_instalments')->update(['value' => '0 (off)']);
+        $this->stageDirectiveAligned(['stage3_missed_instalments' => 'Not applied']);
         $this->sicrItem = (int) DB::table('finance_sicr_items')->where('name', 'Breach of a financial covenant')->value('id');
         $this->impairedItem = (int) DB::table('finance_sicr_items')->where('name', 'Borrower in liquidation, receivership or administration')->value('id');
     }
@@ -129,7 +129,7 @@ class SicrQualitativeTriggerTest extends TestCase
             $this->loan('L2', $p, 0, 'C2');
             $this->loan('L4', $p, 0, 'C4');
         }
-        DB::table('governance_settings')->where('key', 'stage_cure_months')->update(['value' => '0 months (no probation)']);
+        $this->stageDirectiveAligned(['stage3_missed_instalments' => 'Not applied', 'stage_cure_months' => '0 months (no probation)']);
         $register = new QualitativeSicrService();
         // in force from 1 November to 30 November
         $register->approve($this->raise($this->sicrItem, 'L1', '2025-11-01', '2025-11-30'), 2);
