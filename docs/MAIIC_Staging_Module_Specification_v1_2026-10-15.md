@@ -254,6 +254,26 @@ The following closes those gaps.
 
 **The bootstrap.** Each bootstrap run also writes run records, labelled as bootstrap runs, so the regression check can compare a rebuilt month with the record of the previous rebuild.
 
+### 8.9 UAT mode: maker-checker relaxed for administrators, safely
+
+During user acceptance testing one administrator needs to move through the workflows without waiting for a second person each time, and at handover the two-person rule must be fully back on. The system already has the switch, but only part of the system honours it and nothing makes it safe to use.
+
+**What exists today.** The governed setting `maker_checker_admin_override` (*Not allowed*, the default, or *Allowed for administrators*) lets a user with the admin role approve their own proposal. Six workflows honour it: Governance Centre settings, the EIR lock, fee classification review, SICR triggers, rate resets and the restructure register. The other workflows of section 8.6 refuse a self-approval whatever the setting says, and the fee rulebook has no maker-checker at all until phase 3. The bootstrap approves its own steps under the label "System Bootstrap (automated data-readiness, not a MAIIC approval)", so checking the month-end results needs no human approvals; the override matters only for testing the screens and workflows themselves.
+
+**What is missing.** Switching the override on is itself a governed change and needs a second person the first time. Nothing stops it being left on in production. A self-approval is not marked as one. Nothing on screen shows that the two-person rule is relaxed.
+
+**What UAT mode adds:**
+
+| # | Piece | Why |
+|---|---|---|
+| 1 | **One maker-checker check for every workflow.** The Governance Centre and every workflow of section 8.6 use one shared check, and each honours the override in the same way | Today 6 of about 20 honour it |
+| 2 | **A server guard.** The override can work only when the server's environment file declares a non-production environment (for example `APP_ENV=uat`) **and** the governed setting allows it. Under a production environment it is refused whatever the setting says, and the option cannot be approved there | It cannot be left on, or switched on, in production |
+| 3 | **Seeded in UAT.** Installing the UAT environment seeds the override as allowed, labelled as seeded for UAT, so no second person is needed to start | Removes the first-switch problem |
+| 4 | **Every self-approval labelled.** The record and the audit entry say "UAT self-approval (administrator override)", with the override setting in force (the "Override used" event of section 8.2) | A test approval can always be told from a real one |
+| 5 | **A banner on every screen** while the override is in force: *"UAT mode: maker-checker relaxed for administrators"* | Nobody mistakes UAT for live use |
+| 6 | **A self-approvals report** of everything decided under the override, by workflow, person and date, exportable | Shows at handover exactly what was approved without a second person |
+| 7 | **Handover.** The production database starts clean, so UAT approvals never carry into it. If a UAT database were ever promoted to production, every item on the self-approvals report must be re-approved by two people first. Switching the override off is an ordinary governed change with a second person, recorded with the handover sign-off and its documents | The two-person rule is fully on from the first day of live use |
+
 ## 9. Decisions owed
 
 | Ref | Decision | Owner | Recommendation |
@@ -268,6 +288,7 @@ The following closes those gaps.
 | S8 | Which other approvals require a supporting document (section 8.6) | Dr Thom, with Finance and Credit | As marked in the tables of section 8.6 |
 | S9 | Whether a fee rule already approved by the person who wrote it must be approved again by a second person | Dr Thom | Yes: every rule the matcher uses is re-approved under maker-checker before the fee review starts |
 | S10 | Whether to apply the no-back-dating rule (section 8.8, item 4) ahead of the rest of this build | Dr Thom | Yes: it is a small change and protects the locked months now |
+| S11 | Which environments may use UAT mode, and who switches it off at handover | MAIIC ICT, with Dr Thom | The UAT environment only; the handover sign-off records the switch-off, approved by a second person |
 
 ## 10. Acceptance
 
@@ -290,6 +311,10 @@ The following closes those gaps.
 17. **Run of record.** Locking a month names the run whose figures were reported; a later rebuild of an unlocked month supersedes earlier runs and keeps them.
 18. **No back-dating.** A setting or rule change with an effective date inside a locked month is refused unless approved through reopen-and-restate with documents.
 19. **Re-performance.** Re-running a locked month from its snapshot reproduces its stored stages, ECL and revenue loan by loan, or names each difference.
+20. **One check.** Every workflow of section 8.6 and the Governance Centre honour the override through the same check; with the override not allowed, every one refuses a self-approval.
+21. **Production guard.** Under a production environment a self-approval is refused even with the setting allowed, and the allowing option cannot be approved.
+22. **Labelled.** Every approval made under the override carries the UAT self-approval label on the record and in the audit log, and appears on the self-approvals report; the banner shows on every screen while the override is in force.
+23. **Handover.** Switching the override off needs a second person; afterwards every workflow refuses a self-approval.
 
 ## 11. Build order
 
@@ -297,13 +322,13 @@ The work is done in four phases, so that the parts that protect the locked month
 
 | Phase | Work | Sections | Acceptance | Size |
 |---|---|---|---|---|
-| **1. Protect the locked months** | The no-back-dating rule: no change to a governed setting or rule takes effect inside a locked month except through reopen-and-restate with documents (decision S10) | 8.8, item 4 | 18 | About half a day |
+| **1. Protect the locked months, and UAT mode** | The no-back-dating rule: no change to a governed setting or rule takes effect inside a locked month except through reopen-and-restate with documents (decision S10). UAT mode: one maker-checker check for every workflow, the production guard, the UAT seeding, the self-approval label, the banner and the self-approvals report (decision S11). Both touch the governance service and share one release | 8.8 item 4, 8.9 | 18, 20 to 23 | About 2 to 2.5 days |
 | **2. Governed staging** | The settings, the presets and their seeding, with single-ladder staging as the default; `StagingService` reading every rule from the settings; `staging_dpd` beside `overdue_days`; the comparison run with its tables, command, panel, export and audit-workbook sheet; then the comparison runs for December 2025 and September 2026 on MAIIC's server | 3, 4, 5, 6, 7 | 1 to 8 | About 3 days |
 | **3. Fee rulebook control** | Second-person approval with a reason, reject and withdraw, switching a rule on or off as a proposal; then the re-approval of every rule the matcher uses (decision S9), so that the fee review can start on controlled rules | 8.6 (fee rulebook) | 14 | About half a day |
 | **4. The governance and audit record** | The Governance Centre change log (reject and withdraw, seeding entries, supporting documents on private storage, required evidence, history view, append-only chained log); the other approvals on the same log and document store, and the Approvals view; the run record, run numbers on result rows, run of record at lock, the two reports and re-performance | 8.1 to 8.5, 8.6, 8.7, 8.8 | 9 to 13, 15 to 17, 19 | About 5.5 days |
 | Later | Setting 9, once each loan's PD at origination is kept | 3 | | To be planned |
 
-The total is about 9.5 days of build, as before; the order brings the protection of locked months, governed staging and the controlled fee rulebook into the first four days. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first release, since each release depends on the bootstrap passing on MAIIC's server.
+The total is about 11 to 11.5 days of build. The first phase now also brings UAT mode, so that testing can run on MAIIC's server without waiting for a second person on each step; the first three phases, about 6 days, bring the protection of locked months, UAT mode, governed staging and the controlled fee rulebook. The fee rulebook joins the shared maker-checker check of UAT mode when phase 3 gives it maker-checker. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first release, since each release depends on the bootstrap passing on MAIIC's server.
 
 ## 12. Glossary
 
@@ -323,5 +348,6 @@ The total is about 9.5 days of build, as before; the order brings the protection
 | **Append-only** | A record that can be added to but never changed or deleted |
 | **Run record** | The frozen record of everything one month-end run used: settings, rules, models, data loads and code |
 | **Run of record** | The run whose figures were reported for a month, named when the month is locked |
+| **UAT mode** | The non-production setting in which administrators may approve their own proposals, every such approval labelled and reported, never possible in production |
 | **Re-performance** | Re-running a locked month from its run record to show the reported figures can be reproduced |
 | **Chain check** | A test that each audit entry still carries the fingerprint of the one before it, so that a changed or removed entry is found |
