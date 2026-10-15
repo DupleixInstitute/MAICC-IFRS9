@@ -1,0 +1,20 @@
+module.exports = async (L, p, log) => {
+  const F = 'C:/Users/DELL/AppData/Local/Temp/claude/c--xampp-htdocs-Stress-Testing-App/c9a0f915-2064-4f18-9b98-77857ef71421/scratchpad/uat/files/';
+  await L.goto(p, '/macro-statistics?tab=import');
+  const ex = await p.evaluate(() => { const a = [...document.querySelectorAll('a[href]')].find(a => /macro-statistics\/export/.test(a.href)); return a && a.getAttribute('href'); });
+  log('export', ex, ex && await L.fetchTo(p, ex, F + 'macro_export.csv'));
+  log('open', await L.clickText(p, 'Import', 'button')); await L.sleep(800);
+  const smp = await p.evaluate(() => { const a = [...document.querySelectorAll('a[href]')].find(a => /macro-series/.test(a.href)); return a && a.getAttribute('href'); });
+  log('sample', await L.fetchTo(p, smp, F + 'macro_sample.csv'));
+  const lines = L.fs.readFileSync(F + 'macro_export.csv', 'utf8').split(/\r?\n/); log('export lines', lines.length, lines[0], lines[1]);
+  await L.upload(p, F + 'macro_export.csv', 0);
+  L.resetLog(p);
+  log('preview', await L.clickText(p, 'Preview', 'button')); await L.idle(p, 2500);
+  log('previewText', await p.evaluate(() => { const d = [...document.querySelectorAll('div.text-xs')].find(d => /rows over/.test(d.textContent)); return d ? d.textContent.trim() : null; }));
+  log('err', await p.evaluate(() => { const d = [...document.querySelectorAll('div')].find(d => /could not be made/.test(d.textContent) && d.children.length < 4); return d ? d.innerText.replace(/\s+/g, ' ') : null; }));
+  await L.shot(p, 'B1i_macro_preview', false);
+  const imp = await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find(b => /^Import \d+ rows/.test(b.textContent.trim())); if (b) { b.click(); return b.textContent.trim(); } return null; });
+  log('import', imp); await L.idle(p, 3000);
+  log('flash', await L.flash(p)); log('bad', p._log.bad);
+  await L.shot(p, 'B1i_macro_import', false);
+};

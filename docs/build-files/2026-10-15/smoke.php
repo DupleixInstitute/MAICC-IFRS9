@@ -1,0 +1,21 @@
+<?php
+require 'vendor/autoload.php';
+$app = require 'bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+ini_set('memory_limit', '-1');
+echo 'DB ', DB::connection()->getDatabaseName(), "\n";
+$months = App\Services\Reports\Ifrs9NoteService::eclMonths();
+$def = App\Services\Reports\Ifrs9NoteService::defaultPeriods($months);
+echo 'note periods ', json_encode($def), "\n";
+[$o, $c] = [$def['opening'] ?? $def[0], $def['closing'] ?? $def[1]];
+$r = App\Services\Reports\Ifrs9NoteService::build($o, $c);
+echo 'status ', $r['status'], "\n";
+echo json_encode(array_diff_key($r['modifications'], ['message' => 1])), "\n", $r['modifications']['message'], "\n";
+$note = App\Services\Reports\Ifrs9NoteDocuments::build($r, 'k');
+$html = view('reports.ifrs9_note_pdf', ['note' => $note, 'company' => 'MAIIC', 'logo' => null, 'preparedOn' => 'now', 'preparedBy' => null])->render();
+echo 'pdf html has (h): ', str_contains($html, '(h) Modified financial assets') ? 'yes' : 'NO', "\n";
+App\Support\LedgerReadLimits::raise();
+$period = DB::table('loan_books')->whereNotNull('build_method')->max('reporting_period');
+$ret = app(App\Services\Rbm\RbmReturnService::class)->build($period);
+$d = $ret['sections']['D_restructured'];
+echo "RBM $period D: ", json_encode(array_diff_key($d, ['facilities' => 1, 'note' => 1])), ' facilities ', count($d['facilities']), "\n", $d['note'], "\n";

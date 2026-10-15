@@ -1,0 +1,24 @@
+'use strict';
+const puppeteer = require('C:/xampp/htdocs/MAICC-IFRS9/node_modules/puppeteer');
+(async () => {
+  const browser = await puppeteer.launch({ headless: 'new', timeout: 120000, args: ['--no-sandbox', '--disable-gpu'] });
+  const page = await browser.newPage();
+  page.on('pageerror', e => console.log('pageerror: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error') console.log('console ' + m.type() + ': ' + m.text()); });
+  page.on('response', r => { if (r.status() >= 400) console.log('http ' + r.status() + ' ' + r.url()); });
+  await page.goto('http://127.0.0.1:8097/login', { waitUntil: 'load', timeout: 120000 });
+  await page.waitForSelector('#password', { timeout: 120000 });
+  await page.type('#email', 'restructure.check@example.test');
+  await page.type('#password', 'Check-Restructure-2026');
+  if (await page.$('#captcha')) await page.type('#captcha', 'ABCDE');
+  await page.click('button[type=submit]');
+  await page.waitForFunction(() => !location.pathname.includes('login'), { timeout: 300000 });
+  console.log('logged in at', page.url());
+  const t = Date.now();
+  await page.goto('http://127.0.0.1:8097/eir-restructures', { waitUntil: 'load', timeout: 300000 });
+  await new Promise(r => setTimeout(r, 5000));
+  console.log('loaded in', Date.now() - t, 'ms', page.url());
+  const text = await page.evaluate(() => document.body.innerText.slice(0, 1500));
+  console.log(text);
+  await browser.close();
+})().catch(e => { console.error('ERR', e.message); process.exit(1); });

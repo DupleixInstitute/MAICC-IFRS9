@@ -1,0 +1,1 @@
+(() => { const tr=[...document.querySelectorAll('tr')].find(t=>/ZZ Audit/.test(t.innerText)); if(!tr) return 'row not found'; return [...tr.querySelectorAll('a,button')].map(b=>(b.getAttribute('title')||'')+'|'+b.tagName+'|'+(b.getAttribute('href')||'')); })()

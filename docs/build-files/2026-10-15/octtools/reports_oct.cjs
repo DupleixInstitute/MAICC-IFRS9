@@ -1,0 +1,13 @@
+const ui = require('./ui.cjs');
+(async () => { const { browser, page } = await ui.open('checker'); const out = {};
+  await ui.goto(page, '/ifrs9-reports/fs-disclosure?opening=2025-12&closing=2026-10'); let p = await ui.props(page);
+  out.note_oct = { opening: p.opening, closing: p.closing, error: p.error, has_note: !!p.note }; await ui.shot(page, 'A3_ifrs9_note_closing_2026-10_refused', false);
+  out.note_oct_dl = await page.evaluate(async () => { const r = await fetch('/ifrs9-reports/fs-disclosure?opening=2025-12&closing=2026-10&download=pdf'); return r.status; });
+  await ui.goto(page, '/ifrs9-reports/fs-disclosure?opening=2025-12&closing=2026-09'); p = await ui.props(page);
+  out.note_sep = { opening: p.opening, closing: p.closing, error: p.error, status: p.note && p.note.status, message: p.note && p.note.message };
+  await ui.goto(page, '/rbm-return?period=2026-10'); p = await ui.props(page);
+  out.rbm_oct = { period: p.period, error: p.error, has_return: !!p.return }; await ui.shot(page, 'A3_rbm_return_2026-10_refused', false);
+  out.rbm_oct_dl = await page.evaluate(async () => { const r = await fetch('/rbm-return/export?period=2026-10&format=pdf'); return r.status; });
+  await ui.goto(page, '/rbm-return?period=2026-09'); p = await ui.props(page);
+  out.rbm_sep = { error: p.error, has_return: !!p.return, keys: p.return ? Object.keys(p.return) : null };
+  console.log(JSON.stringify(out, null, 1)); await browser.close(); })();

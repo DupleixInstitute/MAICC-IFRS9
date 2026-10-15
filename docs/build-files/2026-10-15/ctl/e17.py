@@ -1,0 +1,3 @@
+from ed import edit
+edit('app/Http/Controllers/MaintenanceController.php', r"""'description' => 'In order: staging, the PD and LGD by segment, the forward-looking route with the scenario projection, the ECL and the month record, the EIR revenue, then the Mega Farm programme. It stops at the first step that cannot run and says why.',""",
+r"""'description' => 'In order: the scheme settings and the over-sanction flag, staging, the PD and LGD by segment, the forward-looking route with the scenario projection, the ECL and the month record, the actual cash from the ledger, the GL fee postings with the fee GL gate, the EIR revenue, then the Mega Farm programme. It stops at the first step that cannot run and says why.',""")
