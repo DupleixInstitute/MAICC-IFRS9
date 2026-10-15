@@ -113,24 +113,26 @@ return [
                 $tab('Reference Rates', 'eir-reference-rates.index', 'eir.view'),
                 $tab('Trial Balances', 'eir-trial-balances.index', 'eir.view'),
                 $tab('Write-offs', 'eir-write-offs.index', 'eir.view'),
-                $tab('Restructures & Resets', 'eir-restructures.index', 'eir.view'),
                 $tab('Schedule Review', 'eir-data.index', 'eir.view', ['tab' => 'schedules']),
             ]),
-            $section('EIR Rules', [
-                $tab('Accounting Rules', 'eir-accounting-rules.index', 'settings'),
-                // the fee importer reads the classification too (EirFeeClassificationController::index)
-                $tab('Fee Classification', 'eir-fee-classification.index', 'settings|eir.fees.import'),
-            ]),
+            // One job each (navigation review of 15 October 2026): an entry whose page holds
+            // several views has them as that page's own tabs, never a second row under a
+            // section's tab row.
+            $leaf('Restructures & Resets', 'eir-restructures.index', 'circle', false, 'eir.view'),
+            $leaf('Accounting Rules', 'eir-accounting-rules.index', 'circle', false, 'settings'),
+            // the fee importer reads the classification too (EirFeeClassificationController::index)
+            $leaf('Fee Classification', 'eir-fee-classification.index', 'circle', false, 'settings|eir.fees.import'),
             // One row: the calculations, the three views of what blocks the
-            // rest of the book, then the EIR as at a date and the GL check.
+            // rest of the book, then the EIR as at a date.
             $section('EIR Calculations', [
                 $tab('Calculations', 'eir-calculations.index', 'settings|eir.govern'),
                 $tab('Blockers', 'eir-coverage.index', 'eir.view', ['tab' => 'blockers']),
                 $tab('Coverage by Portfolio', 'eir-coverage.index', 'eir.view', ['tab' => 'portfolios']),
                 $tab('Largest Facilities', 'eir-coverage.index', 'eir.view', ['tab' => 'facilities']),
                 $tab('EIR as at a Date', 'eir-as-at.index', 'eir.view'),
-                $tab('GL Reconciliation', 'eir-reconciliation.index', 'eir.view'),
             ]),
+            // its own entry since 15 October 2026: the bridge and the facilities are its two tabs
+            $leaf('GL Reconciliation', 'eir-reconciliation.index', 'circle', false, 'eir.view'),
         ], 4),
 
         ['color' => '#C084FC', 'heading' => 'Financial modelling'] + $group('IFRS 9 Model Setup', 'chart-line', [

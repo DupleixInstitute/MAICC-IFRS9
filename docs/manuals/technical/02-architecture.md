@@ -45,7 +45,7 @@ Dashboard, Workspace and Reports carry no heading: they sit at the top of the si
 | Data foundation | Portfolio Setup | Section: Loan Portfolios, Product Groups, Sector Types |
 | Data foundation | Customer & Loan Data | Clients, Loan Book, and the section Imports & Feeds (Imports, E-Banker Loads, Loan Book Builds, Periods Built, Query Register, Take-on Blocks, Take-on Population) |
 | Data foundation | Collateral Management | Section: Collateral Register, Collateral Allocation, Collateral Types |
-| Financial modelling | EIR & Revenue Recognition | Section EIR Data (Contract Master, Cash Flows, Drawdowns, Reference Rates, Trial Balances, Write-offs, Restructures & Resets, Schedule Review), section EIR Rules (Accounting Rules, Fee Classification) and section EIR Calculations (Calculations, Blockers, Coverage by Portfolio, Largest Facilities, EIR as at a Date, GL Reconciliation) |
+| Financial modelling | EIR & Revenue Recognition | Section EIR Data (Contract Master, Cash Flows, Drawdowns, Reference Rates, Trial Balances, Write-offs, Schedule Review); entries Restructures & Resets, Accounting Rules and Fee Classification; section EIR Calculations (Calculations, Blockers, Coverage by Portfolio, Largest Facilities, EIR as at a Date); entry GL Reconciliation. A page with several views has one row of in-page tabs (PageTabs, kept in ?tab=), never a second row under a section's |
 | Financial modelling | IFRS 9 Model Setup | Sections Staging & SICR Rules, PD Model (including Internal Grades) and LGD Model |
 | Financial modelling | Forward-Looking Information | Sections FLI Month-End, Macro Statistics, Forward-Looking Model, Scenarios & Overlays (chapter 5.5) |
 | Risk & regulatory | ECL Processing | ECL Calculation, Mega Farm Programme |

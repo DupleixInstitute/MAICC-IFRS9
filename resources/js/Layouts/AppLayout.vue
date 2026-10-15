@@ -1,5 +1,6 @@
 <template>
-    <Head :title="title"/>
+    <!-- the tab title: the page's own, else its name in the menu (the last breadcrumb) -->
+    <Head :title="headTitle"/>
     <div>
         <TransitionRoot as="template" :show="sidebarOpen">
             <Dialog as="div" class="relative z-40 md:hidden" @close="sidebarOpen = false">
@@ -332,6 +333,11 @@ export default {
         extraCrumbs: { type: Array, default: () => [] },
     },
     computed: {
+        headTitle() {
+            if (this.title) return this.title
+            const crumbs = (this.$page.props.breadcrumbs && this.$page.props.breadcrumbs.crumbs) || []
+            return crumbs.length ? crumbs[crumbs.length - 1].label : ''
+        },
         section() {
             return currentSection(this.$page.props.menu)
         },

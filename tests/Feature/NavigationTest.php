@@ -157,14 +157,16 @@ class NavigationTest extends TestCase
      * the menu reads a '|' list as any one of them (documentation audit,
      * 14 October 2026).
      */
-    public function test_the_fee_classification_tab_shows_to_the_fee_importer(): void
+    public function test_the_fee_classification_entry_shows_to_the_fee_importer(): void
     {
         $tab = null;
         $this->walk(config('menu.admin'), function (array $item) use (&$tab) {
+            // its own entry since 15 October 2026 (it was a tab of EIR Rules)
+            if (($item['route'] ?? null) === 'eir-fee-classification.index' && empty($item['tabs'])) {
+                $tab = $item;
+            }
             foreach ($item['tabs'] ?? [] as $t) {
-                if ($t['route'] === 'eir-fee-classification.index') {
-                    $tab = $t;
-                }
+                $this->assertNotSame('eir-fee-classification.index', $t['route'], 'Fee Classification is one entry, not a tab of another');
             }
         });
         $this->assertNotNull($tab);

@@ -11,7 +11,7 @@
         A candidate is evidence that a loan's terms may have changed, never a confirmed restructure. Nothing here reaches the accounts until one person classifies it with a reason and a different person approves. The engine's suggestion is only a suggestion.
       </div>
 
-      <PageTabs v-model="current" :tabs="tabs" />
+      <PageTabs v-model="current" :tabs="tabs" query="tab" />
 
       <!-- the restructure register -->
       <template v-if="current === 'register'">
@@ -112,7 +112,10 @@
           </div>
           <div v-if="filteredEvents.length > 15" class="border-t border-gray-100 px-4 py-3 dark:border-slate-700"><ClientPager v-model="eventPage" :total="filteredEvents.length" /></div>
         </div>
+      </template>
 
+      <!-- the modifications the IFRS 9 note discloses: its own tab (navigation review of 15 October 2026) -->
+      <template v-else-if="current === 'note'">
         <div class="maiic-panel p-4">
           <h3 class="font-semibold text-gray-900 dark:text-slate-100">Modifications in the IFRS 9 note, {{ summary.disclosure_year }} (IFRS 7.35J and 7.20A)</h3>
           <p v-if="!disclosureCount" class="mt-1 text-sm text-gray-500">No confirmed modification has been booked in {{ summary.disclosure_year }}. A confirmed event is booked by the EIR revenue run of its month.<span v-if="summary.disclosures.pending"> {{ summary.disclosures.pending }} confirmed event(s) await that run.</span><span v-if="summary.disclosures.blocked"> {{ summary.disclosures.blocked }} could not be booked; the reason is on the row.</span></p>
@@ -286,6 +289,7 @@ const props = defineProps({
 const current = ref(props.tab)
 const tabs = computed(() => [
   { key: 'register', label: 'Restructure register', count: props.events.length },
+  { key: 'note', label: 'IFRS 9 note', count: null },
   { key: 'resets', label: 'Rate resets', count: props.resets.length },
 ])
 const sourceLabels = { CHART_REPLACED: 'Chart regenerated', CHART_COPY: 'Dated copies of the chart', MODIFICATION_LOG: 'MODIFICATION_LOG edit', RATE_CHANGE: 'Rate change', OPENING_BAL: 'Migration worksheet (CV_10)' }

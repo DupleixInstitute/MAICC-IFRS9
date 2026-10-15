@@ -114,6 +114,10 @@
           </div>
         </div>
 
+        <!-- one tab row (navigation review of 15 October 2026): the bridge and why the ledger differs, then the facilities -->
+        <PageTabs v-model="view" :tabs="viewTabs" query="tab" />
+        <template v-if="view === 'bridge'">
+
         <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
           <div class="border-b border-gray-200 p-4">
             <h3 class="font-semibold text-gray-900">Variance bridge, {{ period }}</h3>
@@ -177,8 +181,9 @@
             measures the ledger's basis rather than any EIR yield uplift.
           </p>
         </div>
+        </template>
 
-        <div class="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div v-else class="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 p-4">
             <h3 class="font-semibold text-gray-900">Facilities</h3>
             <p class="text-xs text-gray-500">
@@ -257,6 +262,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import BackToReports from '@/Pages/Reports/Partials/BackToReports.vue'
 import DownloadButton from '@/Pages/Reports/Partials/DownloadButton.vue'
 import RowPager from '@/Components/Maiic/RowPager.vue'
+import PageTabs from '@/Components/Maiic/PageTabs.vue'
 
 const props = defineProps({
   period: { type: String, default: null },
@@ -356,6 +362,11 @@ const sortedRows = computed(() => [...props.rows].sort((a, b) => {
 }))
 // fifteen facilities a page, like every other list
 const facilityPage = ref(1)
+const view = ref('bridge')
+const viewTabs = computed(() => [
+  { key: 'bridge', label: 'Variance bridge' },
+  { key: 'facilities', label: 'Facilities', count: props.rows.length },
+])
 const pagedRows = computed(() => sortedRows.value.slice((facilityPage.value - 1) * 15, facilityPage.value * 15))
 
 function toneFor (v) {
