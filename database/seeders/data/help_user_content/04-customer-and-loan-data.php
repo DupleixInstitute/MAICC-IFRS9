@@ -154,11 +154,11 @@ return [
         ],
 
         'Client files, notes and the client menu' => [
-            'body' => '<p>Each client has a set of supporting pages kept from the credit origination screens: files, notes, shareholders, financial statements, ratio and Porter analyses, loan applications and portal logins. They are not used by the IFRS 9 calculations. Reach them from the client page: open <b>Clients</b>, press the green eye on a client, then press <b>Files</b>. The Files page shows the <b>client menu</b> on the left, from which the other pages open. Each entry, and each button on those pages, is shown only if your role holds its permission.</p>'
+            'body' => '<p>Each client has two supporting pages kept from the credit origination screens: files and notes. (The other pages of those screens, shareholders, financial statements, ratio and Porter analyses, loan applications, message campaigns and portal logins, were removed on 15 October 2026, ticket 009.) They are not used by the IFRS 9 calculations. Reach them from the client page: open <b>Clients</b>, press the green eye on a client, then press <b>Files</b>. The Files page shows the <b>client menu</b> on the left, from which Notes opens. Each entry, and each button on those pages, is shown only if your role holds its permission.</p>'
                 . '<h4>The client menu (left panel)</h4>'
                 . '<ul>'
-                . '<li>The client\'s name, type, mobile and email, and two green icon buttons, <b>SMS</b> (speech icon) and <b>Email</b> (envelope), that start a message campaign to the client (permission <code>communication.campaigns.create</code>).</li>'
-                . '<li>Menu entries: <b>Basic Profile</b> (the client page), <b>Shareholders</b> (<code>clients.shareholders.index</code>), <b>Balance Sheet</b> (<code>clients.balance_sheet.index</code>), <b>Income Statement</b> (<code>clients.income_statement.index</code>), <b>Ratio Analysis</b> (<code>clients.ratio_analysis.index</code>), <b>Porter\'s Five Forces Analysis</b> (<code>clients.poters_five_forces_analysis.index</code>), <b>Loan Applications</b> (<code>loans.applications.index</code>), <b>Notes</b> (<code>clients.notes</code>), <b>Files</b> (<code>clients.files.index</code>) and <b>Login Details</b> (<code>clients.create</code>). The open entry is shaded grey.</li>'
+                . '<li>The client\'s name, type, mobile and email.</li>'
+                . '<li>Menu entries: <b>Basic Profile</b> (the client page), <b>Files</b> (<code>clients.files.index</code>) and <b>Notes</b> (<code>clients.notes.index</code>).</li>'
                 . '<li><b>Edit</b> (<code>clients.update</code>) and a red <b>Delete</b> (<code>clients.destroy</code>) at the foot. Delete opens <b>Delete Record</b> with the buttons <b>Nevermind</b> and <b>Delete Record</b>.</li>'
                 . '</ul>'
                 . '<h4>Files</h4>'
@@ -172,13 +172,6 @@ return [
                 . '<h4>The other pages</h4>'
                 . '<ul>'
                 . '<li><b>Notes</b>: columns <b>Note</b>, <b>Created By</b>, <b>Date</b>, <b>Action</b> (<b>Edit</b>, <b>Delete</b>); <b>Create</b> opens <b>Create Note</b> with <b>Description</b>, a tick box for whether the client may see it, and <b>Save</b>. Empty: <code>No Notes Yet</code>.</li>'
-                . '<li><b>Shareholders</b>: <b>Name</b>, <b>Gender</b>, <b>Date of Birth</b>, <b>Shares</b>, <b>ITC Ref No</b>, <b>ITC Date</b>, credit bureau counts (<b>No of Paid Debts &gt; Defaults</b>, <b>No of Defaults</b>, <b>No of Judgements</b>, <b>No of Trace Alerts</b>), <b>Blacklisted?</b>, <b>Fraudalert?</b>, <b>Action</b>; <b>Create</b>, <b>Edit</b>, <b>Delete</b>. Empty: <code>No Shareholders Yet</code>.</li>'
-                . '<li><b>Balance Sheets</b>: <b>Year</b>, <b>Total Assets</b>, <b>Total Liabilities</b>, <b>Working Capital</b>, <b>Action</b>; a green tick (tooltip <code>Balanced</code>) or red cross (<code>Not balanced</code>) beside a sheet; <b>View Summary</b>, <b>Create</b>, <b>Edit</b>, <b>Delete</b>. Empty: <code>No Balance Sheets Yet</code>.</li>'
-                . '<li><b>Income Statements</b>: <b>Year</b>, <b>Reporting Month</b>, <b>No of Months In Year</b>, <b>Audit Status</b>, <b>Annual Inflation Rate - Real</b>, <b>Sales</b>, <b>Costs Of Good Sold</b>, <b>Gross Profit</b>, <b>Operating Expenses</b>, <b>Operating Income</b>, <b>Other Expenses</b>, <b>Other Income</b>, <b>Income Before Tax</b>, <b>Income Tax</b>, <b>Net Profit</b>, <b>Action</b>. Empty: <code>No Income Statements Yet</code>.</li>'
-                . '<li><b>Ratio Analysis</b>: one row per ratio with its <b>Symbol</b>, a column per year and a <b>Comment</b> box, saved with <b>Save</b>.</li>'
-                . '<li><b>Porter\'s Five Forces Analysis</b>: <b>Input</b>, <b>Score</b> and <b>Comment</b> per force, saved with <b>Save</b>.</li>'
-                . '<li><b>Loans</b> (Loan Applications): <b>ID</b>, <b>Product</b>, <b>Amount</b>, <b>Score</b>, <b>Status</b>, <b>Date</b>, <b>Action</b> with a magnifier (<code>View</code>), pencil (<code>Edit</code>, <code>loans.applications.update</code>), bin (<code>Delete</code>, <code>loans.applications.destroy</code>) and clock (<code>Log History</code>).</li>'
-                . '<li><b>Login Details</b>: portal users of the client, <b>Name</b>, <b>Email</b>, <b>Action</b>; <b>Add</b> creates a login. Empty: <code>No Users Yet</code>.</li>'
                 . '</ul>'
                 . '<h4>To attach a document to a client</h4>'
                 . '<ol>'
@@ -204,12 +197,6 @@ return [
             'routes' => [
                 'clients.files.index', 'clients.files.create', 'clients.files.store', 'clients.files.show', 'clients.files.edit', 'clients.files.update', 'clients.files.destroy',
                 'clients.notes.index', 'clients.notes.create', 'clients.notes.store', 'clients.notes.show', 'clients.notes.edit', 'clients.notes.update', 'clients.notes.destroy',
-                'clients.shareholders.index', 'clients.shareholders.create', 'clients.shareholders.store', 'clients.shareholders.show', 'clients.shareholders.edit', 'clients.shareholders.update', 'clients.shareholders.destroy',
-                'clients.balance_sheets.index', 'clients.balance_sheets.summary', 'clients.balance_sheets.create', 'clients.balance_sheets.store', 'clients.balance_sheets.show', 'clients.balance_sheets.edit', 'clients.balance_sheets.update', 'clients.balance_sheets.destroy',
-                'clients.income_statements.index', 'clients.income_statements.create', 'clients.income_statements.store', 'clients.income_statements.show', 'clients.income_statements.edit', 'clients.income_statements.update', 'clients.income_statements.destroy',
-                'clients.ratio_analysis.index', 'clients.ratio_analysis.create', 'clients.ratio_analysis.store', 'clients.ratio_analysis.show', 'clients.ratio_analysis.edit', 'clients.ratio_analysis.update', 'clients.ratio_analysis.destroy',
-                'clients.poter.index', 'clients.poter.create', 'clients.poter.store', 'clients.poter.show', 'clients.poter.edit', 'clients.poter.update', 'clients.poter.destroy',
-                'clients.loan_applications.index', 'clients.login_details.index', 'clients.login_details.create', 'clients.login_details.store', 'clients.login_details.destroy',
             ],
         ],
 
