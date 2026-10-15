@@ -80,9 +80,9 @@
                     </span>
                 </label>
             </div>
-            <p v-if="form.discounting_mode === 'discounted'" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <Notice v-if="form.discounting_mode === 'discounted'" id="discounted-exceptions" tone="warning" class="mt-3">
                 Loans without a locked EIR or a usable remaining term stay visible as unresolved exceptions.
-            </p>
+            </Notice>
             <p v-if="form.errors.discounting_mode" class="mt-1 text-xs font-semibold text-red-600">{{ form.errors.discounting_mode }}</p>
 
             <div class="mt-6 flex justify-end gap-2 border-t border-gray-100 pt-5">
@@ -99,9 +99,10 @@
 <script>
 import { Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Notice from '@/Components/Maiic/Notice.vue';
 
 export default {
-    components: { AppLayout, Link },
+    components: { AppLayout, Link, Notice },
     props: {
         loanBooks: { type: Object, default: () => ({}) },
         portfolios: { type: Array, required: true },

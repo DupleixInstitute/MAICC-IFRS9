@@ -96,7 +96,7 @@
             <div class="maiic-table-wrap"><table class="maiic-table">
               <thead><tr><th>Variable</th><th class="num">Base</th><th v-for="sc in aSet.scenarios.filter(x => !x.is_base)" :key="sc.id" class="num">{{ sc.name }} <span class="font-normal opacity-75">{{ sc.weight }}%</span></th></tr></thead>
               <tbody>
-                <tr v-for="code in glanceCodes" :key="code">
+                <tr v-for="code in pagedGlance" :key="code">
                   <td class="font-semibold">{{ varName(code) }} <span class="font-mono text-[11px] font-normal text-gray-400">{{ code }}</span></td>
                   <td class="num text-gray-600">{{ fmt((aSet.base[code] || [])[0]) }}</td>
                   <td v-for="sc in aSet.scenarios.filter(x => !x.is_base)" :key="sc.id" class="num" :class="moved(sc, code) ? 'font-semibold text-gray-900' : 'text-gray-400'">{{ fmt((sc.path[code] || [])[0]) }}</td>
@@ -104,6 +104,7 @@
                 <tr v-if="!glanceCodes.length"><td :colspan="2 + aSet.scenarios.length" class="maiic-empty">No scenario moves any variable yet: every scenario follows the base.</td></tr>
               </tbody>
             </table></div>
+            <LocalPager v-model="glancePage" :total="glanceCodes.length" class="border-t border-gray-100"/>
           </div>
 
           <!-- one scenario at a time -->
@@ -119,7 +120,7 @@
                 <span class="font-semibold">Weight {{ aSet.editable ? edit(aSet, aScenario).weight : aScenario.weight }}%</span>
                 <span class="text-gray-600">{{ aScenario.anchored_to }}</span>
                 <div v-if="aSet.editable" class="ml-auto flex gap-2">
-                  <button type="button" class="secondary-btn text-sm" @click="edit(aSet, aScenario).shocks.push({ statistic_code: assumptions.variables[0]?.statistic_code, year_offset: 0, kind: 'abs', value: 0, note: '' })"><font-awesome-icon icon="plus" class="mr-1" />Add a shock</button>
+                  <button type="button" class="secondary-btn text-sm" @click="addShock(aSet, aScenario)"><font-awesome-icon icon="plus" class="mr-1" />Add a shock</button>
                   <button type="button" class="primary-btn text-sm" @click="saveScenario(aSet, aScenario)">Save {{ aScenario.name }}</button>
                 </div>
               </div>
@@ -127,7 +128,7 @@
               <div v-else class="maiic-table-wrap"><table class="maiic-table">
                 <thead><tr><th>Variable</th><th>Year</th><th>How it moves</th><th class="num">By</th><th class="num">Base</th><th class="num">Becomes</th><th>Why</th><th v-if="aSet.editable"></th></tr></thead>
                 <tbody>
-                  <tr v-for="(sh, i) in edit(aSet, aScenario).shocks" :key="i">
+                  <tr v-for="(sh, i) in pagedShocks(aSet, aScenario)" :key="shockOffset + i">
                     <td><select v-if="aSet.editable" v-model="sh.statistic_code" class="maiic-select !w-72 !py-1 text-sm"><option v-for="v in assumptions.variables" :key="v.statistic_code" :value="v.statistic_code">{{ v.statistic_name }}</option></select><span v-else>{{ varName(sh.statistic_code) }}</span></td>
                     <td><select v-if="aSet.editable" v-model.number="sh.year_offset" class="maiic-select !w-24 !py-1 text-sm"><option v-for="o in [0, 1, 2]" :key="o" :value="o">{{ assumptions.year + o }}</option></select><span v-else>{{ assumptions.year + sh.year_offset }}</span></td>
                     <td><select v-if="aSet.editable" v-model="sh.kind" class="maiic-select !w-40 !py-1 text-sm"><option value="abs">add points</option><option value="pct">percent change</option><option value="replace">replace with</option></select><span v-else>{{ kindLabel(sh.kind) }}</span></td>
@@ -135,11 +136,12 @@
                     <td class="num text-gray-500" :title="(aSet.base_source[sh.statistic_code] || [])[sh.year_offset]">{{ fmt((aSet.base[sh.statistic_code] || [])[sh.year_offset]) }}</td>
                     <td class="num font-semibold">{{ fmt(shocked(aSet, sh)) }}</td>
                     <td><input v-if="aSet.editable" v-model="sh.note" class="maiic-input !py-1 text-sm" placeholder="optional" /><span v-else class="text-gray-600">{{ sh.note }}</span></td>
-                    <td v-if="aSet.editable" class="num"><button type="button" class="maiic-action maiic-action-delete" title="Remove this shock" @click="edit(aSet, aScenario).shocks.splice(i, 1)"><font-awesome-icon icon="trash" /></button></td>
+                    <td v-if="aSet.editable" class="num"><button type="button" class="maiic-action maiic-action-delete" title="Remove this shock" @click="removeShock(aSet, aScenario, shockOffset + i)"><font-awesome-icon icon="trash" /></button></td>
                   </tr>
                   <tr v-if="!edit(aSet, aScenario).shocks.length"><td :colspan="aSet.editable ? 8 : 7" class="maiic-empty">No shock: this scenario follows the base path.</td></tr>
                 </tbody>
-              </table></div>
+              </table>
+              <LocalPager v-model="shockPage" :total="edit(aSet, aScenario).shocks.length" class="border-t border-gray-100"/></div>
             </div>
           </div>
         </template>
@@ -315,7 +317,7 @@ export default {
   data() {
     return { tab: viewFromUrl(), sel: this.selected, aPeriod: this.assumptions?.period, aSetId: this.defaultSetId(this.assumptions), aScenarioId: null,
       wb: { series_code: '', country: this.defaultCountry, from: 2000, to: new Date().getFullYear() }, imf: { series_code: '', file: null }, rbm: { file: null }, own: { file: null },
-      showImport: false, specSource: 'macro-series', specCheck: null, specSources: [{ key: 'macro-series', label: 'Your own file' }, { key: 'imf-weo', label: 'IMF WEO file' }, { key: 'rbm-policy-rate', label: 'Reserve Bank file' }], batchPage: 1, varPage: 1, obsPage: 1, previewData: null, previewError: null, previewSource: null, ownPreview: null, varForm: null, valForm: null, edits: {} }
+      showImport: false, specSource: 'macro-series', specCheck: null, specSources: [{ key: 'macro-series', label: 'Your own file' }, { key: 'imf-weo', label: 'IMF WEO file' }, { key: 'rbm-policy-rate', label: 'Reserve Bank file' }], batchPage: 1, varPage: 1, obsPage: 1, glancePage: 1, shockPage: 1, previewData: null, previewError: null, previewSource: null, ownPreview: null, varForm: null, valForm: null, edits: {} }
   },
   computed: {
     current() { return this.series.find(s => s.id === this.sel) },
@@ -328,12 +330,26 @@ export default {
       this.aSet.scenarios.forEach(sc => (sc.shocks || []).forEach(sh => { if (Number(sh.year_offset) === 0) codes.add(sh.statistic_code) }))
       return [...codes].sort((a, b) => this.varName(a).localeCompare(this.varName(b)))
     },
+    // the glance table and one scenario's shocks, 15 rows a page
+    pagedGlance() { return this.glanceCodes.slice((this.glancePage - 1) * 15, this.glancePage * 15) },
+    shockOffset() { return (this.shockPage - 1) * 15 },
     pagedBatches() { return (this.batches || []).slice((this.batchPage - 1) * 15, this.batchPage * 15) },
     pagedSeries() { return this.series.slice((this.varPage - 1) * 15, this.varPage * 15) },
     pagedObs() { const o = [...(this.observations || [])].reverse(); return o.slice((this.obsPage - 1) * 15, this.obsPage * 15) },
   },
-  watch: { assumptions(v) { this.edits = {}; if (!(v.sets || []).some(s => s.id === this.aSetId)) this.aSetId = this.defaultSetId(v) }, aSetId() { this.aScenarioId = null } },
+  watch: { assumptions(v) { this.edits = {}; if (!(v.sets || []).some(s => s.id === this.aSetId)) this.aSetId = this.defaultSetId(v) }, aSetId() { this.aScenarioId = null; this.glancePage = 1; this.shockPage = 1 }, aScenarioId() { this.shockPage = 1 } },
   methods: {
+    pagedShocks(set, sc) { return this.edit(set, sc).shocks.slice(this.shockOffset, this.shockOffset + 15) },
+    addShock(set, sc) {
+      const list = this.edit(set, sc).shocks
+      list.push({ statistic_code: this.assumptions.variables[0]?.statistic_code, year_offset: 0, kind: 'abs', value: 0, note: '' })
+      this.shockPage = Math.ceil(list.length / 15)
+    },
+    removeShock(set, sc, index) {
+      const list = this.edit(set, sc).shocks
+      list.splice(index, 1)
+      this.shockPage = Math.min(this.shockPage, Math.max(1, Math.ceil(list.length / 15)))
+    },
     fmt(v) { return v === null || v === undefined || v === '' || isNaN(v) ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
     defaultSetId(a) { const sets = (a && a.sets) || []; const pick = sets.find(s => s.status === 'DRAFT' || s.status === 'PROPOSED') || sets.find(s => s.status === 'APPROVED' || s.status === 'LOCKED') || sets[0]; return pick ? pick.id : null },
     statusLabel(st) { return { DRAFT: 'draft', PROPOSED: 'proposed', APPROVED: 'approved', LOCKED: 'locked', SUPERSEDED: 'superseded' }[st] || st },

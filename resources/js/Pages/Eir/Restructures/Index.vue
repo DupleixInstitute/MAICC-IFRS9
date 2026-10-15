@@ -7,9 +7,9 @@
     <div class="w-full space-y-5">
       <KpiRow :cards="cards" />
 
-      <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+      <Notice id="candidate-not-confirmed" tone="warning">
         A candidate is evidence that a loan's terms may have changed, never a confirmed restructure. Nothing here reaches the accounts until one person classifies it with a reason and a different person approves. The engine's suggestion is only a suggestion.
-      </div>
+      </Notice>
 
       <PageTabs v-model="current" :tabs="tabs" query="tab" />
 
@@ -271,6 +271,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import JetModal from '@/Jetstream/Modal.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
 import PageTabs from '@/Components/Maiic/PageTabs.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 import ClientPager from '@/Components/ClientPager.vue'
 import { confirmDialog } from '@/Components/confirmDialog'
 import { promptReason } from '@/Components/Maiic/promptReason.js'

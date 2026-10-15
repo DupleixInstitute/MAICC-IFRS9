@@ -61,10 +61,11 @@
           <table class="maiic-table">
             <thead><tr><th class="num">No.</th><th>Ref</th><th>Finding</th><th>What was found</th><th>Impact</th><th>Recommended action</th><th>Owner</th><th>Status</th></tr></thead>
             <tbody>
-              <tr v-for="f in findings" :key="f.id" class="align-top text-xs"><td class="num">{{ f.number }}</td><td>{{ f.reference }}</td><td class="font-semibold">{{ f.finding }}</td><td>{{ f.what_was_found }}</td><td>{{ f.impact }}</td><td>{{ f.recommended_action }}</td><td>{{ f.owner }}</td><td><span class="maiic-badge" :class="f.status === 'Closed' ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ f.status }}</span></td></tr>
+              <tr v-for="f in pagedFindings" :key="f.id" class="align-top text-xs"><td class="num">{{ f.number }}</td><td>{{ f.reference }}</td><td class="font-semibold">{{ f.finding }}</td><td>{{ f.what_was_found }}</td><td>{{ f.impact }}</td><td>{{ f.recommended_action }}</td><td>{{ f.owner }}</td><td><span class="maiic-badge" :class="f.status === 'Closed' ? 'maiic-badge-green' : 'maiic-badge-gold'">{{ f.status }}</span></td></tr>
               <tr v-if="!findings.length"><td colspan="8" class="maiic-empty">No findings recorded for this workbook.</td></tr>
             </tbody>
           </table>
+          <RowPager v-model="findingsPage" :total="findings.length" class="border-t border-gray-100" />
         </div>
       </div>
     </div>
@@ -95,15 +96,16 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ClientPager from '@/Components/ClientPager.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import { Link, router } from '@inertiajs/vue3'
 
 export default {
-  components: { AppLayout, ClientPager, Link },
+  components: { AppLayout, ClientPager, RowPager, Link },
   props: { audit: Object, rows: Array, counts: Object, statuses: Array, findings: Array, canGovern: Boolean },
   data() {
     const edit = {}
     this.rows.forEach(r => { edit[r.id] = r.proposed_status || r.status })
-    return { edit, tab: 'sections', page: 1, signing: null, note: '' }
+    return { edit, tab: 'sections', page: 1, findingsPage: 1, signing: null, note: '' }
   },
   computed: {
     tabs() {
@@ -113,6 +115,7 @@ export default {
       ]
     },
     pagedRows() { return this.rows.slice((this.page - 1) * 15, this.page * 15) },
+    pagedFindings() { return this.findings.slice((this.findingsPage - 1) * 15, this.findingsPage * 15) },
   },
   methods: {
     badge(s) { return s === 'Done' ? 'maiic-badge-green' : (s === 'Outstanding' ? 'maiic-badge-red' : (s === 'Partially done' ? 'maiic-badge-gold' : 'maiic-badge-grey')) },

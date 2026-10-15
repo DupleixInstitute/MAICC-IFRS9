@@ -9,7 +9,7 @@
         <!-- live counts: the groups listed, the portfolios, and how the latest loan book uses the groups -->
         <KpiRow class="mb-4" :cards="cards"/>
 
-        <p v-if="(unlisted || []).length" class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">The loan book of {{ periodLabel(latestPeriod) }} uses {{ unlisted.length }} product group(s) not listed here: {{ unlisted.join(', ') }}.</p>
+        <Notice v-if="(unlisted || []).length" id="unlisted-groups" tone="warning" class="mb-3">The loan book of {{ periodLabel(latestPeriod) }} uses {{ unlisted.length }} product group(s) not listed here: {{ unlisted.join(', ') }}.</Notice>
         <div class="maiic-panel">
             <div class="maiic-table-wrap">
                 <table class="maiic-table">
@@ -54,13 +54,14 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import RowActions from '@/Shared/RowActions.vue'
 import ClientPager from '@/Components/ClientPager.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 import { Link } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export default {
-    components: { AppLayout, RowActions, ClientPager, KpiRow, Link },
+    components: { AppLayout, RowActions, ClientPager, KpiRow, Link, Notice },
     props: {
         groups: { type: Array, default: () => [] },
         filters: Object,

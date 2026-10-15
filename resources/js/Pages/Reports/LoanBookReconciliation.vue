@@ -1,11 +1,13 @@
 <script setup>
-import { reactive, computed } from 'vue';
+import { reactive, computed, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BackToReports from './Partials/BackToReports.vue';
 import DownloadButton from './Partials/DownloadButton.vue';
 import KpiRow from './Partials/KpiRow.vue';
 import ReportIcon from './Partials/ReportIcon.vue';
+import Notice from '@/Components/Maiic/Notice.vue';
+import RowPager from '@/Components/Maiic/RowPager.vue';
 
 const props = defineProps({
     report: { type: Object, default: null },
@@ -37,6 +39,11 @@ const money = (v) => {
     const t = Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return n < 0 ? '(' + t + ')' : t;
 };
+// the write-offs between the two month-ends, 15 a page; a new run starts at page 1
+const writeOffPage = ref(1);
+const writeOffRows = computed(() => (props.report?.write_offs?.list || []).slice((writeOffPage.value - 1) * 15, writeOffPage.value * 15));
+watch(() => props.report, () => { writeOffPage.value = 1; });
+
 const line = (key) => (props.report?.lines || []).find(l => l.key === key) || { amount: 0, loans: 0 };
 const figures = computed(() => props.report ? [
     { label: 'Opening loan book', value: money(line('opening').amount), sub: line('opening').loans + ' loans' },
@@ -86,9 +93,11 @@ const figures = computed(() => props.report ? [
                 </button>
             </div>
 
-            <div v-if="error" class="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-                <ReportIcon name="alert" class="h-5 w-5"/> {{ error }}
-            </div>
+            <Notice v-if="error" id="error" tone="danger">
+                <div class="flex items-center gap-2">
+                    <ReportIcon name="alert" class="h-5 w-5 flex-none"/> {{ error }}
+                </div>
+            </Notice>
 
             <template v-if="report">
                 <KpiRow :items="figures"/>
@@ -117,16 +126,17 @@ const figures = computed(() => props.report ? [
                         <table class="maiic-table maiic-table-compact">
                             <thead><tr><th>Date</th><th>Contract</th><th>Customer</th><th class="num">Written off</th><th>Record</th></tr></thead>
                             <tbody>
-                                <tr v-for="(w, i) in report.write_offs.list" :key="i">
+                                <tr v-for="(w, i) in writeOffRows" :key="(writeOffPage - 1) * 15 + i">
                                     <td class="whitespace-nowrap">{{ w.date }}</td><td>{{ w.contract_id }}</td><td>{{ w.customer_name || '-' }}</td>
                                     <td class="num">{{ money(w.amount) }}</td><td class="text-gray-500">{{ w.source === 'ledger' ? 'Ledger' : 'Register' }}: {{ w.reference }}</td>
                                 </tr>
                             </tbody>
                         </table>
+                        <RowPager v-model="writeOffPage" :total="report.write_offs.list.length" class="border-t border-gray-100" />
                     </div>
                 </div>
             </template>
-            <div v-else-if="!error" class="maiic-panel maiic-empty">Choose a portfolio and two periods at the top right, then Run.</div>
+            <div v-else-if="!error" class="maiic-panel maiic-empty">Choose a portfolio and two periods above, then Run.</div>
         </div>
     </AppLayout>
 </template>

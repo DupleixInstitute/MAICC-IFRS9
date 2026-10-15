@@ -13,7 +13,7 @@
       </div>
 
       <!-- The fit in use, pinned: what the route applies to every loan of the period. -->
-      <div v-if="approved" class="maiic-panel border-l-4 !border-l-maiic-600 bg-maiic-50/60 px-5 py-3">
+      <Notice v-if="approved" id="model-in-force" tone="success">
         <div class="flex flex-wrap items-center gap-2">
           <span class="maiic-badge maiic-badge-solid-green">Model version {{ approved.version }} in force</span>
           <span class="font-semibold text-gray-900">{{ approved.id ? 'Fit ' + approved.id + ': ' : 'External model: ' }}{{ approved.driver_name }} drives the {{ approved.proxy_name }}, {{ approved.lag_months == 0 ? 'in the same month' : approved.lag_months + ' months later' }}</span>
@@ -31,10 +31,10 @@
           <span>Approved by <strong class="text-gray-900">{{ approved.approver || '-' }}</strong> on {{ approved.approved_at || '-' }}</span>
           <span v-if="approved.approver_label" class="maiic-badge maiic-badge-gold">{{ approved.approver_label }}</span>
         </div>
-      </div>
-      <div v-else class="maiic-panel border-l-4 !border-l-maiicgold-500 px-5 py-3 text-sm text-gray-700">
+      </Notice>
+      <Notice v-else id="no-model-in-force" tone="warning">
         <span class="font-semibold">No model version is in force for {{ period }}:</span> the PD holds (overlay at zero). Propose an applied fit below; when a second person approves it, it is published as the model version from this month.
-      </div>
+      </Notice>
 
       <div class="maiic-panel">
         <div class="border-b border-gray-200 px-5 py-3 dark:border-slate-700"><h3 class="font-semibold text-gray-900">Fits for {{ period }}</h3><p class="text-xs text-gray-500">{{ fits.length }} fit(s), applied first then declined, strongest first. A reviewer proposes an applied fit for use and a second person approves it.</p></div>
@@ -91,9 +91,10 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { router } from '@inertiajs/vue3'
 import RowPager from '@/Components/Maiic/RowPager.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 
 export default {
-  components: { AppLayout, RowPager },
+  components: { AppLayout, RowPager, Notice },
   props: { period: String, fits: Array, approved: Object, cards: Array, methodInForce: String, loans: Object, lastRun: Object, periods: Array, canGovern: Boolean },
   data() { return { form: { period: this.period }, page: 1 } },
   computed: {

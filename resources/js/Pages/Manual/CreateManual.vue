@@ -6,9 +6,7 @@
           {{ manual ? 'Edit Manual' : 'Create Manual' }}
         </h2>
 
-        <Link href="/manuals/list" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md">
-            Back
-        </Link>
+        <Link href="/manuals/list" class="text-sm font-medium text-maiic-700 hover:underline">&larr; Back</Link>
       </div>
     </template>
 

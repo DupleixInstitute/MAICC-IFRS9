@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import ReportIcon from '../Partials/ReportIcon.vue'
 import TabBar from '../Partials/TabBar.vue'
 import KpiRow from '../Partials/KpiRow.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 
 const props = defineProps({
     categories: { type: Array, default: () => [] },
@@ -69,13 +70,15 @@ function href(r) {
         </template>
 
         <div class="w-full space-y-5">
-            <div v-if="!periods.length" class="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                <ReportIcon name="alert" class="h-5 w-5 flex-none text-amber-600"/>
-                <div>
-                    <p class="font-semibold">No reporting period has a calculated ECL yet</p>
-                    <p class="mt-0.5">Run the ECL calculation for a month first; the ECL reports then open on that month. The reconciliations, exports and EIR reports still work.</p>
+            <Notice v-if="!periods.length" id="no-ecl-period" tone="warning">
+                <div class="flex gap-3">
+                    <ReportIcon name="alert" class="h-5 w-5 flex-none text-amber-600"/>
+                    <div>
+                        <p class="font-semibold">No reporting period has a calculated ECL yet</p>
+                        <p class="mt-0.5">Run the ECL calculation for a month first; the ECL reports then open on that month. The reconciliations, exports and EIR reports still work.</p>
+                    </div>
                 </div>
-            </div>
+            </Notice>
 
             <KpiRow :items="[
                 { label: 'Reports you can open', value: totalReports },

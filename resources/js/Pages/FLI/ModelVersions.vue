@@ -9,16 +9,16 @@
     </template>
 
     <div class="space-y-4">
-      <div v-if="inForce" class="maiic-panel border-l-4 !border-l-maiic-600 bg-maiic-50/60 px-5 py-3">
+      <Notice v-if="inForce" id="version-in-force" tone="success">
         <div class="flex flex-wrap items-center gap-2">
           <span class="maiic-badge maiic-badge-solid-green">In force for {{ monthLabel(period) }}</span>
           <span class="font-semibold text-gray-900">Version {{ inForce.version }}: {{ inForce.statistic_code }} drives {{ inForce.proxy_code }}, {{ inForce.lag_months == 0 ? 'in the same month' : inForce.lag_months + ' months later' }}</span>
         </div>
         <div class="mt-1 text-xs text-gray-600">In force since {{ monthLabel(inForce.effective_from) }}, calibrated on data to {{ monthLabel(inForce.calibrated_period) }}; slope {{ n(inForce.slope, 6) }}, intercept {{ n(inForce.intercept, 4) }}<span v-if="inForce.r_squared">, R² {{ n(inForce.r_squared, 3) }}</span>. Cadence in force: {{ cadence || '-' }}.</div>
-      </div>
-      <div v-else class="maiic-panel border-l-4 !border-l-maiicgold-500 px-5 py-3 text-sm text-gray-700">
+      </Notice>
+      <Notice v-else id="no-version-in-force" tone="warning">
         <span class="font-semibold">No version is in force for {{ monthLabel(period) }}:</span> the PD holds. Fit one on Regression and approve it, or enter an externally calibrated model.
-      </div>
+      </Notice>
 
       <div class="maiic-panel">
         <div class="border-b border-gray-200 px-5 py-3 dark:border-slate-700"><h3 class="font-semibold text-gray-900">All versions</h3><p class="text-xs text-gray-500">A version is never edited: a recalibration publishes a new one from its month forward. Retiring a version sends the months after it back to the version before it.</p></div>
@@ -55,6 +55,7 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import RowPager from '@/Components/Maiic/RowPager.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 import { Link, router } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
 import { promptReason } from '@/Components/Maiic/promptReason'
@@ -62,7 +63,7 @@ import { promptReason } from '@/Components/Maiic/promptReason'
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export default {
-  components: { AppLayout, RowPager, Link },
+  components: { AppLayout, RowPager, Notice, Link },
   props: { period: String, periods: Array, versions: Array, inForce: Object, cadence: String, canGovern: Boolean, userId: Number },
   data() { return { form: { period: this.period }, page: 1 } },
   computed: { paged() { return this.versions.slice((this.page - 1) * 15, this.page * 15) } },

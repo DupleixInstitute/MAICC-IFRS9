@@ -39,7 +39,7 @@
           </thead>
 
           <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
-            <tr v-for="grade in grades" :key="grade.id" class="hover:bg-gray-50/60 dark:hover:bg-slate-700/30">
+            <tr v-for="grade in pagedGrades" :key="grade.id" class="hover:bg-gray-50/60 dark:hover:bg-slate-700/30">
               <td class="whitespace-nowrap px-4 py-2.5">
                 <div class="flex items-center gap-3">
                   <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold" :class="broadTone(grade.broad_grade).badge">{{ grade.grade_code }}</span>
@@ -67,6 +67,7 @@
 
         <div v-if="grades.length === 0" class="p-12 text-center text-gray-500 dark:text-slate-400">No grades configured for this profile.</div>
       </div>
+      <RowPager v-model="page" :total="grades.length" class="border-t border-gray-100" />
 
       <!-- Legend and source -->
       <div class="space-y-2 border-t px-6 py-3 text-xs text-gray-600 dark:border-slate-700 dark:text-slate-300">
@@ -92,7 +93,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
   show: Boolean,
@@ -100,6 +102,10 @@ const props = defineProps({
   grades: Array,
   maxTenor: Number
 })
+
+// 15 grades a page
+const page = ref(1)
+const pagedGrades = computed(() => (props.grades || []).slice((page.value - 1) * 15, page.value * 15))
 
 // the profile's description, as the S&P import writes it: the source text, "Source: <link>" and "Left out: ..."
 const source = computed(() => {

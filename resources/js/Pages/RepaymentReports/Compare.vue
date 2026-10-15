@@ -6,24 +6,18 @@
                     Compare Calculations #{{ calculation1.id }} vs #{{ calculation2.id }}
                 </h2>
 
-                <div class="flex space-x-2 mt-2">
-                    <Link
-                        :href="route('lgd-calculations.index')"
-                        class="inline-flex items-center bg-gray-900 hover:bg-gray-700 text-white px-3 py-1 rounded-lg shadow-md transition duration-300"
-                    >
-                        <i class="fas fa-arrow-left mr-2"></i>
-                        Back
-                    </Link>
-
-                    <a
-                        :href="route('lgd-payment-report.download-comparison', { id1: calculation1.id, id2: calculation2.id })"
-                        class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
-                    >
-                        <i class="fas fa-download mr-2"></i>
-                        Download CSV
-                    </a>
-                </div>
+                <Link :href="route('lgd-calculations.index')" class="text-sm font-medium text-maiic-700 hover:underline">&larr; Back</Link>
             </div>
+        </template>
+
+        <template #actions>
+            <a
+                :href="route('lgd-payment-report.download-comparison', { id1: calculation1.id, id2: calculation2.id })"
+                class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+            >
+                <i class="fas fa-download mr-2"></i>
+                Download CSV
+            </a>
         </template>
 
         <!-- Calculation headers -->

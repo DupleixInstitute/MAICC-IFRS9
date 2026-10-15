@@ -1,7 +1,8 @@
 <template>
     <!-- An information box shown when a page opens, with an X to close it (UI rule
          of 15 October 2026: every notice can be closed). Closed stays closed in this
-         browser until the text changes, so a notice whose figures move comes back.
+         browser until the text changes, so a notice whose figures move comes back;
+         a danger notice closes for this visit only.
          tone: info (blue-grey), warning (amber), success (green), danger (red). -->
     <div v-if="!closed" class="flex items-start gap-3 rounded-lg border p-4" :class="tones[tone].box" :role="tone === 'danger' ? 'alert' : 'status'">
         <div class="min-w-0 flex-1 text-sm" :class="tones[tone].text" ref="body"><slot/></div>
@@ -20,7 +21,10 @@ const props = defineProps({
     tone: { type: String, default: 'info' },
     // names the notice on its page; the page's component is added, so 'intro' is enough
     id: { type: String, default: 'notice' },
+    // remember the close in this browser; a danger notice (an error, a stop) closes for this visit only
+    remember: { type: Boolean, default: null },
 })
+const remembers = () => props.remember === null ? props.tone !== 'danger' : props.remember
 
 const tones = {
     info: { box: 'border-slate-200 bg-slate-50', text: 'text-slate-700', close: 'text-slate-500 hover:bg-slate-200 hover:text-slate-800' },
@@ -47,6 +51,7 @@ function text() {
 }
 
 onMounted(() => {
+    if (!remembers()) return
     try {
         closed.value = localStorage.getItem(storageKey()) === fingerprint(text())
     } catch (e) {
@@ -55,6 +60,8 @@ onMounted(() => {
 })
 
 function close() {
+    closed.value = true
+    if (!remembers()) return
     try {
         localStorage.setItem(storageKey(), fingerprint(text()))
     } catch (e) {

@@ -13,9 +13,9 @@
             <div class="maiic-kpi" :style="{ '--accent': status.running ? '#dc2626' : '#64748b' }"><div class="maiic-kpi-label">Now running</div><div class="truncate text-sm font-bold" :class="status.running ? 'text-red-700' : 'text-gray-500'">{{ status.running ? status.running.label : 'Nothing' }}</div></div>
         </div>
 
-        <p v-if="!can.run" class="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+        <Notice v-if="!can.run" id="run-restricted" tone="warning" class="mb-4">
             You can see this console, but running a command is restricted to a system administrator.
-        </p>
+        </Notice>
 
         <!-- tabs -->
         <div class="mb-5 rounded-xl border border-gray-200 bg-white px-5 pt-4 shadow-sm">
@@ -112,13 +112,14 @@
 
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 import { router } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export default {
-    components: { AppLayout },
+    components: { AppLayout, Notice },
     props: { catalog: Array, recent: Array, periods: Array, status: Object, can: Object },
     data() {
         return { tab: 'month', period: this.periods[0] || null, typed: {}, run: null, timer: null, page: 1 }

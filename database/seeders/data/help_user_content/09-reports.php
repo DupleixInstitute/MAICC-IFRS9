@@ -359,7 +359,7 @@ return [
                 . '<li><b>Run</b> (a play icon): builds the bridge. It stays greyed out until a portfolio and two months are chosen and From is before To.</li>'
                 . '<li><b>CSV</b>, <b>Excel</b> and <b>Download PDF</b>: the bridge, the KPI tiles, the write-off list and two notes (whether it ties, and the write-offs) as plain data, a branded workbook or a branded A4 portrait PDF. They are greyed out until the bridge is shown.</li></ul>'
                 . '<h4>Empty states and messages</h4><ul>'
-                . '<li>Before a run: <b>Choose a portfolio and two periods at the top right, then Run.</b></li>'
+                . '<li>Before a run: <b>Choose a portfolio and two periods above, then Run.</b></li>'
                 . '<li>Months in the wrong order: <b>The end period must be after the start period.</b></li>'
                 . '<li>No write-off: the line reads <b>Write-offs: none in the ledger (by the write-off rule) or approved in the write-off register between the two month-ends.</b></li></ul>'
                 . '<h4>Common problems</h4><ul>'

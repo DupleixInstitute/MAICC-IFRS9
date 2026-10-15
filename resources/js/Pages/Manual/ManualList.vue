@@ -21,7 +21,7 @@
             <tr v-else-if="manuals.length === 0">
               <td colspan="3" class="px-6 py-4 text-center text-gray-500">No screen has its own help text yet: the ? button on every screen opens the matching manual article.</td>
             </tr>
-            <tr v-for="manual in manuals" :key="manual.id">
+            <tr v-for="manual in manualRows" :key="manual.id">
               <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ manual.title }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ manual.route_title }}</td>
               <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
@@ -48,6 +48,7 @@
           </tbody>
         </table>
       </div>
+      <RowPager v-model="manualPage" :total="manuals.length" class="border-t border-gray-100" />
     </div>
 
       <ViewManualModal
@@ -59,12 +60,13 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue'
 import '@fortawesome/fontawesome-free/css/all.css';
 import ViewManualModal from './ViewManualModal.vue'
 import { confirmDialog } from '@/Components/confirmDialog'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 
 const props = defineProps({
@@ -75,6 +77,14 @@ const loading = ref(false) // no need to load via axios now
 
 // Use props.manuals directly instead of fetching
 const manuals = ref(props.manuals)
+
+// 15 page help texts a page; a shorter list never leaves the page past the end
+const manualPage = ref(1)
+const manualRows = computed(() => (manuals.value || []).slice((manualPage.value - 1) * 15, manualPage.value * 15))
+watch(() => (manuals.value || []).length, (n) => {
+  const last = Math.max(1, Math.ceil(n / 15))
+  if (manualPage.value > last) manualPage.value = last
+})
 
 const selectedManual = ref(null)
 

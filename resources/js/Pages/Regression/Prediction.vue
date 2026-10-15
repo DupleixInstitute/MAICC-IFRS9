@@ -105,7 +105,7 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="prediction in props.model.predictions" :key="prediction.id">
+              <tr v-for="prediction in pagedPredictions" :key="prediction.id">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {{ getScenarioName(prediction.scenario_id) }}
                 </td>
@@ -119,6 +119,7 @@
               </tr>
             </tbody>
           </table>
+          <RowPager v-model="predictionPage" :total="props.model.predictions.length" class="border-t border-gray-100" />
         </div>
         <div v-else class="text-center py-4 text-gray-500">
           No predictions generated yet.
@@ -130,9 +131,10 @@
 </template>
 <script setup>
 import { notice } from '@/Components/Maiic/notice'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
   model: Object,
@@ -149,6 +151,10 @@ const form = useForm({
 
 // No need for separate macroData ref, we'll rely on props
 const macroData = ref(props.macroData || {})
+
+// the predictions history, 15 rows a page
+const predictionPage = ref(1)
+const pagedPredictions = computed(() => (props.model.predictions || []).slice((predictionPage.value - 1) * 15, predictionPage.value * 15))
 
 // Watch scenario_id or periods and reload the page with filtered macro data
 watch([() => form.scenario_id, () => form.periods], ([scenarioId, periods]) => {

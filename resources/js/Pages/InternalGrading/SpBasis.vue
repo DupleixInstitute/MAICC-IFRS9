@@ -101,7 +101,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <button v-if="filtered.length > shown.length" type="button" class="secondary-btn mt-3" @click="limit += 100">Show 100 more</button>
+                    <RowPager v-model="page" :total="filtered.length" class="border-t border-gray-100" />
                 </div>
             </template>
             <p v-else class="maiic-empty">No S&amp;P basis has been run for {{ selected ? label(selected) : 'any month' }}.<template v-if="canRun"> Use "Run for {{ label(selected) }}" above.</template></p>
@@ -111,10 +111,11 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
     periods: { type: Array, default: () => [] },
@@ -130,7 +131,9 @@ const props = defineProps({
 const selected = ref(props.period)
 const running = ref(false)
 const search = ref('')
-const limit = ref(100)
+// 15 loans a page; a new search starts again at page 1
+const page = ref(1)
+watch(search, () => { page.value = 1 })
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function label(p) {
@@ -169,5 +172,5 @@ const filtered = computed(() => {
     const q = search.value.trim().toLowerCase()
     return q ? props.results.filter(r => String(r.contract_id).includes(q) || String(r.customer_name || '').toLowerCase().includes(q)) : props.results
 })
-const shown = computed(() => filtered.value.slice(0, limit.value))
+const shown = computed(() => filtered.value.slice((page.value - 1) * 15, page.value * 15))
 </script>

@@ -2,19 +2,19 @@
   <app-layout :title="profile.name + ' - Internal Grades'" :extra-crumbs="[{ label: profile.name }]">
     <!-- HEADER -->
     <template #header>
-      <div class="flex justify-between items-center">
-        <h2 class="font-semibold text-xl text-gray-800">
-          {{ profile.name }} - Internal Grades
-        </h2>
+      <h2 class="font-semibold text-xl text-gray-800">
+        {{ profile.name }} - Internal Grades
+      </h2>
+    </template>
 
-        <button
-          v-if="!profile.is_active"
-          @click="openCreate"
-          class="bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow"
-        >
-          + Add Grade
-        </button>
-      </div>
+    <template #actions>
+      <button
+        v-if="!profile.is_active"
+        @click="openCreate"
+        class="bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow"
+      >
+        + Add Grade
+      </button>
     </template>
 
     <div class="w-full py-10">
@@ -29,6 +29,9 @@
           </h4>
         </div>
       </div>
+
+      <!-- the Add Grade button sits here, above the grades it adds to -->
+      <div data-actions-anchor></div>
 
       <!-- EMPTY -->
       <div

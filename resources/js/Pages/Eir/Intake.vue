@@ -203,7 +203,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="entry in reasonEntries" :key="entry.contract + entry.status">
+                            <tr v-for="entry in reasonEntries.slice((reasonPage - 1) * 15, reasonPage * 15)" :key="entry.contract + entry.status">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ entry.contract }}</td>
                                 <td class="px-4 py-2">
                                     <span class="px-2 py-0.5 text-xs rounded-full" :class="entry.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'">
@@ -214,6 +214,7 @@
                             </tr>
                         </tbody>
                     </table>
+                    <LocalPager v-model="reasonPage" :total="reasonEntries.length" class="border-t border-gray-100"/>
                 </div>
 
                 <div v-if="result.coverage" class="mt-4 text-sm text-gray-600">
@@ -291,6 +292,7 @@ export default {
             importType: this.initialType || 'contract_master',
             tab: 'upload',
             historyPage: 1,
+            reasonPage: 1,
             importTypes: [
                 { key: 'contract_master', short: 'contract master', label: 'Contract master (Extract A), facility terms, monthly' },
                 { key: 'schedule', short: 'repayment schedules', label: 'Repayment schedule (per contract, once)' },
@@ -323,6 +325,7 @@ export default {
     },
     watch: {
         importType() { this.historyPage = 1 },
+        result() { this.reasonPage = 1 },
     },
     computed: {
         visibleTypes() {

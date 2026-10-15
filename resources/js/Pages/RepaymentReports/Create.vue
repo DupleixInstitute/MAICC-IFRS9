@@ -7,13 +7,7 @@
                     <HelpManual />
                 </h2>
 
-                <Link
-                    :href="route('lgd-calculations.index')"
-                    class="inline-flex items-center bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
-                >
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    Back
-                </Link>
+                <Link :href="route('lgd-calculations.index')" class="text-sm font-medium text-maiic-700 hover:underline">&larr; Back</Link>
             </div>
         </template>
 
@@ -71,24 +65,19 @@
                     </div>
 
                     <!-- Info Box -->
-                    <div class="bg-maiic-50 border border-maiic-200 rounded-lg p-4 mb-4">
-                        <div class="flex">
-                            <i class="fas fa-info-circle text-maiic-500 mt-1 mr-2"></i>
-                            <div class="text-sm text-maiic-700">
-                                <p class="font-medium">Processing Information:</p>
-                                <ul class="list-disc ml-4 mt-1">
-                                    <li>Large datasets will be processed in the background</li>
-                                    <li>You will be notified when calculation completes</li>
-                                    <li>You can check status in the calculations list</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
+                    <Notice id="processing-info" tone="info" class="mb-4">
+                        <p class="font-medium">Processing Information:</p>
+                        <ul class="list-disc ml-4 mt-1">
+                            <li>Large datasets will be processed in the background</li>
+                            <li>You will be notified when calculation completes</li>
+                            <li>You can check status in the calculations list</li>
+                        </ul>
+                    </Notice>
 
                     <!-- Error Display -->
-                    <div v-if="Object.keys(errors).length > 0" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                        <p class="text-sm text-red-600">Please fix the errors above before submitting.</p>
-                    </div>
+                    <Notice v-if="Object.keys(errors).length > 0" id="form-errors" tone="danger" class="mb-4">
+                        <p>Please fix the errors above before submitting.</p>
+                    </Notice>
 
                     <!-- Submit Button -->
                     <div class="flex justify-end space-x-2">
@@ -114,11 +103,13 @@ import { ref, reactive } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import HelpManual from '@/Components/HelpManual.vue';
+import Notice from '@/Components/Maiic/Notice.vue';
 
 export default {
     components: {
         AppLayout,
-        HelpManual
+        HelpManual,
+        Notice
     },
     props: {
         portfolios: {

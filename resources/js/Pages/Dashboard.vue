@@ -59,20 +59,17 @@
         <div data-actions-anchor></div>
 
         <!-- ============================ NO ECL YET ============================ -->
-        <div v-if="error" class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 dark:border-amber-800 dark:bg-amber-900/30">
-            <div class="flex items-start gap-3">
-                <span class="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full bg-maiicgold-500 text-white">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v-4M12 8h.01"/></svg>
-                </span>
+        <Notice v-if="error" id="no-ecl-yet" tone="warning" class="mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <p class="font-bold text-maiic-900 dark:text-slate-100">No ECL results to show yet</p>
-                    <p class="text-sm text-gray-700 dark:text-slate-300">{{ error }}</p>
+                    <p class="font-bold">No ECL results to show yet</p>
+                    <p>{{ error }}</p>
                 </div>
+                <Link :href="route('expected-credit-loss.create')" class="inline-flex items-center gap-2 rounded-lg bg-maiic-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-maiic-700">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Run ECL calculation
+                </Link>
             </div>
-            <Link :href="route('expected-credit-loss.create')" class="inline-flex items-center gap-2 rounded-lg bg-maiic-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-maiic-700">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Run ECL calculation
-            </Link>
-        </div>
+        </Notice>
 
         <template v-if="!error">
             <!-- ============================ KPI TILES ============================ -->
@@ -180,7 +177,7 @@
                         <table class="maiic-table">
                             <thead><tr><th>Period</th><th class="num">EAD ({{ currencyCode }})</th><th class="num">ECL ({{ currencyCode }})</th><th class="num">Coverage</th></tr></thead>
                             <tbody>
-                                <tr v-for="t in (eclTrends || [])" :key="t.period">
+                                <tr v-for="t in trendRowsPage" :key="t.period">
                                     <td>{{ periodLabel(t.period) }}</td>
                                     <td class="num">{{ formatAmount(t.total_ead) }}</td>
                                     <td class="num">{{ formatAmount(t.total_ecl) }}</td>
@@ -189,6 +186,7 @@
                                 <tr v-if="!(eclTrends || []).length"><td colspan="4" class="maiic-empty">No calculated periods in this range.</td></tr>
                             </tbody>
                         </table>
+                        <RowPager v-model="trendPage" :total="(eclTrends || []).length" class="border-t border-gray-100" />
                     </div>
                 </div>
             </div>
@@ -369,13 +367,14 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(p, i) in eclMixTrend.periods" :key="p">
+                                <tr v-for="{ p, i } in mixRowsPage" :key="p">
                                     <td>{{ periodLabel(p) }}</td>
                                     <td v-for="s in eclMixTrend.series" :key="s.label" class="num">{{ formatAmount(s.values[i]) }}</td>
                                     <td class="num font-semibold">{{ formatAmount(eclMixTrend.totals[i]) }}</td>
                                 </tr>
                             </tbody>
                         </table>
+                        <RowPager v-model="mixPage" :total="(eclMixTrend.periods || []).length" class="border-t border-gray-100" />
                     </div>
                 </template>
                 <p v-else class="maiic-empty">No calculated ECL in the selected range.</p>
@@ -427,13 +426,14 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="p in scenarioEcl.periods" :key="p">
+                                    <tr v-for="p in scenarioRowsPage" :key="p">
                                         <td>{{ periodLabel(p) }}</td>
                                         <td v-for="name in scenarioNames" :key="name" class="num">{{ scenarioCell(p, name) }}</td>
                                         <td class="num text-gray-500">{{ formatCount((scenarioEcl.by_period[p].loans || [])[scenarioStage]) }}</td>
                                     </tr>
                                 </tbody>
                             </table>
+                            <RowPager v-model="scenarioPage" :total="(scenarioEcl.periods || []).length" class="border-t border-gray-100" />
                         </div>
                         <p v-for="n in (scenarioEcl.notes || [])" :key="n" class="mt-3 text-[11px] text-amber-700 dark:text-amber-300">{{ n }}</p>
                     </template>
@@ -476,7 +476,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="r in defaultRates.rows" :key="r.period">
+                                    <tr v-for="r in defaultRowsPage" :key="r.period">
                                         <td>{{ periodLabel(r.period) }}</td>
                                         <td class="num" :title="rateTitle(r.monthly.book)">{{ rateCell(r.monthly.book) }}</td>
                                         <td class="num" :title="rateTitle(r.annual.book)">{{ rateCell(r.annual.book) }}</td>
@@ -485,6 +485,7 @@
                                     </tr>
                                 </tbody>
                             </table>
+                            <RowPager v-model="defaultPage" :total="(defaultRates.rows || []).length" class="border-t border-gray-100" />
                         </div>
                         <p class="mt-3 text-[11px] text-gray-500 dark:text-slate-400">Balance-weighted, from the PD engine's own observation of the loan books (one-month window, and the twelve-month window of the observed one-year PD). A gap means no performing loan at the start of the window.</p>
                         <p v-for="n in (defaultRates.notes || [])" :key="n" class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">Not measured: {{ n }}</p>
@@ -502,6 +503,8 @@ import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import { Chart, registerables } from 'chart.js'
 import HelpManual from '../Components/HelpManual.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import { useTheme } from '@/composables/useTheme'
 
 Chart.register(...registerables)
@@ -860,6 +863,22 @@ const scenarioTies = computed(() => {
     const differs = rows.filter(([, r]) => !r.ties).map(([p]) => p)
     return { ok: differs.length === 0, differs }
 })
+// the month tables show 15 rows a page; a new range (fresh props) starts again at page 1
+const PER_PAGE = 15
+const pageOf = (list, n) => (list || []).slice((n - 1) * PER_PAGE, n * PER_PAGE)
+const trendPage = ref(1)
+const mixPage = ref(1)
+const scenarioPage = ref(1)
+const defaultPage = ref(1)
+const trendRowsPage = computed(() => pageOf(props.eclTrends, trendPage.value))
+const mixRowsPage = computed(() => pageOf((props.eclMixTrend?.periods || []).map((p, i) => ({ p, i })), mixPage.value))
+const scenarioRowsPage = computed(() => pageOf(props.scenarioEcl?.periods, scenarioPage.value))
+const defaultRowsPage = computed(() => pageOf(props.defaultRates?.rows, defaultPage.value))
+watch(() => props.eclTrends, () => { trendPage.value = 1 })
+watch(() => props.eclMixTrend, () => { mixPage.value = 1 })
+watch(() => props.scenarioEcl, () => { scenarioPage.value = 1 })
+watch(() => props.defaultRates, () => { defaultPage.value = 1 })
+
 const defaultHasData = computed(() => (props.defaultRates?.rows || []).some(r => ['monthly', 'annual'].some(k => r[k]?.book?.rate != null || r[k]?.portfolio?.rate != null)))
 function rateCell(x) {
     if (!x || x.rate === null || x.rate === undefined) return '-'

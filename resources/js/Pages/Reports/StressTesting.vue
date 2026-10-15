@@ -1,11 +1,13 @@
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { confirmDialog } from '@/Components/confirmDialog'
 import BackToReports from './Partials/BackToReports.vue'
 import DownloadButton from './Partials/DownloadButton.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
     periods: { type: Array, default: () => [] },
@@ -49,6 +51,13 @@ const error = ref('')
 const saveName = ref('')
 const saveDesc = ref('')
 const savedList = ref([...props.scenarios])
+// the saved scenarios show 15 a page; a delete never leaves the page past the end
+const savedPage = ref(1)
+const savedRows = computed(() => savedList.value.slice((savedPage.value - 1) * 15, savedPage.value * 15))
+watch(() => savedList.value.length, (n) => {
+    const last = Math.max(1, Math.ceil(n / 15))
+    if (savedPage.value > last) savedPage.value = last
+})
 
 // The reporting currency from Settings (shared prop), never assumed.
 const currency = computed(() => usePage().props.currency?.code || '')
@@ -102,6 +111,7 @@ async function saveScenario() {
             result_snapshot: result.value,
         })
         savedList.value.unshift(data.scenario)
+        savedPage.value = 1
         saveName.value = ''
         saveDesc.value = ''
     } catch (e) {
@@ -257,14 +267,13 @@ async function deleteScenario(s) {
                 <!-- Results -->
                 <template v-if="result">
                     <!-- Macro derivation trail: how the shock became a PD multiplier -->
-                    <div v-if="result.macro"
-                         class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <Notice v-if="result.macro" id="macro-trail" tone="warning">
                         <b>{{ result.macro.model }}</b>: macro {{ result.macro.base_macro }} shocked
                         {{ result.macro.macro_shock_pct > 0 ? '+' : '' }}{{ result.macro.macro_shock_pct }}%
                         &rarr; {{ Number(result.macro.shocked_macro).toLocaleString(undefined, { maximumFractionDigits: 4 }) }},
                         implying a PD adjustment of <b>{{ pct(result.macro.implied_pd_adjustment) }}</b>
                         (multiplier &times;{{ Number(result.macro.pd_multiplier).toFixed(4) }}) applied to every loan.
-                    </div>
+                    </Notice>
 
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="maiic-kpi" style="--accent: #15803d">
@@ -399,7 +408,7 @@ async function deleteScenario(s) {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            <tr v-for="(s, i) in savedList" :key="s.id" :class="i % 2 ? 'bg-maiic-50/40' : 'bg-white'">
+                            <tr v-for="(s, i) in savedRows" :key="s.id" :class="i % 2 ? 'bg-maiic-50/40' : 'bg-white'">
                                 <td class="px-5 py-3 text-gray-800 font-medium">{{ s.scenario_name }}</td>
                                 <td class="px-5 py-3 whitespace-nowrap">{{ s.reporting_period }}</td>
                                 <td class="px-5 py-3 whitespace-nowrap">{{ s.s1_pd_mult }}/{{ s.s2_pd_mult }}/{{ s.s3_pd_mult }}</td>
@@ -412,6 +421,7 @@ async function deleteScenario(s) {
                             </tr>
                         </tbody>
                     </table>
+                    <RowPager v-model="savedPage" :total="savedList.length" class="border-t border-gray-100" />
                 </div>
 
             </div>

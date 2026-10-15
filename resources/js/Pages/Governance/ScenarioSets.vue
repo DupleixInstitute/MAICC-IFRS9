@@ -108,8 +108,9 @@
           <div>
             <h4 class="maiic-section-title mt-0">The paths, first forecast year</h4>
             <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Series</th><th class="num">Base</th><th v-for="name in otherScenarios(s)" :key="name" class="num whitespace-nowrap">{{ name }} <span class="font-normal opacity-80">{{ weightOf(s, name) }}</span></th></tr></thead>
-              <tbody><tr v-for="(o, code) in s.paths.base" :key="code"><td :title="code">{{ seriesName(code) }}</td><td class="num">{{ fmt(o[0]) }}</td><td v-for="name in otherScenarios(s)" :key="name" class="num">{{ fmt(s.paths.scenarios[name].path[code] ? s.paths.scenarios[name].path[code][0] : null) }}</td></tr>
+              <tbody><tr v-for="[code, o] in pathRows(s)" :key="code"><td :title="code">{{ seriesName(code) }}</td><td class="num">{{ fmt(o[0]) }}</td><td v-for="name in otherScenarios(s)" :key="name" class="num">{{ fmt(s.paths.scenarios[name].path[code] ? s.paths.scenarios[name].path[code][0] : null) }}</td></tr>
               <tr v-if="!Object.keys(s.paths.base || {}).length"><td :colspan="2 + otherScenarios(s).length" class="maiic-empty">No base path for this period yet: load the macro statistics first.</td></tr></tbody></table></div>
+            <RowPager :model-value="pathPage[s.id] || 1" @update:model-value="v => pathPage[s.id] = v" :total="Object.keys(s.paths.base || {}).length" class="border-t border-gray-100" />
           </div>
 
           <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -127,7 +128,8 @@
               <h4 class="maiic-section-title mt-0">Back-test</h4>
               <p class="text-xs" :class="s.backtest.review_weights ? 'text-red-700' : 'text-gray-600'">{{ s.backtest.note }}</p>
               <div v-if="s.backtest.rows && s.backtest.rows.length" class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Series</th><th class="num">Predicted base</th><th class="num">Actual</th><th class="num">Miss</th><th>Within range</th></tr></thead>
-                <tbody><tr v-for="r in s.backtest.rows" :key="r.series"><td :title="r.series">{{ seriesName(r.series) }}</td><td class="num">{{ fmt(r.predicted_base) }}</td><td class="num">{{ fmt(r.actual) }}</td><td class="num">{{ fmt(r.miss) }}</td><td>{{ r.within_range ? 'yes' : 'NO' }}</td></tr></tbody></table></div>
+                <tbody><tr v-for="r in backtestRows(s)" :key="r.series"><td :title="r.series">{{ seriesName(r.series) }}</td><td class="num">{{ fmt(r.predicted_base) }}</td><td class="num">{{ fmt(r.actual) }}</td><td class="num">{{ fmt(r.miss) }}</td><td>{{ r.within_range ? 'yes' : 'NO' }}</td></tr></tbody></table></div>
+              <RowPager v-if="s.backtest.rows && s.backtest.rows.length" :model-value="btPage[s.id] || 1" @update:model-value="v => btPage[s.id] = v" :total="s.backtest.rows.length" class="border-t border-gray-100" />
             </div>
           </div>
         </div>
@@ -139,17 +141,21 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { router } from '@inertiajs/vue3'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import { promptReason } from '@/Components/Maiic/promptReason'
 
 export default {
-  components: { AppLayout },
+  components: { AppLayout, RowPager },
   props: { period: String, sets: Array, rules: Object, periods: Array, overlays: Array, canGovern: Boolean, seriesNames: { type: Object, default: () => ({}) } },
-  data() { return { form: { period: this.period }, editing: null, draft: null } },
+  data() { return { form: { period: this.period }, editing: null, draft: null, pathPage: {}, btPage: {} } },
   computed: {
     weightsSum() { return this.draft ? this.draft.scenarios.reduce((a, x) => a + (Number(x.weight) || 0), 0) : 0 },
   },
   methods: {
     seriesName(code) { return this.seriesNames[code] || code },
+    // 15 rows a page, each set paged on its own
+    pathRows(s) { const p = this.pathPage[s.id] || 1; return Object.entries((s.paths && s.paths.base) || {}).slice((p - 1) * 15, p * 15) },
+    backtestRows(s) { const p = this.btPage[s.id] || 1; return ((s.backtest && s.backtest.rows) || []).slice((p - 1) * 15, p * 15) },
     // the scenarios other than the base: the base column is the base path itself
     otherScenarios(s) { const base = (s.scenarios || []).filter(x => x.is_base).map(x => x.name); return Object.keys((s.paths && s.paths.scenarios) || {}).filter(n => !base.includes(n)) },
     weightOf(s, name) { const x = (s.scenarios || []).find(y => y.name === name); return x ? Number(x.weight).toFixed(0) + '%' : '' },

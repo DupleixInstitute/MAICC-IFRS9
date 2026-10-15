@@ -24,7 +24,7 @@
         <span class="ml-auto text-xs text-gray-500">Last posting loaded: {{ lastLedgerDate || '-' }}. A later date is refused, never estimated.</span>
       </form>
 
-      <div v-if="error" class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200">{{ error }}</div>
+      <Notice v-if="error" id="as-at-error" tone="danger">{{ error }}</Notice>
 
       <template v-if="one">
         <div class="maiic-panel">
@@ -44,14 +44,15 @@
             <div>
               <h4 class="maiic-section-title">Roll-forward</h4>
               <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Period</th><th class="num">Opening</th><th class="num">EIR interest</th><th class="num">Cash</th><th class="num">Closing</th><th>Basis</th></tr></thead>
-                <tbody><tr v-for="r in one.roll_forward" :key="r.period" :class="r.period === one.period ? 'font-bold' : ''"><td>{{ r.period }}</td><td class="num">{{ fmt(r.opening) }}</td><td class="num">{{ fmt(r.interest) }}</td><td class="num">{{ fmt(r.cash) }}</td><td class="num">{{ fmt(r.closing) }}</td><td class="text-xs">{{ r.basis }}</td></tr>
-                <tr v-if="!one.roll_forward.length"><td colspan="6" class="maiic-empty">No roll-forward yet: the revenue run has not reached this contract.</td></tr></tbody></table></div>
+                <tbody><tr v-for="r in one.roll_forward.slice((rfPage - 1) * 15, rfPage * 15)" :key="r.period" :class="r.period === one.period ? 'font-bold' : ''"><td>{{ r.period }}</td><td class="num">{{ fmt(r.opening) }}</td><td class="num">{{ fmt(r.interest) }}</td><td class="num">{{ fmt(r.cash) }}</td><td class="num">{{ fmt(r.closing) }}</td><td class="text-xs">{{ r.basis }}</td></tr>
+                <tr v-if="!one.roll_forward.length"><td colspan="6" class="maiic-empty">No roll-forward yet: the revenue run has not reached this contract.</td></tr></tbody></table>
+                <RowPager v-model="rfPage" :total="one.roll_forward.length" class="border-t border-gray-100" /></div>
             </div>
             <div>
               <h4 class="maiic-section-title">Remaining expected cash flows (schedule v{{ one.eir.schedule_version }})</h4>
               <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Due</th><th class="num">Principal</th><th class="num">Interest</th><th class="num">Fee</th></tr></thead>
-                <tbody><tr v-for="(f, i) in one.remaining_cash_flows.slice(0, 24)" :key="i"><td>{{ f.due_date }}</td><td class="num">{{ fmt(f.principal) }}</td><td class="num">{{ fmt(f.interest) }}</td><td class="num">{{ fmt(f.fee) }}</td></tr>
-                <tr v-if="one.remaining_cash_flows.length > 24"><td colspan="4" class="text-xs text-gray-500">… {{ one.remaining_cash_flows.length - 24 }} more lines</td></tr></tbody></table></div>
+                <tbody><tr v-for="(f, i) in one.remaining_cash_flows.slice((cfPage - 1) * 15, cfPage * 15)" :key="(cfPage - 1) * 15 + i"><td>{{ f.due_date }}</td><td class="num">{{ fmt(f.principal) }}</td><td class="num">{{ fmt(f.interest) }}</td><td class="num">{{ fmt(f.fee) }}</td></tr></tbody></table>
+                <RowPager v-model="cfPage" :total="one.remaining_cash_flows.length" class="border-t border-gray-100" /></div>
               <h4 class="maiic-section-title">Modifications and solves</h4>
               <p class="text-sm text-gray-600">{{ one.modifications.length }} rate reset(s) to the date; {{ one.eir_history.length }} earlier solve(s). Inputs: {{ one.inputs.postings_read }} postings read, {{ one.inputs.roll_forward_rows }} roll-forward rows, governance values: {{ one.inputs.governance_snapshot }}.</p>
             </div>
@@ -133,7 +134,11 @@ export default {
   components: { AppLayout, BackToReports, DownloadButton, KpiRow, RowPager, Notice },
   props: { date: String, contract: String, lastLedgerDate: String, book: Object, one: Object, error: String, contracts: Array, yearEnds: Array },
   data() {
-    return { form: { date: this.date, contract: this.contract || '' }, page: 1, by: 'contract', filter: { product: '', gl: '', search: '' } }
+    // rfPage, cfPage: fifteen rows a page in the one-contract roll-forward and cash flows
+    return { form: { date: this.date, contract: this.contract || '' }, page: 1, rfPage: 1, cfPage: 1, by: 'contract', filter: { product: '', gl: '', search: '' } }
+  },
+  watch: {
+    one() { this.rfPage = 1; this.cfPage = 1 },
   },
   computed: {
     allContracts() { return (this.book && this.book.contracts) || [] },

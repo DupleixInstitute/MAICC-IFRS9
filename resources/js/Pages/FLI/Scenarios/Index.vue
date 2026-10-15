@@ -15,9 +15,7 @@
     </div>
     <!-- Button -->
     <div>
-        <Link href="/scenario-profiles" class="inline-flex items-center px-4 py-2 bg-maiic-600 hover:bg-maiic-400 text-black-700 rounded-md space-x-4">
-           <i class="fas fa-arrow-left"></i> Back
-        </Link>
+        <Link href="/scenario-profiles" class="text-sm font-medium text-maiic-700 hover:underline">&larr; Back to scenario profiles</Link>
     </div>
   </div>
       <!-- Scenario List -->
@@ -33,7 +31,7 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="s in scenarios" :key="s.id">
+            <tr v-for="s in pagedScenarios" :key="s.id">
               <td class="px-6 py-4 whitespace-nowrap font-medium">{{ s.name }}</td>
               <td class="px-6 py-4 whitespace-nowrap">{{ s.probability }}%</td>
               <td class="px-6 py-4 whitespace-nowrap">
@@ -57,6 +55,7 @@
             </tr>
           </tbody>
         </table>
+        <RowPager v-model="page" :total="(scenarios || []).length" class="border-t border-gray-100" />
       </section>
 
       <!-- Modal Form -->
@@ -78,10 +77,11 @@
 
 <script setup>
 import { confirmDialog } from '@/Components/confirmDialog'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ScenarioForm from './ScenarioForm.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import { Inertia } from '@inertiajs/inertia'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 
@@ -90,6 +90,10 @@ const props = defineProps({
   profile: Object,
   profiles: Array
 })
+
+// 15 rows a page
+const page = ref(1)
+const pagedScenarios = computed(() => (props.scenarios || []).slice((page.value - 1) * 15, page.value * 15))
 
 const showScenarioForm = ref(false)
 const currentScenario = ref(null)

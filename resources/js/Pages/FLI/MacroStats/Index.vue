@@ -5,15 +5,15 @@
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         Macro Element Definitions
       </h2>
+    </template>
 
-      <div class="mb-4 flex justify-end">
-        <button
-          @click="openForm()"
-          class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
-        >
-          + Add Variable
-        </button>
-      </div>
+    <template #actions>
+      <button
+        @click="openForm()"
+        class="px-4 py-2 bg-maiic-600 text-white rounded hover:bg-maiic-700"
+      >
+        + Add Variable
+      </button>
     </template>
 
     <!-- Table -->
@@ -30,7 +30,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="stat in statistics" :key="stat.id" class="border-b hover:bg-gray-50">
+            <tr v-for="stat in pagedStatistics" :key="stat.id" class="border-b hover:bg-gray-50">
               <td class="py-2 px-4 text-center">{{ stat.statistic_name }}</td>
               <td class="py-2 px-4 text-center">{{ stat.statistic_code }}</td>
               <td class="py-2 px-4 text-center">
@@ -63,6 +63,7 @@
             </tr>
           </tbody>
         </table>
+        <RowPager v-model="page" :total="(statistics || []).length" class="border-t border-gray-100" />
       </div>
     </div>
 
@@ -78,15 +79,20 @@
 
 <script setup>
 import { confirmDialog } from '@/Components/confirmDialog'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import '@fortawesome/fontawesome-free/css/all.css';
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Create from './Create.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
   statistics: Array,
 })
+
+// 15 rows a page
+const page = ref(1)
+const pagedStatistics = computed(() => (props.statistics || []).slice((page.value - 1) * 15, page.value * 15))
 
 const showForm = ref(false)
 const form = ref({})

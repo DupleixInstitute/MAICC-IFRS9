@@ -1,18 +1,16 @@
 <template>
   <app-layout>
     <template #header>
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <BackToReports tab="eir"/>
-          <h2 class="text-xl font-semibold text-gray-800">GL reconciliation (EIR)</h2>
-          <p class="mt-0.5 text-sm text-gray-500">Why calculated interest income differs from what the ledger posted.</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <DownloadButton format="Excel" :href="period ? downloadUrl('xlsx') : ''" :disabled="!period"/>
-          <DownloadButton format="PDF" label="Download PDF" :href="period ? downloadUrl('pdf') : ''" :disabled="!period"/>
-          <Link :href="route('eir-data.index', { tab: 'gl' })" class="secondary-btn">GL Postings</Link>
-        </div>
+      <div>
+        <BackToReports tab="eir"/>
+        <h2 class="text-xl font-semibold text-gray-800">GL reconciliation (EIR)</h2>
+        <p class="mt-0.5 text-sm text-gray-500">Why calculated interest income differs from what the ledger posted.</p>
       </div>
+    </template>
+    <template #actions>
+      <DownloadButton format="Excel" :href="period ? downloadUrl('xlsx') : ''" :disabled="!period"/>
+      <DownloadButton format="PDF" label="Download PDF" :href="period ? downloadUrl('pdf') : ''" :disabled="!period"/>
+      <Link :href="route('eir-data.index', { tab: 'gl' })" class="secondary-btn">GL Postings</Link>
     </template>
 
     <div class="w-full space-y-5">
@@ -37,43 +35,63 @@
 
       <!-- The revenue run. Without it there is nothing to reconcile against:
            this page joins GL postings to amortisation rows, so an engine that
-           has never run reports every posting as "not calculated". -->
-      <div v-if="period" class="rounded-lg border p-4 shadow-sm" :class="chainComplete ? 'border-gray-200 bg-white' : 'border-amber-200 bg-amber-50'">
-        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div class="min-w-0">
-            <h3 class="font-semibold" :class="chainComplete ? 'text-gray-900' : 'text-amber-900'">
-              {{ chainComplete ? 'Amortised-cost roll-forward' : 'No calculated interest to compare against' }}
-            </h3>
-            <p class="mt-1 text-xs" :class="chainComplete ? 'text-gray-500' : 'text-amber-800'">
-              <template v-if="chainComplete">
+           has never run reports every posting as "not calculated". A complete
+           chain is a plain card; a gap is a notice that can be closed. -->
+      <template v-if="period">
+        <div v-if="chainComplete" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div class="min-w-0">
+              <h3 class="font-semibold text-gray-900">Amortised-cost roll-forward</h3>
+              <p class="mt-1 text-xs text-gray-500">
                 {{ revenueReadiness.rows_for_period }} amortisation row(s) exist for {{ period }}, from
                 {{ revenueReadiness.locked_contracts }} contract(s) with an approved and locked EIR. Re-running leaves
                 calculated periods unchanged.
-              </template>
-              <template v-else>
+              </p>
+              <p v-if="!revenueReadiness.locked_contracts" class="mt-1 text-xs font-medium text-amber-900">
+                No contract has a locked EIR yet, so a run would produce nothing. Solve and approve them on EIR
+                Calculations first.
+              </p>
+            </div>
+            <div class="flex shrink-0 flex-wrap gap-2">
+              <button type="button" class="secondary-btn" :disabled="running || !revenueReadiness.locked_contracts"
+                      @click="runRevenue('period')">
+                Run {{ period }} only
+              </button>
+              <button type="button" class="primary-btn" :disabled="running || !revenueReadiness.locked_contracts"
+                      @click="runRevenue('catch_up')">
+                {{ running ? 'Running…' : `Run every period to ${period}` }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <Notice v-else id="no-calculated-interest" tone="warning">
+          <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div class="min-w-0">
+              <h3 class="font-semibold text-amber-900">No calculated interest to compare against</h3>
+              <p class="mt-1 text-xs text-amber-800">
                 {{ revenueReadiness.missing_periods.length }} period(s) up to {{ period }} have no amortisation rows,
                 starting at {{ revenueReadiness.missing_periods[0] }}. Each opening balance is the prior period's
                 closing, so the catch-up runs every period in order from {{ revenueReadiness.first_period }}.
-              </template>
-            </p>
-            <p v-if="!revenueReadiness.locked_contracts" class="mt-1 text-xs font-medium text-amber-900">
-              No contract has a locked EIR yet, so a run would produce nothing. Solve and approve them on EIR
-              Calculations first.
-            </p>
+              </p>
+              <p v-if="!revenueReadiness.locked_contracts" class="mt-1 text-xs font-medium text-amber-900">
+                No contract has a locked EIR yet, so a run would produce nothing. Solve and approve them on EIR
+                Calculations first.
+              </p>
+            </div>
+            <div class="flex shrink-0 flex-wrap gap-2">
+              <button type="button" class="secondary-btn" :disabled="running || !revenueReadiness.locked_contracts"
+                      @click="runRevenue('period')">
+                Run {{ period }} only
+              </button>
+              <button type="button" class="primary-btn" :disabled="running || !revenueReadiness.locked_contracts"
+                      @click="runRevenue('catch_up')">
+                {{ running ? 'Running…' : `Run every period to ${period}` }}
+              </button>
+            </div>
           </div>
-          <div class="flex shrink-0 flex-wrap gap-2">
-            <button type="button" class="secondary-btn" :disabled="running || !revenueReadiness.locked_contracts"
-                    @click="runRevenue('period')">
-              Run {{ period }} only
-            </button>
-            <button type="button" class="primary-btn" :disabled="running || !revenueReadiness.locked_contracts"
-                    @click="runRevenue('catch_up')">
-              {{ running ? 'Running…' : `Run every period to ${period}` }}
-            </button>
-          </div>
-        </div>
+        </Notice>
 
-        <div v-if="revenueRun" class="mt-4 rounded-md border p-3 text-xs"
+        <div v-if="revenueRun" class="rounded-md border p-3 text-xs"
              :class="revenueRun.status === 'REFUSED' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-gray-200 bg-gray-50 text-gray-700'">
           <div v-if="revenueRun.status === 'REFUSED'">{{ revenueRun.message }}</div>
           <template v-else>
@@ -100,7 +118,7 @@
             </div>
           </template>
         </div>
-      </div>
+      </template>
 
       <div v-if="!period" class="rounded-lg border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 shadow-sm">
         No GL interest postings have been loaded yet. Use EIR Data Intake to load an interest posting extract.
@@ -116,6 +134,8 @@
 
         <!-- one tab row (navigation review of 15 October 2026): the bridge and why the ledger differs, then the facilities -->
         <PageTabs v-model="view" :tabs="viewTabs" query="tab" />
+        <!-- the page buttons sit here: below the cards and the tabs, above the tab's table -->
+        <div data-actions-anchor></div>
         <template v-if="view === 'bridge'">
 
         <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -173,14 +193,14 @@
           </div>
         </div>
 
-        <div v-if="Math.abs(bridge.rate_effect) < 100 && bridge.gl_matched !== 0" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <Notice v-if="Math.abs(bridge.rate_effect) < 100 && bridge.gl_matched !== 0" id="rate-effect-nil" tone="warning">
           <h4 class="text-sm font-semibold text-amber-900">The rate effect is effectively nil</h4>
           <p class="mt-1 text-xs text-amber-800">
             A solved EIR carrying no integral fees accrues at very nearly the contractual rate, so the whole variance
             is a balance or a convention difference. Until fee lines are classified as integral, this reconciliation
             measures the ledger's basis rather than any EIR yield uplift.
           </p>
-        </div>
+        </Notice>
         </template>
 
         <div v-else class="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -256,13 +276,14 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import BackToReports from '@/Pages/Reports/Partials/BackToReports.vue'
 import DownloadButton from '@/Pages/Reports/Partials/DownloadButton.vue'
 import RowPager from '@/Components/Maiic/RowPager.vue'
 import PageTabs from '@/Components/Maiic/PageTabs.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 
 const props = defineProps({
   period: { type: String, default: null },
@@ -362,6 +383,7 @@ const sortedRows = computed(() => [...props.rows].sort((a, b) => {
 }))
 // fifteen facilities a page, like every other list
 const facilityPage = ref(1)
+watch(() => props.rows, () => { facilityPage.value = 1 })
 const view = ref('bridge')
 const viewTabs = computed(() => [
   { key: 'bridge', label: 'Variance bridge' },
