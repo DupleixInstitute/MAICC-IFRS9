@@ -115,18 +115,43 @@ class EirFeeClassificationController extends Controller
         return back()->with('success', 'The fee line is tied to loan ' . ltrim(trim($data['contract_id']), '0') . '. It now waits on the list below for its classification and review.');
     }
 
-    public function index(Request $request)
+    /** The fee lines the screen's filters select (status, fee or cost type, GL, contract). */
+    private function filtered(Request $request)
     {
-        $query = ContractFee::query()->with('suggestedRule:id,name,proposed_integral');
+        $query = ContractFee::query();
         if ($request->filled('status')) $query->where('classification_status', $request->input('status'));
         if ($request->filled('fee_type')) $query->where('fee_type', $request->input('fee_type'));
+        if ($request->filled('gl')) $query->where('gl_account_ref', $request->input('gl'));
         if ($request->filled('contract_id')) $query->where('contract_id', 'like', '%' . $request->input('contract_id') . '%');
+
+        return $query;
+    }
+
+    /**
+     * Every line the filters select, for "Select all lines matching these filters": the ids, so the
+     * existing classify, review and return actions act on them unchanged. A superseded line is left
+     * out (it never enters the EIR), and so is a reviewed line unless the filter asks for reviewed lines.
+     */
+    public function matchingIds(Request $request)
+    {
+        $query = $this->filtered($request)->whereNull('superseded_by_source');
+        if ($request->input('status') !== 'REVIEWED') {
+            $query->where('classification_status', '!=', 'REVIEWED');
+        }
+        $ids = $query->orderBy('id')->limit(5000)->pluck('id');
+
+        return response()->json(['ids' => $ids, 'count' => $ids->count()]);
+    }
+
+    public function index(Request $request)
+    {
+        $query = $this->filtered($request)->with('suggestedRule:id,name,proposed_integral');
 
         return Inertia::render('Eir/FeeClassification', [
             'fees' => $query->orderByRaw("CASE classification_status WHEN 'PENDING' THEN 1 WHEN 'CLASSIFIED' THEN 2 ELSE 3 END")
                 ->orderByDesc('id')->paginate(15)->withQueryString(),
             'rules' => EirAccountingRule::where('active', true)->whereNotNull('approved_at')->orderBy('priority')->get(['id', 'name', 'proposed_integral']),
-            'filters' => $request->only(['status', 'fee_type', 'contract_id']),
+            'filters' => $request->only(['status', 'fee_type', 'gl', 'contract_id']),
             'summary' => ContractFee::select('classification_status', DB::raw('COUNT(*) as line_count'), DB::raw('SUM(amount) as total_amount'))
                 ->groupBy('classification_status')->get()->keyBy('classification_status'),
             // Drives the re-apply prompt: an operator needs to see that pending

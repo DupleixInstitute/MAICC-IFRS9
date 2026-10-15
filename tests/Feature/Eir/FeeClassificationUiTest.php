@@ -93,4 +93,24 @@ class FeeClassificationUiTest extends TestCase
         $this->assertTrue(Route::has('eir-fee-classification.dismiss-candidate'));
         $this->assertSame(['tieHeld', 'dismissCandidate', 'decideOverlap'], $govern['options']['only']);
     }
+
+    public function test_select_all_matching_returns_every_line_the_filters_select_on_every_page(): void
+    {
+        $now = now();
+        foreach (range(3, 22) as $id) {
+            DB::table('contract_fees')->insert(['id' => $id, 'contract_id' => 'C' . $id, 'fee_type' => $id % 2 ? 'legal' : 'arrangement', 'amount' => 1000,
+                'gl_account_ref' => $id === 22 ? '4874' : null, 'classification_status' => $id === 21 ? 'REVIEWED' : 'PENDING', 'source_system' => 'MAIIC Finance EIR assessment 2025',
+                'created_at' => $now, 'updated_at' => $now]);
+        }
+        $ids = fn (array $q) => app(EirFeeClassificationController::class)->matchingIds(Request::create('/eir-fee-classification/matching-ids', 'GET', $q))->getData(true);
+
+        $all = $ids([]);
+        $this->assertNotContains(1, $all['ids'], 'a superseded line is left out');
+        $this->assertNotContains(21, $all['ids'], 'a reviewed line is left out unless asked for');
+        $this->assertSame(20, $all['count'], 'more than one page (15) is selected');
+
+        $this->assertSame([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22], $ids(['fee_type' => 'arrangement'])['ids'], 'the fixture line 2 is a pending arrangement fee too');
+        $this->assertSame([22], $ids(['gl' => '4874'])['ids']);
+        $this->assertSame([21], $ids(['status' => 'REVIEWED'])['ids']);
+    }
 }
