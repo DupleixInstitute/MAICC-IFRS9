@@ -129,7 +129,7 @@ class StagingService
         $stagingCount = \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'staging_dpd');
         $basisInForce = $policy->dpdBasisLabel();
         $rows = DB::table('loan_books')->where('reporting_period', $period)
-            ->get(array_merge(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'], $stagingCount ? ['staging_dpd', 'staging_dpd_basis'] : [], \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'build_basis') ? ['build_basis'] : []));
+            ->get(array_merge(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'], $stagingCount ? ['staging_dpd', 'staging_dpd_basis'] : [], \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'build_basis') ? ['build_basis'] : [], \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'due_date') ? ['due_date'] : []));
         $asOf = $monthEnd->toDateString();
         $customers = $rows->pluck('customer_id', 'contract_id')->map(fn ($c) => $c === null ? null : (string) $c)->all();
         [$priorStage, $dpdHistory] = $this->priorMonths($period, $cureMonths, $customers, $qualitativeApplied);
@@ -156,6 +156,10 @@ class StagingService
                 $dpd = (int) $r->staging_dpd;
             } else {
                 $dpd = $policy->bucketBasis() ? self::bucketDays($r) : self::daysPastDueOf($r);
+                // a matured loan still owing, counted from its maturity when the rules say so and the row has a due date
+                if ($policy->value('dpd_after_maturity') === StagingPolicy::MATURITY_COUNT && ! empty($r->due_date) && (float) ($r->carrying_amount ?? 0) > 0.005 && (string) $r->due_date < $asOf) {
+                    $dpd = max($dpd, (int) CarbonImmutable::parse((string) $r->due_date)->diffInDays($monthEnd));
+                }
                 $counts['staging_dpd_derived']++;
             }
             if ($dpd > 0 && ($policy->bucketBasis() || (int) $r->overdue_days === 0)) { $counts['by_bucket']++; }

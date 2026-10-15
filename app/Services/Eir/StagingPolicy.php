@@ -87,7 +87,9 @@ final class StagingPolicy
             'stage2_threshold_medium_long' => self::STAGE2_31,
             'staging_mega_farm_term' => self::MF_SAME,
             'dpd_basis' => self::BASIS_BUCKET,
-            'dpd_after_maturity' => self::MATURITY_CORE,
+            // the December 2025 workbooks' own loan book showed matured loans as past due; E-Banker's report leaves
+            // their arrears empty, so the system counts from maturity to reproduce that (Edward, 15 October 2026)
+            'dpd_after_maturity' => self::MATURITY_COUNT,
             'dpd_schedule_correction' => self::SCHEDULE_AS_GIVEN,
             'stage3_missed_instalments' => self::NOT_APPLIED,
             'sicr_qualitative_register' => self::NOT_APPLIED,

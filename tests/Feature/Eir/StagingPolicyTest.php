@@ -42,7 +42,7 @@ class StagingPolicyTest extends TestCase
             $t->date('effective_from'); $t->string('status')->default('APPROVED'); $t->integer('proposed_by')->nullable(); $t->integer('approved_by')->nullable(); $t->timestamp('approved_at')->nullable(); $t->string('reason')->nullable(); $t->timestamps();
         });
         (new StagingThresholdSeeder())->run();
-        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('external_identity_id')->nullable(); $t->string('customer_id')->nullable(); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->string('product_code')->nullable(); $t->integer('tenor')->default(0); $t->integer('overdue_days')->default(0); $t->decimal('carrying_amount', 20, 2)->default(0); $t->text('build_flag')->nullable(); $t->integer('sicr')->default(0); $t->integer('ifrs9_stage')->default(0); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->string('calculated_ifrs9_stage')->nullable(); $t->integer('staging_dpd')->nullable(); $t->string('staging_dpd_basis')->nullable(); foreach (['arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'] as $c) { $t->string($c)->nullable(); } });
+        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('external_identity_id')->nullable(); $t->string('customer_id')->nullable(); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->string('product_code')->nullable(); $t->integer('tenor')->default(0); $t->integer('overdue_days')->default(0); $t->decimal('carrying_amount', 20, 2)->default(0); $t->text('build_flag')->nullable(); $t->integer('sicr')->default(0); $t->integer('ifrs9_stage')->default(0); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->string('calculated_ifrs9_stage')->nullable(); $t->integer('staging_dpd')->nullable(); $t->string('staging_dpd_basis')->nullable(); $t->date('due_date')->nullable(); foreach (['arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'] as $c) { $t->string($c)->nullable(); } });
         $migration = require base_path('database/migrations/2026_10_08_000000_create_ebanker_landing_zone.php');
         $migration->up();
         $this->createSicrSchema();
@@ -220,6 +220,30 @@ class StagingPolicyTest extends TestCase
 
         $this->assertSame(['counted' => '3', 'no-count' => '2', 'other-basis' => '2'], DB::table('loan_books')->orderBy('contract_id')->pluck('ifrs9stage_post_qualitative', 'contract_id')->all());
         $this->assertSame(2, $c['staging_dpd_derived']);
-        $this->assertSame('bucket ageing, core-system report as given, core-system ageing after maturity', $single);
+        $this->assertSame('bucket ageing, core-system report as given, counted from maturity when longer', $single);
+    }
+
+    /**
+     * The 31 December 2025 policy counts a matured loan still owing from its
+     * maturity (decided 15 October 2026): E-Banker leaves its arrears empty, the
+     * December workbooks' loan book showed it past due. A row with no counts kept
+     * by the build is counted from its due date; a loan repaid in full is not.
+     */
+    public function test_single_ladder_counts_a_matured_loan_from_its_maturity(): void
+    {
+        $this->assertSame(StagingPolicy::MATURITY_COUNT, StagingPolicy::PRESETS[StagingPolicy::PRESET_SINGLE]['dpd_after_maturity']);
+        DB::table('loan_books')->insert([
+            // matured 31 January 2026, still owing, no arrears reported: 242 days at 30 September, Stage 3
+            ['contract_id' => 'matured-owing', 'reporting_period' => '2026-09', 'tenor' => 12, 'overdue_days' => 0, 'carrying_amount' => 1000, 'due_date' => '2026-01-31'],
+            // matured 31 July 2026: 61 days, Stage 2 on the single ladder
+            ['contract_id' => 'matured-recent', 'reporting_period' => '2026-09', 'tenor' => 12, 'overdue_days' => 0, 'carrying_amount' => 1000, 'due_date' => '2026-07-31'],
+            // matured and repaid: no balance, not past due
+            ['contract_id' => 'matured-repaid', 'reporting_period' => '2026-09', 'tenor' => 12, 'overdue_days' => 0, 'carrying_amount' => 0, 'due_date' => '2026-01-31'],
+        ]);
+        $this->assertSame(['matured-owing' => '3', 'matured-recent' => '2', 'matured-repaid' => '1'], $this->stage('2026-09'));
+
+        // without the maturity count (Custom), E-Banker's empty arrears read current
+        $this->stageDirectiveAligned(array_replace(StagingPolicy::PRESETS[StagingPolicy::PRESET_SINGLE], ['dpd_after_maturity' => StagingPolicy::MATURITY_CORE]));
+        $this->assertSame(['matured-owing' => '1', 'matured-recent' => '1', 'matured-repaid' => '1'], $this->stage('2026-09'));
     }
 }

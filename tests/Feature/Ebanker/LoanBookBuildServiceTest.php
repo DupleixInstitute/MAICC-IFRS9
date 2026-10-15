@@ -340,9 +340,10 @@ class LoanBookBuildServiceTest extends TestCase
      * Staging Module Specification v1, section 5 and acceptance 6: the build keeps the
      * directive's count in overdue_days whatever the staging policy, and writes the
      * staging count beside it under the policy in force. The matured bullet loan reads
-     * 31 days from maturity for the RBM return under both policies; single-ladder
-     * staging reads the core system's empty buckets (0 days), directive-aligned
-     * staging the count from maturity. The RBM return is the same under both.
+     * 31 days from maturity for the RBM return under both policies, and both
+     * staging policies count it from maturity too (single-ladder on the bucket
+     * ageing, as the December 2025 workbooks' loan book showed matured loans past
+     * due). The RBM return is the same under both.
      */
     public function test_the_directive_count_and_the_rbm_return_do_not_move_with_the_staging_policy(): void
     {
@@ -358,8 +359,8 @@ class LoanBookBuildServiceTest extends TestCase
         $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
         $single = $book();
         $this->assertSame(31, (int) $single['104480000004']->overdue_days);
-        $this->assertSame(0, (int) $single['104480000004']->staging_dpd);
-        $this->assertSame('bucket ageing, core-system report as given, core-system ageing after maturity', $single['104480000004']->staging_dpd_basis);
+        $this->assertSame(31, (int) $single['104480000004']->staging_dpd);
+        $this->assertSame('bucket ageing, core-system report as given, counted from maturity when longer', $single['104480000004']->staging_dpd_basis);
         // every count the staging settings choose between is kept on the row, so any policy can be counted exactly
         $kept = json_decode(DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104480000004')->value('build_basis'), true)['dpd_counts'];
         $this->assertSame(['oldest' => 0, 'oldest_recounted' => 0, 'bucket' => 0, 'bucket_recounted' => 0, 'since_maturity' => 31], $kept);
