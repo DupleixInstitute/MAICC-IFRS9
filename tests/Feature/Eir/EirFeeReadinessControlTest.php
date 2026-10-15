@@ -158,6 +158,27 @@ class EirFeeReadinessControlTest extends TestCase
         $this->assertSame(1, DB::table('fee_source_coverage')->count(), 'the GL build replaces its span');
     }
 
+    /** The per-period rule whichever source wins: with Finance's workbook first, the GL fills the months its file does not cover. */
+    public function test_with_finance_first_a_gl_fee_outside_the_workbook_months_still_counts(): void
+    {
+        DB::table('governance_settings')->where('key', 'fee_source_precedence')->update(['value' => \App\Services\Eir\FeeSourcePrecedence::FINANCE_FIRST]);
+        $precedence = app(\App\Services\Eir\FeeSourcePrecedence::class);
+        $this->assertSame(\App\Services\Eir\FeeSourcePrecedence::TIER_FINANCE, $precedence->order()[0]);
+        $precedence->recordCoverage(\App\Services\Eir\FeeSourcePrecedence::TIER_FINANCE, '2025-01', '2025-12', 'Finance fee workbook 2025', 1);
+
+        $workbook = $this->fee('900000000205', 'arrangement', 1_000_000, 'MAIIC Finance EIR assessment 2025', '2025-03-14');
+        $glSame = $this->fee('900000000205', 'arrangement', 1_000_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_GL, '2025-03-14');
+        $gl2026 = $this->fee('900000000205', 'legal', 500_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_GL, '2026-02-10');
+
+        $r = $precedence->apply(1);
+
+        $this->assertNull(DB::table('contract_fees')->where('id', $workbook)->value('superseded_by_source'), 'the workbook is the source of record');
+        $this->assertSame('Finance workbook', DB::table('contract_fees')->where('id', $glSame)->value('superseded_by_source'), 'the same fee in a covered month: the workbook wins');
+        $row = DB::table('contract_fees')->where('id', $gl2026)->first();
+        $this->assertSame([null, null], [$row->superseded_by_source, $row->source_overlap], 'February 2026 is outside the workbook: the GL fee counts');
+        $this->assertSame([1, 0], [$r['outside_coverage'], $r['overlaps']]);
+    }
+
     public function test_a_fee_of_another_period_is_an_overlap_that_waits_for_a_person(): void
     {
         $this->contract('900000000202');
