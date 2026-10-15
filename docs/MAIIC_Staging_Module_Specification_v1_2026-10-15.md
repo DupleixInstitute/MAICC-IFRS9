@@ -15,7 +15,7 @@ toc: yes
 
 Staging decides whether each loan is in Stage 1, 2 or 3 under IFRS 9 at every month-end. It drives more of the system than any other single rule. The probability of default is measured on stage movements, the expected credit loss is twelve-month or lifetime by stage, interest on a Stage 3 loan is recognised on the net basis, and the Mega Farm provision, the restructure register, the forward-looking route and the IFRS 9 note all read the stage.
 
-Today the staging rules sit in the code. This specification makes them **governed**: each rule becomes a setting in the Governance Centre, proposed by one person and approved by another, with an effective date and a comment, like every other policy setting in the system. It makes every change in the Governance Centre fully logged, with room for supporting documents (section 8). It also adds a **staging comparison run**, which stages any month under a second set of rules beside the booked one and explains every difference, without changing the booked figures.
+Today the staging rules sit in the code. This specification makes them **governed**: each rule becomes a setting in the Governance Centre, proposed by one person and approved by another, with an effective date and a comment, like every other policy setting in the system. It makes every change in the Governance Centre, and every other approval in the system, fully logged, with room for supporting documents (section 8). It also adds a **staging comparison run**, which stages any month under a second set of rules beside the booked one and explains every difference, without changing the booked figures.
 
 Two sets of rules are defined:
 
@@ -143,9 +143,9 @@ The RBM return classifies facilities under the directive's own bands: by term, o
 
 **Audit trail.** Every staging run records the settings in force, their effective dates and the preset, so any month can be traced to the policy it ran under.
 
-## 8. Every Governance Centre change logged, with its supporting documents
+## 8. Every governed change logged, with its supporting documents
 
-Staging becomes governed through the Governance Centre, so the Centre's record has to be good enough for an auditor or the Reserve Bank to follow every policy choice: who proposed it, why, on what evidence, who approved or rejected it, when it took effect and what it replaced. This section covers **every setting in the Governance Centre**, not only the staging ones.
+Staging becomes governed through the Governance Centre, so the Centre's record has to be good enough for an auditor or the Reserve Bank to follow every policy choice: who proposed it, why, on what evidence, who approved or rejected it, when it took effect and what it replaced. Sections 8.1 to 8.5 cover **every setting in the Governance Centre**, not only the staging ones. Section 8.6 applies the same record to **every other approval in the system**: the rules, registers, models, locks and sign-offs that are proposed by one person and decided by another outside the Centre.
 
 ### 8.1 What is recorded today, and what is missing
 
@@ -190,6 +190,47 @@ The Governance Centre gains a **History** view for each setting: every value it 
 - The governance audit entries are **append-only**. The system has no screen or command to edit or delete them, and the build adds a database guard so that an update or delete on these entries is refused.
 - Each entry carries the **fingerprint of the entry before it**, so the entries form a chain. A check (run with the bootstrap's verify step and on demand) recomputes the chain and names the first entry that does not follow. Anyone who changes or removes an entry directly in the database breaks the chain, and the check shows where.
 
+### 8.6 The other approvals in the system
+
+Outside the Governance Centre, about twenty other workflows decide something that changes a figure. They already have their own screens, and most already require a second person. Each now gets the same record as the Centre: the events of section 8.2, supporting documents as in section 8.3, a history, and the append-only chained log of section 8.5. The list below is from the code as at 15 October 2026.
+
+**Policy, rules and models**
+
+| Workflow | What it decides | Today | What changes | Evidence required to approve |
+|---|---|---|---|---|
+| Staging threshold rows (Staging & SICR Rules) | The day thresholds per facility class | Propose, approve, reject; second person; logged | Withdraw; documents; history | Yes: the rebuttal basis for any change to a threshold |
+| Qualitative SICR register | A trigger that lifts a loan or customer to Stage 2 or 3 | Propose, approve, reject; second person; logged | Withdraw; documents; history | Yes: the credit report or event behind the trigger |
+| **Fee rulebook** (Accounting Rules) | Whether a fee type is integral to the EIR | Create, edit, approve, switch on or off; logged. **The person who wrote a rule can approve it, no reason is asked, and switching a rule on or off needs no second person** | **Second-person approval with a reason; reject and withdraw; switching on or off becomes a proposal like any other change**; documents; history | Yes: the policy reference or the offer-letter evidence for the fee type |
+| Fee classification review | Whether each fee line enters the EIR | Classify, then review by a second person; logged | Reject back to the classifier with a reason; documents; history | Only for a line classified against the rulebook's suggestion |
+| Scenario sets | The economic scenarios and their weights | Propose, approve, lock; second person; logged | Reject and withdraw; documents; history | Yes: the calibration note (already required for a downside scenario) |
+| Forward-looking overlays | A management adjustment to the forward-looking result | Propose, approve, reject; second person; logged | Withdraw; documents; history | Yes: the reason and evidence (already captured as text; now a document as well) |
+| Forward-looking fits for the route | Which regression drives the adjustment | Propose, approve; second person; logged | Reject and withdraw; documents; history | Yes: the diagnostics export |
+| External forward-looking models | A model built outside the system | Propose, approve, reject; second person; logged | Withdraw; documents; history | Yes: the model documentation |
+
+**Loan-level decisions**
+
+| Workflow | What it decides | Today | What changes | Evidence required to approve |
+|---|---|---|---|---|
+| Schedule approval | A loan's contractual schedule for the EIR | Approve; the preparer cannot approve; logged | Reject with a reason; documents; history | No |
+| EIR lock and reopen | Fixing a loan's EIR; reopening it | Lock with the second-person rule or the governed override; reopen by request, approved or rejected; logged | The lock written to the audit log by the service itself, not only by the screen; documents on a reopen; history | Yes, for a reopen: the reason it was wrong |
+| Restructure register | A confirmed restructure and its modification accounting | Propose, approve; second person; logged | Reject and withdraw; documents; history | Yes: **the Board approval the directive requires for a restructure (s.16(1))** |
+| Rate resets | A floating-rate reset event | Propose, approve; second person; logged | Reject and withdraw; documents; history | Yes: the prime-rate notice or the agreement |
+| Write-off register | Writing a loan off | Propose, approve, reject; second person; logged | Withdraw; documents; history | Yes: the write-off approval under MAIIC's credit policy |
+| Take-on build | Building the take-on loans from Finance's workbook | Propose, approve; second person; logged | Reject and withdraw; documents (the returned workbook is attached); history | Yes: the workbook version used |
+
+**Month-end controls and sign-offs**
+
+| Workflow | What it decides | Today | What changes | Evidence required to approve |
+|---|---|---|---|---|
+| Loan book build | Accepting a month's built loan book | Approve, reject; logged | Documents; history | No |
+| Period lock and unlock | Closing a month; reopening a closed one | Lock; unlock by request, approved or rejected; second person; logged | Documents on an unlock; history | Yes, for an unlock: the reason and the approval to restate |
+| Compliance audit sign-offs | A reviewer's sign-off of an audit row | Sign and approve; logged | Reject with a reason; documents; history | No |
+| Macro data overrides | A manual value replacing an imported one | Entered with a reason; logged | Second-person approval; documents; history | Yes: the source of the value |
+
+### 8.7 One register of approvals
+
+The Governance Centre gains an **Approvals** view across all of the above and the Centre's own settings: everything awaiting a decision, with who proposed it and when; and everything decided, with the decision, the reasons and the documents. It filters by workflow, person, status and date, exports to PDF and Excel, and is included in the auditor's pack. One shared document store serves every workflow, so a minute attached once can be linked to the several decisions it covers.
+
 ## 9. Decisions owed
 
 | Ref | Decision | Owner | Recommendation |
@@ -201,6 +242,8 @@ The Governance Centre gains a **History** view for each setting: every value it 
 | S5 | Whether to keep each accepted departure of section 2.3 visible on the face of the monthly report until S1 | Finance | Yes |
 | S6 | Which settings require a supporting document before approval, beyond those named in section 8.3 | Dr Thom, with Finance | Every setting that is a Phase 0 sign-off, and every staging setting |
 | S7 | Who may view the supporting documents | MAIIC ICT, with Dr Thom | Users holding the governance permission, and the auditors through the auditor's pack |
+| S8 | Which other approvals require a supporting document (section 8.6) | Dr Thom, with Finance and Credit | As marked in the tables of section 8.6 |
+| S9 | Whether a fee rule already approved by the person who wrote it must be approved again by a second person | Dr Thom | Yes: every rule the matcher uses is re-approved under maker-checker before the fee review starts |
 
 ## 10. Acceptance
 
@@ -216,6 +259,9 @@ The Governance Centre gains a **History** view for each setting: every value it 
 10. **Required evidence.** A staging preset or a Stage 2 rebuttal cannot be approved without at least one supporting document; the refusal names what is missing.
 11. **Documents safe.** An uploaded document is stored outside the public web folder, cannot be opened without the governance permission, and a file altered on disk is reported as altered when opened.
 12. **Append-only.** Editing or deleting a governance audit entry through the system is impossible, and doing it directly in the database is refused; a change made with the guard bypassed is found by the chain check, which names the first broken entry.
+13. **Other approvals.** Every workflow of section 8.6 records its proposal, decision (approve, reject or withdraw) and documents in the same log, and refuses approval without the evidence its table marks as required.
+14. **Fee rulebook control.** The person who wrote or changed a fee rule cannot approve it; approval and switching a rule on or off need a reason and a second person; the matcher uses only rules approved that way.
+15. **Approvals register.** The Approvals view lists every pending and decided item across all workflows and reconciles to the audit log.
 
 ## 11. Build order
 
@@ -223,7 +269,8 @@ The Governance Centre gains a **History** view for each setting: every value it 
 |---|---|---|
 | 1 | The settings, the presets and their seeding; `StagingService` reading them; `staging_dpd` beside `overdue_days` in the build | About 1.5 days |
 | 2 | The comparison run: tables, command, panel, export, audit-workbook sheet | About 1 day |
-| 3 | The governance change log of section 8: reject and withdraw, the seeding entries, supporting documents on private storage with fingerprints, required evidence, the History view and export, the append-only guard and the chain check | About 2 days |
+| 3 | The governance change log of sections 8.1 to 8.5: reject and withdraw, the seeding entries, supporting documents on private storage with fingerprints, required evidence, the History view and export, the append-only guard and the chain check | About 2 days |
+| 3a | The other approvals of section 8.6 on the same log and document store, the fee rulebook's maker-checker first; the Approvals view of section 8.7 | About 2.5 days |
 | 4 | Tests for each acceptance point; a bootstrap check | About half a day |
 | 5 | Release to MAIIC's server by the release steps of the integration document (section 2.2): push, pull, migrate, bootstrap with the nine ties passing, then the comparison runs for December 2025 and September 2026 | With MAIIC ICT |
 | Later | Setting 9, once each loan's PD at origination is kept | To be planned |

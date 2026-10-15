@@ -199,10 +199,18 @@ def render_pdf(meta, blocks, out: Path):
         toc.levelStyles = [ParagraphStyle("t0", fontName="Seg-B", fontSize=10, leading=15, leftIndent=0, firstLineIndent=0, textColor=NAVY, spaceBefore=3),
                            ParagraphStyle("t1", fontName="Seg", fontSize=9.2, leading=13, leftIndent=14, firstLineIndent=0, textColor=GREY)]
         s.append(Paragraph("Contents", S["h2"])); s.append(toc); s.append(PageBreak())
+    class _Head(Paragraph):
+        def draw(self):
+            Paragraph.draw(self)
+            if TOC:
+                self.canv._doctemplate.notify("TOCEntry", (0 if self.style.name == "h2" else 1, self.getPlainText(), self.canv.getPageNumber()))
     for kind, content in blocks:
-        if kind == "h2": s.append(Paragraph(inline(content), S["h2"]))
-        elif kind == "h3": s.append(Paragraph(inline(content), S["h3"]))
-        elif kind == "p": s.append(Paragraph(inline(content), S["p"]))
+        if kind == "h2": s.append(_Head(inline(content), S["h2"]))
+        elif kind == "h3": s.append(_Head(inline(content), S["h3"]))
+        elif kind == "p":
+            # a paragraph that is all bold is a label for what follows (usually a table): keep it on the same page
+            label = content.startswith("**") and content.endswith("**") and content.count("**") == 2
+            s.append(Paragraph(inline(content), ParagraphStyle("plabel", parent=S["p"], keepWithNext=1) if label else S["p"]))
         elif kind == "img":
             from reportlab.platypus import Image as RLImage
             from reportlab.lib.utils import ImageReader
@@ -243,11 +251,23 @@ def render_pdf(meta, blocks, out: Path):
         c.setFont("Seg", 8); c.setFillColor(GREY); c.drawString(20 * mm, 9.5 * mm, f"{meta.get('kicker', '')}  ·  {title}  ·  {date}")
         c.drawRightString(A4[0] - 20 * mm, 9.5 * mm, f"Page {d.page}"); c.restoreState()
     class _Doc(BaseDocTemplate):
-        def afterFlowable(self, f):
-            if TOC and isinstance(f, Paragraph) and f.style.name in ("h2", "h3") and f.getPlainText() != "Contents":
-                self.notify("TOCEntry", (0 if f.style.name == "h2" else 1, f.getPlainText(), self.page))
+        pass
     doc = _Doc(str(out), pagesize=A4, leftMargin=20 * mm, rightMargin=20 * mm, topMargin=16 * mm, bottomMargin=20 * mm, title=title, author="Dupleix Institute")
     doc.addPageTemplates([PageTemplate(id="p", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)], onPage=footer)])
+    # a heading or a label is never left at the foot of a page: it travels with the block after it
+    glued, i = [], 0
+    while i < len(s):
+        f = s[i]
+        if isinstance(f, Paragraph) and getattr(f.style, "keepWithNext", 0) and i + 1 < len(s) and f.getPlainText() != "Contents" and not isinstance(s[i + 1], TableOfContents):
+            grp, j = [f], i + 1
+            while j < len(s) and isinstance(s[j], Paragraph) and getattr(s[j].style, "keepWithNext", 0):
+                grp.append(s[j]); j += 1
+            if j < len(s):
+                grp.append(s[j]); j += 1
+            glued.append(KeepTogether(grp)); i = j
+        else:
+            glued.append(f); i += 1
+    s = glued
     doc.multiBuild(s) if TOC else doc.build(s)
 
 if __name__ == "__main__":
