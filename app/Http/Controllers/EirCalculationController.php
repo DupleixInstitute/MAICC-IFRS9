@@ -20,7 +20,7 @@ class EirCalculationController extends Controller
         // eir.govern reaches the screen and the reopening actions
         $this->middleware('permission:settings|eir.govern')->only(['index']);
         $this->middleware('permission:settings')->only(['calculate', 'approve', 'approveAll']);
-        $this->middleware('permission:eir.govern')->only(['reopen', 'approveReopen', 'closeReopen']);
+        $this->middleware('permission:eir.govern')->only(['reopen', 'approveReopen', 'closeReopen', 'clearReview']);
     }
 
     public function index(Request $request)
@@ -78,8 +78,23 @@ class EirCalculationController extends Controller
             'canReopen' => (bool) (auth()->user()?->can('eir.govern') ?? false),
             'canCalculate' => (bool) (auth()->user()?->can('settings') ?? false),
             'reopenRequests' => app(\App\Services\Eir\EirReopenRequestService::class)->pending(),
+            // locked EIRs with fee evidence that was not in their inputs (EirLockReviewService, 15 October 2026)
+            'lockReviews' => app(\App\Services\Eir\EirLockReviewService::class)->open(),
             'me' => $reviewerId,
         ]);
+    }
+
+    /** A second person clears a review flag on a locked EIR, with the reason (the flag never reopens anything by itself). */
+    public function clearReview(Request $request, int $flag, \App\Services\Eir\EirLockReviewService $reviews)
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:10', 'max:1000']]);
+        try {
+            $reviews->clear($flag, (int) $request->user()->id, $data['reason']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'The review flag is cleared, with the reason recorded.');
     }
 
     public function calculate(Request $request)

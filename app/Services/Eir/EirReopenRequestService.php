@@ -67,6 +67,8 @@ class EirReopenRequestService
             $before = ContractEir::where('contract_id', $r->contract_id)->first();
             $reopened = $this->calculations->reopen($r->contract_id, $approverId, $r->reason);
             DB::table(self::TABLE)->where('id', $requestId)->update(['status' => 'APPROVED', 'decided_by' => $approverId, 'decided_at' => now(), 'updated_at' => now()]);
+            // the loan's open review flags close: the EIR is solved again with its fees (EirLockReviewService)
+            app(EirLockReviewService::class)->closeOnReopen($r->contract_id, $approverId);
             AuditLoggerService::log('Locked Original EIR Reopened', ContractEir::class, $reopened->id, [
                 'old_values' => ['contract_id' => $r->contract_id, 'eir_effective_annual' => $before?->eir_effective_annual, 'locked_at' => $before?->locked_at, 'locked_by' => $before?->locked_by],
                 'new_values' => ['calculation_status' => $reopened->calculation_status, 'locked_at' => null],

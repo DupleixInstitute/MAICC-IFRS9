@@ -29,12 +29,15 @@
                             <td class="max-w-[16rem] text-xs">{{ h.narration || '-' }}</td>
                             <td class="max-w-[16rem] text-xs" :title="h.reason">{{ reasonLabel(h.reason) }}</td>
                             <td class="text-xs">
-                                <template v-if="h.candidate_contract_id"><span class="font-semibold">{{ h.candidate_contract_id }}</span><div class="text-gray-500">{{ h.candidate_evidence }}</div></template>
+                                <template v-if="h.candidate_contract_id"><span class="font-semibold" :class="h.candidate_dismissed ? 'line-through text-gray-400' : ''">{{ h.candidate_contract_id }}</span><div class="text-gray-500">{{ h.candidate_evidence }}</div><div v-if="h.candidate_dismissed" class="text-amber-700 dark:text-amber-300">Not this loan: {{ h.candidate_dismissed }}</div></template>
                                 <span v-else class="text-gray-400">None</span>
                             </td>
                             <td v-if="canGovern" class="text-right">
                                 <button type="button" class="maiic-action maiic-action-edit" title="Tie this fee line to its loan" @click="openTie(h)">
                                     <font-awesome-icon icon="paperclip"/>
+                                </button>
+                                <button v-if="h.candidate_contract_id && !h.candidate_dismissed" type="button" class="maiic-action maiic-action-delete ml-1" title="Not this loan's fee: the posting stays held and no longer stops this loan's EIR" @click="notThisLoan(h)">
+                                    <font-awesome-icon icon="ban"/>
                                 </button>
                             </td>
                         </tr>
@@ -93,6 +96,7 @@ import { computed, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import JetModal from '@/Jetstream/Modal.vue'
 import LocalPager from '@/Components/Data/LocalPager.vue'
+import { promptReason } from '@/Components/Maiic/promptReason.js'
 
 const props = defineProps({
     held: { type: Array, default: () => [] },
@@ -113,6 +117,11 @@ const pagedDiff = computed(() => props.differences.slice((diffPage.value - 1) * 
 const tie = ref(null)
 const saving = ref(false)
 const form = ref({ contract_id: '', reason: '' })
+async function notThisLoan(h) {
+    const reason = await promptReason({ title: 'Not the fee of loan ' + h.candidate_contract_id, message: 'Say why this posting is not the fee of that loan. It stays held for the right loan, and that loan is no longer stopped by it. The reason is kept in the audit trail.', confirmLabel: 'Record it' })
+    if (!reason) return
+    router.post(route('eir-fee-classification.dismiss-candidate', h.id), { contract_id: h.candidate_contract_id, reason }, { preserveScroll: true })
+}
 function openTie(h) {
     tie.value = h
     form.value = { contract_id: h.candidate_contract_id || '', reason: '' }

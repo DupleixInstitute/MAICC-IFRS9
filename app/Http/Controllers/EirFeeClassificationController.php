@@ -18,9 +18,9 @@ class EirFeeClassificationController extends Controller
         $this->middleware('auth');
         // the list and the fee GL check are readable with eir.fees.import; classifying and reviewing stay with settings
         $this->middleware('permission:settings|eir.fees.import')->only('index');
-        $this->middleware('permission:settings')->except(['index', 'tieHeld']);
+        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate']);
         // tying a held GL fee line to a loan is a governed, audit-logged act (spec 7.8.4)
-        $this->middleware('permission:eir.govern')->only('tieHeld');
+        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate']);
     }
 
     /**
@@ -34,9 +34,15 @@ class EirFeeClassificationController extends Controller
             return [];
         }
 
+        // a candidate a person has said is not the loan's (HeldFeeEvidence::dismiss) is shown as such
+        $dismissed = \Illuminate\Support\Facades\Schema::hasTable('fee_gl_candidate_dismissals')
+            ? DB::table('fee_gl_candidate_dismissals')->get(['external_transaction_id', 'contract_id', 'reason'])->keyBy(fn ($d) => $d->external_transaction_id . '|' . $d->contract_id)
+            : collect();
+
         return DB::table('fee_gl_unassigned')->orderBy('transaction_date')->orderBy('id')
-            ->get(['id', 'transaction_date', 'batch', 'gl_code', 'amount', 'narration', 'reason', 'loans_in_batch', 'candidate_contract_id', 'candidate_evidence'])
-            ->map(fn ($h) => (array) $h + ['loans' => json_decode((string) $h->loans_in_batch, true) ?: []])->all();
+            ->get(['id', 'external_transaction_id', 'transaction_date', 'batch', 'gl_code', 'amount', 'narration', 'reason', 'loans_in_batch', 'candidate_contract_id', 'candidate_evidence'])
+            ->map(fn ($h) => (array) $h + ['loans' => json_decode((string) $h->loans_in_batch, true) ?: [],
+                'candidate_dismissed' => $dismissed->get($h->external_transaction_id . '|' . ltrim((string) $h->candidate_contract_id, '0'))?->reason])->all();
     }
 
     /**
@@ -79,6 +85,19 @@ class EirFeeClassificationController extends Controller
         }
 
         return $out;
+    }
+
+    /** A person records, with the reason, that a held posting is not the fee of the loan the system named (HeldFeeEvidence::dismiss). */
+    public function dismissCandidate(Request $request, int $held)
+    {
+        $data = $request->validate(['contract_id' => ['required', 'string', 'max:60'], 'reason' => ['required', 'string', 'min:10', 'max:500']]);
+        try {
+            \App\Services\Eir\HeldFeeEvidence::dismiss($held, $data['contract_id'], $data['reason'], (int) $request->user()->id);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Recorded: the posting is not the fee of loan ' . ltrim(trim($data['contract_id']), '0') . '. It stays held, and no longer stops that loan\'s EIR.');
     }
 
     /** Tie a held GL fee line to its loan, with the reason (GlFeeBuildService::assignHeld audit-logs it). */

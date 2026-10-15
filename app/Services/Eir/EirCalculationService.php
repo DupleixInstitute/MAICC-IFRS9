@@ -115,6 +115,12 @@ class EirCalculationService
             if ($contract->calculation_status !== 'CALCULATED' || $contract->eir_period === null) {
                 throw new LogicException('Only a successfully calculated EIR can be approved and locked.');
             }
+            // a fee posting that names the loan and arrived after the calculation still stops the lock (15 October 2026)
+            $held = HeldFeeEvidence::forContract($contractId);
+            if ($held !== []) {
+                throw new LogicException('The EIR cannot be locked: ' . count($held) . ' GL fee posting(s) held without a loan name this loan as the likely owner ('
+                    . HeldFeeEvidence::describe($held) . '). Tie each to its loan on Fee Classification, or record that it is not this loan\'s fee, then calculate again.');
+            }
             if (!$allowMakerCheckerOverride && $contract->calculated_by === null) {
                 throw new LogicException('The calculation has no identifiable maker and cannot be approved.');
             }

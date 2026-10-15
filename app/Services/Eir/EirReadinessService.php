@@ -102,6 +102,10 @@ class EirReadinessService
         $fees ??= self::feeQuery()->where('contract_id', $contractId)->get();
         $unresolved = $fees->whereNotIn('classification_status', ['REVIEWED', 'REJECTED']);
         if ($unresolved->isNotEmpty()) $issues[] = ['code' => 'FEE_CLASSIFICATION_PENDING', 'message' => $unresolved->count() . ' fee/cost line(s) are not independently reviewed.'];
+        // a held GL fee posting that names this loan as its likely owner: the loan's fees are not known to be complete
+        // until a person ties it or says it is not this loan's (15 October 2026); nothing is allocated by suggestion
+        $held = HeldFeeEvidence::forContract($contractId);
+        if ($held !== []) $issues[] = ['code' => 'FEE_HELD_FOR_LOAN', 'message' => count($held) . ' GL fee posting(s) held without a loan name this loan as the likely owner: ' . HeldFeeEvidence::describe($held) . '. On Fee Classification, tie each to its loan or record that it is not this loan\'s fee.'];
         $reviewedIntegral = $fees->where('classification_status', 'REVIEWED')->where('integral', 1);
         if ($reviewedIntegral->contains(fn ($f) => ! in_array($f->cashflow_direction, ['RECEIVED', 'PAID'], true))) $issues[] = ['code' => 'FEE_DIRECTION_MISSING', 'message' => 'A reviewed integral fee/cost has no cash-flow direction. Return it to classification on Fee Classification, give it its direction and have it reviewed again.'];
 

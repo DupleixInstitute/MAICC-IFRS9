@@ -85,6 +85,8 @@ class FeeClassificationUiTest extends TestCase
     {
         $this->assertTrue(Route::has('eir-fee-classification.tie-held'));
         $govern = collect((new EirFeeClassificationController())->getMiddleware())->firstWhere('middleware', 'permission:eir.govern');
-        $this->assertSame(['tieHeld'], $govern['options']['only']);
+        // saying a held posting is not the named loan's fee is governed the same way (15 October 2026)
+        $this->assertTrue(Route::has('eir-fee-classification.dismiss-candidate'));
+        $this->assertSame(['tieHeld', 'dismissCandidate'], $govern['options']['only']);
     }
 }

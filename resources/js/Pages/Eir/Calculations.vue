@@ -43,6 +43,25 @@
         </ul>
       </div>
 
+      <!-- locked EIRs with fee evidence that was not in their inputs: flagged, never reopened by the system -->
+      <div v-if="lockReviews.length" class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/40">
+        <div class="font-semibold text-red-800 dark:text-red-200">Locked EIRs to review ({{ lockReviews.length }})</div>
+        <p class="mt-0.5 text-xs text-gray-600 dark:text-slate-400">Fee evidence for these loans was not in the inputs their EIR was locked on. Nothing has been changed: request a reopening to solve the EIR again with its fees, or have a second person clear the flag with the reason.</p>
+        <ul class="mt-3 divide-y divide-red-200 dark:divide-red-800">
+          <li v-for="r in lockReviews" :key="r.id" class="flex flex-wrap items-start justify-between gap-3 py-2 text-sm">
+            <div class="min-w-0">
+              <div class="font-medium text-gray-900 dark:text-slate-100">{{ r.contract_id }} {{ r.customer_name }} <span class="text-xs font-normal text-gray-500">locked at {{ pctRate(r.eir_effective_annual) }}{{ r.locked_label ? ' (' + r.locked_label + ')' : '' }}</span></div>
+              <div class="text-gray-700 dark:text-slate-300">{{ r.reason }}</div>
+              <div class="text-xs text-gray-500">{{ r.source === 'AUTOMATIC' ? 'Found by the system' : 'Raised by a person' }}, {{ date(r.raised_at) }}</div>
+            </div>
+            <div v-if="canReopen" class="flex items-center gap-1.5">
+              <button v-if="r.contract_eir_id" type="button" class="maiic-action maiic-action-edit" title="Request a reopening of this EIR" @click="openReopenModal({ id: r.contract_eir_id, contract_id: r.contract_id })"><font-awesome-icon icon="sync-alt" /></button>
+              <button v-if="r.raised_by !== me" type="button" class="maiic-action maiic-action-view" title="Clear the flag (a second person, with the reason)" @click="clearReview(r)"><font-awesome-icon icon="check" /></button>
+            </div>
+          </li>
+        </ul>
+      </div>
+
       <div class="maiic-filterbar">
         <form class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end" @submit.prevent="applyFilters">
           <label class="block"><span class="maiic-flabel">Contract</span><input v-model="filter.contract_id" class="form-input" placeholder="Contract, account or reference"></label>
@@ -185,6 +204,7 @@ export default {
     canReopen: { type: Boolean, default: false },
     canCalculate: { type: Boolean, default: false },
     reopenRequests: { type: Array, default: () => [] },
+    lockReviews: { type: Array, default: () => [] },
     me: { type: Number, default: null },
     errors: { type: Object, default: () => ({}) },
   },
@@ -279,6 +299,14 @@ export default {
         tone: 'danger',
       }))) return
       this.$inertia.post(this.route('eir-calculations.reopen.approve', r.id), {}, { preserveScroll: true })
+    },
+    async clearReview(r) {
+      const reason = await promptReason({ title: `Clear the review flag on ${r.contract_id}`, message: 'Say why the locked EIR stands: for example the fee was considered, or the posting is not the fee of this loan. It is kept in the audit trail.', confirmLabel: 'Clear the flag' })
+      if (!reason) return
+      this.$inertia.post(this.route('eir-calculations.lock-review.clear', r.id), { reason }, { preserveScroll: true })
+    },
+    pctRate(v) {
+      return v === null || v === undefined ? '-' : (Number(v) * 100).toFixed(2) + '%'
     },
     async closeReopen(r, action) {
       const words = { reject: 'Reject', withdraw: 'Withdraw' }

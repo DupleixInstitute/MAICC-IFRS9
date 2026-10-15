@@ -156,6 +156,8 @@ class GlFeeBuildService
             'gate_months_with_difference' => count(array_filter($out['gate']['months'], fn ($m) => $m['status'] === 'DIFFERENCE')),
             'precedence_superseded' => $precedence['superseded_lines'], 'cross_source_exceptions' => count($precedence['exceptions']),
         ], 'meta' => ['user' => $userId]]);
+        // a held posting that names a loan whose EIR is already locked flags that EIR for review
+        $out['lock_review_flags'] = app(\App\Services\Eir\EirLockReviewService::class)->detect($userId);
 
         return $out;
     }

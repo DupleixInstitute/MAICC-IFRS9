@@ -111,6 +111,8 @@ class FeeImportService
                     DB::table('contract_fees')->insert($chunk);
                 }
             });
+            // a fee recorded for a loan whose EIR is already locked flags that EIR for review (EirLockReviewService)
+            app(EirLockReviewService::class)->detect();
         }
 
         return [

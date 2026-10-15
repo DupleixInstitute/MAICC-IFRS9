@@ -699,6 +699,7 @@ Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classificat
     Route::post('/review', [\App\Http\Controllers\EirFeeClassificationController::class, 'review'])->name('review');
     Route::post('/return', [\App\Http\Controllers\EirFeeClassificationController::class, 'returnToClassification'])->name('return');
     Route::post('/held/{held}/tie', [\App\Http\Controllers\EirFeeClassificationController::class, 'tieHeld'])->name('tie-held');
+    Route::post('/held/{held}/not-this-loan', [\App\Http\Controllers\EirFeeClassificationController::class, 'dismissCandidate'])->name('dismiss-candidate');
 });
 
 Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], function () {
@@ -710,6 +711,7 @@ Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], func
     // a reopening is requested by one person and approved by another (EirReopenRequestService)
     Route::post('/reopen-requests/{reopen}/approve', [\App\Http\Controllers\EirCalculationController::class, 'approveReopen'])->name('reopen.approve');
     Route::post('/reopen-requests/{reopen}/close', [\App\Http\Controllers\EirCalculationController::class, 'closeReopen'])->name('reopen.close');
+    Route::post('/lock-reviews/{flag}/clear', [\App\Http\Controllers\EirCalculationController::class, 'clearReview'])->name('lock-review.clear');
 });
 
 // EIR Governance Centre (spec v3 section 8): every calculation convention as
