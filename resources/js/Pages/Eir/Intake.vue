@@ -160,7 +160,11 @@
                 <div v-else-if="importType === 'fees'" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-maiic-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-maiic-700">{{ result.loaded_rows }}</div>
-                        <div class="text-xs text-maiic-800 mt-1">Lines loaded as pending</div>
+                        <div class="text-xs text-maiic-800 mt-1">Lines loaded</div>
+                    </div>
+                    <div v-if="(result.classified_from_file || 0) + (result.filled_on_reload || 0) > 0" class="bg-maiic-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-maiic-700">{{ (result.classified_from_file || 0) + (result.filled_on_reload || 0) }}</div>
+                        <div class="text-xs text-maiic-800 mt-1">Classified from the file's integral column<span v-if="result.filled_on_reload"> ({{ result.filled_on_reload }} already held)</span>; a second person reviews them</div>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                         <div class="text-2xl font-bold text-gray-700">{{ result.skipped_rows }}</div>

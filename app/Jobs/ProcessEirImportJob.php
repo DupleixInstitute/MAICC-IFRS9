@@ -144,6 +144,8 @@ class ProcessEirImportJob implements ShouldQueue
             'contract_master' => (int) ($result['loaded_rows'] ?? 0)
                 + (int) ($result['fee_result']['loaded_rows'] ?? 0),
             'gl_interest' => (int) ($result['loaded_rows'] ?? 0) + (int) ($result['restated_rows'] ?? 0),
+            // a re-load that fills the treatment of pending lines (integral column) did work too
+            'fees' => (int) ($result['loaded_rows'] ?? 0) + (int) ($result['filled_on_reload'] ?? 0),
             default => (int) ($result['loaded_rows'] ?? 0),
         };
     }
@@ -189,6 +191,10 @@ class ProcessEirImportJob implements ShouldQueue
             }
             foreach ($tie['conflicts'] as $c) {
                 $notes[] = "Row {$c['row']}, loan {$c['contract_id']}: {$c['note']}";
+            }
+            if (($result['classified_from_file'] ?? 0) || ($result['filled_on_reload'] ?? 0)) {
+                array_unshift($notes, ($result['classified_from_file'] ?? 0) . ' new line(s) and ' . ($result['filled_on_reload'] ?? 0)
+                    . ' pending line(s) already held were classified from the file\'s integral column, with you as the classifier; a second person reviews them on Fee Classification.');
             }
             $result['notes'] = $notes;
             $result['tie_out'] = ['status' => $tie['status'], 'lines' => count($tie['lines']), 'held_postings_tied' => $tied, 'conflicts' => count($tie['conflicts']), 'coverage' => $tie['coverage']];

@@ -123,6 +123,8 @@ class EirFeeClassificationController extends Controller
         if ($request->filled('fee_type')) $query->where('fee_type', $request->input('fee_type'));
         if ($request->filled('gl')) $query->where('gl_account_ref', $request->input('gl'));
         if ($request->filled('contract_id')) $query->where('contract_id', 'like', '%' . $request->input('contract_id') . '%');
+        // a superseded line never enters the EIR and needs no decision: shown only when asked for
+        if (! $request->boolean('superseded')) $query->whereNull('superseded_by_source');
 
         return $query;
     }
@@ -151,9 +153,10 @@ class EirFeeClassificationController extends Controller
             'fees' => $query->orderByRaw("CASE classification_status WHEN 'PENDING' THEN 1 WHEN 'CLASSIFIED' THEN 2 ELSE 3 END")
                 ->orderByDesc('id')->paginate(15)->withQueryString(),
             'rules' => EirAccountingRule::where('active', true)->whereNotNull('approved_at')->orderBy('priority')->get(['id', 'name', 'proposed_integral']),
-            'filters' => $request->only(['status', 'fee_type', 'gl', 'contract_id']),
-            'summary' => ContractFee::select('classification_status', DB::raw('COUNT(*) as line_count'), DB::raw('SUM(amount) as total_amount'))
+            'filters' => $request->only(['status', 'fee_type', 'gl', 'contract_id', 'superseded']),
+            'summary' => ContractFee::whereNull('superseded_by_source')->select('classification_status', DB::raw('COUNT(*) as line_count'), DB::raw('SUM(amount) as total_amount'))
                 ->groupBy('classification_status')->get()->keyBy('classification_status'),
+            'supersededCount' => ContractFee::whereNotNull('superseded_by_source')->count(),
             // Drives the re-apply prompt: an operator needs to see that pending
             // lines carry no suggestion before being told to use rule mode.
             'glReconciliation' => app(\App\Services\Eir\FeeGlReconciliationService::class)->report(),
@@ -163,8 +166,8 @@ class EirFeeClassificationController extends Controller
             'sourceDifferences' => $this->sourceDifferences(),
             'sourceOverlaps' => $this->sourceOverlaps(),
             'ruleCoverage' => [
-                'pending' => ContractFee::where('classification_status', 'PENDING')->count(),
-                'pending_matched' => ContractFee::where('classification_status', 'PENDING')->whereNotNull('suggested_rule_id')->count(),
+                'pending' => ContractFee::whereNull('superseded_by_source')->where('classification_status', 'PENDING')->count(),
+                'pending_matched' => ContractFee::whereNull('superseded_by_source')->where('classification_status', 'PENDING')->whereNotNull('suggested_rule_id')->count(),
                 'approved_rules' => EirAccountingRule::where('active', true)->whereNotNull('approved_at')->count(),
                 'draft_rules' => EirAccountingRule::where('active', true)->whereNull('approved_at')->count(),
             ],
