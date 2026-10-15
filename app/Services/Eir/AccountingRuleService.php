@@ -63,7 +63,11 @@ class AccountingRuleService
             if ($rule->status !== EirAccountingRule::STATUS_PROPOSED && ! $confirming) {
                 throw new LogicException("Rule \"{$rule->name}\" is " . strtolower($rule->status) . '; only a proposed rule, or an approval waiting to be confirmed, can be approved.');
             }
-            $this->assertSecondPerson($rule->makerId(), $userId, (int) $rule->id, 'The person who wrote or last changed this rule cannot approve it; a second person approves.');
+            // confirming an approval given before this control needs someone other than that approver as well:
+            // a seeded rule has no maker on record, so the maker check alone let its approver confirm it
+            // (review of 15 October 2026, S1)
+            $this->assertSecondPerson($confirming ? [$rule->makerId(), $rule->approved_by !== null ? (int) $rule->approved_by : null] : [$rule->makerId()], $userId, (int) $rule->id,
+                $confirming ? 'The person who wrote this rule or gave its earlier approval cannot confirm that approval; a second person confirms.' : 'The person who wrote or last changed this rule cannot approve it; a second person approves.');
             $rule->update(['status' => EirAccountingRule::STATUS_APPROVED, 'approved_by' => $userId, 'approved_at' => now(), 'approval_reason' => $reason, 'approval_to_confirm' => false]);
             AuditLoggerService::log($confirming ? 'EIR Accounting Rule Approval Confirmed' : 'EIR Accounting Rule Approved', EirAccountingRule::class, $rule->id, [
                 'new_values' => ['status' => EirAccountingRule::STATUS_APPROVED, 'reason' => $reason], 'meta' => ['user' => $userId, 'maker' => $rule->makerId()]]);
@@ -146,9 +150,9 @@ class AccountingRuleService
     }
 
     /** The one maker-checker check: a named second person, or UAT mode (recorded). */
-    private function assertSecondPerson(?int $makerId, int $userId, int $ruleId, string $message): void
+    private function assertSecondPerson(int|array|null $makerIds, int $userId, int $ruleId, string $message): void
     {
-        if ($makerId === $userId && ! MakerChecker::selfApprovalAllowed(self::WORKFLOW, EirAccountingRule::class, $ruleId, $userId)) {
+        if (in_array($userId, (array) $makerIds, true) && ! MakerChecker::selfApprovalAllowed(self::WORKFLOW, EirAccountingRule::class, $ruleId, $userId)) {
             throw new LogicException($message);
         }
     }

@@ -109,6 +109,21 @@ class FeeRulebookControlTest extends TestCase
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'EIR Accounting Rule Approval Confirmed')->count());
     }
 
+    public function test_a_seeded_rule_approved_before_the_control_is_not_confirmed_by_its_own_approver(): void
+    {
+        // the seeder records no maker, so only the earlier approver stands between one person and a confirmed rule (review S1)
+        $rule = EirAccountingRule::create(['name' => 'Legal fees on origination', 'fee_type' => 'arrangement', 'proposed_integral' => true, 'rationale' => 'Legal costs of drawing up the facility', 'priority' => 25, 'active' => true,
+            'created_by' => null, 'approved_by' => $this->maker->id, 'approved_at' => now(), 'status' => EirAccountingRule::STATUS_APPROVED, 'approval_to_confirm' => true]);
+        try {
+            $this->rules->approve($rule, $this->maker->id, 'Confirming my own earlier approval');
+            $this->fail('the earlier approver confirmed their own approval');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('cannot confirm that approval', $e->getMessage());
+        }
+        $this->assertTrue($rule->fresh()->approval_to_confirm);
+        $this->assertFalse($this->rules->approve($rule, $this->checker->id, 'Re-approved under maker-checker, decision S9')->approval_to_confirm);
+    }
+
     public function test_the_seeder_never_touches_an_existing_rule(): void
     {
         (new EirAccountingRuleSeeder())->run();
