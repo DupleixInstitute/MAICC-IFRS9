@@ -72,7 +72,7 @@ class StagingThresholdService
             if ($row->status !== StagingThreshold::STATUS_PROPOSED) {
                 throw new LogicException('Only a proposed threshold can be approved.');
             }
-            if ($approverId === null || $row->proposed_by === null || (int) $row->proposed_by === $approverId) {
+            if ($approverId === null || $row->proposed_by === null || ((int) $row->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Staging threshold', 'staging_thresholds', (int) $row->id, $approverId))) {
                 throw new LogicException('Maker-checker: the approver must be a different person from the proposer, and both must be named.');
             }
             $effective = CarbonImmutable::parse($row->effective_from->toDateString());

@@ -236,7 +236,7 @@ class RegressionController extends Controller
         if ($model->is_approved) {
             return back()->with('error', 'This model is already approved.');
         }
-        if ((int) $model->created_by === (int) auth()->id()) {
+        if ((int) $model->created_by === (int) auth()->id() && ! \App\Support\MakerChecker::selfApprovalAllowed('Legacy regression model', 'regression_models', (int) $model->id, (int) auth()->id())) {
             return back()->with('error', 'The person who trained a model cannot approve it; a second person must. The regression now runs on FLI Adjustments under maker-checker.');
         }
         $model->is_approved = true;

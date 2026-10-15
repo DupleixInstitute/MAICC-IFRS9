@@ -248,7 +248,7 @@ class TakeonLandingService
         if ($label !== null && ! $bootstrap) {
             throw new RuntimeException('Only the bootstrap label may stand in for a named approver.');
         }
-        if (! $bootstrap && ($approverId === null || $request->proposed_by === null || (int) $request->proposed_by === $approverId)) {
+        if (! $bootstrap && ($approverId === null || $request->proposed_by === null || ((int) $request->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Take-on build', 'takeon_build_requests', (int) $request->id, $approverId)))) {
             throw new RuntimeException('Maker-checker: the take-on build is approved by a different person from the one who proposed it, and both must be named.');
         }
         $latest = DB::table('ebanker_loads')->where('route', self::ROUTE)->where('status', 'LANDED')->orderByDesc('id')->value('id');

@@ -118,7 +118,7 @@ class FliModelRegistry
         if ($v->status !== 'PROPOSED') {
             throw new RuntimeException("Version {$v->version} is {$v->status}, not proposed.");
         }
-        if ($label === null && $approverId !== null && (int) $v->proposed_by === $approverId) {
+        if ($label === null && $approverId !== null && (int) $v->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('External forward-looking model', 'fli_model_versions', (int) $v->id, $approverId)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         // checked again on approval: the month may have been locked since the proposal

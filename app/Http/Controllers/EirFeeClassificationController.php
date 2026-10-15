@@ -339,7 +339,8 @@ class EirFeeClassificationController extends Controller
         $data = $request->validate(['fee_ids' => ['required', 'array', 'min:1'], 'fee_ids.*' => ['integer', 'exists:contract_fees,id']]);
         $fees = ContractFee::whereIn('id', $data['fee_ids'])->where('classification_status', 'CLASSIFIED')->get();
         $own = $fees->where('classified_by', auth()->id());
-        $adminOverride = app(\App\Services\Eir\GovernanceService::class)->adminOverrideAllowed(auth()->user()); // governed (audit H9)
+        // the one maker-checker check (Staging Module Specification v1, section 8.9): recorded when used
+        $adminOverride = $own->isNotEmpty() && \App\Support\MakerChecker::selfApprovalAllowed('Fee classification review', ContractFee::class, $own->pluck('id')->implode(','), (int) auth()->id());
         if ($own->isNotEmpty() && ! $adminOverride) return back()->withErrors(['fee_ids' => 'A classifier cannot review their own decision.']);
         // an integral line enters the EIR as money received or paid: approving one with no
         // direction left a reviewed line the EIR could not use and nobody could correct

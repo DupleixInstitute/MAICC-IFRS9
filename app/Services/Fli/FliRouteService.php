@@ -83,7 +83,7 @@ class FliRouteService
             throw new RuntimeException("Fit {$fitId} is not proposed.");
         }
         // a named approver who is not the named proposer (audit C9 residual: a null approver skipped the check)
-        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && ($approverId === null || $fit->proposed_by === null || (int) $fit->proposed_by === $approverId)) {
+        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && ($approverId === null || $fit->proposed_by === null || ((int) $fit->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Forward-looking fit', 'fli_fits', (int) $fitId, $approverId)))) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer, and both must be named.');
         }
         // the data may have moved since the proposal: checked again at approval

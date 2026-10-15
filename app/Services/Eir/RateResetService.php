@@ -326,7 +326,7 @@ class RateResetService
                 if ($r->classification_status !== 'PROPOSED') {
                     throw new RuntimeException("Reset #{$r->id} has no proposed classification to approve.");
                 }
-                if ((int) $r->proposed_by === $userId && ! $this->governance->adminOverrideAllowed()) {
+                if ((int) $r->proposed_by === $userId && ! \App\Support\MakerChecker::selfApprovalAllowed('Rate reset', 'rate_reset_events', (int) $r->id, $userId)) {
                     throw new RuntimeException("Reset #{$r->id}: the person who proposed a classification cannot approve it.");
                 }
                 ReportingPeriodLock::assertOpen((string) $r->reporting_period, 'a rate reset');

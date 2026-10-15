@@ -153,7 +153,7 @@ class ScenarioSetService
         if ($set->status !== 'PROPOSED') {
             throw new RuntimeException('Only a proposed set can be approved.');
         }
-        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $set->proposed_by === $approverId) {
+        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $set->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Scenario set', 'governed_scenario_sets', (int) $set->id, $approverId)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         $v = $this->validate($setId);

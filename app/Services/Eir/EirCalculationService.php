@@ -107,7 +107,8 @@ class EirCalculationService
         if ($label !== null && $label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL) {
             throw new LogicException('Only the bootstrap label may lock an EIR in place of a second person.');
         }
-        $allowMakerCheckerOverride = $allowMakerCheckerOverride || $label !== null;
+        // the override only on a non-production server (MakerChecker; Staging Module Specification v1, section 8.9)
+        $allowMakerCheckerOverride = $label !== null || ($allowMakerCheckerOverride && \App\Support\MakerChecker::environmentAllows());
 
         return DB::transaction(function () use ($contractId, $reviewerId, $allowMakerCheckerOverride, $label) {
             $contract = ContractEir::where('contract_id', $contractId)->lockForUpdate()->firstOrFail();
@@ -124,8 +125,13 @@ class EirCalculationService
             if (!$allowMakerCheckerOverride && $contract->calculated_by === null) {
                 throw new LogicException('The calculation has no identifiable maker and cannot be approved.');
             }
-            if (!$allowMakerCheckerOverride && (int) $contract->calculated_by === $reviewerId) {
-                throw new LogicException('The calculator cannot approve and lock their own EIR.');
+            if ((int) $contract->calculated_by === $reviewerId) {
+                if (! $allowMakerCheckerOverride) {
+                    throw new LogicException('The calculator cannot approve and lock their own EIR.');
+                }
+                if ($label === null) {
+                    \App\Support\MakerChecker::recordUse('EIR lock', 'contract_eirs', $contractId, $reviewerId);
+                }
             }
 
             $contract->update([

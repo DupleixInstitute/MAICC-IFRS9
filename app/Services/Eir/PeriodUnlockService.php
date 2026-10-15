@@ -53,7 +53,7 @@ class PeriodUnlockService
             if (! $r || $r->status !== 'PROPOSED') {
                 throw new LogicException('Only an unlock awaiting approval can be approved.');
             }
-            if ((int) $r->requested_by === $approverId) {
+            if ((int) $r->requested_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Period unlock', 'period_unlock_requests', (int) $r->id, $approverId)) {
                 throw new LogicException('The person who requested the unlock cannot approve it; a second person with EIR governance approves it.');
             }
             DB::table('reporting_period_locks')->where('reporting_period', $r->reporting_period)->delete();

@@ -597,20 +597,18 @@ class GovernanceService
         return $this->memo[$memoKey];
     }
 
-    /** The approved row in force for a key on a date, or null when there is none. */
-    /** The governed answer to "may this administrator approve their own change?" (finding H9). */
+    /**
+     * The governed answer to "may this administrator approve their own change?"
+     * (finding H9): UAT mode, through the one maker-checker check (MakerChecker;
+     * Staging Module Specification v1, section 8.9): a non-production server, the
+     * setting allowing it, and the admin role.
+     */
     public function adminOverrideAllowed(?object $user = null, ?CarbonInterface $asOf = null): bool
     {
-        $user = $user ?? auth()->user();
-        if (! $user || ! method_exists($user, 'hasRole') || ! $user->hasRole('admin')) {
-            return false;
-        }
-        try {
-            return $this->get('maker_checker_admin_override', $asOf) === 'Allowed for administrators';
-        } catch (\Throwable) {
-            return false;
-        }
+        return \App\Support\MakerChecker::allowedFor($user ?? auth()->user());
     }
+
+    /** The approved row in force for a key on a date, or null when there is none. */
 
     public function inForce(string $key, ?CarbonInterface $asOf = null): ?GovernanceSetting
     {
@@ -664,6 +662,7 @@ class GovernanceService
         if ($key === 'sicr_pd_change' && $value !== StagingPolicy::NOT_APPLIED) {
             throw new InvalidArgumentException('The change in PD since origination is not built yet (the PD of each loan at origination is not kept), so it cannot be switched on; staging would ignore it.');
         }
+        $this->assertOverrideMayBeAllowed($key, $value);
 
         $effective = $this->date($effectiveFrom);
 
@@ -717,12 +716,22 @@ class GovernanceService
             if ($setting->status !== GovernanceSetting::STATUS_PROPOSED) {
                 throw new LogicException('Only a proposed change can be approved.');
             }
-            if (! $allowMakerCheckerOverride && $setting->set_by === null) {
+            // the override never approves a change to its own setting: switching UAT mode off needs a
+            // second person (Staging Module Specification v1, section 8.9, item 7; acceptance 23)
+            $override = $allowMakerCheckerOverride && $setting->key !== \App\Support\MakerChecker::SETTING && \App\Support\MakerChecker::environmentAllows();
+            if (! $override && $setting->set_by === null) {
                 throw new LogicException('The proposal has no identifiable proposer and cannot be approved.');
             }
-            if (! $allowMakerCheckerOverride && (int) $setting->set_by === $approverId) {
-                throw new LogicException('The person who proposed a change cannot approve it.');
+            if (! $override && (int) $setting->set_by === $approverId) {
+                throw new LogicException($setting->key === \App\Support\MakerChecker::SETTING
+                    ? 'The person who proposed a change to the maker-checker override cannot approve it; the override never approves a change to its own setting.'
+                    : 'The person who proposed a change cannot approve it.');
             }
+            $this->assertOverrideMayBeAllowed($setting->key, $setting->value);
+            if ($override && (int) $setting->set_by === $approverId) {
+                \App\Support\MakerChecker::recordUse('Governance Centre setting', GovernanceSetting::class, $setting->id, $approverId);
+            }
+            $allowMakerCheckerOverride = $override;
 
             $effective = CarbonImmutable::parse($setting->effective_from->toDateString());
             $this->assertEffectiveDateIsLater($setting->key, $effective, $setting->id);
@@ -951,6 +960,68 @@ class GovernanceService
      * every approved change before it, so no governed period is restated.
      * The same (key, date) may exist once, whatever its status.
      */
+    /**
+     * UAT mode switched from the server console (Staging Module Specification
+     * v1, section 8.9, item 3; governance:uat-mode). On an existing database the
+     * override setting already exists, so a fresh install's UAT seeding does not
+     * reach it: someone with server access switches it on, only on a
+     * non-production server, from today, without a second person. Switching it
+     * off works on any server. Either way the value in force is superseded with
+     * its history, and the change is audit-logged with the person and the
+     * environment.
+     */
+    public function switchUatMode(bool $on, ?int $userId): GovernanceSetting
+    {
+        $key = \App\Support\MakerChecker::SETTING;
+        $value = $on ? \App\Support\MakerChecker::ALLOWED : \App\Support\MakerChecker::NOT_ALLOWED;
+        $this->assertOverrideMayBeAllowed($key, $value);
+        $today = CarbonImmutable::today();
+        $definition = self::catalogue()[$key];
+        $reason = $on
+            ? 'Switched on for UAT from the server console (APP_ENV=' . app()->environment() . '): administrators may approve their own proposals, each recorded on the self-approvals report; not a MAIIC approval'
+            : 'Switched off from the server console (APP_ENV=' . app()->environment() . '): every workflow needs a second person again';
+
+        return DB::transaction(function () use ($key, $value, $today, $definition, $reason, $userId) {
+            $current = $this->inForce($key, $today);
+            if ($current !== null && $current->value === $value) {
+                return $current;
+            }
+            if ($current !== null) {
+                GovernanceSettingHistory::create([
+                    'setting_id' => $current->id, 'key' => $current->key, 'value' => $current->value, 'options' => $current->options,
+                    'label' => $current->label, 'description' => $current->description, 'effective_from' => $current->effective_from->toDateString(),
+                    'set_by' => $current->set_by, 'approved_by' => $current->approved_by, 'approved_at' => $current->approved_at,
+                    'reason' => $current->reason, 'status' => $current->status, 'superseded_at' => now(), 'superseded_by' => $userId,
+                    'superseded_by_setting_id' => null,
+                ]);
+            }
+            $attributes = ['value' => $value, 'options' => $definition['options'], 'label' => $definition['label'], 'description' => $definition['description'],
+                'set_by' => $userId, 'approved_by' => null, 'approved_at' => now(), 'reason' => mb_substr($reason, 0, 500), 'status' => GovernanceSetting::STATUS_APPROVED];
+            if ($current !== null && $current->effective_from->toDateString() === $today->toDateString()) {
+                $current->update($attributes);
+                $row = $current->fresh();
+            } else {
+                $row = GovernanceSetting::create($attributes + ['key' => $key, 'effective_from' => $today->toDateString()]);
+            }
+            $this->memo = [];
+            AuditLoggerService::log('UAT Mode Switched From The Console', GovernanceSetting::class, $row->id, [
+                'old_values' => $current ? ['value' => $current->value] : null,
+                'new_values' => ['key' => $key, 'value' => $value, 'effective_from' => $today->toDateString(), 'reason' => $reason],
+                'meta' => ['user' => $userId, 'environment' => app()->environment()],
+            ]);
+
+            return $row;
+        });
+    }
+
+    /** The production guard (section 8.9, item 2): the override cannot be allowed on a production server. */
+    private function assertOverrideMayBeAllowed(string $key, string $value): void
+    {
+        if ($key === \App\Support\MakerChecker::SETTING && $value === \App\Support\MakerChecker::ALLOWED && ! \App\Support\MakerChecker::environmentAllows()) {
+            throw new LogicException('The maker-checker override cannot be allowed on a production server (APP_ENV=production). UAT mode is for a UAT server only (decision S11).');
+        }
+    }
+
     private function assertEffectiveDateIsLater(string $key, CarbonImmutable $effective, ?int $ignoreId): void
     {
         $latest = GovernanceSetting::query()->where('key', $key)

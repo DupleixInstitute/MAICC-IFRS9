@@ -142,8 +142,10 @@ class NoBackDatingTest extends TestCase
     public function test_the_governance_centre_shows_the_refusal_as_a_message(): void
     {
         $user = User::find($this->maker);
-        $user->assignRole('admin');
-        $this->actingAs($user)->post(route('eir-governance.propose'), ['key' => 'stage_cure_months', 'value' => '6 months', 'effective_from' => '2026-09-01', 'reason' => 'Credit Committee lengthens the probation'])
-            ->assertSessionHasErrors(['governance']);
+        $user->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate('eir.govern', 'web'));
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->actingAs($user->fresh())->from('/eir-governance')->post(route('eir-governance.propose'), ['key' => 'stage_cure_months', 'value' => '6 months', 'effective_from' => '2026-09-01', 'reason' => 'Credit Committee lengthens the probation'])
+            ->assertRedirect('/eir-governance')->assertSessionHasErrors(['governance']);
+        $this->assertStringContainsString('2026-09', session('errors')->first('governance'));
     }
 }

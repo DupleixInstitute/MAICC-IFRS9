@@ -731,6 +731,7 @@ Route::group(['prefix' => 'eir-governance', 'as' => 'eir-governance.'], function
     Route::get('/', [\App\Http\Controllers\EirGovernanceController::class, 'index'])->name('index');
     Route::post('/propose', [\App\Http\Controllers\EirGovernanceController::class, 'propose'])->name('propose');
     Route::post('/{setting}/approve', [\App\Http\Controllers\EirGovernanceController::class, 'approve'])->name('approve');
+    Route::get('/self-approvals', [\App\Http\Controllers\EirGovernanceController::class, 'selfApprovals'])->name('self-approvals');
 });
 
 // Manual authoring routes. MUST stay behind auth + settings permission:

@@ -296,7 +296,7 @@ class FliCloseService
             // fli_without_model, Proceed: the month is signed off only with a commentary saying so
             throw new RuntimeException(FliWithoutModel::NOTE . " for {$s->reporting_period}: the PD held with no forward-looking adjustment (fli_without_model). Say so in the commentary, with why no model version is in force, before signing off.");
         }
-        if ($label === null && $userId !== null && (int) $s->created_by === $userId) {
+        if ($label === null && $userId !== null && (int) $s->created_by === $userId && ! \App\Support\MakerChecker::selfApprovalAllowed('Forward-looking month-end sign-off', 'fli_run_snapshots', (int) $s->id, $userId)) {
             throw new RuntimeException('Maker-checker: the person who recorded the month cannot sign it off.');
         }
         DB::table('fli_run_snapshots')->where('id', $snapshotId)->update(['status' => 'SIGNED_OFF', 'commentary' => $commentary === '' ? null : $commentary, 'signed_off_by' => $userId, 'approver_label' => $label, 'signed_off_at' => now(), 'updated_at' => now()]);

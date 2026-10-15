@@ -64,6 +64,34 @@ class EirGovernanceController extends Controller
     }
 
     /** Administrators may approve their own proposal, as with the EIR lock. */
+    /**
+     * The self-approvals report (Staging Module Specification v1, section 8.9,
+     * item 6): every decision made under the maker-checker override, by
+     * workflow, person and date, read from the "Maker-Checker Override Used"
+     * audit entries; for review at handover. ?download=csv exports it.
+     */
+    public function selfApprovals(Request $request)
+    {
+        $rows = \App\Support\MakerChecker::selfApprovals();
+        if ($request->query('download') === 'csv') {
+            return response()->streamDownload(function () use ($rows) {
+                $out = fopen('php://output', 'w');
+                fputcsv($out, ['When', 'Workflow', 'Record', 'Person', 'Environment', 'Label']);
+                foreach ($rows as $r) {
+                    fputcsv($out, [$r['at'], $r['workflow'], is_scalar($r['record']) ? $r['record'] : json_encode($r['record']), $r['name'] ?? ('user ' . $r['person']), $r['environment'], \App\Support\MakerChecker::LABEL]);
+                }
+                fclose($out);
+            }, 'Self-approvals under the maker-checker override ' . now()->format('Y-m-d') . '.csv', ['Content-Type' => 'text/csv']);
+        }
+
+        return Inertia::render('Eir/SelfApprovals', [
+            'rows' => $rows->values(),
+            'byWorkflow' => $rows->countBy('workflow'),
+            'inForce' => \App\Support\MakerChecker::overrideInForce(),
+            'environment' => app()->environment(),
+        ]);
+    }
+
     private function adminOverride(): bool
     {
         return app(GovernanceService::class)->adminOverrideAllowed(auth()->user()); // governed (audit H9)

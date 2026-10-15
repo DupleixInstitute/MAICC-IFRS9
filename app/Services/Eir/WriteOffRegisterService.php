@@ -64,7 +64,7 @@ class WriteOffRegisterService
             if (! $w || $w->status !== 'PROPOSED') {
                 throw new RuntimeException('Only a proposed write-off can be approved.');
             }
-            if ((int) $w->proposed_by === $userId) {
+            if ((int) $w->proposed_by === $userId && ! \App\Support\MakerChecker::selfApprovalAllowed('Write-off register', 'loan_write_offs', (int) $w->id, $userId)) {
                 throw new RuntimeException('The person who proposed a write-off cannot approve it.');
             }
             \App\Support\ReportingPeriodLock::assertOpen(substr((string) $w->write_off_date, 0, 7), 'a write-off');

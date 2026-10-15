@@ -110,8 +110,12 @@ class QualitativeSicrService
         if ($t->status !== 'PROPOSED') {
             throw new RuntimeException("Trigger {$triggerId} is " . strtolower($t->status) . ', not waiting for approval.');
         }
-        if (! $allowMakerCheckerOverride && $label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $t->triggered_by === $approverId) {
-            throw new RuntimeException('Maker-checker: the person who raised a trigger cannot approve it. A second person approves.');
+        if ($label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $t->triggered_by === $approverId) {
+            // the one maker-checker check (section 8.9): the override only on a non-production server, and recorded
+            if (! $allowMakerCheckerOverride || ! \App\Support\MakerChecker::environmentAllows()) {
+                throw new RuntimeException('Maker-checker: the person who raised a trigger cannot approve it. A second person approves.');
+            }
+            \App\Support\MakerChecker::recordUse('SICR trigger', 'finance_sicr_triggers', $triggerId, $approverId);
         }
         // checked again on approval: the month may have been locked since the trigger was raised
         \App\Support\ReportingPeriodLock::assertNotBackDated((string) $t->effective_from, "SICR trigger {$triggerId}");

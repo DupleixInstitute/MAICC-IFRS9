@@ -91,7 +91,7 @@ class OverlayService
         if ($o->status !== 'PROPOSED') {
             throw new RuntimeException("Overlay {$overlayId} is {$o->status}, not proposed.");
         }
-        if ($label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $o->proposed_by === $approverId) {
+        if ($label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $o->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Forward-looking overlay', 'fli_overlays', (int) $o->id, $approverId)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         if ($clash = $this->doubleCount($o)) {
