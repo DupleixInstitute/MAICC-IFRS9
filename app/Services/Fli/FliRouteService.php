@@ -82,6 +82,8 @@ class FliRouteService
         if ($fit->approval_status !== 'PROPOSED') {
             throw new RuntimeException("Fit {$fitId} is not proposed.");
         }
+        // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+        \App\Support\Approvals::assertEvidence('fli-fit', $fitId, $label);
         // the data may have moved since the proposal: checked again at approval
         $this->assertApplicable($fitId, 'approved');
         // approving publishes the model version from the fit's own month: refused before anything is

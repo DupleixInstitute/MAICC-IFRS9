@@ -30,7 +30,7 @@ class MacroStatisticsController extends Controller
         // system audit of 9 October 2026, finding M16); the EIR pair still opens the door
         // for a user who holds it, so nobody is locked out by the rename
         $this->middleware('permission:macro.view|eir.view')->only(['index', 'preview', 'export']);
-        $this->middleware('permission:macro.manage|eir.govern')->only(['commit', 'manual', 'variableStore', 'variableUpdate', 'variableDestroy', 'observationUpdate', 'observationDestroy', 'csvPreview', 'csvCommit', 'assumptionSave', 'assumptionWeights', 'assumptionVersion']);
+        $this->middleware('permission:macro.manage|eir.govern')->only(['commit', 'manual', 'approveOverride', 'variableStore', 'variableUpdate', 'variableDestroy', 'observationUpdate', 'observationDestroy', 'csvPreview', 'csvCommit', 'assumptionSave', 'assumptionWeights', 'assumptionVersion']);
     }
 
     public function index(Request $request)
@@ -54,6 +54,13 @@ class MacroStatisticsController extends Controller
             'assumptions' => $this->assumptions((string) $request->query('aperiod', '')),
             'canManage' => (bool) (auth()->user()?->canAny(['macro.manage', 'eir.govern']) ?? false), 'defaultCountry' => config('services.worldbank.country', 'MWI'),
             // Real counts for the section row's chips (config/menu.php, Macro Statistics).
+            // macro overrides waiting for a second person (Staging Module Specification v1, section 8.6)
+            'overrides' => \Illuminate\Support\Facades\Schema::hasTable('macro_override_requests')
+                ? DB::table('macro_override_requests as m')->leftJoin('users as u', 'u.id', '=', 'm.proposed_by')->where('m.status', 'PROPOSED')->orderBy('m.id')
+                    ->get(['m.id', 'm.kind', 'm.series_code', 'm.observation_id', 'm.payload', 'm.reason', 'm.proposed_by', 'u.name as proposer', 'm.created_at'])
+                    ->map(fn ($o) => (array) $o + ['documents' => \App\Support\Approvals::documentCount('macro-override', (int) $o->id)])
+                : [],
+            'userId' => auth()->id(),
             'tabCounts' => ['dashboard' => $series->count(), 'variables' => $series->count(), 'entry' => $observations ? count($observations) : 0, 'scenarios' => $sets->count(), 'import' => $batches->count()],
         ]);
     }
@@ -102,22 +109,33 @@ class MacroStatisticsController extends Controller
         return back()->with('success', "Batch {$r['batch_id']}: {$r['rows']} rows, {$r['new']} new, {$r['updated']} updated, {$r['unchanged']} unchanged.");
     }
 
-    /** A manual entry overrides a source only with a reason, shown on the row and in the audit log (13.5). */
-    public function manual(Request $request, MacroImportService $importer)
+    /**
+     * A manual entry overrides a source only with a reason (13.5), and only once
+     * a second person approves it with the source of the value attached
+     * (Staging Module Specification v1, section 8.6; MacroOverrideService).
+     */
+    public function manual(Request $request, \App\Services\Macro\MacroOverrideService $overrides)
     {
-        $data = $request->validate(['series_code' => ['required', 'string'], 'period' => ['required', 'date'], 'value' => ['required', 'numeric'], 'is_forecast' => ['nullable', 'boolean'], 'published_at' => ['nullable', 'date'], 'reason' => ['required', 'string', 'max:255']]);
-        $preview = ['series_code' => $data['series_code'], 'indicator_code' => null, 'country' => 'MWI', 'source' => 'Manual entry: ' . $data['reason'], 'address' => null, 'fetched_at' => now()->toDateTimeString(),
-            'rows' => [['period' => $data['period'], 'year' => (int) substr($data['period'], 0, 4), 'value' => (float) $data['value'], 'value_type' => ! empty($data['is_forecast']) ? 'forecast' : 'actual']]];
+        $data = $request->validate(['series_code' => ['required', 'string'], 'period' => ['required', 'date'], 'value' => ['required', 'numeric'], 'is_forecast' => ['nullable', 'boolean'], 'published_at' => ['nullable', 'date'], 'reason' => ['required', 'string', 'max:2000']]);
         try {
-            $r = $importer->commit($preview, $request->user()->id, 'manual', null, $data['reason']);
-            if (! empty($data['published_at'])) {
-                DB::table('macro_statistics_data')->where('source_import_batch_id', $r['batch_id'])->update(['published_at' => $data['published_at']]);
-            }
+            $id = $overrides->propose('manual', $data['series_code'], null, ['period' => $data['period'], 'value' => (float) $data['value'], 'is_forecast' => ! empty($data['is_forecast']), 'published_at' => $data['published_at'] ?? null], $data['reason'], (int) $request->user()->id);
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', "Manual entry recorded as batch {$r['batch_id']} with its reason.");
+        return back()->with('success', "Manual entry proposed as override {$id}. Attach the source of the value; a second person approves it before it is used.");
+    }
+
+    /** Approve a proposed macro override: a second person, with the source attached; it is applied then. */
+    public function approveOverride(Request $request, int $id, \App\Services\Macro\MacroOverrideService $overrides)
+    {
+        try {
+            $result = $overrides->approve($id, (int) $request->user()->id);
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Macro override {$id} approved and applied: " . json_encode($result) . '.');
     }
 
     /** The CSV template and the export of every observation. */
@@ -220,24 +238,27 @@ class MacroStatisticsController extends Controller
     public function observationUpdate(Request $request, int $id)
     {
         $o = DB::table('macro_statistics_data')->where('id', $id)->first() ?? abort(404);
-        $d = $request->validate(['value' => ['required', 'numeric'], 'is_forecast' => ['nullable', 'boolean'], 'published_at' => ['nullable', 'date'], 'reason' => ['required', 'string', 'max:255']]);
-        $new = ['value' => $d['value'], 'is_forecast' => ! empty($d['is_forecast']) ? 1 : 0, 'actual_value' => empty($d['is_forecast']) ? $d['value'] : null,
-            'published_at' => $d['published_at'] ?? null, 'notes' => mb_substr(trim(($o->notes ? $o->notes . ' | ' : '') . 'Corrected: ' . $d['reason']), 0, 2000), 'updated_at' => now()];
-        DB::table('macro_statistics_data')->where('id', $id)->update($new);
-        AuditLoggerService::log('Macro Observation Corrected', 'macro_statistics_data', $id, ['old_values' => ['value' => $o->value, 'is_forecast' => $o->is_forecast, 'published_at' => $o->published_at],
-            'new_values' => $new, 'meta' => ['user' => $request->user()->id, 'reason' => $d['reason']]]);
+        $d = $request->validate(['value' => ['required', 'numeric'], 'is_forecast' => ['nullable', 'boolean'], 'published_at' => ['nullable', 'date'], 'reason' => ['required', 'string', 'max:2000']]);
+        try {
+            $rid = app(\App\Services\Macro\MacroOverrideService::class)->propose('correction', null, $id, ['value' => (float) $d['value'], 'is_forecast' => ! empty($d['is_forecast']), 'published_at' => $d['published_at'] ?? null], $d['reason'], (int) $request->user()->id);
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        return back()->with('success', 'Observation corrected; the old value is kept in the audit log. The model reads it at the next correlation sweep.');
+        return back()->with('success', "Correction proposed as override {$rid}; a second person approves it, with the source attached, before the value changes.");
     }
 
     public function observationDestroy(Request $request, int $id)
     {
-        $o = DB::table('macro_statistics_data')->where('id', $id)->first() ?? abort(404);
-        $d = $request->validate(['reason' => ['required', 'string', 'max:255']]);
-        DB::table('macro_statistics_data')->where('id', $id)->delete();
-        AuditLoggerService::log('Macro Observation Deleted', 'macro_statistics_data', $id, ['old_values' => (array) $o, 'meta' => ['user' => $request->user()->id, 'reason' => $d['reason']]]);
+        DB::table('macro_statistics_data')->where('id', $id)->first() ?? abort(404);
+        $d = $request->validate(['reason' => ['required', 'string', 'max:2000']]);
+        try {
+            $rid = app(\App\Services\Macro\MacroOverrideService::class)->propose('deletion', null, $id, [], $d['reason'], (int) $request->user()->id);
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        return back()->with('success', 'Observation deleted; the reason and the old value are in the audit log.');
+        return back()->with('success', "Deletion proposed as override {$rid}; a second person approves it before the observation is removed.");
     }
 
     // ------------------------------------------------------------------ your own CSV

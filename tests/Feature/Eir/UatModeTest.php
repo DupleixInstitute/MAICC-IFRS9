@@ -32,6 +32,8 @@ class UatModeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // these tests are of other behaviour; the evidence a workflow needs before approval is tested in ApprovalWorkflowsTest
+        config(['approvals.require_evidence' => false]);
         $this->admin = User::create(['name' => 'UAT administrator', 'email' => uniqid() . '@example.com', 'password' => bcrypt('x')]);
         $this->admin->assignRole('admin');
         $this->admin->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate('eir.govern', 'web'));

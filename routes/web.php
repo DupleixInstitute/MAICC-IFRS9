@@ -659,6 +659,16 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
     Route::post('/{trigger}/close', [\App\Http\Controllers\SicrTriggerController::class, 'close'])->whereNumber('trigger')->name('close');
 });
 
+// One item of an approval workflow (Staging Module Specification v1, section 8.6): its history,
+// its supporting documents, and reject or withdraw with a reason.
+Route::group(['prefix' => 'approvals', 'as' => 'approvals.'], function () {
+    Route::get('/documents/{document}', [\App\Http\Controllers\ApprovalRecordController::class, 'openDocument'])->whereNumber('document')->name('documents.open');
+    Route::post('/documents/{document}/remove', [\App\Http\Controllers\ApprovalRecordController::class, 'removeDocument'])->whereNumber('document')->name('documents.remove');
+    Route::get('/{workflow}/{id}', [\App\Http\Controllers\ApprovalRecordController::class, 'show'])->whereNumber('id')->name('record');
+    Route::post('/{workflow}/{id}/decide', [\App\Http\Controllers\ApprovalRecordController::class, 'decide'])->whereNumber('id')->name('decide');
+    Route::post('/{workflow}/{id}/documents', [\App\Http\Controllers\ApprovalRecordController::class, 'attachDocument'])->whereNumber('id')->name('documents.attach');
+});
+
 // The staging comparison run (Staging Module Specification v1, section 4): a month's
 // stages and ECL under another staging policy, beside those booked; nothing booked changes.
 Route::group(['prefix' => 'staging-comparison', 'as' => 'staging-comparison.'], function () {
@@ -761,6 +771,7 @@ Route::get('/macro-statistics/legacy', [MacroStatsController::class, 'index'])->
 Route::post('/macro-statistics/preview', [\App\Http\Controllers\MacroStatisticsController::class, 'preview'])->name('macro-statistics.preview');
 Route::post('/macro-statistics/commit', [\App\Http\Controllers\MacroStatisticsController::class, 'commit'])->name('macro-statistics.commit');
 Route::post('/macro-statistics/manual', [\App\Http\Controllers\MacroStatisticsController::class, 'manual'])->name('macro-statistics.manual');
+Route::post('/macro-statistics/overrides/{id}/approve', [\App\Http\Controllers\MacroStatisticsController::class, 'approveOverride'])->whereNumber('id')->name('macro-statistics.overrides.approve');
 Route::get('/macro-statistics/export', [\App\Http\Controllers\MacroStatisticsController::class, 'export'])->name('macro-statistics.export');
 // Variables, observations, your own CSV and the scenario assumptions, all from the Macro Statistics screen
 Route::post('/macro-statistics/variables', [\App\Http\Controllers\MacroStatisticsController::class, 'variableStore'])->name('macro-statistics.variables.store');

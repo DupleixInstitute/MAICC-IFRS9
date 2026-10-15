@@ -64,6 +64,8 @@ class EirReopenRequestService
             if ((int) $r->requested_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('EIR reopen', 'eir_reopen_requests', (int) $r->id, $approverId)) {
                 throw new LogicException('The person who requested a reopening cannot approve it; a second person with EIR governance approves it.');
             }
+            // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+            \App\Support\Approvals::assertEvidence('eir-reopen', $requestId, null);
             $before = ContractEir::where('contract_id', $r->contract_id)->first();
             $reopened = $this->calculations->reopen($r->contract_id, $approverId, $r->reason);
             DB::table(self::TABLE)->where('id', $requestId)->update(['status' => 'APPROVED', 'decided_by' => $approverId, 'decided_at' => now(), 'updated_at' => now()]);

@@ -38,6 +38,8 @@ class SicrQualitativeTriggerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // these tests are of other behaviour; the evidence a workflow needs before approval is tested in ApprovalWorkflowsTest
+        config(['approvals.require_evidence' => false]);
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
         $this->createGovernanceSchema(); $this->seedGovernanceDefaults();

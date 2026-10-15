@@ -329,6 +329,8 @@ class RateResetService
                 if ((int) $r->proposed_by === $userId && ! \App\Support\MakerChecker::selfApprovalAllowed('Rate reset', 'rate_reset_events', (int) $r->id, $userId)) {
                     throw new RuntimeException("Reset #{$r->id}: the person who proposed a classification cannot approve it.");
                 }
+                // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+                \App\Support\Approvals::assertEvidence('rate-reset', (int) $r->id, $label);
                 ReportingPeriodLock::assertOpen((string) $r->reporting_period, 'a rate reset');
                 if ($r->classification === 'NEGOTIATED' && $this->everyChangeIsAReset()) {
                     throw new RuntimeException('The setting in force for rate_change_classification is "Every rate change is a reset": a negotiated classification cannot be approved.');

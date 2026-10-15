@@ -36,6 +36,8 @@ class FeeRulebookControlTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // these tests are of other behaviour; the evidence a workflow needs before approval is tested in ApprovalWorkflowsTest
+        config(['approvals.require_evidence' => false]);
         $this->maker = User::create(['name' => 'Finance analyst', 'email' => uniqid() . '@example.com', 'password' => bcrypt('x')]);
         $this->checker = User::create(['name' => 'Chief Finance Officer', 'email' => uniqid() . '@example.com', 'password' => bcrypt('x')]);
         (new GovernanceSettingsSeeder())->run();

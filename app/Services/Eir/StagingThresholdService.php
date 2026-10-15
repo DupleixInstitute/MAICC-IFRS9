@@ -75,6 +75,8 @@ class StagingThresholdService
             if ($approverId === null || $row->proposed_by === null || ((int) $row->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Staging threshold', 'staging_thresholds', (int) $row->id, $approverId))) {
                 throw new LogicException('Maker-checker: the approver must be a different person from the proposer, and both must be named.');
             }
+            // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+            \App\Support\Approvals::assertEvidence('staging-threshold', $id, null);
             $effective = CarbonImmutable::parse($row->effective_from->toDateString());
             $this->assertForwardOnly($row->facility_class, (int) $row->min_tenor_months, $effective, $row->id);
             $row->update(['status' => StagingThreshold::STATUS_APPROVED, 'approved_by' => $approverId, 'approved_at' => now()]);

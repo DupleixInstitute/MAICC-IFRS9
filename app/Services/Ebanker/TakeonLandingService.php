@@ -248,6 +248,8 @@ class TakeonLandingService
         if ($label !== null && ! $bootstrap) {
             throw new RuntimeException('Only the bootstrap label may stand in for a named approver.');
         }
+        // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+        \App\Support\Approvals::assertEvidence('takeon-build', $requestId, $label);
         $latest = DB::table('ebanker_loads')->where('route', self::ROUTE)->where('status', 'LANDED')->orderByDesc('id')->value('id');
         if ((int) $latest !== (int) $request->load_id) {
             throw new RuntimeException('A later take-on workbook has been landed since the build was proposed; propose the build again.');

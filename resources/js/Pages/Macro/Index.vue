@@ -8,6 +8,21 @@
     </template>
 
     <div class="space-y-4">
+      <!-- macro overrides waiting for a second person (Staging Module Specification v1, section 8.6) -->
+      <div v-if="overrides && overrides.length" class="maiic-panel border-amber-200">
+        <div class="border-b border-gray-200 px-5 py-3"><h3 class="font-semibold text-gray-900">Overrides awaiting a second person</h3><p class="text-xs text-gray-500">A manual value, a correction or a deletion is applied only when a second person approves it, with the source of the value attached on its record.</p></div>
+        <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Override</th><th>What</th><th>Reason</th><th>Proposed by</th><th>Source attached</th><th class="num">Actions</th></tr></thead>
+          <tbody>
+            <tr v-for="o in overrides" :key="o.id">
+              <td>{{ o.id }}</td>
+              <td class="text-xs">{{ o.kind }}<span v-if="o.series_code"> {{ o.series_code }}</span><span v-if="o.observation_id"> observation {{ o.observation_id }}</span>: {{ o.payload }}</td>
+              <td class="max-w-xs text-xs">{{ o.reason }}</td>
+              <td class="text-xs">{{ o.proposer || '-' }}</td>
+              <td>{{ o.documents ? 'Yes' : 'Not yet' }}</td>
+              <td class="num whitespace-nowrap"><a :href="route('approvals.record', ['macro-override', o.id])" class="secondary-btn text-xs mr-1">Record, documents</a><button v-if="canManage" type="button" class="primary-btn text-xs" @click="approveOverride(o)">Approve</button></td>
+            </tr>
+          </tbody></table></div>
+      </div>
       <!-- Dashboard -->
       <template v-if="tab === 'Dashboard'">
         <p class="text-xs text-gray-500">Each card is one variable. Click a card to see and edit its values. To add a variable, open Variables; to load many values at once, open Import / Export.</p>
@@ -313,7 +328,7 @@ const viewFromUrl = () => VIEWS[new URLSearchParams(typeof window !== 'undefined
 
 export default {
   components: { AppLayout, Link, FileDrop, ImportHowTo, ImportSpecPanel, LocalPager },
-  props: { series: Array, selected: Number, observations: Array, batches: Array, sets: Array, assumptions: Object, canManage: Boolean, defaultCountry: String, errors: Object },
+  props: { series: Array, selected: Number, observations: Array, batches: Array, sets: Array, assumptions: Object, canManage: Boolean, defaultCountry: String, errors: Object, overrides: { type: Array, default: () => [] }, userId: { type: Number, default: null } },
   data() {
     return { tab: viewFromUrl(), sel: this.selected, aPeriod: this.assumptions?.period, aSetId: this.defaultSetId(this.assumptions), aScenarioId: null,
       wb: { series_code: '', country: this.defaultCountry, from: 2000, to: new Date().getFullYear() }, imf: { series_code: '', file: null }, rbm: { file: null }, own: { file: null },
@@ -364,6 +379,7 @@ export default {
     kindLabel(k) { return { abs: 'add points', pct: 'percent change', replace: 'replace with' }[k] || k },
     batchSeries(b) { try { return JSON.parse(b.series || '[]').map(x => x.code).join(', ') } catch (e) { return '' } },
     select(s) { this.sel = s.id; this.tab = 'Data Entry'; this.go() },
+    approveOverride(o) { router.post(route('macro-statistics.overrides.approve', o.id), {}, { preserveScroll: true }) },
     go() { router.get(route('macro-statistics.index'), { series: this.sel, tab: KEYS[this.tab] }, { preserveState: true, preserveScroll: true, only: ['observations', 'selected', 'tabCounts', 'menu'] }) },
     goAssumptions() { router.get(route('macro-statistics.index'), { tab: 'scenarios', aperiod: this.aPeriod }, { preserveState: true, preserveScroll: true, only: ['assumptions'] }) },
     // variables

@@ -67,6 +67,8 @@ class WriteOffRegisterService
             if ((int) $w->proposed_by === $userId && ! \App\Support\MakerChecker::selfApprovalAllowed('Write-off register', 'loan_write_offs', (int) $w->id, $userId)) {
                 throw new RuntimeException('The person who proposed a write-off cannot approve it.');
             }
+            // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+            \App\Support\Approvals::assertEvidence('write-off', $id, $label);
             \App\Support\ReportingPeriodLock::assertOpen(substr((string) $w->write_off_date, 0, 7), 'a write-off');
             $txId = (int) DB::table('eir_actual_transactions')->insertGetId([
                 'contract_id' => $w->contract_id, 'transaction_date' => $w->write_off_date, 'transaction_type' => 'Write-off',

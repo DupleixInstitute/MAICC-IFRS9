@@ -120,6 +120,8 @@ class FliModelRegistry
         }
         // checked again on approval: the month may have been locked since the proposal
         \App\Support\ReportingPeriodLock::assertNotBackDated((string) $v->effective_from, "Forward-looking model version {$v->version}");
+        // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+        \App\Support\Approvals::assertEvidence('fli-model', $versionId, $label);
         if ($label === null && $approverId !== null && (int) $v->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('External forward-looking model', 'fli_model_versions', (int) $v->id, $approverId)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
