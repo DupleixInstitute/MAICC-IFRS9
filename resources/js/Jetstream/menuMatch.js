@@ -78,3 +78,21 @@ export function currentSection(menu) {
     }
     return null
 }
+
+// How closely an entry claims the page in view: 0 when it does not; a tabbed
+// section that holds the page outranks a route pattern, and a longer pattern
+// outranks a shorter one (help.admin over help.*).
+function currentScore(node) {
+    if (!isCurrent(node)) return 0
+    if (node.tabs && node.tabs.length) return 10000
+    return score(node.route) || 1
+}
+
+// Of sibling entries, the one that is the page in view. When two siblings
+// claim it (User Manual is help.index, so help.* also covers the
+// Administrator Manual's help.admin), only the more specific one is lit.
+export function isCurrentAmong(node, siblings) {
+    const own = currentScore(node)
+    if (!own) return false
+    return (siblings || []).every(s => s === node || currentScore(s) <= own)
+}

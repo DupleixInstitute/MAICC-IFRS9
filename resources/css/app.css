@@ -211,6 +211,65 @@
 }
 
 /* ============================================================
+   The left menu (resources/js/Jetstream/SidebarNav.vue and
+   DropdownMenu.vue). One set of rows for every level, on the dark green
+   gradient in both themes (colours: tailwind.config.js 'sidenav').
+   Every row starts 8px in from the edge; icons sit in a 20px column and the
+   labels of the top entries and the module groups line up at 48px, the
+   section headings a step out (44px) so their names fit on one line. Pages hang off a thin guide line under their group.
+   Long names wrap onto a second line; they are never cut short.
+     .snav-heading  level 1: a section heading (small capitals, muted green)
+     .snav-top      Dashboard, Workspace, Reports (with their icons)
+     .snav-l2       level 2: a module entry or group inside a section
+     .snav-l3       level 3: a page under a group, on the guide line
+     .snav-rail     an icon on the collapsed rail
+     .snav-active   the page in view: green tint, white text, gold bar
+   ============================================================ */
+@layer components {
+    .snav-row {
+        @apply relative flex w-full items-center gap-2.5 rounded-lg text-left transition-colors duration-150;
+        @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-maiic-300/80;
+    }
+    .snav-row:hover { background-color: rgb(255 255 255 / 0.05); }
+    .snav-heading {
+        @apply snav-row gap-2 px-2.5 py-2 text-[11px] font-semibold uppercase leading-4 tracking-[0.06em] text-sidenav-heading;
+    }
+    .snav-heading:hover { @apply text-maiic-200; }
+    .snav-top {
+        @apply snav-row px-2.5 py-[7px] text-[13.5px] font-medium leading-5 text-sidenav-text;
+    }
+    .snav-l2 {
+        @apply snav-row py-[6px] pl-10 pr-2.5 text-[13px] font-medium leading-5 text-sidenav-text;
+    }
+    .snav-l3 {
+        @apply snav-row rounded-l-none rounded-r-md py-[5px] pl-3 pr-2.5 text-[12.5px] font-normal leading-[18px] text-sidenav-sub;
+    }
+    .snav-top:hover, .snav-l2:hover, .snav-l3:hover, .snav-ancestor { @apply text-white; }
+    .snav-rail {
+        @apply snav-row mx-2 my-px w-[calc(100%-1rem)] justify-center py-2;
+    }
+    /* the page in view (and a folded group or rail icon that holds it) */
+    .snav-active, .snav-active:hover { @apply bg-maiic-400/[0.13] text-white; }
+    .snav-l3.snav-active { @apply font-medium; }
+    /* the gold bar: at the row's left edge, or on the guide line for a page */
+    .snav-bar { @apply pointer-events-none absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-maiicgold-400; }
+    .snav-l3 > .snav-bar { @apply inset-y-1 -left-px w-[2px] rounded-full; }
+    .snav-icon { @apply h-4 !w-5 flex-none text-sidenav-icon transition-colors duration-150; }
+    .snav-heading .snav-icon { @apply h-3.5 !w-4 text-sidenav-heading/80; }
+    .snav-top:hover .snav-icon, .snav-rail:hover .snav-icon { @apply text-sidenav-text; }
+    .snav-active .snav-icon, .snav-active:hover .snav-icon { @apply text-maiicgold-400; }
+    .snav-label { @apply min-w-0 flex-1 break-words; }
+    .snav-chevron { @apply h-2.5 w-2.5 flex-none text-sidenav-icon transition-transform duration-200; }
+    /* the pages of a group: one step in, on a thin guide line */
+    .snav-guide { @apply relative mb-1 mt-px space-y-px border-l border-white/10; }
+    /* a count of the tabs inside an entry: present, never loud */
+    .snav-badge { @apply ml-auto flex-none rounded px-1.5 text-[10px] font-semibold leading-4 tabular-nums bg-white/[0.06] text-white/45; }
+    .snav-active .snav-badge { @apply text-white/70; }
+    /* the name of a rail icon, beside the rail */
+    .snav-tip { @apply pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-md border border-white/10 bg-[#0d2a1a] px-2.5 py-1 text-[12px] font-medium text-white shadow-lg; }
+}
+
+/* ============================================================
    Dark variants of the shared classes (spec v4 section 11.5). The pages
    inherit the theme through these; the sidebar keeps its dark gradient in
    both modes. Printed and exported outputs stay in the light palette.

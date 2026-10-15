@@ -1,15 +1,17 @@
 <template>
-    <!-- Shared sidebar body: brand header + menu. The parent supplies the
-         gradient <aside>/panel container; this fills it.
+    <!-- Shared sidebar body: brand header, menu, collapse control. The parent
+         supplies the gradient <aside>/panel container; this fills it, and only
+         the menu between the brand and the collapse control scrolls.
          Dashboard, Workspace and Reports sit at the top with no heading,
-         always shown, their icons in soft gold. Then four blocks
-         (config/menu.php 'heading'), each heading with its icon in its own
-         soft colour; they fold from their heading; their entries are text, hung off a thin guide line in the
-         block's colour, and the active entry turns its piece of the line into
-         a solid bar with a light tint behind it. Collapsed (desktop only), the
-         sidebar is an icon rail: every entry's icon with its name as tooltip,
-         the blocks drawn as thin rules, and a group opens the full sidebar on
-         that group. -->
+         always shown. Then the four sections (config/menu.php 'heading'):
+         one open at a time, the one holding the page in view always open, and
+         otherwise the one the user last opened (remembered per user in this
+         browser). Inside a section one group is open at a time, again the
+         group of the page in view first. Collapsed (desktop only), the
+         sidebar is an icon rail: every entry's icon, its name in a tooltip
+         beside the rail, the sections drawn as thin rules, and a group opens
+         the full sidebar on that group. Row styles: the .snav-* classes in
+         resources/css/app.css; colours: 'sidenav' in tailwind.config.js. -->
     <div class="relative flex h-full min-h-0 flex-col">
         <!-- ambient glows (top green, bottom gold) -->
         <div class="pointer-events-none absolute inset-x-0 top-0 h-40 opacity-70"
@@ -17,15 +19,16 @@
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-40 opacity-40"
              style="background: radial-gradient(ellipse at 50% 100%, rgba(212,160,23,0.20) 0%, transparent 72%)"/>
 
-        <!-- brand header -->
-        <div class="relative z-10 flex h-[68px] shrink-0 items-center gap-3"
-             :class="collapsed ? 'justify-center px-2' : 'px-4'"
-             style="border-bottom: 1px solid rgba(255,255,255,0.055);">
-            <inertia-link :href="'/'" class="flex min-w-0 items-center gap-3" :title="collapsed ? $page.props.companyName : null">
-                <img :src="collapsed ? ($page.props.smallLogoUrl || $page.props.logoUrl) : $page.props.logoUrl" :alt="$page.props.companyName"
-                     class="w-auto object-contain" :class="collapsed ? 'h-8 max-w-[52px]' : 'h-10 max-w-[150px]'"/>
+        <!-- brand header: the height of the top bar beside it -->
+        <div class="relative z-10 flex h-16 shrink-0 items-center border-b border-white/[0.06]"
+             :class="collapsed ? 'justify-center px-2' : 'px-4'">
+            <inertia-link :href="'/'" class="flex min-w-0 items-center gap-2.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-maiic-300/80"
+                          :aria-label="collapsed ? $page.props.companyName : null">
+                <img :src="collapsed && !smallLogoFailed ? ($page.props.smallLogoUrl || $page.props.logoUrl) : $page.props.logoUrl" :alt="$page.props.companyName"
+                     @error="collapsed && (smallLogoFailed = true)"
+                     class="w-auto object-contain" :class="collapsed ? 'h-8 max-w-[52px]' : 'h-9 max-w-[120px]'"/>
                 <span v-if="!collapsed" class="flex min-w-0 flex-col">
-                    <span class="truncate text-[11px] font-medium leading-none" style="color: rgba(212,160,23,0.85)">
+                    <span class="whitespace-nowrap text-[11px] font-medium leading-none" style="color: rgba(212,160,23,0.85)">
                         IFRS 9 ECL &amp; EIR Platform
                     </span>
                 </span>
@@ -33,100 +36,91 @@
         </div>
 
         <!-- menu -->
-        <nav class="sidebar-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-3" aria-label="Main menu">
+        <nav ref="nav" class="sidebar-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-2" aria-label="Main menu"
+             @keydown="onKeydown" @scroll.passive="saveScroll"
+             @mouseover="showTip" @mouseleave="tip = null" @focusin="showTip" @focusout="tip = null">
             <div v-for="(block, b) in blocks" :key="block.heading || b">
 
                 <!-- ============ the icon rail ============ -->
                 <template v-if="collapsed">
-                    <div v-if="b > 0" class="mx-4 my-3 h-px bg-white/10" role="separator" :aria-label="block.heading"/>
+                    <div v-if="b > 0" class="mx-4 my-2 h-px bg-white/[0.08]" role="separator" :aria-label="block.heading"/>
                     <template v-for="item in block.items" :key="item.name">
                         <DropdownMenu v-if="item.dropdown" :item="item" collapsed @expand="openFromRail(block, item)"/>
                         <component v-else :is="item.download ? 'a' : (item.route ? 'Link' : 'div')"
                                    :href="item.route ? route(item.route) : undefined" :rel="item.download ? 'noopener' : undefined"
-                                   :title="item.name" :aria-label="item.name" :aria-current="isCurrent(item) ? 'page' : null"
-                                   class="group relative mx-2 my-[2px] flex items-center justify-center rounded-xl py-2.5 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-maiic-400/70"
-                                   :class="isCurrent(item) ? 'bg-white/10' : 'hover:bg-white/5'">
-                            <span v-if="isCurrent(item)" class="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-maiic-400"/>
-                            <font-awesome-icon v-if="item.icon" :icon="item.icon" aria-hidden="true"
-                                               class="h-4 !w-5 flex-shrink-0 transition-colors duration-150"
-                                               :class="isCurrent(item) ? 'text-maiic-400' : 'text-white/60 group-hover:text-white/80'"/>
+                                   :data-tip="item.name" :aria-label="item.name" :aria-current="isCurrent(item) ? 'page' : null"
+                                   class="snav-rail" :class="{ 'snav-active': isCurrent(item) }">
+                            <span v-if="isCurrent(item)" class="snav-bar" aria-hidden="true"/>
+                            <font-awesome-icon :icon="item.icon || 'circle'" aria-hidden="true" class="snav-icon"/>
                         </component>
                     </template>
                 </template>
 
                 <!-- ============ the full sidebar ============ -->
                 <template v-else>
-                    <!-- block heading: icon and label in the block's colour; a chevron folds every block but Overview -->
-                    <div v-if="block.heading" :class="b === 0 ? 'mt-1' : 'mx-3 mt-6 border-t border-white/10 pt-4'">
-                        <component :is="block.fixed ? 'div' : 'button'" :type="block.fixed ? undefined : 'button'"
-                                   @click="block.fixed ? null : toggleBlock(block.heading)"
-                                   class="mb-1.5 flex w-full items-center gap-2 rounded-lg py-1 text-left text-[13px] font-semibold uppercase leading-4 tracking-wide"
-                                   :class="[b === 0 ? 'px-5' : 'px-2', block.fixed ? '' : 'transition-opacity duration-150 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40']"
-                                   :style="{ color: block.colour, opacity: block.fixed || blockOpen(block) ? 1 : 0.85 }"
-                                   :aria-expanded="block.fixed ? undefined : (blockOpen(block) ? 'true' : 'false')"
-                                   :aria-controls="block.fixed ? undefined : 'menu-block-' + b">
-                            <font-awesome-icon :icon="block.icon" class="h-3.5 !w-4 flex-none" aria-hidden="true"/>
-                            <span class="min-w-0 flex-1">{{ block.heading }}</span>
-                            <font-awesome-icon v-if="!block.fixed" icon="chevron-down" aria-hidden="true"
-                                               class="h-3 w-3 flex-none opacity-70 transition-transform duration-200"
-                                               :class="blockOpen(block) ? 'rotate-180' : 'rotate-0'"/>
-                        </component>
-                    </div>
-
                     <!-- the top entries (no heading): always shown, with their icons -->
-                    <template v-if="block.fixed">
+                    <div v-if="block.fixed" class="mx-2 space-y-px">
                         <template v-for="item in block.items" :key="item.name">
                             <DropdownMenu v-if="item.dropdown" :item="item"/>
                             <component v-else :is="item.download ? 'a' : (item.route ? 'Link' : 'div')"
                                        :href="item.route ? route(item.route) : undefined" :rel="item.download ? 'noopener' : undefined"
                                        :aria-current="isCurrent(item) ? 'page' : null"
-                                       class="group relative mx-2 my-[2px] flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-normal transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-maiic-400/70"
-                                       :class="isCurrent(item) ? 'bg-white/10 text-white' : 'text-white/85 hover:bg-white/5 hover:text-white'">
-                                <span v-if="isCurrent(item)" class="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full" :style="{ backgroundColor: block.colour }"/>
-                                <font-awesome-icon v-if="item.icon" :icon="item.icon" aria-hidden="true"
-                                                   class="h-4 !w-5 flex-shrink-0 transition-opacity duration-150"
-                                                   :class="isCurrent(item) ? 'opacity-100' : 'opacity-75 group-hover:opacity-100'"
-                                                   :style="{ color: block.colour }"/>
-                                <span class="truncate leading-snug">{{ item.name }}</span>
+                                       class="snav-top" :class="{ 'snav-active': isCurrent(item) }">
+                                <span v-if="isCurrent(item)" class="snav-bar" aria-hidden="true"/>
+                                <font-awesome-icon :icon="item.icon || 'circle'" aria-hidden="true" class="snav-icon"/>
+                                <span class="snav-label">{{ item.name }}</span>
                             </component>
                         </template>
-                    </template>
+                    </div>
 
-                    <!-- a foldable block: text entries hung off a thin guide line in the block's colour -->
-                    <div v-else v-show="blockOpen(block)" :id="'menu-block-' + b"
-                         class="ml-7 mr-2 border-l" :style="{ borderColor: tint(block.colour, 0.3) }">
-                        <template v-for="item in block.items" :key="item.name">
+                    <!-- a section: its heading folds it (one section open at a time) -->
+                    <div v-else class="mx-2 mt-1.5 border-t border-white/[0.07] pt-1.5">
+                        <button type="button" class="snav-heading" data-nav-section
+                                @click="toggleSection(block.heading)"
+                                :aria-expanded="sectionOpen(block) ? 'true' : 'false'"
+                                :aria-controls="uid + '-section-' + b">
+                            <font-awesome-icon :icon="block.icon" class="snav-icon" aria-hidden="true"/>
+                            <span class="snav-label">{{ block.heading }}</span>
+                            <font-awesome-icon icon="chevron-down" aria-hidden="true" class="snav-chevron"
+                                               :class="sectionOpen(block) ? 'rotate-180' : 'rotate-0'"/>
+                        </button>
 
-                            <DropdownMenu v-if="item.dropdown" :item="item" plain :accent="block.colour" :start-open="railOpened === item.name"/>
+                        <div v-show="sectionOpen(block)" :id="uid + '-section-' + b" class="space-y-px pb-1">
+                            <template v-for="item in block.items" :key="item.name">
+                                <DropdownMenu v-if="item.dropdown" :item="item" plain
+                                              :open="groupOpen(item)" @toggle="toggleGroup(block, item)"/>
 
-                            <component v-else :is="item.download ? 'a' : (item.route ? 'Link' : 'div')"
-                                       :href="item.route ? route(item.route) : undefined" :rel="item.download ? 'noopener' : undefined"
-                                       :aria-current="isCurrent(item) ? 'page' : null"
-                                       class="group relative my-[2px] flex items-center gap-2 rounded-r-lg py-2 pl-[15px] pr-3 text-[14px] font-normal transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-maiic-400/70"
-                                       :class="isCurrent(item) ? 'bg-white/10 text-white' : 'text-white/85 hover:bg-white/5 hover:text-white'">
-                                <!-- the active entry: its piece of the guide line becomes a solid bar -->
-                                <span v-if="isCurrent(item)" class="absolute inset-y-0 -left-px w-[2px]" :style="{ backgroundColor: block.colour }"/>
-                                <span class="truncate leading-snug">{{ item.name }}</span>
-                                <span v-if="item.tabs && item.tabs.length > 1"
-                                      class="ml-auto flex-none rounded-full bg-white/10 px-1.5 text-[10px] font-semibold text-white/70"
-                                      :title="item.tabs.map(t => t.name).join(', ')">{{ item.tabs.length }}</span>
-                            </component>
-                        </template>
+                                <component v-else :is="item.download ? 'a' : (item.route ? 'Link' : 'div')"
+                                           :href="item.route ? route(item.route) : undefined" :rel="item.download ? 'noopener' : undefined"
+                                           :aria-current="isCurrent(item) ? 'page' : null"
+                                           class="snav-l2" :class="{ 'snav-active': isCurrent(item) }">
+                                    <span v-if="isCurrent(item)" class="snav-bar" aria-hidden="true"/>
+                                    <span class="snav-label">{{ item.name }}</span>
+                                    <span v-if="item.tabs && item.tabs.length > 1" class="snav-badge"
+                                          :title="item.tabs.map(t => t.name).join(', ')"
+                                          :aria-label="item.tabs.length + ' tabs'">{{ item.tabs.length }}</span>
+                                </component>
+                            </template>
+                        </div>
                     </div>
                 </template>
             </div>
         </nav>
 
-        <!-- collapse / expand (the desktop sidebar only) -->
-        <div v-if="collapsible" class="relative z-10 shrink-0 p-2" style="border-top: 1px solid rgba(255,255,255,0.055);">
+        <!-- the name of a rail icon, beside the rail (fixed, so the scrolling menu does not clip it) -->
+        <div v-if="collapsed && tip" class="snav-tip" role="tooltip" :style="{ top: tip.top + 'px', left: tip.left + 'px' }">{{ tip.text }}</div>
+
+        <!-- collapse / expand (the desktop sidebar only), anchored at the bottom -->
+        <div v-if="collapsible" class="relative z-10 shrink-0 border-t border-white/[0.06] p-2">
             <button type="button" @click="$emit('toggle')"
                     :aria-expanded="collapsed ? 'false' : 'true'"
                     :aria-label="collapsed ? 'Expand the menu' : 'Collapse the menu'"
-                    :title="collapsed ? 'Expand the menu' : 'Collapse the menu'"
-                    class="flex w-full items-center gap-3 rounded-xl py-2.5 text-[13px] font-normal text-white/65 transition-colors duration-150 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-maiic-400/70"
-                    :class="collapsed ? 'justify-center px-0' : 'px-3'">
-                <font-awesome-icon :icon="collapsed ? 'chevron-right' : 'chevron-left'" aria-hidden="true" class="h-3.5 w-3.5 flex-shrink-0"/>
-                <span v-if="!collapsed" class="truncate">Collapse menu</span>
+                    :data-tip="collapsed ? 'Expand the menu' : null"
+                    @mouseenter="collapsed && showTip($event)" @mouseleave="tip = null" @focus="collapsed && showTip($event)" @blur="tip = null"
+                    class="snav-row py-2 text-[12.5px] font-medium text-sidenav-sub hover:text-white"
+                    :class="collapsed ? 'justify-center' : 'px-2.5'">
+                <font-awesome-icon :icon="collapsed ? 'chevron-right' : 'chevron-left'" aria-hidden="true" class="h-3 !w-5 flex-none"/>
+                <span v-if="!collapsed" class="snav-label">Collapse menu</span>
             </button>
         </div>
     </div>
@@ -135,39 +129,44 @@
 <script>
 import { Link } from '@inertiajs/vue3'
 import DropdownMenu from '@/Jetstream/DropdownMenu.vue'
-import { isCurrent, containsCurrent } from '@/Jetstream/menuMatch'
+import { isCurrentAmong, containsCurrent } from '@/Jetstream/menuMatch'
 
-// The block headings of config/menu.php ('heading'), as the Stress Testing
-// suite draws them: an icon before each, Overview always open, every other
-// block folds from its heading and opens by itself on the page in view. Each
-// block has its own soft colour on the dark green (the sidebar keeps its dark
-// gradient in both themes).
+// The section headings of config/menu.php ('heading') and their icons. All
+// four are drawn in the one muted green (the sidebar keeps its dark gradient
+// in both themes); only the page in view carries the gold accent.
 const ALWAYS_OPEN = 'Overview'
-const BLOCKS = {
-    'Overview': { icon: 'th-large', colour: '#fcd34d' },                    // amber-300
-    'Data foundation': { icon: 'layer-group', colour: '#7dd3fc' },          // sky-300
-    'Financial modelling': { icon: 'project-diagram', colour: '#6ee7b7' },  // emerald-300
-    'Risk & regulatory': { icon: 'balance-scale', colour: '#fda4af' },      // rose-300
-    'Administration & support': { icon: 'tools', colour: '#c4b5fd' },       // violet-300
+const SECTION_ICONS = {
+    'Overview': 'th-large',
+    'Data foundation': 'layer-group',
+    'Financial modelling': 'project-diagram',
+    'Risk & regulatory': 'balance-scale',
+    'Administration & support': 'tools',
 }
-function blocksKey(user) {
-    return 'maiic.sidebar.blocks.' + ((user && user.id) || 'guest')
+
+// Per user in this browser: the section last open ({ heading: true }, the
+// key the sidebar has always used) and the groups left open.
+function storeKey(kind, user) {
+    return 'maiic.sidebar.' + kind + '.' + ((user && user.id) || 'guest')
 }
-function readOpenBlocks(user) {
+function readStore(kind, user) {
     try {
-        const v = JSON.parse(localStorage.getItem(blocksKey(user)) || '{}')
+        const v = JSON.parse(localStorage.getItem(storeKey(kind, user)) || '{}')
         return v && typeof v === 'object' ? v : {}
     } catch (e) {
         return {}
     }
 }
-function writeOpenBlocks(user, state) {
+function writeStore(kind, user, state) {
     try {
-        localStorage.setItem(blocksKey(user), JSON.stringify(state))
+        localStorage.setItem(storeKey(kind, user), JSON.stringify(state))
     } catch (e) {
-        /* storage unavailable: the blocks fold for this page only */
+        /* storage unavailable: the menu keeps its state for this page only */
     }
 }
+// the menu's scroll position, kept while the user moves from page to page
+const SCROLL_KEY = 'maiic.sidebar.scroll'
+
+let uid = 0
 
 export default {
     name: 'SidebarNav',
@@ -180,17 +179,49 @@ export default {
     },
     emits: ['toggle', 'expand'],
     data() {
-        // railOpened: the group clicked on the icon rail, open in the full sidebar
-        return { openBlocks: readOpenBlocks(this.$page.props.user), railOpened: null }
+        uid += 1
+        // smallLogoFailed: the rail's small logo did not load (the file is
+        // missing): the rail shows the full logo, scaled down, instead
+        return { openSection: null, openGroups: {}, tip: null, uid: 'snav' + uid, smallLogoFailed: false }
     },
     created() {
-        // each page load (Inertia renders the layout afresh) opens the block
-        // that holds the page in view; the user can still fold it
-        const active = this.blocks.find(bl => bl.active && !bl.fixed)
-        if (active && !this.openBlocks[active.heading]) {
-            this.openBlocks = { ...this.openBlocks, [active.heading]: true }
-            writeOpenBlocks(this.$page.props.user, this.openBlocks)
+        // Each page load (Inertia renders the layout afresh) opens the section
+        // and the group that hold the page in view; elsewhere (Dashboard,
+        // Workspace, Reports) the section the user last opened stays open.
+        const user = this.$page.props.user
+        const sections = this.blocks.filter(bl => !bl.fixed)
+        const active = sections.find(bl => bl.active)
+        const stored = readStore('blocks', user)
+        const remembered = sections.find(bl => stored[bl.heading] === true)
+        this.openSection = active ? active.heading : (remembered ? remembered.heading : null)
+
+        // one group open per section: the group of the page in view, else the first one left open
+        const groups = readStore('groups', user)
+        for (const bl of sections) {
+            const own = bl.items.filter(it => it.dropdown)
+            const keep = own.find(it => containsCurrent(it)) || own.find(it => groups[it.name] === true)
+            for (const it of own) groups[it.name] = it === keep
         }
+        this.openGroups = groups
+        this.remember()
+    },
+    mounted() {
+        // keep the menu where the user left it, and the page in view in sight
+        const nav = this.$refs.nav
+        if (!nav || this.collapsed) return
+        try {
+            const y = Number(sessionStorage.getItem(SCROLL_KEY))
+            if (y > 0) nav.scrollTop = y
+        } catch (e) { /* no session storage: the menu starts at the top */ }
+        this.$nextTick(() => {
+            const cur = nav.querySelector('[aria-current="page"]')
+            if (!cur) return
+            const n = nav.getBoundingClientRect()
+            const r = cur.getBoundingClientRect()
+            // the menu alone scrolls (never the page behind it)
+            if (r.top < n.top) nav.scrollTop -= n.top - r.top + 8
+            else if (r.bottom > n.bottom) nav.scrollTop += r.bottom - n.bottom + 8
+        })
     },
     computed: {
         menu() {
@@ -206,44 +237,100 @@ export default {
             }
             return out.map(bl => ({
                 ...bl,
-                icon: (BLOCKS[bl.heading] || {}).icon || 'circle',
-                // the untitled top block (Dashboard, Workspace, Reports) keeps the soft gold
-                colour: (BLOCKS[bl.heading] || {}).colour || BLOCKS[ALWAYS_OPEN].colour,
-                // Overview always shows; an untitled block cannot fold either
+                icon: SECTION_ICONS[bl.heading] || 'circle',
+                // the untitled top block (Dashboard, Workspace, Reports) always shows
                 fixed: !bl.heading || bl.heading === ALWAYS_OPEN,
                 active: bl.items.some(it => containsCurrent(it)),
             }))
         },
     },
     methods: {
+        // the entry that is the page in view (of its siblings, the most specific match)
         isCurrent(item) {
-            return isCurrent(item)
+            return isCurrentAmong(item, this.menu)
         },
-        // a block is open when it cannot fold, or the user left it open
-        // (remembered per user in this browser); the block holding the page
-        // in view opens as the page loads (created)
-        blockOpen(block) {
-            return block.fixed || !!this.openBlocks[block.heading]
+        sectionOpen(block) {
+            return block.fixed || this.openSection === block.heading
+        },
+        groupOpen(item) {
+            return this.openGroups[item.name] === true
+        },
+        remember() {
+            const user = this.$page.props.user
+            writeStore('blocks', user, this.openSection ? { [this.openSection]: true } : {})
+            writeStore('groups', user, this.openGroups)
+        },
+        // the accordion: opening a section closes the one that was open
+        toggleSection(heading) {
+            this.openSection = this.openSection === heading ? null : heading
+            this.remember()
+        },
+        // one group open per section
+        toggleGroup(block, item) {
+            const opening = !this.groupOpen(item)
+            const next = { ...this.openGroups }
+            for (const it of block.items) if (it.dropdown) next[it.name] = false
+            next[item.name] = opening
+            this.openGroups = next
+            this.remember()
         },
         // a group clicked on the icon rail: the full sidebar opens on it
         openFromRail(block, item) {
-            this.railOpened = item.name
-            if (!block.fixed && !this.openBlocks[block.heading]) {
-                this.openBlocks = { ...this.openBlocks, [block.heading]: true }
-                writeOpenBlocks(this.$page.props.user, this.openBlocks)
+            if (!block.fixed) {
+                this.openSection = block.heading
+                const next = { ...this.openGroups }
+                for (const it of block.items) if (it.dropdown) next[it.name] = false
+                next[item.name] = true
+                this.openGroups = next
+            } else {
+                this.openGroups = { ...this.openGroups, [item.name]: true }
             }
+            this.remember()
             this.$emit('expand')
         },
-        toggleBlock(heading) {
-            this.openBlocks = { ...this.openBlocks, [heading]: !this.openBlocks[heading] }
-            writeOpenBlocks(this.$page.props.user, this.openBlocks)
+        saveScroll(e) {
+            if (this.collapsed) return
+            try {
+                sessionStorage.setItem(SCROLL_KEY, String(Math.round(e.target.scrollTop)))
+            } catch (err) { /* no session storage */ }
         },
-        // a hex colour at an opacity, for the guide lines
-        tint(hex, alpha) {
-            const m = /^#([0-9a-f]{6})$/i.exec(hex || '')
-            if (!m) return 'rgba(255,255,255,' + alpha + ')'
-            const n = parseInt(m[1], 16)
-            return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
+        // the rail's tooltip: the entry's name, beside the rail at its height
+        showTip(e) {
+            if (!this.collapsed) return
+            const el = e.target && e.target.closest ? e.target.closest('[data-tip]') : null
+            if (!el) {
+                this.tip = null
+                return
+            }
+            const r = el.getBoundingClientRect()
+            const rail = this.$el.getBoundingClientRect()
+            this.tip = { text: el.getAttribute('data-tip'), top: Math.round(r.top + r.height / 2), left: Math.round(rail.right + 8) }
+        },
+        // Arrow keys move through the visible entries; Right opens a folded
+        // section or group, Left folds it; Home and End go to the ends.
+        onKeydown(e) {
+            const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'ArrowRight', 'ArrowLeft']
+            if (!keys.includes(e.key) || e.altKey || e.ctrlKey || e.metaKey) return
+            const nav = this.$refs.nav
+            const items = [...nav.querySelectorAll('a[href], button')].filter(el => el.offsetParent !== null)
+            const at = items.indexOf(document.activeElement)
+            if (at < 0) return
+            const el = items[at]
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                const exp = el.getAttribute('aria-expanded')
+                if ((e.key === 'ArrowRight' && exp === 'false') || (e.key === 'ArrowLeft' && exp === 'true')) {
+                    e.preventDefault()
+                    el.click()
+                }
+                return
+            }
+            e.preventDefault()
+            let next = at
+            if (e.key === 'ArrowDown') next = Math.min(items.length - 1, at + 1)
+            if (e.key === 'ArrowUp') next = Math.max(0, at - 1)
+            if (e.key === 'Home') next = 0
+            if (e.key === 'End') next = items.length - 1
+            items[next].focus()
         },
     },
 }
