@@ -50,11 +50,14 @@ class Bootstrap extends Command
         {--to= : Last period (default: the last month-end in the pack)}
         {--user=1 : The system user the bootstrap records its loads against}
         {--inputs=docs/bootstrap : Folder of the committed inputs}
-        {--live-macro : Fetch the World Bank series live instead of the committed snapshot (the results then depend on the day it runs)}';
+        {--live-macro : Fetch the World Bank series live instead of the committed snapshot (the results then depend on the day it runs)}
+        {--with-decisions= : Replay the decisions pack of this name from docs/bootstrap/decisions (section 8.10): decisions people made in the database it was exported from}';
 
     protected $description = 'Clean install: seed, land the committed client inputs, build, run the engines, verify the golden numbers';
 
     private array $report = [];
+
+    private ?\App\Services\Decisions\DecisionsPackReplayer $decisions = null;
 
     public function handle(): int
     {
@@ -65,6 +68,10 @@ class Bootstrap extends Command
         // the pack is parsed whole before it lands (the gates look across its files); a 128M php.ini default runs out on the committed pack
         ini_set('memory_limit', '-1');
         try {
+            if ($this->option('with-decisions')) {
+                // read and checked against its manifest before anything is wiped
+                $this->decisions = new \App\Services\Decisions\DecisionsPackReplayer(base_path(\App\Services\Decisions\DecisionsPack::FOLDER . '/' . $this->option('with-decisions')));
+            }
             $this->stepFresh();
             $this->stepSeed();
             $to = null;
@@ -77,6 +84,7 @@ class Bootstrap extends Command
             if ($this->option('run-engines')) {
                 $this->stepEngines($user, $to);
             }
+            $this->stepDecisionsReport();
             $failed = $this->option('verify') ? $this->stepVerify() : 0;
         } catch (Throwable $e) {
             $this->error('Bootstrap stopped: ' . $e->getMessage());
@@ -284,6 +292,12 @@ class Bootstrap extends Command
         }
         $sweep = app(FeeRuleMatcher::class)->sweepPending();
         $this->note('5e fee rulebook', "{$sweep['examined']} examined, {$sweep['matched']} matched an approved rule (suggested, not reviewed: the review is a person's), " . ContractFee::where('classification_status', 'PENDING')->count() . ' PENDING');
+        if ($this->decisions !== null) {
+            // people's decisions, carried from the database the pack was exported from (section 8.10): after the
+            // fee build, so their lines are here, and before the schedules and the EIRs, which read them
+            $summary = $this->decisions->replay($user);
+            $this->note('5e decisions pack', $this->decisions->label() . ': ' . self::decisionsLine($summary));
+        }
         $gi = $inputs->glInterest($from, null);
         $this->note('5f interest posted (ledger)', "{$gi['rows']} account-months: {$gi['result']['loaded_rows']} loaded, {$gi['result']['restated_rows']} restated, total " . number_format($gi['result']['total_posted'], 2));
 
@@ -502,7 +516,15 @@ class Bootstrap extends Command
         // 8-9 EIR before the ECL: the ECL is discounted at it
         $calc = app(EirCalculationService::class);
         $solved = 0; $locked = 0; $failed = [];
+        $carried = $this->decisions?->locks() ?? [];
+        $carriedLocks = 0;
         foreach (ContractEir::query()->where('schedule_approval_status', 'APPROVED')->whereNull('locked_at')->get() as $c) {
+            if (isset($carried[$c->contract_id])) {
+                // a person locked this EIR in the source database: locked again as that person, only if it solves the same (section 8.10)
+                $carriedLocks += $this->decisions->carryLock($carried[$c->contract_id], $user) === \App\Services\Decisions\DecisionsPackReplayer::APPLIED ? 1 : 0;
+                unset($carried[$c->contract_id]);
+                continue;
+            }
             try {
                 $calc->calculate($c->contract_id, $user);
                 $solved++;
@@ -512,7 +534,11 @@ class Bootstrap extends Command
                 $failed[] = $c->contract_id . ': ' . substr($e->getMessage(), 0, 80);
             }
         }
-        $this->note('6.9 EIR solved and locked', "{$solved} solved, {$locked} locked under the bootstrap label (automated data-readiness, not a MAIIC approval); " . count($failed) . ' not solved' . ($failed !== [] ? ': ' . implode(' | ', array_slice($failed, 0, 3)) : ''));
+        foreach (array_keys($carried) as $contractId) {
+            $this->decisions->lockNotReached((string) $contractId, 'the loan has no approved schedule here, or its EIR was already locked');
+        }
+        $this->note('6.9 EIR solved and locked', "{$solved} solved, {$locked} locked under the bootstrap label (automated data-readiness, not a MAIIC approval); " . count($failed) . ' not solved' . ($failed !== [] ? ': ' . implode(' | ', array_slice($failed, 0, 3)) : '')
+            . ($this->decisions !== null ? "; {$carriedLocks} locked again as the person who locked them in the source database (decisions pack)" : ''));
         // The book split into its programmes (ifrs9:segment-portfolios): the
         // Mega Farm schemes get their own portfolio, so MAIIC's PD, LGD and ECL
         // are measured on MAIIC's loans only and the programme is provided by
@@ -717,6 +743,31 @@ class Bootstrap extends Command
     }
 
     /** @return int failures */
+    /** The replay report and the tie-out of a decisions pack (section 8.10, acceptance 25). */
+    private function stepDecisionsReport(): void
+    {
+        if ($this->decisions === null) {
+            return;
+        }
+        $path = $this->decisions->writeReport(storage_path('app/decisions/replay-' . $this->decisions->pack() . '.csv'));
+        $tie = [];
+        foreach ($this->decisions->tieOut() as $what => $t) {
+            $tie[] = "{$what} {$t['here']} here against {$t['source']} in the source" . ($t['listed'] > 0 ? " ({$t['listed']} listed)" : '');
+        }
+        $this->note('6.99 decisions pack', implode('; ', $tie) . '; ' . count($this->decisions->notCarried()) . " decision(s) not carried, each listed with its reason in {$path}");
+    }
+
+    /** @param array<string, array<string, int>> $summary */
+    private static function decisionsLine(array $summary): string
+    {
+        $parts = [];
+        foreach ($summary as $kind => $outcomes) {
+            $parts[] = $kind . ' ' . implode('/', array_map(fn ($o, $n) => strtolower($o) . ' ' . $n, array_keys($outcomes), $outcomes));
+        }
+
+        return $parts === [] ? 'nothing to carry' : implode('; ', $parts);
+    }
+
     private function stepVerify(): int
     {
         $checks = app(\App\Services\Eir\BaselineService::class)->checks();
