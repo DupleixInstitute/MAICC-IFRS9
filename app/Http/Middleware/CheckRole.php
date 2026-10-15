@@ -25,7 +25,6 @@ class CheckRole
         'login',
         'two-factor*',
         'user-profile-information.update',
-        'portal.profile.*',
         'broadcasting*',
         'file/download',
     ];
@@ -49,9 +48,7 @@ class CheckRole
                 session(['member_id' => Auth::user()->member_id]);
             }
         }
-        if (Auth::check() && Auth::user()->hasRole('member') && !$request->is('portal*')) {
-            return redirect()->route('portal.dashboard');
-        }
+        // The member portal and its redirect were removed with the credit-scoring modules (ticket 009).
         return $next($request);
     }
     /**

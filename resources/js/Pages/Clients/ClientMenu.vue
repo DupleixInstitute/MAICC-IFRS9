@@ -15,18 +15,6 @@
             <p class="text-center text-sm text-gray-400 font-medium">
                 {{ client.email }}
             </p>
-            <div class="flex justify-center">
-                <inertia-link v-if="can('communication.campaigns.create')"
-                              :href="route('communication.campaigns.create',{client_id:client.id,campaign_type:'sms'})"
-                              class="btn btn-success  mr-2" title="SMS">
-                    <font-awesome-icon icon="sms" class="w-4 h-4"></font-awesome-icon>
-                </inertia-link>
-                <inertia-link v-if="can('communication.campaigns.create')"
-                              :href="route('communication.campaigns.create',{client_id:client.id,campaign_type:'email'})"
-                              class="btn btn-success" title="Email">
-                    <font-awesome-icon icon="envelope" class="w-4 h-4"></font-awesome-icon>
-                </inertia-link>
-            </div>
         </div>
         <div class="w-full mt-5">
             <inertia-link
@@ -35,48 +23,6 @@
                 :href="route('clients.show',client.id)">
                 <font-awesome-icon icon="user" class="w-4 h-4 mr-2"></font-awesome-icon>
                 Basic Profile
-            </inertia-link>
-            <inertia-link v-if="can('clients.shareholders.index')"
-                          class="w-full border-t border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                          :class="{'bg-gray-100': route().current('clients.shareholders.*')}"
-                          :href="route('clients.shareholders.index',client.id)">
-                <font-awesome-icon icon="users" class="w-4 h-4 mr-2"></font-awesome-icon>
-                Shareholders
-            </inertia-link>
-            <inertia-link v-if="can('clients.balance_sheet.index')"
-                          class="w-full border-t border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                          :class="{'bg-gray-100': route().current('clients.balance_sheets.*')}"
-                          :href="route('clients.balance_sheets.index',client.id)">
-                <font-awesome-icon icon="money-bill" class="w-4 h-4 mr-2"></font-awesome-icon>
-                Balance Sheet
-            </inertia-link>
-            <inertia-link v-if="can('clients.income_statement.index')"
-                          class="w-full border-t border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                          :class="{'bg-gray-100': route().current('clients.income_statements.*')}"
-                          :href="route('clients.income_statements.index',client.id)">
-                <font-awesome-icon icon="money-bill" class="w-4 h-4 mr-2"></font-awesome-icon>
-                Income Statement
-            </inertia-link>
-            <inertia-link v-if="can('clients.ratio_analysis.index')"
-                          class="w-full border-t border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                          :class="{'bg-gray-100': route().current('clients.ratio_analysis.*')}"
-                          :href="route('clients.ratio_analysis.index',client.id)">
-                <font-awesome-icon icon="chart-line" class="w-4 h-4 mr-2"></font-awesome-icon>
-                Ratio Analysis
-            </inertia-link>
-            <inertia-link v-if="can('clients.poters_five_forces_analysis.index')"
-                          class="w-full border-t border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                          :class="{'bg-gray-100': route().current('clients.poter.*')}"
-                          :href="route('clients.poter.index',client.id)">
-                <font-awesome-icon icon="chart-line" class="w-4 h-4 mr-2"></font-awesome-icon>
-                Porter's Five Forces Analysis
-            </inertia-link>
-            <inertia-link v-if="can('loans.applications.index')"
-                          class="w-full border-t border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                          :class="{'bg-gray-100': route().current('clients.loan_applications.index')}"
-                          :href="route('clients.loan_applications.index',client.id)">
-                <font-awesome-icon icon="database" class="w-4 h-4 mr-2"></font-awesome-icon>
-                Loan Applications
             </inertia-link>
             <inertia-link v-if="can('clients.notes')"
                           class="w-full border-t border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
@@ -91,13 +37,6 @@
                           :href="route('clients.files.index',client.id)">
                 <font-awesome-icon icon="folder" class="w-4 h-4 mr-2"></font-awesome-icon>
                 Files
-            </inertia-link>
-            <inertia-link v-if="can('clients.create')"
-                          class="w-full border-t border-gray-100 font-medium text-gray-600 py-2 px-4 w-full block hover:bg-gray-100 transition duration-150"
-                          :class="{'bg-gray-100': route().current('clients.login_details.*')}"
-                          :href="route('clients.login_details.index',client.id)">
-                <font-awesome-icon icon="user-lock" class="w-4 h-4 mr-2"></font-awesome-icon>
-                Login Details
             </inertia-link>
         </div>
         <div class="p-5 border-t flex">

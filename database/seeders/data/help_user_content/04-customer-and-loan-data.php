@@ -197,7 +197,6 @@ return [
                 'Open Clients and press the green eye on the client.',
                 'Press Files to open the client files and the client menu.',
                 'Press Create File, enter the Name, choose the File, add a Description and press Save.',
-                'Use the client menu on the left to open Notes, Shareholders or the other pages your role allows.',
             ],
             'images' => [
                 'client-files' => 'The Files page of a client with the client menu on the left and Create File',
