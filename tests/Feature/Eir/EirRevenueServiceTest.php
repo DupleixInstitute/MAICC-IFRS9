@@ -183,14 +183,10 @@ class EirRevenueServiceTest extends TestCase
     public function test_a_stage_three_month_without_a_booked_opening_allowance_is_refused_with_the_reason(): void
     {
         $this->seedLocked();
-        // no row at all for January
         DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-02', 'calculated_ifrs9_stage' => 3, 'expected_loss_provision' => 500,
             'ecl_value' => 650, 'ecl_value_discounted' => 670, 'ecl_discount_status' => 'CALCULATED_TIME_PHASED']);
-        $r = (new EirRevenueService())->run('C-1', '2025-02');
-        $this->assertSame('BLOCKED', $r['status']);
-        $this->assertStringContainsString('no loan-book row exists for 2025-01', $r['error']);
 
-        // January held, but only undiscounted: not booked
+        // January held in Stage 3, but only undiscounted: not booked
         DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 3, 'ecl_value' => 600, 'ecl_discount_status' => 'TIME_PHASED_UNRESOLVED']);
         $r = (new EirRevenueService())->run('C-1', '2025-02');
         $this->assertSame('BLOCKED', $r['status']);
@@ -208,18 +204,45 @@ class EirRevenueServiceTest extends TestCase
     public function test_the_stage_is_read_after_the_qualitative_triggers(): void
     {
         $this->seedLocked();
-        $this->booked('C-1', '2024-12', 200);
-        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 1, 'ifrs9stage_post_qualitative' => 3]);
+        // 31 December: the qualitative trigger puts the loan in Stage 3 (the calculated stage says 1); allowance booked
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2024-12', 'calculated_ifrs9_stage' => 1, 'ifrs9stage_post_qualitative' => 3,
+            'ecl_value' => 194, 'ecl_value_discounted' => 200, 'ecl_discount_status' => 'CALCULATED_TIME_PHASED']);
+        // 31 January: the trigger says Stage 2 (the calculated stage says 3)
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-01', 'calculated_ifrs9_stage' => 3, 'ifrs9stage_post_qualitative' => 2]);
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-02', 'calculated_ifrs9_stage' => 3, 'ifrs9stage_post_qualitative' => 2]);
 
         (new EirRevenueService())->run('C-1', '2025-01');
         $row = DB::table('eir_amortisation')->first();
-        $this->assertSame('NET', $row->interest_basis);
+        $this->assertSame('NET', $row->interest_basis, 'Stage 3 at the start of January (after the triggers): net');
         $this->assertEqualsWithDelta(200, $row->ecl_allowance, 0.01);
 
-        // a performing loan accrues on gross and needs no allowance
-        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-02', 'calculated_ifrs9_stage' => 3, 'ifrs9stage_post_qualitative' => 2]);
+        // Stage 2 at the start of February (after the triggers): gross, no allowance needed
         (new EirRevenueService())->run('C-1', '2025-02');
         $this->assertSame('GROSS', DB::table('eir_amortisation')->where('reporting_period', '2025-02')->value('interest_basis'));
+    }
+
+    /**
+     * IFRS 9 5.4.1(b) and 5.4.2 (15 October 2026): the basis follows the stage at the start of the month. The month
+     * a loan becomes credit-impaired accrues on gross; the net basis starts the month after, on the allowance booked
+     * at that month-end; a loan with no prior row (its first month) starts performing.
+     */
+    public function test_the_month_a_loan_enters_stage_three_accrues_on_gross_and_the_next_on_net(): void
+    {
+        $this->seedLocked();
+        $this->loan('C-1', '2025-01', 2);
+        DB::table('loan_books')->insert(['contract_id' => 'C-1', 'reporting_period' => '2025-02', 'calculated_ifrs9_stage' => 3,
+            'ecl_value' => 300, 'ecl_value_discounted' => 310, 'ecl_discount_status' => 'CALCULATED_TIME_PHASED']);
+        $this->loan('C-1', '2025-03', 3);
+
+        $service = new EirRevenueService();
+        $service->run('C-1', '2025-01');
+        $service->run('C-1', '2025-02');
+        $service->run('C-1', '2025-03');
+        $rows = DB::table('eir_amortisation')->orderBy('reporting_period')->get()->keyBy('reporting_period');
+
+        $this->assertSame('GROSS', $rows['2025-02']->interest_basis, 'Stage 2 at the start of February: gross, though Stage 3 at its end');
+        $this->assertSame('NET', $rows['2025-03']->interest_basis, 'Stage 3 at the start of March: net');
+        $this->assertEqualsWithDelta(310, $rows['2025-03']->ecl_allowance, 0.01, 'on the allowance booked at 28 February');
     }
 
     /** Audit C5: after a borrower's last receipt the ledger still covers the month, so cash is zero, not the schedule. */
@@ -402,6 +425,7 @@ class EirRevenueServiceTest extends TestCase
         // the setting is dated after the period, so June 2024 has no value in force (the seeded defaults are in force from inception)
         \App\Models\GovernanceSetting::where('key', 'stage3_interest_basis')->update(['effective_from' => '2024-07-01']);
         $this->seedLocked();
+        $this->loan('C-1', '2024-05', 3); // Stage 3 at the start of June
         $this->loan('C-1', '2024-06', 3);
 
         $result = (new EirRevenueService())->run('C-1', '2024-06');

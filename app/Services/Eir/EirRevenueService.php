@@ -110,7 +110,19 @@ class EirRevenueService
                 // (stage3_interest_basis, IFRS 9 5.4.1(b) by default); a
                 // performing loan always accrues on gross. Only a row that nets
                 // the allowance reads it, and it fails closed without one.
-                $basis = $stage === 3 ? $this->governance->stage3InterestBasis($this->periodEnd($period)) : 'GROSS';
+                // The basis follows the stage at the START of the month, the
+                // prior month-end's (15 October 2026): IFRS 9 5.4.1(b) nets "in
+                // subsequent reporting periods" once the asset has become
+                // credit-impaired, and 5.4.2 returns to gross in the periods after
+                // it cures. So the month a loan enters Stage 3 still accrues on
+                // gross, and the net basis starts the month after, on the
+                // allowance booked at that month-end; the month after a cure is
+                // still net. Until then the month's own end stage decided, which
+                // netted the entry month on an allowance measured while the loan
+                // was performing. A month with no prior loan-book row (the
+                // loan's first) starts performing: gross.
+                $stageAtStart = $this->stageAtStart($contractId, $period);
+                $basis = $stageAtStart === 3 ? $this->governance->stage3InterestBasis($this->periodEnd($period)) : 'GROSS';
                 $allowance = $basis === 'NET' ? $this->openingAllowance($contractId, $period) : 0.0;
                 $netOpening = max(0.0, $opening - $allowance);
                 $interest = $monthlyRate * ($basis === 'NET' ? $netOpening : $opening);
@@ -449,6 +461,15 @@ class EirRevenueService
             if (isset($loan->{$field}) && is_numeric($loan->{$field})) return (int) $loan->{$field};
         }
         return 0;
+    }
+
+    /** The stage at the start of the month: the prior month-end's loan-book row; 1 when the loan has none (its first month). */
+    private function stageAtStart(string $contractId, string $period): int
+    {
+        $prior = CarbonImmutable::createFromFormat('Y-m-d', $period . '-01')->subMonth()->format('Y-m');
+        $row = $this->loanSnapshot($contractId, $prior);
+
+        return $row ? $this->stage($row) : 1;
     }
 
     /**

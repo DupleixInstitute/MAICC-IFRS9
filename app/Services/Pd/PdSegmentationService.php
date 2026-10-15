@@ -512,15 +512,27 @@ class PdSegmentationService
     /**
      * Measure, resolve and apply the PD of a period on the governed basis.
      *
+     * $onlyStages limits the run to loans of those stages, leaving every other loan of the period untouched.
+     * It exists for one case (15 October 2026, the Stage 3 history): before December 2025 the book held too
+     * few Stage 2 loans for any stage-2 PD, so every month failed closed whole, and the Stage 3 loans of those
+     * months carried no allowance; their interest on the net basis (IFRS 9 5.4.1(b)) could not run. A Stage 3
+     * loan is in default and its PD is 1 whatever the transitions, so ['3'] needs no measurement: the run
+     * records PD 1 on the Stage 3 loans only, and the run note says so. Stage 1 and 2 stay without a PD.
+     *
      * @return array{run_id:string,basis:string,window:string,window_months:int,updated:int,unstaged:int,cells:list<array>,failed:list<array>}
      * @throws RuntimeException when a needed stage has no PD (fail closed); the failed run is still recorded
      */
-    public function run(string $period, ?array $portfolioIds = null, int $windowMonths = 12, ?int $userId = null, string $userName = 'system'): array
+    public function run(string $period, ?array $portfolioIds = null, int $windowMonths = 12, ?int $userId = null, string $userName = 'system', ?array $onlyStages = null): array
     {
         \App\Support\ReportingPeriodLock::assertOpen($period, 'the PD engine');
         $cfg = $this->settings($period);
         $portfolioIds = $portfolioIds ?? $this->scope($period);
-        $measure = $this->measure($period, $cfg['basis'], $windowMonths, $portfolioIds, $cfg['unverified']);
+        $onlyStages = $onlyStages === null ? null : array_map('strval', $onlyStages);
+        $stage3Only = $onlyStages === ['3'];
+        // Stage 3 alone needs no transitions (its PD is 1), so a month whose window is too short still runs
+        $measure = $stage3Only
+            ? ['window_start' => $period, 'window_end' => $period, 'window_months' => 0, 'segments' => []]
+            : $this->measure($period, $cfg['basis'], $windowMonths, $portfolioIds, $cfg['unverified']);
         $stageExpr = TransitionMatrixService::gradeExpression('loan_books', 'ifrs9stage_post_qualitative');
 
         // the loans of the period, by segment and measured stage
@@ -529,6 +541,9 @@ class PdSegmentationService
         $needed = [];
         $unstaged = [];
         foreach ($loans as $l) {
+            if ($onlyStages !== null && ! in_array((string) $l->stage, $onlyStages, true)) {
+                continue; // out of the run's scope: left as it is
+            }
             if ($l->stage === null || $l->stage === '') {
                 $unstaged[] = $l->id;
                 continue;
@@ -559,7 +574,7 @@ class PdSegmentationService
         $hasLineage = Schema::hasColumn('loan_books', 'pd_segment_key');
         $updated = 0;
         $matrices = [];
-        DB::transaction(function () use ($period, $cfg, $measure, $resolved, $loans, $unstaged, $runId, $userName, $hasLineage, &$updated, &$matrices, $userId) {
+        DB::transaction(function () use ($period, $cfg, $measure, $resolved, $loans, $unstaged, $runId, $userName, $hasLineage, &$updated, &$matrices, $userId, $onlyStages) {
             // a matrix for every segment that gives a PD, own or as a parent
             $used = [];
             foreach ($resolved as $stages) {
@@ -594,7 +609,8 @@ class PdSegmentationService
                 DB::table('loan_books')->whereIn('id', $unstaged)->update(array_merge(['pd_prefli' => null, 'pd_post_fli' => null],
                     $hasLineage ? ['pd_segment_key' => null, 'pd_applied_segment_key' => null, 'pd_segment_run_id' => $runId, 'pd_matrix_id' => null] : []));
             }
-            $this->record($runId, $period, $cfg, $measure, $resolved, $matrices, 'applied', null, $updated, $userId);
+            $this->record($runId, $period, $cfg, $measure, $resolved, $matrices, 'applied', $onlyStages === null ? null
+                : 'Scope: Stage ' . implode(', ', $onlyStages) . ' only (the Stage 3 history: PD 1 on loans in default, for the interest on the net basis); the other stages carry no PD this period.', $updated, $userId);
         });
 
         $cells = [];

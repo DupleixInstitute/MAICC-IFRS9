@@ -159,6 +159,26 @@ class PdSegmentationTest extends TestCase
         $this->assertSame('failed', DB::table('segment_parameter_results')->where('segment_key', 'portfolio:2')->where('stage', 1)->value('status'));
     }
 
+    /** The Stage 3 history (15 October 2026): Stage 3 is in default, so its PD needs no transitions. */
+    public function test_a_stage_3_only_run_books_pd_1_on_stage_3_where_the_full_run_fails_closed(): void
+    {
+        $this->governed('pd_segment_thin_rule', 'Fail closed: stop the run and name the segment');
+
+        $r = app(PdSegmentationService::class)->run('2026-08', null, 12, 1, 'test', ['3']);
+
+        $this->assertEqualsWithDelta(1.0, $this->pd('A3-4'), 1e-8, 'Stage 3 is in default: PD 1');
+        $this->assertNull(DB::table('loan_books')->where('reporting_period', '2026-08')->where('contract_id', 'A1-5')->value('pd_prefli'), 'Stage 1 is out of scope: left without a PD');
+        $this->assertNull(DB::table('loan_books')->where('reporting_period', '2026-08')->where('contract_id', 'B1-2')->value('pd_prefli'), 'the thin Beta Stage 1 is out of scope, so nothing fails');
+        $run = DB::table('segment_parameter_runs')->where('run_id', $r['run_id'])->first();
+        $this->assertSame('applied', $run->status);
+        $this->assertStringContainsString('Scope: Stage 3 only', $run->failure_reason);
+
+        // a month with no window behind it (the first staged month) still books its Stage 3 loans
+        app(PdSegmentationService::class)->run('2025-08', null, 12, 1, 'test', ['3']);
+        $this->assertEqualsWithDelta(1.0, (float) DB::table('loan_books')->where('reporting_period', '2025-08')->where('contract_id', 'A3-1')->value('pd_prefli'), 1e-8);
+        $this->assertNull(DB::table('loan_books')->where('reporting_period', '2025-08')->where('contract_id', 'A1-1')->value('pd_prefli'));
+    }
+
     public function test_the_parent_must_meet_the_minimum_itself(): void
     {
         $this->governed('pd_segment_min_observations', '20 loans and 2 defaults per stage');

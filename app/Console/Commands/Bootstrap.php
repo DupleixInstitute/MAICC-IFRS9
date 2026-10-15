@@ -622,6 +622,16 @@ class Bootstrap extends Command
             count($chain['route']), count(array_filter($chain['set'])), count(array_filter($chain['route'])), count(array_filter($chain['no_model'])), count(array_filter($chain['projection'])), count(array_filter($chain['record']))));
         $this->note('6.7 Mega Farm by period', count($mfPeriods) . ' periods provided' . ($mfPeriods !== [] ? " ({$mfPeriods[0]}..{$mfPeriods[count($mfPeriods) - 1]})" : '') . '; ' . count($mfDeclined) . ' declined' . ($mfDeclined !== [] ? ': ' . implode(' | ', array_slice(array_map(fn ($k, $v) => "{$k} {$v}", array_keys($mfDeclined), $mfDeclined), 0, 3)) : ''));
 
+        // the Stage 3 history (15 October 2026): the months before the first with a full PD have too few Stage 2
+        // loans for any PD, so they carry no allowance; their Stage 3 loans, in default with a PD of 1, get the
+        // allowance the revenue's net basis needs (ifrs9:stage3-history; Stage 1 and 2 stay without one)
+        if ($eclPeriods !== [] && $from < $eclPeriods[0]) {
+            $lastBefore = \Carbon\CarbonImmutable::parse($eclPeriods[0] . '-01')->subMonth()->format('Y-m');
+            Artisan::call('ifrs9:stage3-history', ['from' => $from, 'to' => $lastBefore, '--user' => $user]);
+            $booked = DB::table('ecl_projection_runs')->where('methodology_version', Stage3History::METHOD)->count();
+            $this->note('6.7 Stage 3 history', "{$from}..{$lastBefore}: Stage 3 allowance (PD 1, LGD by portfolio, discounted at the EIR) booked in {$booked} month(s); Stage 1 and 2 carry none");
+        }
+
         $before = DB::table('eir_amortisation')->count();
         $errors = [];
         foreach ($periods as $p) {
