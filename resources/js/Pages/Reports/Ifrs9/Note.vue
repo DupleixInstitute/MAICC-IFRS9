@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import BackToReports from '../Partials/BackToReports.vue'
@@ -7,6 +7,8 @@ import DownloadButton from '../Partials/DownloadButton.vue'
 import KpiRow from '../Partials/KpiRow.vue'
 import TabBar from '../Partials/TabBar.vue'
 import ReportIcon from '../Partials/ReportIcon.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
     note: { type: Object, default: null },
@@ -72,6 +74,11 @@ const figures = computed(() => {
         { label: 'Contracts at ' + label(props.closing), value: count(pos.contracts.total) },
     ]
 })
+// the write-offs of the period, 15 a page; a new note (another range or portfolio) starts at page 1
+const writeOffPage = ref(1)
+const writeOffRows = computed(() => (props.note?.write_offs?.rows || []).slice((writeOffPage.value - 1) * 15, writeOffPage.value * 15))
+watch(() => props.note, () => { writeOffPage.value = 1 })
+
 const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 'maiic-badge-red', info: 'maiic-badge-grey' }
 </script>
 
@@ -104,16 +111,20 @@ const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 
         </template>
 
         <div class="w-full space-y-4">
-            <div v-if="error || (note && note.status === 'no_ecl')" class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                <ReportIcon name="alert" class="mt-0.5 h-5 w-5 flex-none text-amber-600"/>
-                <p>{{ error || note.message }}</p>
-            </div>
+            <Notice v-if="error || (note && note.status === 'no_ecl')" id="no-ecl" tone="warning">
+                <div class="flex items-start gap-3">
+                    <ReportIcon name="alert" class="mt-0.5 h-5 w-5 flex-none text-amber-600"/>
+                    <p>{{ error || note.message }}</p>
+                </div>
+            </Notice>
 
             <template v-if="hasTables">
-                <div v-if="note.status === 'failed'" class="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800">
-                    <ReportIcon name="alert" class="h-5 w-5 flex-none text-red-600"/>
-                    Do not use this note: {{ note.message }} Downloads are stopped until every check passes. See Workings and checks ({{ failed }} failed).
-                </div>
+                <Notice v-if="note.status === 'failed'" id="note-failed" tone="danger">
+                    <div class="flex items-center gap-2 font-semibold">
+                        <ReportIcon name="alert" class="h-5 w-5 flex-none text-red-600"/>
+                        <span>Do not use this note: {{ note.message }} Downloads are stopped until every check passes. See Workings and checks ({{ failed }} failed).</span>
+                    </div>
+                </Notice>
                 <p v-else class="flex items-center gap-2 text-sm text-maiic-800">
                     <ReportIcon name="check" class="h-5 w-5 text-maiic-600"/>
                     Every column of both reconciliations ties, every loan carries its discounted allowance, and the figures agree with the loan book and the saved ECL runs. {{ note.scope }}; amounts in {{ note.unit.label }}.
@@ -199,10 +210,10 @@ const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 
                                     </tbody>
                                 </table>
                             </div>
-                            <p v-for="side in ['closing', 'opening']" :key="'m' + side" v-show="note.basis[side] && note.basis[side].status === 'mixed'"
-                               class="mt-2 max-w-5xl rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                {{ note.basis[side] ? note.basis[side].label + ': ' + note.basis[side].message : '' }}
-                            </p>
+                            <Notice v-for="side in ['closing', 'opening']" :key="'m' + side" v-show="note.basis[side] && note.basis[side].status === 'mixed'"
+                                    :id="'basis-mixed-' + side" tone="warning" class="mt-2 max-w-5xl">
+                                <span class="text-xs">{{ note.basis[side] ? note.basis[side].label + ': ' + note.basis[side].message : '' }}</span>
+                            </Notice>
                         </section>
 
                         <section v-if="note.write_offs">
@@ -212,13 +223,14 @@ const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 
                                 <table class="maiic-table">
                                     <thead><tr><th>Date</th><th>Contract</th><th>Customer</th><th class="num">Amount ({{ note.unit.heading }})</th><th>Record</th></tr></thead>
                                     <tbody>
-                                        <tr v-for="(w, i) in note.write_offs.rows" :key="i">
+                                        <tr v-for="(w, i) in writeOffRows" :key="(writeOffPage - 1) * 15 + i">
                                             <td class="whitespace-nowrap">{{ w.date }}</td><td>{{ w.contract_id }}</td><td>{{ w.customer_name }}</td>
                                             <td class="num">{{ amount(w.amount) }}</td><td class="text-gray-500">{{ w.source }}</td>
                                         </tr>
                                         <tr class="total"><td colspan="3">Total written off</td><td class="num">{{ amount(note.write_offs.total) }}</td><td></td></tr>
                                     </tbody>
                                 </table>
+                                <RowPager v-model="writeOffPage" :total="note.write_offs.rows.length" class="border-t border-gray-100" />
                             </div>
                             <p v-else class="text-sm text-gray-700">No loan was written off in the period.</p>
                             <p class="mt-2 max-w-5xl text-sm leading-relaxed text-gray-700">Amounts written off still subject to enforcement activity (IFRS 7.35L): {{ note.write_offs.enforcement }}</p>
@@ -244,10 +256,10 @@ const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 
                                     </tbody>
                                 </table>
                             </div>
-                            <p class="mt-2 max-w-5xl text-sm leading-relaxed"
-                               :class="note.modifications.pending + note.modifications.blocked > 0 ? 'rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200' : 'text-gray-700'">
-                                {{ note.modifications.message }}
-                            </p>
+                            <Notice v-if="note.modifications.pending + note.modifications.blocked > 0" id="modifications-not-applied" tone="danger" class="mt-2 max-w-5xl">
+                                <p class="leading-relaxed">{{ note.modifications.message }}</p>
+                            </Notice>
+                            <p v-else class="mt-2 max-w-5xl text-sm leading-relaxed text-gray-700">{{ note.modifications.message }}</p>
                         </section>
                     </div>
 

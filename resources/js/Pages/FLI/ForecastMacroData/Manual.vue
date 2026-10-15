@@ -10,7 +10,7 @@
     <div class="space-y-4">
       <KpiRow :cards="kpis" />
       <p v-if="error" class="maiic-panel px-5 py-3 text-sm text-red-700">{{ error }}</p>
-      <p v-if="stale" class="maiic-panel border-l-4 !border-l-maiicgold-500 px-5 py-3 text-sm">The route ran after this projection: project again so it reflects the PDs the ECL now uses.</p>
+      <Notice v-if="stale" id="projection-stale" tone="warning">The route ran after this projection: project again so it reflects the PDs the ECL now uses.</Notice>
       <div v-if="!model || !set" class="maiic-panel maiic-empty">
         The projection needs {{ !model ? 'a model version in force' : '' }}{{ !model && !set ? ' and ' : '' }}{{ !set ? 'an approved scenario set' : '' }} for {{ monthLabel(period) }}.
       </div>
@@ -45,9 +45,11 @@
             <div v-for="(terms, name) in seg.terms" :key="name" class="rounded-lg border border-gray-200 dark:border-slate-700">
               <div class="flex items-center justify-between border-b border-gray-100 px-3 py-2 text-sm dark:border-slate-700"><span class="font-semibold">{{ name }}</span><span class="text-xs text-gray-500">lifetime PD {{ pct(seg.summary[name]?.lifetime_pd, 2) }}</span></div>
               <table class="maiic-table"><thead><tr><th class="num">Year</th><th class="num">Conditional</th><th class="num">Survival</th><th class="num">Marginal</th><th class="num">Cumulative</th></tr></thead>
-                <tbody><tr v-for="t in terms" :key="t.period_index"><td class="num">{{ t.period_index }}</td><td class="num">{{ pct(t.conditional_pd, 2) }}</td><td class="num">{{ pct(t.survival_open, 2) }}</td><td class="num">{{ pct(t.marginal_pd, 2) }}</td><td class="num font-semibold">{{ pct(t.cumulative_pd, 2) }}</td></tr></tbody></table>
+                <tbody><tr v-for="t in pageTerms(terms)" :key="t.period_index"><td class="num">{{ t.period_index }}</td><td class="num">{{ pct(t.conditional_pd, 2) }}</td><td class="num">{{ pct(t.survival_open, 2) }}</td><td class="num">{{ pct(t.marginal_pd, 2) }}</td><td class="num font-semibold">{{ pct(t.cumulative_pd, 2) }}</td></tr></tbody></table>
             </div>
           </div>
+          <!-- a loan book of long tenors runs up to 30 years: 15 years a page, the same years in every scenario -->
+          <RowPager v-if="seg" v-model="termPage" :total="termYears" class="border-t border-gray-100" />
           <p v-if="seg" class="px-5 pb-3 text-xs text-gray-500">For comparison, the ECL engine's annualised lifetime PD over the same {{ seg.years }} years, 1 - (1 - PD before FLI)^years, is {{ pct(seg.engine_lifetime_pd, 2) }}. The booked Stage 2 ECL is measured by the engine on the PD the route writes; this term structure is the evidence year by year.</p>
         </div>
       </template>
@@ -58,16 +60,20 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import { router } from '@inertiajs/vue3'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export default {
-  components: { AppLayout, KpiRow },
+  components: { AppLayout, KpiRow, Notice, RowPager },
   props: { period: String, periods: Array, model: Object, set: Object, horizon: Object, error: String, result: Object, stale: Boolean, canGovern: Boolean },
-  data() { return { sel: this.period, portfolio: this.result?.segments?.[0]?.portfolio_id ?? null } },
+  data() { return { sel: this.period, portfolio: this.result?.segments?.[0]?.portfolio_id ?? null, termPage: 1 } },
+  watch: { portfolio() { this.termPage = 1 } },
   computed: {
     seg() { return (this.result?.segments || []).find(s => s.portfolio_id === this.portfolio) },
+    termYears() { return Math.max(0, ...Object.values(this.seg?.terms || {}).map(t => (t || []).length)) },
     pathYears() { const f = Object.values(this.result?.adjustments || {})[0]; return f ? f.map(r => r.year) : [] },
     kpis() {
       return [
@@ -81,6 +87,7 @@ export default {
   methods: {
     monthLabel(p) { if (!p) return '-'; const [y, m] = String(p).split('-'); return m ? `${MONTHS[Number(m) - 1]} ${y}` : p },
     go() { router.get(route('forecasting.manual'), { period: this.sel }) },
+    pageTerms(terms) { return (terms || []).slice((this.termPage - 1) * 15, this.termPage * 15) },
     pct(v, d) { return v === null || v === undefined ? '-' : (Number(v) * 100).toFixed(d) + '%' },
     project() { router.post(route('forecasting.manual.process'), { period: this.period }, { preserveScroll: true }) },
   },

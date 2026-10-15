@@ -34,7 +34,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-slate-700/70">
-                    <tr v-for="(issue, i) in check.issues" :key="i" class="bg-white dark:bg-slate-800">
+                    <tr v-for="(issue, i) in pagedIssues" :key="(page - 1) * 15 + i" class="bg-white dark:bg-slate-800">
                         <td class="whitespace-nowrap px-3 py-2 align-top font-mono text-gray-600 dark:text-slate-300">{{ issue.row || '-' }}</td>
                         <td class="px-3 py-2 align-top">
                             <span class="font-medium text-gray-800 dark:text-slate-100">{{ issue.column || '-' }}</span>
@@ -49,6 +49,7 @@
                 </tbody>
             </table>
         </div>
+        <RowPager v-if="check.issues && check.issues.length" v-model="page" :total="check.issues.length" class="border-t border-gray-200 dark:border-slate-700" />
         <p v-if="check.truncated" class="border-t border-gray-200 px-4 py-2 text-xs text-gray-500 dark:border-slate-700 dark:text-slate-400">
             The first {{ check.issues.length }} problems are listed. Fix these and check the file again to see the rest.
         </p>
@@ -56,7 +57,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 const props = defineProps({
     check: { type: Object, default: null },
@@ -65,6 +67,11 @@ const props = defineProps({
     checkOnly: { type: Boolean, default: false },
 })
 defineEmits(['dismiss'])
+
+// fifteen problems a page; a new check starts at the first
+const page = ref(1)
+watch(() => props.check, () => { page.value = 1 })
+const pagedIssues = computed(() => (props.check?.issues || []).slice((page.value - 1) * 15, page.value * 15))
 
 const tone = computed(() => {
     if (!props.check) return {}

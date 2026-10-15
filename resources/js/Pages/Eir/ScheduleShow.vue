@@ -3,17 +3,19 @@
     <template #header>
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div><div class="mb-1 text-xs text-gray-500"><Link :href="route('eir-data.index',{tab:'schedules'})" class="hover:text-maiic-700">Schedule Review</Link> / {{ contract.contract_id }}</div><h2 class="text-xl font-semibold text-gray-800">Loan Schedule {{ contract.contract_id }}<span v-if="contract.customer_name" class="font-normal text-gray-500"> · {{ contract.customer_name }}</span></h2><div class="mt-1 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-purple-100 px-2 py-0.5 font-semibold text-purple-800">Rate {{ pct(contract.contractual_rate) }}</span><span v-if="contract.spread_over_prime !== null && contract.spread_over_prime !== undefined" class="rounded-full px-2 py-0.5 font-semibold" :class="Number(contract.spread_drift_flag) ? 'bg-red-100 text-red-800' : 'bg-sky-100 text-sky-800'">Spread over prime {{ Number(contract.spread_over_prime).toFixed(2) }} pp ({{ String(contract.spread_source || '').toLowerCase() }}{{ Number(contract.spread_drift_flag) ? ', drifts: held for review' : '' }})</span></div><p class="mt-1 text-sm text-gray-600">Generated original schedule and E-Banker's own schedule (Extract B or the EMI chart) as evidence</p></div>
-        <div class="flex items-center gap-2">
-          <!-- View as at: the EIR computation for this loan at any date, the same service as the Report Hub's -->
-          <input v-model="asAt" type="date" class="maiic-input text-sm" title="View the EIR computation as at a date"/>
-          <Link :href="route('eir-as-at.index', { date: asAt, contract: contract.contract_id })" class="secondary-btn">View as at</Link>
-          <Link :href="route('eir-data.index',{tab:'schedules'})" class="secondary-btn">Back to review</Link>
-        </div>
+        <Link :href="route('eir-data.index',{tab:'schedules'})" class="text-sm font-medium text-maiic-700 hover:underline">&larr; Back to review</Link>
       </div>
     </template>
 
     <div class="w-full space-y-5">
       <KpiRow :cards="cards" />
+
+      <!-- View as at: the EIR computation for this loan at any date, the same service as the Report Hub's -->
+      <div class="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+        <label class="text-xs font-semibold text-gray-500" for="sched-as-at">EIR computation as at</label>
+        <input id="sched-as-at" v-model="asAt" type="date" class="maiic-input !w-40 text-sm" title="View the EIR computation as at a date"/>
+        <Link :href="route('eir-as-at.index', { date: asAt, contract: contract.contract_id })" class="secondary-btn">View as at</Link>
+      </div>
 
       <PageTabs v-model="tab" :tabs="tabs" />
 

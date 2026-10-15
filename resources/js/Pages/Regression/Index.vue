@@ -13,11 +13,11 @@
       <div class="w-full">
 
         <!-- Retired in favour of FLI Adjustments (system audit of 9 October 2026, finding M6) -->
-        <div class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+        <Notice id="retired" tone="warning" class="mb-6">
           <p class="font-semibold">This screen is retired in favour of FLI Adjustments.</p>
           <p class="mt-1">The regression of the forward-looking model now runs under the guardrail and maker-checker on the FLI Adjustments screen: a fit is proposed by one person and approved by another, and the model that is trained is the model that is applied. This page is kept to read the models already trained here; its approval needs a second person and is audit-logged.</p>
           <inertia-link :href="route('fli-adjustments.index')" class="mt-2 inline-block font-semibold underline">Open FLI Adjustments</inertia-link>
-        </div>
+        </Notice>
 
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -214,9 +214,10 @@
 <script>
 import { confirmDialog } from '@/Components/confirmDialog'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 
 export default {
-  components: { AppLayout },
+  components: { AppLayout, Notice },
   props: {
     models: Object,
   },

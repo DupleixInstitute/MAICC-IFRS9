@@ -42,7 +42,7 @@
         <div class="border-b border-gray-200 px-5 py-4 dark:border-slate-700"><h3 class="font-semibold text-gray-900">Overlay register for {{ period }}</h3><p class="text-xs text-gray-500">{{ overlays.length }} overlay(s) whose life covers the period, newest first. The ECL line is what each adds to the booked ECL of its loans (Stage 3 adds nothing, it is already at 100 percent).</p></div>
         <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>#</th><th>Scope</th><th class="num">PD adjustment</th><th>Reason and evidence</th><th>Owner</th><th>Period to expiry</th><th>Status</th><th class="num">Loans in scope</th><th class="num">ECL line</th><th v-if="canGovern"></th></tr></thead>
           <tbody>
-            <tr v-for="o in overlays" :key="o.id" :class="o.in_force ? 'font-semibold' : ''">
+            <tr v-for="o in pagedOverlays" :key="o.id" :class="o.in_force ? 'font-semibold' : ''">
               <td class="font-mono text-xs">{{ o.id }}</td>
               <td>{{ scopeLabel(o) }}</td>
               <td class="num">{{ pct(o.adjustment) }}</td>
@@ -62,6 +62,7 @@
             </tr>
             <tr v-if="!overlays.length"><td colspan="10" class="maiic-empty">No overlay covers {{ period }}.<span v-if="canGovern"> Use <strong>Propose an overlay</strong> at the top right.</span> The register is read when the Governance Centre setting says "Manual overlay" or "Regression plus overlay".</td></tr>
           </tbody></table></div>
+        <RowPager v-model="page" :total="overlays.length" class="border-t border-gray-100" />
       </div>
     </div>
   </app-layout>
@@ -70,14 +71,18 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { router } from '@inertiajs/vue3'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import { promptReason } from '@/Components/Maiic/promptReason'
 
 export default {
-  components: { AppLayout },
+  components: { AppLayout, RowPager },
   props: { period: String, overlays: Array, rules: Object, approvedSet: Object, summary: Object, periods: Array, productGroups: Array, users: Array, drivers: Array, modelDriver: String, canGovern: Boolean },
   data() {
     const me = this.$page.props.user ? this.$page.props.user.id : null
-    return { view: { period: this.period }, showForm: false, form: { reporting_period: this.period, scope: 'book', scope_value: '', adjustment_pct: '', expiry_period: this.period, owner_id: me, reason: '', evidence: '', risk_driver: '', double_count_review: '' } }
+    return { view: { period: this.period }, page: 1, showForm: false, form: { reporting_period: this.period, scope: 'book', scope_value: '', adjustment_pct: '', expiry_period: this.period, owner_id: me, reason: '', evidence: '', risk_driver: '', double_count_review: '' } }
+  },
+  computed: {
+    pagedOverlays() { return this.overlays.slice((this.page - 1) * 15, this.page * 15) },
   },
   methods: {
     fmt(v) { return v == null ? '-' : Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },

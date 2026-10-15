@@ -4,25 +4,37 @@
          values, description, example), the Download sample file and column guide
          buttons, an optional Check file button, and the row-by-row result of the
          last check or refused import. The actions sit right-aligned directly
-         above the table. Light and dark mode. -->
+         above the table. The steps carry an X (UI rule of 15 October 2026: every
+         notice can be closed): closed stays closed in this browser until the
+         steps change, and a link brings them back. The buttons and the column
+         table stay. Light and dark mode. -->
     <section class="rounded-lg border border-maiic-100 bg-maiic-50/50 text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
         <div v-if="loadError" class="px-4 py-3 text-xs text-red-700 dark:text-red-300">{{ loadError }}</div>
         <template v-else-if="spec">
-            <div class="px-4 pt-3">
-                <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-maiic-700 dark:text-maiic-300">How to import</div>
-                <h3 class="mt-0.5 text-base font-semibold text-gray-900 dark:text-slate-100">{{ title || spec.title }}</h3>
-                <p class="mt-1 max-w-4xl text-xs leading-relaxed text-gray-600 dark:text-slate-300">{{ spec.summary }}</p>
+            <div class="flex items-start justify-between gap-3 px-4 pt-3">
+                <div class="min-w-0">
+                    <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-maiic-700 dark:text-maiic-300">How to import</div>
+                    <h3 class="mt-0.5 text-base font-semibold text-gray-900 dark:text-slate-100">{{ title || spec.title }}</h3>
+                    <p v-if="!stepsClosed" class="mt-1 max-w-4xl text-xs leading-relaxed text-gray-600 dark:text-slate-300">{{ spec.summary }}</p>
+                    <button v-else type="button" class="mt-0.5 text-xs font-semibold text-maiic-700 hover:underline dark:text-maiic-300" @click="openSteps">Show the steps</button>
+                </div>
+                <button v-if="!stepsClosed" type="button" class="flex-none rounded-md p-1 text-maiic-600 transition hover:bg-maiic-100 hover:text-maiic-900 dark:text-maiic-300 dark:hover:bg-slate-700 dark:hover:text-white"
+                        title="Close the steps" aria-label="Close the steps" @click="closeSteps">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                </button>
             </div>
 
-            <ol class="mt-3 space-y-1.5 px-4">
-                <li v-for="(step, i) in allSteps" :key="i" class="flex gap-2.5">
-                    <span class="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-maiic-600 text-[11px] font-bold text-white dark:bg-maiic-500">{{ i + 1 }}</span>
-                    <span class="leading-relaxed">{{ step }}</span>
-                </li>
-            </ol>
-            <ul v-if="spec.notes && spec.notes.length" class="mt-2 list-disc space-y-1 px-4 pl-11 text-xs text-gray-500 dark:text-slate-400">
-                <li v-for="(note, i) in spec.notes" :key="i">{{ note }}</li>
-            </ul>
+            <template v-if="!stepsClosed">
+                <ol class="mt-3 space-y-1.5 px-4">
+                    <li v-for="(step, i) in allSteps" :key="i" class="flex gap-2.5">
+                        <span class="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-maiic-600 text-[11px] font-bold text-white dark:bg-maiic-500">{{ i + 1 }}</span>
+                        <span class="leading-relaxed">{{ step }}</span>
+                    </li>
+                </ol>
+                <ul v-if="spec.notes && spec.notes.length" class="mt-2 list-disc space-y-1 px-4 pl-11 text-xs text-gray-500 dark:text-slate-400">
+                    <li v-for="(note, i) in spec.notes" :key="i">{{ note }}</li>
+                </ul>
+            </template>
             <slot name="after"/>
 
             <!-- actions, right-aligned above the table -->
@@ -143,6 +155,7 @@ export default {
             checkError: '',
             localCheck: null,
             dismissedAt: null,
+            stepsClosed: false,
         }
     },
 
@@ -178,6 +191,16 @@ export default {
             if (!c || (this.dismissedAt && this.dismissedAt === c.checked_at)) return null
             return c
         },
+        // closing the steps is remembered against their text, so changed steps show again
+        stepsStorageKey() {
+            return 'maiic.notice.import-spec.' + this.specKey
+        },
+        stepsFingerprint() {
+            const text = [this.spec?.summary || '', ...this.allSteps, ...(this.spec?.notes || [])].join(' ')
+            let h = 0
+            for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0
+            return String(h)
+        },
         activeIsLocal() {
             return !!this.localCheck && this.activeCheck === this.localCheck
         },
@@ -196,6 +219,11 @@ export default {
             try {
                 const { data } = await axios.get(this.route('import-templates.spec', this.specKey))
                 this.spec = data
+                try {
+                    this.stepsClosed = localStorage.getItem(this.stepsStorageKey) === this.stepsFingerprint
+                } catch (e) {
+                    this.stepsClosed = false
+                }
                 this.showTable = this.collapsed === null ? data.columns.length <= 14 : !this.collapsed
             } catch (e) {
                 this.loadError = 'The import instructions could not be loaded. Refresh the page to try again.'
@@ -220,6 +248,22 @@ export default {
                 this.checkError = e.response?.data?.message || 'The file could not be checked.'
             } finally {
                 this.checking = false
+            }
+        },
+        closeSteps() {
+            this.stepsClosed = true
+            try {
+                localStorage.setItem(this.stepsStorageKey, this.stepsFingerprint)
+            } catch (e) {
+                /* storage unavailable: closed for this visit only */
+            }
+        },
+        openSteps() {
+            this.stepsClosed = false
+            try {
+                localStorage.removeItem(this.stepsStorageKey)
+            } catch (e) {
+                /* storage unavailable */
             }
         },
         dismiss() {

@@ -51,7 +51,7 @@ class EirRestructureController extends Controller
         $year = (string) now()->year;
 
         return Inertia::render('Eir/Restructures/Index', [
-            'tab' => in_array($request->query('tab'), ['register', 'resets'], true) ? $request->query('tab') : 'register',
+            'tab' => in_array($request->query('tab'), ['register', 'note', 'resets'], true) ? $request->query('tab') : 'register',
             'events' => $events,
             'resets' => $resets,
             'me' => auth()->id(),

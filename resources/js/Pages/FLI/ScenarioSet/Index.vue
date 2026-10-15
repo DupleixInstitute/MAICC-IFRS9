@@ -58,8 +58,9 @@
       <details v-if="scenarioSets.length" class="maiic-panel group">
         <summary class="flex cursor-pointer select-none items-center justify-between px-5 py-3"><span class="font-semibold text-gray-900">Named sets from the earlier screens ({{ scenarioSets.length }})</span><span class="text-xs font-semibold text-maiic-700">Show</span></summary>
         <table class="maiic-table"><thead><tr><th>Name</th><th>Description</th><th>Active</th><th>Created</th><th></th></tr></thead>
-          <tbody><tr v-for="s in scenarioSets" :key="s.id"><td>{{ s.name }}</td><td class="text-xs">{{ s.description }}</td><td>{{ s.is_active ? 'Yes' : 'No' }}</td><td class="text-xs">{{ String(s.created_at).slice(0, 10) }}</td>
+          <tbody><tr v-for="s in pagedSets" :key="s.id"><td>{{ s.name }}</td><td class="text-xs">{{ s.description }}</td><td>{{ s.is_active ? 'Yes' : 'No' }}</td><td class="text-xs">{{ String(s.created_at).slice(0, 10) }}</td>
             <td class="num"><Link :href="route('fli.scenarios.edit', s.id)" class="maiic-action maiic-action-edit" title="Edit"><font-awesome-icon icon="pen" /></Link></td></tr></tbody></table>
+        <RowPager v-model="setsPage" :total="scenarioSets.length" class="border-t border-gray-100" />
       </details>
     </div>
   </app-layout>
@@ -77,8 +78,9 @@ const OTHER = ['#7c3aed', '#db2777', '#0d9488', '#ca8a04']
 export default {
   components: { AppLayout, RowPager, Link },
   props: { period: String, periods: Array, sets: Array, setId: Number, workbench: Object, scenarioSets: Array },
-  data() { return { sel: { period: this.period, set: this.setId }, page: 1, W: 320, H: 120 } },
+  data() { return { sel: { period: this.period, set: this.setId }, page: 1, setsPage: 1, W: 320, H: 120 } },
   computed: {
+    pagedSets() { return (this.scenarioSets || []).slice((this.setsPage - 1) * 15, this.setsPage * 15) },
     pagedSeries() { return (this.workbench?.series || []).slice((this.page - 1) * 9, this.page * 9) },
     years() { const y = this.workbench?.year || 0; return [y - 4, y - 3, y - 2, y - 1, y, y + 1, y + 2] },
   },

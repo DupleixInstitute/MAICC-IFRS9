@@ -1,21 +1,20 @@
 <template>
   <app-layout>
     <template #header>
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 class="text-xl font-semibold text-gray-800">Drawdowns</h2>
-          <p class="mt-1 text-sm text-gray-600">Every tranche paid out on a facility, and the commitment still undrawn</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <a :href="route('eir-intake.sample', { type: 'disbursements' })" class="secondary-btn" title="The import's columns with worked example rows">Download sample CSV</a>
-          <Link :href="route('eir-intake.index', { type: 'disbursements' })" class="primary-btn">Import drawdowns</Link>
-        </div>
+      <div>
+        <h2 class="text-xl font-semibold text-gray-800">Drawdowns</h2>
+        <p class="mt-1 text-sm text-gray-600">Every tranche paid out on a facility, and the commitment still undrawn</p>
       </div>
+    </template>
+    <template #actions>
+      <a :href="route('eir-intake.sample', { type: 'disbursements' })" class="secondary-btn" title="The import's columns with worked example rows">Download sample CSV</a>
+      <Link :href="route('eir-intake.index', { type: 'disbursements' })" class="primary-btn">Import drawdowns</Link>
     </template>
 
     <div class="w-full space-y-5">
       <KpiRow :cards="cards" />
 
+      <div data-actions-anchor></div>
       <div class="maiic-panel">
         <div class="flex flex-col gap-3 border-b border-gray-200 p-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -86,7 +85,7 @@
                           </tr>
                         </thead>
                         <tbody>
-                          <tr v-for="t in f.tranches" :key="t.id">
+                          <tr v-for="t in f.tranches.slice((tranchePage - 1) * 15, tranchePage * 15)" :key="t.id">
                             <td class="td tabular-nums">{{ t.tranche_no === null ? '-' : t.tranche_no }}</td>
                             <td class="td tabular-nums">{{ t.disbursement_date }}</td>
                             <td class="td text-right tabular-nums">{{ money(t.amount) }}</td>
@@ -105,6 +104,7 @@
                           </tr>
                         </tfoot>
                       </table>
+                      <RowPager v-model="tranchePage" :total="f.tranches.length" class="border-t border-gray-100" />
                     </div>
                     <p v-else class="text-sm text-gray-600">
                       No drawdown rows are loaded for this facility.
@@ -156,7 +156,9 @@ const props = defineProps({
 const form = reactive({ as_of: props.asOf, search: props.search })
 const open = ref(null)
 const page = ref(1)
-watch(() => props.facilities, () => { page.value = 1 })
+// one facility opens at a time, so one page number serves its tranche list
+const tranchePage = ref(1)
+watch(() => props.facilities, () => { page.value = 1; tranchePage.value = 1 })
 const pagedFacilities = computed(() => props.facilities.slice((page.value - 1) * 15, page.value * 15))
 const cards = computed(() => {
   const t = props.totals
@@ -170,7 +172,7 @@ const cards = computed(() => {
   ]
 })
 
-const toggle = (contractId) => { open.value = open.value === contractId ? null : contractId }
+const toggle = (contractId) => { open.value = open.value === contractId ? null : contractId; tranchePage.value = 1 }
 
 const apply = () => router.get(route('eir-drawdowns.index'), { as_of: form.as_of, search: form.search },
   { preserveState: true, preserveScroll: true, replace: true })

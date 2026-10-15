@@ -1,19 +1,14 @@
 <template>
   <app-layout>
     <template #header>
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 class="text-xl font-semibold text-gray-800">Reference Rates</h2>
-          <p class="mt-1 text-sm text-gray-600">The {{ index }} series by effective date: the rate every PLR-linked loan reprices from</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <select v-if="indexes.length > 1" v-model="form.index" class="maiic-select !w-32" title="Index" aria-label="Index" @change="apply">
-            <option v-for="i in indexes" :key="i" :value="i">{{ i }}</option>
-          </select>
-          <a :href="route('eir-intake.sample', { type: 'reference_rates' })" class="secondary-btn" title="The import's columns with worked example rows">Download sample CSV</a>
-          <Link :href="route('eir-intake.index', { type: 'reference_rates' })" class="primary-btn">Import reference rates</Link>
-        </div>
+      <div>
+        <h2 class="text-xl font-semibold text-gray-800">Reference Rates</h2>
+        <p class="mt-1 text-sm text-gray-600">The {{ index }} series by effective date: the rate every PLR-linked loan reprices from</p>
       </div>
+    </template>
+    <template #actions>
+      <a :href="route('eir-intake.sample', { type: 'reference_rates' })" class="secondary-btn" title="The import's columns with worked example rows">Download sample CSV</a>
+      <Link :href="route('eir-intake.index', { type: 'reference_rates' })" class="primary-btn">Import reference rates</Link>
     </template>
 
     <div class="w-full space-y-5">
@@ -21,7 +16,16 @@
 
       <div class="maiic-panel">
         <div class="border-b border-gray-200 p-4">
-          <h3 class="font-semibold text-gray-900">{{ index }} series, newest first</h3>
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <h3 class="font-semibold text-gray-900">{{ index }} series, newest first</h3>
+            <!-- which index the series shows: a filter on this table, not a page action -->
+            <div v-if="indexes.length > 1" class="flex items-center gap-2">
+              <label class="text-xs font-semibold text-gray-500" for="rr-index">Index</label>
+              <select id="rr-index" v-model="form.index" class="maiic-select !w-32" @change="apply">
+                <option v-for="i in indexes" :key="i" :value="i">{{ i }}</option>
+              </select>
+            </div>
+          </div>
           <p class="mt-1 text-xs text-gray-500"><strong>Change</strong> is the move from the previous row in percentage points; a grey row left the rate where it was.</p>
           <details class="group mt-2 text-xs text-gray-600">
             <summary class="cursor-pointer select-none font-semibold text-maiic-700 hover:underline">How this works</summary>

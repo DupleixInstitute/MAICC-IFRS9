@@ -31,6 +31,8 @@
         <div v-if="ledger.length > 15" class="border-t border-gray-100 px-4 py-3"><ClientPager v-model="ledgerPage" :total="ledger.length" /></div>
       </div>
 
+      <!-- Propose write-off acts on the register, so the page buttons sit at its top right -->
+      <div data-actions-anchor></div>
       <div class="maiic-panel">
         <div class="border-b border-gray-200 p-4 dark:border-slate-700">
           <h3 class="font-semibold text-gray-900 dark:text-slate-100">Write-off register</h3>
@@ -40,7 +42,7 @@
           <table class="maiic-table maiic-table-compact">
             <thead><tr><th>#</th><th>Loan</th><th>Date</th><th class="num">Amount</th><th>Reason and evidence</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
             <tbody>
-              <tr v-for="w in register" :key="w.id">
+              <tr v-for="w in pagedRegister" :key="w.id">
                 <td class="font-semibold">#{{ w.id }}</td>
                 <td><div class="font-semibold">{{ w.customer_name || '-' }}</div><div class="text-xs text-gray-500">{{ w.contract_id }}</div></td>
                 <td class="whitespace-nowrap">{{ w.write_off_date }}</td>
@@ -61,10 +63,11 @@
                   </div>
                 </td>
               </tr>
-              <tr v-if="!register.length"><td colspan="7" class="maiic-empty">No write-off in the register. Use <strong>Propose write-off</strong> at the top right for one that is not on the loan account.</td></tr>
+              <tr v-if="!register.length"><td colspan="7" class="maiic-empty">No write-off in the register. Use <strong>Propose write-off</strong> above this table, at its top right, for one that is not on the loan account.</td></tr>
             </tbody>
           </table>
         </div>
+        <RowPager v-model="registerPage" :total="register.length" class="border-t border-gray-100" />
       </div>
     </div>
 
@@ -116,12 +119,13 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetModal from '@/Jetstream/Modal.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
 import ClientPager from '@/Components/ClientPager.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import { confirmDialog } from '@/Components/confirmDialog'
 import { promptReason } from '@/Components/Maiic/promptReason.js'
 
@@ -137,6 +141,10 @@ const props = defineProps({
 const open = ref(false)
 const ledgerPage = ref(1)
 const pagedLedger = computed(() => props.ledger.slice((ledgerPage.value - 1) * 15, ledgerPage.value * 15))
+// the register is sent whole: fifteen a page, kept on a page that still exists after an approval or a close
+const registerPage = ref(1)
+const pagedRegister = computed(() => props.register.slice((registerPage.value - 1) * 15, registerPage.value * 15))
+watch(() => props.register.length, (n) => { registerPage.value = Math.min(registerPage.value, Math.max(1, Math.ceil(n / 15))) })
 const form = useForm({ contract_id: '', write_off_date: '', amount: '', reason: '', evidence: '', gl_reference: '' })
 
 function openPropose() { form.reset(); form.clearErrors(); open.value = true }

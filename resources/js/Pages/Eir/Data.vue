@@ -1,16 +1,14 @@
 <template>
   <app-layout>
     <template #header>
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 class="text-xl font-semibold text-gray-800">{{ currentTab.label }}</h2>
-          <p class="mt-1 text-sm text-gray-600">{{ currentTab.description }}</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <Link :href="route('eir-intake.index')" class="secondary-btn">EIR Data Intake</Link>
-          <Link :href="route('eir-calculations.index')" class="primary-btn">Calculate EIR</Link>
-        </div>
+      <div>
+        <h2 class="text-xl font-semibold text-gray-800">{{ currentTab.label }}</h2>
+        <p class="mt-1 text-sm text-gray-600">{{ currentTab.description }}</p>
       </div>
+    </template>
+    <template #actions>
+      <Link :href="route('eir-intake.index')" class="secondary-btn">EIR Data Intake</Link>
+      <Link :href="route('eir-calculations.index')" class="primary-btn">Calculate EIR</Link>
     </template>
 
     <div class="w-full space-y-5">

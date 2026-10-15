@@ -97,12 +97,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(period, index) in currentPeriods" :key="index">
+                        <tr v-for="(period, index) in pagedPeriods" :key="index">
                         <td class="px-2 py-1">{{ period.start }}</td>
                         <td class="px-2 py-1">{{ period.end }}</td>
                         </tr>
                     </tbody>
                     </table>
+                    <RowPager v-model="periodsPage" :total="currentPeriods.length" class="border-t border-gray-100" />
             </div>
             </div>
 
@@ -227,6 +228,7 @@ import { notice } from '@/Components/Maiic/notice'
 import debounce from 'lodash/debounce'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import SegmentCell from '@/Components/Maiic/SegmentCell.vue';
+import RowPager from '@/Components/Maiic/RowPager.vue'
 import JetInput from '@/Jetstream/Input.vue'
 import Pagination from '@/Shared/Pagination.vue'
 import Modal from './Modal.vue' // Your modal component
@@ -245,6 +247,7 @@ export default {
         ViewEditMatrix,
         CummulativeExportModal,
         HelpManual,
+        RowPager,
     },
 
     props: {
@@ -279,6 +282,9 @@ export default {
         const loading = ref(null)
         const periodsModalVisible = ref(false)
         const currentPeriods = ref([])
+        // 15 periods a page
+        const periodsPage = ref(1)
+        const pagedPeriods = computed(() => currentPeriods.value.slice((periodsPage.value - 1) * 15, periodsPage.value * 15))
 
         const showUploadModal = ref(false);
         const uploadTargetId = ref(null);
@@ -321,6 +327,7 @@ export default {
                 end: `${monthNames[parseInt(endMonth) - 1]} ${endYear}`
             }
 })
+        periodsPage.value = 1
         periodsModalVisible.value = true
         }
 
@@ -497,6 +504,8 @@ export default {
             showPeriods,
             periodsModalVisible,
             currentPeriods,
+            periodsPage,
+            pagedPeriods,
             search,
             startDate,
             endDate,

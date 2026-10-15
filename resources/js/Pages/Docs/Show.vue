@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import DocumentCover from '@/Shared/DocumentCover.vue'
 import ClientPager from '@/Components/ClientPager.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 // Repository-authored documentation reader (Ticket #011): the Technical
 // Manual and the Installation Guide. Chapters arrive as pre-rendered HTML
@@ -25,6 +26,9 @@ const search = ref('')
 const tableFilter = ref('')
 const openTable = ref(null)
 const tablePage = ref(1)
+// the columns of the opened table, 15 a page; opening another table starts at page 1
+const columnPage = ref(1)
+watch(openTable, () => { columnPage.value = 1 })
 // One chapter on screen at a time (cover first, schema appendix last).
 const chapter = ref(props.front ? 'cover' : (props.chapters[0]?.slug ?? null))
 const order = computed(() => [...(props.front ? ['cover'] : []), ...props.chapters.map(c => c.slug), ...(props.schema.length ? ['schema'] : [])])
@@ -160,7 +164,7 @@ const pagedTables = computed(() => filteredTables.value.slice((tablePage.value -
                                                 <td colspan="3" class="bg-maiic-50/40 p-0">
                                                     <table class="w-full text-xs">
                                                         <tbody>
-                                                            <tr v-for="col in t.columns" :key="col.name" class="border-t border-gray-100">
+                                                            <tr v-for="col in t.columns.slice((columnPage - 1) * 15, columnPage * 15)" :key="col.name" class="border-t border-gray-100">
                                                                 <td class="w-1/3 px-4 py-1 font-mono">{{ col.name }}</td>
                                                                 <td class="w-1/3 px-4 py-1 text-gray-600">{{ col.type }}</td>
                                                                 <td class="px-4 py-1 text-gray-500">
@@ -172,6 +176,7 @@ const pagedTables = computed(() => filteredTables.value.slice((tablePage.value -
                                                             </tr>
                                                         </tbody>
                                                     </table>
+                                                    <RowPager v-model="columnPage" :total="t.columns.length" class="border-t border-gray-100" />
                                                 </td>
                                             </tr>
                                         </template>

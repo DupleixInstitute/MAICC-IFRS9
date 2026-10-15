@@ -7,25 +7,19 @@
                     <HelpManual />
                 </h2>
 
-                <div class="flex space-x-2 mt-2">
-                    <Link
-                        :href="route('lgd-calculations.index')"
-                        class="inline-flex items-center bg-gray-900 hover:bg-gray-700 text-white px-3 py-1 rounded-lg shadow-md transition duration-300"
-                    >
-                        <i class="fas fa-arrow-left mr-2"></i>
-                        Back
-                    </Link>
-
-                    <button
-                        v-if="calculation.status === 'completed'"
-                        @click="generateReport"
-                        class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
-                    >
-                       <i class="fas fa-file-archive mr-2"></i>
-                        Export Report
-                    </button>
-                </div>
+                <Link :href="route('lgd-calculations.index')" class="text-sm font-medium text-maiic-700 hover:underline">&larr; Back</Link>
             </div>
+        </template>
+
+        <template #actions>
+            <button
+                v-if="calculation.status === 'completed'"
+                @click="generateReport"
+                class="inline-flex items-center bg-maiic-600 hover:bg-maiic-700 text-white px-4 py-2 rounded-lg shadow-md transition duration-300"
+            >
+                <i class="fas fa-file-archive mr-2"></i>
+                Export Report
+            </button>
         </template>
 
         <!-- Summary Cards -->
@@ -135,6 +129,8 @@
 
         <!-- Tab Content -->
         <div class="mt-4">
+            <!-- the page buttons sit here: below the tabs, above the open tab's table -->
+            <div data-actions-anchor></div>
             <!-- Payments Tab -->
             <div v-if="activeTab === 'payments'" class="overflow-x-auto">
                 <div class="bg-white shadow-md rounded-lg">
@@ -261,7 +257,7 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="contract in filteredContracts" :key="contract.contract_id"
+                            <tr v-for="contract in pagedContracts" :key="contract.contract_id"
                                 class="hover:bg-gray-50 transition-colors">
                                 <td class="px-4 py-3 whitespace-nowrap text-sm font-mono">{{ contract.contract_id }}</td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm">
@@ -291,6 +287,7 @@
                             </tr>
                         </tbody>
                     </table>
+                    <RowPager v-model="contractsPage" :total="filteredContracts.length" class="border-t border-gray-100" />
 
                     <!-- Empty State -->
                     <div v-if="filteredContracts.length === 0" class="text-center py-8">
@@ -365,17 +362,19 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import HelpManual from '@/Components/HelpManual.vue';
 import ReportModal from './Partials/ReportModal.vue';
+import RowPager from '@/Components/Maiic/RowPager.vue';
 
 export default {
     components: {
         AppLayout,
         HelpManual,
-        ReportModal
+        ReportModal,
+        RowPager
     },
     props: {
         calculation: {
@@ -508,6 +507,11 @@ export default {
             return [];
         });
 
+        // 15 contracts a page; a new search or filter starts again at page 1
+        const contractsPage = ref(1);
+        const pagedContracts = computed(() => filteredContracts.value.slice((contractsPage.value - 1) * 15, contractsPage.value * 15));
+        watch([contractSearch, stageFilter, statusFilter], () => { contractsPage.value = 1; });
+
         return {
             activeTab,
             showReportModal,
@@ -515,6 +519,8 @@ export default {
             stageFilter,
             statusFilter,
             filteredContracts,
+            contractsPage,
+            pagedContracts,
             formatDate,
             formatDateTime,
             formatPeriod,

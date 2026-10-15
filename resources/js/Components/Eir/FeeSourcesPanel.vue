@@ -3,7 +3,8 @@
          sources disagree for a loan (spec 7.8.4 and 7.8.5). Held lines are tied
          by a person with a reason; nothing is placed by guess. -->
     <div class="maiic-panel">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 pt-3 dark:border-slate-700">
+        <!-- with `view` the page's own tab row chooses the table, and this row is not drawn -->
+        <div v-if="!view" class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 pt-3 dark:border-slate-700">
             <nav class="flex gap-6 overflow-x-auto">
                 <button v-for="t in tabs" :key="t.key" type="button" class="whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold"
                         :class="tab === t.key ? 'border-maiic-600 text-maiic-700 dark:text-maiic-300' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200'"
@@ -15,7 +16,7 @@
         </div>
 
         <!-- held GL fee lines -->
-        <div v-if="tab === 'held'">
+        <div v-if="current === 'held'">
             <p class="px-5 py-2 text-xs text-gray-500">Fee postings on the fee income GLs whose batch names no single loan. Each is held, never dropped and never guessed: tie it to its loan with the reason, and it joins the fee lines below for classification and review.</p>
             <div class="maiic-table-wrap">
                 <table class="maiic-table">
@@ -49,13 +50,13 @@
         </div>
 
         <!-- overlaps: lower-source lines the source of record has no event for (R03) -->
-        <div v-else-if="tab === 'overlaps'">
+        <div v-else-if="current === 'overlaps'">
             <p class="px-5 py-2 text-xs text-gray-500 dark:text-slate-400">A fee line from a lower source that matches no fee of the source of record, in a month that source covers, where the two sources do not total the same for the fee event. The loan's EIR waits until a person decides: a fee of its own (it stands, for classification and review), or the same fee as one of record (it is superseded).</p>
             <div class="maiic-table-wrap">
                 <table class="maiic-table">
                     <thead><tr><th>Loan</th><th>Fee type</th><th>Source</th><th>Date</th><th class="num">Amount</th><th>Why it waits</th><th v-if="canGovern" class="text-right">Decision</th></tr></thead>
                     <tbody>
-                        <tr v-for="o in overlaps" :key="o.id">
+                        <tr v-for="o in pagedOverlaps" :key="o.id">
                             <td class="font-semibold">{{ o.contract_id }}</td>
                             <td class="capitalize">{{ o.fee_type }}</td>
                             <td class="text-xs">{{ o.source_system }}</td>
@@ -71,6 +72,7 @@
                     </tbody>
                 </table>
             </div>
+            <LocalPager v-model="overlapPage" :total="overlaps.length"/>
         </div>
 
         <!-- source differences -->
@@ -128,9 +130,12 @@ const props = defineProps({
     differences: { type: Array, default: () => [] },
     overlaps: { type: Array, default: () => [] },
     canGovern: { type: Boolean, default: false },
+    // 'held' or 'differences': the page's tab row chooses; none shows this panel's own row
+    view: { type: String, default: null },
 })
 
 const tab = ref(props.held.length || !props.differences.length ? 'held' : 'differences')
+const current = computed(() => props.view || tab.value)
 const tabs = computed(() => [
     { key: 'held', label: 'Held GL fee lines', count: props.held.length },
     { key: 'differences', label: 'Source differences', count: props.differences.length },
@@ -140,6 +145,8 @@ const heldPage = ref(1)
 const diffPage = ref(1)
 const pagedHeld = computed(() => props.held.slice((heldPage.value - 1) * 15, heldPage.value * 15))
 const pagedDiff = computed(() => props.differences.slice((diffPage.value - 1) * 15, diffPage.value * 15))
+const overlapPage = ref(1)
+const pagedOverlaps = computed(() => props.overlaps.slice((overlapPage.value - 1) * 15, overlapPage.value * 15))
 
 const tie = ref(null)
 const saving = ref(false)

@@ -13,7 +13,7 @@
       <DownloadButton format="PDF" label="Download PDF" :href="ret ? route('rbm-return.export', { period, mega_farm: megaFarm ? 1 : 0, format: 'pdf' }) : ''" :disabled="!ret"/>
     </template>
     <div class="space-y-5">
-      <div v-if="error" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</div>
+      <Notice v-if="error" id="error" tone="danger">{{ error }}</Notice>
       <template v-if="ret">
         <KpiRow :items="[
           { label: 'Facilities', value: ret.loans },
@@ -41,8 +41,9 @@
             <span class="maiic-badge" :class="ret.sections.B_loss_write_offs.overdue ? 'maiic-badge-red' : 'maiic-badge-green'">{{ ret.sections.B_loss_write_offs.overdue }} of {{ ret.sections.B_loss_write_offs.facilities }} past the write-off quarter ({{ fmt(ret.sections.B_loss_write_offs.overdue_balance) }})</span>
           </div>
           <div v-if="ret.sections.B_loss_write_offs.rows.length" class="maiic-table-wrap"><table class="maiic-table maiic-table-compact"><thead><tr><th>Contract</th><th>Customer</th><th>Term</th><th class="num">Days past due</th><th>Loss since</th><th class="num">Months loss</th><th>Write off by</th><th class="num">Balance</th><th class="num">IFRS 9 allowance</th><th>Status</th></tr></thead>
-            <tbody><tr v-for="l in ret.sections.B_loss_write_offs.rows" :key="l.contract_id"><td>{{ l.contract_id }}</td><td>{{ l.customer_name || '-' }}</td><td>{{ l.term === 'short' ? 'Short' : 'Medium/long' }}</td><td class="num">{{ l.days_past_due }}</td><td class="whitespace-nowrap">{{ l.loss_since_open ? 'at or before ' : '' }}{{ l.loss_since }}</td><td class="num">{{ l.months_classified_loss }}</td><td class="whitespace-nowrap">{{ l.write_off_due_by }}</td><td class="num">{{ fmt(l.balance) }}</td><td class="num">{{ fmt(l.ifrs9_allowance) }}</td><td><span class="maiic-badge" :class="l.status === 'overdue' ? 'maiic-badge-red' : 'maiic-badge-gold'">{{ l.status }}</span></td></tr></tbody>
-            <tfoot><tr><th colspan="7">Total</th><th class="num">{{ fmt(ret.sections.B_loss_write_offs.balance) }}</th><th></th><th></th></tr></tfoot></table></div>
+            <tbody><tr v-for="l in lossRows" :key="l.contract_id"><td>{{ l.contract_id }}</td><td>{{ l.customer_name || '-' }}</td><td>{{ l.term === 'short' ? 'Short' : 'Medium/long' }}</td><td class="num">{{ l.days_past_due }}</td><td class="whitespace-nowrap">{{ l.loss_since_open ? 'at or before ' : '' }}{{ l.loss_since }}</td><td class="num">{{ l.months_classified_loss }}</td><td class="whitespace-nowrap">{{ l.write_off_due_by }}</td><td class="num">{{ fmt(l.balance) }}</td><td class="num">{{ fmt(l.ifrs9_allowance) }}</td><td><span class="maiic-badge" :class="l.status === 'overdue' ? 'maiic-badge-red' : 'maiic-badge-gold'">{{ l.status }}</span></td></tr></tbody>
+            <tfoot><tr><th colspan="7">Total</th><th class="num">{{ fmt(ret.sections.B_loss_write_offs.balance) }}</th><th></th><th></th></tr></tfoot></table>
+            <RowPager v-model="lossPage" :total="ret.sections.B_loss_write_offs.rows.length" class="border-t border-gray-100" /></div>
           <p v-else class="p-4 text-sm text-gray-500">No facility is classified loss at this month-end.</p>
         </div>
         <div class="maiic-panel p-4 text-sm"><h3 class="text-base font-bold">C. Interest in suspense (paragraph 13)</h3>
@@ -63,9 +64,10 @@
             ]"/>
           </div>
           <div v-if="D.facilities && D.facilities.length" class="maiic-table-wrap"><table class="maiic-table maiic-table-compact"><thead><tr><th>Contract</th><th>Customer</th><th>Restructured on</th><th>Classification</th><th>Treatment</th><th>Board approval</th><th>Class</th><th class="num">Balance</th></tr></thead>
-            <tbody><tr v-for="(f, i) in D.facilities" :key="f.contract_id + '-' + i"><td>{{ f.contract_id }}</td><td>{{ f.customer_name || '-' }}</td><td class="whitespace-nowrap">{{ f.event_date }}<span v-if="f.in_period" class="maiic-badge maiic-badge-gold ml-1">this month</span></td><td>{{ words(f.classification) }}</td><td>{{ f.treatment ? words(f.treatment) : 'none booked: before the take-on, or not yet applied by the revenue run' }}</td>
+            <tbody><tr v-for="(f, i) in dRows" :key="f.contract_id + '-' + ((dPage - 1) * 15 + i)"><td>{{ f.contract_id }}</td><td>{{ f.customer_name || '-' }}</td><td class="whitespace-nowrap">{{ f.event_date }}<span v-if="f.in_period" class="maiic-badge maiic-badge-gold ml-1">this month</span></td><td>{{ words(f.classification) }}</td><td>{{ f.treatment ? words(f.treatment) : 'none booked: before the take-on, or not yet applied by the revenue run' }}</td>
               <td><span v-if="f.board_approval_ref" class="whitespace-nowrap">{{ f.board_approval_ref }}<span v-if="f.board_approval_date" class="text-gray-500"> ({{ f.board_approval_date }})</span></span><span v-else class="maiic-badge maiic-badge-red">none recorded</span></td><td>{{ f.class }}</td><td class="num">{{ fmt(f.balance) }}</td></tr></tbody>
-            <tfoot><tr><th colspan="7">Total ({{ D.accounts }} facilit{{ D.accounts === 1 ? 'y' : 'ies' }}; a facility restructured twice is listed twice and counted once)</th><th class="num">{{ fmt(D.balance) }}</th></tr></tfoot></table></div>
+            <tfoot><tr><th colspan="7">Total ({{ D.accounts }} facilit{{ D.accounts === 1 ? 'y' : 'ies' }}; a facility restructured twice is listed twice and counted once)</th><th class="num">{{ fmt(D.balance) }}</th></tr></tfoot></table>
+            <RowPager v-model="dPage" :total="D.facilities.length" class="border-t border-gray-100" /></div>
           <p v-else-if="D.accounts != null" class="px-4 pb-4 text-sm text-gray-500">No facility in this return has a restructure confirmed on the register by the month-end.</p>
         </div>
         <div class="maiic-panel p-4 text-sm"><h3 class="text-base font-bold">E. Security against classified facilities</h3>
@@ -82,12 +84,21 @@ import { router } from '@inertiajs/vue3'
 import BackToReports from './Partials/BackToReports.vue'
 import DownloadButton from './Partials/DownloadButton.vue'
 import KpiRow from './Partials/KpiRow.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 export default {
-  components: { AppLayout, BackToReports, DownloadButton, KpiRow },
+  components: { AppLayout, BackToReports, DownloadButton, KpiRow, Notice, RowPager },
   props: { period: String, return: Object, error: String, megaFarm: Boolean, periods: Array },
-  data() { return { form: { period: this.period, mega_farm: this.megaFarm } } },
-  computed: { ret() { return this.return }, D() { return (this.return && this.return.sections.D_restructured) || {} } },
+  // the two facility lists show 15 rows a page; a new period or Mega Farm choice starts at page 1
+  data() { return { form: { period: this.period, mega_farm: this.megaFarm }, lossPage: 1, dPage: 1 } },
+  computed: {
+    ret() { return this.return },
+    D() { return (this.return && this.return.sections.D_restructured) || {} },
+    lossRows() { const rows = (this.return && this.return.sections.B_loss_write_offs && this.return.sections.B_loss_write_offs.rows) || []; return rows.slice((this.lossPage - 1) * 15, this.lossPage * 15) },
+    dRows() { return (this.D.facilities || []).slice((this.dPage - 1) * 15, this.dPage * 15) },
+  },
+  watch: { return() { this.lossPage = 1; this.dPage = 1 } },
   methods: {
     fmt(v) { return v == null ? '-' : Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     words(v) { const t = String(v || '').toLowerCase().replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1) },

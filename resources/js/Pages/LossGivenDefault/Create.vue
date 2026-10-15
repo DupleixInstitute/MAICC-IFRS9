@@ -90,7 +90,7 @@
 
                                 <!-- Loan Book Info (shown when loan_book source is selected) -->
                                 <div v-if="form.discount_rate_source === 'loan_book'" class="col-span-2">
-                                    <div class="bg-maiic-50 border border-maiic-200 rounded-md p-4">
+                                    <Notice id="loan-book-rate" tone="success">
                                         <div class="flex">
                                             <div class="flex-shrink-0">
                                                 <svg class="h-5 w-5 text-maiic-400" viewBox="0 0 20 20" fill="currentColor">
@@ -104,7 +104,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </Notice>
                                 </div>
                             </div>
                         </div>
@@ -140,6 +140,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import JetButton from '@/Jetstream/Button.vue';
 import JetLabel from '@/Jetstream/Label.vue';
 import ManualCalculation from './Components/ManualCalculation.vue';
+import Notice from '@/Components/Maiic/Notice.vue';
 
 export default{
     components:{
@@ -147,7 +148,7 @@ export default{
         JetButton,
         JetLabel,
         ManualCalculation,
-
+        Notice,
     },
     props: {
         lossGivenDefault: {

@@ -101,12 +101,13 @@
                           </tr>
                       </thead>
                       <tbody>
-                          <tr v-for="(period, index) in currentPeriods" :key="index">
+                          <tr v-for="(period, index) in pagedPeriods" :key="index">
                           <td class="px-2 py-1">{{ period.start }}</td>
                           <td class="px-2 py-1">{{ period.end }}</td>
                           </tr>
                       </tbody>
                       </table>
+                      <RowPager v-model="periodsPage" :total="currentPeriods.length" class="border-t border-gray-100" />
               </div>
             </div>
 
@@ -290,10 +291,11 @@
 <script>
 import { confirmDialog } from '@/Components/confirmDialog'
 import { notice } from '@/Components/Maiic/notice'
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SegmentCell from '@/Components/Maiic/SegmentCell.vue';
+import RowPager from '@/Components/Maiic/RowPager.vue';
 import Pagination from '@/Shared/Pagination.vue'
 import '@fortawesome/fontawesome-free/css/all.css';
 import HelpManual from '../../Components/HelpManual.vue';
@@ -304,6 +306,7 @@ export default {
         AppLayout,
         HelpManual,
         Pagination,
+        RowPager,
     },
     props: {
         lgdCummulatives: {
@@ -323,6 +326,9 @@ export default {
         const selectedPeriod = ref('');
         const periodsModalVisible = ref(false)
         const currentPeriods = ref([])
+        // 15 periods a page
+        const periodsPage = ref(1)
+        const pagedPeriods = computed(() => currentPeriods.value.slice((periodsPage.value - 1) * 15, periodsPage.value * 15))
         const updateScope = ref([])
         const filters = ref({
             lgd_calculation_level: props.filters.lgd_calculation_level || '',
@@ -494,6 +500,7 @@ export default {
                     end: `${monthNames[parseInt(endMonth) - 1]} ${endYear}`
                 }
             })
+        periodsPage.value = 1
         periodsModalVisible.value = true
         }
 
@@ -565,6 +572,8 @@ export default {
         return {
             periodsModalVisible,
             currentPeriods,
+            periodsPage,
+            pagedPeriods,
             formatDate,
             loading,
             lockLGD,

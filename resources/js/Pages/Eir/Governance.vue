@@ -98,7 +98,7 @@
 
       <!-- needs attention -->
       <template v-else>
-        <div v-if="!attention.length" class="rounded-xl border border-maiic-200 bg-maiic-50 p-6 text-sm text-maiic-800 dark:border-emerald-500/30 dark:bg-emerald-500/5 dark:text-emerald-200">Nothing needs attention: every setting has an approved value and no change is waiting.</div>
+        <Notice v-if="!attention.length" id="nothing-needs-attention" tone="success">Nothing needs attention: every setting has an approved value and no change is waiting.</Notice>
         <div v-else class="grid gap-3 lg:grid-cols-2">
           <button v-for="s in attention" :key="s.key" type="button" class="flex flex-col rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800/70" @click="openDetail(s)">
             <div class="flex items-start justify-between gap-2">
@@ -180,7 +180,7 @@
             <table class="maiic-table maiic-table-compact">
               <thead><tr><th>State</th><th>Value</th><th>Effective from</th><th>Proposed by</th><th>Approved by</th><th>Reason</th></tr></thead>
               <tbody>
-                <tr v-for="r in detail.rows" :key="'row-' + r.id">
+                <tr v-for="r in detail.rows.slice((rowsPage - 1) * 15, rowsPage * 15)" :key="'row-' + r.id">
                   <td><span :class="stateClass(r.state)">{{ stateLabel(r.state) }}</span></td>
                   <td>{{ $filters.plain(r.value) }}</td>
                   <td class="whitespace-nowrap">{{ $filters.since(r.effective_from) }}</td>
@@ -190,6 +190,7 @@
                 </tr>
               </tbody>
             </table>
+            <RowPager v-model="rowsPage" :total="detail.rows.length" class="border-t border-gray-100" />
           </div>
           <div class="mt-4 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Superseded values (audit copies)</div>
           <p v-if="!detail.history.length" class="mt-1 text-xs text-gray-400">No value has been superseded yet.</p>
@@ -197,11 +198,12 @@
             <table class="maiic-table maiic-table-compact">
               <thead><tr><th>Value</th><th>Was effective from</th><th>Superseded on</th><th>By</th><th>Replaced by row</th></tr></thead>
               <tbody>
-                <tr v-for="h in detail.history" :key="'hist-' + h.id">
+                <tr v-for="h in detail.history.slice((historyPage - 1) * 15, historyPage * 15)" :key="'hist-' + h.id">
                   <td>{{ h.value }}</td><td>{{ $filters.since(h.effective_from) }}</td><td>{{ h.superseded_at }}</td><td>{{ h.superseded_by || 'unknown' }}</td><td>#{{ h.superseded_by_setting_id }}</td>
                 </tr>
               </tbody>
             </table>
+            <RowPager v-model="historyPage" :total="detail.history.length" class="border-t border-gray-100" />
           </div>
         </div>
       </div>
@@ -248,6 +250,8 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import JetDialogModal from '@/Jetstream/DialogModal.vue'
 import JetModal from '@/Jetstream/Modal.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 // Setting areas (display grouping only; the engine reads keys).
 const AREAS = [
@@ -283,7 +287,7 @@ const PALETTES = [
 const blank = (asOf) => ({ key: '', value: '', effective_from: asOf, reason: '' })
 
 export default {
-  components: { AppLayout, JetDialogModal, JetModal },
+  components: { AppLayout, JetDialogModal, JetModal, Notice, RowPager },
   props: {
     settings: Array,
     asOf: String,
@@ -293,7 +297,8 @@ export default {
     errors: { type: Object, default: () => ({}) },
   },
   data() {
-    return { view: 'areas', selected: 'all', search: '', detail: null, openCard: null, showModal: false, proposing: null, processing: false, form: blank(this.asOf) }
+    // rowsPage, historyPage: fifteen rows a page in the open setting's two tables
+    return { view: 'areas', selected: 'all', search: '', detail: null, openCard: null, showModal: false, proposing: null, processing: false, form: blank(this.asOf), rowsPage: 1, historyPage: 1 }
   },
   computed: {
     errorMessage() {
@@ -363,7 +368,7 @@ export default {
     isInForce(option) { return Boolean(this.proposing?.in_force) && option === this.proposing.in_force.value },
     stateLabel(state) { return { IN_FORCE: 'In force', PAST: 'Past', UPCOMING: 'Upcoming', PROPOSED: 'Awaiting approval' }[state] || state },
     stateClass(state) { return state === 'IN_FORCE' ? 'maiic-badge maiic-badge-green' : state === 'PROPOSED' ? 'maiic-badge maiic-badge-gold' : 'maiic-badge maiic-badge-grey' },
-    openDetail(s) { this.openCard = null; this.detail = s },
+    openDetail(s) { this.openCard = null; this.rowsPage = 1; this.historyPage = 1; this.detail = s },
     openPropose(s) {
       this.proposing = s
       this.form = { ...blank(this.asOf), key: s.key }

@@ -139,7 +139,7 @@ return [
                 . '<li><b>Land the pack.</b> The scheduler lands new E-Banker packs from the feed folder every day at 06:30; or upload one on Imports &amp; Feeds, E-Banker Loads; or run <b>Fetch new data</b> on Maintenance. Check the load passed its gates.</li>'
                 . '<li><b>Build the loan book.</b> Maintenance, <b>Month-end</b>, step 1 <b>Build the loan book</b>, for the month; or propose the build on Imports &amp; Feeds, Loan Book Builds. A second person approves it on <b>Loan Book Builds</b>. A locked month is refused.</li>'
                 . '<li><b>Run the month-end calculations.</b> Maintenance, <b>Month-end</b>, step 2. It needs an approved build, a forward-looking model version in force and an approved scenario set.</li>'
-                . '<li><b>Approve.</b> Clear the Workspace tab <b>Awaiting approval</b>: restructure candidates and rate moves found by the run wait on EIR Data, Restructures &amp; Resets; fees wait on Fee Classification; EIRs wait on EIR Calculations; the forward-looking month waits for its sign-off on Forward-Looking Information, Overview.</li>'
+                . '<li><b>Approve.</b> Clear the Workspace tab <b>Awaiting approval</b>: restructure candidates and rate moves found by the run wait on EIR &amp; Revenue Recognition, Restructures &amp; Resets; fees wait on Fee Classification; EIRs wait on EIR Calculations; the forward-looking month waits for its sign-off on Forward-Looking Information, Overview.</li>'
                 . '<li><b>Review and sign off.</b> Read the reports; tick the two manual Workspace steps.</li>'
                 . '<li><b>Lock the month.</b> Imports &amp; Feeds, Periods Built, padlock.</li>'
                 . '</ol>'

@@ -18,9 +18,9 @@
 
         <div class="space-y-5">
             <!-- a month-end stopped part-way: the ECL shown predates a step it depends on (MonthEndCurrency) -->
-            <div v-if="midRun && midRun.mid_run" role="alert" class="maiic-panel border-l-4 !border-l-red-600 bg-red-50 px-5 py-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+            <Notice v-if="midRun && midRun.mid_run" id="mid-run" tone="danger">
                 <span class="font-semibold">The month is mid-run: the ECL below is not current.</span>&nbsp;{{ midRun.message }}
-            </div>
+            </Notice>
             <!-- One line of figures: the filtered population in view, in MWK -->
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <div class="maiic-kpi !py-3" style="--accent:#0e7490" :title="'MWK ' + formatMoney(totals.ead) + ', carrying amount plus undrawn commitments times utilisation, ' + formatNumber(totals.loans) + ' loans'">
@@ -383,6 +383,7 @@ import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import HelpManual from '@/Components/HelpManual.vue';
+import Notice from '@/Components/Maiic/Notice.vue';
 
 const props = defineProps({
     loanBooks: Object,

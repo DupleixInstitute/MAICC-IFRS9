@@ -34,11 +34,13 @@
         <div class="border-b border-gray-200 px-5 py-3 dark:border-slate-700"><h3 class="font-semibold text-gray-900">External series the model can use</h3><p class="text-xs text-gray-500">Built from the records below at each correlation sweep; a series with a release date is not read for any month before it.</p></div>
         <div class="maiic-table-wrap"><table class="maiic-table">
           <thead><tr><th>Code</th><th>Series</th><th class="num">Months</th><th>From</th><th>To</th><th>Latest release</th></tr></thead>
-          <tbody><tr v-for="e in externalSeries" :key="e.proxy_code"><td class="font-mono text-xs">{{ e.proxy_code }}</td><td>{{ e.name }}</td><td class="num">{{ e.n }}</td><td>{{ ym(e.first) }}</td><td>{{ ym(e.last) }}</td><td>{{ e.known ? ym(e.known) : 'end of each month' }}</td></tr></tbody>
+          <tbody><tr v-for="e in pagedExternal" :key="e.proxy_code"><td class="font-mono text-xs">{{ e.proxy_code }}</td><td>{{ e.name }}</td><td class="num">{{ e.n }}</td><td>{{ ym(e.first) }}</td><td>{{ ym(e.last) }}</td><td>{{ e.known ? ym(e.known) : 'end of each month' }}</td></tr></tbody>
         </table></div>
+        <RowPager v-model="externalPage" :total="externalSeries.length" class="border-t border-gray-100" />
       </div>
 
-      <!-- every record entered -->
+      <!-- every record entered; Measure, Import CSV and Add record sit above it -->
+      <div data-actions-anchor></div>
       <div class="maiic-panel">
         <div class="flex flex-wrap items-end gap-2 border-b border-gray-200 px-5 py-3 dark:border-slate-700">
           <h3 class="mr-auto self-center font-semibold text-gray-900">Records entered or imported</h3>
@@ -87,8 +89,11 @@ import { confirmDialog } from '@/Components/confirmDialog'
 export default {
   components: { AppLayout, KpiRow, RowPager, Pagination, Link },
   props: { rows: Object, derived: Array, externalSeries: Array, totalRecords: Number, portfolios: Array, definitions: Array, filters: Object, canGovern: Boolean },
-  data() { return { derivedPage: 1, form: { period: this.filters?.period || '', portfolio_id: this.filters?.portfolio_id || '', definition_id: this.filters?.definition_id || '' } } },
-  computed: { pagedDerived() { return this.derived.slice((this.derivedPage - 1) * 15, this.derivedPage * 15) } },
+  data() { return { derivedPage: 1, externalPage: 1, form: { period: this.filters?.period || '', portfolio_id: this.filters?.portfolio_id || '', definition_id: this.filters?.definition_id || '' } } },
+  computed: {
+    pagedDerived() { return this.derived.slice((this.derivedPage - 1) * 15, this.derivedPage * 15) },
+    pagedExternal() { return this.externalSeries.slice((this.externalPage - 1) * 15, this.externalPage * 15) },
+  },
   methods: {
     pct(v) { return v === null || v === undefined ? '-' : (Number(v) * 100).toFixed(2) + '%' },
     ym(v) { return v ? String(v).slice(0, 4) + '-' + String(v).slice(4, 6) : '-' },

@@ -21,8 +21,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(r,i) in lines" :key="r.id ?? i">
-            <td class="td">{{ i+1 }}</td>
+          <tr v-for="(r,i) in pagedLines" :key="r.id ?? i">
+            <td class="td">{{ (page-1)*15+i+1 }}</td>
             <td class="td whitespace-nowrap">{{ date(r.due_date) }}</td>
             <td class="td text-right">{{ money(r.opening) }}</td>
             <td class="td text-right" :class="r.capitalised>0.5?'text-amber-700':'text-gray-400'">{{ r.capitalised===null ? '-' : money(r.capitalised) }}</td>
@@ -53,11 +53,15 @@
         </tfoot>
       </table>
     </div>
+    <RowPager v-model="page" :total="lines.length" class="border-t border-gray-100" />
   </section>
 </template>
 
 <script>
+import RowPager from '@/Components/Maiic/RowPager.vue'
+
 export default {
+  components: { RowPager },
   props: {
     title: String,
     subtitle: String,
@@ -68,7 +72,11 @@ export default {
     // starts part-way through the loan.
     startBalance: { type: Number, default: null },
   },
+  // fifteen instalments a page; the totals row covers the whole schedule
+  data() { return { page: 1 } },
+  watch: { rows() { this.page = 1 } },
   computed: {
+    pagedLines() { return this.lines.slice((this.page - 1) * 15, this.page * 15) },
     lines() {
       const n = (v) => Number(v || 0)
       // Principal still to be repaid after each row, worked from the end. It is

@@ -64,10 +64,11 @@ library.add(
     faFileArchive, faChartArea, faSort, faSortUp, faSortDown, faThLarge, faLayerGroup, faProjectDiagram, faTools,
 )
 
-const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'YoPractice';
+const appName = import.meta.env.VITE_APP_NAME || 'MAIIC IFRS 9';
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    // Pages set their own <title>; an empty title adds nothing (it used to put " - YoPractice" first in the head).
+    title: (title) => (title ? `${title} - ${appName}` : ''),
     resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
         const vueApp = createApp({ render: () => h(App, props) });

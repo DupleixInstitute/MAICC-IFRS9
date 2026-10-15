@@ -14,15 +14,16 @@
 
         <div class="w-full space-y-4">
             <!-- The engine does not read this table: say so in one line. -->
-            <div class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
-                <font-awesome-icon icon="info-circle" class="mt-0.5" />
+            <Notice id="engine-does-not-read" tone="warning">
                 <span>
                     The ECL engine does not stage loans from these figures. It uses the staging thresholds and the approved settings in
                     <Link :href="route('settings.index', { tab: 'staging' })" class="font-semibold underline">Settings, Staging basis</Link>
                     and the <Link :href="route('eir-governance.index')" class="font-semibold underline">Governance Centre</Link>.
                 </span>
-            </div>
+            </Notice>
 
+            <!-- Save thresholds sits here, above the form it saves -->
+            <div data-actions-anchor></div>
             <form id="thresholds-form" class="maiic-panel" @submit.prevent="save">
                 <div class="border-b border-gray-200 px-5 py-4">
                     <h3 class="font-semibold text-gray-900">Threshold configuration</h3>
@@ -105,13 +106,14 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link } from '@inertiajs/vue3'
+import Notice from '@/Components/Maiic/Notice.vue'
 
 export default {
     props: {
         rule: Object,
         errors: { type: Object, default: () => ({}) },
     },
-    components: { AppLayout, Link },
+    components: { AppLayout, Link, Notice },
     data() {
         return {
             form: {

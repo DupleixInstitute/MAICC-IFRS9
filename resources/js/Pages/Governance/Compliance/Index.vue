@@ -22,7 +22,7 @@
               <tr><th>Workbook</th><th>Reviewer</th><th>Loaded</th><th class="num">Sections</th><th>Status</th><th class="num">Open findings</th><th>Downloads</th><th class="num">Open</th></tr>
             </thead>
             <tbody>
-              <tr v-for="a in audits" :key="a.id" class="align-top">
+              <tr v-for="a in pagedAudits" :key="a.id" class="align-top">
                 <td>
                   <Link :href="route('compliance-audits.show', a.id)" class="font-semibold text-maiic-800 hover:underline">{{ a.short }}</Link>
                   <div class="text-xs text-gray-500">{{ a.title }}</div>
@@ -51,6 +51,7 @@
             </tbody>
           </table>
         </div>
+        <RowPager v-model="page" :total="audits.length" class="border-t border-gray-100" />
       </div>
     </div>
   </app-layout>
@@ -59,10 +60,13 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 export default {
-  components: { AppLayout, Link },
+  components: { AppLayout, Link, RowPager },
   props: { audits: Array, statuses: Array, canGovern: Boolean },
+  data() { return { page: 1 } },
+  computed: { pagedAudits() { return this.audits.slice((this.page - 1) * 15, this.page * 15) } },
   methods: {
     total(key) { return this.audits.reduce((t, a) => t + Number(a[key] || 0), 0) },
     status(s) { return this.audits.reduce((t, a) => t + Number((a.counts || {})[s] || 0), 0) },

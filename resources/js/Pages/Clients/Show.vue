@@ -36,10 +36,11 @@
             <div class="maiic-table-wrap"><table class="maiic-table">
                 <thead><tr><th>Contract</th><th>Product group</th><th class="num">Carrying amount</th><th class="num">Days overdue</th><th class="num">Stage</th><th class="num">ECL</th></tr></thead>
                 <tbody>
-                    <tr v-for="l in loans" :key="l.id"><td class="font-mono text-xs">{{ l.contract_id }}</td><td>{{ l.product_group || '-' }}</td><td class="num">{{ money(l.carrying_amount) }}</td><td class="num">{{ l.overdue_days ?? '-' }}</td><td class="num">{{ l.stage || '-' }}</td><td class="num">{{ money(l.ecl_value) }}</td></tr>
+                    <tr v-for="l in loanRows" :key="l.id"><td class="font-mono text-xs">{{ l.contract_id }}</td><td>{{ l.product_group || '-' }}</td><td class="num">{{ money(l.carrying_amount) }}</td><td class="num">{{ l.overdue_days ?? '-' }}</td><td class="num">{{ l.stage || '-' }}</td><td class="num">{{ money(l.ecl_value) }}</td></tr>
                     <tr v-if="!(loans || []).length"><td colspan="6" class="maiic-empty">This client has no loan in the loan book.</td></tr>
                 </tbody>
             </table></div>
+            <RowPager v-model="loanPage" :total="(loans || []).length" class="border-t border-gray-100" />
         </div>
     </app-layout>
 </template>
@@ -48,15 +49,21 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
+import RowPager from '@/Components/Maiic/RowPager.vue'
 
 export default {
-    components: { AppLayout, Link },
+    components: { AppLayout, Link, RowPager },
     props: {
         client: Object,
         loans: { type: Array, default: () => [] },
         loansPeriod: { type: String, default: null },
     },
+    // the client's loans show 15 a page
+    data() {
+        return { loanPage: 1 }
+    },
     computed: {
+        loanRows() { return (this.loans || []).slice((this.loanPage - 1) * 15, this.loanPage * 15) },
         money() { return (v) => (v === null || v === undefined ? '-' : Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })) },
         identity() {
             const c = this.client

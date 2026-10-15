@@ -26,9 +26,9 @@ If MAIIC's existing database is restored (chapter 10.3), historical ECL results 
 
 Until October 2026 the EIR data came from three extract scripts. Section 9.8 replaced them; this section is kept for a database restored from that period. Under EIR & Revenue Recognition:
 
-1. EIR Rules, Accounting Rules: review and approve the seeded fee rules that MAIIC's accounting owner agrees with.
+1. Accounting Rules: review and approve the seeded fee rules that MAIIC's accounting owner agrees with.
 2. Schedule Intake: load Extract A (contract master), then original schedules or generate them (`php artisan eir:generate-schedules --dry-run` first), then Extract B (transactions and remaining schedules), then Extract C (GL interest).
-3. EIR Rules, Fee Classification: classify and independently review the fee lines.
+3. Fee Classification: classify and independently review the fee lines.
 4. EIR Data, Schedule Review: approve the version 1 schedules.
 5. EIR Calculations, Blockers: every contract should read READY or carry a named blocker to resolve.
 6. EIR Calculations, Calculations: calculate, then approve and lock with a second user.
@@ -141,9 +141,9 @@ Section 9.8 describes the one-off bootstrap. Every month-end after that follows 
 | 7 | Scenario set for the period (quarterly, or when the outlook changes): start it from a profile, set its weights and shocks, propose, approve | Forward-Looking Information: Scenarios & Overlays, Scenario Profiles (start a set); Macro Statistics, Scenario Assumptions (weights and shocks); Scenarios & Overlays, Scenario Sets (propose, approve) | (screens, maker-checker) |
 | 8 | Forward-looking model: the model version in force is applied to every loan. Recalibrate it only once a year or after an event (correlation sweep, then propose and approve a fit, which publishes a new version) | Forward-Looking Information, FLI Month-End, Overview; Forward-Looking Model, Model Versions and Regression | `php artisan fli:apply 2026-09 --user=<id>`; recalibration: `php artisan fli:correlate 2026-09` |
 | 9 | Expected credit loss for every portfolio on the post-FLI PD, discounted at the EIR (the booked allowance), then the forward-looking record of the month (the ECL under each scenario, checked against the booked ECL); a second person signs it off | ECL Processing, ECL Calculation; Forward-Looking Information, FLI Month-End, Overview | `php artisan ifrs9:segment-ecl 2026-09 --pd=pd_post_fli --discounting=discounted`; `php artisan fli:month-end 2026-09 --close --user=<id>` |
-| 10 | The month's cash from the ledger and the GL fee postings tied to their loans (with the fee GL gate), then the EIR revenue roll-forward | EIR & Revenue Recognition, EIR Rules, Fee Classification (the held GL fee lines); EIR Calculations, Calculations | `php artisan eir:load-ledger-cash --user=<id>`; `php artisan eir:build-gl-fees --user=<id>`; `php artisan eir:run-revenue 2026-09 --user=<id>` |
+| 10 | The month's cash from the ledger and the GL fee postings tied to their loans (with the fee GL gate), then the EIR revenue roll-forward | EIR & Revenue Recognition, Fee Classification (the held GL fee lines); EIR Calculations, Calculations | `php artisan eir:load-ledger-cash --user=<id>`; `php artisan eir:build-gl-fees --user=<id>`; `php artisan eir:run-revenue 2026-09 --user=<id>` |
 | 11 | Mega Farm programme | ECL Processing, Mega Farm Programme | `php artisan megafarm:ecl 2026-09 --user=<id>` |
-| 12 | Registers: classify the restructure candidates and rate moves the run found, and propose any write-off; a second person approves each | EIR Data, Restructures & Resets; EIR Data, Write-offs | (screens, maker-checker) |
+| 12 | Registers: classify the restructure candidates and rate moves the run found, and propose any write-off; a second person approves each | Restructures & Resets; EIR Data, Write-offs | (screens, maker-checker) |
 | 13 | Review: the Workspace close checklist and its "Awaiting approval" queue, the dashboard (ECL build-up), the Reports hub (IFRS 9 note, RBM return, reconciliations) | Workspace; Dashboard; Reports | (screens) |
 | 14 | Management sign-off and the period lock, with the reason recorded: no later build, write-off or writer restates a locked month | Customer & Loan Data, Imports & Feeds, Periods Built (the lock button; needs `eir.govern`) | `php artisan eir:lock-period 2026-09 --user=<id> --reason="September 2026 close"` (`--unlock` with a reason reopens it) |
 

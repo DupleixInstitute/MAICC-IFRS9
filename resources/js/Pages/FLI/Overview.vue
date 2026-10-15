@@ -13,20 +13,23 @@
       <KpiRow :cards="kpis" />
 
       <!-- a month-end stopped part-way: the ECL and the record on screen are not current -->
-      <div v-if="currency && currency.mid_run" role="alert" class="maiic-panel border-l-4 !border-l-red-600 bg-red-50 px-5 py-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+      <Notice v-if="currency && currency.mid_run" id="mid-run" tone="danger">
         <span class="font-semibold">The month is mid-run.</span>&nbsp;{{ currency.message }}
-      </div>
+      </Notice>
       <!-- no model version in force, the governed setting lets the month proceed with the PD held -->
-      <div v-if="withoutModel" role="status" class="maiic-panel border-l-4 !border-l-amber-500 bg-amber-50 px-5 py-3 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
+      <Notice v-if="withoutModel" id="without-model" tone="warning">
         <span class="font-semibold">No forward-looking model in force.</span>&nbsp;{{ withoutModel }}
-      </div>
+      </Notice>
 
-      <div v-if="next" class="maiic-panel border-l-4 !border-l-maiicgold-500 px-5 py-3 text-sm">
-        <span class="font-semibold text-gray-900">Next: {{ next.title }}.</span>&nbsp;<span class="text-gray-600">{{ next.status }}</span>
-      </div>
-      <div v-else class="maiic-panel border-l-4 !border-l-maiic-600 bg-maiic-50/60 px-5 py-3 text-sm font-semibold text-maiic-800">
-        Every step of {{ monthLabel(period) }} is done.
-      </div>
+      <Notice v-if="next" id="next-step" tone="warning">
+        <span class="font-semibold">Next: {{ next.title }}.</span>&nbsp;<span>{{ next.status }}</span>
+      </Notice>
+      <Notice v-else id="month-done" tone="success">
+        <span class="font-semibold">Every step of {{ monthLabel(period) }} is done.</span>
+      </Notice>
+
+      <!-- the month and Run the remaining steps sit here, above the steps they run -->
+      <div data-actions-anchor></div>
 
       <!-- the ten steps -->
       <div class="maiic-panel">
@@ -102,10 +105,10 @@
               <thead><tr><th>Scenario</th><th class="num">Weight</th><th class="num">ECL</th><th v-if="snapshot.booked_ecl_discounted !== null && snapshot.booked_ecl_discounted !== undefined" class="num">Discounted</th></tr></thead>
               <tbody><tr v-for="r in snapshot.per_scenario || []" :key="r.scenario"><td>{{ r.scenario }}</td><td class="num">{{ r.weight }}%</td><td class="num">{{ mwk(r.ecl) }}</td><td v-if="snapshot.booked_ecl_discounted !== null && snapshot.booked_ecl_discounted !== undefined" class="num">{{ mwk(r.ecl_discounted) }}</td></tr></tbody>
             </table>
-            <div v-if="Number(snapshot.discount_unresolved_loans) > 0" class="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-200">
+            <Notice v-if="Number(snapshot.discount_unresolved_loans) > 0" id="discount-unresolved" tone="warning" class="mt-3">
               {{ snapshot.discount_unresolved_loans }} loan(s) have no discounted allowance, so the discounted figure covers part of the book; signing off needs a commentary saying why.
               <ul class="mt-1 list-disc pl-4"><li v-for="u in (snapshot.discount_detail?.unresolved || []).slice(0, 8)" :key="u.contract_id">{{ u.contract_id }}: {{ u.reason || u.status }}</li></ul>
-            </div>
+            </Notice>
             <div v-if="snapshot.status === 'RECORDED' && canGovern" class="mt-3 space-y-2">
               <label class="text-xs font-semibold text-gray-700" for="commentary">Commentary<span v-if="snapshot.needs_commentary" class="text-red-700 dark:text-red-300"> (required: the movement is above {{ tolerance !== null ? (tolerance * 100).toFixed(0) + '%' : 'the tolerance' }})</span><span v-else-if="snapshot.without_model" class="text-red-700 dark:text-red-300"> (required: no forward-looking model was in force; say so)</span><span v-else-if="Number(snapshot.discount_unresolved_loans) > 0" class="text-red-700 dark:text-red-300"> (required: loans are not discounted)</span></label>
               <textarea id="commentary" v-model="commentary" rows="3" class="maiic-input w-full" placeholder="Why the ECL moved, and what the forward-looking information added"></textarea>
@@ -151,13 +154,14 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import KpiRow from '@/Components/Maiic/KpiRow.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 import { Link, router } from '@inertiajs/vue3'
 import { confirmDialog } from '@/Components/confirmDialog'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export default {
-  components: { AppLayout, KpiRow, Link },
+  components: { AppLayout, KpiRow, Notice, Link },
   props: { period: String, periods: Array, steps: Array, next: Object, pending: Array, snapshot: Object, tolerance: Number, recent: Array, running: Object, commands: Object, canGovern: Boolean, userId: Number, withoutModel: { type: String, default: null }, currency: { type: Object, default: null } },
   data() { return { form: { period: this.period }, run: null, timer: null, commentary: this.snapshot?.commentary || '' } },
   computed: {
