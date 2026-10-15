@@ -293,16 +293,17 @@ The following closes those gaps.
 
 ## 11. Build order
 
-| Step | Work | Size |
-|---|---|---|
-| 1 | The settings, the presets and their seeding; `StagingService` reading them; `staging_dpd` beside `overdue_days` in the build | About 1.5 days |
-| 2 | The comparison run: tables, command, panel, export, audit-workbook sheet | About 1 day |
-| 3 | The governance change log of sections 8.1 to 8.5: reject and withdraw, the seeding entries, supporting documents on private storage with fingerprints, required evidence, the History view and export, the append-only guard and the chain check | About 2 days |
-| 3a | The other approvals of section 8.6 on the same log and document store, the fee rulebook's maker-checker first; the Approvals view of section 8.7 | About 2.5 days |
-| 3b | The run record of section 8.8: snapshot, run numbers on result rows, run of record at lock, the no-back-dating rule, the Settings in force and What changed reports, re-performance | About 2 days |
-| 4 | Tests for each acceptance point; a bootstrap check | About half a day |
-| 5 | Release to MAIIC's server by the release steps of the integration document (section 2.2): push, pull, migrate, bootstrap with the nine ties passing, then the comparison runs for December 2025 and September 2026 | With MAIIC ICT |
-| Later | Setting 9, once each loan's PD at origination is kept | To be planned |
+The work is done in four phases, so that the parts that protect the locked months and unblock decisions arrive first. Each phase is tested, released to MAIIC's server by the release steps of the integration document (section 2.2: push, pull, migrate, bootstrap with the nine ties passing) and only then followed by the next. The sizes are Dupleix's estimates of the build, before release.
+
+| Phase | Work | Sections | Acceptance | Size |
+|---|---|---|---|---|
+| **1. Protect the locked months** | The no-back-dating rule: no change to a governed setting or rule takes effect inside a locked month except through reopen-and-restate with documents (decision S10) | 8.8, item 4 | 18 | About half a day |
+| **2. Governed staging** | The settings, the presets and their seeding, with single-ladder staging as the default; `StagingService` reading every rule from the settings; `staging_dpd` beside `overdue_days`; the comparison run with its tables, command, panel, export and audit-workbook sheet; then the comparison runs for December 2025 and September 2026 on MAIIC's server | 3, 4, 5, 6, 7 | 1 to 8 | About 3 days |
+| **3. Fee rulebook control** | Second-person approval with a reason, reject and withdraw, switching a rule on or off as a proposal; then the re-approval of every rule the matcher uses (decision S9), so that the fee review can start on controlled rules | 8.6 (fee rulebook) | 14 | About half a day |
+| **4. The governance and audit record** | The Governance Centre change log (reject and withdraw, seeding entries, supporting documents on private storage, required evidence, history view, append-only chained log); the other approvals on the same log and document store, and the Approvals view; the run record, run numbers on result rows, run of record at lock, the two reports and re-performance | 8.1 to 8.5, 8.6, 8.7, 8.8 | 9 to 13, 15 to 17, 19 | About 5.5 days |
+| Later | Setting 9, once each loan's PD at origination is kept | 3 | | To be planned |
+
+The total is about 9.5 days of build, as before; the order brings the protection of locked months, governed staging and the controlled fee rulebook into the first four days. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first release, since each release depends on the bootstrap passing on MAIIC's server.
 
 ## 12. Glossary
 
