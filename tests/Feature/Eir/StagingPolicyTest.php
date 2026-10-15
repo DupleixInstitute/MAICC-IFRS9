@@ -246,4 +246,64 @@ class StagingPolicyTest extends TestCase
         $this->stageDirectiveAligned(array_replace(StagingPolicy::PRESETS[StagingPolicy::PRESET_SINGLE], ['dpd_after_maturity' => StagingPolicy::MATURITY_CORE]));
         $this->assertSame(['matured-owing' => '1', 'matured-recent' => '1', 'matured-repaid' => '1'], $this->stage('2026-09'));
     }
+
+    /**
+     * A database in use before the Staging Module keeps the staging it ran
+     * (review of 15 October 2026): the seeder adds the staging policy as Custom
+     * at its current rules, so nothing it stages moves until MAIIC approves a
+     * named policy. A fresh install starts with single-ladder staging.
+     */
+    public function test_an_existing_database_keeps_the_staging_it_ran(): void
+    {
+        DB::table('governance_settings')->whereNotIn('key', ['stage3_missed_instalments', 'stage_cure_months', 'dpd_basis', 'loan_book_build_method'])->delete();
+        DB::table('governance_settings')->where('key', 'stage3_missed_instalments')->update(['value' => '4 consecutive']);
+        DB::table('governance_settings')->where('key', 'stage_cure_months')->update(['value' => '3 months']);
+        DB::table('governance_settings')->where('key', 'dpd_basis')->update(['value' => StagingPolicy::BASIS_OLDEST]);
+        (new \Database\Seeders\GovernanceSettingsSeeder())->run();
+
+        $policy = StagingPolicy::at(new GovernanceService(), CarbonImmutable::parse('2026-01-31'));
+        $this->assertSame(StagingPolicy::PRESET_CUSTOM, $policy->preset);
+        $this->assertSame([StagingPolicy::PROFILE_BY_TERM, StagingPolicy::MF_SHORT, StagingPolicy::BASIS_OLDEST, StagingPolicy::MATURITY_COUNT, StagingPolicy::SCHEDULE_RECOUNT, '4 consecutive', StagingPolicy::APPLIED, '3 months', StagingPolicy::CURE_MONTHS],
+            [$policy->value('staging_threshold_profile'), $policy->value('staging_mega_farm_term'), $policy->value('dpd_basis'), $policy->value('dpd_after_maturity'), $policy->value('dpd_schedule_correction'),
+                $policy->value('stage3_missed_instalments'), $policy->value('sicr_qualitative_register'), $policy->value('stage_cure_months'), $policy->value('stage_cure_test')]);
+        $this->assertStringContainsString('Not a MAIIC decision', DB::table('governance_settings')->where('key', StagingPolicy::PRESET)->value('reason'));
+
+        // staged as before the module: by term on the oldest instalment, Mega Farm always short-term (91 days)
+        $this->book('2026-01');
+        $this->assertSame(['long-100' => '2', 'long-200' => '3', 'mega-36' => '3', 'part-cured' => '3', 'short-100' => '3'], $this->stage('2026-01'));
+    }
+
+    /** An option recorded for the future is refused rather than approved and ignored. */
+    public function test_the_pd_change_option_is_refused_until_it_is_built(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not built yet');
+        (new GovernanceService())->propose('sicr_pd_change', StagingPolicy::PD_DOUBLED, '2026-11-01', 'Switch on the PD doubling test', 1);
+    }
+
+    /** Under a named policy, "nothing to change" is judged against the policy's value, not the stored row. */
+    public function test_nothing_to_change_is_judged_against_the_policy_in_force(): void
+    {
+        $governance = new GovernanceService();
+        $adopt = $governance->propose(StagingPolicy::PRESET, StagingPolicy::PRESET_DIRECTIVE, '2026-01-01', 'Board decision adopting directive-aligned staging', 1);
+        $governance->approve($adopt->id, 2);
+        // the stored row says 0 months (seeded), the policy says 3: proposing 0 months is a real change
+        $this->assertSame('PROPOSED', $governance->propose('stage_cure_months', '0 months (no probation)', '2026-06-01', 'Credit Committee drops the probation', 1)->status);
+        try {
+            $governance->propose('stage_cure_months', '3 months', '2026-07-01', 'Keep the probation at three months', 1);
+            $this->fail('a value the policy already gives was proposed');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('staging policy in force', $e->getMessage());
+        }
+    }
+
+    /** The audit entry of a staged month records the date each rule took effect. */
+    public function test_the_staging_audit_entry_records_when_each_rule_took_effect(): void
+    {
+        $this->book('2026-02');
+        $this->stage('2026-02');
+        $logged = json_decode(DB::table('audit_logs')->where('action', 'Loan Book Staged')->value('new_values'), true)['staging_policy'];
+        $this->assertSame('1900-01-01', $logged['effective_from'][StagingPolicy::PRESET]);
+        $this->assertSame('1900-01-01', $logged['effective_from']['staging_threshold_profile']);
+    }
 }

@@ -115,8 +115,9 @@ final class StagingPolicy
     /**
      * @param array<string,string> $values the value of each individual setting, keyed by setting
      * @param array<string,string> $source where each value came from: the preset, or the setting itself
+     * @param array<string,string> $effective the date from which the preset and each rule read from a setting applied
      */
-    private function __construct(public readonly string $preset, public readonly array $values, public readonly array $source)
+    private function __construct(public readonly string $preset, public readonly array $values, public readonly array $source, public readonly array $effective = [])
     {
     }
 
@@ -124,18 +125,22 @@ final class StagingPolicy
     public static function at(GovernanceService $governance, CarbonInterface $asOf): self
     {
         $preset = $governance->get(self::PRESET, $asOf);
+        // the date each rule took effect, for the audit entry of the month staged under it (review of 15 October 2026)
+        $effective = [self::PRESET => $governance->inForce(self::PRESET, $asOf)?->effective_from?->toDateString()];
         $values = []; $source = [];
         foreach (array_keys(self::SETTINGS) as $key) {
             if (isset(self::PRESETS[$preset][$key])) {
                 $values[$key] = self::PRESETS[$preset][$key];
                 $source[$key] = 'preset: ' . $preset;
+                $effective[$key] = $effective[self::PRESET];
             } else {
                 $values[$key] = $governance->get($key, $asOf);
                 $source[$key] = 'setting';
+                $effective[$key] = $governance->inForce($key, $asOf)?->effective_from?->toDateString();
             }
         }
 
-        return new self($preset, $values, $source);
+        return new self($preset, $values, $source, $effective);
     }
 
     public function value(string $key): string
@@ -282,6 +287,6 @@ final class StagingPolicy
     /** What the audit log records of the policy a month was staged under. */
     public function toArray(): array
     {
-        return ['preset' => $this->preset, 'rules' => $this->values, 'source' => $this->source];
+        return ['preset' => $this->preset, 'rules' => $this->values, 'source' => $this->source, 'effective_from' => $this->effective];
     }
 }

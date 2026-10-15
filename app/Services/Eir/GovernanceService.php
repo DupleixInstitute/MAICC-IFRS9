@@ -660,6 +660,10 @@ class GovernanceService
         if (mb_strlen($reason) < 10) {
             throw new InvalidArgumentException('A change needs a specific reason of at least 10 characters.');
         }
+        // an option recorded for the future that staging does not apply yet is refused, never approved and ignored
+        if ($key === 'sicr_pd_change' && $value !== StagingPolicy::NOT_APPLIED) {
+            throw new InvalidArgumentException('The change in PD since origination is not built yet (the PD of each loan at origination is not kept), so it cannot be switched on; staging would ignore it.');
+        }
 
         $effective = $this->date($effectiveFrom);
 
@@ -667,8 +671,12 @@ class GovernanceService
             $this->assertEffectiveDateIsLater($key, $effective, null);
 
             $inForce = $this->inForce($key, $effective);
-            if ($inForce !== null && $inForce->value === $value) {
-                throw new LogicException("{$definition['label']} is already '{$value}' from {$inForce->effective_from->toDateString()}; there is nothing to change.");
+            // under a named staging policy a staging rule's value is the policy's, not the stored row's: a proposal
+            // that differs from the policy changes the rule (the policy turns to Custom), one that matches it does not
+            $preset = isset(StagingPolicy::SETTINGS[$key]) ? $this->inForce(StagingPolicy::PRESET, $effective)?->value : null;
+            $current = isset(StagingPolicy::PRESETS[$preset][$key]) ? StagingPolicy::PRESETS[$preset][$key] : $inForce?->value;
+            if ($current !== null && $current === $value) {
+                throw new LogicException("{$definition['label']} is already '{$value}' from " . ($preset !== null && isset(StagingPolicy::PRESETS[$preset][$key]) ? "the staging policy in force ({$preset})" : $inForce->effective_from->toDateString()) . '; there is nothing to change.');
             }
 
             $setting = GovernanceSetting::create([
@@ -840,9 +848,13 @@ class GovernanceService
             ->orderByDesc('superseded_at')->orderByDesc('id')->get()->groupBy('key');
 
         $overview = [];
+        // under a named staging policy each staging rule is the policy's, whatever its own row says
+        $preset = $this->inForce(StagingPolicy::PRESET, $asOf)?->value;
         foreach (self::catalogue() as $key => $definition) {
             $inForce = $this->inForce($key, $asOf);
             $overview[] = [
+                'set_by_policy' => isset(StagingPolicy::SETTINGS[$key], StagingPolicy::PRESETS[$preset][$key])
+                    ? ['policy' => $preset, 'value' => StagingPolicy::PRESETS[$preset][$key]] : null,
                 'key' => $key,
                 'label' => $definition['label'],
                 'description' => $definition['description'],
