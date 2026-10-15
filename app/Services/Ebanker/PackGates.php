@@ -238,6 +238,8 @@ class PackGates
         foreach ($gate['months'] as $m) {
             if ($m['status'] === 'DIFFERENCE' && count($failures) < self::LISTED) {
                 $failures[] = sprintf('fee GL %s, %s: GL_04a %s against the trial balance %s, difference %s', $m['gl'], $m['month'], number_format($m['gl_04a'], 2), number_format((float) $m['trial_balance'], 2), number_format((float) $m['difference'], 2));
+            } elseif ($m['status'] === 'MISSING_IN_GL04' && count($failures) < self::LISTED) {
+                $failures[] = sprintf('fee GL %s, %s: the trial balance moves %s but GL_04a carries no posting for the month', $m['gl'], $m['month'], number_format((float) $m['trial_balance'], 2));
             }
         }
         $noTb = array_values(array_unique(array_map(fn ($m) => $m['month'], array_filter($gate['months'], fn ($m) => $m['status'] === 'NO_TB'))));

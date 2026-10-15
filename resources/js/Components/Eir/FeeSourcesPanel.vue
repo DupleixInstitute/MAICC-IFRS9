@@ -48,6 +48,31 @@
             <LocalPager v-model="heldPage" :total="held.length"/>
         </div>
 
+        <!-- overlaps: lower-source lines the source of record has no event for (R03) -->
+        <div v-else-if="tab === 'overlaps'">
+            <p class="px-5 py-2 text-xs text-gray-500 dark:text-slate-400">A fee line from a lower source that matches no fee of the source of record, although that source holds this fee type for the loan. The loan's EIR waits until a person decides: a fee of its own (it stands, for classification and review), or the same fee as one of record (it is superseded).</p>
+            <div class="maiic-table-wrap">
+                <table class="maiic-table">
+                    <thead><tr><th>Loan</th><th>Fee type</th><th>Source</th><th>Date</th><th class="num">Amount</th><th>Why it waits</th><th v-if="canGovern" class="text-right">Decision</th></tr></thead>
+                    <tbody>
+                        <tr v-for="o in overlaps" :key="o.id">
+                            <td class="font-semibold">{{ o.contract_id }}</td>
+                            <td class="capitalize">{{ o.fee_type }}</td>
+                            <td class="text-xs">{{ o.source_system }}</td>
+                            <td class="whitespace-nowrap">{{ o.transaction_date || '-' }}</td>
+                            <td class="num">{{ money(o.amount) }}</td>
+                            <td class="max-w-[20rem] text-xs">{{ o.source_overlap }}</td>
+                            <td v-if="canGovern" class="whitespace-nowrap text-right">
+                                <button type="button" class="secondary-btn !px-2 !py-1 text-xs" @click="decide(o, 'SEPARATE')">A fee of its own</button>
+                                <button type="button" class="secondary-btn ml-1 !px-2 !py-1 text-xs" @click="decide(o, 'SAME')">The same fee</button>
+                            </td>
+                        </tr>
+                        <tr v-if="!overlaps.length"><td :colspan="canGovern ? 7 : 6" class="maiic-empty">No overlap: every lower-source fee line is either paired with a fee of record or the only source of its fee type.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- source differences -->
         <div v-else>
             <p class="px-5 py-2 text-xs text-gray-500">One fee, one source: for each loan the source of record wins and the other sources' lines are kept but left out of the EIR. Where the other source carries a different amount, Finance checks the difference here.</p>
@@ -101,6 +126,7 @@ import { promptReason } from '@/Components/Maiic/promptReason.js'
 const props = defineProps({
     held: { type: Array, default: () => [] },
     differences: { type: Array, default: () => [] },
+    overlaps: { type: Array, default: () => [] },
     canGovern: { type: Boolean, default: false },
 })
 
@@ -108,6 +134,7 @@ const tab = ref(props.held.length || !props.differences.length ? 'held' : 'diffe
 const tabs = computed(() => [
     { key: 'held', label: 'Held GL fee lines', count: props.held.length },
     { key: 'differences', label: 'Source differences', count: props.differences.length },
+    { key: 'overlaps', label: 'Overlaps to decide', count: props.overlaps.length },
 ])
 const heldPage = ref(1)
 const diffPage = ref(1)
@@ -117,6 +144,12 @@ const pagedDiff = computed(() => props.differences.slice((diffPage.value - 1) * 
 const tie = ref(null)
 const saving = ref(false)
 const form = ref({ contract_id: '', reason: '' })
+async function decide(o, decision) {
+    const words = { SEPARATE: 'a fee of its own', SAME: 'the same fee as the source of record' }
+    const reason = await promptReason({ title: 'Loan ' + o.contract_id + ': ' + words[decision], message: 'Say why. The decision and the reason are kept in the audit trail, and the loan is no longer stopped by this line.', confirmLabel: 'Record the decision' })
+    if (!reason) return
+    router.post(route('eir-fee-classification.decide-overlap', o.id), { decision, reason }, { preserveScroll: true })
+}
 async function notThisLoan(h) {
     const reason = await promptReason({ title: 'Not the fee of loan ' + h.candidate_contract_id, message: 'Say why this posting is not the fee of that loan. It stays held for the right loan, and that loan is no longer stopped by it. The reason is kept in the audit trail.', confirmLabel: 'Record it' })
     if (!reason) return

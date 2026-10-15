@@ -68,8 +68,12 @@ class FeeClassificationUiTest extends TestCase
         $this->assertNull(DB::table('contract_fees')->where('id', 1)->value('cashflow_direction'));
     }
 
-    public function test_the_source_differences_are_read_from_the_superseded_markers(): void
+    public function test_the_source_differences_are_read_from_the_stored_per_event_table(): void
     {
+        // FeeSourcePrecedence::apply stores each difference per fee event (R03, 15 October 2026); the screen only reads it
+        Schema::create('fee_source_differences', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('fee_type'); $t->integer('record_fee_id'); $t->string('source_of_record'); $t->decimal('amount_of_record', 20, 2); $t->integer('other_fee_id'); $t->string('other_source'); $t->decimal('other_amount', 20, 2); $t->decimal('difference', 20, 2); $t->timestamps(); });
+        DB::table('fee_source_differences')->insert(['contract_id' => 'C1', 'fee_type' => 'arrangement', 'record_fee_id' => 2, 'source_of_record' => 'GL posting', 'amount_of_record' => 450000,
+            'other_fee_id' => 1, 'other_source' => 'LOS capture', 'other_amount' => 500000, 'difference' => 50000, 'created_at' => now(), 'updated_at' => now()]);
         $method = new \ReflectionMethod(EirFeeClassificationController::class, 'sourceDifferences');
         $method->setAccessible(true);
         $rows = $method->invoke(new EirFeeClassificationController());
@@ -87,6 +91,6 @@ class FeeClassificationUiTest extends TestCase
         $govern = collect((new EirFeeClassificationController())->getMiddleware())->firstWhere('middleware', 'permission:eir.govern');
         // saying a held posting is not the named loan's fee is governed the same way (15 October 2026)
         $this->assertTrue(Route::has('eir-fee-classification.dismiss-candidate'));
-        $this->assertSame(['tieHeld', 'dismissCandidate'], $govern['options']['only']);
+        $this->assertSame(['tieHeld', 'dismissCandidate', 'decideOverlap'], $govern['options']['only']);
     }
 }

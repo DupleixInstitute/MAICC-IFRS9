@@ -153,7 +153,7 @@ class GlFeeBuildService
             'gate' => $this->gate($legs),
         ];
         AuditLoggerService::log('GL Fee Postings Built', 'contract_fees', null, ['new_values' => array_diff_key($out, ['gate' => 1, 'precedence' => 1]) + [
-            'gate_months_with_difference' => count(array_filter($out['gate']['months'], fn ($m) => $m['status'] === 'DIFFERENCE')),
+            'gate_months_with_difference' => count(array_filter($out['gate']['months'], fn ($m) => in_array($m['status'], ['DIFFERENCE', 'MISSING_IN_GL04'], true))),
             'precedence_superseded' => $precedence['superseded_lines'], 'cross_source_exceptions' => count($precedence['exceptions']),
         ], 'meta' => ['user' => $userId]]);
         // a held posting that names a loan whose EIR is already locked flags that EIR for review
@@ -369,12 +369,31 @@ class GlFeeBuildService
         foreach ($legs as $l) {
             $byMonth[$l['gl']][substr((string) $l['date'], 0, 7)] = ($byMonth[$l['gl']][substr((string) $l['date'], 0, 7)] ?? 0.0) + $l['amount'];
         }
+        // the check runs both ways (15 October 2026, fee review gap 5): every fee GL is checked in every month from the
+        // first to the last month the legs reach, so a month the trial balance moves but the extract does not carry
+        // (a missing month, or a GL with postings in the month on the other fee GL only) fails as MISSING_IN_GL04
+        $all = array_merge(...array_values(array_map('array_keys', $byMonth ?: [[]])));
+        if ($all !== []) {
+            $first = min($all); $last = max($all);
+            foreach (array_unique(array_merge(array_keys($byMonth), \App\Services\Eir\FeeGlReconciliationService::FEE_GLS)) as $gl) {
+                for ($m = \Carbon\CarbonImmutable::parse($first . '-01'); $m->format('Y-m') <= $last; $m = $m->addMonth()) {
+                    $byMonth[(string) $gl][$m->format('Y-m')] ??= null;
+                }
+            }
+        }
         $months = [];
         foreach ($byMonth as $gl => $periods) {
             ksort($periods);
             foreach ($periods as $ym => $amount) {
                 $mv = $this->movements->movement((string) $gl, $ym . '-01');
                 $tb = $mv['movement'];
+                if ($amount === null) {
+                    // no leg in the extract for this GL and month: only a trial balance movement makes it a gap
+                    if ($tb !== null && abs($tb) >= 1.0) {
+                        $months[] = ['gl' => (string) $gl, 'month' => $ym, 'gl_04a' => 0.0, 'trial_balance' => $tb, 'difference' => round(-$tb, 2), 'status' => 'MISSING_IN_GL04'];
+                    }
+                    continue;
+                }
                 $months[] = ['gl' => (string) $gl, 'month' => $ym, 'gl_04a' => round($amount, 2), 'trial_balance' => $tb,
                     'difference' => $tb === null ? null : round($amount - $tb, 2),
                     'status' => $tb === null ? 'NO_TB' : (abs($amount - $tb) < 1.0 ? 'AGREES' : 'DIFFERENCE')];
@@ -382,7 +401,9 @@ class GlFeeBuildService
         }
 
         return ['months' => $months, 'agree' => count(array_filter($months, fn ($m) => $m['status'] === 'AGREES')),
-            'differ' => count(array_filter($months, fn ($m) => $m['status'] === 'DIFFERENCE')), 'no_tb' => count(array_filter($months, fn ($m) => $m['status'] === 'NO_TB'))];
+            'differ' => count(array_filter($months, fn ($m) => in_array($m['status'], ['DIFFERENCE', 'MISSING_IN_GL04'], true))),
+            'missing' => count(array_filter($months, fn ($m) => $m['status'] === 'MISSING_IN_GL04')),
+            'no_tb' => count(array_filter($months, fn ($m) => $m['status'] === 'NO_TB'))];
     }
 
     /** The posted fee legs of GL_04a, closing vouchers and deleted rows left out. */

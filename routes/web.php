@@ -700,6 +700,7 @@ Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classificat
     Route::post('/return', [\App\Http\Controllers\EirFeeClassificationController::class, 'returnToClassification'])->name('return');
     Route::post('/held/{held}/tie', [\App\Http\Controllers\EirFeeClassificationController::class, 'tieHeld'])->name('tie-held');
     Route::post('/held/{held}/not-this-loan', [\App\Http\Controllers\EirFeeClassificationController::class, 'dismissCandidate'])->name('dismiss-candidate');
+    Route::post('/fee/{fee}/overlap', [\App\Http\Controllers\EirFeeClassificationController::class, 'decideOverlap'])->name('decide-overlap');
 });
 
 Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], function () {

@@ -204,8 +204,10 @@ class GlFeeRouteTest extends TestCase
         $this->assertSame('104430000072', $tied->contract_id);
         $this->assertSame('PENDING', $tied->classification_status);
         $this->assertStringContainsString('tied by hand', $tied->description);
-        // the GL line now outranks the charges table on this loan
-        $this->assertSame(2, DB::table('contract_fees')->where('contract_id', '104430000072')->where('superseded_by_source', FeeSourcePrecedence::TIER_GL)->count());
+        // the GL line now outranks the charges table on this loan, for its own fee type only (R03, 15 October 2026):
+        // the charges table's line of the other fee type stands, since the GL holds no fee of that type for the loan
+        $this->assertSame(1, DB::table('contract_fees')->where('contract_id', '104430000072')->where('superseded_by_source', FeeSourcePrecedence::TIER_GL)->count());
+        $this->assertSame(1, DB::table('contract_fees')->where('contract_id', '104430000072')->where('source_system', FeeSourcePrecedence::SOURCE_LOS)->whereNull('superseded_by_source')->count());
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'GL Fee Tied To Loan')->count());
 
         // a rebuild keeps the tie and does not hold the line again

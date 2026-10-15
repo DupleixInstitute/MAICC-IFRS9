@@ -60,6 +60,7 @@ class EirCoverageService
         'PRINCIPAL_NOT_RECONCILED' => 'Scheduled principal does not reconcile to drawn within 1%',
         'FEE_CLASSIFICATION_PENDING' => 'Fee/cost lines are not independently reviewed',
         'FEE_HELD_FOR_LOAN' => 'A held GL fee posting names the loan as its likely owner',
+        'FEE_SOURCE_OVERLAP' => 'A lower-source fee line matches no fee of the source of record',
         'FEE_DIRECTION_MISSING' => 'A reviewed integral fee has no cash-flow direction',
         'INITIAL_NET_INVALID' => 'Fee-adjusted initial net investment is not positive',
         'TAKEON_NOT_RECOMPUTED' => 'Take-on loan is on its take-on balance, not recomputed from origination',

@@ -18,9 +18,9 @@ class EirFeeClassificationController extends Controller
         $this->middleware('auth');
         // the list and the fee GL check are readable with eir.fees.import; classifying and reviewing stay with settings
         $this->middleware('permission:settings|eir.fees.import')->only('index');
-        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate']);
+        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate', 'decideOverlap']);
         // tying a held GL fee line to a loan is a governed, audit-logged act (spec 7.8.4)
-        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate']);
+        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate', 'decideOverlap']);
     }
 
     /**
@@ -52,39 +52,40 @@ class EirFeeClassificationController extends Controller
      */
     private function sourceDifferences(): array
     {
-        if (! \Illuminate\Support\Facades\Schema::hasColumn('contract_fees', 'superseded_by_source')) {
+        // stored by FeeSourcePrecedence::apply per fee event (R03, 15 October 2026); nothing is recomputed here
+        if (! \Illuminate\Support\Facades\Schema::hasTable('fee_source_differences')) {
             return [];
-        }
-        $contracts = DB::table('contract_fees')->whereNotNull('superseded_by_source')->distinct()->pluck('contract_id');
-        if ($contracts->isEmpty()) {
-            return [];
-        }
-        $out = [];
-        foreach (DB::table('contract_fees')->whereIn('contract_id', $contracts)->get(['contract_id', 'fee_type', 'amount', 'source_system', 'superseded_by_source'])->groupBy('contract_id') as $contract => $rows) {
-            $winner = $rows->whereNotNull('superseded_by_source')->first()->superseded_by_source;
-            $kept = []; $other = [];
-            foreach ($rows as $r) {
-                $tier = \App\Services\Eir\FeeSourcePrecedence::tierOf($r->source_system);
-                if ($tier === null) {
-                    continue;
-                }
-                if ($tier === $winner && $r->superseded_by_source === null) {
-                    $kept[$r->fee_type] = ($kept[$r->fee_type] ?? 0.0) + (float) $r->amount;
-                } elseif ($r->superseded_by_source !== null) {
-                    $other[$tier][$r->fee_type] = ($other[$tier][$r->fee_type] ?? 0.0) + (float) $r->amount;
-                }
-            }
-            foreach ($other as $tier => $byType) {
-                foreach (array_unique(array_merge(array_keys($byType), array_keys($kept))) as $type) {
-                    $a = round($kept[$type] ?? 0.0, 2); $b = round($byType[$type] ?? 0.0, 2);
-                    if (abs($a - $b) >= 0.01) {
-                        $out[] = ['contract_id' => (string) $contract, 'fee_type' => $type, 'source_of_record' => $winner, 'amount_of_record' => $a, 'other_source' => $tier, 'other_amount' => $b, 'difference' => round($b - $a, 2)];
-                    }
-                }
-            }
         }
 
-        return $out;
+        return DB::table('fee_source_differences')->orderBy('contract_id')->orderBy('fee_type')
+            ->get(['contract_id', 'fee_type', 'source_of_record', 'amount_of_record', 'other_source', 'other_amount', 'difference'])
+            ->map(fn ($d) => ['contract_id' => (string) $d->contract_id, 'fee_type' => $d->fee_type, 'source_of_record' => $d->source_of_record,
+                'amount_of_record' => (float) $d->amount_of_record, 'other_source' => $d->other_source, 'other_amount' => (float) $d->other_amount, 'difference' => (float) $d->difference])
+            ->all();
+    }
+
+    /** Lower-source fee lines the source of record has no event for (R03): each waits for a person's decision. */
+    private function sourceOverlaps(): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('contract_fees', 'source_overlap')) {
+            return [];
+        }
+
+        return DB::table('contract_fees')->whereNotNull('source_overlap')->whereNull('superseded_by_source')->orderBy('contract_id')->orderBy('id')
+            ->get(['id', 'contract_id', 'fee_type', 'amount', 'source_system', 'transaction_date', 'source_overlap'])->map(fn ($f) => (array) $f)->all();
+    }
+
+    /** A person decides an overlap: a fee of its own (SEPARATE) or the same fee as the source of record's (SAME), with the reason. */
+    public function decideOverlap(Request $request, int $fee, \App\Services\Eir\FeeSourcePrecedence $precedence)
+    {
+        $data = $request->validate(['decision' => ['required', 'in:SEPARATE,SAME'], 'reason' => ['required', 'string', 'min:10', 'max:500']]);
+        try {
+            $precedence->decide($fee, $data['decision'], $data['reason'], (int) $request->user()->id);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', $data['decision'] === 'SEPARATE' ? 'Recorded as a fee of its own: it stands for classification and review.' : 'Recorded as the same fee as the source of record: it is superseded.');
     }
 
     /** A person records, with the reason, that a held posting is not the fee of the loan the system named (HeldFeeEvidence::dismiss). */
@@ -135,6 +136,7 @@ class EirFeeClassificationController extends Controller
             'canGovern' => (bool) $request->user()?->can('eir.govern'),
             'heldGlFees' => $this->heldGlFees(),
             'sourceDifferences' => $this->sourceDifferences(),
+            'sourceOverlaps' => $this->sourceOverlaps(),
             'ruleCoverage' => [
                 'pending' => ContractFee::where('classification_status', 'PENDING')->count(),
                 'pending_matched' => ContractFee::where('classification_status', 'PENDING')->whereNotNull('suggested_rule_id')->count(),

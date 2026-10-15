@@ -30,6 +30,38 @@ return new class extends Migration
                 $t->unique(['external_transaction_id', 'contract_id'], 'fee_gl_candidate_dismissals_unique');
             });
         }
+        // R03 (15 October 2026): precedence per fee event; a lower-source line the source of record has no
+        // event for, while it holds that fee type, is an overlap: kept, blocking the EIR until a person decides
+        if (Schema::hasTable('contract_fees') && ! Schema::hasColumn('contract_fees', 'source_overlap')) {
+            Schema::table('contract_fees', function (Blueprint $t) {
+                $t->string('source_overlap', 500)->nullable();
+            });
+        }
+        if (! Schema::hasTable('fee_source_decisions')) {
+            Schema::create('fee_source_decisions', function (Blueprint $t) {
+                $t->id();
+                $t->unsignedBigInteger('contract_fee_id')->unique();
+                $t->string('decision', 12);          // SEPARATE (a fee of its own) or SAME (the same fee as the source of record's)
+                $t->string('reason', 500);
+                $t->unsignedBigInteger('decided_by');
+                $t->timestamps();
+            });
+        }
+        if (! Schema::hasTable('fee_source_differences')) {
+            Schema::create('fee_source_differences', function (Blueprint $t) {
+                $t->id();
+                $t->string('contract_id', 40)->index();
+                $t->string('fee_type', 40);
+                $t->unsignedBigInteger('record_fee_id');
+                $t->string('source_of_record', 40);
+                $t->decimal('amount_of_record', 20, 2);
+                $t->unsignedBigInteger('other_fee_id');
+                $t->string('other_source', 40);
+                $t->decimal('other_amount', 20, 2);
+                $t->decimal('difference', 20, 2);
+                $t->timestamps();
+            });
+        }
         if (! Schema::hasTable('eir_lock_reviews')) {
             Schema::create('eir_lock_reviews', function (Blueprint $t) {
                 $t->id();
@@ -53,6 +85,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('eir_lock_reviews');
+        Schema::dropIfExists('fee_source_differences');
+        Schema::dropIfExists('fee_source_decisions');
+        if (Schema::hasColumn('contract_fees', 'source_overlap')) {
+            Schema::table('contract_fees', fn (Blueprint $t) => $t->dropColumn('source_overlap'));
+        }
         Schema::dropIfExists('fee_gl_candidate_dismissals');
     }
 };

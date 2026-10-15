@@ -102,6 +102,9 @@ class EirReadinessService
         $fees ??= self::feeQuery()->where('contract_id', $contractId)->get();
         $unresolved = $fees->whereNotIn('classification_status', ['REVIEWED', 'REJECTED']);
         if ($unresolved->isNotEmpty()) $issues[] = ['code' => 'FEE_CLASSIFICATION_PENDING', 'message' => $unresolved->count() . ' fee/cost line(s) are not independently reviewed.'];
+        // a line of a lower fee source the source of record has no event for (R03): it waits for a person's decision
+        $overlap = $fees->filter(fn ($f) => isset($f->source_overlap) && $f->source_overlap !== null);
+        if ($overlap->isNotEmpty()) $issues[] = ['code' => 'FEE_SOURCE_OVERLAP', 'message' => $overlap->count() . ' fee line(s) of a lower source match no fee of the source of record: on Fee Classification, decide for each whether it is a fee of its own or the same fee.'];
         // a held GL fee posting that names this loan as its likely owner: the loan's fees are not known to be complete
         // until a person ties it or says it is not this loan's (15 October 2026); nothing is allocated by suggestion
         $held = HeldFeeEvidence::forContract($contractId);

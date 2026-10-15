@@ -96,6 +96,69 @@ class EirFeeReadinessControlTest extends TestCase
         $this->assertSame([], $reviews->open());
     }
 
+    private function fee(string $loan, string $type, float $amount, string $source, ?string $date): int
+    {
+        return DB::table('contract_fees')->insertGetId(['contract_id' => $loan, 'fee_type' => $type, 'amount' => $amount, 'source_system' => $source, 'transaction_date' => $date,
+            'classification_status' => 'PENDING', 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    public function test_precedence_is_per_fee_event_a_partial_source_never_suppresses_another_fee(): void
+    {
+        $gl = $this->fee('900000000201', 'arrangement', 4_800_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_GL, '2025-06-19');
+        $losArr = $this->fee('900000000201', 'arrangement', 4_500_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_LOS, null);
+        $losLegal = $this->fee('900000000201', 'legal', 2_866_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_LOS, null);
+
+        $r = app(\App\Services\Eir\FeeSourcePrecedence::class)->apply(1);
+
+        $this->assertSame('GL posting', DB::table('contract_fees')->where('id', $losArr)->value('superseded_by_source'), 'the same event: the source of record wins');
+        $this->assertNull(DB::table('contract_fees')->where('id', $losLegal)->value('superseded_by_source'), 'a fee type the GL does not hold stands (it was suppressed per contract before R03)');
+        $this->assertNull(DB::table('contract_fees')->where('id', $gl)->value('superseded_by_source'));
+        $this->assertSame(0, $r['overlaps']);
+        $d = DB::table('fee_source_differences')->first();
+        $this->assertSame([$gl, $losArr, -300000.0], [(int) $d->record_fee_id, (int) $d->other_fee_id, (float) $d->difference], 'the difference is stored per event');
+    }
+
+    public function test_a_fee_of_another_period_is_an_overlap_that_waits_for_a_person(): void
+    {
+        $this->contract('900000000202');
+        $this->fee('900000000202', 'arrangement', 1_000_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_GL, '2025-01-10');
+        $later = $this->fee('900000000202', 'arrangement', 600_000, 'MAIIC Finance EIR assessment 2025', '2025-11-30'); // a second tranche's fee, outside the event window
+        $precedence = app(\App\Services\Eir\FeeSourcePrecedence::class);
+
+        $this->assertSame(1, $precedence->apply(1)['overlaps']);
+        $row = DB::table('contract_fees')->where('id', $later)->first();
+        $this->assertNull($row->superseded_by_source, 'never silently dropped');
+        $this->assertNotNull($row->source_overlap);
+        $this->assertContains('FEE_SOURCE_OVERLAP', array_column((new EirReadinessService())->assess('900000000202')['issues'], 'code'));
+
+        $precedence->decide($later, 'SEPARATE', 'The second drawdown carried its own arrangement fee.', 2);
+        $row = DB::table('contract_fees')->where('id', $later)->first();
+        $this->assertSame([null, null], [$row->superseded_by_source, $row->source_overlap]);
+        $this->assertNotContains('FEE_SOURCE_OVERLAP', array_column((new EirReadinessService())->assess('900000000202')['issues'], 'code'));
+
+        DB::table('fee_source_decisions')->delete();
+        $precedence->apply(1);
+        $precedence->decide($later, 'SAME', 'Finance dated the drawdown fee to the second tranche by mistake.', 2);
+        $this->assertSame('GL posting', DB::table('contract_fees')->where('id', $later)->value('superseded_by_source'));
+    }
+
+    public function test_the_fee_gl_gate_also_finds_a_month_the_extract_does_not_carry(): void
+    {
+        $movements = \Mockery::mock(\App\Services\Eir\TrialBalanceMovementService::class);
+        $movements->shouldReceive('movement')->andReturnUsing(fn ($gl, $date) => ['movement' => match ($gl . ' ' . substr($date, 0, 7)) {
+            '4871 2025-01' => 100.0, '4871 2025-02' => 250.0, '4871 2025-03' => 300.0, default => 0.0,
+        }]);
+        app()->instance(\App\Services\Eir\TrialBalanceMovementService::class, $movements);
+        $gate = app(\App\Services\Ebanker\GlFeeBuildService::class)->gate([
+            ['gl' => '4871', 'date' => '2025-01-15', 'amount' => 100.0],
+            ['gl' => '4871', 'date' => '2025-03-15', 'amount' => 300.0],
+        ]);
+        $missing = array_values(array_filter($gate['months'], fn ($m) => $m['status'] === 'MISSING_IN_GL04'));
+        $this->assertSame([['4871', '2025-02', 250.0]], array_map(fn ($m) => [$m['gl'], $m['month'], $m['trial_balance']], $missing));
+        $this->assertSame(1, $gate['differ']);
+        $this->assertSame(2, $gate['agree']);
+    }
+
     public function test_a_flag_can_be_raised_by_hand_only_on_a_locked_eir(): void
     {
         $this->contract('900000000104');
