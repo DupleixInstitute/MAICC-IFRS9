@@ -23,8 +23,8 @@
                     <div class="truncate text-xl font-extrabold text-gray-900" :title="currentCurrency ? currentCurrency.label : ''">{{ currentCurrency ? currentCurrency.label : 'Not set' }}</div>
                 </div>
                 <div class="maiic-kpi px-4 py-3" style="--accent:#0f766e">
-                    <div class="maiic-kpi-label">Days past due counted from</div>
-                    <div class="truncate text-xl font-extrabold text-gray-900" :title="dpdBasis">{{ dpdBasis ? dpdBasis.replace(/\s*\(.*\)\s*$/, '') : 'Not set' }}</div>
+                    <div class="maiic-kpi-label">Staging policy in force</div>
+                    <div class="truncate text-xl font-extrabold text-gray-900" :title="stagingPreset">{{ stagingPreset || 'Not set' }}</div>
                 </div>
             </div>
 
@@ -473,8 +473,8 @@ export default {
         currentUserId() {
             return this.$page.props.auth?.user?.id ?? null
         },
-        dpdBasis() {
-            const g = this.staging.governed.find((x) => x.key === 'dpd_basis')
+        stagingPreset() {
+            const g = this.staging.governed.find((x) => x.key === 'staging_preset')
             return g ? g.value : null
         },
     },

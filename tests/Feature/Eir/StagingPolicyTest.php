@@ -42,7 +42,7 @@ class StagingPolicyTest extends TestCase
             $t->date('effective_from'); $t->string('status')->default('APPROVED'); $t->integer('proposed_by')->nullable(); $t->integer('approved_by')->nullable(); $t->timestamp('approved_at')->nullable(); $t->string('reason')->nullable(); $t->timestamps();
         });
         (new StagingThresholdSeeder())->run();
-        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('external_identity_id')->nullable(); $t->string('customer_id')->nullable(); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->string('product_code')->nullable(); $t->integer('tenor')->default(0); $t->integer('overdue_days')->default(0); $t->decimal('carrying_amount', 20, 2)->default(0); $t->text('build_flag')->nullable(); $t->integer('sicr')->default(0); $t->integer('ifrs9_stage')->default(0); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->string('calculated_ifrs9_stage')->nullable(); foreach (['arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'] as $c) { $t->string($c)->nullable(); } });
+        Schema::create('loan_books', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('external_identity_id')->nullable(); $t->string('customer_id')->nullable(); $t->string('reporting_period'); $t->string('product_group')->nullable(); $t->string('product_code')->nullable(); $t->integer('tenor')->default(0); $t->integer('overdue_days')->default(0); $t->decimal('carrying_amount', 20, 2)->default(0); $t->text('build_flag')->nullable(); $t->integer('sicr')->default(0); $t->integer('ifrs9_stage')->default(0); $t->string('ifrs9stage_pre_qualitative')->nullable(); $t->string('ifrs9stage_post_qualitative')->nullable(); $t->string('calculated_ifrs9_stage')->nullable(); $t->integer('staging_dpd')->nullable(); $t->string('staging_dpd_basis')->nullable(); foreach (['arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'] as $c) { $t->string($c)->nullable(); } });
         $migration = require base_path('database/migrations/2026_10_08_000000_create_ebanker_landing_zone.php');
         $migration->up();
         $this->createSicrSchema();
@@ -82,11 +82,7 @@ class StagingPolicyTest extends TestCase
         $this->assertSame(StagingPolicy::PRESET_SINGLE, $catalogue[StagingPolicy::PRESET]['default']);
         foreach (StagingPolicy::PRESETS[StagingPolicy::PRESET_SINGLE] as $key => $value) {
             $this->assertContains($value, $catalogue[$key]['options'], "{$key}: the preset's value is one of its options");
-            // dpd_basis keeps its default: it governs the build's day count, which the RBM return reads, until
-            // section 2 of the build gives staging its own count; staging takes the basis from the policy meanwhile
-            if ($key !== 'dpd_basis') {
-                $this->assertSame($value, $catalogue[$key]['default'], "{$key} is seeded at the 31 December 2025 option");
-            }
+            $this->assertSame($value, $catalogue[$key]['default'], "{$key} is seeded at the 31 December 2025 option");
         }
         foreach (StagingPolicy::PRESETS[StagingPolicy::PRESET_DIRECTIVE] as $key => $value) {
             $this->assertContains($value, $catalogue[$key]['options'], "{$key}: the directive-aligned value is one of its options");
@@ -202,5 +198,28 @@ class StagingPolicyTest extends TestCase
         $this->assertSame('3', $this->stage('2026-02')['L1']);
         $this->stageDirectiveAligned(['stage_cure_months' => '0 months (no probation)', 'stage_cure_test' => StagingPolicy::CURE_MONTHS]);
         $this->assertSame('1', $this->stage('2026-02')['L1']);
+    }
+
+    /**
+     * Section 5: staging reads the staging count the build wrote when it was counted
+     * on the basis in force, and otherwise derives it from the row and counts it.
+     */
+    public function test_staging_reads_the_build_count_on_the_basis_in_force_and_counts_what_it_derives(): void
+    {
+        $single = StagingPolicy::at(new GovernanceService(), CarbonImmutable::parse('2026-06-30'))->dpdBasisLabel();
+        $base = ['reporting_period' => '2026-06', 'tenor' => 36, 'overdue_days' => 200, 'carrying_amount' => 1000, 'arrears_30_to_90' => '500'];
+        DB::table('loan_books')->insert([
+            // counted by the build on the single-ladder basis: read as it is
+            ['contract_id' => 'counted', 'staging_dpd' => 190, 'staging_dpd_basis' => $single] + $base,
+            // counted under another basis (a policy approved after the build): derived from its bucket, 31 days
+            ['contract_id' => 'other-basis', 'staging_dpd' => 190, 'staging_dpd_basis' => 'oldest overdue instalment, recounted against the schedule in force, counted from maturity when longer'] + $base,
+            // a book built before section 5: derived
+            ['contract_id' => 'no-count', 'staging_dpd' => null, 'staging_dpd_basis' => null] + $base,
+        ]);
+        $c = (new StagingService(new GovernanceService(), new LandingZoneReader()))->stage('2026-06', 1);
+
+        $this->assertSame(['counted' => '3', 'no-count' => '2', 'other-basis' => '2'], DB::table('loan_books')->orderBy('contract_id')->pluck('ifrs9stage_post_qualitative', 'contract_id')->all());
+        $this->assertSame(2, $c['staging_dpd_derived']);
+        $this->assertSame('bucket ageing, core-system report as given, core-system ageing after maturity', $single);
     }
 }

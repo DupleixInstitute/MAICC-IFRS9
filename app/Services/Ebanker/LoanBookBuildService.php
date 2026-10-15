@@ -5,6 +5,7 @@ namespace App\Services\Ebanker;
 use App\Jobs\ProcessLoanImportJob;
 use App\Services\AuditLoggerService;
 use App\Services\Eir\GovernanceService;
+use App\Services\Eir\StagingPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -80,6 +81,7 @@ class LoanBookBuildService
         'interest_rate', 'principal_balance', 'approved_amount', 'disbursed', 'repayments', 'carrying_amount', 'interest_to_date',
         'stored_carrying_amount', 'commitments', 'facility_utilisation_rate', 'ead', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180',
         'arrears_180_to_270', 'arrears_271_to_360', 'overdue_days', 'overdue_principal_date', 'overdue_status', 'contract_status',
+        'staging_dpd', 'staging_dpd_basis',
         'industry_code', 'industry_type', 'is_month_end', 'build_method', 'build_load_id', 'build_source_key', 'build_flag', 'build_basis',
         'created_at', 'updated_at',
     ];
@@ -400,7 +402,7 @@ class LoanBookBuildService
             [$group, $fund] = $this->groupOf($gl);
             $name = $master[$account]['ACCOUNT_NAME'] ?? null;
             $arrears = $this->arrears($p);
-            [$dpd, $odDate, $dpdFlag] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ''), $this->num($p['CARRYING_AMOUNT'] ?? 0), $account);
+            [$dpd, $odDate, $dpdFlag, $stagingDpd, $stagingBasis] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ''), $this->num($p['CARRYING_AMOUNT'] ?? 0), $account);
             $rows[] = $this->row([
                 'contract_id' => ltrim($account, '0'), 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
                 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl, 'funding_source' => $fund,
@@ -411,6 +413,7 @@ class LoanBookBuildService
                 'carrying_amount' => $this->num($p['CARRYING_AMOUNT'] ?? 0), 'interest_to_date' => $this->num($p['INTEREST_TO_DATE'] ?? 0),
                 'stored_carrying_amount' => $this->num($p['CARRYING_AMOUNT'] ?? 0), 'commitments' => $this->num($p['NOT_YET_DISBURS'] ?? 0),
                 'overdue_days' => $dpd, 'overdue_principal_date' => $odDate, 'contract_status' => $master[$account]['STATUS_CODE'] ?? null,
+                'staging_dpd' => $stagingDpd, 'staging_dpd_basis' => $stagingBasis,
                 'industry_code' => $this->str($p['INDUSTRY_CODE'] ?? null), 'industry_type' => $this->str($p['IND_DESCR'] ?? null, 100),
                 'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'], 'build_flag' => $dpdFlag,
                 'build_basis' => ['run' => $run['query_id'] . ':' . $run['source_key'], 'run_date' => $this->date($p['TRANSACTION_DATE'] ?? ''), 'segment' => $p['SEG_MENT'] ?? null],
@@ -582,7 +585,7 @@ class LoanBookBuildService
             [$due, $dueSource] = $this->dueDate($p, $lm);
             $rate = $this->rateOn($account, $monthEnd, $p, $rates, $am);
             $arrears = $this->arrears($p);
-            [$dpd, $odDate, $dpdFlag] = $this->daysPastDue($p, $monthEnd, $arrears, $due, $carrying, $account);
+            [$dpd, $odDate, $dpdFlag, $stagingDpd, $stagingBasis] = $this->daysPastDue($p, $monthEnd, $arrears, $due, $carrying, $account);
             if ($dpdFlag !== null) {
                 $flags[] = $dpdFlag;
             }
@@ -600,6 +603,7 @@ class LoanBookBuildService
                 'disbursed' => $disbursed, 'repayments' => $receipts, 'carrying_amount' => $carrying, 'interest_to_date' => $interest,
                 'stored_carrying_amount' => $stored, 'commitments' => max(0.0, round($approved - $disbursed, 2)),
                 'overdue_days' => $dpd, 'overdue_principal_date' => $odDate, 'contract_status' => $this->statusOn($account, $monthEnd, $statuses, $am),
+                'staging_dpd' => $stagingDpd, 'staging_dpd_basis' => $stagingBasis,
                 'industry_code' => $this->str($p['INDUSTRY_CODE'] ?? ($lm['INDUSTRY_CODE'] ?? null)), 'industry_type' => $this->str($p['IND_DESCR'] ?? null, 100),
                 'build_method' => 'B', 'build_load_id' => $sum['load'] ?? ($run['load_id'] ?? null), 'build_source_key' => $run['source_key'] ?? null,
                 'build_flag' => $flags === [] ? null : implode('; ', $flags),
@@ -737,35 +741,59 @@ class LoanBookBuildService
     }
 
     /**
-     * Days past due under the governed basis (dpd_basis, decision D31): from
-     * the oldest overdue instalment (OVERDUE_PRINCI_DATE) as the directive
-     * counts, or the lower bound of the highest non-empty bucket.
+     * Two day counts (Staging Module Specification v1, section 5).
      *
-     * @return array{0:int,1:?string}
-     */
-    /**
-     * Days past due on the governed basis (dpd_basis), and the overdue date.
+     * The directive's count, into overdue_days, whatever the staging policy:
+     * from the oldest overdue instalment (OVERDUE_PRINCI_DATE), read against
+     * the instalment chart in force (againstTheChart), and from maturity when
+     * that is longer. A loan past its maturity date that still owes a balance
+     * has its whole balance overdue from maturity: the last instalment is
+     * unpaid, which is what the directive counts (spec 3.6). E-Banker's report
+     * leaves the arrears buckets and the overdue date empty on many such loans
+     * (the Mega Farm bullet loans, due once after harvest, read 0 days at
+     * December 2025 on 47 billion kwacha that matured in 2025). Results review,
+     * 13 October 2026. The RBM return and the RBM classification read only
+     * this count, so no staging setting can change them.
      *
-     * A loan past its maturity date that still owes a balance has its whole
-     * balance overdue from maturity: the last instalment is unpaid, which is
-     * what the directive counts (spec 3.6). E-Banker's report leaves the
-     * arrears buckets and the overdue date empty on many such loans (the Mega
-     * Farm bullet loans, due once after harvest, read 0 days at December 2025
-     * on 47 billion kwacha that matured in 2025), so the count from maturity
-     * is taken whenever it is the longer. Results review, 13 October 2026.
+     * The staging count, into staging_dpd with its basis in words, under the
+     * staging policy in force at the month-end (StagingPolicy): the bucket
+     * ageing or the oldest overdue instalment (dpd_basis), with or without the
+     * schedule correction (dpd_schedule_correction) and the count from
+     * maturity (dpd_after_maturity).
+     *
+     * @return array{0:int,1:?string,2:?string,3:int,4:string}
      */
     private function daysPastDue(array $p, string $monthEnd, array $arrears, ?string $maturity = null, float $balance = 0.0, ?string $account = null): array
     {
-        [$dpd, $odDate] = $this->daysPastDueReported($p, $monthEnd, $arrears);
-        [$dpd, $odDate, $flag] = $this->againstTheChart($account, $monthEnd, $dpd, $odDate, $balance, array_sum($arrears) > 0);
-        if ($maturity !== null && $balance > 0.005 && $maturity < $monthEnd) {
-            $sinceMaturity = (int) CarbonImmutable::parse($maturity)->diffInDays(CarbonImmutable::parse($monthEnd), false);
-            if ($sinceMaturity > $dpd) {
-                return [$sinceMaturity, $odDate === null || $odDate > $maturity ? $maturity : $odDate, $flag];
-            }
+        [$reported, $odDate] = $this->daysPastDueReported($p, $monthEnd, $arrears, true);
+        [$dpd, $odDate, $flag] = $this->againstTheChart($account, $monthEnd, $reported, $odDate, $balance, array_sum($arrears) > 0);
+        $recounted = $dpd;
+        $sinceMaturity = $maturity !== null && $balance > 0.005 && $maturity < $monthEnd
+            ? (int) CarbonImmutable::parse($maturity)->diffInDays(CarbonImmutable::parse($monthEnd), false) : 0;
+        if ($sinceMaturity > $dpd) {
+            [$dpd, $odDate] = [$sinceMaturity, $odDate === null || $odDate > $maturity ? $maturity : $odDate];
         }
 
-        return [$dpd, $odDate, $flag];
+        $policy = $this->stagingPolicy($monthEnd);
+        $oldest = ! $policy->bucketBasis();
+        [$staging] = $oldest ? [$reported] : $this->daysPastDueReported($p, $monthEnd, $arrears, false);
+        if ($policy->value('dpd_schedule_correction') === StagingPolicy::SCHEDULE_RECOUNT) {
+            // on the oldest-instalment basis the directive's own recount, before its maturity count
+            [$staging] = $oldest ? [$recounted] : $this->againstTheChart($account, $monthEnd, $staging, null, $balance, array_sum($arrears) > 0);
+        }
+        if ($policy->value('dpd_after_maturity') === StagingPolicy::MATURITY_COUNT) {
+            $staging = max($staging, $sinceMaturity);
+        }
+
+        return [$dpd, $odDate, $flag, $staging, $policy->dpdBasisLabel()];
+    }
+
+    /** @var array<string,StagingPolicy> the staging policy in force, by month-end */
+    private array $stagingPolicies = [];
+
+    private function stagingPolicy(string $monthEnd): StagingPolicy
+    {
+        return $this->stagingPolicies[$monthEnd] ??= StagingPolicy::at($this->governance, CarbonImmutable::parse($monthEnd));
     }
 
     private ?InstalmentChartHistory $charts = null;
@@ -777,7 +805,7 @@ class LoanBookBuildService
      * The reported ageing read against the instalment chart in force at the
      * month-end (verification of the PD, LGD and staging inputs, 14 October
      * 2026). Two E-Banker defects are corrected, each named on the row; any
-     * other reported ageing stands (dpd_basis).
+     * other reported ageing stands.
      *
      *   Nothing due yet. The report ages arrears from a date on which the
      *   chart in force schedules no instalment: on seven loans with a
@@ -823,16 +851,18 @@ class LoanBookBuildService
         return [$dpd, $odDate, null];
     }
 
-    private function daysPastDueReported(array $p, string $monthEnd, array $arrears): array
+    /**
+     * The reported ageing: from the oldest overdue instalment (OVERDUE_PRINCI_DATE),
+     * or, on the bucket basis or with no overdue date, the lower bound of the
+     * highest non-empty arrears bucket.
+     *
+     * @return array{0:int,1:?string}
+     */
+    private function daysPastDueReported(array $p, string $monthEnd, array $arrears, bool $oldest): array
     {
         $odDate = $this->date($p['OVERDUE_PRINCI_DATE'] ?? '');
         $inArrears = array_sum($arrears) > 0 || $this->num($p['ARREAS_TOTAL'] ?? 0) > 0;
-        // the governed basis, never assumed: with no approved value the build stops (decision D31)
-        $basis = $this->governance->get('dpd_basis', CarbonImmutable::parse($monthEnd));
-        if (! str_starts_with($basis, 'Oldest') && ! str_starts_with($basis, 'Bucket')) {
-            throw new RuntimeException("The governed days-past-due basis '{$basis}' is not one the build knows.");
-        }
-        if (str_starts_with($basis, 'Oldest') && $odDate !== null && $inArrears) {
+        if ($oldest && $odDate !== null && $inArrears) {
             return [max(0, CarbonImmutable::parse($odDate)->diffInDays(CarbonImmutable::parse($monthEnd), false)), $odDate];
         }
         foreach ([271 => 'arrears_271_to_360', 181 => 'arrears_180_to_270', 91 => 'arrears_91_to_180', 31 => 'arrears_30_to_90', 1 => 'arrears_1_to_30'] as $lower => $col) {

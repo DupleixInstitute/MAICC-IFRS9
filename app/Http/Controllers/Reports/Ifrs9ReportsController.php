@@ -140,7 +140,7 @@ class Ifrs9ReportsController extends Controller
                     'How much would ECL rise under a drought, a currency shock or a macro scenario?', ['PDF', 'Excel', 'CSV']),
                 $r('ews', 'alert', 'Which loans show warning signs before they default?'),
             ]],
-            ['key' => 'exports', 'name' => 'Exports', 'description' => "Data exports and the auditor's pack.", 'reports' => [
+            ['key' => 'exports', 'name' => 'Exports', 'description' => "Data exports and the auditor\'s pack.", 'reports' => [
                 $screen('loan-book-export', 'Loan book export', 'reports.loan-book-export', 'reports', 'download',
                     'The loan book between two periods, as a summary or loan by loan.', ['CSV']),
                 $screen('ecl-export', 'ECL export', 'reports.ecl-export', 'reports', 'download',
@@ -891,6 +891,19 @@ class Ifrs9ReportsController extends Controller
             ->map(fn ($r) => ['Stage ' . $r->s, $this->rbmClass((string) $r->s),
                 number_format($r->n), $this->money($r->ead)])->all();
 
+        // the loans whose stage and RBM class disagree on non-performing (Staging Module Specification v1,
+        // section 5): the class on the directive's count (overdue_days), the stage on the staging count
+        // (staging_dpd) under the staging policy in force, so a difference names both counts and the basis
+        $hasStagingDpd = Schema::hasColumn('loan_books', 'staging_dpd');
+        $disagree = DB::table('loan_books')->where('reporting_period', $period)
+            ->selectRaw('contract_id, customer_name, tenor, overdue_days, ifrs9stage_post_qualitative s, carrying_amount, ' . $this->rbmClassCase() . ' rbm'
+                . ($hasStagingDpd ? ', staging_dpd, staging_dpd_basis' : ', NULL staging_dpd, NULL staging_dpd_basis'))
+            ->orderByDesc('carrying_amount')->get()
+            ->filter(fn ($r) => (string) $r->s === '3' xor in_array($r->rbm, ['Substandard', 'Doubtful', 'Loss'], true))
+            ->map(fn ($r) => [$r->contract_id, (string) $r->customer_name, (int) $r->tenor . ' months', number_format((int) $r->overdue_days),
+                $r->staging_dpd === null ? '' : number_format((int) $r->staging_dpd), 'Stage ' . $r->s, $r->rbm, $this->money($r->carrying_amount),
+                (string) $r->staging_dpd_basis])->values()->all();
+
         return $this->respond(['key' => 'ifrs9-vs-rbm', 'period' => $period,
             'subtitle' => 'IFRS 9 stage mapped to RBM prudential classification',
             'kpis' => $this->totalsKpis($period),
@@ -899,6 +912,12 @@ class Ifrs9ReportsController extends Controller
                 'columns' => ['IFRS 9 Stage', 'RBM Classification', 'Loans', 'Exposure (EAD)'],
                 'align' => ['l', 'l', 'r', 'r'],
                 'rows' => $rows,
+            ], [
+                'heading' => 'Loans whose stage and RBM class disagree on non-performing',
+                'note' => 'A loan in Stage 3 that the directive does not class as non-performing (substandard, doubtful or loss), or the reverse. The RBM class is on the directive\'s day count, which the RBM return reads whatever the staging policy; the stage is on the staging day count of the staging policy in force, with its basis. The setting behind each difference is named by the staging comparison run.',
+                'columns' => ['Contract', 'Customer', 'Term', 'Days (directive)', 'Days (staging)', 'Stage', 'RBM class', 'Carrying amount', 'Staging count basis'],
+                'align' => ['l', 'l', 'r', 'r', 'r', 'l', 'l', 'r', 'l'],
+                'rows' => $disagree,
             ]]]);
     }
 

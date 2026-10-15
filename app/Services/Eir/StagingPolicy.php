@@ -184,6 +184,20 @@ final class StagingPolicy
         return $rowStage2;
     }
 
+    /**
+     * How the staging day count is counted under this policy, in words: the
+     * build writes it beside staging_dpd, and staging reads a row's staging_dpd
+     * only when it was counted on the basis in force at staging.
+     */
+    public function dpdBasisLabel(): string
+    {
+        return implode(', ', [
+            $this->bucketBasis() ? 'bucket ageing' : 'oldest overdue instalment',
+            $this->values['dpd_schedule_correction'] === self::SCHEDULE_RECOUNT ? 'recounted against the schedule in force' : 'core-system report as given',
+            $this->values['dpd_after_maturity'] === self::MATURITY_COUNT ? 'counted from maturity when longer' : 'core-system ageing after maturity',
+        ]);
+    }
+
     public function bucketBasis(): bool
     {
         return $this->values['dpd_basis'] === self::BASIS_BUCKET;

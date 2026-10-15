@@ -33,7 +33,7 @@ class SettingsController extends Controller
         'staging_threshold_profile' => 'The days past due at which a facility enters Stage 3: one threshold for all, by facility term, or the IFRS 9 90 days.',
         'stage2_threshold_medium_long' => 'The days past due at which a facility over 12 months enters Stage 2.',
         'staging_mega_farm_term' => 'Whether a Mega Farm loan is staged like any facility, by its tenor, or always as short-term.',
-        'dpd_basis' => 'Which date days past due are counted from when a month-end loan book is built.',
+        'dpd_basis' => 'How staging counts days past due: bucket ageing or the oldest overdue instalment. The RBM return always keeps the directive count.',
         'dpd_after_maturity' => 'Whether a matured loan with a balance counts its days from maturity.',
         'dpd_schedule_correction' => 'Whether the core system day count is recounted against the schedule in force.',
         'stage3_missed_instalments' => 'A loan that misses this many instalments in a row goes to Stage 3, whatever its days past due.',

@@ -181,9 +181,17 @@ const SOURCES = {
 }
 const SETTINGS = {
   loan_book_build_method: 'Loan book build method',
-  dpd_basis: 'Days past due basis',
+  staging_preset: 'Staging policy in force',
+  staging_threshold_profile: 'Stage 3 threshold profile',
+  stage2_threshold_medium_long: 'Stage 2 threshold over 12 months',
+  staging_mega_farm_term: 'Mega Farm facilities',
+  dpd_basis: 'Staging day count basis',
+  dpd_after_maturity: 'Days past due after maturity',
+  dpd_schedule_correction: 'Schedule correction of the day count',
   stage3_missed_instalments: 'Stage 3 after missed instalments',
+  sicr_qualitative_register: 'Qualitative SICR register',
   stage_cure_months: 'Months held after a loan cures',
+  stage_cure_test: 'What a loan must do to cure',
   stage3_interest_basis: 'Stage 3 interest basis',
   fli_adjustment_route: 'FLI adjustment route',
   fli_transmission_method: 'FLI transmission method',

@@ -40,6 +40,7 @@ class LoanBookBuildServiceTest extends TestCase
             foreach (['remaining_tenor', 'interest_rate', 'principal_balance', 'approved_amount', 'disbursed', 'repayments', 'carrying_amount', 'interest_to_date', 'stored_carrying_amount', 'commitments', 'facility_utilisation_rate', 'ead', 'ecl_value', 'pd_post_fli'] as $c) { $t->decimal($c, 20, 4)->nullable(); }
             $t->date('create_date')->nullable(); $t->date('due_date')->nullable(); $t->date('overdue_principal_date')->nullable();
             $t->string('build_method', 1)->nullable(); $t->text('build_basis')->nullable(); $t->timestamps();
+            $t->integer('staging_dpd')->nullable(); $t->string('staging_dpd_basis')->nullable();
             $t->unique(['contract_id', 'reporting_period']);
         });
         Schema::create('loan_book_builds', function (Blueprint $t) { $t->increments('id'); $t->string('method', 1); $t->string('period_from'); $t->string('period_to'); $t->string('status'); $t->integer('requested_by')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approver_label')->nullable(); $t->timestamp('approved_at')->nullable(); $t->timestamp('built_at')->nullable(); $t->text('pack_loads')->nullable(); $t->text('result')->nullable(); $t->text('note')->nullable(); $t->timestamps(); });
@@ -48,9 +49,9 @@ class LoanBookBuildServiceTest extends TestCase
             (require base_path("database/migrations/{$m}.php"))->up();
         }
         (new EbankerQuerySeeder())->run();
-        // the build reads its method and the days-past-due basis from the Governance Centre with no value in code
+        // the build reads its method and the staging policy (for the staging day count) from the Governance Centre with no value in code
         Schema::create('governance_settings', function (Blueprint $t) { $t->increments('id'); $t->string('key', 60); $t->string('value'); $t->text('options'); $t->string('label'); $t->text('description'); $t->string('effective_from'); $t->integer('set_by')->nullable(); $t->integer('approved_by')->nullable(); $t->string('approved_at')->nullable(); $t->string('reason', 500)->nullable(); $t->string('status', 20)->default('PROPOSED'); $t->timestamps(); });
-        foreach (['loan_book_build_method', 'dpd_basis'] as $key) {
+        foreach (array_merge(['loan_book_build_method', \App\Services\Eir\StagingPolicy::PRESET], array_keys(\App\Services\Eir\StagingPolicy::SETTINGS)) as $key) {
             $def = GovernanceService::catalogue()[$key];
             DB::table('governance_settings')->insert(['key' => $key, 'value' => $def['default'], 'options' => json_encode($def['options']), 'label' => $def['label'], 'description' => '', 'effective_from' => '1900-01-01', 'status' => 'APPROVED', 'created_at' => now(), 'updated_at' => now()]);
         }
@@ -333,6 +334,46 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertSame('2024-07-31', $row->overdue_principal_date);
         // the in-scope loan matures in 2026: its reported count stands
         $this->assertSame(61, (int) DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104420000005')->value('overdue_days'));
+    }
+
+    /**
+     * Staging Module Specification v1, section 5 and acceptance 6: the build keeps the
+     * directive's count in overdue_days whatever the staging policy, and writes the
+     * staging count beside it under the policy in force. The matured bullet loan reads
+     * 31 days from maturity for the RBM return under both policies; single-ladder
+     * staging reads the core system's empty buckets (0 days), directive-aligned
+     * staging the count from maturity. The RBM return is the same under both.
+     */
+    public function test_the_directive_count_and_the_rbm_return_do_not_move_with_the_staging_policy(): void
+    {
+        $m = '000104480000004';
+        $this->raw('MF_01', $m, $m, '2024-07-01', ['NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'CUSTOMER_ID' => '737', 'ACCOUNT_NAME' => 'Bullet Grower', 'STATUS_CODE' => 'A', 'INTEREST_RATE' => '15.00', 'ACCOUNT_OPEN_DATE' => '7/1/2024']);
+        $this->raw('MF_03', '903', $m, '2024-07-01', ['CUMVOUCH_DET_ID' => '903', 'NEW_AC_NUMBER' => $m, 'AC_GLCODE' => '1050301', 'TRANSACTION_DATE' => '7/1/2024', 'TRANSAMT' => '-300000.00', 'TRANTYPE' => '301', 'DELETE_FLAG' => 'N']);
+        $this->raw('MF_05', '7001', $m, '2024-08-31', ['LOAN_BOOK_DET_ID_A' => '7001', 'ASONDATE' => '8/31/2024', 'NEW_AC_NUMBER' => $m, 'GLCODE' => '1050301', 'MATURITY_DATE' => '7/31/2024',
+            'PRINCIPAL' => '300000.00', 'CARRYING_AMOUNT' => '300000.00', 'DAY_1_30' => '0.00', 'DAY_31_91' => '0.00', 'DAY_91_180' => '0.00', 'DAY_181_270' => '0.00', 'DAY_271_360' => '0.00', 'OVERDUE_PRINCI_DATE' => '']);
+        $book = fn () => DB::table('loan_books')->where('reporting_period', '2024-08')->orderBy('contract_id')->get(['contract_id', 'tenor', 'overdue_days', 'overdue_principal_date', 'staging_dpd', 'staging_dpd_basis'])->keyBy('contract_id');
+        $classes = fn ($rows) => $rows->map(fn ($r) => \App\Services\Rbm\RbmReturnService::classify((int) $r->overdue_days, (int) $r->tenor))->all();
+
+        // the seeded default: single-ladder staging
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $single = $book();
+        $this->assertSame(31, (int) $single['104480000004']->overdue_days);
+        $this->assertSame(0, (int) $single['104480000004']->staging_dpd);
+        $this->assertSame('bucket ageing, core-system report as given, core-system ageing after maturity', $single['104480000004']->staging_dpd_basis);
+
+        DB::table('governance_settings')->where('key', \App\Services\Eir\StagingPolicy::PRESET)->update(['value' => \App\Services\Eir\StagingPolicy::PRESET_DIRECTIVE]);
+        $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
+        $directive = $book();
+        $this->assertSame(31, (int) $directive['104480000004']->staging_dpd);
+        $this->assertSame('oldest overdue instalment, recounted against the schedule in force, counted from maturity when longer', $directive['104480000004']->staging_dpd_basis);
+        foreach ($directive as $contract => $r) {
+            // under the directive-aligned policy the staging count is the directive's own
+            $this->assertSame((int) $r->overdue_days, (int) $r->staging_dpd, $contract);
+        }
+
+        // acceptance 6: the count, the overdue date and so the RBM class of every loan are the same under both
+        $this->assertEquals($single->map(fn ($r) => [$r->overdue_days, $r->overdue_principal_date])->all(), $directive->map(fn ($r) => [$r->overdue_days, $r->overdue_principal_date])->all());
+        $this->assertSame($classes($single), $classes($directive));
     }
 
     /** A loan of 120,000 drawn 1 July 2024, its stored August run saying what $run says, and the chart rows given. */

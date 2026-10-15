@@ -24,7 +24,8 @@ use Throwable;
  * the directive-aligned policy turns on.
  *
  * Two triggers, both governed:
- *   days past due    counted on the governed basis (dpd_basis) by the build
+ *   days past due    the staging count the build wrote (staging_dpd) under the
+ *                    staging settings, or derived from the row (section 5)
  *                    and compared with the staging_thresholds row for the
  *                    facility class and tenor: the directive's 91 days for
  *                    short-term and Mega Farm facilities, 181 for medium and
@@ -94,13 +95,16 @@ class StagingService
         $cureMonths = $policy->cureMonths();
         $cureTest = $policy->cureTest();
         $qualitativeApplied = $policy->qualitativeApplied();
+        // the staging day count the build wrote (section 5), where the table has it
+        $stagingCount = \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'staging_dpd');
+        $basisInForce = $policy->dpdBasisLabel();
         $rows = DB::table('loan_books')->where('reporting_period', $period)
-            ->get(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360']);
+            ->get(array_merge(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'], $stagingCount ? ['staging_dpd', 'staging_dpd_basis'] : []));
         $asOf = $monthEnd->toDateString();
         $customers = $rows->pluck('customer_id', 'contract_id')->map(fn ($c) => $c === null ? null : (string) $c)->all();
         [$priorStage, $dpdHistory] = $this->priorMonths($period, $cureMonths, $customers, $qualitativeApplied);
         $qualMap = $qualitativeApplied ? $this->qualitative->mapAt($monthEnd->toDateString()) : [];
-        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0, 'instalments_no_chart' => 0, 'instalments_chart_contradicts_ledger' => 0];
+        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0, 'instalments_no_chart' => 0, 'instalments_chart_contradicts_ledger' => 0, 'staging_dpd_derived' => 0];
         $applied = [];
         $notEvaluated = [];
         $updates = [];
@@ -110,10 +114,16 @@ class StagingService
             // staged at 181 days instead of the directive's 91
             $megaFarm = str_contains(strtolower((string) $r->product_group), 'mega') || in_array((string) $r->product_code, \App\Services\MegaFarm\MegaFarmEclService::GLS, true);
             [$s2, $s3] = $this->thresholds($policy, $megaFarm, (int) $r->tenor, $monthEnd);
-            // the day count on the governed basis: the bucket ageing of the overdue amounts, or
-            // the build's count from the oldest overdue instalment (a row with no count, loaded by
-            // the report importer or the Mega Farm book, ages by bucket)
-            $dpd = $policy->bucketBasis() ? self::bucketDays($r) : self::daysPastDueOf($r);
+            // the staging day count (section 5): the build's staging_dpd when it was counted on the
+            // basis in force now; otherwise (a row the report importer or the Mega Farm book loaded,
+            // a book built before section 5, or a policy approved after the build) derived from the
+            // row on the governed basis, the bucket ageing or the build's directive count, and counted
+            if ($stagingCount && $r->staging_dpd !== null && $r->staging_dpd_basis === $basisInForce) {
+                $dpd = (int) $r->staging_dpd;
+            } else {
+                $dpd = $policy->bucketBasis() ? self::bucketDays($r) : self::daysPastDueOf($r);
+                $counts['staging_dpd_derived']++;
+            }
             if ($dpd > 0 && ($policy->bucketBasis() || (int) $r->overdue_days === 0)) { $counts['by_bucket']++; }
             $pre = $dpd >= $s3 ? 3 : ($dpd >= $s2 ? 2 : 1);
             $post = $pre;

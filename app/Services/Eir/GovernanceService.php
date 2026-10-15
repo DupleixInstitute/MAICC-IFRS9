@@ -422,10 +422,11 @@ class GovernanceService
                 'default' => 'Required',
             ],
             'dpd_basis' => [
-                'label' => 'Days-past-due basis',
-                'description' => 'The Reserve Bank\'s directive for development finance institutions counts days overdue from the instalment that fell due. The core system also ages the overdue amounts by bucket, and the two can differ on a partly cured account whose overdue date was never reset. The engine counts from the oldest unpaid instalment, as the directive does, and shows the bucket ageing beside it (spec v4 section 3.6, decision D31). This setting governs the build\'s day count, which the RBM return reads. Staging reads it only under the Custom preset; under a named staging policy the policy sets the staging basis (Staging Module Specification v1, section 3).',
-                'options' => ['Oldest overdue instalment (the directive)', 'Bucket ageing of the overdue amounts'],
-                'default' => 'Oldest overdue instalment (the directive)',
+                'label' => 'Staging day-count basis',
+                'description' => 'How staging counts days past due. The core system ages the overdue amounts by bucket, as MAIIC\'s staging policy as at 31 December 2025 did; the Reserve Bank\'s directive for development finance institutions counts from the oldest overdue instalment. The two differ on a partly cured account whose overdue date was never reset, and buckets cannot tell 200 days from 900. This setting governs staging only, and only under the Custom preset (under a named staging policy the policy sets it). The loan book always keeps the directive\'s count as well (overdue_days), which the RBM return and the RBM classification read whatever this setting says (Staging Module Specification v1, section 5; spec v4 section 3.6, decision D31).',
+                'options' => [StagingPolicy::BASIS_OLDEST, StagingPolicy::BASIS_BUCKET],
+                'default' => StagingPolicy::BASIS_BUCKET,
+                'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only by staging under the Custom preset; the RBM return always reads the directive\'s count (Staging Module Specification v1, sections 3 and 5).',
             ],
             'stage3_missed_instalments' => [
                 'label' => 'Missed-instalment trigger for Stage 3',
@@ -472,14 +473,14 @@ class GovernanceService
             ],
             'dpd_after_maturity' => [
                 'label' => 'Days past due after maturity',
-                'description' => 'A loan past its maturity date with a balance outstanding. Core-system ageing only reads the core system\'s day count, as MAIIC\'s staging policy as at 31 December 2025 did, so a matured loan whose instalments were rescheduled can read current. Count from maturity takes the days since maturity when that is longer, as the directive\'s classification by overdue period implies. Read only under the Custom preset; it takes effect on the staging day count in section 2 of the build.',
+                'description' => 'A loan past its maturity date with a balance outstanding. Core-system ageing only reads the core system\'s day count, as MAIIC\'s staging policy as at 31 December 2025 did, so a matured loan whose instalments were rescheduled can read current. Count from maturity takes the days since maturity when that is longer, as the directive\'s classification by overdue period implies. Read only under the Custom preset, for the staging day count (staging_dpd); the directive\'s count kept for the RBM return always counts from maturity.',
                 'options' => [StagingPolicy::MATURITY_CORE, StagingPolicy::MATURITY_COUNT],
                 'default' => StagingPolicy::MATURITY_CORE,
                 'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
             ],
             'dpd_schedule_correction' => [
                 'label' => 'Schedule correction of the day count',
-                'description' => 'Whether the core system\'s day count is taken as given, as MAIIC\'s staging policy as at 31 December 2025 did, or recounted against the instalment schedule in force and the ledger, which corrects a count left stale by a reschedule. Read only under the Custom preset; it takes effect on the staging day count in section 2 of the build.',
+                'description' => 'Whether the core system\'s day count is taken as given, as MAIIC\'s staging policy as at 31 December 2025 did, or recounted against the instalment schedule in force and the ledger, which corrects a count left stale by a reschedule. Read only under the Custom preset, for the staging day count (staging_dpd); the directive\'s count kept for the RBM return is always recounted.',
                 'options' => [StagingPolicy::SCHEDULE_AS_GIVEN, StagingPolicy::SCHEDULE_RECOUNT],
                 'default' => StagingPolicy::SCHEDULE_AS_GIVEN,
                 'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025). Read only under the Custom preset (Staging Module Specification v1, section 3).',
@@ -566,8 +567,6 @@ class GovernanceService
             'staging_rebuttal' => 'A rebuttal is a staging_thresholds row with its evidence, proposed and approved on Settings, Staging basis; this setting is not read.',
             'historic_materiality_assessment' => 'The historic materiality figure is not reproduced yet (O20).',
             'fee_reclass_journal' => 'No fee reclassification journal is proposed yet (O21).',
-            'dpd_after_maturity' => 'Staging reads the build\'s day count, which already counts from maturity on the build path; the separate staging day count that applies this setting comes in section 2 of the staging build.',
-            'dpd_schedule_correction' => 'Staging reads the build\'s day count, which already recounts against the schedule in force on the build path; the separate staging day count that applies this setting comes in section 2 of the staging build.',
             'sicr_pd_change' => 'No loan\'s PD at origination is kept yet, so the PD-change test is not built; staging never applies it.',
         ];
     }
