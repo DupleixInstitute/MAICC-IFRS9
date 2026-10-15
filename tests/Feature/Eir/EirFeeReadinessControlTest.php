@@ -102,7 +102,7 @@ class EirFeeReadinessControlTest extends TestCase
             'classification_status' => 'PENDING', 'created_at' => now(), 'updated_at' => now()]);
     }
 
-    public function test_precedence_is_per_fee_event_a_partial_source_never_suppresses_another_fee(): void
+    public function test_a_fee_type_the_gl_does_not_hold_waits_for_a_person_when_the_totals_differ(): void
     {
         $gl = $this->fee('900000000201', 'arrangement', 4_800_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_GL, '2025-06-19');
         $losArr = $this->fee('900000000201', 'arrangement', 4_500_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_LOS, null);
@@ -111,11 +111,51 @@ class EirFeeReadinessControlTest extends TestCase
         $r = app(\App\Services\Eir\FeeSourcePrecedence::class)->apply(1);
 
         $this->assertSame('GL posting', DB::table('contract_fees')->where('id', $losArr)->value('superseded_by_source'), 'the same event: the source of record wins');
-        $this->assertNull(DB::table('contract_fees')->where('id', $losLegal)->value('superseded_by_source'), 'a fee type the GL does not hold stands (it was suppressed per contract before R03)');
+        $legal = DB::table('contract_fees')->where('id', $losLegal)->first();
+        $this->assertNull($legal->superseded_by_source, 'never silently dropped');
+        $this->assertNotNull($legal->source_overlap, 'nor silently counted: the totals differ, so a person decides');
         $this->assertNull(DB::table('contract_fees')->where('id', $gl)->value('superseded_by_source'));
-        $this->assertSame(0, $r['overlaps']);
+        $this->assertSame(1, $r['overlaps']);
         $d = DB::table('fee_source_differences')->first();
         $this->assertSame([$gl, $losArr, -300000.0], [(int) $d->record_fee_id, (int) $d->other_fee_id, (float) $d->difference], 'the difference is stored per event');
+    }
+
+    /** The Food Empire case of the 15 October impact report: the LOS splits the GL legal posting into legal and other. */
+    public function test_lines_that_total_the_source_of_record_are_the_same_money_whatever_their_types(): void
+    {
+        $gl = \App\Services\Eir\FeeSourcePrecedence::SOURCE_GL;
+        $los = \App\Services\Eir\FeeSourcePrecedence::SOURCE_LOS;
+        $this->fee('900000000203', 'arrangement', 30_000_000, $gl, '2025-11-24');
+        $this->fee('900000000203', 'legal', 15_790_600, $gl, '2025-11-24');
+        $ids = [$this->fee('900000000203', 'arrangement', 30_000_000, $los, null), $this->fee('900000000203', 'legal', 10_000_000, $los, null),
+            $this->fee('900000000203', 'other', 5_790_600, $los, null)];
+
+        $r = app(\App\Services\Eir\FeeSourcePrecedence::class)->apply(1);
+
+        $this->assertSame(['GL posting', 'GL posting', 'GL posting'], DB::table('contract_fees')->whereIn('id', $ids)->orderBy('id')->pluck('superseded_by_source')->all(), 'no part of it is counted twice');
+        $this->assertSame([0, 3], [$r['overlaps'], $r['tied_by_total']]);
+        $this->assertSame(0, DB::table('fee_source_differences')->count(), 'a different split by type is not a difference');
+    }
+
+    public function test_a_line_in_a_month_the_source_of_record_does_not_cover_stands(): void
+    {
+        $precedence = app(\App\Services\Eir\FeeSourcePrecedence::class);
+        $precedence->recordCoverage(\App\Services\Eir\FeeSourcePrecedence::TIER_GL, '2024-10', '2025-06', 'GL fee build', 1, true);
+        $this->fee('900000000204', 'arrangement', 1_000_000, \App\Services\Eir\FeeSourcePrecedence::SOURCE_GL, '2025-01-10');
+        $before = $this->fee('900000000204', 'legal', 400_000, 'MAIIC Finance EIR assessment 2024', '2024-05-20');
+        $after = $this->fee('900000000204', 'arrangement', 600_000, 'MAIIC Finance EIR assessment 2025', '2025-11-30');
+
+        $r = $precedence->apply(1);
+
+        foreach ([$before, $after] as $id) {
+            $row = DB::table('contract_fees')->where('id', $id)->first();
+            $this->assertSame([null, null], [$row->superseded_by_source, $row->source_overlap], 'the GL holds no evidence for that month: the workbook line is the only one');
+        }
+        $this->assertSame([2, 0], [$r['outside_coverage'], $r['overlaps']]);
+
+        $precedence->recordCoverage(\App\Services\Eir\FeeSourcePrecedence::TIER_GL, '2024-10', '2025-12', 'GL fee build', 1, true);
+        $this->assertSame(1, $precedence->apply(1)['overlaps'], 'once the GL covers November 2025, the line waits for a person');
+        $this->assertSame(1, DB::table('fee_source_coverage')->count(), 'the GL build replaces its span');
     }
 
     public function test_a_fee_of_another_period_is_an_overlap_that_waits_for_a_person(): void

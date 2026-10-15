@@ -174,6 +174,11 @@ class ProcessEirImportJob implements ShouldQueue
                     "Finance fee workbook {$this->originalName}, row {$t['row']}: the line accounts for this GL posting ({$t['posting']}, amount, GL and date)");
                 $tied++;
             }
+            if ($tie['coverage'] !== []) {
+                // the months the file accounts for: Finance's lines are the source of record only for those (per-period precedence)
+                $precedence->recordCoverage(FeeSourcePrecedence::TIER_FINANCE, min(array_column($tie['coverage'], 0)), max(array_column($tie['coverage'], 1)),
+                    "Finance fee workbook {$this->originalName}", $user);
+            }
             $result['precedence'] = array_diff_key($precedence->apply($user), ['exceptions' => 1]);
             $notes = [];
             foreach ($tie['lines'] as $l) {

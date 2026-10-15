@@ -76,20 +76,30 @@ class FeeSourcePrecedence
     }
 
     /**
-     * Resolve each fee event to one source (R03, 15 October 2026; it was one source per contract).
+     * Resolve each fee event to one source (R03 and the per-period rule, 15 October 2026; it was one source per contract).
      *
-     * For each contract and fee type, the highest source holding a line of that type is the source of
-     * record. Each line of a lower source is paired with one of its lines for the same event: by date
-     * (within EVENT_WINDOW_DAYS) where both are dated, otherwise by amount (equal first, then the nearest).
-     * A paired line is superseded (kept and shown, never entering the EIR, never counted again by the fee
-     * GL check) and any difference of amount is stored in fee_source_differences. A lower line with no
-     * pair while the source of record holds that fee type is an overlap: it is not superseded, it is
-     * marked (source_overlap) and it blocks the loan's EIR until a person decides, with the reason,
-     * whether it is a fee of its own or the same fee (fee_source_decisions). A fee type the source of
-     * record does not hold is never suppressed: the lower source stands for it (a missing row is not a
-     * confirmed zero). Nothing is deleted; a superseded line comes back when the line it paired with goes.
+     * For each contract the highest source holding a line is the source of record; its lines always stand.
+     * Each lower source is then compared with it, fee event by fee event, across all fee types (the GL and
+     * the LOS split the same money into different types, so a type-by-type comparison counts it twice):
      *
-     * @return array{order:list<string>, contracts:int, superseded_lines:int, restored_lines:int, overlaps:int, by_winner:array<string,int>, exceptions:list<array>}
+     *  1. A lower line dated in a month the source of record does not cover (fee_source_coverage) stands:
+     *     the source of record has no evidence for that period. A tier with no coverage recorded is taken
+     *     to cover every month (fail closed).
+     *  2. The remaining lower lines and the source of record's lines fall into fee events: dated lines
+     *     within EVENT_WINDOW_DAYS of each other are one event; an undated line makes the contract one event.
+     *  3. Where the lower lines of an event total the source of record's lines of that event (to the cent),
+     *     they are the same money: every one is superseded and no difference is recorded.
+     *  4. Otherwise each lower line is paired with a line of record of its own fee type (by date, else by
+     *     amount): a paired line is superseded and any difference of amount is stored in
+     *     fee_source_differences. An unpaired line is an overlap: not superseded, marked (source_overlap),
+     *     and it blocks the loan's EIR until a person decides, with the reason, whether it is a fee of its
+     *     own or the same fee (fee_source_decisions). An event where the source of record holds no line
+     *     at all is an overlap too: a missing row is not a confirmed zero, nor a confirmed fee.
+     *
+     * A superseded line is kept and shown, never entering the EIR, never counted again by the fee GL check;
+     * nothing is deleted, and a superseded line comes back when the line it paired with goes.
+     *
+     * @return array{order:list<string>, contracts:int, superseded_lines:int, restored_lines:int, overlaps:int, tied_by_total:int, outside_coverage:int, by_winner:array<string,int>, exceptions:list<array>}
      */
     public function apply(?int $userId = null): array
     {
@@ -104,9 +114,10 @@ class FeeSourcePrecedence
         }
         $lines = DB::table('contract_fees')->orderBy('contract_id')->orderBy('id')->get($cols)->groupBy('contract_id');
         $decisions = $schema->hasTable('fee_source_decisions') ? DB::table('fee_source_decisions')->pluck('decision', 'contract_fee_id')->all() : [];
+        $coverage = $this->coverage();
 
-        $superseded = 0; $restored = 0; $overlaps = 0; $byWinner = []; $exceptions = [];
-        DB::transaction(function () use ($lines, $rank, $now, $decisions, $hasOverlap, &$superseded, &$restored, &$overlaps, &$byWinner, &$exceptions) {
+        $superseded = 0; $restored = 0; $overlaps = 0; $tiedByTotal = 0; $outside = 0; $byWinner = []; $exceptions = [];
+        DB::transaction(function () use ($lines, $rank, $now, $decisions, $hasOverlap, $coverage, &$superseded, &$restored, &$overlaps, &$tiedByTotal, &$outside, &$byWinner, &$exceptions) {
             $set = function (object $r, ?string $by, ?string $overlap) use ($now, $hasOverlap, &$superseded, &$restored) {
                 $changes = [];
                 if ($r->superseded_by_source !== $by) {
@@ -121,39 +132,62 @@ class FeeSourcePrecedence
                 }
             };
             foreach ($lines as $contractId => $rows) {
-                foreach ($rows->groupBy(fn ($r) => strtolower((string) $r->fee_type)) as $type => $typed) {
-                    $tiered = $typed->filter(fn ($r) => self::tierOf($r->source_system) !== null);
-                    if ($tiered->isEmpty()) {
-                        continue;
+                $tiered = $rows->filter(fn ($r) => self::tierOf($r->source_system) !== null);
+                if ($tiered->isEmpty()) {
+                    continue;
+                }
+                $winner = $tiered->map(fn ($r) => self::tierOf($r->source_system))->unique()->sortBy(fn ($t) => $rank[$t])->first();
+                $byWinner[$winner] = ($byWinner[$winner] ?? 0) + 1;
+                $record = $tiered->filter(fn ($r) => self::tierOf($r->source_system) === $winner)->values()->all();
+                foreach ($record as $r) {
+                    $set($r, null, null);
+                }
+                foreach ($tiered->filter(fn ($r) => self::tierOf($r->source_system) !== $winner)->groupBy(fn ($r) => self::tierOf($r->source_system)) as $tier => $lower) {
+                    $open = [];
+                    foreach ($lower as $r) {
+                        if (($decisions[$r->id] ?? null) === 'SEPARATE') {
+                            $set($r, null, null);
+                        } elseif ($r->transaction_date !== null && ! self::covers($coverage[$winner] ?? [], substr((string) $r->transaction_date, 0, 7))) {
+                            $set($r, null, null); // the source of record does not cover this month: this line is the only evidence
+                            $outside++;
+                        } else {
+                            $open[] = $r;
+                        }
                     }
-                    $winner = $tiered->map(fn ($r) => self::tierOf($r->source_system))->unique()->sortBy(fn ($t) => $rank[$t])->first();
-                    $byWinner[$winner] = ($byWinner[$winner] ?? 0) + 1;
-                    $record = $tiered->filter(fn ($r) => self::tierOf($r->source_system) === $winner)->values();
-                    foreach ($record as $r) {
-                        $set($r, null, null);
-                    }
-                    foreach ($tiered->filter(fn ($r) => self::tierOf($r->source_system) !== $winner)->groupBy(fn ($r) => self::tierOf($r->source_system)) as $tier => $lower) {
-                        $free = $record->keyBy('id')->all();
-                        foreach ($lower as $r) {
-                            $decision = $decisions[$r->id] ?? null;
-                            if ($decision === 'SEPARATE') {
-                                $set($r, null, null);
-                                continue;
+                    foreach (self::events($open, $record) as [$event, $ofRecord]) {
+                        $lowerTotal = array_sum(array_map(fn ($r) => (float) $r->amount, $event));
+                        $recordTotal = array_sum(array_map(fn ($r) => (float) $r->amount, $ofRecord));
+                        if ($ofRecord !== [] && abs($lowerTotal - $recordTotal) < 0.01) {
+                            foreach ($event as $r) {
+                                $set($r, $winner, null);
                             }
-                            $pair = $this->pairFor($r, $free);
-                            if ($pair === null && $decision !== 'SAME') {
-                                $set($r, null, "No {$winner} line for this {$type} fee event, although {$winner} holds {$type} fees for the loan: a person decides whether it is a fee of its own or the same fee as one of record.");
+                            $tiedByTotal += count($event);
+                            continue;
+                        }
+                        $free = [];
+                        foreach ($ofRecord as $c) {
+                            $free[$c->id] = $c;
+                        }
+                        foreach ($event as $r) {
+                            $type = strtolower((string) $r->fee_type);
+                            $pair = $this->pairFor($r, array_filter($free, fn ($c) => strtolower((string) $c->fee_type) === $type));
+                            if ($pair === null) {
+                                if (($decisions[$r->id] ?? null) === 'SAME') {
+                                    $set($r, $winner, null);
+                                    continue;
+                                }
+                                $set($r, null, $ofRecord === []
+                                    ? "No {$winner} line for this fee event, although {$winner} covers its month and holds fees for the loan: a person decides whether it is a fee of its own or the same fee as one of record."
+                                    : "The {$tier} lines of this fee event total " . number_format($lowerTotal, 2) . " against {$winner} " . number_format($recordTotal, 2) . ", and no {$winner} {$type} line pairs with this one: a person decides whether it is a fee of its own or the same fee as one of record.");
                                 $overlaps++;
                                 continue;
                             }
                             $set($r, $winner, null);
-                            if ($pair !== null) {
-                                unset($free[$pair->id]);
-                                if (abs((float) $pair->amount - (float) $r->amount) >= 0.01) {
-                                    $exceptions[] = ['contract_id' => (string) $contractId, 'fee_type' => $type, 'record_fee_id' => (int) $pair->id, 'source_of_record' => $winner,
-                                        'amount_of_record' => round((float) $pair->amount, 2), 'other_fee_id' => (int) $r->id, 'other_source' => $tier,
-                                        'other_amount' => round((float) $r->amount, 2), 'difference' => round((float) $r->amount - (float) $pair->amount, 2)];
-                                }
+                            unset($free[$pair->id]);
+                            if (abs((float) $pair->amount - (float) $r->amount) >= 0.01) {
+                                $exceptions[] = ['contract_id' => (string) $contractId, 'fee_type' => $type, 'record_fee_id' => (int) $pair->id, 'source_of_record' => $winner,
+                                    'amount_of_record' => round((float) $pair->amount, 2), 'other_fee_id' => (int) $r->id, 'other_source' => $tier,
+                                    'other_amount' => round((float) $r->amount, 2), 'difference' => round((float) $r->amount - (float) $pair->amount, 2)];
                             }
                         }
                     }
@@ -167,7 +201,8 @@ class FeeSourcePrecedence
             }
         });
 
-        $result = ['order' => $order, 'contracts' => count($lines), 'superseded_lines' => $superseded, 'restored_lines' => $restored, 'overlaps' => $overlaps, 'by_winner' => $byWinner, 'exceptions' => $exceptions];
+        $result = ['order' => $order, 'contracts' => count($lines), 'superseded_lines' => $superseded, 'restored_lines' => $restored, 'overlaps' => $overlaps,
+            'tied_by_total' => $tiedByTotal, 'outside_coverage' => $outside, 'by_winner' => $byWinner, 'exceptions' => $exceptions];
         AuditLoggerService::log('Fee Source Precedence Applied', 'contract_fees', null, ['new_values' => array_diff_key($result, ['exceptions' => 1]) + ['exception_count' => count($exceptions)], 'meta' => ['user' => $userId]]);
 
         return $result;
@@ -175,6 +210,45 @@ class FeeSourcePrecedence
 
     /** The days within which two dated lines of different sources are the same fee event. */
     public const EVENT_WINDOW_DAYS = 120;
+
+    /**
+     * The fee events of one lower source against the source of record: each a pair [lower lines, lines of
+     * record]. Dated lines within EVENT_WINDOW_DAYS of each other (of either source) chain into one event;
+     * an undated line on either side makes the whole contract one event, since it cannot be placed.
+     *
+     * @param  list<object>  $lower
+     * @param  list<object>  $record
+     * @return list<array{0:list<object>,1:list<object>}>
+     */
+    private static function events(array $lower, array $record): array
+    {
+        if ($lower === []) {
+            return [];
+        }
+        $undated = fn ($r) => $r->transaction_date === null;
+        if (array_filter($lower, $undated) !== [] || array_filter($record, $undated) !== []) {
+            return [[$lower, $record]];
+        }
+        $all = array_merge(array_map(fn ($r) => ['l', $r], $lower), array_map(fn ($r) => ['r', $r], $record));
+        usort($all, fn ($a, $b) => [(string) $a[1]->transaction_date, $a[1]->id] <=> [(string) $b[1]->transaction_date, $b[1]->id]);
+        $events = [];
+        $current = null;
+        $last = null;
+        foreach ($all as [$side, $r]) {
+            $date = CarbonImmutable::parse($r->transaction_date);
+            if ($current === null || abs($last->diffInDays($date)) > self::EVENT_WINDOW_DAYS) {
+                if ($current !== null) {
+                    $events[] = $current;
+                }
+                $current = [[], []];
+            }
+            $current[$side === 'l' ? 0 : 1][] = $r;
+            $last = $date;
+        }
+        $events[] = $current;
+
+        return array_values(array_filter($events, fn ($e) => $e[0] !== []));
+    }
 
     /** The source of record's line this lower line is the same event as, or null (dated: nearest date within the window; else amount). */
     private function pairFor(object $r, array $free): ?object
@@ -198,6 +272,58 @@ class FeeSourcePrecedence
         usort($all, fn ($a, $b) => abs((float) $a->amount - (float) $r->amount) <=> abs((float) $b->amount - (float) $r->amount));
 
         return $all[0];
+    }
+
+    /** @return array<string, list<array{0:string,1:string}>> the months each tier covers, as [from, to] spans (fee_source_coverage) */
+    public function coverage(): array
+    {
+        if (! DB::getSchemaBuilder()->hasTable('fee_source_coverage')) {
+            return [];
+        }
+        $out = [];
+        foreach (DB::table('fee_source_coverage')->orderBy('id')->get(['tier', 'month_from', 'month_to']) as $c) {
+            $out[$c->tier][] = [$c->month_from, $c->month_to];
+        }
+
+        return $out;
+    }
+
+    /** Whether a month (YYYY-MM) falls in a tier's spans; a tier with no span recorded covers every month (fail closed). */
+    public static function covers(array $spans, string $month): bool
+    {
+        if ($spans === []) {
+            return true;
+        }
+        foreach ($spans as [$from, $to]) {
+            if ($month >= $from && $month <= $to) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Record the months a source was delivered for. replace: the tier's earlier rows go (the GL fee build
+     * rewrites its span from the landing zone each time); otherwise the span is added (each Finance load).
+     */
+    public function recordCoverage(string $tier, string $from, string $to, string $origin, ?int $userId = null, bool $replace = false): void
+    {
+        if (! in_array($tier, [self::TIER_GL, self::TIER_FINANCE, self::TIER_LOS, self::TIER_EXTRACT_A], true)
+            || ! preg_match('/^\d{4}-\d{2}$/', $from) || ! preg_match('/^\d{4}-\d{2}$/', $to) || $from > $to) {
+            throw new InvalidArgumentException("Coverage {$tier} {$from} to {$to} is not a tier with a span of months.");
+        }
+        if (! DB::getSchemaBuilder()->hasTable('fee_source_coverage')) {
+            return;
+        }
+        DB::transaction(function () use ($tier, $from, $to, $origin, $userId, $replace) {
+            if ($replace) {
+                DB::table('fee_source_coverage')->where('tier', $tier)->delete();
+            }
+            DB::table('fee_source_coverage')->insert(['tier' => $tier, 'month_from' => $from, 'month_to' => $to, 'origin' => mb_substr($origin, 0, 255),
+                'recorded_by' => $userId, 'created_at' => now(), 'updated_at' => now()]);
+        });
+        AuditLoggerService::log('Fee Source Coverage Recorded', 'fee_source_coverage', null, ['new_values' => compact('tier', 'from', 'to', 'origin', 'replace'), 'meta' => ['user' => $userId]]);
     }
 
     /** A person decides an overlap: SEPARATE (a fee of its own) or SAME (the same fee as the source of record's), with the reason. */

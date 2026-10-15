@@ -50,7 +50,7 @@
 
         <!-- overlaps: lower-source lines the source of record has no event for (R03) -->
         <div v-else-if="tab === 'overlaps'">
-            <p class="px-5 py-2 text-xs text-gray-500 dark:text-slate-400">A fee line from a lower source that matches no fee of the source of record, although that source holds this fee type for the loan. The loan's EIR waits until a person decides: a fee of its own (it stands, for classification and review), or the same fee as one of record (it is superseded).</p>
+            <p class="px-5 py-2 text-xs text-gray-500 dark:text-slate-400">A fee line from a lower source that matches no fee of the source of record, in a month that source covers, where the two sources do not total the same for the fee event. The loan's EIR waits until a person decides: a fee of its own (it stands, for classification and review), or the same fee as one of record (it is superseded).</p>
             <div class="maiic-table-wrap">
                 <table class="maiic-table">
                     <thead><tr><th>Loan</th><th>Fee type</th><th>Source</th><th>Date</th><th class="num">Amount</th><th>Why it waits</th><th v-if="canGovern" class="text-right">Decision</th></tr></thead>
@@ -75,7 +75,7 @@
 
         <!-- source differences -->
         <div v-else>
-            <p class="px-5 py-2 text-xs text-gray-500">One fee, one source: for each loan the source of record wins and the other sources' lines are kept but left out of the EIR. Where the other source carries a different amount, Finance checks the difference here.</p>
+            <p class="px-5 py-2 text-xs text-gray-500">One fee, one source: for each loan and fee event the source of record wins; the other sources' lines that total the same money are kept but left out of the EIR. Where a line of the same fee type carries a different amount, Finance checks the difference here.</p>
             <div class="maiic-table-wrap">
                 <table class="maiic-table">
                     <thead><tr><th>Loan</th><th>Fee type</th><th>Source of record</th><th class="num">Amount of record</th><th>Other source</th><th class="num">Other amount</th><th class="num">Difference</th></tr></thead>

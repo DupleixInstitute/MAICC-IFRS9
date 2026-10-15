@@ -141,6 +141,11 @@ class GlFeeBuildService
             return $result;
         });
 
+        if ($legs !== []) {
+            // the months the GL fee legs span: the GL is the source of record only for those (per-period precedence)
+            $this->precedence->recordCoverage(FeeSourcePrecedence::TIER_GL, substr($legs[0]['date'], 0, 7), substr(max(array_column($legs, 'date')), 0, 7),
+                'GL fee build from ' . implode(', ', self::GL_FEE_LEGS), $userId, true);
+        }
         $precedence = $this->precedence->apply($userId);
         $out = [
             'legs' => count($legs),
