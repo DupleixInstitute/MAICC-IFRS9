@@ -109,6 +109,12 @@ The comparison run answers one question: *what would this month's stages and ECL
 
 A summary gives the count and carrying amount moving between each pair of stages, the ECL effect in total and by reason, and the effect on Stage 3 interest. It is on the Staging & SICR Rules screen, it can be exported, and it is shown on each month's audit workbook.
 
+**How the figures are worked out** (decided by Edward Mazibuko, 15 October 2026):
+
+- **The ECL effect is an estimate.** The booked ECL exists only at the booked stage, so a loan that moves is given the booked coverage of its new stage: the ECL over EAD of the loans booked in that stage in the same portfolio (or in the whole book, where the portfolio has none), applied to the loan's own EAD. A loan that does not move keeps its booked ECL. This shows the direction and size of the change; it is not a full ECL run, and nothing booked is affected by it.
+- **The cure reads the earlier months as booked.** The comparison answers what would change if the policy were adopted from the month compared, and months before adoption stay as booked.
+- **The day counts are exact.** The build keeps each loan's component counts (oldest overdue instalment and bucket ageing, each as reported and recounted, and the days since maturity), so any mix of settings is counted exactly, and the reason for a difference is never given to the wrong setting.
+
 **Uses.** It shows each month what adopting directive-aligned staging would change. It reproduces the December 2025 method on the system's data for comparison with the workbooks. And it lets a single setting be tested before it is proposed.
 
 ## 5. Staging and the RBM return stay separate
