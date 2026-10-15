@@ -231,6 +231,7 @@ Outside the Governance Centre, about twenty other workflows decide something tha
 | Loan book build | Accepting a month's built loan book | Approve, reject; logged | Documents; history | No |
 | Period lock and unlock | Closing a month; reopening a closed one | Lock; unlock by request, approved or rejected; second person; logged | Documents on an unlock; history | Yes, for an unlock: the reason and the approval to restate |
 | Compliance audit sign-offs | A reviewer's sign-off of an audit row | Sign and approve; logged | Reject with a reason; documents; history | No |
+| Forward-looking month-end sign-off | Signing off a month's forward-looking record (route, scenarios, discounted ECL) | Sign off; the person who recorded the month cannot sign it; logged | Reject with a reason; documents; history | Only a commentary where the movement is outside tolerance (already required) |
 | Macro data overrides | A manual value replacing an imported one | Entered with a reason; logged | Second-person approval; documents; history | Yes: the source of the value |
 
 ### 8.7 One register of approvals
@@ -264,21 +265,27 @@ The following closes those gaps.
 
 During user acceptance testing one administrator needs to move through the workflows without waiting for a second person each time, and at handover the two-person rule must be fully back on. The system already has the switch, but only part of the system honours it and nothing makes it safe to use.
 
-**What exists today.** The governed setting `maker_checker_admin_override` (*Not allowed*, the default, or *Allowed for administrators*) lets a user with the admin role approve their own proposal. Six workflows honour it: Governance Centre settings, the EIR lock, fee classification review, SICR triggers, rate resets and the restructure register. The other workflows of section 8.6 refuse a self-approval whatever the setting says, and the fee rulebook has no maker-checker at all until phase 3. The bootstrap approves its own steps under the label "System Bootstrap (automated data-readiness, not a MAIIC approval)", so checking the month-end results needs no human approvals; the override matters only for testing the screens and workflows themselves.
+**What exists today** (read from the code on 15 October 2026). The governed setting `maker_checker_admin_override` (*Not allowed*, the default, or *Allowed for administrators*) lets a user with the admin role approve their own proposal. Each workflow carries its own self-approval check, worded and coded separately:
 
-**What is missing.** Switching the override on is itself a governed change and needs a second person the first time. Nothing stops it being left on in production. A self-approval is not marked as one. Nothing on screen shows that the two-person rule is relaxed.
+| Honours the override today (6) | Refuses a self-approval whatever the setting (14) | No maker-checker yet (2) |
+|---|---|---|
+| Governance Centre settings; EIR lock; fee classification review; SICR triggers; rate resets; restructure register | Staging thresholds; EIR reopen; period unlock; write-offs; take-on build; loan book build (approve and reject); schedule approval; compliance audit sign-off; scenario sets; forward-looking overlays; forward-looking fits; external forward-looking models; forward-looking month-end sign-off; the legacy regression screen | Fee rulebook (phase 3); macro data overrides (phase 4) |
+
+The bootstrap approves its own steps under the label "System Bootstrap (automated data-readiness, not a MAIIC approval)", so checking the month-end results needs no human approvals; the override matters only for testing the screens and workflows themselves. The bootstrap label stays as it is and is not the override.
+
+**What is missing.** Switching the override on is itself a governed change and needs a second person the first time. Nothing stops it being left on in production. A self-approval is not marked as one. Nothing on screen shows that the two-person rule is relaxed. And the installation guide sets `APP_ENV=production` on MAIIC's server, which is where UAT is run.
 
 **What UAT mode adds:**
 
 | # | Piece | Why |
 |---|---|---|
-| 1 | **One maker-checker check for every workflow.** The Governance Centre and every workflow of section 8.6 use one shared check, and each honours the override in the same way | Today 6 of about 20 honour it |
-| 2 | **A server guard.** The override can work only when the server's environment file declares a non-production environment (for example `APP_ENV=uat`) **and** the governed setting allows it. Under a production environment it is refused whatever the setting says, and the option cannot be approved there | It cannot be left on, or switched on, in production |
-| 3 | **Seeded in UAT.** Installing the UAT environment seeds the override as allowed, labelled as seeded for UAT, so no second person is needed to start | Removes the first-switch problem |
-| 4 | **Every self-approval labelled.** The record and the audit entry say "UAT self-approval (administrator override)", with the override setting in force (the "Override used" event of section 8.2) | A test approval can always be told from a real one |
-| 5 | **A banner on every screen** while the override is in force: *"UAT mode: maker-checker relaxed for administrators"* | Nobody mistakes UAT for live use |
-| 6 | **A self-approvals report** of everything decided under the override, by workflow, person and date, exportable | Shows at handover exactly what was approved without a second person |
-| 7 | **Handover.** The production database starts clean, so UAT approvals never carry into it. If a UAT database were ever promoted to production, every item on the self-approvals report must be re-approved by two people first. Switching the override off is an ordinary governed change with a second person, recorded with the handover sign-off and its documents | The two-person rule is fully on from the first day of live use |
+| 1 | **One maker-checker check for every workflow.** The 20 checks above call one shared check, which decides whether a self-approval is allowed. Each keeps its own message. The fee rulebook and the macro data overrides use the same check when they gain maker-checker (phases 3 and 4) | Today 6 of 20 honour the override, each in its own way |
+| 2 | **A server guard.** The override can work only when the server's environment file declares a non-production environment (`APP_ENV` other than `production`, for example `uat`) **and** the governed setting allows it. Under a production environment a self-approval is refused whatever the setting says, and *Allowed for administrators* cannot be proposed or approved there. **During UAT, MAIIC's server runs with `APP_ENV=uat`; at handover MAIIC ICT sets `APP_ENV=production`** as the installation guide says (decision S11) | It cannot be left on, or switched on, in production |
+| 3 | **Switched on for UAT without a second person, only from the server.** A fresh install under a non-production environment seeds the override as allowed, labelled as seeded for UAT. On an existing database (MAIIC's server, where the setting already exists) the console command `governance:uat-mode on` writes the approved value, labelled "Switched on for UAT from the server console", audit-logged with the person and the environment. It works only under a non-production environment. `governance:uat-mode off` works under any environment | Removes the first-switch problem; only someone with server access can do it |
+| 4 | **Every self-approval recorded as one.** Each approval made under the override writes one audit entry, "Maker-checker override used", naming the workflow, the record, the person and the setting in force (the "Override used" event of section 8.2). Where the record has an approver label it also carries "UAT self-approval (administrator override)" | A test approval can always be told from a real one |
+| 5 | **A banner on every screen** while the override is in force on that server: *"UAT mode: maker-checker relaxed for administrators"* | Nobody mistakes UAT for live use |
+| 6 | **A self-approvals report** of everything decided under the override, read from those audit entries, by workflow, person and date, exportable | Shows at handover exactly what was approved without a second person |
+| 7 | **Handover.** The production database starts clean, so UAT approvals never carry into it. If a UAT database were ever promoted to production, every item on the self-approvals report must be re-approved by two people first. Switching the override off is an ordinary governed change with a second person, recorded with the handover sign-off and its documents; **the override is never used to approve a change to its own setting**. Setting `APP_ENV=production` also stops it, whatever the setting says | The two-person rule is fully on from the first day of live use |
 
 ## 9. Decisions owed
 
@@ -294,7 +301,7 @@ During user acceptance testing one administrator needs to move through the workf
 | S8 | Which other approvals require a supporting document (section 8.6) | Dr Thom, with Finance and Credit | As marked in the tables of section 8.6 |
 | S9 | Whether a fee rule already approved by the person who wrote it must be approved again by a second person | Dr Thom | Yes: every rule the matcher uses is re-approved under maker-checker before the fee review starts |
 | S10 | Whether to apply the no-back-dating rule (section 8.8, item 4) ahead of the rest of this build | Dr Thom | Yes: it is a small change and protects the locked months now |
-| S11 | Which environments may use UAT mode, and who switches it off at handover | MAIIC ICT, with Dr Thom | The UAT environment only; the handover sign-off records the switch-off, approved by a second person |
+| S11 | Which environments may use UAT mode, and who switches it off at handover | MAIIC ICT, with Dr Thom | The UAT environment only: MAIIC's server runs `APP_ENV=uat` during UAT and `APP_ENV=production` from handover; the handover sign-off records the switch-off, approved by a second person |
 
 ## 10. Acceptance
 
@@ -318,9 +325,9 @@ During user acceptance testing one administrator needs to move through the workf
 18. **No back-dating.** A setting or rule change with an effective date inside a locked month is refused unless approved through reopen-and-restate with documents.
 19. **Re-performance.** Re-running a locked month from its snapshot reproduces its stored stages, ECL and revenue loan by loan, or names each difference.
 20. **One check.** Every workflow of section 8.6 and the Governance Centre honour the override through the same check; with the override not allowed, every one refuses a self-approval.
-21. **Production guard.** Under a production environment a self-approval is refused even with the setting allowed, and the allowing option cannot be approved.
+21. **Production guard.** Under a production environment a self-approval is refused even with the setting allowed, the allowing option cannot be proposed or approved, and `governance:uat-mode on` is refused.
 22. **Labelled.** Every approval made under the override carries the UAT self-approval label on the record and in the audit log, and appears on the self-approvals report; the banner shows on every screen while the override is in force.
-23. **Handover.** Switching the override off needs a second person; afterwards every workflow refuses a self-approval.
+23. **Handover.** Switching the override off needs a second person (the override never approves a change to its own setting); afterwards every workflow refuses a self-approval.
 
 ## 11. Build order
 
