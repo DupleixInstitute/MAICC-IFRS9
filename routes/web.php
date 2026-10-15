@@ -696,8 +696,8 @@ Route::group(['prefix' => 'eir-accounting-rules', 'as' => 'eir-accounting-rules.
     Route::get('/', [\App\Http\Controllers\EirAccountingRuleController::class, 'index'])->name('index');
     Route::post('/', [\App\Http\Controllers\EirAccountingRuleController::class, 'store'])->name('store');
     Route::put('/{rule}', [\App\Http\Controllers\EirAccountingRuleController::class, 'update'])->name('update');
-    Route::post('/{rule}/approve', [\App\Http\Controllers\EirAccountingRuleController::class, 'approve'])->name('approve');
-    Route::post('/{rule}/toggle', [\App\Http\Controllers\EirAccountingRuleController::class, 'toggle'])->name('toggle');
+    // approve, reject, withdraw, and switching on or off: each with a reason, a second person deciding
+    Route::post('/{rule}/decide', [\App\Http\Controllers\EirAccountingRuleController::class, 'decide'])->name('decide');
 });
 
 Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classification.'], function () {

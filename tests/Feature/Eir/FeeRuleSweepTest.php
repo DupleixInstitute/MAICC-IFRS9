@@ -17,7 +17,7 @@ class FeeRuleSweepTest extends TestCase
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
-        Schema::create('eir_accounting_rules', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->string('fee_type')->nullable(); $t->string('description_contains')->nullable(); $t->string('gl_account_ref')->nullable(); $t->string('cashflow_direction')->nullable(); $t->boolean('proposed_integral')->default(false); $t->text('rationale')->nullable(); $t->integer('priority')->default(100); $t->boolean('active')->default(true); $t->integer('created_by')->nullable(); $t->integer('approved_by')->nullable(); $t->timestamp('approved_at')->nullable(); $t->timestamps(); });
+        Schema::create('eir_accounting_rules', function (Blueprint $t) { $t->string('status', 20)->default('PROPOSED'); $t->increments('id'); $t->string('name'); $t->string('fee_type')->nullable(); $t->string('description_contains')->nullable(); $t->string('gl_account_ref')->nullable(); $t->string('cashflow_direction')->nullable(); $t->boolean('proposed_integral')->default(false); $t->text('rationale')->nullable(); $t->integer('priority')->default(100); $t->boolean('active')->default(true); $t->integer('created_by')->nullable(); $t->integer('approved_by')->nullable(); $t->timestamp('approved_at')->nullable(); $t->timestamps(); });
         Schema::create('contract_fees', function (Blueprint $t) { $t->increments('id'); $t->string('contract_id'); $t->string('fee_type')->nullable(); $t->text('description')->nullable(); $t->double('amount')->default(0); $t->string('cashflow_direction')->nullable(); $t->string('gl_account_ref')->nullable(); $t->boolean('integral')->nullable(); $t->string('classification_status')->default('PENDING'); $t->text('classification_reason')->nullable(); $t->integer('suggested_rule_id')->nullable(); $t->boolean('suggested_integral')->nullable(); $t->integer('classified_by')->nullable(); $t->timestamp('classified_at')->nullable(); $t->integer('reviewed_by')->nullable(); $t->timestamp('reviewed_at')->nullable(); $t->timestamps(); });
     }
 
@@ -26,7 +26,7 @@ class FeeRuleSweepTest extends TestCase
         return DB::table('eir_accounting_rules')->insertGetId([
             'name' => $name, 'fee_type' => $feeType, 'description_contains' => $keyword,
             'proposed_integral' => $integral, 'priority' => $priority, 'active' => true,
-            'approved_at' => $approved ? now() : null, 'created_at' => now(), 'updated_at' => now(),
+            'approved_at' => $approved ? now() : null, 'status' => $approved ? 'APPROVED' : 'PROPOSED', 'created_at' => now(), 'updated_at' => now(),
         ]);
     }
 

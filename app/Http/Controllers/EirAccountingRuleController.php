@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EirAccountingRule;
-use App\Services\AuditLoggerService;
+use App\Services\Eir\AccountingRuleService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -17,40 +17,55 @@ class EirAccountingRuleController extends Controller
     public function index()
     {
         return Inertia::render('Eir/AccountingRules', [
+            'userId' => auth()->id(),
+            'uatMode' => \App\Support\MakerChecker::allowedFor(auth()->user()),
             'rules' => EirAccountingRule::with(['creator:id,name', 'approver:id,name'])
                 ->orderBy('priority')->orderBy('name')->get(),
             'feeTypes' => ['arrangement', 'legal', 'appraisal', 'default', 'levy', 'other'],
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AccountingRuleService $rules)
     {
-        $data = $this->validated($request);
-        $rule = EirAccountingRule::create($data + ['created_by' => auth()->id()]);
-        AuditLoggerService::log('EIR Accounting Rule Created', EirAccountingRule::class, $rule->id, ['new_values' => $rule->toArray()]);
-        return back()->with('success', 'Accounting rule created and awaiting approval.');
+        $rules->create($this->validated($request), (int) auth()->id());
+
+        return back()->with('success', 'Rule proposed. A second person approves it, with a reason, before the fee matcher uses it.');
     }
 
-    public function update(Request $request, EirAccountingRule $rule)
+    public function update(Request $request, EirAccountingRule $rule, AccountingRuleService $rules)
     {
-        $old = $rule->toArray();
-        $rule->update($this->validated($request) + ['approved_by' => null, 'approved_at' => null]);
-        AuditLoggerService::log('EIR Accounting Rule Updated', EirAccountingRule::class, $rule->id, ['old_values' => $old, 'new_values' => $rule->fresh()->toArray()]);
-        return back()->with('success', 'Rule updated; approval has been reset.');
+        $rules->update($rule, $this->validated($request), (int) auth()->id());
+
+        return back()->with('success', 'Rule changed and proposed again; the fee matcher stops using it until a second person approves the new wording.');
     }
 
-    public function approve(EirAccountingRule $rule)
+    /**
+     * The decisions on a rule (Staging Module Specification v1, section 8.6):
+     * approve, reject or withdraw the rule; propose switching it on or off;
+     * approve or reject a proposed switch. Each needs a reason, and approving
+     * needs a second person (the one maker-checker check, MakerChecker).
+     */
+    public function decide(Request $request, EirAccountingRule $rule, AccountingRuleService $rules)
     {
-        $rule->update(['approved_by' => auth()->id(), 'approved_at' => now()]);
-        AuditLoggerService::log('EIR Accounting Rule Approved', EirAccountingRule::class, $rule->id);
-        return back()->with('success', 'Accounting rule approved.');
-    }
+        $data = $request->validate([
+            'action' => ['required', 'in:approve,reject,withdraw,propose_switch,approve_switch,reject_switch'],
+            'reason' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+        $user = (int) auth()->id();
+        try {
+            $message = match ($data['action']) {
+                'approve' => ($rules->approve($rule, $user, $data['reason']) ? 'Rule approved; the fee matcher uses it from now on.' : ''),
+                'reject' => ($rules->reject($rule, $user, $data['reason']) ? 'Rule rejected.' : ''),
+                'withdraw' => ($rules->withdraw($rule, $user, $data['reason']) ? 'Rule withdrawn.' : ''),
+                'propose_switch' => ($rules->proposeSwitch($rule, ! $rule->active, $user, $data['reason']) ? 'Switching the rule ' . ($rule->active ? 'off' : 'on') . ' is proposed; a second person approves it.' : ''),
+                'approve_switch' => ($rules->approveSwitch($rule, $user, $data['reason'])->active ? 'Rule switched on.' : 'Rule switched off.'),
+                'reject_switch' => ($rules->rejectSwitch($rule, $user, $data['reason']) ? 'The proposed switch is rejected; the rule stays as it was.' : ''),
+            };
+        } catch (\InvalidArgumentException|\LogicException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-    public function toggle(EirAccountingRule $rule)
-    {
-        $rule->update(['active' => ! $rule->active]);
-        AuditLoggerService::log('EIR Accounting Rule Status Changed', EirAccountingRule::class, $rule->id, ['new_values' => ['active' => $rule->active]]);
-        return back()->with('success', $rule->active ? 'Rule activated.' : 'Rule deactivated.');
+        return back()->with('success', $message);
     }
 
     private function validated(Request $request): array

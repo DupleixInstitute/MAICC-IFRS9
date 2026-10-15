@@ -74,6 +74,9 @@ class FeeRuleMatcher
     {
         return EirAccountingRule::query()
             ->where('active', true)
+            // approved by a second person (Staging Module Specification v1, section 8.6); an approval given before
+            // that control is kept in use while it waits to be confirmed (decision S9, option (a))
+            ->where('status', EirAccountingRule::STATUS_APPROVED)
             ->whereNotNull('approved_at')
             ->orderBy('priority')
             ->orderBy('id')

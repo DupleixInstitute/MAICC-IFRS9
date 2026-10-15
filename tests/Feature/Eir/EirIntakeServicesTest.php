@@ -158,7 +158,7 @@ class EirIntakeServicesTest extends TestCase
             $t->timestamps();
         });
 
-        Schema::create('eir_accounting_rules', function (Blueprint $t) {
+        Schema::create('eir_accounting_rules', function (Blueprint $t) { $t->string('status', 20)->default('PROPOSED');
             $t->increments('id');
             $t->string('name');
             $t->string('fee_type')->nullable();
@@ -976,7 +976,7 @@ class EirIntakeServicesTest extends TestCase
         $ruleId = DB::table('eir_accounting_rules')->insertGetId([
             'name' => 'Arrangement fees', 'fee_type' => 'arrangement',
             'proposed_integral' => true, 'rationale' => 'Direct origination fee',
-            'priority' => 10, 'active' => true, 'approved_at' => now(),
+            'priority' => 10, 'active' => true, 'approved_at' => now(), 'status' => 'APPROVED',
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
