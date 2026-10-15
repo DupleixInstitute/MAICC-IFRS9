@@ -66,6 +66,8 @@ class QualitativeSicrService
         if ($to !== null && $to < $from) {
             throw new RuntimeException('The end date cannot be before the date the trigger applies from.');
         }
+        // no back-dating into a locked month (Staging Module Specification v1, section 8.8, item 4)
+        \App\Support\ReportingPeriodLock::assertNotBackDated($from, 'A SICR trigger');
 
         if ($scope === 'contract') {
             $contract = ltrim(trim((string) ($data['contract_id'] ?? '')), '0');
@@ -111,6 +113,8 @@ class QualitativeSicrService
         if (! $allowMakerCheckerOverride && $label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $t->triggered_by === $approverId) {
             throw new RuntimeException('Maker-checker: the person who raised a trigger cannot approve it. A second person approves.');
         }
+        // checked again on approval: the month may have been locked since the trigger was raised
+        \App\Support\ReportingPeriodLock::assertNotBackDated((string) $t->effective_from, "SICR trigger {$triggerId}");
         DB::table('finance_sicr_triggers')->where('id', $triggerId)->update(['status' => 'APPROVED', 'approved_by' => $approverId, 'approver_label' => $label, 'approved_at' => now(), 'updated_at' => now()]);
         AuditLoggerService::log('SICR Trigger Approved', 'finance_sicr_triggers', $triggerId, ['new_values' => $this->auditKey($t) + ['stage_implied' => (int) $t->stage_implied, 'effective_from' => $t->effective_from, 'effective_to' => $t->effective_to],
             'meta' => ['approved_by' => $approverId, 'label' => $label]]);
@@ -147,6 +151,16 @@ class QualitativeSicrService
             throw new RuntimeException("The closing date cannot be before the trigger's start date ({$t->effective_from}).");
         }
         $to = $t->effective_to !== null && (string) $t->effective_to < $on ? (string) $t->effective_to : $on;
+        // an earlier end no longer covers the month-ends after it: none of them may be a locked month
+        // (section 8.8, item 4); a month-end after the old end date was never covered, so it does not move
+        if ($t->effective_to === null || (string) $t->effective_to > $to) {
+            $after = \Carbon\CarbonImmutable::parse($to)->addDay()->toDateString();
+            $affected = array_values(array_filter(\App\Support\ReportingPeriodLock::lockedFrom($after),
+                fn ($p) => $t->effective_to === null || \Carbon\CarbonImmutable::parse($p . '-01')->endOfMonth()->toDateString() <= (string) $t->effective_to));
+            if ($affected !== []) {
+                throw new \App\Support\BackDatedChangeException("Closing SICR trigger {$triggerId} on {$to}", $after, $affected);
+            }
+        }
         DB::table('finance_sicr_triggers')->where('id', $triggerId)->update(['status' => 'CLOSED', 'effective_to' => $to, 'closed_by' => $userId, 'closed_at' => now(), 'closed_reason' => trim($reason), 'updated_at' => now()]);
         AuditLoggerService::log('SICR Trigger Closed', 'finance_sicr_triggers', $triggerId, ['new_values' => $this->auditKey($t) + ['effective_to' => $to], 'meta' => ['user' => $userId, 'reason' => trim($reason)]]);
     }

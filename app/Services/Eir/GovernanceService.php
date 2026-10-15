@@ -669,6 +669,8 @@ class GovernanceService
 
         return DB::transaction(function () use ($key, $value, $effective, $reason, $userId, $definition) {
             $this->assertEffectiveDateIsLater($key, $effective, null);
+            // no back-dating into a locked month (Staging Module Specification v1, section 8.8, item 4)
+            \App\Support\ReportingPeriodLock::assertNotBackDated($effective->toDateString(), "A change to '{$definition['label']}'");
 
             $inForce = $this->inForce($key, $effective);
             // under a named staging policy a staging rule's value is the policy's, not the stored row's: a proposal
@@ -724,6 +726,8 @@ class GovernanceService
 
             $effective = CarbonImmutable::parse($setting->effective_from->toDateString());
             $this->assertEffectiveDateIsLater($setting->key, $effective, $setting->id);
+            // checked again on approval: the month may have been locked since the proposal
+            \App\Support\ReportingPeriodLock::assertNotBackDated($effective->toDateString(), "A change to '{$setting->label}'");
 
             $superseded = $this->inForce($setting->key, $effective);
             if ($superseded !== null) {

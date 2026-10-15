@@ -45,7 +45,7 @@ class EirGovernanceController extends Controller
 
         try {
             $setting = $governance->propose($data['key'], $data['value'], $data['effective_from'], $data['reason'], auth()->id());
-        } catch (InvalidArgumentException|LogicException $e) {
+        } catch (InvalidArgumentException|LogicException|\App\Support\BackDatedChangeException $e) {
             return back()->withErrors(['governance' => $e->getMessage()])->withInput();
         }
 
@@ -56,7 +56,7 @@ class EirGovernanceController extends Controller
     {
         try {
             $approved = $governance->approve($setting->id, (int) auth()->id(), $this->adminOverride());
-        } catch (LogicException $e) {
+        } catch (LogicException|\App\Support\BackDatedChangeException $e) {
             return back()->withErrors(['governance' => $e->getMessage()]);
         }
 

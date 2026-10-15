@@ -113,12 +113,9 @@ class StagingThresholdService
         if ($latest !== null && $effective->toDateString() <= CarbonImmutable::parse($latest)->toDateString()) {
             throw new LogicException("The effective date must be later than {$latest}, the last approved threshold for {$class} from {$tenor} months. A change never restates a governed month.");
         }
-        if (DB::getSchemaBuilder()->hasTable('reporting_period_locks')) {
-            $locked = DB::table('reporting_period_locks')->max('reporting_period');
-            if ($locked !== null && $effective->format('Y-m') <= $locked) {
-                throw new LogicException("Reporting period {$locked} is locked; a threshold change takes effect after it.");
-            }
-        }
+        // no back-dating into a locked month: the one rule for every governed setting and rule
+        // (Staging Module Specification v1, section 8.8, item 4), on proposal and again on approval
+        \App\Support\ReportingPeriodLock::assertNotBackDated($effective->toDateString(), "A staging threshold for {$class} from {$tenor} months");
     }
 
     private function date(string $value): CarbonImmutable

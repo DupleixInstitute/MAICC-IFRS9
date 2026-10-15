@@ -88,6 +88,9 @@ class FliRouteService
         }
         // the data may have moved since the proposal: checked again at approval
         $this->assertApplicable($fitId, 'approved');
+        // approving publishes the model version from the fit's own month: refused before anything is
+        // written when that month is locked (Staging Module Specification v1, section 8.8, item 4)
+        \App\Support\ReportingPeriodLock::assertNotBackDated(substr((string) $fit->reporting_period, 0, 4) . '-' . substr((string) $fit->reporting_period, 4, 2), "Approving fit {$fitId}");
         DB::transaction(function () use ($fit, $fitId, $approverId, $label) {
             // one approved fit per period: an earlier one for the same period is superseded
             DB::table('fli_fits')->where('reporting_period', $fit->reporting_period)->where('approval_status', 'APPROVED')->update(['approval_status' => 'REJECTED', 'approval_note' => 'superseded by fit ' . $fitId]);

@@ -34,8 +34,48 @@ final class ReportingPeriodLock
         }
     }
 
+    /**
+     * The locked months whose figures a change effective from a date would alter:
+     * every locked month whose month-end is on or after the date (a setting, rule
+     * or trigger effective from a date governs every month-end from it), earliest
+     * first. A date may be given as YYYY-MM-DD or as a month, YYYY-MM.
+     *
+     * @return list<string>
+     */
+    public static function lockedFrom(string $date): array
+    {
+        if (! Schema::hasTable('reporting_period_locks')) {
+            return [];
+        }
+
+        return DB::table('reporting_period_locks')->where('reporting_period', '>=', substr(self::normalise($date), 0, 7))
+            ->orderBy('reporting_period')->pluck('reporting_period')->map(fn ($p) => (string) $p)->all();
+    }
+
+    /**
+     * No back-dating into a locked month (Staging Module Specification v1,
+     * section 8.8, item 4; decision S10): a change to a governed setting or
+     * rule cannot take effect inside a locked month, or the values looked up
+     * for that month would no longer be the ones it ran on. A deliberate
+     * restatement goes through the reopen-and-restate approval: once a second
+     * person approves the unlock the month is no longer locked, and the change
+     * can be made.
+     *
+     * @throws BackDatedChangeException
+     */
+    public static function assertNotBackDated(string $effectiveFrom, string $what): void
+    {
+        $locked = self::lockedFrom($effectiveFrom);
+        if ($locked !== []) {
+            throw new BackDatedChangeException($what, $effectiveFrom, $locked);
+        }
+    }
+
     private static function normalise(string $period): string
     {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $period)) {
+            return substr($period, 0, 7);
+        }
         $digits = preg_replace('/\D/', '', $period);
 
         return strlen($digits) >= 6 ? substr($digits, 0, 4) . '-' . substr($digits, 4, 2) : $period;
