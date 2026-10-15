@@ -287,6 +287,44 @@ The bootstrap approves its own steps under the label "System Bootstrap (automate
 | 6 | **A self-approvals report** of everything decided under the override, read from those audit entries, by workflow, person and date, exportable | Shows at handover exactly what was approved without a second person |
 | 7 | **Handover.** The production database starts clean, so UAT approvals never carry into it. If a UAT database were ever promoted to production, every item on the self-approvals report must be re-approved by two people first. Switching the override off is an ordinary governed change with a second person, recorded with the handover sign-off and its documents; **the override is never used to approve a change to its own setting**. Setting `APP_ENV=production` also stops it, whatever the setting says | The two-person rule is fully on from the first day of live use |
 
+### 8.10 Decisions carried into a fresh database (the decisions pack)
+
+**Why.** The bootstrap rebuilds a database from files: the E-Banker packs, the take-on workbook, the trial balances and the models. It cannot rebuild what people decided in the system, because those decisions are in no file. By 15 October 2026 MAIIC's database held decisions of that kind: 277 fee lines reviewed under maker-checker, 113 EIRs locked by Edward, Finance's 2025 fee workbook and its integral-column re-import, the fee source precedence set to Finance first (proposal 68), the correction of loans 077 and 110 (6 fee lines moved, loan 110 reopened and both EIRs locked again), and the user accounts. A fresh bootstrap would lose all of them. The decisions pack carries them.
+
+**What it is.** A folder, `docs/bootstrap/decisions/<date>/`, committed beside the E-Banker packs. It holds one file per kind of decision, any source file a decision was made on (Finance's fee workbook), and a manifest with each file's SHA-256 and a tie-out of what the source database held. It is written by an export from one database and replayed into a fresh one by the bootstrap.
+
+**Export.** `decisions:export` reads a database and writes the pack. It writes nothing to the database it reads. It is run on MAIIC's server by MAIIC ICT or Edward, never by Dupleix on MAIIC's database. Every row is named by its business key, never by a database id, because a fresh load numbers its rows differently:
+
+| Decision | Business key | What is carried |
+|---|---|---|
+| Fee line classified and reviewed | The line's source system and source transaction id; for a Finance workbook line without them, loan, fee type, amount, date and description | Integral or not, the cash-flow direction, the reason, the rule applied, who classified it and when, who reviewed it and when |
+| Fee line moved to another loan | The line's key and its original loan and date | The new loan, the new date, the reason, who moved it and when |
+| Overlapping fee lines kept separate or treated as one | Both lines' keys | The decision, the reason, who decided |
+| Held GL fee tied to a loan, or dismissed | The GL posting's voucher and the loan | Who tied or dismissed it, the reason |
+| Finance fee workbook loaded | The workbook file itself and its SHA-256 | Who loaded it, when, and the months it covers |
+| Governance setting approved by people | Key, value and effective date | Who proposed it, who approved it, when, and the reason |
+| Fee rule approved by people | The rule's name and wording | Who wrote it, who approved it, the reason |
+| EIR locked by a person | The loan | Who calculated it, who locked it, when, the locked rate and a fingerprint of the cash flows it was solved on |
+| EIR reopen request | The loan and the request date | The request and its decision, carried as history |
+| User | E-mail | Name, roles and direct permissions; never the password or the two-factor secret |
+
+Every person is carried by e-mail and matched to the user of the same e-mail in the fresh database.
+
+**Replay.** `eir:bootstrap --with-decisions=<date>` replays the pack in two places:
+
+1. **After the fee build, before the schedules are approved:** the users; the governance settings; the fee rules; Finance's workbook, loaded through the normal import with its tie-out; the overlap decisions, held-fee ties and dismissals; the fee moves; then the classifications and reviews. The fee source precedence is then applied once to the result.
+2. **In place of the bootstrap's own lock, for the loans the pack names:** the EIR is calculated and locked under the person who locked it in the source database, but only if the rate and the cash-flow fingerprint come out the same. Every other loan is locked under the System Bootstrap label as today.
+
+A reopen request is not executed again. In the source database it reopened an EIR so that fee lines could be moved. In the replay the lines are moved before any EIR is locked, so the request is carried as history on the loan.
+
+**Labelled as carried, never as new.** Each replayed decision keeps its original person and date on the record. Each writes one audit entry, *"Carried from <database> by the decisions pack of <date>"*, naming the original person and date. It never carries the System Bootstrap label, because it was a person's decision and not an automated one. A decision the source database recorded as a UAT self-approval is carried with that label, and section 8.9 item 7 still applies to it.
+
+**What does not match is listed, never forced.** A decision whose row is not found in the fresh database, or whose row differs, is not applied and goes on the replay report with the reason. For example: a fee line the new code builds differently, a workbook whose tie-out fails, or an EIR whose rate or cash flows differ. The line stays pending, or the EIR stays calculated and unlocked, for a person to decide again. The report is written to the bootstrap output and to `storage/app/decisions/replay-<date>.csv`.
+
+**Not carried, because the engines recompute them:** the stages, the Stage 3 history, the ECL, the revenue, the amortisation and every other figure derived from the data and the decisions.
+
+**The checks.** The bootstrap without `--with-decisions` is unchanged, and its verify checks and golden values stay as they are. A bootstrap with a pack ends with a tie-out against the pack's manifest: reviewed fee lines, locked EIRs, each locked rate, the governance settings and the users. Each must equal the source database, or be named on the replay report. The verify checks of a bootstrap with a pack are recorded beside the golden values as a second set, since people's decisions move the EIR and the figures that follow it.
+
 ## 9. Decisions owed
 
 | Ref | Decision | Owner | Recommendation |
@@ -302,6 +340,9 @@ The bootstrap approves its own steps under the label "System Bootstrap (automate
 | S9 | Whether a fee rule already approved by the person who wrote it must be approved again by a second person | Dr Thom | Yes: every rule the matcher uses is re-approved under maker-checker before the fee review starts |
 | S10 | Whether to apply the no-back-dating rule (section 8.8, item 4) ahead of the rest of this build | Dr Thom | Yes: it is a small change and protects the locked months now |
 | S11 | Which environments may use UAT mode, and who switches it off at handover | MAIIC ICT, with Dr Thom | The UAT environment only: MAIIC's server runs `APP_ENV=uat` during UAT and `APP_ENV=production` from handover; the handover sign-off records the switch-off, approved by a second person |
+| S12 | Where the decisions pack is kept | MAIIC ICT, with Edward | In the project repository beside the E-Banker packs, which already hold MAIIC's data; never with passwords or two-factor secrets |
+| S13 | How carried users sign in for the first time | MAIIC ICT | Each sets a new password through the reset link; no password is carried |
+| S14 | Who runs the export on MAIIC's server, and when | MAIIC ICT, with Edward | MAIIC ICT, read-only, before any fresh bootstrap that is to replace a database people have worked in |
 
 ## 10. Acceptance
 
@@ -328,20 +369,26 @@ The bootstrap approves its own steps under the label "System Bootstrap (automate
 21. **Production guard.** Under a production environment a self-approval is refused even with the setting allowed, the allowing option cannot be proposed or approved, and `governance:uat-mode on` is refused.
 22. **Labelled.** Every approval made under the override carries the UAT self-approval label on the record and in the audit log, and appears on the self-approvals report; the banner shows on every screen while the override is in force.
 23. **Handover.** Switching the override off needs a second person (the override never approves a change to its own setting); afterwards every workflow refuses a self-approval.
+24. **Export writes nothing.** `decisions:export` leaves the database it reads unchanged, and its pack holds no database id, no password and no two-factor secret.
+25. **Replay reproduces.** A fresh bootstrap with a pack exported from a database ends with the same reviewed fee lines, locked EIRs and locked rates, governance settings and users as that database, or names each difference on the replay report.
+26. **Carried, not new.** Every replayed decision keeps its original person and date, carries the decisions-pack audit entry, and never the System Bootstrap label.
+27. **Nothing forced.** A decision whose row is missing or different in the fresh database is left undecided and listed with its reason.
+28. **No pack, no change.** A bootstrap without a pack gives the same verify results as before the pack was built.
 
 ## 11. Build order
 
-The work is done in four phases, in the order below. Governed staging comes first, because it is the purpose of this specification; the protection of locked months and UAT mode follow, then the fee rulebook control, then the rest of the governance record. The build is done on its own branch, and each phase is merged and released when all its sections are complete and confirmed (section 11.1). The sizes are Dupleix's estimates of the build.
+The work is done in five phases, in the order below. Governed staging comes first, because it is the purpose of this specification; the protection of locked months and UAT mode follow, then the fee rulebook control, then the rest of the governance record. The build is done on its own branch, and each phase is merged and released when all its sections are complete and confirmed (section 11.1). The sizes are Dupleix's estimates of the build.
 
 | Phase | Work | Sections | Acceptance | Size |
 |---|---|---|---|---|
 | **1. Governed staging** | The settings, the presets and their seeding, with single-ladder staging as the default; `StagingService` reading every rule from the settings; `staging_dpd` beside `overdue_days`; the comparison run with its tables, command, panel, export and audit-workbook sheet; then, after the phase is merged and released, the comparison runs for December 2025 and September 2026 on MAIIC's server | 3, 4, 5, 6, 7 | 1 to 8 | About 3 days |
 | **2. Protect the locked months, and UAT mode** | The no-back-dating rule: no change to a governed setting or rule takes effect inside a locked month except through reopen-and-restate with documents (decision S10). UAT mode: one maker-checker check for every workflow, the production guard, the UAT seeding, the self-approval label, the banner and the self-approvals report (decision S11). Both touch the governance service and share one release | 8.8 item 4, 8.9 | 18, 20 to 23 | About 2 to 2.5 days |
 | **3. Fee rulebook control** | Second-person approval with a reason, reject and withdraw, switching a rule on or off as a proposal; then the re-approval of every rule the matcher uses (decision S9), so that the fee review can start on controlled rules | 8.6 (fee rulebook) | 14 | About half a day |
+| **3a. Decisions pack** | The export and the replay of section 8.10, the replay report and the tie-out; then an export from MAIIC's database by MAIIC ICT and a bootstrap with it on a throw-away database, to show the decisions carried | 8.10 | 24 to 28 | About 1 to 1.5 days |
 | **4. The governance and audit record** | The Governance Centre change log (reject and withdraw, seeding entries, supporting documents on private storage, required evidence, history view, append-only chained log); the other approvals on the same log and document store, and the Approvals view; the run record, run numbers on result rows, run of record at lock, the two reports and re-performance | 8.1 to 8.5, 8.6, 8.7, 8.8 | 9 to 13, 15 to 17, 19 | About 5.5 days |
 | Later | Setting 9, once each loan's PD at origination is kept | 3 | | To be planned |
 
-The total is about 11 to 11.5 days of build. Governed staging is merged and released after about 3 days; the protection of locked months and UAT mode about 2.5 days later, after which testing on MAIIC's server can run without waiting for a second person on each step; the controlled fee rulebook after about 6 days in all. Until phase 2 is released, a setting can still be back-dated into a locked month (section 8.8), so no governed change should be approved with an effective date inside a locked month in the meantime. The fee rulebook joins the shared maker-checker check of UAT mode when phase 3 gives it maker-checker. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first merge, since every merge and release depends on the bootstrap passing.
+The total is about 12 to 13 days of build, with the decisions pack (phase 3a, added on 15 October 2026). Governed staging is merged and released after about 3 days; the protection of locked months and UAT mode about 2.5 days later, after which testing on MAIIC's server can run without waiting for a second person on each step; the controlled fee rulebook after about 6 days in all. Until phase 2 is released, a setting can still be back-dated into a locked month (section 8.8), so no governed change should be approved with an effective date inside a locked month in the meantime. The fee rulebook joins the shared maker-checker check of UAT mode when phase 3 gives it maker-checker. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first merge, since every merge and release depends on the bootstrap passing.
 
 ### 11.1 How the build is run
 
@@ -366,11 +413,13 @@ The total is about 11 to 11.5 days of build. Governed staging is merged and rele
 | **M2** | **Merge and release phase 2** | 2 | 18, 20 to 23 re-run on the merged code |
 | 6 | 8.6: fee rulebook control, then the re-approval of the rules in use (decision S9) | 3 | 14 |
 | **M3** | **Merge and release phase 3** | 3 | 14 |
+| 6a | 8.10: the decisions pack | 3a | 24 to 28 |
+| **M3a** | **Merge and release phase 3a**, then MAIIC's export and a bootstrap with it on a throw-away database | 3a | 24 to 28 |
 | 7 | 8.1 to 8.5: the Governance Centre change log | 4 | 9 to 12 |
 | 8 | 8.6: the other approvals | 4 | 13 |
 | 9 | 8.7: the register of approvals | 4 | 15 |
 | 10 | 8.8: the run record | 4 | 16, 17, 19 |
-| **M4** | **Merge and release phase 4**: all 23 acceptance tests, the full test suite and a bootstrap on a fresh database with the verify checks passing | 4 | All |
+| **M4** | **Merge and release phase 4**: all 28 acceptance tests, the full test suite and a bootstrap on a fresh database with the verify checks passing | 4 | All |
 
 **Why this way.** Each phase reaches MAIIC's server as soon as it is complete, so governed staging (phase 1), the protection of the locked months and UAT mode (phase 2) and the controlled fee rulebook (phase 3) are in use without waiting for the rest; and each merge is small enough to review on its own.
 
