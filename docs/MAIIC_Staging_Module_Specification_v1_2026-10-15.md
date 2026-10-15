@@ -15,7 +15,7 @@ toc: yes
 
 Staging decides whether each loan is in Stage 1, 2 or 3 under IFRS 9 at every month-end. It drives more of the system than any other single rule. The probability of default is measured on stage movements, the expected credit loss is twelve-month or lifetime by stage, interest on a Stage 3 loan is recognised on the net basis, and the Mega Farm provision, the restructure register, the forward-looking route and the IFRS 9 note all read the stage.
 
-Today the staging rules sit in the code. This specification makes them **governed**: each rule becomes a setting in the Governance Centre, proposed by one person and approved by another, with an effective date and a comment, like every other policy setting in the system. It also adds a **staging comparison run**, which stages any month under a second set of rules beside the booked one and explains every difference, without changing the booked figures.
+Today the staging rules sit in the code. This specification makes them **governed**: each rule becomes a setting in the Governance Centre, proposed by one person and approved by another, with an effective date and a comment, like every other policy setting in the system. It makes every change in the Governance Centre fully logged, with room for supporting documents (section 8). It also adds a **staging comparison run**, which stages any month under a second set of rules beside the booked one and explains every difference, without changing the booked figures.
 
 Two sets of rules are defined:
 
@@ -143,7 +143,54 @@ The RBM return classifies facilities under the directive's own bands: by term, o
 
 **Audit trail.** Every staging run records the settings in force, their effective dates and the preset, so any month can be traced to the policy it ran under.
 
-## 8. Decisions owed
+## 8. Every Governance Centre change logged, with its supporting documents
+
+Staging becomes governed through the Governance Centre, so the Centre's record has to be good enough for an auditor or the Reserve Bank to follow every policy choice: who proposed it, why, on what evidence, who approved or rejected it, when it took effect and what it replaced. This section covers **every setting in the Governance Centre**, not only the staging ones.
+
+### 8.1 What is recorded today, and what is missing
+
+| Today | Gap |
+|---|---|
+| A proposal writes an audit entry ("EIR Governance Setting Proposed") with the old and new values, the effective date and the reason | Only proposals and approvals are recorded. There is no reject or withdraw step: a proposal that is not wanted can only be left standing, with no record of why |
+| An approval writes an audit entry ("EIR Governance Setting Approved"), and the setting it replaces is copied to the history table | The reason is cut to 500 characters on the setting |
+| The proposer cannot approve their own change; an administrator override is itself a governed setting | The seeded defaults are written by the installation with no audit entry |
+| | No document can be attached to a proposal or an approval |
+| | The record is spread across the general Audit Trail screen; there is no single history per setting |
+| | The audit log is an ordinary database table: a database administrator could change or delete an entry without trace |
+
+### 8.2 What every change will record
+
+Each of the following events writes one audit entry, linked to the setting and to the change it belongs to:
+
+| Event | Recorded |
+|---|---|
+| **Seeded** | The setting, the seeded value, its effective date, and that it was seeded by installation (not a MAIIC decision) |
+| **Proposed** | The proposer, the setting, the value in force and the proposed value, the effective date, the reason in full, and the documents attached |
+| **Document added or removed** | Who, when, the document's name, type, size and fingerprint; a removed document is kept and marked removed, never deleted |
+| **Approved** | The approver, the time, any comment, the documents attached at approval, and the setting the change replaces |
+| **Rejected** (new) | The reviewer, the time and the reason (required). The proposal stays on record as rejected |
+| **Withdrawn** (new) | The proposer, the time and the reason. The proposal stays on record as withdrawn |
+| **Preset applied** | For a preset (section 3), one entry for the preset and one for each setting it changed, all linked to the same change |
+| **Override used** | If an administrator approves their own proposal under the governed override, that fact, with the override setting in force |
+
+### 8.3 Supporting documents
+
+- **Where.** A proposal, an approval, a rejection and a withdrawal can each carry documents: for example a board or committee minute, a policy paper, an analysis, the comparison-run export (section 4), or correspondence with the auditors or the Reserve Bank.
+- **Required evidence.** Each setting can be marked as needing a document to be approved. The staging presets, `staging_threshold_profile` and `stage2_threshold_medium_long` (a rebuttal under IFRS 9) are marked: adopting directive-aligned staging cannot be approved without the minute or decision that adopts it.
+- **Kinds of file.** PDF, Word, Excel, CSV, PNG and JPEG, up to 20 MB each, with a short description and a document type (minute, policy, analysis, correspondence, other).
+- **Stored safely.** Files go to the system's **private** storage on MAIIC's server, never to the public web folder, and can be opened only by users with the governance permission. Each file's SHA-256 fingerprint is recorded when it is uploaded and checked when it is opened, so a changed file shows. The existing `supporting_documents` table is reused for this, with its storage set to private.
+- **Kept.** Documents are never deleted from a decided change. They are included in the backups (spec v4 and the integration document, storage and backup) and kept for the life of the system.
+
+### 8.4 One history per setting
+
+The Governance Centre gains a **History** view for each setting: every value it has held, with its effective dates, who proposed and approved or rejected each change, the reasons, and the documents, newest first. The view can be exported to PDF and Excel, and the same history is a sheet in each month's audit workbook.
+
+### 8.5 A log that cannot be changed quietly
+
+- The governance audit entries are **append-only**. The system has no screen or command to edit or delete them, and the build adds a database guard so that an update or delete on these entries is refused.
+- Each entry carries the **fingerprint of the entry before it**, so the entries form a chain. A check (run with the bootstrap's verify step and on demand) recomputes the chain and names the first entry that does not follow. Anyone who changes or removes an entry directly in the database breaks the chain, and the check shows where.
+
+## 9. Decisions owed
 
 | Ref | Decision | Owner | Recommendation |
 |---|---|---|---|
@@ -152,8 +199,10 @@ The RBM return classifies facilities under the directive's own bands: by term, o
 | S3 | The Mega Farm term class | Finance, then Dr Thom | By tenor, as the directive |
 | S4 | The cure test | Dr Thom | Arrears cleared, then 3 month-ends |
 | S5 | Whether to keep each accepted departure of section 2.3 visible on the face of the monthly report until S1 | Finance | Yes |
+| S6 | Which settings require a supporting document before approval, beyond those named in section 8.3 | Dr Thom, with Finance | Every setting that is a Phase 0 sign-off, and every staging setting |
+| S7 | Who may view the supporting documents | MAIIC ICT, with Dr Thom | Users holding the governance permission, and the auditors through the auditor's pack |
 
-## 9. Acceptance
+## 10. Acceptance
 
 1. **Seeded default.** On a fresh bootstrap every staging setting holds the 31 December 2025 option, effective from inception, and no directive-aligned setting is in force.
 2. **No switch by date.** A month after any date is still staged on the seeded default until a preset is approved in the Governance Centre; the bootstrap never approves one.
@@ -163,18 +212,23 @@ The RBM return classifies facilities under the directive's own bands: by term, o
 6. **RBM return unchanged.** The RBM return for a month is identical whichever staging policy is in force.
 7. **No silent default.** Removing a staging setting for a month stops staging with a named error, as today.
 8. **Regression.** The bootstrap's nine golden ties still pass.
+9. **Every change logged.** Seeding, proposing, adding or removing a document, approving, rejecting, withdrawing, applying a preset and using the override each write one audit entry with the fields of section 8.2, and the setting's History view shows them in order.
+10. **Required evidence.** A staging preset or a Stage 2 rebuttal cannot be approved without at least one supporting document; the refusal names what is missing.
+11. **Documents safe.** An uploaded document is stored outside the public web folder, cannot be opened without the governance permission, and a file altered on disk is reported as altered when opened.
+12. **Append-only.** Editing or deleting a governance audit entry through the system is impossible, and doing it directly in the database is refused; a change made with the guard bypassed is found by the chain check, which names the first broken entry.
 
-## 10. Build order
+## 11. Build order
 
 | Step | Work | Size |
 |---|---|---|
 | 1 | The settings, the presets and their seeding; `StagingService` reading them; `staging_dpd` beside `overdue_days` in the build | About 1.5 days |
 | 2 | The comparison run: tables, command, panel, export, audit-workbook sheet | About 1 day |
-| 3 | Tests for each acceptance point; a bootstrap check | About half a day |
-| 4 | Release to MAIIC's server by the release steps of the integration document (section 2.2): push, pull, migrate, bootstrap with the nine ties passing, then the comparison runs for December 2025 and September 2026 | With MAIIC ICT |
+| 3 | The governance change log of section 8: reject and withdraw, the seeding entries, supporting documents on private storage with fingerprints, required evidence, the History view and export, the append-only guard and the chain check | About 2 days |
+| 4 | Tests for each acceptance point; a bootstrap check | About half a day |
+| 5 | Release to MAIIC's server by the release steps of the integration document (section 2.2): push, pull, migrate, bootstrap with the nine ties passing, then the comparison runs for December 2025 and September 2026 | With MAIIC ICT |
 | Later | Setting 9, once each loan's PD at origination is kept | To be planned |
 
-## 11. Glossary
+## 12. Glossary
 
 | Term | Meaning |
 |---|---|
@@ -188,3 +242,6 @@ The RBM return classifies facilities under the directive's own bands: by term, o
 | **Cure period** | The month-ends a loan must stay below a threshold before it moves to a lower stage |
 | **Rebuttal** | Setting aside an IFRS 9 presumption (30 days for Stage 2, 90 days for default) on documented, reasonable and supportable evidence |
 | **Maker-checker** | One person proposes a change and a second person approves it |
+| **Supporting document** | A file attached to a governance change as its evidence: a minute, a policy paper, an analysis or correspondence |
+| **Append-only** | A record that can be added to but never changed or deleted |
+| **Chain check** | A test that each audit entry still carries the fingerprint of the one before it, so that a changed or removed entry is found |
