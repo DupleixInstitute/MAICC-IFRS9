@@ -330,7 +330,7 @@ The work is done in four phases, in the order below, so that the parts that prot
 
 The total is about 11 to 11.5 days of build. The first phase also brings UAT mode, so that once phase 1 is released, testing on MAIIC's server can run without waiting for a second person on each step; the first three phases, about 6 days, bring the protection of locked months, UAT mode, governed staging and the controlled fee rulebook. The fee rulebook joins the shared maker-checker check of UAT mode when phase 3 gives it maker-checker. Not included: the time to resolve the bootstrap's slow final steps seen on 15 October 2026, which must be fixed before the first merge, since every merge and release depends on the bootstrap passing.
 
-### 11.1 How the build is run: one branch, a confirmation at the start and end of each section, a merge at the end of each phase
+### 11.1 How the build is run
 
 **One branch.** The build is done on a branch of its own, `staging-governance`, taken from the main development branch (`eir_revenue_recognition`) when the build starts. The branch is pushed to the repository after each section so that the work is backed up and visible. It is brought up to date with the main branch (rebased) at the start of each section, so that colleagues' work in the same files is taken in as it happens and each merge is clean.
 
