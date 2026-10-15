@@ -402,7 +402,7 @@ class LoanBookBuildService
             [$group, $fund] = $this->groupOf($gl);
             $name = $master[$account]['ACCOUNT_NAME'] ?? null;
             $arrears = $this->arrears($p);
-            [$dpd, $odDate, $dpdFlag, $stagingDpd, $stagingBasis] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ''), $this->num($p['CARRYING_AMOUNT'] ?? 0), $account);
+            [$dpd, $odDate, $dpdFlag, $stagingDpd, $stagingBasis, $dpdCounts] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ''), $this->num($p['CARRYING_AMOUNT'] ?? 0), $account);
             $rows[] = $this->row([
                 'contract_id' => ltrim($account, '0'), 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
                 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl, 'funding_source' => $fund,
@@ -416,7 +416,7 @@ class LoanBookBuildService
                 'staging_dpd' => $stagingDpd, 'staging_dpd_basis' => $stagingBasis,
                 'industry_code' => $this->str($p['INDUSTRY_CODE'] ?? null), 'industry_type' => $this->str($p['IND_DESCR'] ?? null, 100),
                 'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'], 'build_flag' => $dpdFlag,
-                'build_basis' => ['run' => $run['query_id'] . ':' . $run['source_key'], 'run_date' => $this->date($p['TRANSACTION_DATE'] ?? ''), 'segment' => $p['SEG_MENT'] ?? null],
+                'build_basis' => ['run' => $run['query_id'] . ':' . $run['source_key'], 'run_date' => $this->date($p['TRANSACTION_DATE'] ?? ''), 'segment' => $p['SEG_MENT'] ?? null, 'dpd_counts' => $dpdCounts],
             ] + $arrears, $monthEnd);
         }
 
@@ -585,7 +585,7 @@ class LoanBookBuildService
             [$due, $dueSource] = $this->dueDate($p, $lm);
             $rate = $this->rateOn($account, $monthEnd, $p, $rates, $am);
             $arrears = $this->arrears($p);
-            [$dpd, $odDate, $dpdFlag, $stagingDpd, $stagingBasis] = $this->daysPastDue($p, $monthEnd, $arrears, $due, $carrying, $account);
+            [$dpd, $odDate, $dpdFlag, $stagingDpd, $stagingBasis, $dpdCounts] = $this->daysPastDue($p, $monthEnd, $arrears, $due, $carrying, $account);
             if ($dpdFlag !== null) {
                 $flags[] = $dpdFlag;
             }
@@ -610,7 +610,7 @@ class LoanBookBuildService
                 'build_basis' => ['postings' => $sum['n'], 'first_posting' => $sum['first'], 'last_posting' => $sum['last'],
                     'ledger' => ['disbursed' => $disbursed, 'interest' => $interest, 'receipts' => $receipts, 'written_off' => round($sum['woff'], 2), 'settled_in_kind' => round($sum['kind'], 2), 'other' => round($sum['other'], 2)],
                     'stored_run' => $run !== null ? $run['query_id'] . ':' . $run['source_key'] : null, 'rate_source' => $this->rateSource,
-                    'ledger_carrying' => round($derived, 2)]
+                    'ledger_carrying' => round($derived, 2), 'dpd_counts' => $dpdCounts]
                     + ($dueSource !== null ? ['due_date_source' => $dueSource] : [])
                     + (abs($sum['takeon']) > 0.005 ? ['takeon_drawn' => round(-$sum['takeon'], 2)] : [])
                     + ($megaFarm ? ['mega_farm' => $this->megaFarmSplit($mf) + ($signError !== null ? ['report_sign_error' => $signError] : [])] : []),
@@ -761,7 +761,7 @@ class LoanBookBuildService
      * schedule correction (dpd_schedule_correction) and the count from
      * maturity (dpd_after_maturity).
      *
-     * @return array{0:int,1:?string,2:?string,3:int,4:string}
+     * @return array{0:int,1:?string,2:?string,3:int,4:string,5:array<string,int>}
      */
     private function daysPastDue(array $p, string $monthEnd, array $arrears, ?string $maturity = null, float $balance = 0.0, ?string $account = null): array
     {
@@ -774,18 +774,17 @@ class LoanBookBuildService
             [$dpd, $odDate] = [$sinceMaturity, $odDate === null || $odDate > $maturity ? $maturity : $odDate];
         }
 
+        // every count the staging settings choose between, kept on the row so that staging, and the
+        // staging comparison, can count under any policy exactly (StagingPolicy::stagingDays)
+        [$bucket] = $this->daysPastDueReported($p, $monthEnd, $arrears, false);
+        $counts = [
+            'oldest' => $reported, 'oldest_recounted' => $recounted,
+            'bucket' => $bucket, 'bucket_recounted' => $this->againstTheChart($account, $monthEnd, $bucket, null, $balance, array_sum($arrears) > 0)[0],
+            'since_maturity' => max(0, $sinceMaturity),
+        ];
         $policy = $this->stagingPolicy($monthEnd);
-        $oldest = ! $policy->bucketBasis();
-        [$staging] = $oldest ? [$reported] : $this->daysPastDueReported($p, $monthEnd, $arrears, false);
-        if ($policy->value('dpd_schedule_correction') === StagingPolicy::SCHEDULE_RECOUNT) {
-            // on the oldest-instalment basis the directive's own recount, before its maturity count
-            [$staging] = $oldest ? [$recounted] : $this->againstTheChart($account, $monthEnd, $staging, null, $balance, array_sum($arrears) > 0);
-        }
-        if ($policy->value('dpd_after_maturity') === StagingPolicy::MATURITY_COUNT) {
-            $staging = max($staging, $sinceMaturity);
-        }
 
-        return [$dpd, $odDate, $flag, $staging, $policy->dpdBasisLabel()];
+        return [$dpd, $odDate, $flag, $policy->stagingDays($counts), $policy->dpdBasisLabel(), $counts];
     }
 
     /** @var array<string,StagingPolicy> the staging policy in force, by month-end */

@@ -198,6 +198,59 @@ final class StagingPolicy
         ]);
     }
 
+    /**
+     * The staging day count under this policy from the counts the build keeps
+     * on the row (build_basis.dpd_counts): the oldest overdue instalment or the
+     * bucket ageing, each as reported or recounted against the schedule in
+     * force, and the days since maturity of a matured loan still owing.
+     *
+     * @param array{oldest:int,oldest_recounted:int,bucket:int,bucket_recounted:int,since_maturity:int} $counts
+     */
+    public function stagingDays(array $counts): int
+    {
+        $recount = $this->values['dpd_schedule_correction'] === self::SCHEDULE_RECOUNT;
+        $days = $this->bucketBasis()
+            ? ($recount ? $counts['bucket_recounted'] : $counts['bucket'])
+            : ($recount ? $counts['oldest_recounted'] : $counts['oldest']);
+
+        return $this->values['dpd_after_maturity'] === self::MATURITY_COUNT ? max($days, $counts['since_maturity']) : $days;
+    }
+
+    /** A named policy's rules, as they would be in force once adopted (for a comparison; nothing is approved). */
+    public static function named(string $preset): self
+    {
+        if (! isset(self::PRESETS[$preset])) {
+            throw new \InvalidArgumentException("'{$preset}' is not a named staging policy: " . implode(', ', array_keys(self::PRESETS)) . '.');
+        }
+
+        return new self($preset, self::PRESETS[$preset], array_fill_keys(array_keys(self::SETTINGS), 'preset: ' . $preset));
+    }
+
+    /**
+     * These rules with settings changed: Custom whenever a value moves (for a
+     * comparison; nothing is approved). An unknown setting or option is refused.
+     *
+     * @param array<string,string> $changes
+     */
+    public function with(array $changes): self
+    {
+        $values = $this->values; $source = $this->source; $moved = false;
+        foreach ($changes as $key => $value) {
+            if (! isset(self::SETTINGS[$key])) {
+                throw new \InvalidArgumentException("'{$key}' is not a staging setting.");
+            }
+            $options = GovernanceService::catalogue()[$key]['options'];
+            if (! in_array($value, $options, true)) {
+                throw new \InvalidArgumentException("'{$value}' is not an option of {$key}: " . implode(' / ', $options) . '.');
+            }
+            if ($values[$key] !== $value) {
+                $values[$key] = $value; $source[$key] = 'compared'; $moved = true;
+            }
+        }
+
+        return $moved ? new self(self::PRESET_CUSTOM, $values, $source) : $this;
+    }
+
     public function bucketBasis(): bool
     {
         return $this->values['dpd_basis'] === self::BASIS_BUCKET;

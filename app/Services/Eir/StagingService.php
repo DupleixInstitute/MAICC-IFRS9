@@ -88,9 +88,39 @@ class StagingService
         if (! $dryRun) {
             \App\Support\ReportingPeriodLock::assertOpen($period, 'staging');
         }
-        $monthEnd = CarbonImmutable::parse($period . '-01')->endOfMonth();
         // every rule as at the month-end, from the policy in force; a missing setting stops here (D21)
-        $policy = StagingPolicy::at($this->governance, $monthEnd);
+        $policy = StagingPolicy::at($this->governance, CarbonImmutable::parse($period . '-01')->endOfMonth());
+        $e = $this->evaluate($period, $policy);
+        [$counts, $applied, $notEvaluated] = [$e['counts'], $e['applied'], $e['not_evaluated']];
+        $missedTrigger = $policy->missedInstalments();
+        if (! $dryRun) {
+            DB::transaction(function () use ($e, $period, $counts, $userId, $missedTrigger, $applied, $notEvaluated, $policy) {
+                foreach ($e['loans'] as $u) {
+                    DB::table('loan_books')->where('id', $u['id'])->update([
+                        'ifrs9stage_pre_qualitative' => (string) $u['pre'], 'ifrs9stage_post_qualitative' => (string) $u['stage'],
+                        'calculated_ifrs9_stage' => (string) $u['stage'], 'ifrs9_stage' => $u['stage'], 'sicr' => $u['sicr'],
+                    ]);
+                }
+                // the qualitative triggers each loan was staged under, by contract, for the audit trail
+                AuditLoggerService::log('Loan Book Staged', 'loan_books', null, ['reporting_period' => $period, 'rows_affected' => $counts['rows'],
+                    'new_values' => $counts + ['staging_policy' => $policy->toArray(), 'missed_instalment_trigger' => $missedTrigger, 'qualitative' => $applied, 'instalment_trigger_not_evaluated' => $notEvaluated], 'meta' => ['user' => $userId]]);
+            });
+        }
+
+        return $counts + ['staging_preset' => $policy->preset];
+    }
+
+    /**
+     * The stage of every loan of a month under a set of staging rules, written
+     * nowhere: stage() writes it under the rules in force, and the staging
+     * comparison (StagingComparisonService) reads it under any other. The cure
+     * reads the prior months as booked.
+     *
+     * @return array{loans:array<string,array{id:int,stage:int,pre:int,dpd:int,reason:?string,sicr:int}>,counts:array,applied:array,not_evaluated:array}
+     */
+    public function evaluate(string $period, StagingPolicy $policy): array
+    {
+        $monthEnd = CarbonImmutable::parse($period . '-01')->endOfMonth();
         $missedTrigger = $policy->missedInstalments();
         $cureMonths = $policy->cureMonths();
         $cureTest = $policy->cureTest();
@@ -99,7 +129,7 @@ class StagingService
         $stagingCount = \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'staging_dpd');
         $basisInForce = $policy->dpdBasisLabel();
         $rows = DB::table('loan_books')->where('reporting_period', $period)
-            ->get(array_merge(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'], $stagingCount ? ['staging_dpd', 'staging_dpd_basis'] : []));
+            ->get(array_merge(['id', 'contract_id', 'external_identity_id', 'customer_id', 'product_group', 'product_code', 'tenor', 'overdue_days', 'carrying_amount', 'build_flag', 'ifrs9stage_post_qualitative', 'arrears_1_to_30', 'arrears_30_to_90', 'arrears_91_to_180', 'arrears_180_to_270', 'arrears_271_to_360'], $stagingCount ? ['staging_dpd', 'staging_dpd_basis'] : [], \Illuminate\Support\Facades\Schema::hasColumn('loan_books', 'build_basis') ? ['build_basis'] : []));
         $asOf = $monthEnd->toDateString();
         $customers = $rows->pluck('customer_id', 'contract_id')->map(fn ($c) => $c === null ? null : (string) $c)->all();
         [$priorStage, $dpdHistory] = $this->priorMonths($period, $cureMonths, $customers, $qualitativeApplied);
@@ -107,18 +137,22 @@ class StagingService
         $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0, 'instalments_no_chart' => 0, 'instalments_chart_contradicts_ledger' => 0, 'staging_dpd_derived' => 0];
         $applied = [];
         $notEvaluated = [];
-        $updates = [];
+        $loans = [];
         foreach ($rows as $r) {
             // the programme is known by its GL (1050301 to 1050307) as well as by its name:
             // a book built before the GL titles were read named it "GL 1050301" and was
             // staged at 181 days instead of the directive's 91
             $megaFarm = str_contains(strtolower((string) $r->product_group), 'mega') || in_array((string) $r->product_code, \App\Services\MegaFarm\MegaFarmEclService::GLS, true);
             [$s2, $s3] = $this->thresholds($policy, $megaFarm, (int) $r->tenor, $monthEnd);
-            // the staging day count (section 5): the build's staging_dpd when it was counted on the
-            // basis in force now; otherwise (a row the report importer or the Mega Farm book loaded,
-            // a book built before section 5, or a policy approved after the build) derived from the
-            // row on the governed basis, the bucket ageing or the build's directive count, and counted
-            if ($stagingCount && $r->staging_dpd !== null && $r->staging_dpd_basis === $basisInForce) {
+            // the staging day count (section 5): from the counts the build kept on the row, exact under
+            // any rules; else the build's staging_dpd when it was counted on the basis of these rules;
+            // otherwise (a row the report importer or the Mega Farm book loaded, or a book built before
+            // section 5) derived from the row on the governed basis, the bucket ageing or the build's
+            // directive count, and counted
+            $kept = is_string($r->build_basis ?? null) ? (json_decode($r->build_basis, true)['dpd_counts'] ?? null) : null;
+            if (is_array($kept) && count(array_intersect_key($kept, array_flip(['oldest', 'oldest_recounted', 'bucket', 'bucket_recounted', 'since_maturity']))) === 5) {
+                $dpd = $policy->stagingDays(array_map('intval', $kept));
+            } elseif ($stagingCount && $r->staging_dpd !== null && $r->staging_dpd_basis === $basisInForce) {
                 $dpd = (int) $r->staging_dpd;
             } else {
                 $dpd = $policy->bucketBasis() ? self::bucketDays($r) : self::daysPastDueOf($r);
@@ -170,24 +204,11 @@ class StagingService
             if ($reason === 'sicr') { $counts['by_sicr']++; }
             if ($reason === 'credit_impaired') { $counts['by_credit_impaired']++; }
             if ($reason === 'cure') { $counts['held_by_cure']++; }
-            $updates[] = ['id' => $r->id, 'pre' => (string) $pre, 'post' => (string) $post, 'sicr' => $qual['ids'] !== [] ? 1 : 0];
+            $loans[(string) $r->contract_id] = ['id' => (int) $r->id, 'stage' => $post, 'pre' => $pre, 'dpd' => $dpd, 'reason' => $reason, 'sicr' => $qual['ids'] !== [] ? 1 : 0];
         }
         $counts['qualitative_triggers'] = count(array_unique(array_merge([], ...array_column($applied, 'triggers'))));
-        if (! $dryRun) {
-            DB::transaction(function () use ($updates, $period, $counts, $userId, $missedTrigger, $applied, $notEvaluated, $policy) {
-                foreach ($updates as $u) {
-                    DB::table('loan_books')->where('id', $u['id'])->update([
-                        'ifrs9stage_pre_qualitative' => $u['pre'], 'ifrs9stage_post_qualitative' => $u['post'],
-                        'calculated_ifrs9_stage' => $u['post'], 'ifrs9_stage' => (int) $u['post'], 'sicr' => $u['sicr'],
-                    ]);
-                }
-                // the qualitative triggers each loan was staged under, by contract, for the audit trail
-                AuditLoggerService::log('Loan Book Staged', 'loan_books', null, ['reporting_period' => $period, 'rows_affected' => $counts['rows'],
-                    'new_values' => $counts + ['staging_policy' => $policy->toArray(), 'missed_instalment_trigger' => $missedTrigger, 'qualitative' => $applied, 'instalment_trigger_not_evaluated' => $notEvaluated], 'meta' => ['user' => $userId]]);
-            });
-        }
 
-        return $counts + ['staging_preset' => $policy->preset];
+        return ['loans' => $loans, 'counts' => $counts, 'applied' => $applied, 'not_evaluated' => $notEvaluated];
     }
 
     /**

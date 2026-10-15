@@ -659,6 +659,14 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
     Route::post('/{trigger}/close', [\App\Http\Controllers\SicrTriggerController::class, 'close'])->whereNumber('trigger')->name('close');
 });
 
+// The staging comparison run (Staging Module Specification v1, section 4): a month's
+// stages and ECL under another staging policy, beside those booked; nothing booked changes.
+Route::group(['prefix' => 'staging-comparison', 'as' => 'staging-comparison.'], function () {
+    Route::get('/', [\App\Http\Controllers\StagingComparisonController::class, 'index'])->name('index');
+    Route::post('/run', [\App\Http\Controllers\StagingComparisonController::class, 'store'])->name('store');
+    Route::get('/{run}/export', [\App\Http\Controllers\StagingComparisonController::class, 'export'])->whereNumber('run')->name('export');
+});
+
 // EIR module - schedule & fee intake (docs/EIR_Build.md Phase 2)
 Route::get('/eir-data', [\App\Http\Controllers\EirDataController::class, 'index'])->name('eir-data.index');
 Route::post('/eir-schedules/dry-run', [\App\Http\Controllers\EirScheduleController::class, 'dryRun'])->name('eir-schedules.dry-run');

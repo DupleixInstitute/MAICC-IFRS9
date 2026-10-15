@@ -360,6 +360,9 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertSame(31, (int) $single['104480000004']->overdue_days);
         $this->assertSame(0, (int) $single['104480000004']->staging_dpd);
         $this->assertSame('bucket ageing, core-system report as given, core-system ageing after maturity', $single['104480000004']->staging_dpd_basis);
+        // every count the staging settings choose between is kept on the row, so any policy can be counted exactly
+        $kept = json_decode(DB::table('loan_books')->where('reporting_period', '2024-08')->where('contract_id', '104480000004')->value('build_basis'), true)['dpd_counts'];
+        $this->assertSame(['oldest' => 0, 'oldest_recounted' => 0, 'bucket' => 0, 'bucket_recounted' => 0, 'since_maturity' => 31], $kept);
 
         DB::table('governance_settings')->where('key', \App\Services\Eir\StagingPolicy::PRESET)->update(['value' => \App\Services\Eir\StagingPolicy::PRESET_DIRECTIVE]);
         $this->service()->build('2024-08', '2024-08', 'B', 1, 2);
