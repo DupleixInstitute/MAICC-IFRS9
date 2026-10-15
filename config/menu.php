@@ -205,6 +205,7 @@ return [
                 $tab('Audit Trail', 'audit-trail.index'),
                 $tab('Audit Trace', 'audit-trace.index'),
                 $tab('Compliance Audits', 'compliance-audits.index'),
+                $tab('Self-approvals (UAT)', 'eir-governance.self-approvals', 'eir.govern'),
             ], 'history'),
         ], 9),
 

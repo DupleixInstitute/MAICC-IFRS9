@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\GovernanceSetting;
 use App\Services\Eir\GovernanceService;
+use App\Support\MakerChecker;
 use Illuminate\Database\Seeder;
 
 /**
@@ -26,6 +27,7 @@ use Illuminate\Database\Seeder;
 class GovernanceSettingsSeeder extends Seeder
 {
     public const EFFECTIVE_FROM = '1900-01-01';
+    public const UAT_REASON = 'Seeded for UAT on a UAT server (APP_ENV=uat): administrators may approve their own proposals, each recorded on the self-approvals report; not a MAIIC approval (Staging Module Specification v1, section 8.9)';
     public const REASON = 'Dupleix recommended default (spec v3 section 8)';
 
     /**
@@ -63,9 +65,12 @@ class GovernanceSettingsSeeder extends Seeder
             }
             $kept = $existing && array_key_exists($key, self::STAGING_BEFORE_THE_MODULE);
 
+            // UAT mode (Staging Module Specification v1, section 8.9, item 3): a fresh install on a UAT
+            // server (APP_ENV=uat) starts with the override allowed, labelled as seeded for UAT
+            $uat = $key === MakerChecker::SETTING && app()->environment('uat');
             GovernanceSetting::create([
                 'key' => $key,
-                'value' => $kept ? self::STAGING_BEFORE_THE_MODULE[$key] : $definition['default'],
+                'value' => $uat ? MakerChecker::ALLOWED : ($kept ? self::STAGING_BEFORE_THE_MODULE[$key] : $definition['default']),
                 'options' => $definition['options'],
                 'label' => $definition['label'],
                 'description' => $definition['description'],
@@ -74,7 +79,7 @@ class GovernanceSettingsSeeder extends Seeder
                 'approved_by' => null,
                 'approved_at' => now(),
                 // a technical default names itself as one, never as a MAIIC approval (fli_without_model, 14 October 2026)
-                'reason' => $kept ? self::EXISTING_REASON : ($definition['seed_reason'] ?? self::REASON),
+                'reason' => $uat ? self::UAT_REASON : ($kept ? self::EXISTING_REASON : ($definition['seed_reason'] ?? self::REASON)),
                 'status' => GovernanceSetting::STATUS_APPROVED,
             ]);
             $seeded++;

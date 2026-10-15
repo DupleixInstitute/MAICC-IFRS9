@@ -125,6 +125,11 @@
             <main ref="main">
                 <div class="pt-6 pb-20"><!-- the bottom clears the floating help button -->
                     <div class="mx-auto px-4 sm:px-6 md:px-4">
+                        <!-- UAT mode (Staging Module Specification v1, section 8.9, item 5): on every screen while
+                             administrators may approve their own proposals; deliberately without a close button -->
+                        <div v-if="$page.props.uatMode" role="status" class="mb-4 rounded-md border border-amber-400 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 dark:border-amber-400/60 dark:bg-amber-400/10 dark:text-amber-200">
+                            UAT mode: maker-checker relaxed for administrators. Every self-approval is recorded on the self-approvals report.
+                        </div>
                         <!-- Breadcrumbs: the page's place in the menu, above every page header -->
                         <Breadcrumbs :title="title" :extra="extraCrumbs"/>
                         <!-- Page Heading -->

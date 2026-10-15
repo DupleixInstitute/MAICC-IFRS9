@@ -61,7 +61,7 @@ class EirReopenRequestService
             if (! $r || $r->status !== 'PROPOSED') {
                 throw new LogicException('Only a reopening awaiting approval can be approved.');
             }
-            if ((int) $r->requested_by === $approverId) {
+            if ((int) $r->requested_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('EIR reopen', 'eir_reopen_requests', (int) $r->id, $approverId)) {
                 throw new LogicException('The person who requested a reopening cannot approve it; a second person with EIR governance approves it.');
             }
             $before = ContractEir::where('contract_id', $r->contract_id)->first();

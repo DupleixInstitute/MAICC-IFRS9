@@ -248,12 +248,12 @@ class TakeonLandingService
         if ($label !== null && ! $bootstrap) {
             throw new RuntimeException('Only the bootstrap label may stand in for a named approver.');
         }
-        if (! $bootstrap && ($approverId === null || $request->proposed_by === null || (int) $request->proposed_by === $approverId)) {
-            throw new RuntimeException('Maker-checker: the take-on build is approved by a different person from the one who proposed it, and both must be named.');
-        }
         $latest = DB::table('ebanker_loads')->where('route', self::ROUTE)->where('status', 'LANDED')->orderByDesc('id')->value('id');
         if ((int) $latest !== (int) $request->load_id) {
             throw new RuntimeException('A later take-on workbook has been landed since the build was proposed; propose the build again.');
+        }
+        if (! $bootstrap && ($approverId === null || $request->proposed_by === null || ((int) $request->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Take-on build', 'takeon_build_requests', (int) $request->id, $approverId)))) {
+            throw new RuntimeException('Maker-checker: the take-on build is approved by a different person from the one who proposed it, and both must be named.');
         }
         $counts = $this->build($approverId);
         DB::table('takeon_build_requests')->where('id', $requestId)->update(['status' => 'APPROVED', 'approved_by' => $approverId, 'approver_label' => $bootstrap ? $label : null,

@@ -47,6 +47,8 @@ class FliModelRegistry
         if ($existing) {
             return (int) $existing;
         }
+        // no back-dating into a locked month (Staging Module Specification v1, section 8.8, item 4)
+        \App\Support\ReportingPeriodLock::assertNotBackDated($effective, 'A forward-looking model version');
         $modelId = $this->modelId();
 
         return DB::transaction(function () use ($fit, $modelId, $calibrated, $effective, $publishedBy, $label) {
@@ -81,6 +83,7 @@ class FliModelRegistry
                 throw new RuntimeException('The calibration month and the effective month must be YYYY-MM.');
             }
         }
+        \App\Support\ReportingPeriodLock::assertNotBackDated($d['effective_from'], 'A forward-looking model version');
         if ($d['effective_from'] < $d['calibrated_period']) {
             throw new RuntimeException('A model cannot govern a month before the data it was calibrated on (IFRS 9 B5.5.49).');
         }
@@ -115,7 +118,9 @@ class FliModelRegistry
         if ($v->status !== 'PROPOSED') {
             throw new RuntimeException("Version {$v->version} is {$v->status}, not proposed.");
         }
-        if ($label === null && $approverId !== null && (int) $v->proposed_by === $approverId) {
+        // checked again on approval: the month may have been locked since the proposal
+        \App\Support\ReportingPeriodLock::assertNotBackDated((string) $v->effective_from, "Forward-looking model version {$v->version}");
+        if ($label === null && $approverId !== null && (int) $v->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('External forward-looking model', 'fli_model_versions', (int) $v->id, $approverId)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         DB::transaction(function () use ($v, $approverId, $label) {
@@ -158,6 +163,9 @@ class FliModelRegistry
         if (trim($reason) === '') {
             throw new RuntimeException('Say why the version is retired.');
         }
+        // a retired version stops governing every month it governed: none of them may be locked (section 8.8,
+        // item 4); to change the model from an open month, publish a newer version effective from that month
+        \App\Support\ReportingPeriodLock::assertNotBackDated((string) $v->effective_from, "Retiring forward-looking model version {$v->version}");
         DB::table('fli_model_versions')->where('id', $versionId)->update(['status' => 'RETIRED', 'retired_by' => $userId, 'retired_at' => now(), 'retired_reason' => $reason, 'updated_at' => now()]);
         AuditLoggerService::log('FLI Model Version Retired', 'fli_model_versions', $versionId, ['reporting_period' => $v->effective_from, 'new_values' => ['version' => (int) $v->version, 'reason' => $reason], 'meta' => ['user' => $userId]]);
     }

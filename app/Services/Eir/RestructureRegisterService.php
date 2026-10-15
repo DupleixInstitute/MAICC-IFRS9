@@ -97,7 +97,7 @@ class RestructureRegisterService
             if (! $e || $e->status !== 'PROPOSED') {
                 throw new RuntimeException('Only a proposed classification can be approved.');
             }
-            if ((int) $e->proposed_by === $userId && ! $this->governance->adminOverrideAllowed()) {
+            if ((int) $e->proposed_by === $userId && ! \App\Support\MakerChecker::selfApprovalAllowed('Restructure register', 'restructure_events', (int) $e->id, $userId)) {
                 throw new RuntimeException('The person who proposed a classification cannot approve it.');
             }
             $this->assertCanAccount($e, (string) $e->classification);

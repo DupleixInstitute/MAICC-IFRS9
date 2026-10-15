@@ -81,7 +81,7 @@ class ComplianceAuditService
         if ($row->proposed_status === null) {
             throw new RuntimeException('Nothing proposed on this row.');
         }
-        if ($approverId !== null && (int) $row->signed_by === $approverId) {
+        if ($approverId !== null && (int) $row->signed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Compliance audit sign-off', 'compliance_audit_rows', (int) $row->id, $approverId)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the signer.');
         }
         DB::table('compliance_audit_rows')->where('id', $rowId)->update(['status' => $row->proposed_status, 'proposed_status' => null, 'approved_by' => $approverId, 'approved_at' => now(), 'updated_at' => now()]);

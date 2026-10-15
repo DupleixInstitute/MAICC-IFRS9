@@ -34,8 +34,53 @@ final class ReportingPeriodLock
         }
     }
 
+    /**
+     * The locked months whose figures a change effective from a date would alter:
+     * every locked month whose month-end is on or after the date (a setting, rule
+     * or trigger effective from a date governs every month-end from it), earliest
+     * first. A date may be given as YYYY-MM-DD or as a month, YYYY-MM.
+     *
+     * @return list<string>
+     */
+    public static function lockedFrom(string $date): array
+    {
+        if (! Schema::hasTable('reporting_period_locks')) {
+            return [];
+        }
+
+        return DB::table('reporting_period_locks')->where('reporting_period', '>=', substr(self::normalise($date), 0, 7))
+            ->orderBy('reporting_period')->pluck('reporting_period')->map(fn ($p) => (string) $p)->all();
+    }
+
+    /**
+     * No back-dating into a locked month (Staging Module Specification v1,
+     * section 8.8, item 4; decision S10): a change to a governed setting or
+     * rule cannot take effect inside a locked month, or the values looked up
+     * for that month would no longer be the ones it ran on. A deliberate
+     * restatement goes through the reopen-and-restate approval: once a second
+     * person approves the unlock the month is no longer locked, and the change
+     * can be made.
+     *
+     * A change with an end date ($until) governs only the month-ends from its
+     * effective date to its end, so only those are protected.
+     *
+     * @throws BackDatedChangeException
+     */
+    public static function assertNotBackDated(string $effectiveFrom, string $what, ?string $until = null): void
+    {
+        // a change that also ends (a SICR trigger with an end date) affects only the month-ends up to its end
+        $locked = array_values(array_filter(self::lockedFrom($effectiveFrom),
+            fn ($p) => $until === null || \Carbon\CarbonImmutable::parse($p . '-01')->endOfMonth()->toDateString() <= substr($until, 0, 10)));
+        if ($locked !== []) {
+            throw new BackDatedChangeException($what, $effectiveFrom, $locked);
+        }
+    }
+
     private static function normalise(string $period): string
     {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $period)) {
+            return substr($period, 0, 7);
+        }
         $digits = preg_replace('/\D/', '', $period);
 
         return strlen($digits) >= 6 ? substr($digits, 0, 4) . '-' . substr($digits, 4, 2) : $period;

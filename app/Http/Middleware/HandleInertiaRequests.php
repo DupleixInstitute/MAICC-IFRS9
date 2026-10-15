@@ -61,6 +61,9 @@ class HandleInertiaRequests extends Middleware
         $smallLogo = $settings['company_small_logo'] ?? null;
 
         return array_merge(parent::share($request), [
+            // UAT mode (Staging Module Specification v1, section 8.9, item 5): a banner on every screen while
+            // administrators may approve their own proposals on this server
+            'uatMode' => fn () => \App\Support\MakerChecker::overrideInForce(),
             'flash' => function () use ($request) {
                 return [
                     'success' => $request->session()->get('success'),

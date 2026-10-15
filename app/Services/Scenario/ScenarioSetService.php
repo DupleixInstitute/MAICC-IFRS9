@@ -153,12 +153,12 @@ class ScenarioSetService
         if ($set->status !== 'PROPOSED') {
             throw new RuntimeException('Only a proposed set can be approved.');
         }
-        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $set->proposed_by === $approverId) {
-            throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
-        }
         $v = $this->validate($setId);
         if (! $v['ok']) {
             throw new RuntimeException('The set no longer passes its rules: ' . implode('; ', $v['problems']));
+        }
+        if ($label !== \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $set->proposed_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Scenario set', 'governed_scenario_sets', (int) $set->id, $approverId)) {
+            throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         // The overlays in force at the moment of approval are written on the
         // set (spec 15.7: an overlay sits on an approved set and is shown

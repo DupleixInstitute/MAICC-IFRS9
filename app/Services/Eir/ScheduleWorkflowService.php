@@ -365,7 +365,7 @@ class ScheduleWorkflowService
         if ($control==='One person may draft and approve') return;
         if ($control!=='Second person must approve')
             throw new InvalidArgumentException("The schedule approval control '{$control}' is not one the engine knows.");
-        if ($contract->schedule_prepared_by!==null && (int)$contract->schedule_prepared_by===$userId)
+        if ($contract->schedule_prepared_by!==null && (int)$contract->schedule_prepared_by===$userId && ! \App\Support\MakerChecker::selfApprovalAllowed('Schedule approval', 'contract_eirs', (string) $contract->contract_id, $userId))
             throw new InvalidArgumentException('Maker-checker: the person who prepared the schedule cannot approve it (schedule_approval_control: Second person must approve).');
     }
 
