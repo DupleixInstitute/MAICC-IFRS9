@@ -11,7 +11,6 @@ use App\Models\District;
 use App\Models\Import;
 use App\Models\IndustryType;
 use App\Models\LegalType;
-use App\Models\LoanApplication;
 use App\Models\Client;
 use App\Models\Province;
 use App\Models\Village;
@@ -208,21 +207,6 @@ public function index(Request $request)
             return $query->where('branch_id', $branchID);
         })->get();
         return response()->json($data);
-    }
-
-    public function loanApplication(Client $client)
-    {
-
-        $applications = LoanApplication::with(['staff', 'client', 'product'])
-            ->filter(\request()->only('search', 'client_id', 'loan_product_id', 'province_id', 'branch_id', 'district_id', 'ward_id', 'date_range', 'village_id', 'staff_id', 'status'))
-            ->where('client_id', $client->id)
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-
-        return Inertia::render('Clients/LoanApplications/Index', [
-            'client' => $client,
-            'applications' => $applications,
-        ]);
     }
 
     public function courses(Client $client)
