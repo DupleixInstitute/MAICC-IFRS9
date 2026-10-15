@@ -53,8 +53,11 @@ class EirAccountingRuleSeeder extends Seeder
 {
     public function run(): void
     {
+        // a rule already present is never touched (Staging Module Specification v1, section 8.6): the
+        // bootstrap seeds on every run, and updateOrCreate used to wipe each existing rule's approval and
+        // switch it back on; a change to a rule is a proposal a second person approves
         foreach ($this->rules() as $rule) {
-            EirAccountingRule::updateOrCreate(
+            EirAccountingRule::firstOrCreate(
                 ['name' => $rule['name']],
                 $rule + [
                     'gl_account_ref' => null,
@@ -62,6 +65,7 @@ class EirAccountingRuleSeeder extends Seeder
                     'active' => true,
                     'approved_by' => null,
                     'approved_at' => null,
+                    'status' => EirAccountingRule::STATUS_PROPOSED,
                 ]
             );
         }

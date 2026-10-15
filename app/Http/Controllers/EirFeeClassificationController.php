@@ -195,7 +195,7 @@ class EirFeeClassificationController extends Controller
         return Inertia::render('Eir/FeeClassification', [
             'fees' => $query->orderByRaw("CASE classification_status WHEN 'PENDING' THEN 1 WHEN 'CLASSIFIED' THEN 2 ELSE 3 END")
                 ->orderByDesc('id')->paginate(15)->withQueryString(),
-            'rules' => EirAccountingRule::where('active', true)->whereNotNull('approved_at')->orderBy('priority')->get(['id', 'name', 'proposed_integral']),
+            'rules' => EirAccountingRule::where('active', true)->where('status', EirAccountingRule::STATUS_APPROVED)->whereNotNull('approved_at')->orderBy('priority')->get(['id', 'name', 'proposed_integral']),
             'filters' => $request->only(['status', 'fee_type', 'gl', 'contract_id', 'superseded']),
             'summary' => ContractFee::whereNull('superseded_by_source')->select('classification_status', DB::raw('COUNT(*) as line_count'), DB::raw('SUM(amount) as total_amount'))
                 ->groupBy('classification_status')->get()->keyBy('classification_status'),
@@ -211,8 +211,8 @@ class EirFeeClassificationController extends Controller
             'ruleCoverage' => [
                 'pending' => ContractFee::whereNull('superseded_by_source')->where('classification_status', 'PENDING')->count(),
                 'pending_matched' => ContractFee::whereNull('superseded_by_source')->where('classification_status', 'PENDING')->whereNotNull('suggested_rule_id')->count(),
-                'approved_rules' => EirAccountingRule::where('active', true)->whereNotNull('approved_at')->count(),
-                'draft_rules' => EirAccountingRule::where('active', true)->whereNull('approved_at')->count(),
+                'approved_rules' => EirAccountingRule::where('active', true)->where('status', EirAccountingRule::STATUS_APPROVED)->whereNotNull('approved_at')->count(),
+                'draft_rules' => EirAccountingRule::where('active', true)->where('status', EirAccountingRule::STATUS_PROPOSED)->count(),
             ],
         ]);
     }

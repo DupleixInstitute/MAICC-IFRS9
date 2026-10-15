@@ -149,7 +149,10 @@ class WorkspaceController extends Controller
             ['label' => 'EIRs calculated, awaiting approval and lock', 'count' => DB::table('contract_eir')->where('calculation_status', 'CALCULATED')->whereNull('locked_at')->count(), 'route' => ['eir-calculations.index', []]],
             ['label' => 'Repayment schedules awaiting review', 'count' => DB::table('contract_eir')->whereIn('schedule_approval_status', ['DRAFT', 'PENDING_REVIEW'])->count(), 'route' => ['eir-data.index', ['tab' => 'schedules']]],
             ['label' => 'Fees awaiting classification review', 'count' => DB::table('contract_fees')->where('classification_status', 'PENDING')->count(), 'route' => ['eir-fee-classification.index', []]],
-            ['label' => 'EIR accounting rules not yet approved', 'count' => DB::table('eir_accounting_rules')->whereNull('approved_at')->count(), 'route' => ['eir-accounting-rules.index', []]],
+            // proposed rules, approvals given before the control waiting to be confirmed, and proposed switches (section 8.6)
+            ['label' => 'EIR accounting rules awaiting a second person', 'count' => \Illuminate\Support\Facades\Schema::hasColumn('eir_accounting_rules', 'status')
+                ? DB::table('eir_accounting_rules')->where(fn ($q) => $q->where('status', 'PROPOSED')->orWhere('approval_to_confirm', true)->orWhereNotNull('proposed_active'))->count()
+                : DB::table('eir_accounting_rules')->whereNull('approved_at')->count(), 'route' => ['eir-accounting-rules.index', []]],
             ['label' => 'SICR trigger alerts proposed', 'count' => DB::table('finance_sicr_triggers')->where('status', 'PROPOSED')->count(), 'route' => ['sicr-triggers.index', []]],
             ['label' => 'Scenario sets proposed', 'count' => DB::table('governed_scenario_sets')->where('status', 'PROPOSED')->count(), 'route' => ['scenario-sets.index', []]],
             ['label' => 'Forward-looking regression fits proposed', 'count' => DB::table('fli_fits')->where('approval_status', 'PROPOSED')->count(), 'route' => ['fli-adjustments.index', []]],

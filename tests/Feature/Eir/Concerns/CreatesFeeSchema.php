@@ -45,7 +45,7 @@ trait CreatesFeeSchema
             });
         }
         if (! Schema::hasTable('eir_accounting_rules')) {
-            Schema::create('eir_accounting_rules', function (Blueprint $t) {
+            Schema::create('eir_accounting_rules', function (Blueprint $t) { $t->string('status', 20)->default('PROPOSED');
                 $t->increments('id');
                 $t->string('name');
                 $t->string('fee_type')->nullable();

@@ -99,7 +99,7 @@ class MonthEndUiTest extends TestCase
         Schema::create('loan_write_offs', function (Blueprint $t) { $t->increments('id'); $t->string('status'); });
         Schema::create('contract_eir', function (Blueprint $t) { $t->increments('id'); $t->string('calculation_status')->nullable(); $t->string('schedule_approval_status')->nullable(); $t->timestamp('locked_at')->nullable(); });
         Schema::create('contract_fees', function (Blueprint $t) { $t->increments('id'); $t->string('classification_status')->nullable(); });
-        Schema::create('eir_accounting_rules', function (Blueprint $t) { $t->increments('id'); $t->timestamp('approved_at')->nullable(); });
+        Schema::create('eir_accounting_rules', function (Blueprint $t) { $t->string('status', 20)->default('PROPOSED'); $t->increments('id'); $t->timestamp('approved_at')->nullable(); });
         Schema::create('finance_sicr_triggers', function (Blueprint $t) { $t->increments('id'); $t->string('status'); });
         Schema::create('governed_scenario_sets', function (Blueprint $t) { $t->increments('id'); $t->string('status'); });
         Schema::create('fli_fits', function (Blueprint $t) { $t->increments('id'); $t->string('approval_status'); });

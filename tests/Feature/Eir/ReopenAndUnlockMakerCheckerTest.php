@@ -197,7 +197,7 @@ class ReopenAndUnlockMakerCheckerTest extends TestCase
             'restructure_events' => 'status', 'rate_reset_events' => 'classification_status', 'takeon_build_requests' => 'status', 'staging_thresholds' => 'status'] as $table => $col) {
             Schema::create($table, function (Blueprint $t) use ($col) { $t->increments('id'); $t->string($col)->nullable(); });
         }
-        Schema::create('eir_accounting_rules', function (Blueprint $t) { $t->increments('id'); $t->timestamp('approved_at')->nullable(); });
+        Schema::create('eir_accounting_rules', function (Blueprint $t) { $t->string('status', 20)->default('PROPOSED'); $t->increments('id'); $t->timestamp('approved_at')->nullable(); });
         DB::table('restructure_events')->insert([['status' => 'PROPOSED'], ['status' => 'CANDIDATE']]);
         DB::table('rate_reset_events')->insert([['classification_status' => 'PROPOSED'], ['classification_status' => 'PROPOSED'], ['classification_status' => 'DETECTED']]);
         DB::table('takeon_build_requests')->insert([['status' => 'PROPOSED'], ['status' => 'SUPERSEDED']]);
