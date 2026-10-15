@@ -89,16 +89,21 @@ class FeeWorkbookTieOutTest extends TestCase
         DB::table('contract_fees')->insert(['contract_id' => '104430000203', 'fee_type' => 'legal', 'amount' => 5_000, 'source_system' => 'TAKEON_WORKBOOK',
             'classification_status' => 'PENDING', 'created_at' => now(), 'updated_at' => now()]);
 
+        $this->held('4871', 70_000, '2025-06-15', 'By Trf Gamma Traders legal fee'); // a later fee on the take-on loan
+
         $r = app(FeeWorkbookTieOut::class)->check([
             $this->row('104430000203', 'legal', 5_000, '2025-06-01'),
             $this->row('104430000201', 'legal', 1_000_000, '2024-01-15'),
             ['contract_id' => '104430000202', 'fee_type' => 'legal', 'amount' => 9_000],
+            $this->row('104430000203', 'legal', 70_000, '2025-06-15'),
         ]);
 
         $reasons = array_column($r['refusals'], 'reason');
-        $this->assertStringContainsString('take-on loan', $reasons[0]);
+        $this->assertStringContainsString('the take-on workbook already holds this legal fee', $reasons[0]);
         $this->assertStringContainsString('before the first GL fee posting', $reasons[1]);
         $this->assertStringContainsString('No date', $reasons[2]);
+        $this->assertNotContains(5, array_column($r['refusals'], 'row'), 'a later fee on a take-on loan is proved like any other');
+        $this->assertSame(['H' . DB::table('fee_gl_unassigned')->where('amount', 70_000)->value('id')], $r['lines'][0]['postings']);
     }
 
     public function test_one_posting_for_two_loans_a_fee_in_parts_and_a_reversal_across_months_are_recognised(): void

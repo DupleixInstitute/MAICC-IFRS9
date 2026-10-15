@@ -21,9 +21,10 @@ use Throwable;
  *
  * A line is refused when:
  *  - it has no loan account, no date, or a fee type with no fee GL and no GL named;
- *  - its loan has fees from the take-on workbook (those are the take-on loan's
- *    record and never compete under fee_source_precedence, so a second copy
- *    would count twice);
+ *  - it repeats a fee the take-on workbook holds for its loan (same type, same
+ *    amount within the band): those are the take-on loan's record and never
+ *    compete under fee_source_precedence, so a second copy would count twice.
+ *    A later fee on a take-on loan (posted after the migration) is proved like any other;
  *  - its date is before the first GL fee posting the system holds (nothing to prove it against);
  *  - no posting, or set of postings, accounts for it within the governed
  *    recon_tolerance band.
@@ -65,7 +66,11 @@ class FeeWorkbookTieOut
         $tolerance = $this->tolerance();
         $postings = $this->postings();
         $first = $postings === [] ? null : min(array_map(fn ($p) => $p['date'], $postings));
-        $takeon = DB::table('contract_fees')->where('source_system', FeeSourcePrecedence::SOURCE_TAKEON)->distinct()->pluck('contract_id')->flip()->all();
+        // the take-on workbook's fees by loan and type: a line repeating one would count it twice
+        $takeon = [];
+        foreach (DB::table('contract_fees')->where('source_system', FeeSourcePrecedence::SOURCE_TAKEON)->get(['contract_id', 'fee_type', 'amount']) as $t) {
+            $takeon[$t->contract_id][strtolower((string) $t->fee_type)][] = (float) $t->amount;
+        }
 
         $lines = []; $refusals = [];
         foreach (array_values($rows) as $i => $row) {
@@ -82,7 +87,7 @@ class FeeWorkbookTieOut
                 $contract === null => 'No loan account: the fee cannot be placed.',
                 $date === null => 'No date: the line cannot be matched to a GL posting.',
                 $gl === null => "Fee type \"{$line['fee_type']}\" has no fee GL of its own: give gl_account_ref (4871, 4873, 4874 or 4875).",
-                isset($takeon[$contract]) => "Loan {$contract} is a take-on loan: its fees come from the take-on workbook, so loading them here would count them twice.",
+                $this->repeatsTakeon($takeon[$contract][$line['fee_type']] ?? [], $amount, $tolerance) => "Loan {$contract} is a take-on loan and the take-on workbook already holds this {$line['fee_type']} fee: loading it here would count it twice.",
                 $first === null => 'The system holds no GL fee postings yet (GL_04), so nothing can prove the line.',
                 $date->lt($first->startOfMonth()) => 'Dated before the first GL fee posting the system holds (' . $first->toDateString() . '): nothing to prove it against.',
                 default => null,
@@ -299,6 +304,18 @@ class FeeWorkbookTieOut
         preg_match_all('/[a-z]{3,}/', mb_strtolower((string) $text), $m);
 
         return array_values(array_diff(array_unique($m[0]), $stop));
+    }
+
+    /** Whether a line repeats a fee of the take-on workbook: the same loan and type, the same amount within the band. */
+    private function repeatsTakeon(array $amounts, float $amount, array $tolerance): bool
+    {
+        foreach ($amounts as $a) {
+            if ($this->within($a - $amount, $a, $tolerance)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function sameCustomer(string $a, string $b): bool
