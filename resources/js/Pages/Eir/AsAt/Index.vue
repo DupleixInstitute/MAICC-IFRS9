@@ -66,21 +66,54 @@
           { label: 'Contractual interest, year to date', value: fmt(book.total.contractual_ytd), tone: 'amber' },
           { label: 'The revenue shift', value: fmt(book.total.difference), tone: book.total.difference >= 0 ? 'maiic' : 'rose' },
         ]"/>
-        <p v-if="book.missing_revenue_months && book.missing_revenue_months.length" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">No EIR revenue run is held for {{ book.missing_revenue_months.join(', ') }}: the EIR interest of those months is rolled forward here at the monthly EIR, not read from a locked run. Run the revenue for them (Maintenance, Month-end).</p>
-        <p v-if="book.total.credit_balance_contracts" class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-700">{{ book.total.credit_balance_contracts }} contract(s) carry a credit balance of {{ fmt(book.total.credit_balances) }} in total: the customer paid more than was owed. The amount is owed back to the customer; it is shown in the gross column as a negative and marked.</p>
-        <div class="grid grid-cols-1 gap-6 2xl:grid-cols-2">
-          <div class="maiic-panel" v-for="(g, key) in { 'By product': book.by_product, 'By GL': book.by_gl }" :key="key">
-            <div class="border-b border-gray-200 p-4 dark:border-slate-700"><h3 class="text-base font-bold">{{ key }}</h3></div>
-            <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>{{ key.replace('By ', '') }}</th><th class="num">Contracts</th><th class="num">EIR YTD</th><th class="num">Contractual YTD</th><th class="num">Difference</th><th class="num">Amortised cost</th><th class="num">Gross</th></tr></thead>
-              <tbody><tr v-for="r in g" :key="r.key"><td>{{ r.key }}</td><td class="num">{{ r.contracts }}</td><td class="num">{{ fmt(r.eir_ytd) }}</td><td class="num">{{ fmt(r.contractual_ytd) }}</td><td class="num">{{ fmt(r.difference) }}</td><td class="num">{{ fmt(r.amortised_cost) }}</td><td class="num">{{ fmt(r.gross) }}</td></tr></tbody>
-              <tfoot><tr><th>Total</th><th class="num">{{ book.total.contracts }}</th><th class="num">{{ fmt(book.total.eir_ytd) }}</th><th class="num">{{ fmt(book.total.contractual_ytd) }}</th><th class="num">{{ fmt(book.total.difference) }}</th><th class="num">{{ fmt(book.total.amortised_cost) }}</th><th class="num">{{ fmt(book.total.gross) }}</th></tr></tfoot></table></div>
-          </div>
-        </div>
+        <Notice v-if="book.missing_revenue_months && book.missing_revenue_months.length" id="missing-revenue" tone="warning">No EIR revenue run is held for {{ book.missing_revenue_months.join(', ') }}: the EIR interest of those months is rolled forward here at the monthly EIR, not read from a locked run. Run the revenue for them (Maintenance, Month-end).</Notice>
+        <Notice v-if="book.total.credit_balance_contracts" id="credit-balances">{{ book.total.credit_balance_contracts }} contract(s) carry a credit balance of {{ fmt(book.total.credit_balances) }} in total: the customer paid more than was owed. The amount is owed back to the customer; it is shown in the gross column as a negative and marked.</Notice>
+
+        <!-- One table for the whole book, as on the loan book: the contracts, or the same rows added up by
+             product or by GL, filtered in the table itself (15 rows a page). -->
         <div class="maiic-panel">
-          <div class="border-b border-gray-200 p-4 dark:border-slate-700"><h3 class="text-base font-bold">By contract</h3><p class="text-sm text-gray-500">Click a contract to see its full computation at this date</p></div>
-          <div class="maiic-table-wrap"><table class="maiic-table"><thead><tr><th>Contract</th><th>Customer</th><th>Product</th><th>GL</th><th class="num">EIR YTD</th><th class="num">Contractual YTD</th><th class="num">Difference</th><th class="num">Amortised cost</th><th class="num">Gross</th></tr></thead>
-            <tbody><tr v-for="l in pagedContracts" :key="l.contract_id" class="cursor-pointer" @click="form.contract = l.contract_id; view()"><td class="font-mono text-xs">{{ l.contract_id }}</td><td>{{ l.customer_name }}</td><td class="text-xs">{{ l.product }}</td><td class="text-xs">{{ l.gl }}</td><td class="num">{{ fmt(l.eir_ytd) }}</td><td class="num">{{ fmt(l.contractual_ytd) }}</td><td class="num">{{ fmt(l.difference) }}</td><td class="num">{{ fmt(l.amortised_cost) }}</td><td class="num">{{ fmt(l.gross) }}<div v-if="l.credit_balance > 0" class="text-[11px] font-semibold text-amber-700" title="The customer has paid more than the ledger says is owed: an amount owed back, not a negative loan">credit balance</div></td></tr></tbody></table></div>
-          <RowPager v-model="contractPage" :total="(book.contracts || []).length" class="border-t border-gray-100" />
+          <div class="flex flex-col gap-3 border-b border-gray-200 p-4 lg:flex-row lg:items-end lg:justify-between dark:border-slate-700">
+            <div>
+              <h3 class="text-base font-bold">The EIR book as at {{ book.as_at }}</h3>
+              <p class="text-sm text-gray-500">{{ by === 'contract' ? 'Click a contract to see its full computation at this date.' : 'Click a row to see its contracts.' }}</p>
+            </div>
+            <div class="flex flex-wrap items-end gap-3">
+              <label class="text-xs"><span class="maiic-flabel">View by</span>
+                <select v-model="by" class="maiic-select" @change="page = 1"><option value="contract">Contract</option><option value="product">Product</option><option value="gl">GL</option></select>
+              </label>
+              <label class="text-xs"><span class="maiic-flabel">Product</span>
+                <select v-model="filter.product" class="maiic-select" @change="page = 1"><option value="">All products</option><option v-for="p in products" :key="p" :value="p">{{ p }}</option></select>
+              </label>
+              <label class="text-xs"><span class="maiic-flabel">GL</span>
+                <select v-model="filter.gl" class="maiic-select" @change="page = 1"><option value="">All GLs</option><option v-for="g in gls" :key="g" :value="g">{{ g }}</option></select>
+              </label>
+              <label v-if="by === 'contract'" class="text-xs"><span class="maiic-flabel">Contract or customer</span>
+                <input v-model="filter.search" type="search" class="maiic-input" placeholder="Part of the number or name" @input="page = 1"/>
+              </label>
+            </div>
+          </div>
+          <div class="maiic-table-wrap"><table class="maiic-table">
+            <thead><tr>
+              <template v-if="by === 'contract'"><th>Contract</th><th>Customer</th><th>Product</th><th>GL</th></template>
+              <template v-else><th>{{ by === 'product' ? 'Product' : 'GL' }}</th><th class="num">Contracts</th></template>
+              <th class="num">EIR YTD</th><th class="num">Contractual YTD</th><th class="num">Difference</th><th class="num">Amortised cost</th><th class="num">Gross</th>
+            </tr></thead>
+            <tbody>
+              <template v-if="by === 'contract'">
+                <tr v-for="l in pagedRows" :key="l.contract_id" class="cursor-pointer" @click="form.contract = l.contract_id; view()"><td class="font-mono text-xs">{{ l.contract_id }}</td><td>{{ l.customer_name }}</td><td class="text-xs">{{ l.product }}</td><td class="text-xs">{{ l.gl }}</td><td class="num">{{ fmt(l.eir_ytd) }}</td><td class="num">{{ fmt(l.contractual_ytd) }}</td><td class="num">{{ fmt(l.difference) }}</td><td class="num">{{ fmt(l.amortised_cost) }}</td><td class="num">{{ fmt(l.gross) }}<div v-if="l.credit_balance > 0" class="text-[11px] font-semibold text-amber-700" title="The customer has paid more than the ledger says is owed: an amount owed back, not a negative loan">credit balance</div></td></tr>
+              </template>
+              <template v-else>
+                <tr v-for="r in pagedRows" :key="r.key" class="cursor-pointer" @click="drill(r.key)"><td>{{ r.key }}</td><td class="num">{{ r.contracts }}</td><td class="num">{{ fmt(r.eir_ytd) }}</td><td class="num">{{ fmt(r.contractual_ytd) }}</td><td class="num">{{ fmt(r.difference) }}</td><td class="num">{{ fmt(r.amortised_cost) }}</td><td class="num">{{ fmt(r.gross) }}</td></tr>
+              </template>
+              <tr v-if="!rows.length"><td :colspan="by === 'contract' ? 9 : 7" class="maiic-empty">No contract matches these filters.</td></tr>
+            </tbody>
+            <tfoot v-if="rows.length"><tr>
+              <th :colspan="by === 'contract' ? 4 : 1">Total<span v-if="filtered.length !== allContracts.length" class="text-xs font-normal"> of the {{ filtered.length }} contract(s) shown</span></th>
+              <th v-if="by !== 'contract'" class="num">{{ filtered.length }}</th>
+              <th class="num">{{ fmt(total.eir_ytd) }}</th><th class="num">{{ fmt(total.contractual_ytd) }}</th><th class="num">{{ fmt(total.difference) }}</th><th class="num">{{ fmt(total.amortised_cost) }}</th><th class="num">{{ fmt(total.gross) }}</th>
+            </tr></tfoot>
+          </table></div>
+          <RowPager v-model="page" :total="rows.length" class="border-t border-gray-100" />
         </div>
       </template>
     </div>
@@ -94,17 +127,46 @@ import BackToReports from '@/Pages/Reports/Partials/BackToReports.vue'
 import DownloadButton from '@/Pages/Reports/Partials/DownloadButton.vue'
 import KpiRow from '@/Pages/Reports/Partials/KpiRow.vue'
 import RowPager from '@/Components/Maiic/RowPager.vue'
+import Notice from '@/Components/Maiic/Notice.vue'
 
 export default {
-  components: { AppLayout, BackToReports, DownloadButton, KpiRow, RowPager },
+  components: { AppLayout, BackToReports, DownloadButton, KpiRow, RowPager, Notice },
   props: { date: String, contract: String, lastLedgerDate: String, book: Object, one: Object, error: String, contracts: Array, yearEnds: Array },
   data() {
-    return { form: { date: this.date, contract: this.contract || '' }, contractPage: 1 }
+    return { form: { date: this.date, contract: this.contract || '' }, page: 1, by: 'contract', filter: { product: '', gl: '', search: '' } }
   },
-  computed: { pagedContracts() { return ((this.book && this.book.contracts) || []).slice((this.contractPage - 1) * 15, this.contractPage * 15) } },
+  computed: {
+    allContracts() { return (this.book && this.book.contracts) || [] },
+    products() { return [...new Set(this.allContracts.map(l => l.product).filter(Boolean))].sort() },
+    gls() { return [...new Set(this.allContracts.map(l => l.gl).filter(Boolean))].sort() },
+    filtered() {
+      const q = this.filter.search.trim().toLowerCase()
+      return this.allContracts.filter(l => (!this.filter.product || l.product === this.filter.product) && (!this.filter.gl || l.gl === this.filter.gl)
+        && (this.by !== 'contract' || !q || String(l.contract_id).includes(q) || String(l.customer_name || '').toLowerCase().includes(q)))
+    },
+    // the contracts, or the same contracts added up by product or by GL
+    rows() {
+      if (this.by === 'contract') return this.filtered
+      const groups = {}
+      for (const l of this.filtered) {
+        const key = (this.by === 'product' ? l.product : l.gl) || 'not stated'
+        const g = groups[key] || (groups[key] = { key, contracts: 0, eir_ytd: 0, contractual_ytd: 0, difference: 0, amortised_cost: 0, gross: 0 })
+        g.contracts++
+        for (const k of ['eir_ytd', 'contractual_ytd', 'difference', 'amortised_cost', 'gross']) g[k] += Number(l[k] || 0)
+      }
+      return Object.values(groups).sort((a, b) => String(a.key).localeCompare(String(b.key)))
+    },
+    pagedRows() { return this.rows.slice((this.page - 1) * 15, this.page * 15) },
+    total() {
+      const t = { eir_ytd: 0, contractual_ytd: 0, difference: 0, amortised_cost: 0, gross: 0 }
+      for (const l of this.filtered) for (const k of Object.keys(t)) t[k] += Number(l[k] || 0)
+      return t
+    },
+  },
   methods: {
     fmt(v) { return v == null ? '-' : Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     pct(v) { return v == null ? '-' : (Number(v) * 100).toFixed(4) + '%' },
+    drill(key) { if (this.by === 'product') this.filter.product = key; else this.filter.gl = key; this.by = 'contract'; this.page = 1 },
     view() { router.get(route('eir-as-at.index'), { date: this.form.date, contract: this.form.contract || undefined }, { preserveState: true, preserveScroll: true }) },
   },
 }

@@ -40,14 +40,14 @@
             </Dialog>
         </TransitionRoot>
 
-        <!-- Static sidebar for desktop: 264px wide, or the 72px icon rail when
+        <!-- Static sidebar for desktop: 296px wide, or the 72px icon rail when
              collapsed (remembered per browser); the page widens with it. -->
         <div class="hidden md:fixed md:inset-y-0 md:z-20 md:flex md:flex-col md:transition-[width] md:duration-200"
-             :class="sidebarCollapsed ? 'md:w-[72px]' : 'md:w-[264px]'"
+             :class="sidebarCollapsed ? 'md:w-[72px]' : 'md:w-[296px]'"
              style="background: linear-gradient(172deg, #0b2b1a 0%, #082013 48%, #051509 100%); border-right: 1px solid rgba(212,160,23,0.14);">
             <SidebarNav :collapsed="sidebarCollapsed" collapsible @toggle="setSidebarCollapsed(!sidebarCollapsed)" @expand="setSidebarCollapsed(false)"/>
         </div>
-        <div class="flex min-w-0 flex-1 flex-col md:transition-[padding] md:duration-200" :class="sidebarCollapsed ? 'md:pl-[72px]' : 'md:pl-[264px]'">
+        <div class="flex min-w-0 flex-1 flex-col md:transition-[padding] md:duration-200" :class="sidebarCollapsed ? 'md:pl-[72px]' : 'md:pl-[296px]'">
             <div class="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white shadow">
                 <button type="button"
                         class="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-maiic-500 md:hidden"

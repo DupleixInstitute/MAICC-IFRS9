@@ -232,17 +232,17 @@
     }
     .snav-row:hover { background-color: rgb(255 255 255 / 0.05); }
     .snav-heading {
-        @apply snav-row gap-2 px-2.5 py-2 text-[11px] font-semibold uppercase leading-4 tracking-[0.06em] text-sidenav-heading;
+        @apply snav-row gap-2 px-2.5 py-2 text-[13px] font-bold uppercase leading-5 tracking-[0.04em] text-sidenav-heading;
     }
     .snav-heading:hover { @apply text-maiic-200; }
     .snav-top {
-        @apply snav-row px-2.5 py-[7px] text-[13.5px] font-medium leading-5 text-sidenav-text;
+        @apply snav-row px-2.5 py-[7px] text-[15px] font-medium leading-6 text-sidenav-text;
     }
     .snav-l2 {
-        @apply snav-row py-[6px] pl-10 pr-2.5 text-[13px] font-medium leading-5 text-sidenav-text;
+        @apply snav-row py-[6px] pl-10 pr-2.5 text-[14.5px] font-medium leading-6 text-sidenav-text;
     }
     .snav-l3 {
-        @apply snav-row rounded-l-none rounded-r-md py-[5px] pl-3 pr-2.5 text-[12.5px] font-normal leading-[18px] text-sidenav-sub;
+        @apply snav-row rounded-l-none rounded-r-md py-[5px] pl-3 pr-2.5 text-[14px] font-normal leading-5 text-sidenav-sub;
     }
     .snav-top:hover, .snav-l2:hover, .snav-l3:hover, .snav-ancestor { @apply text-white; }
     .snav-rail {
@@ -255,7 +255,7 @@
     .snav-bar { @apply pointer-events-none absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-maiicgold-400; }
     .snav-l3 > .snav-bar { @apply inset-y-1 -left-px w-[2px] rounded-full; }
     .snav-icon { @apply h-4 !w-5 flex-none text-sidenav-icon transition-colors duration-150; }
-    .snav-heading .snav-icon { @apply h-3.5 !w-4 text-sidenav-heading/80; }
+    .snav-heading .snav-icon { @apply h-4 !w-4 text-sidenav-heading/80; }
     .snav-top:hover .snav-icon, .snav-rail:hover .snav-icon { @apply text-sidenav-text; }
     .snav-active .snav-icon, .snav-active:hover .snav-icon { @apply text-maiicgold-400; }
     .snav-label { @apply min-w-0 flex-1 break-words; }
