@@ -1098,7 +1098,13 @@ function renderScenario(n) {
                 const weighted = name === 'Probability-weighted'
                 const colour = weighted ? n.line : (sc[name] || cat[spare++ % cat.length])
                 const w = scenarioWeights.value[name]
-                return { label: weighted ? name : name + (w != null ? ' (' + w.toFixed(0) + '%)' : ''), data: s.periods.map(p => scenarioValue(p, name)),
+                const data = s.periods.map(p => scenarioValue(p, name))
+                // the probability-weighted ECL is the blend of the scenarios, not one of them: a trend line over their bars (15 October 2026)
+                if (weighted) {
+                    return { type: 'line', label: name, data, order: 0, borderColor: colour, backgroundColor: colour, borderWidth: 2.5, tension: 0.25, spanGaps: false,
+                        pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: n.surface, pointBorderColor: colour, pointBorderWidth: 2 }
+                }
+                return { label: name + (w != null ? ' (' + w.toFixed(0) + '%)' : ''), data, order: 1,
                     backgroundColor: colour, borderColor: n.surface, borderWidth: { left: 1, right: 1, top: 0, bottom: 0 }, borderRadius: 4, borderSkipped: 'bottom', maxBarThickness: 30 }
             }),
         },
