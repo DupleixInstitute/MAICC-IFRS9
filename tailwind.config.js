@@ -40,6 +40,18 @@ module.exports = {
                     500: '#f59e0b',
                     600: '#d97706',
                 },
+                // The left menu (SidebarNav, DropdownMenu, the .snav-* classes
+                // of app.css). It sits on the dark green gradient in both
+                // themes: one muted light green for the section headings and
+                // icons, off-white for the entries, a softer grey-green for the
+                // pages under them. The gold accent (maiicgold-400) is kept for
+                // the page in view.
+                sidenav: {
+                    heading: '#93c5a4',
+                    icon: '#86a993',
+                    text: '#e8eee9',
+                    sub: '#a9bdb0',
+                },
             },
         },
     },
