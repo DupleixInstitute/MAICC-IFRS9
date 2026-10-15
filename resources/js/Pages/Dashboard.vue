@@ -428,16 +428,14 @@
                                 </thead>
                                 <tbody>
                                     <tr v-for="p in scenarioEcl.periods" :key="p">
-                                        <td :title="sourceLabel(scenarioEcl.by_period[p])">{{ periodLabel(p) }}</td>
+                                        <td>{{ periodLabel(p) }}</td>
                                         <td v-for="name in scenarioNames" :key="name" class="num">{{ scenarioCell(p, name) }}</td>
                                         <td class="num text-gray-500">{{ formatCount((scenarioEcl.by_period[p].loans || [])[scenarioStage]) }}</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
-                        <p class="mt-3 text-[11px] text-gray-500 dark:text-slate-400">{{ scenarioSourceLine }}</p>
-                        <p v-for="line in scenarioSetLines" :key="line" class="mt-1 text-[11px] text-gray-500 dark:text-slate-400">{{ line }}</p>
-                        <p v-for="n in (scenarioEcl.notes || [])" :key="n" class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">{{ n }}</p>
+                        <p v-for="n in (scenarioEcl.notes || [])" :key="n" class="mt-3 text-[11px] text-amber-700 dark:text-amber-300">{{ n }}</p>
                     </template>
                     <p v-else class="maiic-empty">No stress run for {{ scenarioMissing || periodLabel(selectedPeriod) }}{{ selectedPortfolioName ? ' for this portfolio' : '' }}. Close the forward-looking month or run the scenario set on the Stress Testing screen.</p>
                 </div>
@@ -862,30 +860,6 @@ const scenarioTies = computed(() => {
     const differs = rows.filter(([, r]) => !r.ties).map(([p]) => p)
     return { ok: differs.length === 0, differs }
 })
-function sourceLabel(r) {
-    if (!r) return ''
-    if (r.source === 'month_end') return 'Forward-looking month-end record ' + r.record.id + ' (' + (r.record.status === 'SIGNED_OFF' ? 'signed off' : 'recorded, not yet signed off') + ')'
-    return 'Saved stress runs of the scenario set'
-}
-const scenarioSourceLine = computed(() => {
-    const by = props.scenarioEcl?.by_period || {}
-    const groups = {}
-    Object.entries(by).forEach(([p, r]) => { const k = sourceLabel(r); (groups[k] = groups[k] || []).push(p) })
-    return Object.entries(groups).map(([k, ps]) => k + ': ' + runsLabel(props.scenarioEcl.range_periods || [], ps)).join('; ') + '.'
-})
-const scenarioSetLines = computed(() => {
-    const seen = {}
-    Object.values(props.scenarioEcl?.by_period || {}).forEach(r => { if (r.set) seen[r.set.id] = r.set })
-    return Object.values(seen).map(set => {
-        const who = set.bootstrap
-            ? 'approved under the system bootstrap label (automated data-readiness, not a MAIIC approval)'
-            : set.status === 'APPROVED' || set.status === 'LOCKED'
-                ? 'approved' + (set.approver ? ' by ' + set.approver : '')
-                : String(set.status || '').toLowerCase()
-        return 'Scenario set ' + set.id + ' v' + set.version + ', ' + set.name + ': ' + who + '.'
-    })
-})
-
 const defaultHasData = computed(() => (props.defaultRates?.rows || []).some(r => ['monthly', 'annual'].some(k => r[k]?.book?.rate != null || r[k]?.portfolio?.rate != null)))
 function rateCell(x) {
     if (!x || x.rate === null || x.rate === undefined) return '-'
