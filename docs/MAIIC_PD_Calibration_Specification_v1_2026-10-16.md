@@ -61,20 +61,57 @@ A calibrated model cannot do that; a sample this small and this jumpy can.
 
 **6. The meaning of "default" moves with the staging policy.** Default is Stage 3, and Stage 3 is whatever the staging policy says. If MAIIC adopts directive-aligned staging, a short-term loan reaches Stage 3 at 91 days instead of 181, so the history of defaults, and every PD, changes too, even though no borrower behaved differently.
 
-## 5. What a better method gives, on the same data
+## 5. What the changes give, on the same data
 
-Two of the changes below, counting loans instead of balance and averaging over all fifteen 12-month windows held (July 2025 to September 2026), applied to the same history:
+The analysis below rebuilds every 12-month window from MAIIC's loan-month history (27 months, July 2024 to September 2026; 15 complete windows; 663 Stage 1 and 319 Stage 2 loan-windows) and applies the changes one at a time. Rebuilt with today's method, it gives exactly the engine's own figures, so the starting point is sound.
 
-| Group and stage | September 2026 as booked | Counted, all windows |
+**Stage 1 PD, for the window ending September 2026**
+
+| Group | Today | 1: count loans | 1 and 2: every window | 1 to 4 | With default at 90 days at the window end |
+|---|---|---|---|---|---|
+| Whole book | 33.7% | 34.4% | 29.6% | 29.6% | 47.1% |
+| MAIIC Industrial | 25.9% | 16.7% | 10.9% | 10.9% | 37.0% |
+| FInES Industrial | 44.3% | 30.0% | 21.2% | 21.2% | 38.4% |
+| FInES Agricultural | 64.6% | 50.0% | 43.9% | 43.9% | 59.2% |
+
+**Stage 2 PD, for the same window**
+
+| Group | Today | 1: count loans | 1 and 2: every window | 1 to 4 | With default at 90 days at the window end |
+|---|---|---|---|---|---|
+| Whole book | 26.3% | 45.7% | 56.4% | 56.4% | 72.4% |
+| MAIIC Industrial | 21.2% | 20.0% | 37.7% | 37.7% | 73.6% |
+| FInES Industrial | 35.3% | 50.0% | 52.1% | 52.1% | 70.6% |
+
+Three things stand out:
+
+- **Changes 1 and 2 do almost all the work.** Counting loans and using every window puts Stage 2 back above Stage 1 in every group, and makes the PDs far steadier.
+- **Changes 3 and 4 change nothing today**, because, once every window is used, every group has enough loans and the stages are already in order. They stay as safety nets for a thin month, a new portfolio, or MAIIC Term, which has no Stage 1 loans of its own.
+- **Change 5 is large on its own.** Moving the definition of default from over 180 days to over 90 days roughly halves again the Stage 1 PD (29.6% to 47.1% for the whole book), because many loans pass 90 days and stay in arrears without reaching 181. Counted at any month-end instead of at the window's end, it is larger still (58.7%). Section 6 therefore recommends deciding it separately.
+
+**Did the PDs predict what happened? (a backtest)**
+
+For the three months where both are known, the PD each group was given, against what that group's loans actually did over the next twelve months:
+
+| Group and stage | PD given (July to September 2025) | What happened, counting loans | What happened, by balance |
+|---|---|---|---|
+| Whole book, Stage 1 | 20% to 21% | 17%, 19%, 34% | 6%, 8%, 34% |
+| Whole book, Stage 2 | 0%, 57%, 100% | 58%, 50%, 46% | 47%, 34%, 26% |
+| FInES Agricultural, Stage 1 | 17% to 18% | 43%, 43%, 50% | 58%, 59%, 65% |
+| MAIIC Industrial, Stage 1 | 20% to 21% | 0%, 0%, 17% | 0%, 0%, 26% |
+
+The Stage 2 PDs given were 0% or 100%: a group of a few loans had seen either no default or only defaults. What actually happened was about half. Counted by loans, outcomes are steady; by balance they swing with whichever large loan happened to default. The proposed figures (Stage 1 29.6%, Stage 2 56.4% for the whole book) sit close to what happened.
+
+**The effect on the allowance (an estimate)**
+
+A Stage 1 loan's allowance is proportional to its 12-month PD, so the effect on Stage 1 can be estimated by scaling each loan's booked allowance by the change in its group's PD (keeping the forward-looking adjustment on top). For MAIIC's own book at September 2026, against a booked Stage 1 allowance of K1,901.6 million:
+
+| Changes | Estimated Stage 1 allowance | Change |
 |---|---|---|
-| Whole book, Stage 1 | 33.7% | 29.6% |
-| Whole book, Stage 2 | 26.3% | 56.4% |
-| FInES Industrial, Stage 1 | 44.3% | 21.2% |
-| FInES Industrial, Stage 2 | 35.3% | 52.1% |
-| MAIIC Industrial, Stage 1 | 25.9% | 10.9% |
-| MAIIC Industrial, Stage 2 | 21.2% | 37.7% |
+| 1: count loans | K1,718.6 million | K182.9 million lower (10%) |
+| 1 and 2 (and 1 to 4) | K1,422.3 million | K479.3 million lower (25%) |
+| 1 to 4, and default at 90 days at the window end | K2,483.5 million | K582.0 million higher (31%) |
 
-Stage 2 is back above Stage 1 in every group, and Stage 1 is steadier and, for most groups, lower. These are indications only; section 7 says how the full effect on the allowance is measured before anything is decided.
+Stage 2's allowance is over the loan's whole life and does not scale this way: it is measured properly only by the comparison run of section 7, which re-runs the engines. These estimates are a guide to direction and size, not booked figures.
 
 ## 6. The six proposed changes
 
@@ -86,10 +123,10 @@ Each change becomes a governed setting in the Governance Centre, so that it take
 | 2 | **Look back over every window held** | Average all the 12-month windows since the history began, not just the latest | All windows held, growing as history grows (today 15) | Steadier PDs; one bad or good year no longer swings the allowance |
 | 3 | **Blend small groups with their parent** | A small group's PD is part its own experience, part its portfolio's, in proportion to its size | Blend by the number of loans, full weight on the group's own rate at 30 loans or more | Uses each group's own experience without trusting a tiny sample completely |
 | 4 | **Keep the stages in order** | A Stage 2 PD is never below the Stage 1 PD of the same group | Stage 2 at least Stage 1; Stage 3 is 100% as now | A basic property any IFRS 9 PD must have |
-| 5 | **Fix what "default" means for the PD** | Default for the PD is defined on its own, not by whichever staging policy is in force | Over 90 days overdue, or written off, the usual IFRS 9 and Basel definition (IFRS 9 B5.5.37) | The PD history no longer changes when the staging policy changes |
+| 5 | **Fix what "default" means for the PD** | Default for the PD is defined on its own, not by whichever staging policy is in force | **Now: over 180 days overdue, or written off**, today's level, fixed so it no longer moves with the staging policy. **Separately: whether to move to over 90 days**, IFRS 9's rebuttable presumption (B5.5.37), decided as credit policy together with the staging decision (S1 of the Staging Module Specification) | Fixing the definition stops the PD history moving when the staging policy changes. Moving it to 90 days raises the Stage 1 allowance by about a third (section 5), so it is a decision of its own, not part of a calibration fix |
 | 6 | **Check the PDs against the real world** | Each quarter, compare the defaults the PDs predicted with those that happened, and compare the PDs with an outside benchmark | Quarterly backtest; benchmark against the S&P external PDs being built in the system | Shows whether the PDs are believable, and gives the auditors evidence |
 
-Changes 1 to 5 change the PDs; change 6 is a check that runs beside them. Mega Farm stays measured by its own module and is not touched.
+Changes 1 and 2 change the PDs today; changes 3 and 4 are safety nets that change nothing on today's data; change 5, as recommended, fixes the definition without moving it; change 6 is a check that runs beside them. Mega Farm stays measured by its own module and is not touched.
 
 ## 7. How we test it before deciding
 
@@ -110,7 +147,7 @@ That report is what Dr Thom decides on. The booked figures do not move until a c
 | C2 | The look-back | Dr Thom, with Risk | Every window held |
 | C3 | Small groups | Dr Thom, with Risk | Blend with the parent, full own weight at 30 loans |
 | C4 | Stage ordering | Dr Thom | Stage 2 at least Stage 1 |
-| C5 | The definition of default for the PD | Dr Thom, with Credit | Over 90 days, or written off |
+| C5 | The definition of default for the PD | Dr Thom, with Credit | Now: over 180 days, or written off, fixed apart from the staging policy. Whether to move to 90 days: decided with S1 |
 | C6 | The backtest and benchmark | Risk | Quarterly, against the S&P external PDs |
 | C7 | From which month to apply the approved changes | Dr Thom | The first month not yet locked after the comparison report is reviewed |
 
