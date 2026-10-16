@@ -168,7 +168,7 @@ This part is written so that anyone at MAIIC can follow it, not only ICT. If you
 | Has E-Banker changed a record we had already received? | The records book: any line with a version above 1, and the date its earlier version was replaced |
 | What exactly did we ask E-Banker for, and has the question changed? | The register gives each query and its version; the exact SQL is the committed query file of that version (section 4.2) |
 
-**Have the tables been created?** Yes, in the system's test databases, where they hold the data received so far. The bootstrap database holds 65 registered questions, 23 deliveries, 75 files and 88,977 records. In the production database the tables are created empty when the system is installed on MAIIC's server, because the installation runs the same database set-up. They are then ready for the first pack. Their full column-by-column definition is in the system's code.
+**Have the tables been created?** Yes, in the system's test databases, where they hold the data received so far. At 14 October 2026 the bootstrap database held 114 registered questions, 23 deliveries, 75 files and 88,977 records; the counts grow with each pack. In the production database the tables are created empty when the system is installed on MAIIC's server, because the installation runs the same database set-up. They are then ready for the first pack. Their full column-by-column definition is in the system's code.
 
 ### 4.2 The query register, and how the queries run in Oracle
 
@@ -200,7 +200,7 @@ Under route 1, the committed query files are what the pack sheets print for your
 |---|---|
 | Run the registered SELECT statements (114 in the register after pack 10, all in MAIIC's copy of the repository) | Write, change or delete any row |
 | Run once a month, on the first working day after month-end, between 06:00 and 07:00; the overdue table optionally daily | Run stored procedures, create objects or change settings |
-| Read a few megabytes a month: the loan accounts of the 18 MAIIC schemes and the 8 Mega Farm schemes, their ledger postings, balances, instalment charts, overdue computations and the trial balance | Read customer accounts outside those schemes, or any table not in the annex |
+| Read a few megabytes a month: the loan accounts of the 18 MAIIC schemes and the 8 Mega Farm schemes, their ledger postings, balances, instalment charts, overdue computations and the trial balance | Read any table not in the annex. Within those tables, every registered query is filtered to the MAIIC and Mega Farm schemes, and Oracle's audit shows every statement run |
 | Connect from one named server on MAIIC's network, with the password held by MAIIC ICT and rotated on MAIIC's schedule | Connect from anywhere else, or be used by a person |
 
 MAIIC ICT administers the account. You can see every session it opens in the database's own audit, and you can revoke it at any time. The manual route keeps working whatever happens.
@@ -588,4 +588,4 @@ The schema is **VGCBS** unless stated otherwise. In the "Read" column, W means t
 |---|---|---|---|---|
 | ALL_TABLES, ALL_TAB_COLUMNS, ALL_CONSTRAINTS, ALL_SYNONYMS, ALL_OBJECTS | DD_01 to DD_20, CV_02, CV_06, CV_07 | W | Structure of the tables the account can see | Detects a vendor change to a table before it reaches a query; the login and read-access checks of section 6, step 7 |
 
-Row filters are applied in every query to the MAIIC and Mega Farm scheme identifiers (84 to 95, 140 to 145; 96 to 103), so no other customer's data is read.
+Every query filters to the MAIIC and Mega Farm scheme identifiers (84 to 95, 140 to 145; 96 to 103), so the system only ever asks for those customers' records. The grants themselves are on whole tables.

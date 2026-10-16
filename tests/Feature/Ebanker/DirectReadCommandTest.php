@@ -78,6 +78,19 @@ class DirectReadCommandTest extends TestCase
         $this->assertSame('ROUTE_4_DIRECT', DB::table('ebanker_loads')->value('route'));
     }
 
+    public function test_the_read_is_scheduled_for_the_first_weekday_of_the_month_for_the_month_before(): void
+    {
+        foreach (['2026-11-02 06:00:00' => true, '2026-11-03 06:00:00' => false, '2026-08-01 06:00:00' => false, '2026-08-03 06:00:00' => true] as $at => $due) {
+            \Carbon\Carbon::setTestNow($at);
+            $this->app->forgetInstance(\Illuminate\Console\Scheduling\Schedule::class);
+            $event = collect($this->app->make(\Illuminate\Console\Scheduling\Schedule::class)->events())->first(fn ($e) => str_contains((string) $e->command, 'eir:direct-read'));
+            $this->assertNotNull($event, 'route 4 is scheduled');
+            $this->assertStringContainsString(\Carbon\Carbon::parse($at)->subMonthNoOverflow()->format('Y-m'), $event->command);
+            $this->assertSame($due, $event->isDue($this->app) && $event->filtersPass($this->app), $at);
+        }
+        \Carbon\Carbon::setTestNow();
+    }
+
     public function test_the_connection_test_proves_every_statement_without_reading_a_row(): void
     {
         $fake = $this->fake();
