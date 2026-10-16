@@ -103,7 +103,7 @@ class EirReadinessService
         if (! $takeon && $expectedPrincipal > 0 && $schedule->isNotEmpty() && abs($principalDue - $expectedPrincipal) > max(1.0, $expectedPrincipal * 0.01)) $issues[] = ['code' => 'PRINCIPAL_NOT_RECONCILED', 'message' => 'Scheduled principal does not reconcile to the expected contractual balance within 1%. Where the schedule was generated before the moratorium shapes were built, generate it again so the balance it amortises is recorded.'];
 
         // a line superseded by a higher source (fee_source_precedence, spec 7.8.2) neither blocks nor enters the EIR
-        $fees ??= self::feeQuery()->where('contract_id', $contractId)->get();
+        $fees ??= self::feeQuery($contractId)->where('contract_id', $contractId)->get();
         $unresolved = $fees->whereNotIn('classification_status', ['REVIEWED', 'REJECTED']);
         if ($unresolved->isNotEmpty()) $issues[] = ['code' => 'FEE_CLASSIFICATION_PENDING', 'message' => $unresolved->count() . ' fee/cost line(s) are not independently reviewed.'];
         // a line of a lower fee source the source of record has no event for (R03): it waits for a person's decision
@@ -185,15 +185,20 @@ class EirReadinessService
         return app(DisbursementService::class)->solvePlan((string) $contract->contract_id, $contract->origination_date);
     }
 
-    /** The fee lines that count: a line superseded by a higher source (fee_source_precedence, spec 7.8.2) neither blocks nor enters the EIR. */
-    public static function feeQuery(): \Illuminate\Database\Query\Builder
+    /**
+     * The fee lines that count: a line superseded by a higher source (fee_source_precedence, spec 7.8.2) neither
+     * blocks nor enters the EIR, and nor does an LOS charge never posted that the setting los_unposted_fee_basis
+     * leaves out (UnpostedFeeBasis: under "Counted only where Finance confirms it was charged", one Finance has
+     * not confirmed). $contractId narrows the rule's own read to one contract; the caller still filters by it.
+     */
+    public static function feeQuery(?string $contractId = null): \Illuminate\Database\Query\Builder
     {
         $query = DB::table('contract_fees');
         if (DB::getSchemaBuilder()->hasColumn('contract_fees', 'superseded_by_source')) {
             $query->whereNull('superseded_by_source');
         }
 
-        return $query;
+        return UnpostedFeeBasis::constrain($query, $contractId);
     }
 
     private function blocked(string $id, array $issues, array $metrics): array

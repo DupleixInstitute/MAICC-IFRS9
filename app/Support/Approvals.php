@@ -71,6 +71,10 @@ final class Approvals
         // the account exclusion register (AccountExclusionService, MAIIC's confirmation of 16 October 2026)
         'account-exclusion' => ['label' => 'Account exclusion', 'table' => 'account_exclusions', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['account_exclusions'],
             'evidence' => 'the client\'s confirmation that the account is a test account or a duplicate approval (the E-Banker status history or the account master that shows it)'],
+        // Finance's answers on the fee reconciliation workbook (FeeWorkbookAnswerService, 16 October 2026): the upload is
+        // the item, open while any of its answers waits; each answer is decided by a second person on Fee Classification
+        'fee-workbook' => ['label' => 'Finance fee workbook answers', 'table' => 'fee_workbook_uploads', 'status' => 'status', 'pending' => ['OPEN'], 'maker' => 'uploaded_by', 'entities' => ['fee_workbook_uploads'],
+            'evidence' => 'the workbook Finance answered (stored when it is uploaded)'],
     ];
 
     /** @return array{label:string,table:string,status:string,pending:list<string>,maker:?string,entities:list<string>,evidence:?string} */
@@ -192,6 +196,10 @@ final class Approvals
                 return true;
             case 'account-exclusion':
                 app(\App\Services\Ebanker\AccountExclusionService::class)->close($id, $userId, $action, $reason);
+
+                return true;
+            case 'fee-workbook':
+                app(\App\Services\Eir\FeeWorkbookAnswerService::class)->close($id, $userId, $action, $reason);
 
                 return true;
             case 'fee-rule':

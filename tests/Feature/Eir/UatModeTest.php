@@ -166,7 +166,7 @@ class UatModeTest extends TestCase
     public function test_every_maker_checker_site_uses_the_one_check(): void
     {
         foreach ([
-            'app/Services/Eir/GovernanceService.php', 'app/Services/Eir/EirCalculationService.php', 'app/Http/Controllers/EirFeeClassificationController.php', 'app/Services/Eir/QualitativeSicrService.php',
+            'app/Services/Eir/GovernanceService.php', 'app/Services/Eir/EirCalculationService.php', 'app/Services/Eir/FeeClassificationService.php', 'app/Services/Eir/QualitativeSicrService.php',
             'app/Services/Eir/RateResetService.php', 'app/Services/Eir/RestructureRegisterService.php', 'app/Services/Eir/StagingThresholdService.php', 'app/Services/Eir/EirReopenRequestService.php',
             'app/Services/Eir/PeriodUnlockService.php', 'app/Services/Eir/WriteOffRegisterService.php', 'app/Services/Ebanker/TakeonLandingService.php', 'app/Services/Ebanker/LoanBookBuildService.php',
             'app/Services/Eir/ScheduleWorkflowService.php', 'app/Services/Compliance/ComplianceAuditService.php', 'app/Services/Scenario/ScenarioSetService.php', 'app/Services/Fli/OverlayService.php',

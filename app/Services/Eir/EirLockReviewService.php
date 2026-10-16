@@ -37,7 +37,7 @@ class EirLockReviewService
                     'A GL fee posting held without a loan names this loan as its likely owner, and was not in the inputs the EIR was locked on: ' . HeldFeeEvidence::describe([$h]) . '.',
                     $h, $userId);
             }
-            $late = EirReadinessService::feeQuery()->where('contract_id', $id)->where('created_at', '>', $c->locked_at)->get(['id', 'fee_type', 'amount', 'source_system', 'transaction_date', 'created_at']);
+            $late = EirReadinessService::feeQuery($id)->where('contract_id', $id)->where('created_at', '>', $c->locked_at)->get(['id', 'fee_type', 'amount', 'source_system', 'transaction_date', 'created_at']);
             foreach ($late as $f) {
                 $new += $this->insert($id, 'AUTOMATIC', 'fee:' . $f->id,
                     'A ' . $f->fee_type . ' fee of ' . number_format((float) $f->amount, 2) . ' (' . $f->source_system . ') was recorded on ' . $f->created_at . ', after the EIR was locked on ' . $c->locked_at . '.',
