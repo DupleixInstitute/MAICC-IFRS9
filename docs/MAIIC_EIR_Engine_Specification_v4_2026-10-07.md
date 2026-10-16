@@ -1791,7 +1791,7 @@ The 13 October bootstrap's September 2026 run shows 3,692 loans, K56.18 billion 
 
 ## 17. The S&P basis: the December 2025 model's PD method as an alternative (added 15 October 2026)
 
-**Purpose.** MAIIC's December 2025 ECL model takes its PD from S&P's average cumulative default rates for emerging-market corporates (`PDs-S&P`), through an internal grade read from the arrears bracket. The system measures its PD from MAIIC's own defaults (section 14 and the results review, section 2.2). Whether S&P rates should feed the system at all, alone or blended with the measured rate, is Dr Thom's decision D4. Until he decides, the S&P basis runs the model's method on the system's data **beside** the booked figures, so the two can be compared loan by loan. It is an alternative, not an input: no engine, report, month-end record or golden number reads it.
+**Purpose.** MAIIC's December 2025 ECL model takes its PD from S&P's average cumulative default rates for emerging-market corporates (`PDs-S&P`), through an internal grade read from the arrears bracket. The system measures its PD from MAIIC's own defaults (section 14 and the results review, section 2.2). Whether S&P rates should feed the system at all, alone or blended with the measured rate, is Dr Thom's decision D4. Until he decides, the S&P basis runs the model's method on the system's data **beside** the booked figures, so the two can be compared loan by loan. It is an alternative, not an input: no engine, report or month-end record reads it. Its own totals are golden (16 October 2026, below), so a fresh install proves the comparison as it proves the engines, without the comparison moving any booked figure.
 
 **Inputs.** The month's loan book (days past due, the system's stage, EAD, LGD, interest rate, maturity) and the active internal grading profile (the S&P grading of the December 2025 model, loaded by the bootstrap from `docs/bootstrap/models`, 8 grades with cumulative rates for 1 to 10 years). The loans are those the system measures in the main ECL: a loan with an LGD and an EAD in the month, the Mega Farm programme's loans excluded by the programme module's own definition (`MegaFarmEclService::loans`), since the programme is measured by its own module and, at MAIIC, by a separate model.
 
@@ -1817,6 +1817,15 @@ The 13 October bootstrap's September 2026 run shows 3,692 loans, K56.18 billion 
 | September 2026 | 98 | 4,536.3 million | 1.4 / 883.1 / 3,651.8 | 10,654.6 million |
 
 The model itself reported 488.5 million at December 2025 (Stage 1 1.4, Stage 2 63.1, Stage 3 424.0). The S&P basis on the system's data is higher mainly because it stages from E-Banker's days past due rather than the model's typed ageing (results review section 2.1) and uses the system's LGD rather than the collateral LGD; its Stage 1 (1.2 million) is close to the model's (1.4 million), since both apply grade A's 0.03 percent. The system's own ECL is higher again because its PD is measured from MAIIC's defaults (16.0 percent in Stage 1 at December 2025 against 0.035 percent).
+
+**In the bootstrap (16 October 2026).** `eir:bootstrap --run-engines` runs the S&P basis for the golden months, 2025-12 and 2026-09, after stress testing (note "6.11 S&P basis"). It reads the active profile or, on a fresh install where the December 2025 model's profile is imported as a draft (note "3c S&P grading"), names that profile without activating it: reading a profile writes no PD, and `internal_grade_pd_feed` stays off. Ten golden values prove it: for each golden month the S&P basis ECL, the loans compared and the ECL by the stage the arrears bracket gives (`sp_{month}_ecl`, `sp_{month}_loans`, `sp_{month}_stage{1,2,3}_ecl`), set from a fresh bootstrap of master 04dac24 with the step (107 checks, all PASS):
+
+| Month | Loans | S&P basis ECL | Of which Stage 1 / 2 / 3 |
+|---|---:|---:|---|
+| December 2025 | 112 | 868.7 million | 0.8 / 261.6 / 606.3 |
+| September 2026 | 98 | 5,932.9 million | 1.8 / 1,215.4 / 4,715.7 |
+
+They differ from the first production runs above because those ran on 15 October before the Stage 3 history and the start-of-month interest basis changed the book the comparison reads; a run on production after the release gives the bootstrap's figures plus the decisions made there.
 
 **Tests.** `SpBasisEclServiceTest`: the model's arithmetic for each stage (grade, horizon, factor, recovery), the options, the exclusions, the refusals, and that `loan_books` is left as it was.
 

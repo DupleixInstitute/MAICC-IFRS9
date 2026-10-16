@@ -80,7 +80,17 @@
         "overdue_run_agree": 1782,
         "overdue_run_differ": 459,
         "overdue_run_differ_over_30": 229,
-        "overdue_run_not_in_book": 18
+        "overdue_run_not_in_book": 18,
+        "sp_2025-12_ecl": 868746601.37,
+        "sp_2025-12_loans": 112,
+        "sp_2025-12_stage1_ecl": 789134.58,
+        "sp_2025-12_stage2_ecl": 261622828.73,
+        "sp_2025-12_stage3_ecl": 606334638.06,
+        "sp_2026-09_ecl": 5932908830.26,
+        "sp_2026-09_loans": 98,
+        "sp_2026-09_stage1_ecl": 1837130.4,
+        "sp_2026-09_stage2_ecl": 1215375996.13,
+        "sp_2026-09_stage3_ecl": 4715695703.73
     },
     "labels": {
         "takeon_worksheet_loans": "Take-on worksheet (CV_10) against the take-on postings of 31 Jul 2024: term loans on the worksheet with take-on postings",
@@ -159,5 +169,6 @@
         "overdue_run_differ": "Days past due, E-Banker's overdue run against staging: differ",
         "overdue_run_differ_over_30": "Days past due, E-Banker's overdue run against staging: differ by more than 30 days",
         "overdue_run_not_in_book": "Days past due, E-Banker's overdue run against staging: OD_01 account-months not in the loan book"
-    }
+    },
+    "sp_basis_set": "The ten sp_* values (the S&P basis comparison, spec v4 section 17) set on 2026-10-16 from a fresh bootstrap of sp-basis-bootstrap on 04dac24 (maiic_ifrs9_sp2); every other value unchanged, all of them reproduced by that run."
 }
