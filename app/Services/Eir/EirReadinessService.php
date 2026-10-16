@@ -49,6 +49,10 @@ class EirReadinessService
         // returns a plausible rate that is not the contract's.
         if ($contract->frequency_source !== 'STATED') $issues[] = ['code' => 'FREQUENCY_ASSUMED', 'message' => 'Payment frequency was assumed, not stated by a source. Confirm it against the contract master or offer letter before solving.'];
         if ($contract->schedule_approval_status !== 'APPROVED') $issues[] = ['code' => 'SCHEDULE_NOT_APPROVED', 'message' => 'The original schedule is a draft and must be reviewed and approved before EIR calculation.'];
+        // a generated draft that differs from E-Banker's live instalment chart (ScheduleChartCheck): held from the
+        // automated approval; a person reviews it and approves it with a reason, or generates it again
+        $chartCheck = $contract->schedule_approval_status !== 'APPROVED' ? ScheduleChartCheck::held($contract) : null;
+        if (($chartCheck['status'] ?? null) === ScheduleChartCheck::DIFFERS) $issues[] = ['code' => 'SCHEDULE_DIFFERS_FROM_CHART', 'message' => ScheduleChartCheck::describe($chartCheck)];
 
         $schedule ??= DB::table('contract_cashflow_schedule')->where('contract_id', $contractId)->where('schedule_version', 1)->orderBy('due_date')->get();
         if ($schedule->isEmpty()) $issues[] = ['code' => 'ORIGINAL_SCHEDULE_MISSING', 'message' => 'Original contractual schedule (version 1) is missing.'];

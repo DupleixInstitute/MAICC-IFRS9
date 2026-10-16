@@ -87,7 +87,7 @@ class GlFeeBuildService
         $batches = $this->batches();
         $names = $this->accountNames();
 
-        $rows = []; $held = []; $assigned = ['lines' => 0, 'amount' => 0.0, 'by_rule' => []];
+        $rows = []; $held = []; $assigned = ['lines' => 0, 'amount' => 0.0, 'by_rule' => []]; $excluded = ['lines' => 0, 'amount' => 0.0];
         // a held line a person has since tied to its loan is in contract_fees already and stays there
         $tiedByHand = DB::table('contract_fees')->where('source_system', self::SOURCE)->where('external_transaction_id', 'like', 'GL_04a:%')
             ->pluck('external_transaction_id')->flip()->all();
@@ -95,6 +95,12 @@ class GlFeeBuildService
         $cleared = $this->clearedThrough2010();
         foreach ($legs as $leg) {
             [$contract, $rule, $reason, $loans] = $this->assign($leg, $batches[$leg['batch']] ?? [], $names, $cleared[$leg['batch']] ?? null);
+            if ($contract !== null && \App\Support\AccountExclusions::isExcluded($contract)) {
+                // a fee of an account the exclusion register takes out of the book: out of scope, neither loaded nor held
+                $excluded['lines']++;
+                $excluded['amount'] += $leg['amount'];
+                continue;
+            }
             if ($rule === self::RULE_CLEARING && isset($tiedByHand['GL_04a:' . $leg['voucher']])) {
                 continue; // a person tied it before the GL 2010 route existed: that tie stands and the line is not loaded twice
             }
@@ -153,6 +159,7 @@ class GlFeeBuildService
             'held' => ['lines' => count($held), 'amount' => round(array_sum(array_column($held, 'amount')), 2),
                 'with_a_candidate' => count(array_filter($held, fn ($h) => $h['candidate'] !== null)),
                 'by_reason' => array_count_values(array_map(fn ($h) => strtok($h['reason'], ':'), $held))],
+            'excluded' => ['lines' => $excluded['lines'], 'amount' => round($excluded['amount'], 2)],
             'loaded' => $loaded,
             'precedence' => $precedence,
             'gate' => $this->gate($legs),
@@ -283,7 +290,7 @@ class GlFeeBuildService
     private function clearedThrough2010(): array
     {
         $byBatch = [];
-        foreach ($this->zone->family(self::GL_2010_BATCHES) as $r) {
+        foreach ($this->zone->includingExcluded()->family(self::GL_2010_BATCHES) as $r) {
             $leg = self::leg($r);
             if ($leg !== null) {
                 $byBatch[$leg['batch']][] = $leg;
@@ -411,11 +418,15 @@ class GlFeeBuildService
             'no_tb' => count(array_filter($months, fn ($m) => $m['status'] === 'NO_TB'))];
     }
 
-    /** The posted fee legs of GL_04a, closing vouchers and deleted rows left out. */
+    /**
+     * The posted fee legs of GL_04a, closing vouchers and deleted rows left out, as received: the
+     * gate ties them to the trial balance (a control reads the zone unfiltered), and a leg the
+     * build ties to an excluded account is set aside as out of scope, never held.
+     */
     private function feeLegs(): array
     {
         $out = [];
-        foreach ($this->zone->family(self::GL_FEE_LEGS) as $r) {
+        foreach ($this->zone->includingExcluded()->family(self::GL_FEE_LEGS) as $r) {
             $leg = self::leg($r);
             if (! self::isGateLeg($leg)) {
                 continue;
@@ -431,7 +442,8 @@ class GlFeeBuildService
     private function batches(): array
     {
         $out = [];
-        foreach ($this->zone->family(self::GL_FEE_BATCHES) as $r) {
+        // every leg of the batch as received, so a fee is tied to its loan even when that loan is excluded (and then set aside)
+        foreach ($this->zone->includingExcluded()->family(self::GL_FEE_BATCHES) as $r) {
             $leg = $this->leg($r);
             if ($leg !== null) {
                 $out[$leg['batch']][] = $leg;

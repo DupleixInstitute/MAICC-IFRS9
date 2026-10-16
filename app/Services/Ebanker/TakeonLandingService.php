@@ -770,8 +770,12 @@ class TakeonLandingService
 
     private function gates(array $blocks): array
     {
-        $master = $this->zone->accountMaster();
-        $postings = $this->takeonPostings();
+        // the workbook is checked against the account master and the ledger as received (a control
+        // reads the zone unfiltered, LandingZoneReader::asReceived); a block mapped to an account the
+        // exclusion register takes out of the book is flagged, and the build never reaches it
+        $received = $this->zone->includingExcluded();
+        $master = $received->accountMaster();
+        $postings = $this->takeonPostings($received);
         $seen = [];
         $out = ['blocks' => [], 'summary' => ['blocks' => count($blocks), 'mapped' => 0, 'not_matched' => 0, 'refused' => 0, 'flagged' => 0, 'principal_exact' => 0, 'no_fee_row' => 0]];
         foreach ($blocks as $no => $b) {
@@ -788,6 +792,9 @@ class TakeonLandingService
                 $g['refusals'][] = "account {$account} already has block {$seen[$account]} ({$cell})";
             } else {
                 $seen[$account] = $no;
+                if (\App\Support\AccountExclusions::isExcluded($account)) {
+                    $g['flags'][] = "account {$account} is excluded from the book by account exclusion #" . \App\Support\AccountExclusions::exclusionOf($account) . " ({$cell}): the block is not used";
+                }
                 $p = $postings[$account] ?? null;
                 if ($p === null) {
                     $g['flags'][] = "no take-on posting on 31 Jul 2024 for {$account}";
@@ -829,10 +836,11 @@ class TakeonLandingService
     }
 
     /** E-Banker's opening postings per account at the take-on: the 301 of 31 Jul 2024 and the opening interest charge. */
-    private function takeonPostings(): array
+    private function takeonPostings(?LandingZoneReader $zone = null): array
     {
         $out = [];
-        foreach ($this->zone->ledgerByAccount(self::TAKEON_DATE) as $account => $posts) {
+        // the build reads the book's view (excluded accounts left out); the gates pass the zone as received
+        foreach (($zone ?? $this->zone)->ledgerByAccount(self::TAKEON_DATE) as $account => $posts) {
             // the three opening legs are keyed by their operation date (the migration
             // day), not their transaction date, which E-Banker back-dated to the loan
             $principal = 0.0; $interest = 0.0; $recovery = 0.0; $found = false;

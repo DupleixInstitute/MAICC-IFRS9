@@ -263,6 +263,35 @@ return [
             'routes' => ['loan_applications.loan-book', 'loan_applications.loan-book.summary'],
         ],
 
+        'Account exclusions' => [
+            'body' => '<p>Account Exclusions is the register of E-Banker accounts that are not loans of the book: the vendor\'s UAT test accounts, and approvals duplicated on a sister account that was the one drawn. In the sidebar, under <b>Data foundation</b>, open <b>Customer &amp; Loan Data</b>, then <b>Account Exclusions</b>. Anyone with <b>eir.view</b> can read it; proposing and deciding need <b>eir.govern</b>.</p>'
+                . '<h4>What you see on the screen</h4><ul>'
+                . '<li>Four tiles: <b>Excluded (approved)</b>, <b>Awaiting approval</b>, <b>Withdrawals awaiting approval</b> and <b>Rows held in the archive</b>.</li>'
+                . '<li>A notice, with an X to close it, saying what an approved exclusion does: the account leaves the loan book, the contract master, the fee lines, the drawdowns and the cash movements, so no EIR, revenue, staging, PD, LGD, ECL or report sees it.</li>'
+                . '<li>The panel <b>Exclusion register</b>, fifteen a page: <b>Account</b> (name, account number and register number), <b>Category</b> (UAT test account, or Duplicate approval, never drawn), <b>Reason and evidence</b>, <b>Sister account</b>, <b>Status</b> (a badge <b>Proposed</b> (gold), <b>Excluded</b> (green), <b>Rejected</b> (red) or <b>Withdrawn</b> (grey), with who proposed, approved or closed it, and a withdrawal awaiting approval in amber), <b>Rows</b> (for a proposal, what the account holds in the book now and would move; for a decided entry, what is in the archive) and <b>Actions</b>.</li></ul>'
+                . '<h4>Buttons and icons</h4><ul>'
+                . '<li><b>Propose exclusion</b> (plus sign, above the register at its top right): opens <b>Propose an account exclusion</b>. Needs eir.govern.</li>'
+                . '<li>Paper clip (<b>Documents and history</b>): opens the approval record, where the supporting document is attached and every event of the entry is listed.</li>'
+                . '<li>Tick (<b>Approve</b>) and cross (<b>Reject</b>): on a Proposed entry, shown only to an eir.govern user who did not propose it.</li>'
+                . '<li>No-entry circle (<b>Withdraw</b>): on a Proposed entry, shown only to the person who proposed it.</li>'
+                . '<li>Clock with an arrow (<b>Ask to withdraw</b>): on an Excluded entry, asks with a reason for the account to come back into the book.</li>'
+                . '<li>Ticked circle (<b>Approve the withdrawal</b>): shown to an eir.govern user other than the one who asked. The archived rows are restored.</li>'
+                . '<li>Cross on a withdrawal request: the person who asked cancels it, or a second person declines it, with a reason; the exclusion stands.</li></ul>'
+                . '<h4>The propose window</h4><p>Fields: <b>E-Banker account</b>, <b>Category</b>, <b>Reason</b>, <b>Evidence</b> (where it is recorded: the E-Banker status history row, the account master, the client\'s confirmation) and <b>Sister account</b> (required for a duplicate approval). A closed or written-off loan is a loan and stays in the book.</p>'
+                . '<h4>To exclude an account</h4><ol><li>Press <b>Propose exclusion</b>, give the account, the category, the reason and the evidence, and press <b>Propose</b>.</li><li>Open the paper clip and attach the supporting document (the client\'s confirmation, or the extract that shows the account is a test account or a duplicate).</li><li>A different person with eir.govern presses the tick. The account\'s rows move to the archive and every later build leaves it out.</li></ol>'
+                . '<h4>What happens next</h4><p>An approved exclusion is honoured at the door: the E-Banker landing zone reader leaves the account out of every build, and a file import refuses its rows naming the exclusion. Rows already in the book are moved to the archive (account_exclusion_archive), never deleted, so a withdrawal restores them. The exclusions MAIIC confirmed on 16 October 2026 (nine UAT test accounts and three duplicate approvals) are a committed client input, docs/bootstrap/account_exclusions.json, which a clean install lands as approved under the System Bootstrap label. Every step is in the audit trail ("Account Exclusion Proposed", "Account Exclusion Approved", "Account Exclusion Withdrawn" and so on).</p>'
+                . '<h4>Common problems</h4><ul><li><b>"The person who proposed an exclusion cannot approve it; a second person approves it."</b> Ask a colleague with eir.govern.</li><li><b>"Account exclusion n needs a supporting document before it is approved"</b>: attach it on the record (paper clip).</li><li><b>"Account n has rows in the locked reporting period(s) ..."</b>: a locked month is never restated. Unlock it with a reason on Imports &amp; Feeds, Periods Built (a second person approves the unlock), then approve the exclusion.</li><li><b>"Account n already has an exclusion proposed (or approved)"</b>: one open entry per account.</li></ul>',
+            'steps' => [
+                'Open Customer & Loan Data, Account Exclusions.',
+                'Press Propose exclusion, give the account, the category, the reason and the evidence, and press Propose.',
+                'Open the paper clip on the new entry and attach the supporting document.',
+                'Ask a colleague with eir.govern to press the tick to approve it, or the cross to reject it with a reason.',
+                'To bring an excluded account back, press the clock with a reason; a second person approves the withdrawal.',
+            ],
+            'images' => [],
+            'routes' => ['account-exclusions.index', 'account-exclusions.store', 'account-exclusions.approve', 'account-exclusions.close', 'account-exclusions.withdrawal.approve', 'account-exclusions.withdrawal.drop'],
+        ],
+
         'Importing a loan book' => [
             'body' => '<p>The loan book import loads one month-end of loans into a portfolio from a file: the standard CSV, the E-Banker loan book report as exported, or any CSV whose columns you match. Where the loan book is built from the E-Banker packs (see <b>E-Banker feed: loads, builds, periods and queries</b>), this import is used for corrections and other portfolios. The portfolio must exist first. Open the Loan Book and press <b>Import loan book</b>, or press <b>Import loan book</b> on the Imports tab. The page title is <b>Import Loan Book</b> (breadcrumbs: <b>Data foundation &gt; Customer &amp; Loan Data &gt; Loan Book &gt; Import Loan Book</b>). Any signed-in user may use it; no second approval is asked. The general rules of every import are in the Getting Started article <b>Importing files: sample file, column guide and Check file</b>; this article covers the loan book files.</p>'
                 . '<h4>What you see on the screen</h4>'

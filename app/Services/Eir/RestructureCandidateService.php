@@ -442,9 +442,17 @@ class RestructureCandidateService
             return $this->chart;
         }
         $by = [];
-        foreach ([['P2_10', false], ['RS_02a', true]] as [$query, $superseded]) {
+        $live = [];
+        // the live chart with its later extracts for accounts P2_10 did not hold (InstalmentChartHistory::LIVE_SUPPLEMENTS)
+        foreach (array_merge([['P2_10', false]], array_map(fn ($q) => [$q, false], \App\Services\Ebanker\InstalmentChartHistory::LIVE_SUPPLEMENTS), [['RS_02a', true]]) as [$query, $superseded]) {
             foreach ($this->zone->family([$query]) as $row) {
                 $p = $row['payload'];
+                if (in_array($query, \App\Services\Ebanker\InstalmentChartHistory::LIVE_SUPPLEMENTS, true) && isset($live[(string) ($p['INST_CHART_DET_ID'] ?? '')])) {
+                    continue;
+                }
+                if ($query === 'P2_10') {
+                    $live[(string) ($p['INST_CHART_DET_ID'] ?? '')] = true;
+                }
                 if (($p['ACTIVE_FLAG'] ?? 'Y') !== 'Y' || $row['account'] === null || $row['account'] === '') {
                     continue;
                 }

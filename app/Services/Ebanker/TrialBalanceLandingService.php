@@ -37,8 +37,10 @@ class TrialBalanceLandingService
     public const ROUTE = 'TRIAL_BALANCE_FILE';
     public const QUERY_ID = 'TB_01';
 
-    public function __construct(private readonly TrialBalanceImportService $importer = new TrialBalanceImportService(), private readonly LandingZoneReader $zone = new LandingZoneReader())
+    public function __construct(private readonly TrialBalanceImportService $importer = new TrialBalanceImportService(), private LandingZoneReader $zone = new LandingZoneReader())
     {
+        // a landing and its gates read the zone as received (LandingZoneReader::asReceived)
+        $this->zone = $zone->includingExcluded();
     }
 
     /**

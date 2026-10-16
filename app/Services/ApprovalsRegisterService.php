@@ -52,6 +52,7 @@ class ApprovalsRegisterService
         'compliance-signoff' => ['title' => null, 'proposed_at' => ['signed_at', 'created_at'], 'decided_by' => ['approved_by'], 'decided_at' => ['approved_at'], 'label' => null, 'reason' => []],
         'fli-month' => ['title' => 'reporting_period', 'proposed_at' => ['created_at'], 'decided_by' => ['signed_off_by'], 'decided_at' => ['signed_off_at'], 'label' => 'approver_label', 'reason' => []],
         'macro-override' => ['title' => 'series_code', 'proposed_at' => ['created_at'], 'decided_by' => ['approved_by'], 'decided_at' => ['approved_at'], 'label' => null, 'reason' => ['reason']],
+        'account-exclusion' => ['title' => 'contract_id', 'proposed_at' => ['proposed_at', 'created_at'], 'decided_by' => ['approved_by', 'closed_by'], 'decided_at' => ['approved_at', 'closed_at'], 'label' => 'approver_label', 'reason' => ['close_reason', 'reason']],
     ];
 
     /** @var array<int, string> */

@@ -105,9 +105,8 @@ class ScheduleWorkflowService
         // derive the first due date from the stated moratorium and frequency.
         $sourceFirst=($contract->first_instalment_date ?: $contract->first_repayment_date)?->copy();
         $first=$sourceFirst && $sourceFirst->gte($derivedFirst) ? $sourceFirst : $derivedFirst;
-        if ($first->gt($maturity)) throw new InvalidArgumentException('First repayment date falls after maturity.');
-        $payments=1; $cursor=$first->copy();
-        while ($cursor->copy()->addMonthsNoOverflow($interval)->lte($maturity)) { $payments++; $cursor->addMonthsNoOverflow($interval); }
+        $payments=self::instalmentsTo($first,$maturity,$interval);
+        if ($payments===0) throw new InvalidArgumentException('First repayment date falls after maturity.');
 
         // contract_eir.contractual_rate is a fraction (0.3210 for 32.10 percent),
         // as the column is defined and every loader writes it. A value above 1 is
@@ -182,12 +181,50 @@ class ScheduleWorkflowService
         });
         $comparison=$this->comparison($contract->fresh());
         $contract->update(['schedule_comparison_status'=>$comparison['status']]);
+        // the draft against E-Banker's live instalment chart, recorded for the reviewer and the approval guard (ScheduleChartCheck)
+        app(ScheduleChartCheck::class)->record($contract->fresh());
         return ['rows'=>count($result['rows']),'comparison'=>$comparison,'shape'=>[
             'instalment'=>$result['instalment'],'instalment_shape'=>$result['instalment_shape'],
             'moratorium_type'=>$result['moratorium_type'],'interest_basis'=>$result['interest_basis'],
             'instalment_basis'=>$result['instalment_basis'],'day_count'=>$result['day_count'],
             'capitalised_interest'=>$result['capitalised_interest'],'basis_sources'=>$result['basis_sources'],
         ]];
+    }
+
+    /**
+     * The number of instalments from the first due date to the maturity, one
+     * every $interval months on the dates the generator writes (the first due
+     * date plus whole intervals, ScheduleGeneratorService).
+     *
+     * E-Banker writes a facility's maturity as the day before the anniversary
+     * of its start (MATURITY_DATE = start + tenor - 1 day: Nature's Gift,
+     * 22 April 2022 for three years, matures on 21 April 2025; its chart's last
+     * instalment is the third anniversary). The term runs to the end of the
+     * maturity day, so an instalment due the day after the maturity is the
+     * contract's last one (termEnd). Until 16 October 2026 the count stopped at
+     * the maturity date itself and every loan written this way lost its last
+     * instalment: Nature's Gift two annual instalments of E-Banker's three,
+     * Kadava 23 monthly of 24, and the locked schedules of Udon Business
+     * (59 rows to 2 January 2029, maturity 1 February 2029) and Mtengo wa
+     * Kumunda (20 rows to 5 June 2024, maturity 4 July 2024). The loop also
+     * stepped from the previous date, so a date clamped at a month end (31
+     * January to 28 February) drifted and the count could differ from the dates
+     * written; it now counts the written dates. 0 when the first instalment
+     * falls after the term.
+     */
+    public static function instalmentsTo(Carbon $first, Carbon $maturity, int $interval): int
+    {
+        $end=self::termEnd($maturity);
+        if ($interval<1 || $first->copy()->startOfDay()->gt($end)) return 0;
+        $n=1;
+        while ($first->copy()->addMonthsNoOverflow($n*$interval)->startOfDay()->lte($end)) $n++;
+        return $n;
+    }
+
+    /** The last day an instalment may fall on: the day after the maturity E-Banker writes (anniversary less one day). */
+    public static function termEnd(Carbon $maturity): Carbon
+    {
+        return $maturity->copy()->startOfDay()->addDay();
     }
 
     public function generateEligible(?int $userId=null): array
@@ -344,6 +381,21 @@ class ScheduleWorkflowService
         if ($label!==null && !$bootstrap)
             throw new InvalidArgumentException('Only the bootstrap label may stand in for a named approver.');
         if (!$bootstrap) $this->assertSecondPerson($contract,$userId);
+        // A generated schedule is set against E-Banker's live instalment chart before it is approved
+        // (ScheduleChartCheck). One that differs is never approved by the automated path: it stays a
+        // draft with the reason and the two sets of figures, for a person to review; a person may still
+        // approve it, with a reason.
+        $chart=$contract->schedule_source==='GENERATED' ? app(ScheduleChartCheck::class)->record($contract) : null;
+        if ($chart!==null && $chart['status']===ScheduleChartCheck::DIFFERS) {
+            $why=ScheduleChartCheck::describe($chart);
+            if ($bootstrap) {
+                $contract->update(['schedule_review_notes'=>mb_substr('Not approved by the bootstrap: '.$why,0,2000)]);
+                AuditLoggerService::log('EIR Schedule Held', ContractEir::class, $contract->id, ['new_values'=>['contract_id'=>$contract->contract_id,'chart_check'=>$chart],'meta'=>['label'=>$label]]);
+                throw new InvalidArgumentException('Not approved automatically: '.$why);
+            }
+            if (trim((string)$notes)==='')
+                throw new InvalidArgumentException('Give the reason for approving a schedule that differs from E-Banker\'s chart. '.$why);
+        }
         $comparison=$this->comparison($contract);
         if ($comparison['status'] !== 'WITHIN_TOLERANCE' && trim((string)$notes) === '')
             throw new InvalidArgumentException('A review note is required when the generated schedule does not reconcile within tolerance to Extract B remaining cash flows.');
@@ -352,6 +404,7 @@ class ScheduleWorkflowService
             'schedule_approver_label'=>$bootstrap ? $label : null]);
         AuditLoggerService::log('EIR Schedule Approved', ContractEir::class, $contract->id, ['new_values'=>[
             'contract_id'=>$contract->contract_id,'comparison_status'=>$comparison['status'],'notes'=>$notes,
+            'chart_check'=>$chart===null ? null : ['status'=>$chart['status'],'reasons'=>$chart['reasons']],
         ],'meta'=>['approved_by'=>$userId,'prepared_by'=>$contract->schedule_prepared_by,'label'=>$bootstrap ? $label : null]]);
     }
 

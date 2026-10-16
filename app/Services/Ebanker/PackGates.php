@@ -71,8 +71,12 @@ class PackGates
      */
     private const NUMERIC_COLUMN = '/(^|_)(AMOUNT|AMT|BALANCE|BAL)$|TRANSAMT$|^(PRINCIPAL|DEBIT|CREDIT|REPAYMENT|APPROVED|DISBURSD|NOT_YET_DISBURS|INTEREST_TO_DATE|INTEREST_RATE|OPENING_BAL|DAY_1_30|DAY_31_91|DAY_91_180|DAY_181_270|DAY_271_360)$/';
 
-    public function __construct(private readonly LandingZoneReader $zone, private readonly PackLandingService $landing)
+    private LandingZoneReader $zone;
+
+    /** The gates check the pack as received: whatever reader they are handed, they read the zone unfiltered (LandingZoneReader::asReceived). */
+    public function __construct(LandingZoneReader $zone, private readonly PackLandingService $landing)
     {
+        $this->zone = $zone->includingExcluded();
     }
 
     // ----- gates on one file ------------------------------------------------

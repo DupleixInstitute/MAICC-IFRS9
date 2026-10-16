@@ -38,6 +38,7 @@ class FeeImportService
         $matcher ??= app(FeeRuleMatcher::class);
         $inserts       = [];
         $skipped       = 0;
+        $excluded      = 0;
         $unknownTypes  = [];
         $negativeLines = 0;
         $totals        = [];
@@ -52,6 +53,11 @@ class FeeImportService
 
             if ($contractId === null || $amount === 0.0) {
                 $skipped++;
+                continue;
+            }
+            // an account the exclusion register takes out of the book loads no fee line (AccountExclusionService)
+            if (\App\Support\AccountExclusions::isExcluded($contractId)) {
+                $excluded++;
                 continue;
             }
 
@@ -137,6 +143,7 @@ class FeeImportService
         return [
             'loaded_rows'    => count($inserts),
             'skipped_rows'   => $skipped,
+            'excluded_rows'  => $excluded,
             'unknown_types'  => $unknownTypes,
             'negative_lines' => $negativeLines,
             'totals_by_type' => array_map(fn ($v) => round($v, 2), $totals),

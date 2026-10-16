@@ -30,8 +30,9 @@ use Throwable;
  *   php artisan eir:bootstrap --fresh --with-client-inputs --build --run-engines --verify
  *
  * Steps: 1 migrate:fresh (refused if user data exists unless --force-wipe);
- * 2 seed; 3 land the committed pack (3d, with --direct-read, then a month-end
- * read from E-Banker by route 4); 4 land the take-on workbook; 5 build the
+ * 2 seed; 3 land the committed pack, the trial balances and the account
+ * exclusions MAIIC confirmed (3d, with --direct-read, then a month-end read
+ * from E-Banker by route 4); 4 land the take-on workbook; 5 build the
  * loan books, the take-on population and the contract inputs, then the
  * version 1 schedules, then detect the restructure candidates and the rate
  * moves (detection only: the bootstrap never classifies, confirms or
@@ -190,6 +191,15 @@ class Bootstrap extends Command
                 $this->note('3c S&P grading', "draft profile \"{$name}\": " . $profile->mappings()->count() . ' grades, not active');
             }
         }
+        // the accounts MAIIC confirmed are not loans of the book (16 October 2026: nine UAT test accounts and
+        // three duplicate approvals never drawn), landed as approved under the bootstrap label, never as a MAIIC
+        // person, before anything is built: the reader then leaves them out of every build (AccountExclusionService)
+        $exclusions = $inputs . DIRECTORY_SEPARATOR . \App\Services\Ebanker\AccountExclusionService::CLIENT_INPUT;
+        if (is_file($exclusions)) {
+            $x = app(\App\Services\Ebanker\AccountExclusionService::class)->landClientInput($exclusions);
+            $this->note('3d account exclusions', "{$x['accounts']} accounts in {$x['file']}: {$x['landed']} landed as approved under the bootstrap label, " . count($x['already']) . ' already in the register'
+                . ($x['already'] !== [] ? ' (' . implode(', ', array_map(fn ($c, $s) => "{$c} {$s}", array_keys($x['already']), $x['already'])) . ')' : '') . "; {$x['archived']} rows moved to the archive");
+        }
     }
 
     /**
@@ -265,6 +275,11 @@ class Bootstrap extends Command
         $last = $zone->lastLedgerDate();
         $to = $this->option('to') ?? substr(end($ends) ?: substr((string) $last, 0, 7), 0, 7);
         $from = (string) $this->option('from');
+        if ($this->decisions !== null) {
+            // the exclusions people decided in the source database, before the book is built (section 8.10)
+            $summary = $this->decisions->replayExclusions();
+            $this->note('5a decisions pack: exclusions', $this->decisions->label() . ': ' . self::decisionsLine($summary));
+        }
         $build = app(LoanBookBuildService::class);
         $r = $build->build($from, $to, null, null, null, LoanBookBuildService::BOOTSTRAP_LABEL, false, true);
         $rows = array_sum(array_map(fn ($p) => $p['rows'], $r['periods']));
@@ -342,7 +357,9 @@ class Bootstrap extends Command
                 $refused[] = $c->contract_id . ': ' . $e->getMessage();
             }
         }
-        $this->note('5h schedules v1', json_encode(array_intersect_key($gen, array_flip(['generated', 'skipped', 'eligible', 'held']))) . "; approved under the bootstrap label: {$approved}; refused: " . count($refused));
+        $this->note('5h schedules v1', json_encode(array_intersect_key($gen, array_flip(['generated', 'skipped', 'eligible', 'held']))) . "; approved under the bootstrap label: {$approved}; refused: " . count($refused)
+            . '; of them held as differing from E-Banker\'s instalment chart (ScheduleChartCheck), left as drafts for a person: '
+            . count(array_filter($refused, fn ($r) => str_contains($r, 'Not approved automatically'))));
 
         // 5i restructure candidates and rate moves (spec v4 section 3.9, P5): detection only, once the ledger,
         // the instalment chart history, the PLR series and the contract master are in, and before staging.
@@ -770,6 +787,25 @@ class Bootstrap extends Command
             $this->note('6.11 stress testing', $st === [] ? 'no approved scenario set' : collect($st)->map(fn ($r, $n) => "{$n} " . number_format($r['stress_ecl'], 0) . ' (' . ($r['delta_pct'] >= 0 ? '+' : '') . $r['delta_pct'] . '%)')->implode('; '));
         } catch (Throwable $e) {
             $this->note('6.11 stress testing', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+        }
+        // 11b the S&P basis (spec v4 section 17): the December 2025 model's method (arrears bracket, S&P
+        // grade and its cumulative default rates, the T-bill factor, the typed recovery) beside the booked
+        // ECL, loan by loan, for the golden months. A comparison: it writes only its own run and changes
+        // nothing booked; its totals are golden, so a fresh install proves it like the engines.
+        // the profile read is the active one, else the December 2025 model's S&P profile imported at 3c (a draft:
+        // it is named here without being activated, so no PD is written from it)
+        $spProfile = DB::table('internal_grade_profiles')->where('is_active', true)->value('id')
+            ?? DB::table('internal_grade_profiles')->where('name', 'S&P Emerging Markets (ECL model, December 2025)')->value('id');
+        foreach (\App\Services\Eir\BaselineService::GOLDEN_PERIODS as $gp) {
+            if (! in_array($gp, $periods, true)) {
+                continue;
+            }
+            try {
+                $sp = app(\App\Services\Ifrs9\SpBasisEclService::class)->run($gp, $user, $spProfile !== null ? (int) $spProfile : null);
+                $this->note('6.11 S&P basis ' . $gp, "{$sp['loans']} loans: S&P basis ECL " . number_format($sp['ecl'], 0) . ' against the system\'s ' . number_format($sp['system_ecl'], 0) . " on the same loans (run {$sp['run_id']}; nothing booked changes)");
+            } catch (Throwable $e) {
+                $this->note('6.11 S&P basis ' . $gp, 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+            }
         }
         // 12 the reports: every IFRS 9 report rendered for the period
         // in its own process: rendering thirty reports and the manual's PDF after the whole chain exhausts this one's memory

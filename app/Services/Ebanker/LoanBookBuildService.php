@@ -30,7 +30,11 @@ use Throwable;
  * Idempotent on account and reporting period. Rebuilding a month prints every
  * difference first. A locked period is never restated. The ECL columns (stage,
  * PD, LGD, FLI, ECL) are not touched by any method. Every row records its
- * method, the load it came from and the inputs it was built from.
+ * method, the load it came from and the inputs it was built from. An account
+ * an approved exclusion takes out of the book (the account exclusion
+ * register, AccountExclusionService) gets no row: methods A and B read the
+ * zone through LandingZoneReader, which leaves it out, and method C moves the
+ * report's rows for it to the exclusion's archive.
  */
 class LoanBookBuildService
 {
@@ -303,6 +307,9 @@ class LoanBookBuildService
             $stamped = DB::table('loan_books')->where('reporting_period', $period)->where('updated_at', '>=', $started)
                 ->update(['build_method' => 'C', 'build_load_id' => $loadId, 'build_source_key' => null, 'build_flag' => null,
                     'build_basis' => json_encode(['file' => basename($path), 'sha256' => $sha]), 'is_month_end' => 1]);
+            // the printed report carries every account E-Banker holds: the rows of an account the exclusion
+            // register takes out of the book go to its archive, as the other doors leave them out (AccountExclusionService)
+            $stamped -= array_sum(app(AccountExclusionService::class)->reapply());
             $result = [$period => ['method' => 'C', 'rows' => $stamped, 'flagged' => 0, 'gates' => $gates]];
             DB::table('loan_book_builds')->where('id', $buildId)->update(['status' => 'BUILT', 'built_at' => now(), 'result' => json_encode($result), 'updated_at' => now()]);
             AuditLoggerService::log('Loan Book Built', 'loan_book_builds', $buildId, ['new_values' => ['period' => $period, 'method' => 'C', 'rows' => $stamped, 'file' => basename($path), 'sha256' => $sha], 'meta' => ['requested_by' => $requestedBy, 'approved_by' => $approvedBy, 'approver_label' => $approverLabel]]);

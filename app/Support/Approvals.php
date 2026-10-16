@@ -68,6 +68,9 @@ final class Approvals
             'evidence' => null],
         'macro-override' => ['label' => 'Macro data override', 'table' => 'macro_override_requests', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['macro_override_requests'],
             'evidence' => 'the source of the value'],
+        // the account exclusion register (AccountExclusionService, MAIIC's confirmation of 16 October 2026)
+        'account-exclusion' => ['label' => 'Account exclusion', 'table' => 'account_exclusions', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['account_exclusions'],
+            'evidence' => 'the client\'s confirmation that the account is a test account or a duplicate approval (the E-Banker status history or the account master that shows it)'],
     ];
 
     /** @return array{label:string,table:string,status:string,pending:list<string>,maker:?string,entities:list<string>,evidence:?string} */
@@ -185,6 +188,10 @@ final class Approvals
                 return true;
             case 'write-off':
                 app(\App\Services\Eir\WriteOffRegisterService::class)->close($id, $userId, $action, $reason);
+
+                return true;
+            case 'account-exclusion':
+                app(\App\Services\Ebanker\AccountExclusionService::class)->close($id, $userId, $action, $reason);
 
                 return true;
             case 'fee-rule':

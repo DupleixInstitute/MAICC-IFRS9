@@ -15,9 +15,64 @@ use Illuminate\Support\Facades\DB;
  * keeps its rows against itself so the refused file can be opened (spec 6.4;
  * system audit of 9 October 2026, finding M2), and they must never reach a
  * build.
+ *
+ * Two ways to read the zone (release review of 16 October 2026):
+ *
+ *  - for the book (new LandingZoneReader(), the container's instance): the
+ *    rows of an account an approved exclusion takes out of the book (the
+ *    account exclusion register, AccountExclusionService) are left out of
+ *    every family, so the loan book, the contract master, the fees, the cash,
+ *    the drawdowns, the charts and the take-on population never see it;
+ *  - as received (LandingZoneReader::asReceived(), or includingExcluded() on
+ *    a reader in hand): every row of the extracts, excluded accounts and all.
+ *    Every control reads this way: the pack gates, the take-on gates, the
+ *    trial balance landing, the GL fee gate, the baselines and the golden ties
+ *    of BaselineService, and the GL names of the reconciliation. A control
+ *    checks what E-Banker sent against the GL; an excluded account is still
+ *    in E-Banker and in the GL (Global Seeds 104420000044 and Angwenda
+ *    104460000029 are 58,413,511.84 of the old ledger at 31 Dec 2023), so a
+ *    control that read the book's view would move by it.
+ *
+ * The rows stay in the zone as received whichever way it is read.
  */
 class LandingZoneReader
 {
+    /** Whether the rows of excluded accounts are returned too (the pack gates; the register's own look-up). */
+    private bool $withExcluded = false;
+
+    /** A reader of the zone as received, for a control: no account is left out. */
+    public static function asReceived(): static
+    {
+        return (new static())->includingExcluded();
+    }
+
+    /** Whether this reader leaves the excluded accounts out (the book's view) or reads the zone as received. */
+    public function readsAsReceived(): bool
+    {
+        return $this->withExcluded;
+    }
+
+    /** The same reader with the rows of excluded accounts left in: the zone exactly as received. */
+    public function includingExcluded(): static
+    {
+        $reader = clone $this;
+        $reader->withExcluded = true;
+
+        return $reader;
+    }
+
+    /** The approved exclusions this reader leaves out (none when it reads the zone as received). */
+    private function excluded(): array
+    {
+        return $this->withExcluded ? [] : \App\Support\AccountExclusions::approved();
+    }
+
+    /** Whether a row's account is one this reader leaves out. */
+    private function leavesOut(?string $account, array $excluded): bool
+    {
+        return $excluded !== [] && $account !== null && $account !== '' && isset($excluded[ltrim($account, '0')]);
+    }
+
     /** Query ids that mirror each E-Banker table. */
     public const LEDGER = ['P1_01', 'M09_01', 'MF_03', 'GL_03', 'ZF_01'];
     public const LOAN_BOOK_RUNS = ['P2_08', 'M09_03', 'MF_05'];
@@ -63,7 +118,11 @@ class LandingZoneReader
             $q->where('row_date', '=', $onDate);
         }
         $out = [];
+        $excluded = $this->excluded();
         foreach ($q->get(['load_id', 'query_id', 'source_key', 'account', 'row_date', 'payload']) as $r) {
+            if ($this->leavesOut($r->account, $excluded)) {
+                continue;
+            }
             $out[$r->source_key] = [
                 'load_id' => (int) $r->load_id, 'query_id' => $r->query_id, 'source_key' => $r->source_key,
                 'account' => $r->account, 'row_date' => $r->row_date, 'payload' => json_decode($r->payload, true) ?: [],
@@ -113,8 +172,12 @@ class LandingZoneReader
     public function ledgerReader(bool $withMegaFarm = false): \Closure
     {
         $byAccount = [];
+        $excluded = $this->excluded();
         foreach ($this->current()->whereIn('query_id', self::ledgerFamilies($withMegaFarm))->whereNotNull('account')->orderBy('load_id')->orderBy('id')
             ->get(['load_id', 'query_id', 'source_key', 'account', 'row_date', 'payload']) as $r) {
+            if ($this->leavesOut($r->account, $excluded)) {
+                continue;
+            }
             $byAccount[$r->account][] = [
                 'load_id' => (int) $r->load_id, 'query_id' => $r->query_id, 'source_key' => $r->source_key,
                 'account' => $r->account, 'row_date' => $r->row_date, 'payload' => json_decode($r->payload, true) ?: [],
