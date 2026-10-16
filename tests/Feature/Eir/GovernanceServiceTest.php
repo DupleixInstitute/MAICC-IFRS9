@@ -101,7 +101,7 @@ class GovernanceServiceTest extends TestCase
 
         // Running it again changes nothing: an approved MAIIC change is never overwritten.
         $this->seedGovernanceDefaults();
-        $this->assertSame(76, GovernanceSetting::count());
+        $this->assertSame(78, GovernanceSetting::count());
     }
 
     /** Audit finding H10: the generator resolves settings at origination, and MAIIC's earliest contract is March 2020. */
