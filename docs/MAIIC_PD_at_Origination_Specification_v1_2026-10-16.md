@@ -68,6 +68,8 @@ Dr Thom would normally make the six decisions below. We took them on his behalf 
 | 5 | When does the test start moving loans? | **Not yet. It runs in shadow first**: each month a report lists the loans the test would move, with their readings, while staging stays exactly as it is. After at least two month-ends of shadow results, adopting it is an ordinary governed change: proposed by one person, approved by another, with the shadow reports as its supporting document | It lets Finance and Credit see which loans it would move, and the effect, before it changes any stage, any ECL or the RBM return |
 | 6 | Borrower grades instead of segment PDs? | **Not decided here.** Recommended for MAIIC Credit: approve the S&P grading profile and grade each borrower | It is MAIIC's credit policy, not ours to set. It makes the test much stronger (section 8) |
 
+**What Dr Thom ratifies.** Only decisions 1 to 5, which are exactly what this build does: keep the starting reading, compare the 12-month PD, treat the older loans as decided, set the two thresholds, and run the test in shadow. None of them changes a stage, an ECL, revenue or the RBM return. Two things are not part of the ratification and stay his to decide later: **adopting the test** (switching setting 9 on, so that loans actually move to Stage 2), which is a governed change of its own, proposed and approved by two people with the shadow reports as evidence; and **decision 6**, which is a recommendation to MAIIC Credit and is not built here.
+
 **At adoption,** the wording of setting 9's option ("lifetime PD doubled") is brought into line with decisions 2 and 4, and its two thresholds are proposed together with it.
 
 ## 6. What changes, and what does not
