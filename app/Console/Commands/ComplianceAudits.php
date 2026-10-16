@@ -163,6 +163,18 @@ class ComplianceAudits extends Command
             }
             fclose($csv);
             $files[] = $name;
+            // the month's latest re-performance of that run, with every difference it named (section 8.8, item 6)
+            if (\Illuminate\Support\Facades\Schema::hasTable('reperformances') && ($rp = DB::table('reperformances')->where('run_record_id', $run->id)->orderByDesc('id')->first()) !== null) {
+                $name = "Re-performance {$period}.csv";
+                $csv = fopen($tmp . '/' . $name, 'w');
+                fputcsv($csv, ["Re-performance {$rp->id} of run {$run->id}, " . strtolower(str_replace('_', ' ', $rp->mode)) . ($rp->workspace ? " in {$rp->workspace}" : '') . ", {$rp->finished_at}: {$rp->status}"]);
+                fputcsv($csv, ['Check', 'Loan', 'Item', 'Stored', 'Re-performed', 'Note']);
+                foreach (DB::table('reperformance_rows')->where('reperformance_id', $rp->id)->orderBy('id')->get() as $d) {
+                    fputcsv($csv, [$d->check, $d->contract_id, $d->item, $d->stored, $d->reperformed, $d->note]);
+                }
+                fclose($csv);
+                $files[] = $name;
+            }
             $prev = \Carbon\CarbonImmutable::parse($period . '-01')->subMonth()->format('Y-m');
             if (($before = $runs->monthRun($prev)) !== null) {
                 $name = "What changed {$prev} to {$period}.csv";

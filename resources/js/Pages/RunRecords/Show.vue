@@ -44,6 +44,42 @@
                 </div>
             </div>
 
+            <div class="maiic-panel">
+                <div class="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
+                    <div class="text-sm font-semibold text-gray-900">Re-performance</div>
+                    <button v-if="canReperform && run.fingerprint" type="button" class="primary-btn" :disabled="processing" @click="reperform">Re-perform from the snapshot</button>
+                </div>
+                <p class="px-4 pt-1 text-xs text-gray-600">In place: the month's inputs now against what this run froze, every loan staged again under the frozen rules, and every loan's figures against the ones this run left. Nothing is written but the re-performance's record. A re-run of every engine on a copy of the database is done from the console (run-records:reperform with --workspace).</p>
+                <div class="maiic-table-wrap">
+                    <table class="maiic-table">
+                        <thead><tr><th>#</th><th>How</th><th>Result</th><th>Loans</th><th>Differences</th><th>When</th><th>By</th><th></th></tr></thead>
+                        <tbody>
+                            <tr v-for="p in reperformances" :key="p.id">
+                                <td>{{ p.id }}</td>
+                                <td class="text-xs">{{ p.mode === 'WORKSPACE' ? 'Workspace ' + p.workspace : 'In place' }}</td>
+                                <td><span class="maiic-badge" :class="p.status === 'REPRODUCED' ? 'bg-emerald-100 text-emerald-800' : (p.status === 'RUNNING' ? 'bg-sky-100 text-sky-800' : 'bg-rose-100 text-rose-800')">{{ p.status }}</span>
+                                    <div v-if="p.error" class="mt-1 text-[11px] text-rose-700">{{ p.error }}</div></td>
+                                <td>{{ p.summary ? p.summary.loans : '' }}</td>
+                                <td class="text-xs">{{ p.summary ? p.summary.differences : '' }}<span v-if="p.summary && p.summary.by_check && Object.keys(p.summary.by_check).length" class="block text-gray-500">{{ JSON.stringify(p.summary.by_check) }}</span></td>
+                                <td class="whitespace-nowrap text-xs">{{ p.finished_at || p.started_at }}</td>
+                                <td class="text-xs">{{ p.by }}</td>
+                                <td class="whitespace-nowrap text-xs"><a :href="route('run-records.reperformance', [p.id, 'xlsx'])" class="text-sky-700 underline">Excel</a> <a :href="route('run-records.reperformance', [p.id, 'pdf'])" class="text-sky-700 underline">PDF</a></td>
+                            </tr>
+                            <tr v-if="!reperformances.length"><td colspan="8" class="text-center text-gray-500">Not re-performed yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="differences.length" class="maiic-table-wrap border-t border-gray-100">
+                    <table class="maiic-table">
+                        <thead><tr><th>Check</th><th>Loan</th><th>Item</th><th>Stored</th><th>Re-performed</th><th>Note</th></tr></thead>
+                        <tbody>
+                            <tr v-for="(d, i) in differences" :key="i"><td class="text-xs">{{ d.check }}</td><td class="font-mono text-xs">{{ d.contract_id }}</td><td class="text-xs">{{ d.item }}</td>
+                                <td class="text-xs">{{ d.stored }}</td><td class="text-xs">{{ d.reperformed }}</td><td class="text-xs">{{ d.note }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div v-for="(items, heading) in sections" :key="heading" class="maiic-panel">
                 <div class="px-4 pt-3 text-sm font-semibold text-gray-900">{{ heading }}</div>
                 <div class="maiic-table-wrap">
@@ -72,9 +108,18 @@ export default {
         results: { type: Object, default: () => ({}) },
         sections: { type: Object, default: () => ({}) },
         rowsStamped: { type: Object, default: () => ({}) },
+        reperformances: { type: Array, default: () => [] },
+        differences: { type: Array, default: () => [] },
+        canReperform: { type: Boolean, default: false },
     },
     data() {
-        return { kinds: { MONTH_END: 'Month-end job', BOOTSTRAP: 'Bootstrap', SCREEN: 'Engine run on a screen' } }
+        return { kinds: { MONTH_END: 'Month-end job', BOOTSTRAP: 'Bootstrap', SCREEN: 'Engine run on a screen' }, processing: false }
+    },
+    methods: {
+        reperform() {
+            this.processing = true
+            this.$inertia.post(this.route('run-records.reperform', this.run.id), {}, { preserveScroll: true, onFinish: () => { this.processing = false } })
+        },
     },
 }
 </script>

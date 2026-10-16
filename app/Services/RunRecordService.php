@@ -101,6 +101,7 @@ class RunRecordService
             return;
         }
         $this->stamp($run);
+        $this->keepLoans($run);
         $snapshot = $this->snapshot($run->reporting_period, (string) $run->code_version);
         DB::table('run_records')->where('id', $runId)->update([
             'status' => $ok ? self::COMPLETED : self::FAILED, 'finished_at' => now(), 'error' => $error === null ? null : mb_substr($error, 0, 2000),
@@ -129,6 +130,49 @@ class RunRecordService
             }
             $q->update(['run_record_id' => $run->id]);
         }
+    }
+
+    /** Each loan's figures as the run left them (item 6): what a re-performance is checked against, loan by loan. */
+    private function keepLoans(object $run): void
+    {
+        if (! Schema::hasTable('run_record_loans') || ! Schema::hasTable('loan_books')) {
+            return;
+        }
+        DB::table('run_record_loans')->where('run_record_id', $run->id)->delete();
+        foreach (self::loanFigures(DB::connection(), $run->reporting_period) as $chunk) {
+            DB::table('run_record_loans')->insert(array_map(fn ($l) => ['run_record_id' => $run->id] + $l, $chunk));
+        }
+    }
+
+    /**
+     * The month's figures per loan from a database connection (this one, or a re-performance workspace),
+     * in chunks for insert: stage, PD, LGD, EAD, ECL and discounted ECL from the loan book; EIR interest and
+     * closing gross carrying amount from the revenue roll-forward.
+     *
+     * @return list<list<array>>
+     */
+    public static function loanFigures(\Illuminate\Database\ConnectionInterface $db, string $period): array
+    {
+        $schema = $db->getSchemaBuilder();
+        $has = fn (string $c) => $schema->hasColumn('loan_books', $c);
+        $cols = array_filter(['contract_id' => 'contract_id', 'stage' => 'ifrs9_stage', 'pd' => 'pd_post_fli', 'lgd' => 'lgd_value', 'ead' => 'ead', 'ecl' => 'ecl_value', 'ecl_discounted' => 'ecl_value_discounted'], $has);
+        $revenue = $schema->hasTable('eir_amortisation')
+            ? $db->table('eir_amortisation')->where('reporting_period', $period)->get(['contract_id', 'interest_accrued', 'closing_gross'])->keyBy('contract_id') : collect();
+        $rows = [];
+        foreach ($db->table('loan_books')->where('reporting_period', $period)->orderBy('contract_id')->get(array_values($cols)) as $b) {
+            $l = [];
+            foreach ($cols as $name => $col) {
+                $l[$name] = $b->{$col};
+            }
+            $l += ['stage' => null, 'pd' => null, 'lgd' => null, 'ead' => null, 'ecl' => null, 'ecl_discounted' => null];
+            $l['contract_id'] = (string) $b->contract_id;
+            $r = $revenue->get($b->contract_id);
+            $l['eir_interest'] = $r?->interest_accrued;
+            $l['closing_gross'] = $r?->closing_gross;
+            $rows[$l['contract_id']] = $l; // one row per loan: a loan the book holds twice keeps its last
+        }
+
+        return array_chunk(array_values($rows), 500);
     }
 
     /** SHA-256 of the snapshot in a canonical form (keys sorted at every level). */

@@ -667,6 +667,8 @@ Route::group(['prefix' => 'run-records', 'as' => 'run-records.'], function () {
     Route::get('/{run}', [\App\Http\Controllers\RunRecordsController::class, 'show'])->whereNumber('run')->name('show');
     Route::get('/settings/{period}/{format}', [\App\Http\Controllers\RunRecordsController::class, 'settingsInForce'])->name('settings');
     Route::get('/changes/{from}/{to}/{format}', [\App\Http\Controllers\RunRecordsController::class, 'whatChanged'])->name('changes');
+    Route::post('/{run}/reperform', [\App\Http\Controllers\RunRecordsController::class, 'reperform'])->whereNumber('run')->name('reperform');
+    Route::get('/reperformance/{reperformance}/{format}', [\App\Http\Controllers\RunRecordsController::class, 'reperformance'])->whereNumber('reperformance')->name('reperformance');
 });
 
 Route::group(['prefix' => 'approvals', 'as' => 'approvals.'], function () {

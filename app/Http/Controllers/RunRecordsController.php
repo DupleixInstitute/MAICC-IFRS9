@@ -25,6 +25,7 @@ class RunRecordsController extends Controller
     {
         $this->middleware('auth');
         $this->middleware('permission:eir.view|eir.govern|settings');
+        $this->middleware('permission:eir.govern|settings')->only(['reperform']);
     }
 
     public function index(Request $request, RunRecordService $runs)
@@ -69,9 +70,50 @@ class RunRecordsController extends Controller
             'steps' => json_decode((string) $r->steps, true) ?: [],
             'results' => json_decode((string) $r->results, true) ?: [],
             'sections' => $snapshot === [] ? [] : RunRecordService::flatten($snapshot),
+            // the re-performances of this run (section 8.8, item 6), the latest with its differences
+            'reperformances' => \Illuminate\Support\Facades\Schema::hasTable('reperformances') ? DB::table('reperformances')->where('run_record_id', $r->id)->orderByDesc('id')->get()
+                ->map(fn ($p) => ['id' => $p->id, 'mode' => $p->mode, 'workspace' => $p->workspace, 'status' => $p->status, 'started_at' => $p->started_at, 'finished_at' => $p->finished_at,
+                    'by' => $p->started_by ? ($names[$p->started_by] ?? null) : null, 'summary' => json_decode((string) $p->summary, true), 'error' => $p->error]) : [],
+            'differences' => \Illuminate\Support\Facades\Schema::hasTable('reperformance_rows') && ($latest = DB::table('reperformances')->where('run_record_id', $r->id)->max('id'))
+                ? DB::table('reperformance_rows')->where('reperformance_id', $latest)->orderBy('id')->limit(200)->get(['check', 'contract_id', 'item', 'stored', 'reperformed', 'note']) : [],
+            'canReperform' => (bool) request()->user()?->can('eir.govern') || (bool) request()->user()?->can('settings'),
             'rowsStamped' => collect(RunRecordService::STAMP)->keys()->filter(fn ($t) => \Illuminate\Support\Facades\Schema::hasTable($t) && \Illuminate\Support\Facades\Schema::hasColumn($t, 'run_record_id'))
                 ->mapWithKeys(fn ($t) => [$t => DB::table($t)->where('run_record_id', $r->id)->count()])->filter()->all(),
         ]);
+    }
+
+    /** Re-perform the run in place (section 8.8, item 6): from its frozen snapshot, nothing written but the record. */
+    public function reperform(Request $request, int $run, \App\Services\ReperformanceService $service)
+    {
+        try {
+            $r = $service->runFor((string) DB::table('run_records')->where('id', $run)->value('reporting_period'), $run);
+            $id = $service->inPlace($r, (int) $request->user()->id);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        $p = DB::table('reperformances')->find($id);
+        $s = json_decode((string) $p->summary, true) ?: [];
+
+        return back()->with($p->status === 'REPRODUCED' ? 'success' : 'error', "Re-performance {$id}: " . ($p->status === 'REPRODUCED'
+            ? 'every one of the ' . ($s['loans'] ?? 0) . ' loans reproduced, and the inputs match the snapshot.'
+            : ($s['differences'] ?? 0) . ' difference(s) named below ' . json_encode($s['by_check'] ?? []) . '.'));
+    }
+
+    /** A re-performance and every difference it named, in Excel or PDF. */
+    public function reperformance(Request $request, int $reperformance, string $format)
+    {
+        abort_unless(in_array($format, ['xlsx', 'pdf'], true), 404);
+        $p = DB::table('reperformances')->find($reperformance);
+        abort_if($p === null, 404);
+        $s = json_decode((string) $p->summary, true) ?: [];
+        $rows = DB::table('reperformance_rows')->where('reperformance_id', $p->id)->orderBy('id')->get()
+            ->map(fn ($r) => [$r->check, (string) $r->contract_id, $r->item, (string) $r->stored, (string) $r->reperformed, (string) $r->note])->all();
+
+        return $this->download($request, $format, "Re-performance {$p->reporting_period} (run {$p->run_record_id})", 'Re-performed ' . strtolower(str_replace('_', ' ', $p->mode))
+            . ($p->workspace ? " in {$p->workspace}" : '') . " on {$p->finished_at}: {$p->status}, " . ($s['loans'] ?? 0) . ' loans checked', $p->reporting_period, [
+                ['heading' => 'Differences', 'columns' => ['Check', 'Loan', 'Item', 'Stored', 'Re-performed', 'Note'], 'align' => ['l', 'l', 'l', 'r', 'r', 'l'],
+                    'rows' => $rows ?: [['None: every loan reproduced and every input matches the snapshot', '', '', '', '', '']]],
+            ], ['reperformance' => $p->id]);
     }
 
     private function compare(RunRecordService $runs, string $from, string $to): array

@@ -143,6 +143,29 @@ final class StagingPolicy
         return new self($preset, $values, $source, $effective);
     }
 
+    /**
+     * The rules a run froze (Staging Module Specification v1, section 8.8, item 6): the preset and the
+     * settings in force as the run's snapshot holds them, resolved as at() resolves the live ones.
+     *
+     * @param  array<string, string|null>  $inForce  setting key => value
+     */
+    public static function fromValues(array $inForce): self
+    {
+        $preset = (string) ($inForce[self::PRESET] ?? self::PRESET_CUSTOM);
+        $values = []; $source = [];
+        foreach (array_keys(self::SETTINGS) as $key) {
+            if (isset(self::PRESETS[$preset][$key])) {
+                $values[$key] = self::PRESETS[$preset][$key];
+                $source[$key] = 'preset: ' . $preset . ' (frozen)';
+            } else {
+                $values[$key] = (string) ($inForce[$key] ?? throw new \InvalidArgumentException("The frozen snapshot has no value for the staging setting {$key}."));
+                $source[$key] = 'setting (frozen)';
+            }
+        }
+
+        return new self($preset, $values, $source);
+    }
+
     public function value(string $key): string
     {
         return $this->values[$key];
