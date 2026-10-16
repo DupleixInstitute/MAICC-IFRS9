@@ -125,15 +125,17 @@ class SpBasisEclService
      *
      * @return array{run_id:int, loans:int, ecl:float, system_ecl:float, by_stage:array, notes:list<string>}
      */
-    public function run(string $period, ?int $userId = null): array
+    public function run(string $period, ?int $userId = null, ?int $profileId = null): array
     {
         if (preg_match('/^\d{4}-\d{2}$/', $period) !== 1) {
             throw new RuntimeException("A month is written YYYY-MM; \"{$period}\" is not one.");
         }
         $s = $this->settings();
-        $profile = InternalGradeProfile::where('is_active', true)->first();
+        // the active profile; or one named, active or not, as the bootstrap names the December 2025 model's
+        // S&P profile it imports as a draft: reading a profile here writes no PD, whatever its state
+        $profile = $profileId !== null ? InternalGradeProfile::find($profileId) : InternalGradeProfile::where('is_active', true)->first();
         if ($profile === null) {
-            throw new RuntimeException('No internal grading profile is active: activate the S&P profile on Internal Grades first.');
+            throw new RuntimeException($profileId !== null ? "No internal grading profile {$profileId}." : 'No internal grading profile is active: activate the S&P profile on Internal Grades first.');
         }
         $curves = [];
         foreach ($profile->mappings()->with('tenorPds')->get() as $m) {

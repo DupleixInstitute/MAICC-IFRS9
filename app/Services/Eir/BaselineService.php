@@ -379,6 +379,17 @@ class BaselineService
                 $g["ecl_{$p}_megafarm_maiic_share"] = ['what' => "ECL {$p}, Mega Farm: MAIIC's share", 'value' => (float) $run->maiic_ecl, 'amount' => true];
             }
         }
+        // the S&P basis (spec v4 section 17), the comparison the bootstrap runs for each golden month: its ECL,
+        // its loans and its ECL by the stage it gives, from the latest run of the month (null when none ran)
+        foreach (self::GOLDEN_PERIODS as $p) {
+            $sp = \Illuminate\Support\Facades\Schema::hasTable('sp_basis_runs') ? DB::table('sp_basis_runs')->where('reporting_period', $p)->orderByDesc('id')->first() : null;
+            $g["sp_{$p}_ecl"] = ['what' => "S&P basis {$p}: ECL on the December 2025 model's method (comparison only)", 'value' => $sp ? (float) $sp->ecl : null, 'amount' => true];
+            $g["sp_{$p}_loans"] = ['what' => "S&P basis {$p}: loans compared", 'value' => $sp ? (int) $sp->loans : null, 'amount' => false];
+            $stages = $sp ? (json_decode((string) $sp->by_stage, true)['sp_basis'] ?? []) : [];
+            foreach ([1, 2, 3] as $st) {
+                $g["sp_{$p}_stage{$st}_ecl"] = ['what' => "S&P basis {$p}, stage {$st} by the arrears bracket: ECL", 'value' => $sp ? (float) ($stages[$st]['ecl'] ?? $stages[(string) $st]['ecl'] ?? 0) : null, 'amount' => true];
+            }
+        }
         foreach (['LOCKED' => 'locked', 'BLOCKED' => 'blocked'] as $status => $word) {
             $g["eir_contracts_{$word}"] = ['what' => "EIR contracts {$word}", 'value' => DB::table('contract_eir')->where('calculation_status', $status)->count(), 'amount' => false];
         }

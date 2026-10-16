@@ -749,6 +749,25 @@ class Bootstrap extends Command
         } catch (Throwable $e) {
             $this->note('6.11 stress testing', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
+        // 11b the S&P basis (spec v4 section 17): the December 2025 model's method (arrears bracket, S&P
+        // grade and its cumulative default rates, the T-bill factor, the typed recovery) beside the booked
+        // ECL, loan by loan, for the golden months. A comparison: it writes only its own run and changes
+        // nothing booked; its totals are golden, so a fresh install proves it like the engines.
+        // the profile read is the active one, else the December 2025 model's S&P profile imported at 3c (a draft:
+        // it is named here without being activated, so no PD is written from it)
+        $spProfile = DB::table('internal_grade_profiles')->where('is_active', true)->value('id')
+            ?? DB::table('internal_grade_profiles')->where('name', 'S&P Emerging Markets (ECL model, December 2025)')->value('id');
+        foreach (\App\Services\Eir\BaselineService::GOLDEN_PERIODS as $gp) {
+            if (! in_array($gp, $periods, true)) {
+                continue;
+            }
+            try {
+                $sp = app(\App\Services\Ifrs9\SpBasisEclService::class)->run($gp, $user, $spProfile !== null ? (int) $spProfile : null);
+                $this->note('6.11 S&P basis ' . $gp, "{$sp['loans']} loans: S&P basis ECL " . number_format($sp['ecl'], 0) . ' against the system\'s ' . number_format($sp['system_ecl'], 0) . " on the same loans (run {$sp['run_id']}; nothing booked changes)");
+            } catch (Throwable $e) {
+                $this->note('6.11 S&P basis ' . $gp, 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
+            }
+        }
         // 12 the reports: every IFRS 9 report rendered for the period
         // in its own process: rendering thirty reports and the manual's PDF after the whole chain exhausts this one's memory
         try {
