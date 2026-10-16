@@ -409,7 +409,7 @@ class EirGlReconciliationService
         if ($code === null || trim($code) === '') {
             return null;
         }
-        $this->glNames ??= (new LandingZoneReader())->glNames();
+        $this->glNames ??= LandingZoneReader::asReceived()->glNames();
 
         return $this->glNames[trim($code)] ?? null;
     }

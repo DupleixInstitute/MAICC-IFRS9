@@ -16,17 +16,41 @@ use Illuminate\Support\Facades\DB;
  * system audit of 9 October 2026, finding M2), and they must never reach a
  * build.
  *
- * The rows of an account an approved exclusion takes out of the book (the
- * account exclusion register, MAIIC's confirmation of 16 October 2026; see
- * AccountExclusionService) are left out of every family the reader returns,
- * so no build writes them and no engine sees them. The rows stay in the zone
- * as received. The pack gates read the zone as received, every account in it
- * (includingExcluded), since they check the pack itself, not the book.
+ * Two ways to read the zone (release review of 16 October 2026):
+ *
+ *  - for the book (new LandingZoneReader(), the container's instance): the
+ *    rows of an account an approved exclusion takes out of the book (the
+ *    account exclusion register, AccountExclusionService) are left out of
+ *    every family, so the loan book, the contract master, the fees, the cash,
+ *    the drawdowns, the charts and the take-on population never see it;
+ *  - as received (LandingZoneReader::asReceived(), or includingExcluded() on
+ *    a reader in hand): every row of the extracts, excluded accounts and all.
+ *    Every control reads this way: the pack gates, the take-on gates, the
+ *    trial balance landing, the GL fee gate, the baselines and the golden ties
+ *    of BaselineService, and the GL names of the reconciliation. A control
+ *    checks what E-Banker sent against the GL; an excluded account is still
+ *    in E-Banker and in the GL (Global Seeds 104420000044 and Angwenda
+ *    104460000029 are 58,413,511.84 of the old ledger at 31 Dec 2023), so a
+ *    control that read the book's view would move by it.
+ *
+ * The rows stay in the zone as received whichever way it is read.
  */
 class LandingZoneReader
 {
     /** Whether the rows of excluded accounts are returned too (the pack gates; the register's own look-up). */
     private bool $withExcluded = false;
+
+    /** A reader of the zone as received, for a control: no account is left out. */
+    public static function asReceived(): static
+    {
+        return (new static())->includingExcluded();
+    }
+
+    /** Whether this reader leaves the excluded accounts out (the book's view) or reads the zone as received. */
+    public function readsAsReceived(): bool
+    {
+        return $this->withExcluded;
+    }
 
     /** The same reader with the rows of excluded accounts left in: the zone exactly as received. */
     public function includingExcluded(): static

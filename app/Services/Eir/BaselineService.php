@@ -14,8 +14,17 @@ use Illuminate\Support\Facades\DB;
  */
 class BaselineService
 {
-    public function __construct(private LandingZoneReader $zone)
+    private LandingZoneReader $zone;
+
+    /**
+     * Every baseline and golden tie here is a control on the data as received (the ledger
+     * against the GL, the old ledger against the GL opening, the year-end batch, the overdue
+     * run, the take-on worksheet): it reads the zone unfiltered, excluded accounts and all
+     * (LandingZoneReader::asReceived). The book side of a check reads the book's tables.
+     */
+    public function __construct(LandingZoneReader $zone)
     {
+        $this->zone = $zone->includingExcluded();
     }
 
     /** @return list<array{what:string,expected:string,actual:string,ok:bool,expected_value:?float,actual_value:?float}> */

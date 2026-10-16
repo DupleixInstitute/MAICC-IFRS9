@@ -237,6 +237,66 @@ class AccountExclusionTest extends TestCase
         $this->assertCount(12, $again['already']);
     }
 
+    /**
+     * Release review of 16 October 2026: a control reads the zone as received. The old ledger
+     * (CV_04a) holds 58,413,511.84 of the two 2022 loans the register excludes; the tie of the
+     * copy to the GL opening (CV_14) must not move by it, while the book still leaves them out.
+     */
+    public function test_a_control_reads_the_zone_as_received_and_the_book_leaves_the_excluded_account_out(): void
+    {
+        config(['approvals.require_evidence' => false]);
+        $seeds = AccountExclusions::padded('104420000044');
+        $this->raw('P1_02', $seeds, $seeds, '2022-08-30', ['NEW_AC_NUMBER' => $seeds, 'GLCODE' => '1050202', 'ACCOUNT_NAME' => 'Global Seeds Limited FInES', 'STATUS_CODE' => 'C']);
+        $this->raw('CV_04a', 'old1', $seeds, '2022-08-30', ['CUMVOUCH_DET_ID' => 'old1', 'NEW_AC_NUMBER' => $seeds, 'AC_GLCODE' => '1050202', 'TRANSAMT' => '-103225546.00', 'DELETE_FLAG' => 'N']);
+        $this->raw('CV_04a', 'old2', $seeds, '2023-06-30', ['CUMVOUCH_DET_ID' => 'old2', 'NEW_AC_NUMBER' => $seeds, 'AC_GLCODE' => '1050202', 'TRANSAMT' => '52319941.42', 'DELETE_FLAG' => 'N']);
+        // the GL opening of 1 Jan 2024, 0.50 off the copy as on the real data
+        $this->raw('CV_14', 'gl1050202', null, null, ['GLCODE' => '1050202', 'OPENING_BAL' => '-50905605.08']);
+        $tie = fn () => app(\App\Services\Eir\BaselineService::class)->takeonWorksheetTie()['premigration_ledger_vs_gl_opening']['value'];
+        $this->assertEqualsWithDelta(0.50, $tie(), 0.001);
+
+        $id = app(AccountExclusionService::class)->landClientInput(base_path('docs/bootstrap/' . AccountExclusionService::CLIENT_INPUT));
+        $this->assertTrue(AccountExclusions::isExcluded($seeds));
+        // the control still reads every row, whatever reader it is handed
+        $this->assertEqualsWithDelta(0.50, $tie(), 0.001);
+        $this->assertEqualsWithDelta(0.50, (new \App\Services\Eir\BaselineService(new LandingZoneReader()))->takeonWorksheetTie()['premigration_ledger_vs_gl_opening']['value'], 0.001);
+        // the book's view leaves the account out; the zone as received holds it
+        $this->assertCount(0, (new LandingZoneReader())->family(['CV_04a']));
+        $this->assertCount(2, LandingZoneReader::asReceived()->family(['CV_04a']));
+        $this->assertFalse((new LandingZoneReader())->readsAsReceived());
+        $this->assertTrue(LandingZoneReader::asReceived()->readsAsReceived());
+    }
+
+    /** Pack 13, question C5: the two 2022 loans are excluded truthfully, and the excluded set is the same twelve. */
+    public function test_the_two_closed_2022_loans_are_labelled_truthfully_and_the_excluded_set_is_unchanged(): void
+    {
+        $doc = json_decode((string) file_get_contents(base_path('docs/bootstrap/' . AccountExclusionService::CLIENT_INPUT)), true);
+        $ids = array_column($doc['accounts'], 'contract_id');
+        sort($ids);
+        $this->assertSame(['104420000044', '104430000063', '104430000065', '104430000066', '104430000067', '104430000081', '104430000083', '104430000088',
+            '104450000096', '104450000097', '104460000029', '104460000103'], $ids);
+        $by = array_column($doc['accounts'], 'category', 'contract_id');
+        $this->assertSame('CLOSED_BEFORE_WINDOW', $by['104420000044']);
+        $this->assertSame('CLOSED_BEFORE_WINDOW', $by['104460000029']);
+        $this->assertSame(7, count(array_filter($by, fn ($c) => $c === 'UAT_TEST_ACCOUNT')));
+        $this->assertArrayHasKey('CLOSED_BEFORE_WINDOW', AccountExclusionService::CATEGORIES);
+        $text = json_encode($doc['accounts']);
+        $this->assertStringContainsString('103,225,546.00 drawn on 30 Aug 2022', $text);
+        $this->assertStringContainsString('21,295,000.00 drawn on 14 Jun 2022', $text);
+
+        // a database that landed the earlier wording follows the file: the label changes, the set does not
+        $service = app(AccountExclusionService::class);
+        $service->landClientInput(base_path('docs/bootstrap/' . AccountExclusionService::CLIENT_INPUT));
+        DB::table('account_exclusions')->whereIn('contract_id', ['104420000044', '104460000029'])->update(['category' => 'UAT_TEST_ACCOUNT', 'reason' => 'A UAT test account']);
+        $before = array_keys(AccountExclusions::approved());
+        $r = $service->landClientInput(base_path('docs/bootstrap/' . AccountExclusionService::CLIENT_INPUT));
+        AccountExclusions::forget();
+        $this->assertEqualsCanonicalizing(['104420000044', '104460000029'], $r['relabelled']);
+        $this->assertSame(0, $r['landed']);
+        $this->assertEqualsCanonicalizing($before, array_keys(AccountExclusions::approved()));
+        $this->assertSame('CLOSED_BEFORE_WINDOW', DB::table('account_exclusions')->where('contract_id', '104420000044')->value('category'));
+        $this->assertSame(2, DB::table('audit_logs')->where('action', 'Account Exclusion Relabelled')->count());
+    }
+
     public function test_the_screen_lists_the_register_and_proposes_through_the_service(): void
     {
         foreach (['eir.view', 'eir.govern'] as $p) {

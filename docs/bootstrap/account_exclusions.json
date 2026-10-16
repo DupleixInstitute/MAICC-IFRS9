@@ -32,9 +32,9 @@
       "contract_id": "104420000044",
       "account": "000104420000044",
       "customer_name": "Global Seeds Limited FInES",
-      "category": "UAT_TEST_ACCOUNT",
-      "reason": "A UAT test account of the E-Banker vendor, not a loan of the book",
-      "evidence": "SH_01 ACCOUNT_STATUS_HISTORY row 13369: status C effective 31 Dec 2025, reason UAT accounts (Force closure); no posting on the live ledger",
+      "category": "CLOSED_BEFORE_WINDOW",
+      "reason": "A real loan, disbursed in 2022 and closed; nothing held for it under this account in the months the system covers",
+      "evidence": "DS_01 (pack 11) LOAN_DISBURSMENT_SCHEDULE row 22: 103,225,546.00 drawn on 30 Aug 2022, status D; the old ledger CUMVOUCH_BK240824 (CV_19c, pack 13) carries it at -50,905,604.58 to 31 Dec 2023 and about 4.5m at 31 Jul 2024 (DR 146,622,177.53 against CR 142,120,809.52), and it was not migrated under this account (pack 13, question C5 asks where it went); E-Banker closed it on 31 Dec 2025 with the reason \"UAT accounts\" (SH_01 ACCOUNT_STATUS_HISTORY row 13369, Force closure); no posting on the live ledger",
       "sister_contract_id": null
     },
     {
@@ -95,9 +95,9 @@
       "contract_id": "104460000029",
       "account": "000104460000029",
       "customer_name": "Angwenda Investments Limited",
-      "category": "UAT_TEST_ACCOUNT",
-      "reason": "A UAT test account of the E-Banker vendor, not a loan of the book",
-      "evidence": "SH_01 ACCOUNT_STATUS_HISTORY row 13364: status C effective 31 Dec 2025, reason UAT accounts (Force closure); no posting on the live ledger",
+      "category": "CLOSED_BEFORE_WINDOW",
+      "reason": "A real loan, disbursed in 2022 and repaid in full by 30 Jun 2024; nothing held for it under this account in the months the system covers",
+      "evidence": "DS_01 (pack 11) LOAN_DISBURSMENT_SCHEDULE row 62: 21,295,000.00 drawn on 14 Jun 2022, status D; the old ledger CUMVOUCH_BK240824 (CV_19c, pack 13) carries it at -7,507,907.26 to 31 Dec 2023 and repaid in full by 30 Jun 2024 (DR 26,944,482.63 against CR 26,946,128.71); E-Banker closed it on 31 Dec 2025 with the reason \"UAT accounts\" (SH_01 ACCOUNT_STATUS_HISTORY row 13364, Force closure); no posting on the live ledger",
       "sister_contract_id": null
     },
     {

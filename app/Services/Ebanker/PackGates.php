@@ -54,6 +54,7 @@ namespace App\Services\Ebanker;
  */
 class PackGates
 {
+    /** The gates check the pack as received: the reader is always the unfiltered one (LandingZoneReader). */
     public const LEVEL_ERROR = 'ERROR';
     public const LEVEL_WARNING = 'WARNING';
 

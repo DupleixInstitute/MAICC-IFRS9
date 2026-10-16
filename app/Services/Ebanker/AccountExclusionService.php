@@ -55,6 +55,10 @@ class AccountExclusionService
     public const CATEGORIES = [
         'UAT_TEST_ACCOUNT' => 'UAT test account',
         'DUPLICATE_APPROVAL' => 'Duplicate approval, never drawn',
+        // a real loan made and closed before the months the system covers (pack 13, question C5): Global
+        // Seeds 104420000044 and Angwenda 104460000029, disbursed in 2022, closed by E-Banker on 31 Dec 2025
+        // with the reason "UAT accounts"; nothing is held for them under these accounts from July 2024
+        'CLOSED_BEFORE_WINDOW' => 'Real loan, closed; nothing held for it in the months the system covers',
     ];
 
     public const STATUSES = ['PROPOSED', 'APPROVED', 'REJECTED', 'WITHDRAWN'];
@@ -355,7 +359,7 @@ class AccountExclusionService
      * status, is left as it is: a person's decision on this database is not
      * overridden by the file.
      *
-     * @return array{file:string, sha256:string, accounts:int, landed:int, already:array<string,string>, archived:int}
+     * @return array{file:string, sha256:string, accounts:int, landed:int, already:array<string,string>, relabelled:list<string>, archived:int}
      */
     public function landClientInput(string $path): array
     {
@@ -368,7 +372,7 @@ class AccountExclusionService
             throw new RuntimeException(basename($path) . ' is not an account exclusions file: it needs an "accounts" list.');
         }
         $sha = hash('sha256', $raw);
-        $landed = 0; $archived = 0; $already = [];
+        $landed = 0; $archived = 0; $already = []; $relabelled = [];
         foreach ($doc['accounts'] as $i => $a) {
             $contract = ContractId::normalise($a['contract_id'] ?? null);
             $category = (string) ($a['category'] ?? '');
@@ -379,6 +383,21 @@ class AccountExclusionService
             }
             $existing = DB::table('account_exclusions')->where('contract_id', $contract)->first();
             if ($existing) {
+                // the file's own entry, landed under the bootstrap label and touched by no person, follows the file's
+                // wording (a category, reason or evidence corrected in a later commit); which accounts are excluded
+                // does not change, so no figure moves. A person's entry is never rewritten by the file.
+                $evidenceText = $evidence . (isset($doc['confirmed']) ? '; ' . $doc['confirmed'] : '');
+                $untouched = $existing->source === 'CLIENT_INPUT' && $existing->status === 'APPROVED' && $existing->approver_label === LoanBookBuildService::BOOTSTRAP_LABEL
+                    && $existing->proposed_by === null && $existing->approved_by === null && $existing->withdrawal_requested_by === null && $existing->closed_by === null;
+                if ($untouched && ($existing->category !== $category || $existing->reason !== $reason || $existing->evidence !== $evidenceText)) {
+                    DB::table('account_exclusions')->where('id', $existing->id)->update(['category' => $category, 'reason' => $reason, 'evidence' => $evidenceText, 'updated_at' => now()]);
+                    AuditLoggerService::log('Account Exclusion Relabelled', 'account_exclusions', (int) $existing->id, [
+                        'old_values' => ['category' => $existing->category, 'reason' => $existing->reason, 'evidence' => $existing->evidence],
+                        'new_values' => ['category' => $category, 'reason' => $reason, 'evidence' => $evidenceText],
+                        'meta' => ['label' => LoanBookBuildService::BOOTSTRAP_LABEL, 'client_input' => 'docs/bootstrap/' . basename($path), 'sha256' => $sha],
+                    ]);
+                    $relabelled[] = $contract;
+                }
                 $already[$contract] = strtolower($existing->status) . ' (#' . $existing->id . ')';
                 continue;
             }
@@ -396,7 +415,7 @@ class AccountExclusionService
             $landed++;
         }
 
-        return ['file' => basename($path), 'sha256' => $sha, 'accounts' => count($doc['accounts']), 'landed' => $landed, 'already' => $already, 'archived' => $archived];
+        return ['file' => basename($path), 'sha256' => $sha, 'accounts' => count($doc['accounts']), 'landed' => $landed, 'already' => $already, 'relabelled' => $relabelled, 'archived' => $archived];
     }
 
     // ----- moving the rows ----------------------------------------------------

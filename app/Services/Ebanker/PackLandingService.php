@@ -95,7 +95,7 @@ class PackLandingService
 
         $known = DB::table('ebanker_queries')->get()->keyBy('query_id');
         // the gates check the pack as received, every account in it, excluded or not (AccountExclusionService)
-        $checks = new PackGates((new LandingZoneReader())->includingExcluded(), $this);
+        $checks = new PackGates(LandingZoneReader::asReceived(), $this);
         $gates = ['pack' => [], 'files' => []];
         $parsed = [];
         foreach ($manifest['files'] as $entry) {
