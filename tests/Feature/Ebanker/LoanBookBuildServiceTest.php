@@ -495,8 +495,8 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertSame('A', $aug->build_method);
         $this->assertEquals(8000001, $aug->carrying_amount);   // the report's own figure
         $this->assertEquals(7500000, $aug->principal_balance);
-        $this->assertSame('5000', $aug->build_source_key);     // the latest run, not 4000
-        $this->assertNull($aug->build_flag);
+        $this->assertSame('5000', $aug->build_source_key);     // the two pulls disagree on the stable fields, so the latest stands, flagged, not resolved silently
+        $this->assertStringContainsString('2 pulls on record for this month-end disagree', $aug->build_flag);
     }
 
     public function test_a_rebuild_prints_its_differences_and_leaves_the_ecl_columns_alone(): void

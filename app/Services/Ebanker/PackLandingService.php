@@ -240,8 +240,13 @@ class PackLandingService
                 'status' => 'LANDED', 'gates' => json_encode($gates), 'watermarks' => json_encode($watermarks), 'loaded_at' => now(), 'updated_at' => now(),
             ]);
             AuditLoggerService::log('E-Banker Pack Landed', 'ebanker_loads', $loadId, ['new_values' => ['files' => count($plans), 'watermarks' => $watermarks], 'meta' => ['route' => $route, 'loaded_by' => $userId]]);
+            $drift = $this->loanBookRunDriftNotices($loadId);
+            if ($drift !== []) {
+                AuditLoggerService::log('Loan Book Report Re-pull Drift Notice', 'ebanker_loads', $loadId,
+                    ['new_values' => ['notices' => $drift], 'meta' => ['route' => $route, 'loaded_by' => $userId]]);
+            }
 
-            return ['load_id' => $loadId, 'status' => 'LANDED', 'gates' => $gates, 'files' => $fileResults, 'watermarks' => $watermarks];
+            return ['load_id' => $loadId, 'status' => 'LANDED', 'gates' => $gates, 'files' => $fileResults, 'watermarks' => $watermarks, 'loan_book_run_drift' => $drift];
         });
     }
 
@@ -328,6 +333,57 @@ class PackLandingService
         }
 
         return ['loaded' => $new + $versioned, 'new' => $new, 'versioned' => $versioned, 'unchanged' => $unchanged, 'max_key' => $maxKey];
+    }
+
+    /**
+     * A drift notice (Loan Book Report Point-in-Time Specification v1, section 6.3). The Loan Book
+     * Report's own run-detail id (LOAN_BOOK_DET_ID_A) is fresh on every run of the report, even for
+     * an ASONDATE that already closed, so a re-pull of an already-landed month lands as a genuinely
+     * new row rather than a version of the old one (landFile's versioning never sees it). Left
+     * unwatched, that re-pull is exactly how the arrears-ageing drift this specification fixes piles
+     * up unnoticed (27 pulls for one December 2025 month-end, system audit of 16 October 2026).
+     *
+     * So every row this load just landed on a Loan Book Report query (LandingZoneReader::
+     * LOAN_BOOK_RUNS) is checked against the earliest already-landed pull on record for the same
+     * account and ASONDATE, if one exists. Each such pair is named — never silently absorbed — along
+     * with whether the fields that should never move for a closed month still agree (ordinary ageing
+     * drift, the recomputed buckets aside) or genuinely differ (the section 6.1 conflict a person
+     * needs to look at, not just this notice). The first pull ever landed for an account/ASONDATE has
+     * nothing to drift against and is left out.
+     *
+     * @return list<array{account:string,as_on_date:string,earlier_source_key:string,new_source_key:string,stable_fields_agree:bool,detail:string}>
+     */
+    private function loanBookRunDriftNotices(int $loadId): array
+    {
+        $new = DB::table('ebanker_raw_rows')->where('load_id', $loadId)
+            ->whereIn('query_id', LandingZoneReader::LOAN_BOOK_RUNS)->whereNull('superseded_at')
+            ->whereNotNull('account')->whereNotNull('row_date')
+            ->get(['query_id', 'source_key', 'account', 'row_date', 'payload']);
+        if ($new->isEmpty()) {
+            return [];
+        }
+        $notices = [];
+        foreach ($new as $row) {
+            $earlier = DB::table('ebanker_raw_rows')->where('query_id', $row->query_id)
+                ->where('account', $row->account)->where('row_date', $row->row_date)
+                ->where('load_id', '!=', $loadId)->whereNull('superseded_at')
+                ->whereIn('load_id', LandingZoneReader::landedLoadIds())
+                ->orderBy('load_id')->orderBy('id')->first(['source_key', 'payload']);
+            if ($earlier === null) {
+                continue;
+            }
+            $agree = LandingZoneReader::stableFieldsAgree(json_decode($earlier->payload, true) ?: [], json_decode($row->payload, true) ?: []);
+            $notices[] = [
+                'account' => $row->account, 'as_on_date' => $row->row_date,
+                'earlier_source_key' => $earlier->source_key, 'new_source_key' => $row->source_key,
+                'stable_fields_agree' => $agree,
+                'detail' => $agree
+                    ? 'ordinary ageing drift: the carrying amount, the total overdue amount and the overdue-principal date still agree with the earliest pull on record'
+                    : 'the carrying amount, the total overdue amount or the overdue-principal date genuinely differ from the earliest pull on record (section 6.1)',
+            ];
+        }
+
+        return $notices;
     }
 
     /**

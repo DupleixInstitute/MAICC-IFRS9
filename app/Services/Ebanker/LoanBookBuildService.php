@@ -411,6 +411,7 @@ class LoanBookBuildService
             $name = $master[$account]['ACCOUNT_NAME'] ?? null;
             $arrears = $this->arrears($p);
             [$dpd, $odDate, $dpdFlag, $stagingDpd, $stagingBasis, $dpdCounts] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ''), $this->num($p['CARRYING_AMOUNT'] ?? 0), $account);
+            $pickFlag = $run['pick_conflict'] ?? null;
             $rows[] = $this->row([
                 'contract_id' => ltrim($account, '0'), 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
                 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl, 'funding_source' => $fund,
@@ -423,7 +424,8 @@ class LoanBookBuildService
                 'overdue_days' => $dpd, 'overdue_principal_date' => $odDate, 'contract_status' => $master[$account]['STATUS_CODE'] ?? null,
                 'staging_dpd' => $stagingDpd, 'staging_dpd_basis' => $stagingBasis,
                 'industry_code' => $this->str($p['INDUSTRY_CODE'] ?? null), 'industry_type' => $this->str($p['IND_DESCR'] ?? null, 100),
-                'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'], 'build_flag' => $dpdFlag,
+                'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'],
+                'build_flag' => implode('; ', array_filter([$pickFlag, $dpdFlag])) ?: null,
                 'build_basis' => ['run' => $run['query_id'] . ':' . $run['source_key'], 'run_date' => $this->date($p['TRANSACTION_DATE'] ?? ''), 'segment' => $p['SEG_MENT'] ?? null, 'dpd_counts' => $dpdCounts],
             ] + $arrears, $monthEnd);
         }
@@ -551,6 +553,9 @@ class LoanBookBuildService
             $lm = $loans[$account] ?? [];
             [$group, $fund] = $this->groupOf($gl);
             $flags = [];
+            if (($run['pick_conflict'] ?? null) !== null) {
+                $flags[] = $run['pick_conflict'];
+            }
             $stored = $run !== null ? $this->num($p['CARRYING_AMOUNT'] ?? 0) : null;
             $derived = $carrying;
             $signError = null;

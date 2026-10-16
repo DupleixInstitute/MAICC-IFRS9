@@ -231,14 +231,97 @@ class LandingZoneReader
         return $by;
     }
 
-    /** The stored Loan Book Report: the latest run per account on the month-end, as method A defines it. */
+    /**
+     * The stored Loan Book Report for the month-end, one row per account.
+     *
+     * E-Banker's own ASONDATE on this report is honest: it is frozen to the
+     * date asked for. Its arrears-ageing columns are not — they are
+     * recomputed live every time the report is re-run, so a later pull of
+     * the same closed month reads as more overdue than an earlier one did
+     * (Loan Book Report Point-in-Time Specification v1, sections 2 to 4).
+     * Where more than one pull is on record for an account at this
+     * month-end, the earliest pull (by its own TRANSACTION_DATE, the date
+     * the report was actually run, not the ASONDATE it was asked about) is
+     * the one closest to the truth and is preferred (section 6) — but only
+     * once the fields that should never move for a closed month (the
+     * carrying amount, the total overdue amount, the overdue-principal
+     * date) actually agree across every pull on record. When they do not,
+     * something more than ageing drift is going on, so the build does not
+     * guess: it keeps the pre-fix choice (the latest pull) and flags the
+     * disagreement on the row for a person to look at (section 6.1), via
+     * the 'pick_conflict' key callers fold into their own build flag.
+     */
     public function latestRunsOn(string $monthEnd): array
     {
-        $latest = [];
+        $byAccount = [];
         foreach ($this->family(self::LOAN_BOOK_RUNS, null, $monthEnd) as $row) {
-            $a = $row['account'];
-            if (! isset($latest[$a]) || (int) $row['source_key'] > (int) $latest[$a]['source_key']) {
-                $latest[$a] = $row;
+            $byAccount[$row['account']][] = $row;
+        }
+
+        return array_map($this->pickRun(...), $byAccount);
+    }
+
+    /** Among one account's candidate pulls for a month-end, the earliest once the stable fields agree (section 6.1). */
+    private function pickRun(array $rows): array
+    {
+        if (count($rows) === 1) {
+            return $rows[0];
+        }
+        $dated = array_filter($rows, fn ($row) => $this->pullDate($row) !== null);
+        if ($dated === []) {
+            // no TRANSACTION_DATE to tell the pulls apart by: the pre-fix rule stands
+            return $this->highestSourceKey($rows);
+        }
+        usort($dated, fn ($a, $b) => [$this->pullDate($a), (int) $a['source_key']] <=> [$this->pullDate($b), (int) $b['source_key']]);
+        $earliest = reset($dated);
+        foreach ($rows as $row) {
+            if (! self::stableFieldsAgree($earliest['payload'], $row['payload'])) {
+                $conflicted = $this->highestSourceKey($rows);
+                $conflicted['pick_conflict'] = sprintf(
+                    '%d pulls on record for this month-end disagree on the carrying amount, the total overdue amount or the overdue-principal date; the latest pull is kept pending review (Loan Book Report Point-in-Time Specification v1, section 6.1)',
+                    count($rows)
+                );
+
+                return $conflicted;
+            }
+        }
+
+        return $earliest;
+    }
+
+    /** The date a Loan Book Report pull was actually run (TRANSACTION_DATE), not the ASONDATE it was asked about. */
+    private function pullDate(array $row): ?string
+    {
+        return \App\Services\Ebanker\InstalmentChartHistory::date((string) ($row['payload']['TRANSACTION_DATE'] ?? ''));
+    }
+
+    /**
+     * The fields a closed month's pulls should never disagree on, whatever the run date (section
+     * 6.1). Public and static so the landing side (PackLandingService's drift notice, section 6.3)
+     * reads the same rule as the build side, rather than a second copy of it drifting apart.
+     */
+    public static function stableFieldsAgree(array $a, array $b): bool
+    {
+        return abs(self::payloadNum($a, 'CARRYING_AMOUNT') - self::payloadNum($b, 'CARRYING_AMOUNT')) < 0.01
+            && abs(self::payloadNum($a, 'ARREAS_TOTAL') - self::payloadNum($b, 'ARREAS_TOTAL')) < 0.01
+            && \App\Services\Ebanker\InstalmentChartHistory::date((string) ($a['OVERDUE_PRINCI_DATE'] ?? ''))
+                === \App\Services\Ebanker\InstalmentChartHistory::date((string) ($b['OVERDUE_PRINCI_DATE'] ?? ''));
+    }
+
+    private static function payloadNum(array $payload, string $key): float
+    {
+        $s = str_replace([',', ' ', "\xC2\xA0"], '', trim((string) ($payload[$key] ?? '')));
+
+        return is_numeric($s) ? (float) $s : 0.0;
+    }
+
+    /** Today's rule, kept as the fallback when the earliest pull cannot be told from the others (no readable TRANSACTION_DATE) or they disagree on the stable fields. */
+    private function highestSourceKey(array $rows): array
+    {
+        $latest = $rows[0];
+        foreach ($rows as $row) {
+            if ((int) $row['source_key'] > (int) $latest['source_key']) {
+                $latest = $row;
             }
         }
 
