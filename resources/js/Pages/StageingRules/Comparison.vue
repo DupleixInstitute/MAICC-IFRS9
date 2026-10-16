@@ -30,7 +30,7 @@
                     </div>
                 </details>
                 <div class="mt-4 flex justify-end">
-                    <button type="button" class="primary-btn" :disabled="processing || !form.period" @click="run">{{ processing ? 'Running...' : 'Run the comparison' }}</button>
+                    <button type="button" class="primary-btn" :disabled="processing || !form.period" @click="runComparison">{{ processing ? 'Running...' : 'Run the comparison' }}</button>
                 </div>
             </div>
 
@@ -177,7 +177,8 @@ export default {
         money(v) {
             return v === null || v === undefined ? '-' : Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         },
-        run() {
+        // not run(): that name is the prop holding the run shown, and a method of the same name hid it
+        runComparison() {
             this.processing = true
             this.$inertia.post(this.route('staging-comparison.store'), this.form, { onFinish: () => { this.processing = false } })
         },
