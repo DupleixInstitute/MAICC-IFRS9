@@ -51,11 +51,34 @@ class EirLedgerCashService
     }
 
     /** @return array{postings:int,loaded:int,accounts:int,by_type:array<string,int>,last_date:?string} */
+    /**
+     * The E-Banker voucher ids already in eir_actual_transactions under the other route than $source:
+     * the ledger route keys a voucher by its id ("425670"), the contract inputs route (Extract B) by
+     * "CUMVOUCH:<id>". A voucher is one posting whichever route loaded it first.
+     *
+     * @return array<string, true>
+     */
+    public static function vouchersLoadedElsewhere(string $source): array
+    {
+        if ($source === self::SOURCE) {
+            return DB::table('eir_actual_transactions')->where('source_system', \App\Services\Eir\ContractTransactionImportService::SOURCE)
+                ->where('external_transaction_id', 'like', 'CUMVOUCH:%')->pluck('external_transaction_id')
+                ->mapWithKeys(fn ($id) => [substr((string) $id, 9) => true])->all();
+        }
+
+        return DB::table('eir_actual_transactions')->where('source_system', self::SOURCE)->pluck('external_transaction_id')
+            ->mapWithKeys(fn ($id) => ['CUMVOUCH:' . $id => true])->all();
+    }
+
     public function load(?string $toDate = null, ?int $userId = null): array
     {
         $toDate ??= $this->zone->lastLedgerDate();
         // id => the type it was loaded as, so a write-off loaded as a repayment before the classifier existed is corrected
         $existing = DB::table('eir_actual_transactions')->where('source_system', self::SOURCE)->pluck('transaction_type', 'external_transaction_id')->all();
+        // the same E-Banker voucher loaded by the contract inputs route (MAIIC_EXTRACT_B, "CUMVOUCH:<id>") is the same
+        // cash: loading it again here doubled the month's cash wherever both routes ran (re-performance, 16 October 2026)
+        $elsewhere = self::vouchersLoadedElsewhere(self::SOURCE);
+        $skippedElsewhere = 0;
         $writeOffs = new \App\Services\Ebanker\WriteOffClassifier($this->zone);
         $reclassified = 0;
         $customers = DB::table('loan_books')->whereNotNull('customer_id')->orderByDesc('reporting_period')->pluck('customer_id', 'contract_id')->all();
@@ -76,6 +99,10 @@ class EirLedgerCashService
                 $id = (string) ($p['CUMVOUCH_DET_ID'] ?? $r['source_key']);
                 $amount = (float) str_replace(',', '', (string) ($p['TRANSAMT'] ?? 0));
                 $writeOffRule = $writeOffs->rule($p, $r['row_date'], $account);
+                if (! isset($existing[$id]) && isset($elsewhere[$id])) {
+                    $skippedElsewhere++;
+                    continue;
+                }
                 if (isset($existing[$id])) {
                     if ($writeOffRule !== null && $existing[$id] !== 'Write-off') {
                         DB::table('eir_actual_transactions')->where('source_system', self::SOURCE)->where('external_transaction_id', $id)
@@ -108,7 +135,7 @@ class EirLedgerCashService
         foreach (array_chunk($batch, 500) as $chunk) {
             DB::table('eir_actual_transactions')->insert($chunk);
         }
-        $result = ['postings' => $postings, 'loaded' => count($batch), 'reclassified_as_write_off' => $reclassified, 'accounts' => $accounts, 'by_type' => $byType, 'last_date' => $toDate,
+        $result = ['postings' => $postings, 'loaded' => count($batch), 'already_loaded_by_extract_b' => $skippedElsewhere, 'reclassified_as_write_off' => $reclassified, 'accounts' => $accounts, 'by_type' => $byType, 'last_date' => $toDate,
             'reversals' => $this->pairReversals()];
         AuditLoggerService::log('EIR Ledger Cash Loaded', 'eir_actual_transactions', null, ['rows_affected' => count($batch), 'new_values' => $result, 'meta' => ['user' => $userId]]);
 
