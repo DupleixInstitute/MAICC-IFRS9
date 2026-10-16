@@ -155,7 +155,8 @@ class EirContractInputService
     /**
      * The fee lines an EIR reads: reviewed, integral, and from the source of
      * record (a line superseded under fee_source_precedence is kept and shown
-     * but never enters the EIR, spec 7.8.2).
+     * but never enters the EIR, spec 7.8.2), less an LOS charge never posted
+     * that los_unposted_fee_basis leaves out.
      */
     private function reviewedIntegralFees(string $contractId, ?string $onlySource = null)
     {
@@ -169,6 +170,8 @@ class EirContractInputService
         if ($onlySource !== null) {
             $q->where('source_system', $onlySource);
         }
+        // an LOS charge never posted counts only as the governed setting los_unposted_fee_basis says (UnpostedFeeBasis)
+        UnpostedFeeBasis::constrain($q, $contractId);
 
         return $q->orderBy('transaction_date')->orderBy('id')->get();
     }

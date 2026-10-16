@@ -17,10 +17,13 @@ class EirFeeClassificationController extends Controller
     {
         $this->middleware('auth');
         // the list and the fee GL check are readable with eir.fees.import; classifying and reviewing stay with settings
-        $this->middleware('permission:settings|eir.fees.import')->only('index');
-        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee']);
-        // tying a held GL fee line to a loan is a governed, audit-logged act (spec 7.8.4)
-        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee']);
+        // the workbook for Finance and Finance's answers go with the fee intake (eir.fees.import), the permission
+        // Finance's users hold for this screen; eir.view does not open Fee Classification at all
+        $this->middleware('permission:settings|eir.fees.import')->only(['index', 'downloadWorkbook', 'uploadAnswers']);
+        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'downloadWorkbook', 'uploadAnswers', 'decideAnswer', 'approveSheet']);
+        // tying a held GL fee line to a loan is a governed, audit-logged act (spec 7.8.4), and so is deciding
+        // Finance's answers, which tie, decide and classify through the same services
+        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'decideAnswer', 'approveSheet']);
     }
 
     /**
@@ -158,6 +161,86 @@ class EirFeeClassificationController extends Controller
         return back()->with('success', "The fee line is moved from loan {$from} to loan {$target}. It is pending again: classify it and have a second person review it.");
     }
 
+    /** What the setting for the LOS charges never posted would do to the locked EIRs (read only); null when it cannot be read. */
+    private function unpostedPreview(): ?array
+    {
+        try {
+            return \App\Services\Eir\UnpostedFeeBasis::preview();
+        } catch (\App\Exceptions\GovernanceSettingMissingException) {
+            return null;
+        }
+    }
+
+    /**
+     * The fee reconciliation workbook for Finance, from the live data: the sheets, columns, dropdowns and colours
+     * Finance knows, each answer row with its hidden key and the Read me with the fingerprint; the download is
+     * recorded in the audit log (FeeReconciliationWorkbook).
+     */
+    public function downloadWorkbook(Request $request, \App\Services\Eir\FeeReconciliationWorkbook $workbook)
+    {
+        try {
+            $file = $workbook->download((int) $request->user()->id);
+        } catch (\App\Exceptions\GovernanceSettingMissingException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return response()->download($file['path'], $file['name'], ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend();
+    }
+
+    /**
+     * Finance's answers: a workbook from the download (mapped by its keys, its fingerprint checked) or the
+     * offline workbook of 16 October 2026 (mapped by the columns that name each record). Nothing changes: each
+     * answer is proposed, the file is kept as the supporting document, and a second person decides.
+     */
+    public function uploadAnswers(Request $request, \App\Services\Eir\FeeWorkbookAnswerService $answers)
+    {
+        $request->validate(['workbook' => ['required', 'file', 'max:20480']]);
+        try {
+            $r = $answers->upload($request->file('workbook'), (int) $request->user()->id);
+        } catch (\InvalidArgumentException|\LogicException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        $message = "{$r['answers']} answer(s) read from the workbook (" . ($r['basis'] === \App\Services\Eir\FeeWorkbookReader::KEYED ? 'matched by their keys' : 'a workbook with no keys, matched by loan account, fee type and amount')
+            . "), each waiting for a second person's decision. Nothing has changed yet.";
+        if ($r['refused'] !== []) {
+            $message .= ' ' . count($r['refused']) . ' row(s) were refused: ' . implode(' ', array_map(fn ($x) => $x['sheet'] . ': ' . $x['reason'], array_slice($r['refused'], 0, 5))) . (count($r['refused']) > 5 ? ' ...' : '');
+        }
+
+        return redirect()->route('eir-fee-classification.index', ['tab' => 'answers'])->with('success', $message);
+    }
+
+    /** A second person approves, rejects or records as not actionable one of Finance's answers, with the reason. */
+    public function decideAnswer(Request $request, int $answer, \App\Services\Eir\FeeWorkbookAnswerService $answers)
+    {
+        $data = $request->validate(['action' => ['required', 'in:approve,reject,not_actionable'], 'reason' => ['required', 'string', 'min:10', 'max:2000']]);
+        \App\Support\LedgerReadLimits::raise(); // tying a held posting applies the precedence, which reads the ledger
+        try {
+            $r = $answers->decide($answer, $data['action'], $data['reason'], (int) $request->user()->id);
+        } catch (\InvalidArgumentException|\LogicException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', match ($r['status']) { 'APPROVED' => 'Approved: ', 'REJECTED' => 'Rejected: ', default => 'Not actionable: ' } . $r['outcome']);
+    }
+
+    /** Approve every answer of one sheet of an upload with one reason; one that cannot be applied stays proposed and is named. */
+    public function approveSheet(Request $request, \App\Services\Eir\FeeWorkbookAnswerService $answers)
+    {
+        $data = $request->validate(['upload_id' => ['required', 'integer'], 'sheet' => ['required', 'string', 'max:40'], 'reason' => ['required', 'string', 'min:10', 'max:2000']]);
+        \App\Support\LedgerReadLimits::raise();
+        try {
+            $r = $answers->approveSheet((int) $data['upload_id'], $data['sheet'], $data['reason'], (int) $request->user()->id);
+        } catch (\InvalidArgumentException|\LogicException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        $message = "{$data['sheet']}: {$r['approved']} answer(s) approved and applied" . ($r['not_actionable'] ? ", {$r['not_actionable']} recorded as not actionable" : '') . '.';
+        if ($r['failed'] !== []) {
+            return back()->with('error', $message . ' ' . count($r['failed']) . ' could not be applied and wait: ' . implode(' ', array_slice($r['failed'], 0, 5)));
+        }
+
+        return back()->with('success', $message);
+    }
+
     /** The fee lines the screen's filters select (status, fee or cost type, GL, contract). */
     private function filtered(Request $request)
     {
@@ -206,6 +289,14 @@ class EirFeeClassificationController extends Controller
             'canClassify' => (bool) $request->user()?->can('settings'),
             'canGovern' => (bool) $request->user()?->can('eir.govern'),
             'heldGlFees' => $this->heldGlFees(),
+            // Finance's answers on the fee reconciliation workbook (spec v4 section 7.8.9)
+            'answers' => \Illuminate\Support\Facades\Schema::hasTable('fee_workbook_answers') ? app(\App\Services\Eir\FeeWorkbookAnswerService::class)->page($request->input('answer_sheet'), $request->input('answer_status')) : null,
+            'answerUploads' => \Illuminate\Support\Facades\Schema::hasTable('fee_workbook_uploads') ? app(\App\Services\Eir\FeeWorkbookAnswerService::class)->uploads() : [],
+            'answerFilters' => ['sheet' => $request->input('answer_sheet'), 'status' => $request->input('answer_status')],
+            'answerCounts' => \Illuminate\Support\Facades\Schema::hasTable('fee_workbook_answers') ? DB::table('fee_workbook_answers')->select('status', DB::raw('COUNT(*) as n'))->groupBy('status')->pluck('n', 'status') : [],
+            'answerSheets' => array_merge(['Read me'], array_keys(\App\Services\Eir\FeeReconciliationWorkbook::SHEETS)),
+            'unpostedBasis' => $this->unpostedPreview(),
+            'canDecideAnswers' => (bool) $request->user()?->can('eir.govern'),
             'sourceDifferences' => $this->sourceDifferences(),
             'sourceOverlaps' => $this->sourceOverlaps(),
             'ruleCoverage' => [
@@ -274,52 +365,10 @@ class EirFeeClassificationController extends Controller
         ]);
 
         $byRule = ($data['mode'] ?? 'manual') === 'rule';
-        $applied = 0;
-        $refused = [];
-
-        DB::transaction(function () use ($data, $byRule, &$applied, &$refused) {
-            $fees = ContractFee::whereIn('id', $data['fee_ids'])->lockForUpdate()->get();
-            foreach ($fees as $fee) {
-                if ($fee->classification_status === 'REVIEWED') continue;
-
-                if ($byRule && $fee->suggested_rule_id === null) {
-                    $refused[] = $fee->contract_id . ' / ' . $fee->fee_type;
-                    continue;
-                }
-
-                $integral = $byRule ? (bool) $fee->suggested_integral : (bool) $data['integral'];
-                $ruleId = $byRule ? $fee->suggested_rule_id : ($data['accounting_rule_id'] ?? null);
-                $reason = $byRule
-                    ? $data['reason'] . ' [applied by rule: ' . ($fee->suggestedRule?->name ?? 'unknown') . ']'
-                    : $data['reason'];
-
-                $fee->update(($fee->cashflow_direction === null || $fee->cashflow_direction === '') && ! empty($data['cashflow_direction'])
-                    ? ['cashflow_direction' => $data['cashflow_direction']] : []);
-                $fee->update([
-                    'integral' => $integral,
-                    'classification_status' => 'CLASSIFIED',
-                    'classification_reason' => $reason,
-                    'classified_by' => auth()->id(),
-                    'classified_at' => now(),
-                    'reviewed_by' => null,
-                    'reviewed_at' => null,
-                ]);
-                EirFeeClassificationEvent::create([
-                    'contract_fee_id' => $fee->id, 'action' => 'CLASSIFIED',
-                    'integral' => $integral, 'reason' => $reason,
-                    'accounting_rule_id' => $ruleId,
-                    'performed_by' => auth()->id(),
-                ]);
-                $applied++;
-            }
-        });
-
-        AuditLoggerService::log('EIR Fees Classified', ContractFee::class, null, ['meta' => [
-            'fee_ids' => $data['fee_ids'], 'mode' => $byRule ? 'RULE' : 'MANUAL',
-            'integral' => $byRule ? null : $data['integral'],
-            'cashflow_direction_set' => $data['cashflow_direction'] ?? null,
-            'applied' => $applied, 'refused' => count($refused),
-        ]]);
+        // one path for a person on this screen and for Finance's workbook answers (FeeClassificationService)
+        ['applied' => $applied, 'refused' => $refused] = app(\App\Services\Eir\FeeClassificationService::class)->classify(
+            $data['fee_ids'], $byRule, $byRule ? null : (bool) $data['integral'], $data['reason'], (int) auth()->id(),
+            $byRule ? null : ($data['accounting_rule_id'] ?? null), $data['cashflow_direction'] ?? null);
 
         if ($applied === 0 && $refused !== []) {
             return back()->withErrors(['fee_ids' => 'No line could be classified: none of the selected lines has a matching rule. Re-apply the rulebook, or classify them manually.']);
@@ -337,32 +386,13 @@ class EirFeeClassificationController extends Controller
     public function review(Request $request)
     {
         $data = $request->validate(['fee_ids' => ['required', 'array', 'min:1'], 'fee_ids.*' => ['integer', 'exists:contract_fees,id']]);
-        $fees = ContractFee::whereIn('id', $data['fee_ids'])->where('classification_status', 'CLASSIFIED')->get();
-        $own = $fees->where('classified_by', auth()->id());
-        // an integral line enters the EIR as money received or paid: approving one with no
-        // direction left a reviewed line the EIR could not use and nobody could correct
-        $undirected = $fees->filter(fn ($f) => (bool) $f->integral && ! in_array($f->cashflow_direction, ['RECEIVED', 'PAID'], true));
-        if ($undirected->isNotEmpty()) {
-            return back()->withErrors(['fee_ids' => $undirected->count() . ' integral line(s) have no cash-flow direction (' . $undirected->take(5)->map(fn ($f) => $f->contract_id . ' / ' . $f->fee_type)->implode(', ')
-                . '). Return them to classification so the classifier states whether the fee was received or paid; nothing was approved.']);
+        try {
+            $result = app(\App\Services\Eir\FeeClassificationService::class)->review($data['fee_ids'], (int) auth()->id());
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['fee_ids' => $e->getMessage()]);
         }
-        // the one maker-checker check (Staging Module Specification v1, section 8.9): recorded when used
-        $adminOverride = $own->isNotEmpty() && \App\Support\MakerChecker::selfApprovalAllowed('Fee classification review', ContractFee::class, $own->pluck('id')->implode(','), (int) auth()->id());
-        if ($own->isNotEmpty() && ! $adminOverride) return back()->withErrors(['fee_ids' => 'A classifier cannot review their own decision.']);
 
-        DB::transaction(function () use ($fees) {
-            foreach ($fees as $fee) {
-                $fee->update(['classification_status' => 'REVIEWED', 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);
-                EirFeeClassificationEvent::create(['contract_fee_id' => $fee->id, 'action' => 'REVIEWED', 'integral' => $fee->integral, 'reason' => $fee->classification_reason, 'performed_by' => auth()->id()]);
-            }
-        });
-        AuditLoggerService::log('EIR Fee Classifications Reviewed', ContractFee::class, null, [
-            'meta' => [
-                'fee_ids' => $fees->pluck('id')->all(),
-                'maker_checker_override' => $adminOverride,
-            ],
-        ]);
-        return back()->with('success', $fees->count() . ' classification(s) approved.');
+        return back()->with('success', count($result['reviewed']) . ' classification(s) approved.');
     }
 
     /**

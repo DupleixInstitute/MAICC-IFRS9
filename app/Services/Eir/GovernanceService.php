@@ -250,6 +250,15 @@ class GovernanceService
                 'options' => [\App\Services\Eir\FeeSourcePrecedence::GL_FIRST, \App\Services\Eir\FeeSourcePrecedence::FINANCE_FIRST, \App\Services\Eir\FeeSourcePrecedence::LOS_FIRST],
                 'default' => \App\Services\Eir\FeeSourcePrecedence::GL_FIRST,
             ],
+            // Added 16 October 2026 (pack 13, question F2; spec v4 section 7.8.6).
+            UnpostedFeeBasis::KEY => [
+                'label' => 'LOS charges never posted to the ledger',
+                'description' => 'The loan origination system (LOS_DISB_CHARGES_POST) captures the charges of a loan at application. A charge that was posted reaches the GL, and the GL line or the line of the Finance workbook is then its source of record. An LOS line that no other source holds was never posted: it has no batch and no income GL, so nothing shows the borrower was charged it. As built, such a line counts like any other line of the source of record. The second option counts it only where Finance has confirmed it was charged (an approved answer on sheet 4b, Fees never posted, of the fee reconciliation workbook on Fee Classification); a line Finance has not confirmed is left out of the EIR inputs and no longer blocks the loan. Read where the engine decides which fee lines count (EirReadinessService, EirContractInputService). A locked EIR is never reopened by a change: every locked EIR whose fee inputs would change is flagged for review, naming the lines (pack 13, question F2).',
+                'options' => [UnpostedFeeBasis::AS_BUILT, UnpostedFeeBasis::CONFIRMED_ONLY],
+                'default' => UnpostedFeeBasis::AS_BUILT,
+                'evidence_required' => true,
+                'seed_reason' => 'Seeded at the basis the system was built on (16 October 2026), so that nothing moves on deploy: an LOS charge never posted counts where no other source holds the fee. Not a MAIIC decision: the answer of Finance to pack 13 question F2 decides whether to change it, by a proposal, its supporting document and the approval of a second person.',
+            ],
             // Added 14 October 2026 (results review E2, spec v4 section 6.9).
             'takeon_eir_plausibility' => [
                 'label' => 'Take-on EIR: the check before it is used',
@@ -838,6 +847,10 @@ class GovernanceService
             ]);
             $this->carryStagingPolicy($setting, $effective, $approverId);
             $this->logPresetApplied($setting, $superseded, $approverId);
+            // a change to the basis of the LOS charges never posted flags every locked EIR whose fee inputs change; none is reopened
+            if ($setting->key === UnpostedFeeBasis::KEY) {
+                UnpostedFeeBasis::flagOnChange($superseded?->value, $setting->value, (int) $setting->id, $approverId);
+            }
 
             return $setting->fresh();
         });

@@ -741,6 +741,11 @@ Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classificat
     Route::post('/held/{held}/not-this-loan', [\App\Http\Controllers\EirFeeClassificationController::class, 'dismissCandidate'])->name('dismiss-candidate');
     Route::post('/fee/{fee}/overlap', [\App\Http\Controllers\EirFeeClassificationController::class, 'decideOverlap'])->name('decide-overlap');
     Route::post('/fee/{fee}/move', [\App\Http\Controllers\EirFeeClassificationController::class, 'moveFee'])->name('move');
+    // the fee reconciliation workbook for Finance, and Finance's answers decided by a second person (spec v4 section 7.8.9)
+    Route::get('/workbook', [\App\Http\Controllers\EirFeeClassificationController::class, 'downloadWorkbook'])->name('workbook.download');
+    Route::post('/workbook/answers', [\App\Http\Controllers\EirFeeClassificationController::class, 'uploadAnswers'])->name('workbook.upload');
+    Route::post('/answers/{answer}/decide', [\App\Http\Controllers\EirFeeClassificationController::class, 'decideAnswer'])->whereNumber('answer')->name('answers.decide');
+    Route::post('/answers/approve-sheet', [\App\Http\Controllers\EirFeeClassificationController::class, 'approveSheet'])->name('answers.approve-sheet');
 });
 
 Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], function () {

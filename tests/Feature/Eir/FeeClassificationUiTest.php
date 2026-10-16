@@ -91,8 +91,11 @@ class FeeClassificationUiTest extends TestCase
         $govern = collect((new EirFeeClassificationController())->getMiddleware())->firstWhere('middleware', 'permission:eir.govern');
         // saying a held posting is not the named loan's fee is governed the same way (15 October 2026)
         $this->assertTrue(Route::has('eir-fee-classification.dismiss-candidate'));
-        $this->assertSame(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee'], $govern['options']['only']);
+        // and so is deciding Finance's workbook answers, which tie, decide and classify through the same services (16 October 2026)
+        $this->assertSame(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'decideAnswer', 'approveSheet'], $govern['options']['only']);
         $this->assertTrue(Route::has('eir-fee-classification.move'));
+        $intake = collect((new EirFeeClassificationController())->getMiddleware())->firstWhere('middleware', 'permission:settings|eir.fees.import');
+        $this->assertSame(['index', 'downloadWorkbook', 'uploadAnswers'], $intake['options']['only']);
     }
 
     public function test_select_all_matching_returns_every_line_the_filters_select_on_every_page(): void
