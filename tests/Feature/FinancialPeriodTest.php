@@ -29,6 +29,7 @@ class FinancialPeriodTest extends TestCase
 
                                  'name' => 'midyear',
                                  'start_date' => '2022-01-16',
+                                 'end_date' => '2022-06-30',
             ]);
 
         $response->assertRedirect('/financial_period');
@@ -54,6 +55,7 @@ class FinancialPeriodTest extends TestCase
                                 
                             'name' => 'second',
                             'start_date' => '2022-01-18',
+                            'end_date' => '2022-12-31',
                          ]);
 
 

@@ -7,36 +7,21 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Jetstream\Features;
 use Tests\TestCase;
 
+/**
+ * No one deletes an account (16 October 2026): approvals, the decisions pack
+ * and the append-only audit log name the people who decided, so every person
+ * who used the system stays on record; a user who leaves is made inactive.
+ */
 class DeleteAccountTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_accounts_can_be_deleted()
+    public function test_account_deletion_is_not_offered_and_the_account_stays(): void
     {
-        if (! Features::hasAccountDeletionFeatures()) {
-            return $this->markTestSkipped('Account deletion is not enabled.');
-        }
-
+        $this->assertFalse(Features::hasAccountDeletionFeatures());
         $this->actingAs($user = User::factory()->create());
 
-        $response = $this->delete('/user', [
-            'password' => 'password',
-        ]);
-
-        $this->assertNull($user->fresh());
-    }
-
-    public function test_correct_password_must_be_provided_before_account_can_be_deleted()
-    {
-        if (! Features::hasAccountDeletionFeatures()) {
-            return $this->markTestSkipped('Account deletion is not enabled.');
-        }
-
-        $this->actingAs($user = User::factory()->create());
-
-        $response = $this->delete('/user', [
-            'password' => 'wrong-password',
-        ]);
+        $this->delete('/user', ['password' => 'password']);
 
         $this->assertNotNull($user->fresh());
     }

@@ -46,7 +46,10 @@ return [
          Features::profilePhotos(),
         // Features::api(),
         // Features::teams(['invitations' => true]),
-        Features::accountDeletion(),
+        // Account deletion is off (16 October 2026): approvals, the decisions pack and the append-only audit log
+        // name the people who decided, so a person who used the system stays on record. Its action also failed on
+        // a table this system never had (personal_access_tokens). A user who leaves is made inactive instead.
+        // Features::accountDeletion(),
     ],
 
     /*
