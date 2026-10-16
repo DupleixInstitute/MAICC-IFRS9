@@ -47,6 +47,7 @@ class DecisionsPackExporter
         $data = [
             'users' => $this->users(),
             'documents' => $this->documents($folder),
+            'account_exclusions' => $this->accountExclusions(),
             'governance' => $this->governance(),
             'fee_rules' => $this->feeRules(),
             'finance_lines' => $this->financeLines($keys, $finance),
@@ -144,6 +145,11 @@ class DecisionsPackExporter
         $targets = [];
         foreach (DB::table('governance_settings')->where('status', 'APPROVED')->where('key', '!=', MakerChecker::SETTING)->where(fn ($q) => $q->whereNotNull('set_by')->orWhereNotNull('approved_by'))->get() as $s) {
             $targets[\App\Models\GovernanceSetting::class][(int) $s->id] = ['kind' => 'governance', 'key' => $s->key, 'value' => $s->value, 'effective_from' => substr((string) $s->effective_from, 0, 10)];
+        }
+        if (Schema::hasTable('account_exclusions')) {
+            foreach (DB::table('account_exclusions')->get(['id', 'contract_id']) as $x) {
+                $targets['account_exclusions'][(int) $x->id] = ['kind' => 'account_exclusion', 'contract_id' => (string) $x->contract_id];
+            }
         }
         foreach (DB::table('eir_accounting_rules')->get(['id', 'name']) as $r) {
             $targets['eir_accounting_rules'][(int) $r->id] = ['kind' => 'fee_rule', 'name' => $r->name];
@@ -270,6 +276,30 @@ class DecisionsPackExporter
             })->filter(fn ($t) => $t['external_transaction_id'] !== null)->values()->all();
     }
 
+    /**
+     * The account exclusions people decided (AccountExclusionService), keyed by the account: every
+     * entry a person proposed, approved, closed or asked to withdraw. An exclusion the bootstrap
+     * landed from the committed client input and no person touched is not carried; a fresh
+     * bootstrap lands it again from the same file.
+     */
+    private function accountExclusions(): array
+    {
+        if (! Schema::hasTable('account_exclusions')) {
+            return [];
+        }
+
+        return DB::table('account_exclusions')->orderBy('id')->get()
+            ->filter(fn ($x) => $x->proposed_by !== null || $x->approved_by !== null || $x->closed_by !== null || $x->withdrawal_requested_by !== null)
+            ->map(fn ($x) => ['contract_id' => (string) $x->contract_id, 'account' => $x->account, 'customer_name' => $x->customer_name, 'category' => $x->category,
+                'reason' => $x->reason, 'evidence' => $x->evidence, 'sister_contract_id' => $x->sister_contract_id, 'status' => $x->status, 'source' => $x->source,
+                'proposed_by' => $this->email($x->proposed_by), 'proposed_at' => $x->proposed_at === null ? null : (string) $x->proposed_at,
+                'approved_by' => $this->email($x->approved_by), 'approved_at' => $x->approved_at === null ? null : (string) $x->approved_at, 'approver_label' => $x->approver_label,
+                'withdrawal_requested_by' => $this->email($x->withdrawal_requested_by), 'withdrawal_requested_at' => $x->withdrawal_requested_at === null ? null : (string) $x->withdrawal_requested_at,
+                'withdrawal_reason' => $x->withdrawal_reason, 'closed_by' => $this->email($x->closed_by), 'closed_at' => $x->closed_at === null ? null : (string) $x->closed_at,
+                'close_reason' => $x->close_reason])
+            ->values()->all();
+    }
+
     private function heldDismissals(): array
     {
         if (! Schema::hasTable('fee_gl_candidate_dismissals')) {
@@ -374,6 +404,7 @@ class DecisionsPackExporter
             'documents' => count($data['documents']),
             'fee_moves' => count($data['fee_moves']),
             'reopen_requests' => count($data['reopen_requests']),
+            'account_exclusions_approved' => count(array_filter($data['account_exclusions'], fn ($x) => $x['status'] === 'APPROVED')),
         ];
     }
 }

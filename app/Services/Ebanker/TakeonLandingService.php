@@ -770,7 +770,10 @@ class TakeonLandingService
 
     private function gates(array $blocks): array
     {
-        $master = $this->zone->accountMaster();
+        // the workbook is checked against the account master as received; a block mapped to an
+        // account the exclusion register takes out of the book is flagged, and the build never
+        // reaches it (the reader leaves the account's postings out)
+        $master = $this->zone->includingExcluded()->accountMaster();
         $postings = $this->takeonPostings();
         $seen = [];
         $out = ['blocks' => [], 'summary' => ['blocks' => count($blocks), 'mapped' => 0, 'not_matched' => 0, 'refused' => 0, 'flagged' => 0, 'principal_exact' => 0, 'no_fee_row' => 0]];
@@ -788,6 +791,9 @@ class TakeonLandingService
                 $g['refusals'][] = "account {$account} already has block {$seen[$account]} ({$cell})";
             } else {
                 $seen[$account] = $no;
+                if (\App\Support\AccountExclusions::isExcluded($account)) {
+                    $g['flags'][] = "account {$account} is excluded from the book by account exclusion #" . \App\Support\AccountExclusions::exclusionOf($account) . " ({$cell}): the block is not used";
+                }
                 $p = $postings[$account] ?? null;
                 if ($p === null) {
                     $g['flags'][] = "no take-on posting on 31 Jul 2024 for {$account}";
