@@ -48,9 +48,18 @@ class ContractInputsBuildService
             $schemes[(string) ($r['payload']['SCHEME_MST_ID'] ?? '')] = trim((string) ($r['payload']['SCHEME_NAME'] ?? ''));
         }
         $latest = [];
+        $stated = [];
         foreach ($this->zone->runMonthEnds() as $monthEnd) {
             foreach ($this->zone->latestRunsOn($monthEnd) as $account => $run) {
-                $latest[$account] = $run['payload'];
+                // the latest run that states the facility (statesTheFacility): a closed loan's later runs
+                // print it blank, and must not replace the terms it was lent on
+                $states = self::statesTheFacility($run['payload']);
+                if ($states || ! isset($stated[$account])) {
+                    $latest[$account] = $run['payload'];
+                }
+                if ($states) {
+                    $stated[$account] = true;
+                }
             }
         }
         $setups = $this->zone->rateSetupByAccount();
@@ -99,6 +108,41 @@ class ContractInputsBuildService
         $result['over_sanction'] = $this->flagOverSanction();
 
         return ['rows' => count($rows), 'result' => $result];
+    }
+
+    /**
+     * Whether a stored Loan Book Report row states the facility: a value date,
+     * or an amount disbursed. E-Banker keeps printing a loan in the report after
+     * it is closed, with the value date, the maturity date and every amount
+     * blank or nil. Until 16 October 2026 the contract master read the latest
+     * run, so a loan closed before the last month-end got a drawn amount of nil
+     * and its account-open date for origination: its schedule was never
+     * generated (DRAWN_AMOUNT_MISSING) and its EIR, and the revenue of the
+     * months it was open, never solved. Pack 11 (16 October 2026) asked about
+     * the 17 loans with no version 1 schedule: three of them, JVD Agro
+     * 104460000109 (250,000,000.00 drawn on 12 May 2025, refinanced into
+     * 104460000120 on 31 March 2026), Nature's Gift 104450000023 (24,600,000.00,
+     * 22 April 2022) and Kadava 104450000041 (12,000,000.00, 2 August 2022,
+     * both paid up on 16 December 2025) are such loans: every run before their
+     * closure states the amount their pack 11 drawdowns (DS_01) confirm, and
+     * the run of record for their terms is now the last of those. Their
+     * version 1 is generated from these terms like every other E-Banker loan's
+     * (ScheduleWorkflowService::generate), with the tranche register from the
+     * ledger; E-Banker's instalment chart is the evidence it is compared with,
+     * not the schedule itself. Nature's Gift and Kadava were taken on at the
+     * migration of 31 July 2024 with no block in Finance's take-on workbook,
+     * so their take-on basis stays TAKEON_BALANCE (TakeonLandingService) and
+     * they take the generated route, as the three other TAKEON_BALANCE loans
+     * did. A chart-based version 1 is not a route the system has, and their
+     * chart (P2_10, and the same rows in pack 11's IC_01) was created on 28
+     * March 2024, when the loans were set up in E-Banker for the migration, not
+     * when they were made in 2022: it is not the original schedule.
+     */
+    public static function statesTheFacility(array $run): bool
+    {
+        $disbursed = str_replace([',', ' '], '', trim((string) ($run['DISBURSD'] ?? '')));
+
+        return trim((string) ($run['VALUE_DATE'] ?? '')) !== '' || (is_numeric($disbursed) && (float) $disbursed > 0);
     }
 
     /**
