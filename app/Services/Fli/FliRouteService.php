@@ -424,6 +424,11 @@ class FliRouteService
      */
     public function apply(string $period, ?int $userId = null): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! \App\Support\RunContext::inside($period, 'Forward-looking route')) {
+            return \App\Support\RunContext::engine($period, 'Forward-looking route', $userId, fn () => $this->apply($period, $userId));
+        }
         \App\Support\ReportingPeriodLock::assertOpen($period, 'the forward-looking route');
         $asOf = CarbonImmutable::parse($period . '-01')->endOfMonth();
         $route = $this->setting('fli_adjustment_route', $asOf);

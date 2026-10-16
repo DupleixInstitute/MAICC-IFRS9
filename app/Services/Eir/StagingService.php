@@ -85,6 +85,11 @@ class StagingService
     /** @return array{period:string,rows:int,stage1:int,stage2:int,stage3:int,by_dpd:int,by_instalments:int,by_sicr:int,by_credit_impaired:int,by_bucket:int,held_by_cure:int,cure_months:int,qualitative_triggers:int,instalments_no_chart:int,instalments_chart_contradicts_ledger:int} */
     public function stage(string $period, ?int $userId = null, bool $dryRun = false): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! $dryRun && ! \App\Support\RunContext::inside($period, 'Staging')) {
+            return \App\Support\RunContext::engine($period, 'Staging', $userId, fn () => $this->stage($period, $userId, $dryRun));
+        }
         if (! $dryRun) {
             \App\Support\ReportingPeriodLock::assertOpen($period, 'staging');
         }

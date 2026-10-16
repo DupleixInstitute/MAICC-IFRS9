@@ -524,6 +524,11 @@ class PdSegmentationService
      */
     public function run(string $period, ?array $portfolioIds = null, int $windowMonths = 12, ?int $userId = null, string $userName = 'system', ?array $onlyStages = null): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! \App\Support\RunContext::inside($period, 'PD')) {
+            return \App\Support\RunContext::engine($period, 'PD', $userId, fn () => $this->run($period, $portfolioIds, $windowMonths, $userId, $userName, $onlyStages));
+        }
         \App\Support\ReportingPeriodLock::assertOpen($period, 'the PD engine');
         $cfg = $this->settings($period);
         $portfolioIds = $portfolioIds ?? $this->scope($period);

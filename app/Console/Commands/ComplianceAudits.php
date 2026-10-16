@@ -149,6 +149,33 @@ class ComplianceAudits extends Command
             fclose($csv);
             $files[] = $name;
         }
+        // what the month ran on, and what changed from the month before (Staging Module Specification v1, section 8.8, item 5)
+        $runs = app(\App\Services\RunRecordService::class);
+        if (($run = $runs->monthRun($period)) !== null) {
+            $name = "Settings in force {$period}.csv";
+            $csv = fopen($tmp . '/' . $name, 'w');
+            fputcsv($csv, ["What {$period} ran on: run {$run->id} ({$run->kind}" . ($run->of_record_at && ! $run->of_record_until ? ', the run of record' : '') . "), code {$run->code_version}, fingerprint {$run->fingerprint}"]);
+            fputcsv($csv, ['Section', 'Item', 'In force']);
+            foreach (\App\Services\RunRecordService::flatten(json_decode((string) $run->snapshot, true) ?: []) as $section => $items) {
+                foreach ($items as $item => $value) {
+                    fputcsv($csv, [$section, $item, $value]);
+                }
+            }
+            fclose($csv);
+            $files[] = $name;
+            $prev = \Carbon\CarbonImmutable::parse($period . '-01')->subMonth()->format('Y-m');
+            if (($before = $runs->monthRun($prev)) !== null) {
+                $name = "What changed {$prev} to {$period}.csv";
+                $csv = fopen($tmp . '/' . $name, 'w');
+                fputcsv($csv, ["Run {$before->id} of {$prev} against run {$run->id} of {$period}: every input that differs"]);
+                fputcsv($csv, ['Section', 'Item', $prev, $period]);
+                foreach (\App\Services\RunRecordService::differences(json_decode((string) $before->snapshot, true) ?: [], json_decode((string) $run->snapshot, true) ?: []) as $line) {
+                    fputcsv($csv, $line);
+                }
+                fclose($csv);
+                $files[] = $name;
+            }
+        }
         // the manifest
         $manifest = ['pack' => "MAIIC auditor's pack {$period}", 'built_at' => now()->toDateTimeString(), 'files' => []];
         foreach ($files as $f) {

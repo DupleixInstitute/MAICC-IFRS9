@@ -491,7 +491,35 @@ class Bootstrap extends Command
             . '; record ' . ($ok['fli-record'] ? "{$rec['id']} RECORDED" . (isset($rec['booked_ecl_discounted']) ? ', discounted ' . number_format((float) $rec['booked_ecl_discounted'], 0) : '') : $rec);
     }
 
+    /**
+     * The engine chain, as one bootstrap run of each month (Staging Module Specification v1, section 8.8,
+     * "The bootstrap"): each engine records its step in its month's run, and each run ends frozen,
+     * fingerprinted and stamped on the month's results, labelled as a bootstrap run.
+     */
     private function stepEngines(int $user, ?string $to): void
+    {
+        $to ??= $this->option('to') ?? (string) DB::table('loan_books')->whereNotNull('build_method')->max('reporting_period');
+        $periods = app(LoanBookBuildService::class)->periods((string) $this->option('from'), $to);
+        $runs = app(\App\Services\RunRecordService::class);
+        $ids = [];
+        foreach ($periods as $p) {
+            $ids[$p] = $runs->start($p, \App\Services\RunRecordService::BOOTSTRAP, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+            \App\Support\RunContext::open($p, $ids[$p]);
+        }
+        $ok = false;
+        try {
+            $this->stepEnginesRun($user, $to);
+            $ok = true;
+        } finally {
+            foreach ($ids as $p => $id) {
+                \App\Support\RunContext::close($p);
+                $runs->finish($id, $ok, $ok ? null : 'The bootstrap stopped.');
+            }
+        }
+        $this->note('6.98 run records', count($ids) . ' bootstrap run(s), one per month ' . array_key_first($ids) . '..' . array_key_last($ids) . ', each frozen and fingerprinted (runs ' . reset($ids) . ' to ' . end($ids) . ')');
+    }
+
+    private function stepEnginesRun(int $user, ?string $to): void
     {
         // 1 macro statistics: the committed snapshot, so every install starts from the same series and
         // reproduces the same results; --live-macro fetches from the World Bank instead

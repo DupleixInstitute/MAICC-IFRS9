@@ -207,6 +207,7 @@ return [
                 $tab('Audit Trace', 'audit-trace.index'),
                 $tab('Compliance Audits', 'compliance-audits.index'),
                 $tab('Self-approvals (UAT)', 'eir-governance.self-approvals', 'eir.govern'),
+                $tab('Run records', 'run-records.index', 'eir.view|eir.govern|settings'),
             ], 'history'),
         ], 9),
 

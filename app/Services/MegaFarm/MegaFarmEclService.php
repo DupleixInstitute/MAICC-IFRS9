@@ -86,6 +86,11 @@ class MegaFarmEclService
     /** @return array{period:string,scope:string,method:string,loans:int,gross:float,by_stage:array,pd_by_stage:array,scalar:?float,lgd:float,programme_ecl:float,share:float,maiic_ecl:float,declined:?string,basis:array} */
     public function run(string $period, ?int $userId = null, ?string $label = null): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! \App\Support\RunContext::inside($period, 'Mega Farm')) {
+            return \App\Support\RunContext::engine($period, 'Mega Farm', $userId, fn () => $this->run($period, $userId, $label));
+        }
         // a locked month is never restated (audit H4)
         \App\Support\ReportingPeriodLock::assertOpen($period, 'the Mega Farm programme ECL');
         $asOf = CarbonImmutable::parse($period . '-01')->endOfMonth();

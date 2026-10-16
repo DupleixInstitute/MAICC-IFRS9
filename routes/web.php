@@ -661,6 +661,14 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
 
 // One item of an approval workflow (Staging Module Specification v1, section 8.6): its history,
 // its supporting documents, and reject or withdraw with a reason.
+// the record of what each month ran on (Staging Module Specification v1, section 8.8)
+Route::group(['prefix' => 'run-records', 'as' => 'run-records.'], function () {
+    Route::get('/', [\App\Http\Controllers\RunRecordsController::class, 'index'])->name('index');
+    Route::get('/{run}', [\App\Http\Controllers\RunRecordsController::class, 'show'])->whereNumber('run')->name('show');
+    Route::get('/settings/{period}/{format}', [\App\Http\Controllers\RunRecordsController::class, 'settingsInForce'])->name('settings');
+    Route::get('/changes/{from}/{to}/{format}', [\App\Http\Controllers\RunRecordsController::class, 'whatChanged'])->name('changes');
+});
+
 Route::group(['prefix' => 'approvals', 'as' => 'approvals.'], function () {
     // the register of approvals (Staging Module Specification v1, section 8.7)
     Route::get('/', [\App\Http\Controllers\ApprovalsRegisterController::class, 'index'])->name('register');

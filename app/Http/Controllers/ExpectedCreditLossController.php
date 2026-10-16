@@ -365,6 +365,10 @@ class ExpectedCreditLossController extends Controller
                 $runId = (string) Str::uuid();
 
                 $periodDate = Carbon::parse($validated['reporting_period']);
+                // the run this month's work belongs to (Staging Module Specification v1, section 8.8)
+                if (! \App\Support\RunContext::inside($periodDate->format('Y-m'), 'ECL')) {
+                    return \App\Support\RunContext::engine($periodDate->format('Y-m'), 'ECL', auth()->id(), fn () => $this->calculateECL($request, $timePhased));
+                }
                 $period     = $periodDate->format('Y-m');
                 try {
                     \App\Support\ReportingPeriodLock::assertOpen($period, 'the ECL');

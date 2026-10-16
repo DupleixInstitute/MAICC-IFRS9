@@ -52,6 +52,32 @@ class MaintenanceTask extends Command
 
             return self::FAILURE;
         }
+        if ($task !== 'month-end' || ! \App\Services\RunRecordService::available()) {
+            return $this->runSteps($task, $steps);
+        }
+        // the month-end is one run of the month (Staging Module Specification v1, section 8.8): each engine records
+        // its step in it, and at the end it freezes what the month ran on and stamps its number on the results
+        $runs = app(\App\Services\RunRecordService::class);
+        $runId = $runs->start($period, \App\Services\RunRecordService::MONTH_END, (int) $user, 'Month-end job');
+        \App\Support\RunContext::open($period, $runId);
+        $this->line("Run record {$runId} for {$period}.");
+        try {
+            $code = $this->runSteps($task, $steps);
+        } catch (Throwable $e) {
+            \App\Support\RunContext::close($period);
+            $runs->finish($runId, false, $e->getMessage());
+            throw $e;
+        }
+        \App\Support\RunContext::close($period);
+        $runs->finish($runId, $code === self::SUCCESS, $code === self::SUCCESS ? null : 'A step of the month-end job failed.');
+        $this->line("Run record {$runId} " . ($code === self::SUCCESS ? 'completed' : 'failed') . '; its snapshot is fingerprinted and its number is on the month results.');
+
+        return $code;
+    }
+
+    /** The steps in order; stops at the first that fails (a health check runs them all). */
+    private function runSteps(string $task, array $steps): int
+    {
         $n = count($steps);
         $failed = [];
         foreach ($steps as $i => $step) {

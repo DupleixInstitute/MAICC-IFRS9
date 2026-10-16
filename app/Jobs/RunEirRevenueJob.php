@@ -37,6 +37,11 @@ class RunEirRevenueJob implements ShouldQueue
      */
     public function handle(EirRevenueService $revenue): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! \App\Support\RunContext::inside($this->period, 'EIR revenue')) {
+            return \App\Support\RunContext::engine($this->period, 'EIR revenue', $this->requestedBy, fn () => $this->handle($revenue));
+        }
         $ids = $this->contractIds ?? ContractEir::whereNotNull('locked_at')->orderBy('id')->pluck('contract_id')->all();
 
         $counts = ['CREATED' => 0, 'RECALCULATED' => 0, 'UNCHANGED' => 0, 'BLOCKED' => 0];

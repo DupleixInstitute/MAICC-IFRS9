@@ -17,5 +17,7 @@ abstract class TestCase extends BaseTestCase
         // for every test that follows, and the suite died at five minutes with
         // "Maximum execution time exceeded". The suite runs unbounded.
         set_time_limit(0);
+        // a run left open by a test that stopped half-way must not claim the next test's engine calls
+        \App\Support\RunContext::reset();
     }
 }
