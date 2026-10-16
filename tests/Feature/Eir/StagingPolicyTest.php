@@ -296,6 +296,7 @@ class StagingPolicyTest extends TestCase
     {
         $governance = new GovernanceService();
         $adopt = $governance->propose(StagingPolicy::PRESET, StagingPolicy::PRESET_DIRECTIVE, '2026-01-01', 'Board decision adopting directive-aligned staging', 1);
+        $this->attachEvidence($adopt->id);
         $governance->approve($adopt->id, 2);
         // the stored row says 0 months (seeded), the policy says 3: proposing 0 months is a real change
         $this->assertSame('PROPOSED', $governance->propose('stage_cure_months', '0 months (no probation)', '2026-06-01', 'Credit Committee drops the probation', 1)->status);

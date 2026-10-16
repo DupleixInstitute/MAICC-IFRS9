@@ -36,6 +36,8 @@ class DecisionsPackTest extends TestCase
 
     private User $cfo;
 
+    private int $auditFrom = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -124,9 +126,13 @@ class DecisionsPackTest extends TestCase
         DB::table('governance_setting_history')->delete();
         DB::table('contract_eir')->update(['calculation_status' => 'PENDING', 'eir_period' => null, 'eir_effective_annual' => null, 'eir_nominal_annual' => null, 'input_snapshot' => null,
             'calculated_at' => null, 'calculated_by' => null, 'locked_at' => null, 'locked_by' => null, 'locked_label' => null]);
-        DB::table('audit_logs')->delete();
+        // the audit log is append-only (section 8.5): the source's entries stay, and the replay's are counted from here
+        $this->auditFrom = (int) DB::table('audit_logs')->max('id');
         DB::table('model_has_roles')->delete();
-        DB::table('users')->whereIn('id', [$this->analyst->id, $this->cfo->id])->delete();
+        // not in the fresh database: their rows stay (the append-only audit log points at them) under e-mails the pack does not name
+        foreach ([$this->analyst, $this->cfo] as $u) {
+            DB::table('users')->where('id', $u->id)->update(['email' => 'retired-' . $u->id . '@example.invalid']);
+        }
         app()->forgetInstance(GovernanceService::class);
         $this->systemLine();
     }
@@ -191,10 +197,10 @@ class DecisionsPackTest extends TestCase
         $this->assertSame(['LOCKED', $cfo->id, null, '2026-10-15 12:00:00'], [$eir->calculation_status, (int) $eir->locked_by, $eir->locked_label, (string) $eir->locked_at]);
         $this->assertEqualsWithDelta($sourceRate, (float) $eir->eir_effective_annual, 1e-12);
 
-        $carried = DB::table('audit_logs')->where('action', DecisionsPack::AUDIT_ACTION)->get();
+        $carried = DB::table('audit_logs')->where('id', '>', $this->auditFrom)->where('action', DecisionsPack::AUDIT_ACTION)->get();
         $this->assertGreaterThanOrEqual(6, $carried->count());
         $this->assertStringContainsString('Carried from', (string) $carried->first()->meta);
-        $this->assertSame(0, DB::table('audit_logs')->where('meta', 'like', '%' . LoanBookBuildService::BOOTSTRAP_LABEL . '%')->count(), 'never under the bootstrap label');
+        $this->assertSame(0, DB::table('audit_logs')->where('id', '>', $this->auditFrom)->where('meta', 'like', '%' . LoanBookBuildService::BOOTSTRAP_LABEL . '%')->count(), 'never under the bootstrap label');
         $this->assertSame([], $replay->notCarried());
         $tie = $replay->tieOut();
         $this->assertSame($tie['reviewed fee lines in force']['source'], $tie['reviewed fee lines in force']['here']);
