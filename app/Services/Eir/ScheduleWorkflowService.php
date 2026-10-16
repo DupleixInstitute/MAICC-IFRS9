@@ -181,6 +181,8 @@ class ScheduleWorkflowService
         });
         $comparison=$this->comparison($contract->fresh());
         $contract->update(['schedule_comparison_status'=>$comparison['status']]);
+        // the draft against E-Banker's live instalment chart, recorded for the reviewer and the approval guard (ScheduleChartCheck)
+        app(ScheduleChartCheck::class)->record($contract->fresh());
         return ['rows'=>count($result['rows']),'comparison'=>$comparison,'shape'=>[
             'instalment'=>$result['instalment'],'instalment_shape'=>$result['instalment_shape'],
             'moratorium_type'=>$result['moratorium_type'],'interest_basis'=>$result['interest_basis'],
@@ -379,6 +381,21 @@ class ScheduleWorkflowService
         if ($label!==null && !$bootstrap)
             throw new InvalidArgumentException('Only the bootstrap label may stand in for a named approver.');
         if (!$bootstrap) $this->assertSecondPerson($contract,$userId);
+        // A generated schedule is set against E-Banker's live instalment chart before it is approved
+        // (ScheduleChartCheck). One that differs is never approved by the automated path: it stays a
+        // draft with the reason and the two sets of figures, for a person to review; a person may still
+        // approve it, with a reason.
+        $chart=$contract->schedule_source==='GENERATED' ? app(ScheduleChartCheck::class)->record($contract) : null;
+        if ($chart!==null && $chart['status']===ScheduleChartCheck::DIFFERS) {
+            $why=ScheduleChartCheck::describe($chart);
+            if ($bootstrap) {
+                $contract->update(['schedule_review_notes'=>mb_substr('Not approved by the bootstrap: '.$why,0,2000)]);
+                AuditLoggerService::log('EIR Schedule Held', ContractEir::class, $contract->id, ['new_values'=>['contract_id'=>$contract->contract_id,'chart_check'=>$chart],'meta'=>['label'=>$label]]);
+                throw new InvalidArgumentException('Not approved automatically: '.$why);
+            }
+            if (trim((string)$notes)==='')
+                throw new InvalidArgumentException('Give the reason for approving a schedule that differs from E-Banker\'s chart. '.$why);
+        }
         $comparison=$this->comparison($contract);
         if ($comparison['status'] !== 'WITHIN_TOLERANCE' && trim((string)$notes) === '')
             throw new InvalidArgumentException('A review note is required when the generated schedule does not reconcile within tolerance to Extract B remaining cash flows.');
@@ -387,6 +404,7 @@ class ScheduleWorkflowService
             'schedule_approver_label'=>$bootstrap ? $label : null]);
         AuditLoggerService::log('EIR Schedule Approved', ContractEir::class, $contract->id, ['new_values'=>[
             'contract_id'=>$contract->contract_id,'comparison_status'=>$comparison['status'],'notes'=>$notes,
+            'chart_check'=>$chart===null ? null : ['status'=>$chart['status'],'reasons'=>$chart['reasons']],
         ],'meta'=>['approved_by'=>$userId,'prepared_by'=>$contract->schedule_prepared_by,'label'=>$bootstrap ? $label : null]]);
     }
 

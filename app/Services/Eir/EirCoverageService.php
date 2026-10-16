@@ -53,6 +53,7 @@ class EirCoverageService
         'FREQUENCY_INVALID' => 'Payment frequency is not a supported value',
         'FREQUENCY_ASSUMED' => 'Payment frequency was assumed, not stated by a source',
         'SCHEDULE_NOT_APPROVED' => 'Original schedule is a draft awaiting review and approval',
+        'SCHEDULE_DIFFERS_FROM_CHART' => 'Generated schedule differs from the E-Banker instalment chart: held from the automated approval for a person to review',
         'ORIGINAL_SCHEDULE_MISSING' => 'Original contractual schedule (version 1) is missing',
         'SCHEDULE_INVALID' => 'Schedule has a missing date or negative cash flow',
         'SCHEDULE_DATE_INVALID' => 'A scheduled cash flow falls on or before origination',

@@ -335,7 +335,9 @@ class Bootstrap extends Command
                 $refused[] = $c->contract_id . ': ' . $e->getMessage();
             }
         }
-        $this->note('5h schedules v1', json_encode(array_intersect_key($gen, array_flip(['generated', 'skipped', 'eligible', 'held']))) . "; approved under the bootstrap label: {$approved}; refused: " . count($refused));
+        $this->note('5h schedules v1', json_encode(array_intersect_key($gen, array_flip(['generated', 'skipped', 'eligible', 'held']))) . "; approved under the bootstrap label: {$approved}; refused: " . count($refused)
+            . '; of them held as differing from E-Banker\'s instalment chart (ScheduleChartCheck), left as drafts for a person: '
+            . count(array_filter($refused, fn ($r) => str_contains($r, 'Not approved automatically'))));
 
         // 5i restructure candidates and rate moves (spec v4 section 3.9, P5): detection only, once the ledger,
         // the instalment chart history, the PLR series and the contract master are in, and before staging.
