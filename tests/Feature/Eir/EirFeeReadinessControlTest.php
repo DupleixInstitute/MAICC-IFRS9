@@ -96,6 +96,28 @@ class EirFeeReadinessControlTest extends TestCase
         $this->assertSame([], $reviews->open());
     }
 
+    public function test_the_screen_checks_the_locked_eirs_on_eir_governance_and_raises_each_flag_once(): void
+    {
+        $this->contract('900000000104', ['calculation_status' => 'LOCKED', 'eir_period' => 0.01, 'locked_at' => now()->subDay(), 'locked_by' => 1]);
+        $this->held('900000000104', 15, 'GL_04a:9');
+        $governor = \App\Models\User::factory()->create();
+        $governor->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate('eir.govern', 'web'));
+        $viewer = \App\Models\User::factory()->create();
+        $viewer->syncRoles([]); // a new user starts with a role here; this one has none
+        $viewer->syncPermissions([]);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->actingAs($viewer->fresh())->post(route('eir-calculations.lock-review.detect'))->assertForbidden();
+        $this->assertSame([], app(EirLockReviewService::class)->open());
+
+        $this->actingAs($governor->fresh())->post(route('eir-calculations.lock-review.detect'))
+            ->assertSessionHas('success', fn ($m) => str_contains($m, '1 new flag(s) raised') && str_contains($m, 'Nothing was reopened'));
+        $this->actingAs($governor->fresh())->post(route('eir-calculations.lock-review.detect'))
+            ->assertSessionHas('success', fn ($m) => str_starts_with($m, 'No new flag'));
+        $this->assertCount(1, app(EirLockReviewService::class)->open());
+        $this->assertSame('LOCKED', DB::table('contract_eir')->where('contract_id', '900000000104')->value('calculation_status'), 'the check reopens nothing');
+    }
+
     private function fee(string $loan, string $type, float $amount, string $source, ?string $date): int
     {
         return DB::table('contract_fees')->insertGetId(['contract_id' => $loan, 'fee_type' => $type, 'amount' => $amount, 'source_system' => $source, 'transaction_date' => $date,

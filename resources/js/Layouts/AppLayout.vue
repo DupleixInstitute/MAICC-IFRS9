@@ -207,23 +207,23 @@
         <div v-if="errorModal" class="fixed inset-0 z-[70] flex items-center justify-center p-4"
              role="alertdialog" aria-modal="true">
             <div class="absolute inset-0 bg-slate-900/50" @click="errorModal = null"></div>
-            <div class="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-800">
                 <div class="flex items-start gap-4 p-6">
-                    <div class="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-red-100">
-                        <svg class="h-6 w-6 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-red-100 dark:bg-red-900/40">
+                        <svg class="h-6 w-6 text-red-600 dark:text-red-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 9v4M12 17h.01"/>
                             <path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0Z"/>
                         </svg>
                     </div>
                     <div class="min-w-0">
-                        <h3 class="text-lg font-extrabold text-gray-900">{{ errorModal.title }}</h3>
-                        <p class="mt-1.5 text-sm leading-relaxed text-gray-600">{{ errorModal.message }}</p>
+                        <h3 class="text-lg font-extrabold text-gray-900 dark:text-slate-100">{{ errorModal.title }}</h3>
+                        <p class="mt-1.5 text-sm leading-relaxed text-gray-600 dark:text-slate-300">{{ errorModal.message }}</p>
                         <p v-if="errorModal.status" class="mt-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
                             Error code {{ errorModal.status }}
                         </p>
                     </div>
                 </div>
-                <div class="flex justify-end gap-2 bg-gray-50 px-6 py-4">
+                <div class="flex justify-end gap-2 bg-gray-50 px-6 py-4 dark:bg-slate-900/60">
                     <button @click="errorModal = null"
                             class="rounded-lg bg-maiic-600 px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-maiic-700">
                         OK, got it

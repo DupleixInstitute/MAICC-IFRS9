@@ -20,7 +20,7 @@ class EirCalculationController extends Controller
         // eir.govern reaches the screen and the reopening actions
         $this->middleware('permission:settings|eir.govern')->only(['index']);
         $this->middleware('permission:settings')->only(['calculate', 'approve', 'approveAll']);
-        $this->middleware('permission:eir.govern')->only(['reopen', 'approveReopen', 'closeReopen', 'clearReview']);
+        $this->middleware('permission:eir.govern')->only(['reopen', 'approveReopen', 'closeReopen', 'clearReview', 'detectReviews']);
     }
 
     public function index(Request $request)
@@ -97,6 +97,23 @@ class EirCalculationController extends Controller
         }
 
         return back()->with('success', 'The review flag is cleared, with the reason recorded.');
+    }
+
+    /**
+     * Look over every locked EIR for fee evidence that was not in the inputs it was locked on, from the
+     * screen: the same as `php artisan eir:lock-review --detect`. A flag never reopens an EIR or changes
+     * a figure; a flag already raised is not raised again.
+     */
+    public function detectReviews(Request $request, \App\Services\Eir\EirLockReviewService $reviews)
+    {
+        try {
+            $new = $reviews->detect((int) $request->user()->id);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'The check stopped: ' . $e->getMessage());
+        }
+        $open = count($reviews->open());
+
+        return back()->with('success', ($new === 0 ? 'No new flag: ' : "{$new} new flag(s) raised: ") . "{$open} locked EIR flag(s) open in all. Nothing was reopened or changed.");
     }
 
     /** @return list<string> unlocked contracts not yet calculated whose readiness reports no blocker */

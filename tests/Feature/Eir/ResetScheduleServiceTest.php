@@ -95,6 +95,22 @@ class ResetScheduleServiceTest extends TestCase
         $this->assertSame([1], DB::table('eir_rate_periods')->where('period_no', 1)->pluck('schedule_version')->map(fn ($v) => (int) $v)->all());
     }
 
+    public function test_the_screen_builds_the_same_versions_as_the_command_and_reports_them(): void
+    {
+        $request = \Illuminate\Http\Request::create('/eir-restructures/resets/build', 'POST', ['contract_id' => self::JAT]);
+        $request->setLaravelSession(app('session.store'));
+        $request->setUserResolver(fn () => (object) ['id' => 1]);
+
+        $response = app(\App\Http\Controllers\EirRestructureController::class)->buildResets($request, app(ResetScheduleService::class));
+
+        $flash = $response->getSession()->get('reset_build');
+        $this->assertSame([11, 0, 0, 1], [$flash['built'], $flash['kept'], $flash['blocked'], $flash['contracts']]);
+        $this->assertStringContainsString('11 built', $response->getSession()->get('success'));
+        $this->assertStringContainsString('tab=resets', $response->getTargetUrl(), 'the result is shown on the Rate resets tab');
+        $this->assertSame(range(2, 12), DB::table('contract_cashflow_schedule')->where('schedule_type', 'RESET')
+            ->distinct()->orderBy('schedule_version')->pluck('schedule_version')->map(fn ($v) => (int) $v)->all());
+    }
+
     public function test_the_first_reset_reproduces_ebankers_emi_chart(): void
     {
         $this->build();

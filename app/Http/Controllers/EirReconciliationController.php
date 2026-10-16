@@ -98,11 +98,13 @@ class EirReconciliationController extends Controller
 
         $period = $data['period'] ?? ($periods[0] ?? null);
         if ($period === null) {
-            return back()->with('revenue_run', [
+            $message = 'There are no GL interest postings loaded yet, so there is nothing to export.';
+
+            return back()->with('error', $message)->with('revenue_run', [
                 'status' => 'REFUSED',
                 'periods_run' => [],
                 'missing_periods' => [],
-                'message' => 'There are no GL interest postings loaded yet, so there is nothing to export.',
+                'message' => $message,
             ]);
         }
 
@@ -251,11 +253,10 @@ class EirReconciliationController extends Controller
      * a book whose EIRs were solved and approved through the UI could still
      * only be reconciled from the console.
      *
-     * Recalculation is deliberately not offered here. Restating a period
-     * voids every later period for the affected contracts and has to carry a
-     * stated reason, which is a different decision from running a period that
-     * was never run; `eir:run-revenue --recalculate --reason=` remains the
-     * way to do it.
+     * Recalculation is a separate action, recalculateRevenue(): restating a
+     * period voids every later period for the affected contracts and has to
+     * carry a stated reason, which is a different decision from running a
+     * period that was never run.
      */
     public function runRevenue(Request $request, EirGlReconciliationService $reconciliation)
     {
@@ -281,14 +282,17 @@ class EirReconciliationController extends Controller
         // period is left unchanged, not rebuilt. Refuse instead of quietly
         // producing a figure that follows from nothing.
         if ($data['mode'] === 'period' && $missing !== []) {
-            return $redirect->with('revenue_run', [
+            $message = count($missing).' earlier period(s) have no amortisation rows, starting at '
+                .$missing[0].'. Each opening balance is the prior period\'s closing, so run the catch-up '
+                .'instead: a single period run here would open from the present value of the remaining '
+                .'cash flows rather than from the balance carried forward.';
+
+            // the refusal is also the page's error, so it opens as the error modal
+            return $redirect->with('error', $message)->with('revenue_run', [
                 'status' => 'REFUSED',
                 'periods_run' => [],
                 'missing_periods' => $missing,
-                'message' => count($missing).' earlier period(s) have no amortisation rows, starting at '
-                    .$missing[0].'. Each opening balance is the prior period\'s closing, so run the catch-up '
-                    .'instead: a single period run here would open from the present value of the remaining '
-                    .'cash flows rather than from the balance carried forward.',
+                'message' => $message,
             ]);
         }
 
@@ -314,6 +318,88 @@ class EirReconciliationController extends Controller
         return $redirect->with('revenue_run', [
             'status' => $totals['blocked'] > 0 ? 'COMPLETED_WITH_BLOCKERS' : 'COMPLETED',
             'periods_run' => $toRun,
+            'missing_periods' => [],
+            'totals' => $totals + ['unclassified_cash' => round($totals['unclassified_cash'], 2)],
+            'blocked_contracts' => array_slice($blocked, 0, self::NAMED_BLOCKED_LIMIT, true),
+            'blocked_truncated' => max(0, count($blocked) - self::NAMED_BLOCKED_LIMIT),
+        ]);
+    }
+
+    /**
+     * Restate a period that was already run, from the screen: the same as
+     * `eir:run-revenue {period} --recalculate --reason=`, followed by the
+     * re-run of every later period that held rows, in order.
+     *
+     * Recalculating a period archives and removes its rows and every later
+     * row of the same contracts (EirRevenueService::supersede), because each
+     * opening balance is the prior closing. The console leaves the later
+     * periods for the operator to re-run; here they are re-run in the same
+     * action, so the book is never left with a hole in the chain. A locked
+     * period is never restated, so a recalculation that would remove rows of
+     * a locked month, the one chosen or any later one, is refused before
+     * anything is written. The reason goes with every superseded row and to
+     * the audit log.
+     */
+    public function recalculateRevenue(Request $request, EirGlReconciliationService $reconciliation)
+    {
+        $periods = $reconciliation->availablePeriods();
+        $data = $request->validate([
+            'period' => ['required', 'string', Rule::in($periods)],
+            'reason' => ['required', 'string', 'min:20', 'max:500'],
+            'contract_ids' => ['nullable', 'array', 'max:500'],
+            'contract_ids.*' => ['string', 'distinct'],
+            'portfolio' => ['nullable', 'string', 'max:100'],
+        ]);
+        $period = $data['period'];
+        $redirect = redirect()->route('eir-reconciliation.index', array_filter(['period' => $period, 'portfolio' => $data['portfolio'] ?? null]));
+        // a refusal is also the page's error, so it opens as the error modal
+        $refuse = fn (string $message) => $redirect->with('error', $message)->with('revenue_run', ['status' => 'REFUSED', 'periods_run' => [], 'missing_periods' => [], 'message' => $message]);
+
+        $contracts = array_values(array_filter(array_map('trim', $data['contract_ids'] ?? []), 'strlen')) ?: null;
+        if ($contracts !== null) {
+            $known = ContractEir::whereIn('contract_id', $contracts)->whereNotNull('locked_at')->pluck('contract_id')->map(fn ($c) => (string) $c)->all();
+            $unknown = array_values(array_diff($contracts, $known));
+            if ($unknown !== []) {
+                return $refuse('Nothing was recalculated: ' . implode(', ', $unknown) . ' ' . (count($unknown) === 1 ? 'is' : 'are')
+                    . ' not a loan with a locked EIR. Only a locked EIR has revenue to restate.');
+            }
+        }
+
+        $rows = EirAmortisation::where('reporting_period', $period)->when($contracts, fn ($q) => $q->whereIn('contract_id', $contracts));
+        if (! $rows->exists()) {
+            return $refuse("Nothing was recalculated: {$period} holds no revenue rows" . ($contracts ? ' for these loans' : '') . ' yet. Run the period instead.');
+        }
+
+        // every period from the one chosen that already holds rows of these contracts, oldest first
+        $restated = EirAmortisation::where('reporting_period', '>=', $period)->when($contracts, fn ($q) => $q->whereIn('contract_id', $contracts))
+            ->distinct()->orderBy('reporting_period')->pluck('reporting_period')->map(fn ($p) => (string) $p)->all();
+        $locked = array_values(array_filter($restated, fn ($p) => \App\Support\ReportingPeriodLock::isLocked($p)));
+        if ($locked !== []) {
+            return $refuse('Nothing was recalculated: ' . implode(', ', $locked) . (count($locked) === 1 ? ' is' : ' are')
+                . ' locked, and recalculating ' . $period . ' would remove ' . (count($locked) === 1 ? 'its' : 'their')
+                . ' rows, because each opening balance is the prior closing. Unlock first (Imports & Feeds, Periods Built; a second person approves).');
+        }
+
+        $totals = ['requested' => 0, 'created' => 0, 'recalculated' => 0, 'unchanged' => 0, 'blocked' => 0,
+            'cash_derived_from_schedule' => 0, 'unclassified_cash' => 0.0, 'superseded_rows' => 0];
+        $blocked = [];
+        foreach ($restated as $i => $p) {
+            // the chosen period is restated with the reason; each later one, voided by it, is run again in order
+            $summary = app()->call([new RunEirRevenueJob($p, $contracts, $i === 0, $request->user()?->id, $i === 0 ? trim($data['reason']) : null), 'handle']);
+            foreach (array_keys($totals) as $key) {
+                $totals[$key] += $summary[$key] ?? 0;
+            }
+            foreach ($summary['blocked_contracts'] as $contractId => $reason) {
+                $blocked[$contractId . ' · ' . $p] = $reason;
+            }
+        }
+
+        return $redirect->with('revenue_run', [
+            'status' => $totals['blocked'] > 0 ? 'COMPLETED_WITH_BLOCKERS' : 'COMPLETED',
+            'recalculation' => true,
+            'reason' => trim($data['reason']),
+            'contracts' => $contracts,
+            'periods_run' => $restated,
             'missing_periods' => [],
             'totals' => $totals + ['unclassified_cash' => round($totals['unclassified_cash'], 2)],
             'blocked_contracts' => array_slice($blocked, 0, self::NAMED_BLOCKED_LIMIT, true),
@@ -375,6 +461,9 @@ class EirReconciliationController extends Controller
                 : EirAmortisation::where('reporting_period', $period)->count(),
             'missing_periods' => self::afterTakeon(array_diff($chain, $calculated)),
             'first_period' => $chain[0] ?? null,
+            // what a recalculation of the period would restate: it and every later calculated period, and any of them locked
+            'restated_by_recalculation' => $period === null ? [] : array_values(array_filter($calculated, fn ($p) => $p >= $period)),
+            'locked_from_period' => $period === null ? [] : array_values(array_filter($calculated, fn ($p) => $p >= $period && \App\Support\ReportingPeriodLock::isLocked($p))),
         ];
     }
 }

@@ -52,16 +52,22 @@ return [
 
         'Locking and unlocking a reporting period' => [
             'body' => '<p>A locked reporting period is never restated. Once a month-end is signed off, lock it: the loan book build, staging, the PD, the LGD, the forward-looking route, the ECL, the revenue roll-forward, write-offs and staging threshold changes all refuse to write into it. The lock also keeps a snapshot of every governance value in force at that month-end, so a view as at a date inside the month, and the Audit Trace, reproduce the locked figures.</p>'
-                . '<h4>Where it is</h4><p><b>Data foundation</b>, then <b>Customer &amp; Loan Data</b>, then <b>Imports &amp; Feeds</b>, tab <b>Periods Built</b>. The table lists each period with its method, rows, flagged rows and a <b>Locked</b> column (grey <b>Locked</b> badge, or <b>Open</b>). The <b>Locked periods</b> figure at the top counts them; hover for the list.</p>'
+                . '<h4>Where it is</h4><p><b>Data foundation</b>, then <b>Customer &amp; Loan Data</b>, then <b>Imports &amp; Feeds</b>, tab <b>Periods Built</b>. The table lists each period with its method, rows, flagged rows and a <b>Locked</b> column (grey <b>Locked</b> badge, or <b>Open</b>; <b>Open · no run record</b> for a month computed before run records existed). The <b>Locked periods</b> figure at the top counts them; hover for the list.</p>'
                 . '<h4>Buttons and icons</h4><ul>'
-                . '<li>The padlock in the <b>Action</b> column (closed padlock, <b>Lock</b> the period; open padlock, <b>Unlock</b> it). Shown only to holders of <code>eir.govern</code>.</li>'
-                . '<li>The window asks for a <b>Reason (written to the audit log)</b> of 10 to 500 characters. For an unlock, give the approval for the restatement as the reason. Then <b>Lock the period</b> or <b>Unlock the period</b>, or <b>Cancel</b>.</li>'
+                . '<li>The padlock in the <b>Action</b> column (closed padlock, <b>Lock</b> the period; open padlock, <b>Request the unlock</b>). Shown only to holders of <code>eir.govern</code>.</li>'
+                . '<li>The window asks for a <b>Reason (written to the audit log)</b> of 10 to 500 characters. For an unlock, give the approval for the restatement as the reason. Then <b>Lock the period</b> or <b>Request the unlock</b>, or <b>Cancel</b>.</li>'
+                . '<li>For a lock, the window also says which run the lock names: <b>The lock names run</b> N, the month-end run whose figures the month reports. A lock is refused when the month has no completed month-end or bootstrap run, or when an engine run from a screen has changed the month since that run; the window then says why in red. Run the month-end job again, then lock.</li>'
                 . '</ul>'
-                . '<p>Locking and unlocking are one person\'s act, not a two-person control; the reason and the name go to the audit log, so agree the unlock with the CFO first and quote the approval.</p>'
-                . '<h4>From the command line</h4><p><code>php artisan eir:lock-period 2025-12 --user=1 --reason="Audited year-end"</code> locks a month; add <code>--unlock</code> to unlock it. The reason is required.</p>'
+                . '<p>Locking is one person\'s act; unlocking is not. The unlock is recorded as a request with its reason and the period stays locked until a different person with <code>eir.govern</code> approves it under <b>Unlocks awaiting approval</b> at the top of the table (or rejects it; the person who asked may withdraw it). Agree the unlock with the CFO first and quote the approval.</p>'
+                . '<h4>A month computed before run records existed</h4><p>A month whose figures were computed before run records existed has no completed month-end or bootstrap run at all, so a lock cannot name the run behind them. The table shows <b>Open · no run record</b> beside it, and the lock window says "This month has no run record: it was computed before run records existed, so a lock cannot name the run behind its figures." with an explicit tick box <b>Lock it without a run record</b>. Tick it only for such a month; the reason must then be at least 20 characters and should say that the month was computed before run records existed. The button reads <b>Lock without a run record</b>. The lock and the audit log say it names no run.</p><ul>'
+                . '<li>The normal lock is still refused without a run of record; the tick box is offered only for a month with no completed month-end or bootstrap run.</li>'
+                . '<li>If the month has a month-end run on record but a screen run changed it afterwards, the lock without a run record is refused ("Period ... has a month-end run on record, so it is locked from its run, not without one."). Run the month-end job again, then lock normally.</li>'
+                . '<li>A shorter reason is refused: "A lock without a run record needs a reason of at least 20 characters saying why: for example that the month was computed before run records existed."</li></ul>'
+                . '<h4>From the command line</h4><p><code>php artisan eir:lock-period 2025-12 --user=1 --reason="Audited year-end"</code> locks a month; add <code>--unlock</code> to unlock it. The reason is required. <code>--without-run-record</code> locks a month computed before run records existed; the screen now offers the same, as above.</p>'
                 . '<h4>What happens next</h4><ul>'
                 . '<li>The audit log records <b>Reporting Period Locked</b> or <b>Reporting Period Unlocked</b> with the period and the reason.</li>'
                 . '<li>Any engine asked to write the month stops with: <b>Reporting period</b> 2025-12 <b>is locked:</b> what it tried to write <b>cannot be written.</b> The message names the screen and command to unlock it.</li>'
+                . '<li>Recalculating the EIR revenue of an earlier month on GL Reconciliation (<b>Recalculate</b> (month)...) is refused, before anything is written, when the month chosen or any later calculated month is locked, because restating a month replaces every later month of the same loans. Unlock the locked months first.</li>'
                 . '<li>Unlocking discards the snapshot; locking again takes a new one from the values in force at that month-end.</li>'
                 . '</ul>'
                 . '<h4>Empty states and messages</h4><ul>'
@@ -76,8 +82,9 @@ return [
             'steps' => [
                 'After the month\'s sign-off, open Imports & Feeds and the Periods Built tab.',
                 'Press the padlock on the month.',
-                'Write the reason, for example the sign-off reference, and press Lock the period.',
-                'To restate a locked month, get the approval first, press the open padlock, quote the approval and press Unlock the period.',
+                'Read which run the lock names, write the reason, for example the sign-off reference, and press Lock the period.',
+                'For a month marked Open · no run record, tick Lock it without a run record and give a reason of at least 20 characters saying the month was computed before run records existed.',
+                'To restate a locked month, get the approval first, press the open padlock, quote the approval and press Request the unlock; a different person with eir.govern approves it.',
                 'Lock it again once the restatement is reviewed.',
             ],
             'images' => [

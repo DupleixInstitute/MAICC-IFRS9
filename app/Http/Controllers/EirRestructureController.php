@@ -56,6 +56,7 @@ class EirRestructureController extends Controller
             'resets' => $resets,
             'me' => auth()->id(),
             'canGovern' => (bool) (auth()->user()?->can('eir.govern') ?? false),
+            'resetBuild' => session('reset_build'),
             'classifications' => RestructureRegisterService::CLASSIFICATIONS,
             'factors' => RestructureRegisterService::QUALITATIVE_FACTORS,
             'summary' => [
@@ -145,6 +146,26 @@ class EirRestructureController extends Controller
         }
 
         return back()->with('success', "{$n} rate move(s) proposed as " . ($data['classification'] === 'IN_CONTRACT' ? 'in-contract resets' : 'negotiated') . '. A different person approves.');
+    }
+
+    /**
+     * Build a Reset version of the schedule at each prime-rate reset, from the screen: the same as
+     * `php artisan eir:build-reset-schedules`. Re-running is safe: a version a solved or locked month
+     * used is kept and built on, and the rest follow version 1. The EIR is not changed (D38).
+     */
+    public function buildResets(Request $request, \App\Services\Eir\ResetScheduleService $service)
+    {
+        $data = $request->validate(['contract_id' => ['nullable', 'string', 'max:30']]);
+        try {
+            $r = $service->build($data['contract_id'] ?? null, (int) $request->user()->id);
+        } catch (Throwable $e) {
+            return back()->with('error', 'The reset schedules were not built: ' . $e->getMessage());
+        }
+        $held = collect($r['details'])->filter(fn ($d) => $d['status'] !== 'OK')->map(fn ($d, $id) => ['contract_id' => (string) $id, 'reason' => $d['reason']])->values();
+
+        return redirect()->route('eir-restructures.index', ['tab' => 'resets'])
+            ->with('success', "Reset schedules: {$r['built']} built, {$r['kept']} kept, {$r['blocked']} held, across {$r['contracts']} loan(s). The EIR is unchanged.")
+            ->with('reset_build', ['built' => $r['built'], 'kept' => $r['kept'], 'blocked' => $r['blocked'], 'contracts' => $r['contracts'], 'held' => $held->take(50)->all()]);
     }
 
     public function approveResets(Request $request, RateResetService $service)

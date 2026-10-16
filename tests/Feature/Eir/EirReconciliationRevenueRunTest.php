@@ -118,10 +118,108 @@ class EirReconciliationRevenueRunTest extends TestCase
             $t->text('user_agent')->nullable();
             $t->timestamps();
         });
+        // a recalculation archives the rows it replaces, and refuses to remove a locked month's
+        Schema::create('eir_amortisation_history', function (Blueprint $t) {
+            $t->increments('id');
+            $t->string('contract_id');
+            $t->string('reporting_period', 7);
+            foreach (['opening_gross', 'advances', 'eir_annual', 'opening_arrears', 'interest_accrued', 'unwind_amount', 'cash_received', 'modification_gain_loss', 'closing_gross', 'ecl_allowance'] as $c) {
+                $t->double($c)->nullable();
+            }
+            $t->string('opening_basis', 12)->nullable();
+            $t->string('interest_basis')->nullable();
+            $t->string('cash_source')->nullable();
+            $t->timestamp('originally_created_at')->nullable();
+            $t->timestamp('superseded_at')->nullable();
+            $t->unsignedBigInteger('superseded_by')->nullable();
+            $t->string('supersession_reason', 500);
+            $t->timestamps();
+        });
+        Schema::create('reporting_period_locks', function (Blueprint $t) {
+            $t->increments('id');
+            $t->string('reporting_period', 7)->unique();
+            $t->unsignedBigInteger('locked_by')->nullable();
+            $t->timestamp('locked_at')->nullable();
+            $t->string('reason')->nullable();
+            $t->timestamps();
+        });
         $this->createGovernanceSchema();
         $this->seedGovernanceDefaults();
 
         $this->seedLockedContract();
+    }
+
+    private function invokeRecalc(string $period, string $reason, array $contracts = []): array
+    {
+        $request = Request::create('/eir-reconciliation/recalculate-revenue', 'POST', [
+            'period' => $period, 'reason' => $reason, 'contract_ids' => $contracts,
+        ]);
+        $request->setLaravelSession(app('session.store'));
+
+        return app(EirReconciliationController::class)
+            ->recalculateRevenue($request, new EirGlReconciliationService())->getSession()->get('revenue_run');
+    }
+
+    public function test_a_recalculation_restates_the_period_and_runs_every_later_one_again_in_order(): void
+    {
+        $this->invokeRun('2025-09', 'catch_up');
+        $before = DB::table('eir_amortisation')->orderBy('reporting_period')->pluck('closing_gross', 'reporting_period')->all();
+
+        $flash = $this->invokeRecalc('2025-08', 'Fees corrected after Finance confirmed the workbook, test');
+
+        $this->assertSame('COMPLETED', $flash['status']);
+        $this->assertTrue($flash['recalculation']);
+        $this->assertSame(['2025-08', '2025-09'], $flash['periods_run'], 'the period chosen and every later one, oldest first');
+        $this->assertSame(1, $flash['totals']['recalculated']);
+        $this->assertSame(1, $flash['totals']['created'], 'the later period voided by the recalculation is built again');
+        $this->assertSame(['2025-07', '2025-08', '2025-09'], DB::table('eir_amortisation')->orderBy('reporting_period')->pluck('reporting_period')->all(),
+            'no hole is left in the chain');
+        $this->assertSame(['2025-08', '2025-09'], DB::table('eir_amortisation_history')->orderBy('reporting_period')->pluck('reporting_period')->all(),
+            'the replaced rows are archived');
+        $this->assertSame('Fees corrected after Finance confirmed the workbook, test', DB::table('eir_amortisation_history')->value('supersession_reason'));
+        $this->assertEqualsWithDelta($before['2025-09'], (float) DB::table('eir_amortisation')->where('reporting_period', '2025-09')->value('closing_gross'), 0.01,
+            'the same inputs give the same figures');
+    }
+
+    public function test_a_recalculation_that_would_remove_a_locked_month_is_refused_before_anything_is_written(): void
+    {
+        $this->invokeRun('2025-09', 'catch_up');
+        DB::table('reporting_period_locks')->insert(['reporting_period' => '2025-09', 'reason' => 'year end', 'created_at' => now(), 'updated_at' => now()]);
+        $ids = DB::table('eir_amortisation')->orderBy('id')->pluck('id')->all();
+
+        $flash = $this->invokeRecalc('2025-08', 'Fees corrected after Finance confirmed the workbook, test');
+
+        $this->assertSame('REFUSED', $flash['status']);
+        $this->assertStringContainsString('2025-09 is locked', $flash['message']);
+        $this->assertSame($ids, DB::table('eir_amortisation')->orderBy('id')->pluck('id')->all(), 'nothing is removed');
+        $this->assertSame(0, DB::table('eir_amortisation_history')->count());
+    }
+
+    public function test_a_recalculation_names_a_loan_without_a_locked_eir_and_writes_nothing(): void
+    {
+        $this->invokeRun('2025-09', 'catch_up');
+
+        $flash = $this->invokeRecalc('2025-08', 'Fees corrected after Finance confirmed the workbook, test', ['C-404']);
+
+        $this->assertSame('REFUSED', $flash['status']);
+        $this->assertStringContainsString('C-404', $flash['message']);
+        $this->assertSame(0, DB::table('eir_amortisation_history')->count());
+    }
+
+    public function test_a_recalculation_needs_a_reason_of_twenty_characters(): void
+    {
+        $this->invokeRun('2025-09', 'catch_up');
+        $this->expectException(ValidationException::class);
+
+        $this->invokeRecalc('2025-08', 'too short');
+    }
+
+    public function test_a_period_never_run_cannot_be_recalculated(): void
+    {
+        $flash = $this->invokeRecalc('2025-08', 'Fees corrected after Finance confirmed the workbook, test');
+
+        $this->assertSame('REFUSED', $flash['status']);
+        $this->assertStringContainsString('holds no revenue rows', $flash['message']);
     }
 
     /**

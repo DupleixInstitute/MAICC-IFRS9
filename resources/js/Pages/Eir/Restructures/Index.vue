@@ -155,7 +155,17 @@
             <button type="button" class="secondary-btn" :disabled="!selectedDetected.length" @click="proposeResets('IN_CONTRACT')">Propose as in-contract ({{ selectedDetected.length }})</button>
             <button type="button" class="secondary-btn" :disabled="!selectedDetected.length" @click="proposeResets('NEGOTIATED')">Propose as negotiated ({{ selectedDetected.length }})</button>
             <button type="button" class="primary-btn" :disabled="!selectedApprovable.length" @click="approveResets">Approve ({{ selectedApprovable.length }})</button>
+            <button type="button" class="secondary-btn" :disabled="building" title="Re-amortise the remaining instalments of each floating loan at each prime-rate reset, as a Reset schedule version" @click="buildResets">{{ building ? 'Building...' : 'Build reset schedules' }}</button>
           </div>
+        </div>
+
+        <!-- the last reset schedule build: what was built, kept and why a loan was held -->
+        <div v-if="resetBuild" class="maiic-panel p-4 text-sm">
+          <div class="font-semibold text-gray-900 dark:text-slate-100">Reset schedules: {{ resetBuild.built }} built, {{ resetBuild.kept }} kept, {{ resetBuild.blocked }} held, across {{ resetBuild.contracts }} loan(s)</div>
+          <p class="mt-1 text-xs text-gray-500">A version already used by a solved or locked month is kept and built on; the rest are rebuilt. The EIR itself is unchanged: a floating loan already accrues at the rate charged each month.</p>
+          <ul v-if="resetBuild.held.length" class="mt-2 space-y-0.5 text-xs text-gray-700 dark:text-slate-300">
+            <li v-for="h in resetBuild.held" :key="h.contract_id"><span class="font-medium text-gray-900 dark:text-slate-100">{{ h.contract_id }}</span>: {{ h.reason }}</li>
+          </ul>
         </div>
 
         <div class="maiic-panel">
@@ -285,6 +295,7 @@ const props = defineProps({
   classifications: { type: Array, default: () => [] },
   factors: { type: Object, default: () => ({}) },
   summary: { type: Object, default: () => ({ disclosures: {} }) },
+  resetBuild: { type: Object, default: null },
 })
 
 const current = ref(props.tab)
@@ -363,6 +374,14 @@ async function closeReset(r, action) {
   const reason = await promptReason({ title: `${action === 'reject' ? 'Reject' : 'Withdraw'} the classification of move #${r.id}`, message: 'It returns to awaiting a classification; the reason is kept.', confirmLabel: action === 'reject' ? 'Reject' : 'Withdraw' })
   if (!reason) return
   router.post(route('eir-restructures.resets.close', r.id), { action, reason }, { preserveScroll: true })
+}
+
+// the same as eir:build-reset-schedules: a Reset schedule version at each prime-rate reset of a floating loan
+const building = ref(false)
+async function buildResets() {
+  if (!(await confirmDialog({ title: 'Build the reset schedules?', message: 'For each floating loan, the remaining instalments are re-amortised at each prime-rate reset found, as a Reset version of the schedule. Version 1 and any version a solved or locked month used are kept as they are; the EIR is not changed. It is recorded in the audit log.', confirmLabel: 'Build' }))) return
+  building.value = true
+  router.post(route('eir-restructures.resets.build'), {}, { preserveScroll: true, onFinish: () => { building.value = false } })
 }
 
 const busy = ref(false)
