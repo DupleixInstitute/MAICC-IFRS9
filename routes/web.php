@@ -662,6 +662,10 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
 // One item of an approval workflow (Staging Module Specification v1, section 8.6): its history,
 // its supporting documents, and reject or withdraw with a reason.
 Route::group(['prefix' => 'approvals', 'as' => 'approvals.'], function () {
+    // the register of approvals (Staging Module Specification v1, section 8.7)
+    Route::get('/', [\App\Http\Controllers\ApprovalsRegisterController::class, 'index'])->name('register');
+    Route::get('/export/{format}', [\App\Http\Controllers\ApprovalsRegisterController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('register.export');
+    Route::post('/link', [\App\Http\Controllers\ApprovalsRegisterController::class, 'link'])->name('register.link');
     Route::get('/documents/{document}', [\App\Http\Controllers\ApprovalRecordController::class, 'openDocument'])->whereNumber('document')->name('documents.open');
     Route::post('/documents/{document}/remove', [\App\Http\Controllers\ApprovalRecordController::class, 'removeDocument'])->whereNumber('document')->name('documents.remove');
     Route::get('/{workflow}/{id}', [\App\Http\Controllers\ApprovalRecordController::class, 'show'])->whereNumber('id')->name('record');

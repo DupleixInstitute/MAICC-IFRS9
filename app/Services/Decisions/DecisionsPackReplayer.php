@@ -42,6 +42,8 @@ class DecisionsPackReplayer
     public const NOT_FOUND = 'NOT_FOUND';
     public const DIFFERENT = 'DIFFERENT';
     public const REFUSED = 'REFUSED';
+    /** Carried, approved on the source before the supporting-document rule required a document (section 8.10). */
+    public const GRANDFATHERED = 'GRANDFATHERED';
 
     private array $data = [];
 
@@ -58,6 +60,12 @@ class DecisionsPackReplayer
 
     private string $label;
 
+    /** @var array<string, list<array>> 'governance|key|value|from' or 'fee_rule|name' => the documents that support it */
+    private array $documentsFor = [];
+
+    /** @var array<string, int> SHA-256 => the document stored here, so a second decision it supports gets a link */
+    private array $stored = [];
+
     public function __construct(private readonly string $folder)
     {
         $path = $folder . '/' . DecisionsPack::MANIFEST;
@@ -66,12 +74,24 @@ class DecisionsPackReplayer
         }
         $this->manifest = json_decode((string) file_get_contents($path), true) ?: [];
         foreach (DecisionsPack::FILES as $kind => $file) {
+            if (! isset($this->manifest['files'][$kind]) && $kind === 'documents') {
+                $this->data[$kind] = []; // a pack exported before documents were carried
+                continue;
+            }
             $json = (string) @file_get_contents($folder . '/' . $file);
             $expected = $this->manifest['files'][$kind]['sha256'] ?? null;
             if ($expected === null || ! hash_equals($expected, hash('sha256', $json))) {
                 throw new RuntimeException("The decisions pack file {$file} does not match its manifest: the pack was changed after export.");
             }
             $this->data[$kind] = json_decode($json, true) ?? [];
+        }
+        foreach ($this->data['documents'] as $d) {
+            if ($d['file'] !== null && hash_file('sha256', $folder . '/' . $d['file']) !== $d['sha256']) {
+                throw new RuntimeException("The document {$d['original_name']} in the decisions pack does not match its SHA-256: the pack was changed after export.");
+            }
+            foreach ($d['supports'] as $s) {
+                $this->documentsFor[self::supportKey($s)][] = $d + ['link_reason' => $s['link_reason'] ?? null];
+            }
         }
         $this->label = DecisionsPack::label((string) ($this->manifest['pack'] ?? basename($folder)), (string) ($this->manifest['source_database'] ?? 'the source database'));
     }
@@ -200,6 +220,7 @@ class DecisionsPackReplayer
     private function governance(): void
     {
         $gov = app(GovernanceService::class);
+        $ruleFrom = $this->manifest['evidence_rule_from'] ?? null;
         foreach ($this->data['governance'] as $g) {
             $key = "{$g['key']} = {$g['value']} from {$g['effective_from']}";
             try {
@@ -214,16 +235,63 @@ class DecisionsPackReplayer
                     $this->note('governance', $key, self::REFUSED, 'the approver is not known here');
                     continue;
                 }
-                $p = $gov->propose($g['key'], $g['value'], $g['effective_from'], (string) $g['reason'], $proposer);
-                $gov->approve($p->id, $approver, true);
-                DB::table('governance_settings')->where('id', $p->id)->update(['created_at' => $g['proposed_at'] ?: now(), 'approved_at' => $g['approved_at']]);
-                $this->audit(\App\Models\GovernanceSetting::class, (int) $p->id, ['key' => $g['key'], 'value' => $g['value'], 'effective_from' => $g['effective_from']], $g['approved_by'], $g['approved_at'],
-                    ['proposed_by' => $g['proposed_by'], 'self_approval' => $g['proposed_by'] !== null && $g['proposed_by'] === $g['approved_by']]);
-                $this->note('governance', $key, self::APPLIED, 'proposed by ' . ($g['proposed_by'] ?? 'unknown') . ', approved by ' . $g['approved_by'] . ' on ' . $g['approved_at']);
+                $docs = $this->documentsFor[self::supportKey(['kind' => 'governance'] + $g)] ?? [];
+                $carriedDocs = array_values(array_filter($docs, fn ($d) => $d['file'] !== null));
+                // a setting that needs evidence and has none: carried only if its source approved it before the rule (section 8.10)
+                $grandfathered = GovernanceService::evidenceRequired($g['key']) && $carriedDocs === [];
+                if ($grandfathered && ! \App\Support\EvidenceRule::before($g['approved_at'], $ruleFrom)) {
+                    $this->note('governance', $key, self::REFUSED, 'needs a supporting document and the pack carries none, yet the source approved it after the rule required one (from ' . $ruleFrom . ')'
+                        . ($docs !== [] ? '; its document was missing from the source storage' : ''));
+                    continue;
+                }
+                $id = DB::transaction(function () use ($gov, $g, $proposer, $approver, $carriedDocs, $grandfathered) {
+                    $p = $gov->propose($g['key'], $g['value'], $g['effective_from'], (string) $g['reason'], $proposer);
+                    foreach ($carriedDocs as $d) {
+                        $this->attachDocument($d, \App\Models\GovernanceSetting::class, (int) $p->id, \App\Services\Eir\GovernanceDocumentService::FOLDER . '/' . $p->id);
+                    }
+                    $gov->approve($p->id, $approver, true, $grandfathered);
+                    DB::table('governance_settings')->where('id', $p->id)->update(['created_at' => $g['proposed_at'] ?: now(), 'approved_at' => $g['approved_at']]);
+
+                    return (int) $p->id;
+                });
+                $this->audit(\App\Models\GovernanceSetting::class, $id, ['key' => $g['key'], 'value' => $g['value'], 'effective_from' => $g['effective_from']], $g['approved_by'], $g['approved_at'],
+                    ['proposed_by' => $g['proposed_by'], 'self_approval' => $g['proposed_by'] !== null && $g['proposed_by'] === $g['approved_by'], 'documents' => count($carriedDocs),
+                        'evidence' => $grandfathered ? \App\Support\EvidenceRule::LABEL : null]);
+                $this->note('governance', $key, $grandfathered ? self::GRANDFATHERED : self::APPLIED, 'proposed by ' . ($g['proposed_by'] ?? 'unknown') . ', approved by ' . $g['approved_by'] . ' on ' . $g['approved_at']
+                    . ($carriedDocs !== [] ? '; ' . count($carriedDocs) . ' document(s) carried' : '') . ($grandfathered ? '; ' . \App\Support\EvidenceRule::LABEL : ''));
             } catch (Throwable $e) {
                 $this->note('governance', $key, self::REFUSED, $e->getMessage());
             }
         }
+    }
+
+    /** The key a document's support is filed under, the same for the export's entry and the decision it names. */
+    private static function supportKey(array $s): string
+    {
+        return ($s['kind'] ?? '') === 'fee_rule' ? 'fee_rule|' . $s['name'] : 'governance|' . $s['key'] . '|' . $s['value'] . '|' . $s['effective_from'];
+    }
+
+    /**
+     * A carried document: stored here once, under its SHA-256, and attached to the first decision it
+     * supports; a further decision it supports gets a link to it, as on the source (section 8.7).
+     */
+    private function attachDocument(array $d, string $type, int $id, string $folder): void
+    {
+        if (isset($this->stored[$d['sha256']])) {
+            DB::table('supporting_document_links')->insertOrIgnore(['supporting_document_id' => $this->stored[$d['sha256']], 'documentable_type' => $type, 'documentable_id' => $id,
+                'linked_by' => $this->userId($d['uploaded_by']), 'reason' => $d['link_reason'] ?? 'Carried by the decisions pack: supports this decision on the source', 'created_at' => now(), 'updated_at' => now()]);
+
+            return;
+        }
+        $disk = \Illuminate\Support\Facades\Storage::disk(\App\Services\Eir\GovernanceDocumentService::DISK);
+        $path = $folder . '/' . $d['sha256'] . '.' . $d['extension'];
+        $disk->put($path, (string) file_get_contents($this->folder . '/' . $d['file']));
+        $doc = \App\Models\SupportingDocument::create(['documentable_type' => $type, 'documentable_id' => $id, 'disk' => \App\Services\Eir\GovernanceDocumentService::DISK, 'path' => $path,
+            'original_name' => $d['original_name'], 'mime_type' => $d['mime_type'], 'size' => $d['size'], 'extension' => $d['extension'], 'document_type' => $d['document_type'],
+            'description' => $d['description'], 'hash' => $d['sha256'], 'uploaded_by' => $this->userId($d['uploaded_by'])]);
+        DB::table('supporting_documents')->where('id', $doc->id)->update(['created_at' => $d['uploaded_at'] ?: now()]);
+        $this->stored[$d['sha256']] = (int) $doc->id;
+        $this->audit($type, $id, ['document' => $doc->id, 'name' => $d['original_name'], 'sha256' => $d['sha256']], $d['uploaded_by'], $d['uploaded_at'], ['kind' => 'supporting document']);
     }
 
     private function feeRules(): void
@@ -244,7 +312,11 @@ class DecisionsPackReplayer
                 $id = (int) $existing->id;
                 DB::table('eir_accounting_rules')->where('id', $id)->update($row + ['updated_at' => now()]);
             }
-            $this->audit(\App\Models\EirAccountingRule::class, $id, ['name' => $r['name'], 'status' => $r['status'] ?? null], $r['approved_by'] ?? null, $r['approved_at'] ?? null, ['written_by' => $r['updated_by'] ?? $r['created_by'] ?? null]);
+            $docs = array_values(array_filter($this->documentsFor[self::supportKey(['kind' => 'fee_rule', 'name' => $r['name']])] ?? [], fn ($d) => $d['file'] !== null));
+            foreach ($docs as $d) {
+                $this->attachDocument($d, 'eir_accounting_rules', $id, \App\Services\ApprovalDocumentService::FOLDER . '/eir_accounting_rules/' . $id);
+            }
+            $this->audit(\App\Models\EirAccountingRule::class, $id, ['name' => $r['name'], 'status' => $r['status'] ?? null], $r['approved_by'] ?? null, $r['approved_at'] ?? null, ['written_by' => $r['updated_by'] ?? $r['created_by'] ?? null, 'documents' => count($docs)]);
             $this->note('fee_rules', (string) $r['name'], self::APPLIED, ($existing === null ? 'added' : 'brought to the source wording') . '; ' . strtolower((string) ($r['status'] ?? 'unknown')));
         }
     }
@@ -547,7 +619,8 @@ class DecisionsPackReplayer
     {
         $source = $this->manifest['tie_out'] ?? [];
         $listed = fn (string $kind) => count(array_filter($this->notCarried(), fn ($r) => $r['kind'] === $kind));
-        $carried = fn (string $kind) => count(array_filter($this->report, fn ($r) => $r['kind'] === $kind && in_array($r['outcome'], [self::APPLIED, self::ALREADY], true)));
+        $carried = fn (string $kind) => count(array_filter($this->report, fn ($r) => $r['kind'] === $kind && in_array($r['outcome'], [self::APPLIED, self::ALREADY, self::GRANDFATHERED], true)));
+        $grandfathered = count(array_filter($this->report, fn ($r) => $r['outcome'] === self::GRANDFATHERED));
         $reviewedHere = DB::table('contract_fees')->where('classification_status', 'REVIEWED')->whereNull('superseded_by_source')->count();
 
         return [
@@ -555,6 +628,9 @@ class DecisionsPackReplayer
             'governance settings' => ['source' => (int) ($source['governance_settings'] ?? 0), 'here' => $carried('governance'), 'listed' => $listed('governance')],
             'reviewed fee lines in force' => ['source' => (int) ($source['reviewed_lines_in_force'] ?? 0), 'here' => $reviewedHere, 'listed' => count(array_filter($this->notCarried(), fn ($r) => $r['kind'] === 'classifications'))],
             'EIRs locked by a person' => ['source' => (int) ($source['person_locked_eirs'] ?? 0), 'here' => DB::table('contract_eir')->whereNotNull('locked_at')->whereNull('locked_label')->count(), 'listed' => $listed('eir_locks')],
+            'supporting documents' => ['source' => (int) ($source['documents'] ?? 0), 'here' => count($this->stored), 'listed' => 0],
+            // carried, and counted apart: approved on the source before a document was required (section 8.10)
+            'approved before supporting documents were required' => ['source' => $grandfathered, 'here' => $grandfathered, 'listed' => 0],
         ];
     }
 

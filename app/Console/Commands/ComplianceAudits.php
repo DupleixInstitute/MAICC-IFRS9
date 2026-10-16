@@ -126,6 +126,29 @@ class ComplianceAudits extends Command
             fclose($csv);
             $files[] = $name;
         }
+        // the register of approvals to the period end, with its reconciliation to the audit log (Staging Module
+        // Specification v1, section 8.7; acceptance 15)
+        if (\Illuminate\Support\Facades\Schema::hasTable('governance_settings')) {
+            $end = \Carbon\CarbonImmutable::parse($period . '-01')->endOfMonth()->toDateString();
+            $register = app(\App\Services\ApprovalsRegisterService::class);
+            $rows = $register->rows(['to' => $end]);
+            $rec = $register->reconcile();
+            $name = "Approvals register to {$end}.csv";
+            $csv = fopen($tmp . '/' . $name, 'w');
+            fputcsv($csv, ['Register of approvals to ' . $end . '; reconciled to the audit log: ' . ($rec['reconciled'] ? 'yes' : 'no, ' . (count($rec['decided_without_entry']) + count($rec['entries_without_item'])) . ' finding(s) listed at the end')]);
+            fputcsv($csv, \App\Services\ApprovalsRegisterService::EXPORT_HEADINGS);
+            foreach (\App\Services\ApprovalsRegisterService::exportRows($rows) as $line) {
+                fputcsv($csv, $line);
+            }
+            foreach ($rec['decided_without_entry'] as $w) {
+                fputcsv($csv, ['Finding: decided, with no audit entry', $w['workflow'], $w['id'], $w['title'], $w['status']]);
+            }
+            foreach ($rec['entries_without_item'] as $o) {
+                fputcsv($csv, ['Finding: audit entry for an item not on record', $o['workflow'], $o['id'], 'entry ' . $o['entry'], $o['action'], $o['at']]);
+            }
+            fclose($csv);
+            $files[] = $name;
+        }
         // the manifest
         $manifest = ['pack' => "MAIIC auditor's pack {$period}", 'built_at' => now()->toDateTimeString(), 'files' => []];
         foreach ($files as $f) {

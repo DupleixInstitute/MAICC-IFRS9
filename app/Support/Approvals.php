@@ -46,7 +46,7 @@ final class Approvals
             'evidence' => 'the diagnostics export'],
         'fli-model' => ['label' => 'External forward-looking model', 'table' => 'fli_model_versions', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['fli_model_versions'],
             'evidence' => 'the model documentation'],
-        'schedule' => ['label' => 'Contractual schedule', 'table' => 'contract_eir', 'status' => 'schedule_approval_status', 'pending' => ['PENDING_REVIEW'], 'maker' => 'schedule_prepared_by', 'entities' => ['contract_eir', 'contract_eirs'],
+        'schedule' => ['label' => 'Contractual schedule', 'table' => 'contract_eir', 'status' => 'schedule_approval_status', 'pending' => ['PENDING_REVIEW'], 'maker' => 'schedule_prepared_by', 'entities' => ['contract_eir', 'contract_eirs', 'App\Models\ContractEir'],
             'evidence' => null, 'reject_to' => 'DRAFT'],
         'eir-reopen' => ['label' => 'EIR reopening', 'table' => 'eir_reopen_requests', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'requested_by', 'entities' => ['eir_reopen_requests'],
             'evidence' => 'why the locked EIR was wrong'],
@@ -97,14 +97,10 @@ final class Approvals
         return self::workflow($workflow)['evidence'];
     }
 
-    /** The live documents on an item (removed ones excluded). */
+    /** The live documents on an item, attached to it or linked to it from another decision (section 8.7); removed ones excluded. */
     public static function documentCount(string $workflow, int $id): int
     {
-        if (! Schema::hasTable('supporting_documents')) {
-            return 0;
-        }
-
-        return DB::table('supporting_documents')->where('documentable_type', self::workflow($workflow)['table'])->where('documentable_id', $id)->whereNull('deleted_at')->count();
+        return SupportingDocuments::count(self::workflow($workflow)['table'], $id);
     }
 
     /**

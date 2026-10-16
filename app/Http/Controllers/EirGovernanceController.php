@@ -134,12 +134,15 @@ class EirGovernanceController extends Controller
     {
         abort_unless(isset(GovernanceService::catalogue()[$key]), 404);
         $names = \Illuminate\Support\Facades\DB::table('users')->pluck('name', 'id');
+        $since = \App\Support\EvidenceRule::since();
         $rows = GovernanceSetting::with('documents')->where('key', $key)->orderByDesc('effective_from')->orderByDesc('id')->get()
             ->map(fn (GovernanceSetting $s) => [
                 'id' => $s->id, 'value' => $s->value, 'effective_from' => $s->effective_from->toDateString(), 'status' => $s->status,
                 'proposed_by' => $s->set_by ? ($names[$s->set_by] ?? "user {$s->set_by}") : 'installation', 'reason' => $s->reason,
                 'approved_by' => $s->approved_by ? ($names[$s->approved_by] ?? "user {$s->approved_by}") : null, 'approved_at' => $s->approved_at?->toDateTimeString(),
                 'reviewed_by' => $s->reviewed_by ? ($names[$s->reviewed_by] ?? "user {$s->reviewed_by}") : null, 'reviewed_at' => $s->reviewed_at?->toDateTimeString(), 'review_reason' => $s->review_reason,
+                // a change approved without a document before the rule required one (section 8.10)
+                'grandfathered' => \App\Support\EvidenceRule::grandfathered($s, $since, true),
                 'documents' => $s->documents->map(fn ($d) => ['id' => $d->id, 'name' => $d->original_name, 'type' => $d->document_type, 'description' => $d->description, 'removed' => $d->deleted_at !== null, 'sha256' => $d->hash])->values(),
             ]);
         $events = \Illuminate\Support\Facades\DB::table('audit_logs')->where('entity_type', GovernanceSetting::class)->whereIn('entity_id', $rows->pluck('id'))->orderByDesc('id')
@@ -149,10 +152,11 @@ class EirGovernanceController extends Controller
             return response()->streamDownload(function () use ($rows, $key) {
                 $out = fopen('php://output', 'w');
                 fputcsv($out, ["History of the governed setting {$key}"]);
-                fputcsv($out, ['Change', 'Value', 'Effective from', 'Status', 'Proposed by', 'Reason', 'Approved by', 'Approved at', 'Rejected or withdrawn by', 'When', 'Why', 'Documents']);
+                fputcsv($out, ['Change', 'Value', 'Effective from', 'Status', 'Proposed by', 'Reason', 'Approved by', 'Approved at', 'Rejected or withdrawn by', 'When', 'Why', 'Documents', 'Evidence']);
                 foreach ($rows as $r) {
                     fputcsv($out, [$r['id'], $r['value'], $r['effective_from'], $r['status'], $r['proposed_by'], $r['reason'], $r['approved_by'], $r['approved_at'], $r['reviewed_by'], $r['reviewed_at'], $r['review_reason'],
-                        collect($r['documents'])->map(fn ($d) => $d['name'] . ($d['removed'] ? ' (removed)' : '') . ' sha256 ' . $d['sha256'])->implode('; ')]);
+                        collect($r['documents'])->map(fn ($d) => $d['name'] . ($d['removed'] ? ' (removed)' : '') . ' sha256 ' . $d['sha256'])->implode('; '),
+                        $r['grandfathered'] ? \App\Support\EvidenceRule::LABEL : null]);
                 }
                 fclose($out);
             }, "Governance history {$key} " . now()->format('Y-m-d') . '.csv', ['Content-Type' => 'text/csv']);

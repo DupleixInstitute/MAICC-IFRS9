@@ -712,9 +712,14 @@ class GovernanceService
      * this moment, because this is when its replacement was decided; it stays
      * in the live table so that dates before the change still resolve to it.
      */
-    public function approve(int $settingId, int $approverId, bool $allowMakerCheckerOverride = false): GovernanceSetting
+    /**
+     * $approvedBeforeEvidenceRule: only the decisions pack passes it, for an approval its source database
+     * made before the supporting-document rule came into force there (section 8.10); the approval is then
+     * carried, labelled as made before supporting documents were required, instead of being refused.
+     */
+    public function approve(int $settingId, int $approverId, bool $allowMakerCheckerOverride = false, bool $approvedBeforeEvidenceRule = false): GovernanceSetting
     {
-        return DB::transaction(function () use ($settingId, $approverId, $allowMakerCheckerOverride) {
+        return DB::transaction(function () use ($settingId, $approverId, $allowMakerCheckerOverride, $approvedBeforeEvidenceRule) {
             $setting = GovernanceSetting::query()->lockForUpdate()->findOrFail($settingId);
             if ($setting->status !== GovernanceSetting::STATUS_PROPOSED) {
                 throw new LogicException('Only a proposed change can be approved.');
@@ -731,7 +736,9 @@ class GovernanceService
                     : 'The person who proposed a change cannot approve it.');
             }
             $this->assertOverrideMayBeAllowed($setting->key, $setting->value);
-            $this->assertEvidence($setting);
+            if (! $approvedBeforeEvidenceRule) {
+                $this->assertEvidence($setting);
+            }
             if ($override && (int) $setting->set_by === $approverId) {
                 \App\Support\MakerChecker::recordUse('Governance Centre setting', GovernanceSetting::class, $setting->id, $approverId);
             }
@@ -777,6 +784,7 @@ class GovernanceService
                     'proposed_by' => $setting->set_by,
                     'approved_by' => $approverId,
                     'admin_override' => $allowMakerCheckerOverride,
+                    'evidence' => $approvedBeforeEvidenceRule ? \App\Support\EvidenceRule::LABEL : null,
                     'first_period_applied' => $effective->format('Y-m'),
                 ],
             ]);
@@ -1071,8 +1079,8 @@ class GovernanceService
         if (! self::evidenceRequired($setting->key)) {
             return;
         }
-        $documents = \Illuminate\Support\Facades\Schema::hasTable('supporting_documents')
-            ? \App\Models\SupportingDocument::query()->where('documentable_type', GovernanceSetting::class)->where('documentable_id', $setting->id)->count() : 0;
+        // attached to this change or linked to it from another decision (section 8.7)
+        $documents = \App\Support\SupportingDocuments::count(GovernanceSetting::class, (int) $setting->id);
         if ($documents === 0) {
             throw new LogicException("A change to '{$setting->label}' needs a supporting document before it is approved: attach the minute, decision or analysis behind it (Staging Module Specification v1, section 8.3).");
         }

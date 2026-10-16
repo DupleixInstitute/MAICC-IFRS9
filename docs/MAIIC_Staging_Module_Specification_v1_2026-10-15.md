@@ -238,6 +238,13 @@ Outside the Governance Centre, about twenty other workflows decide something tha
 
 The Governance Centre gains an **Approvals** view across all of the above and the Centre's own settings: everything awaiting a decision, with who proposed it and when; and everything decided, with the decision, the reasons and the documents. It filters by workflow, person, status and date, exports to PDF and Excel, and is included in the auditor's pack. One shared document store serves every workflow, so a minute attached once can be linked to the several decisions it covers.
 
+As built (section 9, 16 October 2026):
+
+- **What is on it.** Every item of the eighteen workflows of section 8.6 that waits for a decision or has been decided, and every Governance Centre change people made. A default seeded with the installation, and a staging threshold row seeded with it, have no proposer and no decider and are not decisions, so they are not listed. An item detected but not yet put forward (a restructure candidate, a detected rate move, a schedule not yet generated) is not listed either. An approval under the System Bootstrap label is listed and marked as such.
+- **Reconciled to the audit log both ways.** Every decided item must have at least one entry in the audit log, and every decision entry in the audit log must name an item that exists. Either kind of finding is named on the view, at the end of the exports and in the auditor's pack. On a fresh bootstrap the register reconciles with no finding.
+- **Linking.** A document already in the store is linked to another decision while that decision is pending, with a reason saying which part of it supports the decision. The file is not copied. A link counts as evidence wherever evidence is required, is shown on the decision's page as linked, and is recorded in the audit log. A removed document supports no decision, and a decided item keeps the documents it was decided on.
+- **Approved before supporting documents were required.** The rule requiring documents comes into force on a database when the release that contains it is migrated, and that moment is recorded. A change to a setting that now requires a document, approved without one before that moment, is labelled *approved before supporting documents were required* on the setting's history, on this view and in its exports, and can be listed on its own with the status filter. It is never shown as an approval that skipped its evidence.
+
 ### 8.8 The record of what each month ran on
 
 An auditor looking at a month a year later needs to know exactly what that month's figures were computed with: which settings, rules, models, data and code. Today that can only be partly reconstructed:
@@ -307,6 +314,7 @@ The bootstrap approves its own steps under the label "System Bootstrap (automate
 | EIR locked by a person | The loan | Who calculated it, who locked it, when, the locked rate and a fingerprint of the cash flows it was solved on |
 | EIR reopen request | The loan and the request date | The request and its decision, carried as history |
 | User | E-mail | Name, roles and direct permissions; never the password or the two-factor secret |
+| Supporting document | Its SHA-256 | The file itself, with its name, type, description, who uploaded it and when, and every carried decision it supports, attached or linked |
 
 Every person is carried by e-mail and matched to the user of the same e-mail in the fresh database.
 
@@ -316,6 +324,8 @@ Every person is carried by e-mail and matched to the user of the same e-mail in 
 2. **In place of the bootstrap's own lock, for the loans the pack names:** the EIR is calculated and locked under the person who locked it in the source database, but only if the rate and the cash-flow fingerprint come out the same. Every other loan is locked under the System Bootstrap label as today.
 
 A reopen request is not executed again. In the source database it reopened an EIR so that fee lines could be moved. In the replay the lines are moved before any EIR is locked, so the request is carried as history on the loan.
+
+**Documents and the evidence rule.** The pack carries the supporting documents behind the decisions it carries, each file under its SHA-256, and the moment the supporting-document rule came into force on the source (section 8.7), or that it had not yet come into force there. On replay a document is stored once and attached to the first decision it supports; a further decision it supports gets a link, as on the source. A change to a setting that requires a document is replayed with its documents. If the pack carries none, the change is carried only if the source approved it before the rule came into force there; it is then labelled *approved before supporting documents were required* and counted apart on the replay report and in the tie-out. If the source approved it after that moment, it is refused and listed, and no proposal is left behind.
 
 **Labelled as carried, never as new.** Each replayed decision keeps its original person and date on the record. Each writes one audit entry, *"Carried from <database> by the decisions pack of <date>"*, naming the original person and date. It never carries the System Bootstrap label, because it was a person's decision and not an automated one. A decision the source database recorded as a UAT self-approval is carried with that label, and section 8.9 item 7 still applies to it.
 
@@ -360,7 +370,7 @@ A reopen request is not executed again. In the source database it reopened an EI
 12. **Append-only.** Editing or deleting a governance audit entry through the system is impossible, and doing it directly in the database is refused; a change made with the guard bypassed is found by the chain check, which names the first broken entry.
 13. **Other approvals.** Every workflow of section 8.6 records its proposal, decision (approve, reject or withdraw) and documents in the same log, and refuses approval without the evidence its table marks as required.
 14. **Fee rulebook control.** The person who wrote or changed a fee rule cannot approve it; approval and switching a rule on or off need a reason and a second person; the matcher uses only rules approved that way.
-15. **Approvals register.** The Approvals view lists every pending and decided item across all workflows and reconciles to the audit log.
+15. **Approvals register.** The Approvals view lists every pending and decided item across all workflows and reconciles to the audit log: a decided item with no audit entry, and an audit decision entry for an item not on record, are each named. A document linked to a second decision counts as that decision's evidence, and an approval made before supporting documents were required is labelled as such.
 16. **Run record.** Every month-end run writes a run record with the frozen snapshot of section 8.8; its fingerprint verifies; every result row of the month carries the run number.
 17. **Run of record.** Locking a month names the run whose figures were reported; a later rebuild of an unlocked month supersedes earlier runs and keeps them.
 18. **No back-dating.** A setting or rule change with an effective date inside a locked month is refused unless approved through reopen-and-restate with documents.

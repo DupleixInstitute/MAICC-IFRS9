@@ -241,4 +241,51 @@ class DecisionsPackTest extends TestCase
         $this->expectExceptionMessage('does not match its manifest');
         new DecisionsPackReplayer($this->dir);
     }
+
+    /** A raw approved change, as an approval made before the supporting-document rule leaves it. */
+    private function approvedWithoutDocument(string $key, string $value, string $from, string $approvedAt): int
+    {
+        $c = GovernanceService::catalogue()[$key];
+
+        return DB::table('governance_settings')->insertGetId(['key' => $key, 'value' => $value, 'options' => json_encode($c['options']), 'label' => $c['label'], 'description' => 'test',
+            'effective_from' => $from, 'status' => 'APPROVED', 'set_by' => $this->analyst->id, 'approved_by' => $this->cfo->id, 'approved_at' => $approvedAt,
+            'reason' => 'Credit Committee decision of ' . substr($approvedAt, 0, 10), 'created_at' => $approvedAt, 'updated_at' => $approvedAt]);
+    }
+
+    public function test_documents_are_carried_and_an_approval_before_the_evidence_rule_is_carried_as_one(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake(\App\Services\Eir\GovernanceDocumentService::DISK);
+        $gov = app(GovernanceService::class);
+        // with its minute: carried with the minute
+        $preset = $gov->propose(\App\Services\Eir\StagingPolicy::PRESET, \App\Services\Eir\StagingPolicy::PRESET_DIRECTIVE, '2026-01-01', 'Board adopts directive-aligned staging', $this->analyst->id);
+        $doc = app(\App\Services\Eir\GovernanceDocumentService::class)->attach($preset, \Illuminate\Http\UploadedFile::fake()->createWithContent('Board minute.pdf', '%PDF-1.4 board minute 12 Oct 2026'),
+            'minute', 'Board, item 4', $this->analyst->id);
+        $gov->approve($preset->id, $this->cfo->id);
+        DB::table('governance_settings')->where('id', $preset->id)->update(['approved_at' => '2026-10-14 09:00:00']); // approved first, as on a real source
+        // the rule came in on the source at 08:00 on 16 October: one approval before it, one after, neither with a document
+        DB::table('system_milestones')->where('key', \App\Support\EvidenceRule::MILESTONE)->update(['at' => '2026-10-16 08:00:00']);
+        $this->approvedWithoutDocument('stage2_threshold_medium_long', '91 days, with documented rebuttal evidence', '2026-03-01', '2026-10-15 09:00:00');
+        $this->approvedWithoutDocument('staging_threshold_profile', GovernanceService::catalogue()['staging_threshold_profile']['options'][1], '2026-04-01', '2026-10-16 10:00:00');
+
+        $r = (new DecisionsPackExporter())->export($this->dir, '2026-10-16');
+        $this->assertSame('2026-10-16 08:00:00', $r['manifest']['evidence_rule_from']);
+        $this->assertSame(1, $r['manifest']['tie_out']['documents']);
+        $this->assertFileExists($this->dir . '/documents/' . $doc->hash . '.pdf');
+
+        $this->freshDatabase();
+        DB::table('supporting_documents')->delete();
+        DB::table('system_milestones')->where('key', \App\Support\EvidenceRule::MILESTONE)->update(['at' => now()]); // the fresh install's own rule start
+        $replay = new DecisionsPackReplayer($this->dir);
+        $replay->replay($this->admin->id);
+
+        $outcomes = collect($replay->report())->where('kind', 'governance')->pluck('outcome', 'key')->all();
+        $this->assertSame([DecisionsPackReplayer::APPLIED, DecisionsPackReplayer::GRANDFATHERED, DecisionsPackReplayer::REFUSED], array_values($outcomes));
+        $carriedPreset = DB::table('governance_settings')->where('key', \App\Services\Eir\StagingPolicy::PRESET)->whereDate('effective_from', '2026-01-01')->first();
+        $this->assertSame([$doc->hash], DB::table('supporting_documents')->where('documentable_id', $carriedPreset->id)->pluck('hash')->all(), 'the minute, the same file');
+        $this->assertSame(0, DB::table('governance_settings')->where('key', 'staging_threshold_profile')->where('status', 'PROPOSED')->count(), 'a refused approval leaves no proposal behind');
+
+        $grand = collect((new \App\Services\ApprovalsRegisterService())->rows(['status' => 'grandfathered']));
+        $this->assertSame(['stage2_threshold_medium_long'], $grand->map(fn ($g) => explode(' ', $g['title'])[0])->all());
+        $this->assertSame(1, $replay->tieOut()['approved before supporting documents were required']['here']);
+    }
 }

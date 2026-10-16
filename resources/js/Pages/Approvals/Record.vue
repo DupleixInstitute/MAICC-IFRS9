@@ -14,9 +14,9 @@
                 <div v-if="!documents.length" class="mt-1 text-xs text-gray-500">None.</div>
                 <div v-for="d in documents" :key="d.id" class="mt-1 flex flex-wrap items-center gap-2 text-sm">
                     <a :href="route('approvals.documents.open', d.id)" class="text-sky-700 underline" :class="d.removed ? 'line-through' : ''">{{ d.name }}</a>
-                    <span class="text-xs text-gray-500">{{ d.type }}<span v-if="d.description">, {{ d.description }}</span><span v-if="d.removed"> (removed, kept on record)</span></span>
+                    <span class="text-xs text-gray-500">{{ d.type }}<span v-if="d.description">, {{ d.description }}</span><span v-if="d.removed"> (removed, kept on record)</span><span v-if="d.linked"> (linked from {{ d.from }})</span></span>
                     <span class="font-mono text-[10px] text-gray-400" :title="'SHA-256 ' + d.sha256">{{ d.sha256.slice(0, 12) }}</span>
-                    <button v-if="pending && !d.removed" type="button" class="text-xs text-red-700 underline" @click="removeDocument(d)">remove</button>
+                    <button v-if="pending && !d.removed && !d.linked" type="button" class="text-xs text-red-700 underline" @click="removeDocument(d)">remove</button>
                 </div>
                 <div v-if="pending" class="mt-3 grid gap-2 md:grid-cols-4">
                     <input type="file" class="text-sm md:col-span-2" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg" @change="file = $event.target.files[0]"/>

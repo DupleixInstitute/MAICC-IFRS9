@@ -21,6 +21,7 @@
                         <div class="text-xs text-gray-500">Change {{ r.id }} · proposed by {{ r.proposed_by }}</div>
                     </div>
                     <span class="maiic-badge" :class="badge(r.status)">{{ statusLabel(r.status) }}</span>
+                    <span v-if="r.grandfathered" class="maiic-badge bg-amber-100 text-amber-800" title="Approved with no supporting document before the rule required one (Staging Module Specification v1, section 8.10)">Approved before supporting documents were required</span>
                 </div>
                 <p v-if="r.reason" class="mt-2 text-sm text-gray-700"><span class="font-medium">Reason:</span> {{ r.reason }}</p>
                 <p v-if="r.approved_by" class="mt-1 text-xs text-gray-600">Approved by {{ r.approved_by }} at {{ r.approved_at }}</p>

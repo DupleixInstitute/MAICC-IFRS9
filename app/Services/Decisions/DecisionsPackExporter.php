@@ -41,8 +41,12 @@ class DecisionsPackExporter
         $this->emails = DB::table('users')->pluck('email', 'id')->map(fn ($e) => $e === null ? null : strtolower(trim((string) $e)))->all();
 
         [$keys, $finance] = $this->feeKeys();
+        if (! is_dir($folder) && ! mkdir($folder, 0775, true) && ! is_dir($folder)) {
+            throw new RuntimeException("Cannot create {$folder}.");
+        }
         $data = [
             'users' => $this->users(),
+            'documents' => $this->documents($folder),
             'governance' => $this->governance(),
             'fee_rules' => $this->feeRules(),
             'finance_lines' => $this->financeLines($keys, $finance),
@@ -56,9 +60,6 @@ class DecisionsPackExporter
             'eir_locks' => $this->eirLocks(),
         ];
 
-        if (! is_dir($folder) && ! mkdir($folder, 0775, true) && ! is_dir($folder)) {
-            throw new RuntimeException("Cannot create {$folder}.");
-        }
         $files = [];
         foreach (DecisionsPack::FILES as $kind => $file) {
             $json = self::json($data[$kind]);
@@ -70,6 +71,9 @@ class DecisionsPackExporter
             'source_database' => (string) DB::connection()->getDatabaseName(),
             'exported_at' => now()->toDateTimeString(),
             'specification' => 'MAIIC Staging Module Specification v1, section 8.10',
+            // when the supporting-document rule came into force on the source (null: not yet); an approval
+            // without a document made before it is carried as made before supporting documents were required
+            'evidence_rule_from' => \App\Support\EvidenceRule::since()?->toDateTimeString(),
             'files' => $files,
             'tie_out' => $this->tieOut($data),
         ];
@@ -125,6 +129,55 @@ class DecisionsPackExporter
 
                 return $a;
             });
+    }
+
+    /**
+     * The supporting documents behind the decisions the pack carries: those attached or linked to a
+     * Governance Centre change people made, or to a fee rule people wrote or approved. Each file is
+     * copied into the pack under its SHA-256; a removed document is not carried.
+     */
+    private function documents(string $folder): array
+    {
+        if (! Schema::hasTable('supporting_documents')) {
+            return [];
+        }
+        $targets = [];
+        foreach (DB::table('governance_settings')->where('status', 'APPROVED')->where('key', '!=', MakerChecker::SETTING)->where(fn ($q) => $q->whereNotNull('set_by')->orWhereNotNull('approved_by'))->get() as $s) {
+            $targets[\App\Models\GovernanceSetting::class][(int) $s->id] = ['kind' => 'governance', 'key' => $s->key, 'value' => $s->value, 'effective_from' => substr((string) $s->effective_from, 0, 10)];
+        }
+        foreach (DB::table('eir_accounting_rules')->get(['id', 'name']) as $r) {
+            $targets['eir_accounting_rules'][(int) $r->id] = ['kind' => 'fee_rule', 'name' => $r->name];
+            $targets[\App\Models\EirAccountingRule::class][(int) $r->id] = ['kind' => 'fee_rule', 'name' => $r->name];
+        }
+        $docs = [];
+        foreach (DB::table('supporting_documents')->whereNull('deleted_at')->orderBy('id')->get() as $d) {
+            $on = [];
+            if (isset($targets[$d->documentable_type][(int) $d->documentable_id])) {
+                $on[] = $targets[$d->documentable_type][(int) $d->documentable_id];
+            }
+            if (Schema::hasTable('supporting_document_links')) {
+                foreach (DB::table('supporting_document_links')->where('supporting_document_id', $d->id)->orderBy('id')->get() as $l) {
+                    if (isset($targets[$l->documentable_type][(int) $l->documentable_id])) {
+                        $on[] = $targets[$l->documentable_type][(int) $l->documentable_id] + ['link_reason' => $l->reason];
+                    }
+                }
+            }
+            if ($on === []) {
+                continue;
+            }
+            $file = DecisionsPack::DOCUMENTS . '/' . $d->hash . '.' . $d->extension;
+            $source = \Illuminate\Support\Facades\Storage::disk($d->disk)->path($d->path);
+            $missing = ! is_file($source);
+            if (! $missing) {
+                @mkdir($folder . '/' . DecisionsPack::DOCUMENTS, 0775, true);
+                copy($source, $folder . '/' . $file);
+            }
+            $docs[] = ['sha256' => $d->hash, 'file' => $missing ? null : $file, 'missing' => $missing, 'original_name' => $d->original_name, 'mime_type' => $d->mime_type,
+                'size' => (int) $d->size, 'extension' => $d->extension, 'document_type' => $d->document_type, 'description' => $d->description,
+                'uploaded_by' => $this->email($d->uploaded_by), 'uploaded_at' => (string) $d->created_at, 'supports' => $on];
+        }
+
+        return $docs;
     }
 
     private function users(): array
@@ -318,6 +371,7 @@ class DecisionsPackExporter
             'reviewed_lines' => count($reviewed),
             'reviewed_lines_in_force' => count(array_filter($reviewed, fn ($c) => ! $c['superseded'])),
             'person_locked_eirs' => count($data['eir_locks']),
+            'documents' => count($data['documents']),
             'fee_moves' => count($data['fee_moves']),
             'reopen_requests' => count($data['reopen_requests']),
         ];
