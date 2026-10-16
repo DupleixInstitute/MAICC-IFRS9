@@ -37,7 +37,8 @@
         "tjmugova/bluedot-sms": "^1.0",
         "webit/eval-math": "^1.0",
         "yajra/laravel-datatables": "^10.1",
-        "yajra/laravel-datatables-oracle": "^10.11"
+        "yajra/laravel-datatables-oracle": "^10.11",
+        "yajra/laravel-oci8": "^10.0"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^3.7",
@@ -97,6 +98,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "platform": {
+            "ext-oci8": "3.3.0"
         }
     }
 }

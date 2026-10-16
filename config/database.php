@@ -113,7 +113,7 @@ return [
         ],
 
         // E-Banker's Oracle database, read-only, for route 4 of the feed only (OracleConnectionSource).
-        // Needs yajra/laravel-oci8 and PHP's oci8 extension, not installed yet.
+        // Driver yajra/laravel-oci8; the server also needs PHP's oci8 extension and the Oracle Instant Client.
         'ebanker' => [
             'driver' => 'oracle',
             'host' => env('EBANKER_DB_HOST'),

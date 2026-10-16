@@ -166,6 +166,25 @@ class DirectReadRunnerTest extends TestCase
         app(DirectReadRunner::class)->run(new FakeEbanker([]), '2026-13', 1);
     }
 
+    public function test_the_connection_says_which_settings_are_missing(): void
+    {
+        config(['database.connections.ebanker.host' => null, 'database.connections.ebanker.service_name' => '', 'database.connections.ebanker.username' => 'MAIIC_IFRS9_RO']);
+        $this->expectException(DirectReadException::class);
+        $this->expectExceptionMessage('EBANKER_DB_HOST, EBANKER_DB_SERVICE not set in the environment file');
+        iterator_to_array((new OracleConnectionSource())->select('SELECT 1 FROM dual'));
+    }
+
+    public function test_the_connection_says_the_oci8_extension_is_missing(): void
+    {
+        if (function_exists('oci_connect')) {
+            $this->markTestSkipped('the oci8 extension is loaded here');
+        }
+        config(['database.connections.ebanker.host' => 'ebanker-test', 'database.connections.ebanker.service_name' => 'EBTEST', 'database.connections.ebanker.username' => 'MAIIC_IFRS9_RO']);
+        $this->expectException(DirectReadException::class);
+        $this->expectExceptionMessage("PHP's oci8 extension is not loaded");
+        iterator_to_array((new OracleConnectionSource())->select('SELECT 1 FROM dual'));
+    }
+
     public function test_an_oracle_number_below_one_gets_its_leading_zero(): void
     {
         $this->assertSame('0.5', OracleConnectionSource::normaliseValue('.5'));

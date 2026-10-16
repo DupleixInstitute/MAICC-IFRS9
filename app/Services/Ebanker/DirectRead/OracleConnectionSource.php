@@ -16,8 +16,9 @@ use Throwable;
  * Every statement runs inside its own SET TRANSACTION READ ONLY: a second guard beside the account's
  * own grants (data access request, section 6.1).
  *
- * Needs the Oracle driver (yajra/laravel-oci8 and PHP's oci8 extension with the Instant Client),
- * which is not installed yet; until it is, connecting fails with that said plainly.
+ * The driver is yajra/laravel-oci8; it also needs PHP's oci8 extension and the Oracle Instant Client
+ * on the server. composer.json declares ext-oci8 as a platform package so that installs succeed where
+ * the extension is absent; connecting there fails with that said plainly.
  */
 class OracleConnectionSource implements EbankerSource
 {
@@ -72,9 +73,17 @@ class OracleConnectionSource implements EbankerSource
         if ($this->db !== null) {
             return $this->db;
         }
-        $schema = (string) config('database.connections.' . self::CONNECTION . '.current_schema', '');
+        $config = config('database.connections.' . self::CONNECTION, []);
+        $missing = array_keys(array_filter(['EBANKER_DB_HOST' => $config['host'] ?? null, 'EBANKER_DB_SERVICE' => $config['service_name'] ?? null, 'EBANKER_DB_USERNAME' => $config['username'] ?? null], fn ($v) => (string) $v === ''));
+        if ($missing !== []) {
+            throw new DirectReadException('Route 4 cannot connect: ' . implode(', ', $missing) . ' not set in the environment file.');
+        }
+        $schema = (string) ($config['current_schema'] ?? '');
         if (! preg_match('/^[A-Z][A-Z0-9_$#]{0,29}$/', $schema)) {
             throw new DirectReadException("EBANKER_DB_SCHEMA '{$schema}' is not an Oracle schema name.");
+        }
+        if (! function_exists('oci_connect')) {
+            throw new DirectReadException("Route 4 cannot connect: PHP's oci8 extension is not loaded on this server (it needs the Oracle Instant Client).");
         }
         try {
             $db = DB::connection(self::CONNECTION);
@@ -83,7 +92,7 @@ class OracleConnectionSource implements EbankerSource
             $db->statement("ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '.,'");
             $db->statement('ALTER SESSION SET CURRENT_SCHEMA = ' . $schema);
         } catch (InvalidArgumentException $e) {
-            throw new DirectReadException('Route 4 cannot connect: the Oracle driver is not installed on this server (yajra/laravel-oci8 and the oci8 extension). ' . $e->getMessage());
+            throw new DirectReadException('Route 4 cannot connect: the Oracle database driver is not registered (yajra/laravel-oci8). ' . $e->getMessage());
         } catch (Throwable $e) {
             throw new DirectReadException('Route 4 cannot connect to E-Banker: ' . self::oracleError($e));
         }
