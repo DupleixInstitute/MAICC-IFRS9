@@ -200,7 +200,7 @@ Under route 1, the committed query files are what the pack sheets print for your
 | Will | Will not |
 |---|---|
 | Run the registered SELECT statements: 15 each month under route 4, from the 114 in the register after pack 10, all in MAIIC's copy of the repository | Write, change or delete any row |
-| Run once a month, on the first working day after month-end, between 06:00 and 07:00; the overdue table optionally daily | Run stored procedures, create objects or change settings |
+| Run once a month, by default at 06:00 on the first working day after month-end; MAIIC can choose another working day and time in the Governance Centre (section 6.2, step 5) | Run stored procedures, create objects or change settings |
 | Read a few megabytes a month: the loan accounts of the 18 MAIIC schemes and the 8 Mega Farm schemes, their ledger postings, balances, instalment charts, overdue computations and the trial balance | Read any table not in the annex. Within those tables, every registered query is filtered to the MAIIC and Mega Farm schemes, and Oracle's audit shows every statement run |
 | Connect from one named server on MAIIC's network, with the password held by MAIIC ICT and rotated on MAIIC's schedule | Connect from anywhere else, or be used by a person |
 
@@ -376,7 +376,7 @@ Route 4 uses a separate database connection called `ebanker` that reads only the
 
 This section is for MAIIC ICT, working on the IFRS 9 system's server (the MAIIC server the system is installed on), with Dupleix watching over AnyDesk. Nothing in it touches E-Banker. **Steps 1 to 5 need no account and can be done at the next release.** Steps 6 to 9 need the test account of section 6, steps 1 to 8, and step 10 is stage C.
 
-**Step 1. Pull the release.** Follow section 2.2: `git pull` on the server's clone, then **`composer install`**, because this release adds one library, the Oracle driver for the system (`yajra/laravel-oci8`), and then `php artisan migrate --force`. The release declares PHP's Oracle extension in the system's library settings, so `composer install` succeeds even before step 3. On the **production** database, also run `php artisan db:seed --class=EbankerQuerySeeder --force` once. It puts the 15 route 4 statements and their fingerprints into the register (section 4.2) and changes no figure. The bootstrap database does this for itself each time it is rebuilt.
+**Step 1. Pull the release.** Follow section 2.2: `git pull` on the server's clone, then **`composer install`**, because this release adds one library, the Oracle driver for the system (`yajra/laravel-oci8`), and then `php artisan migrate --force`. The release declares PHP's Oracle extension in the system's library settings, so `composer install` succeeds even before step 3. On the **production** database, also run `php artisan db:seed --class=EbankerQuerySeeder --force` and `php artisan db:seed --class=GovernanceSettingsSeeder --force` once. The first puts the 15 route 4 statements and their fingerprints into the register (section 4.2); the second adds the three settings of step 5 at their defaults and leaves every setting MAIIC has already approved as it is. Neither changes any figure. The bootstrap database does this for itself each time it is rebuilt.
 
 **Step 2. Install the Oracle Instant Client.** This is Oracle's free client library, which PHP needs in order to talk to an Oracle database.
 
@@ -393,7 +393,15 @@ This section is for MAIIC ICT, working on the IFRS 9 system's server (the MAIIC 
 - `php --ri oci8` must print the extension's details, including the Oracle client version.
 - `php artisan eir:ebanker-connection-test` must now say only that `EBANKER_DB_HOST`, `EBANKER_DB_SERVICE` and `EBANKER_DB_USERNAME` are not set. If it says *PHP's oci8 extension is not loaded*, the php.ini line or the `Path` is not yet in effect: check that step 3 edited the php.ini `php --ini` names, and that the window was opened after step 2.
 
-**Step 5. Check the schedule.** Route 4 runs from the system's own scheduler, `php artisan schedule:run` every minute, which the server already needs for route 2's folder poller (Task Scheduler on Windows, cron on Linux). `php artisan schedule:list` must show `eir:direct-read` at 06:00. It runs on the first weekday of each month and reads the month just ended. Until route 4 is the feed route in force (step 10) it is refused and reads nothing. The schedule does not know Malawi's public holidays, so on a holiday it runs all the same. A month can always be read by hand with `php artisan eir:direct-read 2026-11`.
+**Step 5. Check the schedule, and choose when route 4 reads.** Route 4 runs from the system's own scheduler, `php artisan schedule:run` every minute, which the server already needs for route 2's folder poller (Task Scheduler on Windows, cron on Linux). `php artisan schedule:list` must show `eir:direct-read`. It reads the month just ended, once a month, and MAIIC chooses when in the **Governance Centre, Data sources**:
+
+| Setting | Options | Default |
+|---|---|---|
+| *When route 4 reads E-Banker each month* | **At 06:00 on the first working day of the month**, or **On the working day and at the time set below** | At 06:00 on the first working day |
+| *Route 4: the working day of the month it reads on* | 1st to 5th working day | 1st working day |
+| *Route 4: the time it reads at* | Every hour, 00:00 to 23:00, on the server's clock | 06:00 |
+
+The second and third settings count only when the first is set to the working day and time set below, for example where MAIIC's month-end close or E-Banker's end-of-day runs late. Each change is proposed by one person and approved by a second, from an effective date, like every Governance Centre setting. **In UAT mode** (`php artisan governance:uat-mode on`, on a non-production server only) an administrator may approve their own change, and each such approval is recorded on the self-approvals report; on production a second person is always needed. Working days are Monday to Friday: the schedule does not know Malawi's public holidays, so on a holiday it runs all the same. Until route 4 is the feed route in force (step 10) the scheduled read is refused and reads nothing. A month can always be read by hand with `php artisan eir:direct-read 2026-11`.
 
 **Step 6. The test settings (stage B).** When the test account exists, open `.env.bootstrap` and fill in the six settings of section 6.1 for **E-Banker's test copy**: host, port, service name, `MAIIC_IFRS9_RO`, and the schema (`VGCBS` unless the vendor says the tables sit elsewhere). Type the password yourself. Then run `php artisan --env=bootstrap config:clear`.
 

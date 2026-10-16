@@ -165,6 +165,24 @@ class GovernanceService
                 'options' => ['Route 1: manual pack upload', 'Route 2: scheduled export to a folder', 'Route 3: push by API', 'Route 4: direct read over the VPN', 'Route 5: vendor view or API', \App\Services\Ebanker\FeedRoute::SEVERAL],
                 'default' => 'Route 1: manual pack upload',
             ],
+            \App\Services\Ebanker\DirectRead\DirectReadSchedule::TIMING => [
+                'label' => 'When route 4 reads E-Banker each month',
+                'description' => 'Route 4 reads the month just ended once a month, by the system\'s own scheduler. By default it reads at 06:00 on the first working day of the month, before the working day starts and while E-Banker is quiet (data access request of 16 October 2026, sections 5 and 6.2). The second option reads instead on the working day and at the time set in the next two settings, for example where MAIIC\'s month-end close or E-Banker\'s end-of-day runs later. Working days are Monday to Friday; public holidays are not known to the system. Read only while route 4 is the feed route in force; a month can always be read by hand (eir:direct-read). Spec v4 section 6.5.',
+                'options' => [\App\Services\Ebanker\DirectRead\DirectReadSchedule::AT_SIX, \App\Services\Ebanker\DirectRead\DirectReadSchedule::AS_SET],
+                'default' => \App\Services\Ebanker\DirectRead\DirectReadSchedule::AT_SIX,
+            ],
+            \App\Services\Ebanker\DirectRead\DirectReadSchedule::WORKING_DAY => [
+                'label' => 'Route 4: the working day of the month it reads on',
+                'description' => 'Which working day of the month route 4 reads on, counting Monday to Friday from the first of the month. Read only when "When route 4 reads E-Banker each month" is set to the working day and time set here. Spec v4 section 6.5.',
+                'options' => \App\Services\Ebanker\DirectRead\DirectReadSchedule::WORKING_DAYS,
+                'default' => \App\Services\Ebanker\DirectRead\DirectReadSchedule::WORKING_DAYS[0],
+            ],
+            \App\Services\Ebanker\DirectRead\DirectReadSchedule::TIME => [
+                'label' => 'Route 4: the time it reads at',
+                'description' => 'The time of day, on the server\'s clock, at which route 4 reads on the working day set above. Read only when "When route 4 reads E-Banker each month" is set to the working day and time set here. A read takes minutes; a time outside working hours keeps it clear of E-Banker\'s busy hours (data access request, section 4.2: ORA-01555). Spec v4 section 6.5.',
+                'options' => \App\Services\Ebanker\DirectRead\DirectReadSchedule::times(),
+                'default' => '06:00',
+            ],
             'loan_book_build_method' => [
                 'label' => 'How the monthly loan book is built',
                 'description' => 'All three methods read the landing zone and pass its gates, and the method used is recorded on every row (spec v4 section 6.2). Method A copies the stored Loan Book Report\'s latest run for each month as it is. Method B derives the row from the ledger and the masters, with E-Banker\'s own arrears fields, and covers every month from the take-on on one basis. Method C is the printed report uploaded as Excel through the importer MAIIC has always used, landed and date-checked. Open choice O8.',

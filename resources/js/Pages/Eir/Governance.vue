@@ -267,7 +267,7 @@ const AREAS = [
   { key: 'cashflows', label: 'Cash flows', description: 'Which records and schedules count as the contractual and expected cash flows.',
     keys: ['cash_source', 'manual_policy_handling', 'counter_reset_handling', 'contractual_record', 'expected_cashflow_basis', 'schedule_approval_control'] },
   { key: 'data', label: 'Data sources', description: 'Where the loan book, history and macro data come from, and which source wins.',
-    keys: ['history_before_dec_2025', 'ebanker_feed_route', 'loan_book_build_method', 'takeon_history_basis', 'macro_source_precedence'] },
+    keys: ['history_before_dec_2025', 'ebanker_feed_route', 'ebanker_direct_read_timing', 'ebanker_direct_read_working_day', 'ebanker_direct_read_time', 'loan_book_build_method', 'takeon_history_basis', 'macro_source_precedence'] },
   { key: 'accounting', label: 'Accounting & controls', description: 'Reconciliation tolerance, journals, exports, special balances and maker-checker.',
     keys: ['recon_tolerance', 'trueup_gl_account', 'auditor_export_format', 'fee_reclass_journal', 'historic_materiality_assessment', 'keyman_insurance_treatment', 'nascomex_preference_shares', 'maker_checker_admin_override', 'fee_gl_reconciliation'] },
   { key: 'staging', label: 'Staging', description: 'The staging policy in force and, under Custom, each rule: thresholds, the day count, Stage 3 triggers, rebuttals and cure.',
