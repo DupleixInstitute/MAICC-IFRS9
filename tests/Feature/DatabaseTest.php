@@ -3,24 +3,16 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 
 class DatabaseTest extends TestCase
 {
-    /**
-     * A basic feature test example.
-     *
-     * @return void
-     */
+    use RefreshDatabase;
+
+    /** The seeded database holds the installation's administrator and no one else by that name. */
     public function test_database()
     {
-       $this->assertDatabaseHas('users',[
-           'first_name'=> 'Admin'
-       ]);
-
-       $this->assertDatabaseMissing('users',[
-        'first_name'=> 'Lawine'
-    ]);
+        $this->assertDatabaseHas('users', ['email' => 'admin@localhost.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'lawine@localhost.com']);
     }
 }
