@@ -700,6 +700,8 @@ Route::post('/eir-schedules/{contractEir}/generate', [\App\Http\Controllers\EirS
 Route::post('/eir-schedules/{contractEir}/approve', [\App\Http\Controllers\EirScheduleController::class, 'approve'])->name('eir-schedules.approve');
 Route::get('/eir-reconciliation', [\App\Http\Controllers\EirReconciliationController::class, 'index'])->name('eir-reconciliation.index');
 Route::post('/eir-reconciliation/run-revenue', [\App\Http\Controllers\EirReconciliationController::class, 'runRevenue'])->name('eir-reconciliation.run-revenue');
+// restating a period already run, with a reason; every later period it voids is run again in order
+Route::post('/eir-reconciliation/recalculate-revenue', [\App\Http\Controllers\EirReconciliationController::class, 'recalculateRevenue'])->name('eir-reconciliation.recalculate-revenue');
 Route::get('/eir-coverage', [\App\Http\Controllers\EirCoverageController::class, 'index'])->name('eir-coverage.index');
 Route::get('/eir-reference-rates', [\App\Http\Controllers\EirReferenceRateController::class, 'index'])->name('eir-reference-rates.index');
 // Drawdowns and undrawn commitments (spec v3 section 7.6, phase P4).
@@ -747,6 +749,8 @@ Route::group(['prefix' => 'eir-calculations', 'as' => 'eir-calculations.'], func
     Route::post('/reopen-requests/{reopen}/approve', [\App\Http\Controllers\EirCalculationController::class, 'approveReopen'])->name('reopen.approve');
     Route::post('/reopen-requests/{reopen}/close', [\App\Http\Controllers\EirCalculationController::class, 'closeReopen'])->name('reopen.close');
     Route::post('/lock-reviews/{flag}/clear', [\App\Http\Controllers\EirCalculationController::class, 'clearReview'])->name('lock-review.clear');
+    // look over the locked EIRs for fee evidence they were not locked on (eir:lock-review --detect)
+    Route::post('/lock-reviews/detect', [\App\Http\Controllers\EirCalculationController::class, 'detectReviews'])->name('lock-review.detect');
 });
 
 // EIR Governance Centre (spec v3 section 8): every calculation convention as
@@ -1104,6 +1108,8 @@ Route::group(['prefix' => 'eir-restructures', 'as' => 'eir-restructures.'], func
     Route::post('/detect', [\App\Http\Controllers\EirRestructureController::class, 'detect'])->name('detect');
     Route::post('/resets/propose', [\App\Http\Controllers\EirRestructureController::class, 'proposeResets'])->name('resets.propose');
     Route::post('/resets/approve', [\App\Http\Controllers\EirRestructureController::class, 'approveResets'])->name('resets.approve');
+    // a Reset version of the schedule at each prime-rate reset (eir:build-reset-schedules)
+    Route::post('/resets/build', [\App\Http\Controllers\EirRestructureController::class, 'buildResets'])->name('resets.build');
     Route::post('/resets/{id}/close', [\App\Http\Controllers\EirRestructureController::class, 'closeReset'])->name('resets.close');
     Route::post('/{id}/propose', [\App\Http\Controllers\EirRestructureController::class, 'propose'])->name('propose');
     Route::post('/{id}/approve', [\App\Http\Controllers\EirRestructureController::class, 'approve'])->name('approve');

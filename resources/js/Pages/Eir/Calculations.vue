@@ -7,6 +7,8 @@
       </div>
     </template>
     <template #actions>
+      <button v-if="canReopen" type="button" class="secondary-btn" :disabled="detectingReviews"
+              title="Look over every locked EIR for fee evidence it was not locked on; a flag never reopens anything" @click="detectReviews">{{ detectingReviews ? 'Checking...' : 'Check locked EIRs' }}</button>
       <button v-if="selected.length && canCalculate" type="button" class="secondary-btn" @click="calculate">Calculate selected ({{ selected.length }})</button>
       <button v-if="readyIds.length && canCalculate && !selected.length" type="button" class="secondary-btn" :disabled="calculatingReady"
               title="Every contract whose readiness reports no blocker and that is not yet calculated" @click="calculateReady">{{ calculatingReady ? 'Calculating...' : `Calculate all ready (${readyIds.length})` }}</button>
@@ -212,7 +214,7 @@ export default {
     errors: { type: Object, default: () => ({}) },
   },
   data() {
-    return { calculatingReady: false,
+    return { calculatingReady: false, detectingReviews: false,
       statuses: ['PENDING', 'REOPENED', 'BLOCKED', 'CALCULATED', 'LOCKED'],
       selected: [],
       bulkApproving: false,
@@ -306,6 +308,10 @@ export default {
         tone: 'danger',
       }))) return
       this.$inertia.post(this.route('eir-calculations.reopen.approve', r.id), {}, { preserveScroll: true })
+    },
+    detectReviews() {
+      this.detectingReviews = true
+      this.$inertia.post(this.route('eir-calculations.lock-review.detect'), {}, { preserveScroll: true, onFinish: () => { this.detectingReviews = false } })
     },
     async clearReview(r) {
       const reason = await promptReason({ title: `Clear the review flag on ${r.contract_id}`, message: 'Say why the locked EIR stands: for example the fee was considered, or the posting is not the fee of this loan. It is kept in the audit trail.', confirmLabel: 'Clear the flag' })

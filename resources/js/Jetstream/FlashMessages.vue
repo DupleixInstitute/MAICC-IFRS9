@@ -26,6 +26,33 @@
             </button>
         </div>
     </div>
+
+    <!-- Every error also opens as a modal, so it is seen wherever the page is scrolled or a dialog is open:
+         a refusal the system returns (flash error) and the things a form must correct (validation).
+         The box above stays as a reminder after the modal is closed. -->
+    <teleport to="body">
+        <div v-if="errorDialog" class="fixed inset-0 z-[70] flex items-center justify-center p-4" role="alertdialog" aria-modal="true" :aria-label="errorDialog.title">
+            <div class="absolute inset-0 bg-slate-900/50" @click="errorDialog = null"></div>
+            <div class="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-800">
+                <div class="flex items-start gap-4 p-6">
+                    <div class="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-red-100 dark:bg-red-900/40">
+                        <svg class="h-6 w-6 text-red-600 dark:text-red-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-lg font-extrabold text-gray-900 dark:text-slate-100">{{ errorDialog.title }}</h3>
+                        <p v-if="errorDialog.text" class="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-gray-600 dark:text-slate-300">{{ errorDialog.text }}</p>
+                        <ul v-if="errorDialog.list && errorDialog.list.length" class="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600 dark:text-slate-300">
+                            <li v-for="(item, i) in errorDialog.list" :key="i">{{ item }}</li>
+                        </ul>
+                        <p class="mt-3 text-xs text-gray-500 dark:text-slate-400">Nothing was changed by the part that failed.</p>
+                    </div>
+                </div>
+                <div class="flex justify-end bg-gray-50 px-6 py-4 dark:bg-slate-900/60">
+                    <button type="button" class="rounded-lg bg-maiic-600 px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-maiic-700" @click="errorDialog = null">OK, got it</button>
+                </div>
+            </div>
+        </div>
+    </teleport>
 </template>
 
 <script>
@@ -65,7 +92,17 @@ export default {
         return {
             styles: STYLES,
             dismissed: {},
+            errorDialog: null,
         }
+    },
+    mounted() {
+        // a page reached by a redirect carries its error on first render
+        this.openErrorDialog()
+        this.onKey = (e) => { if (e.key === 'Escape') this.errorDialog = null }
+        document.addEventListener('keydown', this.onKey)
+    },
+    beforeUnmount() {
+        document.removeEventListener('keydown', this.onKey)
     },
     computed: {
         flash() {
@@ -109,17 +146,24 @@ export default {
         '$page.props.flash': {
             handler() {
                 this.dismissed = {}
+                this.openErrorDialog()
             },
             deep: true,
         },
         '$page.props.errors': {
             handler() {
                 this.dismissed = {}
+                this.openErrorDialog()
             },
             deep: true,
         },
     },
     methods: {
+        /** The error of this response, if any, as a modal (the same words as the box). */
+        openErrorDialog() {
+            const error = this.messages.find((m) => m.type === 'error')
+            this.errorDialog = error ? { title: error.title, text: error.text || null, list: error.list || [] } : null
+        },
         dismiss(type) {
             this.dismissed = { ...this.dismissed, [type]: true }
         },

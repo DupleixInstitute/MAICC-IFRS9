@@ -141,7 +141,7 @@
                 <tbody>
                   <tr v-for="p in pageOf(periods, 'periods')" :key="p.reporting_period + p.build_method">
                     <td>{{ p.reporting_period }}</td><td>{{ p.build_method }}</td><td class="num">{{ fmt(p.n) }}</td><td class="num">{{ fmt(p.flagged) }}</td>
-                    <td><span v-if="locks.includes(p.reporting_period)" class="maiic-badge maiic-badge-grey">Locked</span><span v-else class="text-xs text-gray-500 dark:text-slate-400">Open</span></td>
+                    <td><span v-if="locks.includes(p.reporting_period)" class="maiic-badge maiic-badge-grey">Locked</span><span v-else class="text-xs text-gray-500 dark:text-slate-400">Open<template v-if="runOfRecord[p.reporting_period] && runOfRecord[p.reporting_period].pre_run_records"> · no run record</template></span></td>
                     <td v-if="canGovern" class="text-right">
                       <span v-if="unlockRequested(p.reporting_period)" class="text-xs text-amber-700">Unlock requested</span>
                       <button v-else type="button" class="maiic-action maiic-action-neutral" :title="(locks.includes(p.reporting_period) ? 'Request the unlock of ' : 'Lock ') + p.reporting_period" @click="openLock(p.reporting_period)">
@@ -253,13 +253,29 @@
         <h3 class="text-lg font-semibold text-gray-900">{{ lockForm.unlock ? 'Request the unlock of' : 'Lock' }} {{ lockForm.period }}</h3>
         <p class="mt-2 text-sm text-gray-600" v-if="!lockForm.unlock">A locked period is never restated: the loan book build, staging, the PD, the LGD, the forward-looking route, the ECL, the revenue roll-forward and write-offs all refuse to write it. The governance values in force are kept with the lock.</p>
         <p class="mt-2 text-sm text-gray-600" v-else>Unlocking lets the period be restated, so it is not one person's act: this records the request with its reason, and the period stays locked until a different person with EIR governance approves it. Give the approval for the restatement as the reason.</p>
+        <!-- the run whose figures the lock reports (run records, Staging Module Specification v1 section 8.8) -->
+        <template v-if="!lockForm.unlock && lockStatus">
+          <p v-if="lockStatus.ok && lockStatus.run_id" class="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+            The lock names run {{ lockStatus.run_id }}, the month-end run whose figures the month reports.
+          </p>
+          <div v-else-if="!lockStatus.ok && lockStatus.pre_run_records" class="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            <p>This month has no run record: it was computed before run records existed, so a lock cannot name the run behind its figures.</p>
+            <label class="mt-2 flex items-start gap-2">
+              <input v-model="lockForm.withoutRunRecord" type="checkbox" class="mt-0.5 rounded border-gray-300">
+              <span>Lock it without a run record. The lock and the audit log say so; the reason must explain it (at least 20 characters).</span>
+            </label>
+          </div>
+          <p v-else-if="!lockStatus.ok" class="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+            {{ lockStatus.message }}
+          </p>
+        </template>
         <label class="mt-4 block"><span class="maiic-flabel">Reason (written to the audit log)</span>
           <textarea v-model="lockForm.reason" rows="3" class="maiic-input" minlength="10" maxlength="500" required></textarea>
         </label>
         <p v-if="$page.props.errors.reason" class="mt-1 text-xs text-red-600">{{ $page.props.errors.reason }}</p>
         <div class="mt-6 flex justify-end gap-2">
           <button type="button" class="secondary-btn" :disabled="locking" @click="lockForm.period = null">Cancel</button>
-          <button type="submit" class="primary-btn" :disabled="locking || lockForm.reason.trim().length < 10">{{ locking ? 'Saving...' : (lockForm.unlock ? 'Request the unlock' : 'Lock the period') }}</button>
+          <button type="submit" class="primary-btn" :disabled="locking || !lockAllowed">{{ locking ? 'Saving...' : (lockForm.unlock ? 'Request the unlock' : (lockForm.withoutRunRecord ? 'Lock without a run record' : 'Lock the period')) }}</button>
         </div>
       </form>
     </jet-modal>
@@ -277,15 +293,22 @@ import { promptReason } from '@/Components/Maiic/promptReason.js'
 
 export default {
   components: { AppLayout, JetModal, LocalPager, ImportSpecPanel },
-  props: { tab: { type: String, default: 'loads' }, tabCounts: Object, loads: Array, queries: Array, builds: Array, periods: Array, routeInForce: String, methodInForce: String, locks: Array, unlockRequests: { type: Array, default: () => [] }, lastLedgerDate: String, canGovern: Boolean, me: Number },
+  props: { tab: { type: String, default: 'loads' }, tabCounts: Object, loads: Array, queries: Array, builds: Array, periods: Array, routeInForce: String, methodInForce: String, locks: Array, runOfRecord: { type: Object, default: () => ({}) }, unlockRequests: { type: Array, default: () => [] }, lastLedgerDate: String, canGovern: Boolean, me: Number },
   data() {
     return {
       open: null, querySearch: '',
       page: { loads: 1, builds: 1, periods: 1, queries: 1 },
-      packFile: null, packDryRun: false, packOpen: false, buildOpen: false, landing: false, building: false, locking: false, lockForm: { period: null, unlock: false, reason: '' }, build: { from: '', to: '', method: '', retire_stale: false },
+      packFile: null, packDryRun: false, packOpen: false, buildOpen: false, landing: false, building: false, locking: false, lockForm: { period: null, unlock: false, reason: '', withoutRunRecord: false }, build: { from: '', to: '', method: '', retire_stale: false },
     }
   },
   computed: {
+    lockStatus() { return this.lockForm.period ? (this.runOfRecord[this.lockForm.period] || null) : null },
+    /** a lock names its run of record; without one only by an explicit choice, for a month before run records, with a longer reason */
+    lockAllowed() {
+      const reason = this.lockForm.reason.trim().length
+      if (this.lockForm.unlock || !this.lockStatus || this.lockStatus.ok) return reason >= 10
+      return this.lockStatus.pre_run_records && this.lockForm.withoutRunRecord && reason >= 20
+    },
     filteredQueries() {
       const s = this.querySearch.trim().toLowerCase()
       if (!s) return this.queries
@@ -307,11 +330,11 @@ export default {
       router.post(route('eir-feed.build'), this.build, { preserveScroll: true, onFinish: () => { this.building = false; this.buildOpen = false } })
     },
     openLock(period) {
-      this.lockForm = { period, unlock: this.locks.includes(period), reason: '' }
+      this.lockForm = { period, unlock: this.locks.includes(period), reason: '', withoutRunRecord: false }
     },
     submitLock() {
       this.locking = true
-      router.post(route('eir-feed.lock-period', this.lockForm.period), { reason: this.lockForm.reason, unlock: this.lockForm.unlock ? 1 : 0 }, { preserveScroll: true, onSuccess: () => { this.lockForm.period = null }, onFinish: () => { this.locking = false } })
+      router.post(route('eir-feed.lock-period', this.lockForm.period), { reason: this.lockForm.reason, unlock: this.lockForm.unlock ? 1 : 0, without_run_record: this.lockForm.withoutRunRecord && !this.lockForm.unlock ? 1 : 0 }, { preserveScroll: true, onSuccess: () => { this.lockForm.period = null }, onFinish: () => { this.locking = false } })
     },
     unlockRequested(period) { return this.unlockRequests.some(r => r.period === period) },
     async approveUnlock(r) {

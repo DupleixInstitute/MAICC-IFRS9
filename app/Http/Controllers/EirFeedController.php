@@ -73,6 +73,8 @@ class EirFeedController extends Controller
             'loads' => $loads, 'queries' => $queries->map(fn ($q) => (array) $q + ['rows' => (int) ($rowsByQuery[$q->query_id]->n ?? 0), 'last_date' => $rowsByQuery[$q->query_id]->last_date ?? null]),
             'builds' => $builds, 'periods' => $periods, 'routeInForce' => $route, 'methodInForce' => $method,
             'locks' => DB::table('reporting_period_locks')->orderBy('reporting_period')->pluck('reporting_period'),
+            // whether each open month has a run of record a lock would name (Staging Module Specification v1, section 8.8, item 3)
+            'runOfRecord' => $this->runOfRecordStatus($periods->pluck('reporting_period')->unique()->values()->all()),
             // unlocks requested by one person and awaiting a second (PeriodUnlockService)
             'unlockRequests' => app(\App\Services\Eir\PeriodUnlockService::class)->pending(),
             'lastLedgerDate' => (new \App\Services\Ebanker\LandingZoneReader())->lastLedgerDate(),
@@ -178,19 +180,71 @@ class EirFeedController extends Controller
     public function lockPeriod(Request $request, string $period)
     {
         abort_unless((bool) preg_match('/^\d{4}-\d{2}$/', $period), 404);
-        $data = $request->validate(['reason' => ['required', 'string', 'min:10', 'max:500'], 'unlock' => ['nullable', 'boolean']]);
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:500'], 'unlock' => ['nullable', 'boolean'],
+            // a month computed before run records existed: an explicit choice, never the default
+            'without_run_record' => ['nullable', 'boolean'],
+        ]);
         $unlock = (bool) ($data['unlock'] ?? false);
+        $withoutRun = ! $unlock && (bool) ($data['without_run_record'] ?? false);
         if (! $unlock && ! DB::table('loan_books')->where('reporting_period', $period)->exists()) {
             return back()->with('error', "Period {$period} has no loan book; there is nothing to lock.");
+        }
+        if ($withoutRun) {
+            // only for a month no month-end or bootstrap run ever completed; where one did and a screen run changed
+            // the month since, the answer is to run the month-end job again, not to lock past the record
+            $status = $this->runOfRecordStatus([$period])[$period];
+            if (! $status['pre_run_records']) {
+                return back()->with('error', "Period {$period} has a month-end run on record, so it is locked from its run, not without one. " . ($status['message'] ?? ''));
+            }
+            if (mb_strlen(trim($data['reason'])) < 20) {
+                return back()->withErrors(['reason' => 'A lock without a run record needs a reason of at least 20 characters saying why: for example that the month was computed before run records existed.']);
+            }
         }
         $args = ['period' => $period, '--user' => $request->user()->id, '--reason' => trim($data['reason'])];
         if ($unlock) {
             $args['--unlock'] = true;
         }
+        if ($withoutRun) {
+            $args['--without-run-record'] = true;
+        }
         $code = \Illuminate\Support\Facades\Artisan::call('eir:lock-period', $args);
         $out = trim(\Illuminate\Support\Facades\Artisan::output());
 
         return back()->with($code === 0 ? 'success' : 'error', $out !== '' ? $out : ($code === 0 ? "Period {$period} updated." : "Period {$period} could not be updated."));
+    }
+
+    /**
+     * For each month, whether a lock can name its run of record: ok with the run, or why not, and
+     * whether the month predates run records (no completed month-end or bootstrap run at all), the
+     * only case a lock without a run record is offered for.
+     *
+     * @param  list<string>  $periods
+     * @return array<string, array{ok: bool, run_id: ?int, pre_run_records: bool, message: ?string}>
+     */
+    private function runOfRecordStatus(array $periods): array
+    {
+        $out = [];
+        $available = \App\Services\RunRecordService::available();
+        $runs = app(\App\Services\RunRecordService::class);
+        foreach ($periods as $period) {
+            $period = (string) $period;
+            if (! $available) {
+                // a database not yet migrated locks as it did before run records
+                $out[$period] = ['ok' => true, 'run_id' => null, 'pre_run_records' => false, 'message' => null];
+                continue;
+            }
+            try {
+                $out[$period] = ['ok' => true, 'run_id' => (int) $runs->runOfRecord($period)->id, 'pre_run_records' => false, 'message' => null];
+            } catch (\LogicException $e) {
+                $everRun = DB::table('run_records')->where('reporting_period', $period)
+                    ->whereIn('kind', [\App\Services\RunRecordService::MONTH_END, \App\Services\RunRecordService::BOOTSTRAP])
+                    ->where('status', \App\Services\RunRecordService::COMPLETED)->exists();
+                $out[$period] = ['ok' => false, 'run_id' => null, 'pre_run_records' => ! $everRun, 'message' => $e->getMessage()];
+            }
+        }
+
+        return $out;
     }
 
     /** A second person approves an unlock request, and the lock is removed (PeriodUnlockService). */

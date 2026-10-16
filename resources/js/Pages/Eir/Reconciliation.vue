@@ -53,6 +53,11 @@
               </p>
             </div>
             <div class="flex shrink-0 flex-wrap gap-2">
+              <button v-if="revenueReadiness.rows_for_period" type="button" class="secondary-btn"
+                      :disabled="running" :title="`Restate ${period} with a reason, and run every later period again`"
+                      @click="openRecalc">
+                Recalculate {{ period }}…
+              </button>
               <button type="button" class="secondary-btn" :disabled="running || !revenueReadiness.locked_contracts"
                       @click="runRevenue('period')">
                 Run {{ period }} only
@@ -96,9 +101,15 @@
           <div v-if="revenueRun.status === 'REFUSED'">{{ revenueRun.message }}</div>
           <template v-else>
             <div class="font-semibold text-gray-900">
-              Ran {{ revenueRun.periods_run.length }} period(s): {{ revenueRun.periods_run.join(', ') }}
+              {{ revenueRun.recalculation ? 'Recalculated' : 'Ran' }} {{ revenueRun.periods_run.length }} period(s): {{ revenueRun.periods_run.join(', ') }}
+            </div>
+            <div v-if="revenueRun.recalculation" class="mt-1">
+              {{ revenueRun.contracts ? revenueRun.contracts.length + ' loan(s): ' + revenueRun.contracts.join(', ') : 'Every loan with a locked EIR' }}.
+              Reason: {{ revenueRun.reason }}. The rows replaced are kept in the amortisation history.
             </div>
             <div class="mt-1 flex flex-wrap gap-x-5 gap-y-1">
+              <span v-if="revenueRun.recalculation">Rows replaced: <strong>{{ revenueRun.totals.superseded_rows }}</strong></span>
+              <span v-if="revenueRun.recalculation">Loans restated: <strong>{{ revenueRun.totals.recalculated }}</strong></span>
               <span>Rows created: <strong>{{ revenueRun.totals.created }}</strong></span>
               <span>Already calculated: <strong>{{ revenueRun.totals.unchanged }}</strong></span>
               <span>Blocked: <strong>{{ revenueRun.totals.blocked }}</strong></span>
@@ -272,6 +283,38 @@
         </div>
       </template>
     </div>
+
+    <!-- Restating a period already run: the reason is required, and every later period it voids is run again -->
+    <JetModal :show="recalc.open" max-width="2xl" @close="recalc.open = false">
+      <form class="p-6" @submit.prevent="submitRecalc">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Recalculate the revenue of {{ period }}</h3>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+          The rows of {{ period }} are replaced, and so is every later month of the same loans, because each opening
+          balance is the prior closing. The months are run again in order in the same action:
+          <strong>{{ revenueReadiness.restated_by_recalculation.join(', ') || period }}</strong>.
+          The rows replaced are kept in the amortisation history with your reason, and the run is in the audit log.
+        </p>
+        <Notice v-if="revenueReadiness.locked_from_period.length" id="recalc-locked" tone="danger" :remember="false" class="mt-3">
+          {{ revenueReadiness.locked_from_period.join(', ') }} {{ revenueReadiness.locked_from_period.length === 1 ? 'is' : 'are' }} locked,
+          so the recalculation will be refused. Unlock first on Imports &amp; Feeds, Periods Built (a second person approves).
+        </Notice>
+        <label class="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-200">Why it is recalculated (at least 20 characters)</label>
+        <textarea v-model="recalc.reason" rows="3" minlength="20" maxlength="500" required
+                  class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                  placeholder="For example: fees of Mthirakuwiri 077 and 110 corrected and the EIRs locked again, minute of 15 October 2026"></textarea>
+        <label class="mt-3 block text-sm font-medium text-gray-700 dark:text-gray-200">Loans (optional)</label>
+        <input v-model="recalc.loans" type="text"
+               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+               placeholder="Loan accounts separated by commas; leave empty for every loan with a locked EIR">
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="secondary-btn" :disabled="running" @click="recalc.open = false">Cancel</button>
+          <button type="submit" class="primary-btn !bg-red-600 hover:!bg-red-700"
+                  :disabled="running || recalc.reason.trim().length < 20 || revenueReadiness.locked_from_period.length > 0">
+            {{ running ? 'Recalculating…' : 'Recalculate' }}
+          </button>
+        </div>
+      </form>
+    </JetModal>
   </app-layout>
 </template>
 
@@ -284,6 +327,7 @@ import DownloadButton from '@/Pages/Reports/Partials/DownloadButton.vue'
 import RowPager from '@/Components/Maiic/RowPager.vue'
 import PageTabs from '@/Components/Maiic/PageTabs.vue'
 import Notice from '@/Components/Maiic/Notice.vue'
+import JetModal from '@/Jetstream/Modal.vue'
 
 const props = defineProps({
   period: { type: String, default: null },
@@ -293,7 +337,7 @@ const props = defineProps({
   rows: { type: Array, default: () => [] },
   bridge: { type: Object, required: true },
   summary: { type: Object, required: true },
-  revenueReadiness: { type: Object, default: () => ({ locked_contracts: 0, calculated_periods: 0, rows_for_period: 0, missing_periods: [], first_period: null }) },
+  revenueReadiness: { type: Object, default: () => ({ locked_contracts: 0, calculated_periods: 0, rows_for_period: 0, missing_periods: [], first_period: null, restated_by_recalculation: [], locked_from_period: [] }) },
   revenueRun: { type: Object, default: null },
 })
 
@@ -321,6 +365,17 @@ const runRevenue = (mode) => {
   router.post(route('eir-reconciliation.run-revenue'),
     { period: props.period, portfolio: form.portfolio, mode },
     { preserveScroll: true, onFinish: () => { running.value = false } })
+}
+
+/** Restating a period already run (recalculateRevenue): a reason, and optionally only some loans. */
+const recalc = reactive({ open: false, reason: '', loans: '' })
+const openRecalc = () => { recalc.reason = ''; recalc.loans = ''; recalc.open = true }
+const submitRecalc = () => {
+  running.value = true
+  const contractIds = recalc.loans.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean)
+  router.post(route('eir-reconciliation.recalculate-revenue'),
+    { period: props.period, portfolio: form.portfolio, reason: recalc.reason.trim(), contract_ids: contractIds },
+    { preserveScroll: true, onSuccess: () => { recalc.open = false }, onFinish: () => { running.value = false } })
 }
 
 const money = (v) => {

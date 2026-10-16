@@ -135,6 +135,49 @@ class RunRecordsTest extends TestCase
         $this->assertNull(DB::table('reporting_period_locks')->where('reporting_period', '2026-06')->value('run_record_id'));
     }
 
+    /** A person with EIR governance, on the Periods Built screen. */
+    private function governor(): User
+    {
+        $u = User::create(['name' => 'Finance manager', 'email' => uniqid() . '@example.com', 'password' => bcrypt('x')]);
+        $u->givePermissionTo(Permission::findOrCreate('eir.view', 'web'), Permission::findOrCreate('eir.govern', 'web'));
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return $u->fresh();
+    }
+
+    public function test_the_screen_locks_a_month_before_run_records_only_by_the_explicit_choice_and_a_full_reason(): void
+    {
+        $this->bookRow('2026-06');
+        DB::table('loan_books')->where('reporting_period', '2026-06')->update(['build_method' => 'EXTRACT_A']); // Periods Built lists built months
+        $who = $this->governor();
+        $this->actingAs($who)->get(route('eir-feed.index', ['tab' => 'periods']))->assertOk()
+            ->assertInertia(fn ($page) => $page->where('runOfRecord.2026-06.ok', false)->where('runOfRecord.2026-06.pre_run_records', true));
+
+        $this->actingAs($who)->post(route('eir-feed.lock-period', '2026-06'), ['reason' => 'June reported to the Board'])->assertSessionHas('error');
+        $this->assertFalse(DB::table('reporting_period_locks')->where('reporting_period', '2026-06')->exists(), 'the normal lock still needs a run of record');
+
+        $this->actingAs($who)->post(route('eir-feed.lock-period', '2026-06'), ['reason' => 'Before runs', 'without_run_record' => 1])->assertSessionHasErrors('reason');
+        $this->assertFalse(DB::table('reporting_period_locks')->where('reporting_period', '2026-06')->exists());
+
+        $this->actingAs($who)->post(route('eir-feed.lock-period', '2026-06'), ['reason' => 'Computed before run records existed; reported to the Board', 'without_run_record' => 1])
+            ->assertSessionHas('success');
+        $lock = DB::table('reporting_period_locks')->where('reporting_period', '2026-06')->first();
+        $this->assertNotNull($lock);
+        $this->assertNull($lock->run_record_id, 'the lock names no run, and says so');
+    }
+
+    public function test_the_screen_refuses_to_lock_past_a_run_of_record_a_screen_run_changed(): void
+    {
+        $this->bookRow('2026-09');
+        $this->monthEnd('2026-09');
+        RunContext::engine('2026-09', 'ECL', $this->user->id, fn () => true); // changed by hand afterwards
+        $who = $this->governor();
+
+        $this->actingAs($who)->post(route('eir-feed.lock-period', '2026-09'), ['reason' => 'Computed before run records existed; reported to the Board', 'without_run_record' => 1])
+            ->assertSessionHas('error', fn ($m) => str_contains($m, 'has a month-end run on record'));
+        $this->assertFalse(DB::table('reporting_period_locks')->where('reporting_period', '2026-09')->exists(), 'run the month-end again instead');
+    }
+
     public function test_settings_in_force_and_what_changed(): void
     {
         $this->bookRow('2026-08');
