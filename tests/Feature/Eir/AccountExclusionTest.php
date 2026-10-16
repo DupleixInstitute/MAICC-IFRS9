@@ -237,6 +237,27 @@ class AccountExclusionTest extends TestCase
         $this->assertCount(12, $again['already']);
     }
 
+    public function test_the_screen_lists_the_register_and_proposes_through_the_service(): void
+    {
+        foreach (['eir.view', 'eir.govern'] as $p) {
+            \Spatie\Permission\Models\Permission::findOrCreate($p, 'web');
+        }
+        $this->maker->givePermissionTo(['eir.view', 'eir.govern']);
+        $this->checker->givePermissionTo(['eir.view', 'eir.govern']);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        [$this->maker, $this->checker] = [$this->maker->fresh(), $this->checker->fresh()];
+
+        $this->actingAs($this->maker)->post(route('account-exclusions.store'), ['contract_id' => self::UAT, 'category' => 'UAT_TEST_ACCOUNT',
+            'reason' => 'A UAT test account of the E-Banker vendor', 'evidence' => 'ACCOUNT_STATUS_HISTORY row 13361'])->assertSessionHas('success');
+        $id = (int) DB::table('account_exclusions')->value('id');
+        // the proposer is refused, the message shown as the error modal
+        $this->actingAs($this->maker)->post(route('account-exclusions.approve', $id))->assertSessionHas('error');
+        $this->flushSession(); // a second person signs in: the session of the first is not theirs
+        $this->actingAs($this->checker)->get(route('account-exclusions.index'))->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Eir/AccountExclusions/Index')->has('register', 1)->where('register.0.contract_id', self::UAT)
+                ->where('register.0.status', 'PROPOSED')->where('summary.proposed', 1));
+    }
+
     public function test_the_register_is_carried_by_the_decisions_pack(): void
     {
         config(['approvals.require_evidence' => false]);
