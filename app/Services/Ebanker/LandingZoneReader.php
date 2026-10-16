@@ -245,11 +245,15 @@ class LandingZoneReader
      * the one closest to the truth and is preferred (section 6) — but only
      * once the fields that should never move for a closed month (the
      * carrying amount, the total overdue amount, the overdue-principal
-     * date) actually agree across every pull on record. When they do not,
-     * something more than ageing drift is going on, so the build does not
-     * guess: it keeps the pre-fix choice (the latest pull) and flags the
-     * disagreement on the row for a person to look at (section 6.1), via
-     * the 'pick_conflict' key callers fold into their own build flag.
+     * date) actually agree across every pull on record, and only among the
+     * pulls whose own arrears buckets are not internally nonsensical (every
+     * bucket nil although that same pull's own total overdue amount is not
+     * — a second, distinct E-Banker defect the 16 October 2026 December
+     * 2025 workbook validation surfaced, section 6.1). When the pulls
+     * genuinely disagree, or none of them has buckets worth trusting, the
+     * build does not guess: it keeps the pre-fix choice (the latest pull)
+     * and flags it on the row for a person to look at, via the
+     * 'pick_conflict' key callers fold into their own build flag.
      */
     public function latestRunsOn(string $monthEnd): array
     {
@@ -261,7 +265,7 @@ class LandingZoneReader
         return array_map($this->pickRun(...), $byAccount);
     }
 
-    /** Among one account's candidate pulls for a month-end, the earliest once the stable fields agree (section 6.1). */
+    /** Among one account's candidate pulls for a month-end, the earliest whose buckets are worth trusting, once the stable fields agree (section 6.1). */
     private function pickRun(array $rows): array
     {
         if (count($rows) === 1) {
@@ -273,20 +277,48 @@ class LandingZoneReader
             return $this->highestSourceKey($rows);
         }
         usort($dated, fn ($a, $b) => [$this->pullDate($a), (int) $a['source_key']] <=> [$this->pullDate($b), (int) $b['source_key']]);
-        $earliest = reset($dated);
+        $earliestAny = reset($dated);
         foreach ($rows as $row) {
-            if (! self::stableFieldsAgree($earliest['payload'], $row['payload'])) {
-                $conflicted = $this->highestSourceKey($rows);
-                $conflicted['pick_conflict'] = sprintf(
+            if (! self::stableFieldsAgree($earliestAny['payload'], $row['payload'])) {
+                return $this->flaggedConflict($rows, sprintf(
                     '%d pulls on record for this month-end disagree on the carrying amount, the total overdue amount or the overdue-principal date; the latest pull is kept pending review (Loan Book Report Point-in-Time Specification v1, section 6.1)',
                     count($rows)
-                );
-
-                return $conflicted;
+                ));
             }
         }
+        $reliable = array_values(array_filter($dated, fn ($row) => ! self::bucketsLookBroken($row['payload'])));
+        if ($reliable === []) {
+            return $this->flaggedConflict($rows, sprintf(
+                'every one of the %d pulls on record for this month-end reports its arrears buckets as nil although its own total overdue amount is not; the latest pull is kept pending review (Loan Book Report Point-in-Time Specification v1, section 6.1)',
+                count($rows)
+            ));
+        }
 
-        return $earliest;
+        return reset($reliable);
+    }
+
+    /** The pre-fix choice (the latest pull), flagged rather than silently trusted (section 6.1). */
+    private function flaggedConflict(array $rows, string $note): array
+    {
+        $conflicted = $this->highestSourceKey($rows);
+        $conflicted['pick_conflict'] = $note;
+
+        return $conflicted;
+    }
+
+    /**
+     * Whether a pull's own arrears buckets are nil although that same pull's own total overdue
+     * amount is not: an internal contradiction within one pull, not a disagreement between pulls,
+     * so stableFieldsAgree (which never looks at the buckets) cannot catch it. Found on the Loan
+     * Book Report's re-runs for several Mega Farm accounts, scattered through 2026 with no
+     * time-based pattern, on the December 2025 workbook validation of 16 October 2026.
+     */
+    private static function bucketsLookBroken(array $payload): bool
+    {
+        $buckets = self::payloadNum($payload, 'DAY_1_30') + self::payloadNum($payload, 'DAY_31_91') + self::payloadNum($payload, 'DAY_91_180')
+            + self::payloadNum($payload, 'DAY_181_270') + self::payloadNum($payload, 'DAY_271_360');
+
+        return $buckets < 0.01 && self::payloadNum($payload, 'ARREAS_TOTAL') > 0.01;
     }
 
     /** The date a Loan Book Report pull was actually run (TRANSACTION_DATE), not the ASONDATE it was asked about. */

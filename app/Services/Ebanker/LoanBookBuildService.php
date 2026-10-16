@@ -403,6 +403,7 @@ class LoanBookBuildService
             return $rows;
         }
         $master = $this->zone->accountMaster();
+        $priorOverdueDates = $this->priorOverdueDates($monthEnd);
         $rows = [];
         foreach ($runs as $account => $run) {
             $p = $run['payload'];
@@ -412,10 +413,13 @@ class LoanBookBuildService
             $arrears = $this->arrears($p);
             [$dpd, $odDate, $dpdFlag, $stagingDpd, $stagingBasis, $dpdCounts] = $this->daysPastDue($p, $monthEnd, $arrears, $this->date($p['MATURITY_DATE'] ?? ''), $this->num($p['CARRYING_AMOUNT'] ?? 0), $account);
             $pickFlag = $run['pick_conflict'] ?? null;
+            $contractId = ltrim($account, '0');
+            $createDate = $this->date($p['VALUE_DATE'] ?? '');
+            $jumpFlag = $this->overdueDateJumpFlag($contractId, $odDate, $createDate, $priorOverdueDates);
             $rows[] = $this->row([
-                'contract_id' => ltrim($account, '0'), 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
+                'contract_id' => $contractId, 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
                 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl, 'funding_source' => $fund,
-                'create_date' => $this->date($p['VALUE_DATE'] ?? ''), 'due_date' => $this->date($p['MATURITY_DATE'] ?? ''),
+                'create_date' => $createDate, 'due_date' => $this->date($p['MATURITY_DATE'] ?? ''),
                 'tenor' => (int) round($this->num($p['TENOR_YRS'] ?? 0) * 12), 'interest_rate' => $this->num($p['INTEREST_RATE'] ?? 0),
                 'principal_balance' => $this->num($p['PRINCIPAL'] ?? 0), 'approved_amount' => $this->num($p['APPROVED'] ?? 0),
                 'disbursed' => $this->num($p['DISBURSD'] ?? 0), 'repayments' => $this->num($p['REPAYMENT'] ?? 0),
@@ -425,12 +429,60 @@ class LoanBookBuildService
                 'staging_dpd' => $stagingDpd, 'staging_dpd_basis' => $stagingBasis,
                 'industry_code' => $this->str($p['INDUSTRY_CODE'] ?? null), 'industry_type' => $this->str($p['IND_DESCR'] ?? null, 100),
                 'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'],
-                'build_flag' => implode('; ', array_filter([$pickFlag, $dpdFlag])) ?: null,
+                'build_flag' => implode('; ', array_filter([$pickFlag, $dpdFlag, $jumpFlag])) ?: null,
                 'build_basis' => ['run' => $run['query_id'] . ':' . $run['source_key'], 'run_date' => $this->date($p['TRANSACTION_DATE'] ?? ''), 'segment' => $p['SEG_MENT'] ?? null, 'dpd_counts' => $dpdCounts],
             ] + $arrears, $monthEnd);
         }
 
         return $rows;
+    }
+
+    /**
+     * The overdue-principal date last month's build booked, by contract id (section 6.4): a batch
+     * read, once per build, so the cross-period check below costs no extra query per loan.
+     */
+    private function priorOverdueDates(string $monthEnd): array
+    {
+        $prior = CarbonImmutable::parse($monthEnd)->subMonthNoOverflow()->format('Y-m');
+
+        return DB::table('loan_books')->where('reporting_period', $prior)->whereNotNull('overdue_principal_date')
+            ->pluck('overdue_principal_date', 'contract_id')->all();
+    }
+
+    /**
+     * A jump in the reported overdue-principal date that last month's own booked figure, or the
+     * loan's own value date, says is not ageing drift: a date before the loan was even disbursed,
+     * or a move of more than 150 days since last month (ordinary bi-monthly and quarterly
+     * instalment schedules were found to move the date by up to 141 days between two consecutive
+     * month-ends; nothing legitimate moved it further). A third, distinct E-Banker defect from the
+     * re-pull drift section 6 corrects and the broken-bucket defect section 6.1 catches, found on 6
+     * of the 36 facility mismatches against MAIIC's December 2025 workbook (verification of 17
+     * October 2026). Never resolved silently: the reported date stands, flagged for a person.
+     */
+    private function overdueDateJumpFlag(string $contractId, ?string $odDate, ?string $createDate, array $priorOverdueDates): ?string
+    {
+        if ($odDate === null) {
+            return null;
+        }
+        if ($createDate !== null && $odDate < $createDate) {
+            return sprintf(
+                "the reported overdue-principal date (%s) is before the loan's own value date (%s): kept as reported, flagged for review (Loan Book Report Point-in-Time Specification v1, section 6.4)",
+                $odDate, $createDate
+            );
+        }
+        $prior = $priorOverdueDates[$contractId] ?? null;
+        if ($prior === null) {
+            return null;
+        }
+        $diff = abs(CarbonImmutable::parse($odDate)->diffInDays(CarbonImmutable::parse($prior)));
+        if ($diff > 150) {
+            return sprintf(
+                'the reported overdue-principal date moved from %s to %s since last month (%d days): kept as reported, flagged for review (Loan Book Report Point-in-Time Specification v1, section 6.4)',
+                $prior, $odDate, $diff
+            );
+        }
+
+        return null;
     }
 
     // ----- method B -------------------------------------------------------
@@ -479,6 +531,7 @@ class LoanBookBuildService
         // the Mega Farm accounts are in the Loan Book Report too, so their own ledger is read for them
         $ledger = $this->ledgerOn($monthEnd);
         $runs = $this->zone->latestRunsOn($monthEnd);
+        $priorOverdueDates = $this->priorOverdueDates($monthEnd);
         $master = $this->masterCache['account'] ??= $this->zone->accountMaster();
         $loans = $this->masterCache['loan'] ??= $this->zone->loanMaster();
         $rates = $this->masterCache['rates'] ??= $this->zone->rateSetupByAccount();
@@ -606,11 +659,17 @@ class LoanBookBuildService
             if ($tenor === 0 && isset($p['TENOR_YRS'])) {
                 $tenor = (int) round($this->num($p['TENOR_YRS']) * 12);
             }
+            $contractId = ltrim($account, '0');
+            $createDate = $this->date($p['VALUE_DATE'] ?? ($am['ACCOUNT_OPEN_DATE'] ?? '')) ?? $sum['first'];
+            $jumpFlag = $this->overdueDateJumpFlag($contractId, $odDate, $createDate, $priorOverdueDates);
+            if ($jumpFlag !== null) {
+                $flags[] = $jumpFlag;
+            }
             $rows[] = $this->row([
-                'contract_id' => ltrim($account, '0'), 'customer_id' => trim((string) ($am['CUSTOMER_ID'] ?? ($p['CUSTOMER_ID'] ?? ''))),
+                'contract_id' => $contractId, 'customer_id' => trim((string) ($am['CUSTOMER_ID'] ?? ($p['CUSTOMER_ID'] ?? ''))),
                 'customer_name' => $am['ACCOUNT_NAME'] ?? null, 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl,
                 'funding_source' => $fund,
-                'create_date' => $this->date($p['VALUE_DATE'] ?? ($am['ACCOUNT_OPEN_DATE'] ?? '')) ?? $sum['first'],
+                'create_date' => $createDate,
                 'due_date' => $due,
                 'tenor' => $tenor, 'interest_rate' => $rate, 'principal_balance' => $principal, 'approved_amount' => $approved,
                 'disbursed' => $disbursed, 'repayments' => $receipts, 'carrying_amount' => $carrying, 'interest_to_date' => $interest,

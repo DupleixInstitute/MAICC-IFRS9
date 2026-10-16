@@ -5,7 +5,7 @@ subtitle: Explained from first principles, for anyone, with the proof and the fi
 date: 16 October 2026
 prepared: Edward Mazibuko, Director, Data Analytics, Dupleix Institute
 people: For Dr Thomson Kumwenda (CFO), MAIIC Finance, Credit and ICT
-status: Draft for review — not built
+status: Built and verified against a throwaway copy of December 2025 (16-17 October 2026); not yet approved as the new baseline (section 8, decision 4)
 logo: Dupleix logo.png
 justify: yes
 toc: yes
@@ -136,6 +136,10 @@ So the rule is two steps, not one:
 1. **First, check that the fields which should never move for a closed month — the balance, the total overdue amount, the overdue-instalment date — agree across every candidate pull.** If they agree, the only thing differing between the pulls is the live-recomputed ageing split, and the earliest pull is clearly the safest choice: take it.
 2. **If those fields do *not* agree between pulls, that is not ageing drift — something genuinely changed about the month.** The build does not guess which pull is right. It names the disagreement on the loan's own record and leaves it for a person to look at, the same way this whole system already refuses to guess rather than invent an answer.
 
+**A second, independent safety check was added once the fix was built and checked against MAIIC's own December 2025 workbook (see section 8).** On several accounts, the earliest pull passed both checks above — its own balance, total overdue and overdue-instalment date all agreed with every other pull — and the system still produced the wrong answer, because that *particular* pull's arrears-ageing buckets were all nil even though that same pull's own total overdue amount said otherwise. That is not a disagreement between pulls at all; it is a pull contradicting itself. No cross-pull check can catch it, because every pull involved can still agree with every other one.
+
+So the rule gained a third step: **before trusting the earliest pull, check that its own buckets are not self-contradictory — not every bucket nil while its own total overdue amount is a real, positive number.** A pull that fails this is passed over in favour of the earliest pull that does not; if none of them pass, the build falls back to the pre-fix choice, flagged the same way as any other disagreement, rather than trusting a pull known to be internally broken.
+
 ### 6.2 What this fix does not try to do
 
 - It does not try to recover a true December 2025 answer where **no pull was ever close to that date** — if the earliest available pull for some account was itself months after December, the earliest-available answer is simply the best this system can do, and that should be said plainly in the loan's own record, not hidden.
@@ -147,6 +151,17 @@ So the rule is two steps, not one:
 As the fix stands so far, if a 28th pull for `ASONDATE = 2025-12-31` lands tomorrow, the system will absorb it correctly under the rule above — but silently. Nothing would tell anyone it happened.
 
 The fix should also record a small, plain notice whenever a new pull arrives for an `ASONDATE` that already has an earlier one on file: what changed, and whether the stable fields still agree (ordinary, expected drift) or disagree (something a person needs to look at, per section 6.1). This turns the fix from "we survive it when it happens" into "we would notice if E-Banker's own retrospective numbers started drifting," which is exactly the kind of thing Finance, Credit, or an auditor would want surfaced rather than buried in 27 rows nobody is looking at.
+
+### 6.4 A third, separate defect: the overdue date itself sometimes jumps between months
+
+The December 2025 workbook check (section 8) led to tracing every one of the disagreeing loans back through their whole history, as far as each loan's own first month on the book — sometimes back to 2020. That traced a third defect, distinct from both the ones above: on a small number of loans, the reported overdue-instalment date does not just drift with repeated same-month pulls (section 6.1) or go internally nil (section 6.1's third check) — it changes to an implausible value **from one month-end to the next**, with every pull of the new month agreeing on the wrong value, so neither of the first two checks has anything to catch.
+
+Two shapes of this were found on real December 2025 data:
+
+- **A date that could not possibly be right**, because it falls before the loan's own value date — the loan cannot have had an unpaid instalment before it existed.
+- **A date that moves by far more than any genuine instalment schedule would move it in one month.** Checked against the ordinary bi-monthly and quarterly schedules in MAIIC's book, the most any legitimate month-to-month move was ever seen to be was 141 days. Anything larger is not a loan's instalments falling due on their normal rhythm; it is the reported date itself breaking.
+
+The fix adds a second comparison, run once a month, after the ordinary ageing calculation: the newly reported overdue-instalment date is checked against the loan's own value date, and against what last month's own build already booked for the same loan. A date before the value date, or a move of more than 150 days since last month, is kept exactly as E-Banker reported it — never guessed at or corrected to last month's figure — but named on the loan's own record for a person to look at, the same way every other disagreement in this fix is handled. Of the 36 facilities the December 2025 workbook check disagreed with, 6 carried this defect; it is documented in full, loan by loan, in the companion investigation note (see section 8).
 
 ## 7. A habit that needs to change at MAIIC, not just a line of code
 
@@ -169,8 +184,16 @@ That is exactly the kind of change this project's own rule says must never happe
 
 1. The system is rebuilt once with the fix in place.
 2. Every figure that changed is listed, old value next to new value, so the size of the effect is visible, not just asserted.
-3. The December 2025 comparison against MAIIC's own workbook is run again, to check that the 29 "our system says more overdue" disagreements genuinely shrink, rather than simply moving somewhere else.
+3. The December 2025 comparison against MAIIC's own workbook is run again, to check that the disagreements genuinely shrink, rather than simply moving somewhere else.
 4. Edward reviews the full list of changes and approves it in writing before the corrected figures are allowed to become the system's new baseline.
+
+**Steps 1 to 3 were carried out on 16 and 17 October 2026, in a throwaway copy of the database — nothing was written to the figures currently relied on.** The full detail, loan by loan, is in a companion document, `MAIIC_December_2025_Loan_Book_Investigation_Findings_v1_2026-10-17.md`; the headline results:
+
+- Rebuilding every month from July 2024 to September 2026 under the fix changes 393 loan-month rows out of roughly 100,000 — always the arrears-ageing figures (`staging_dpd` and the arrears buckets), never the RBM directive's own overdue-day count and never the carrying amount. The Reserve Bank return is untouched by this fix.
+- 73 of those loan-months hit a disagreement the fix will not resolve silently, and are flagged on the row for a person to review, per sections 6.1 and 6.4.
+- The December 2025 workbook check still disagrees with MAIIC's own workbook on 36 facilities after the fix — the same 36 as before it, with no facility moving either direction. Tracing all 36 back through their whole history found a real, fixable cause (the two defects in sections 6.1 and 6.4) for 10 of them. The other 26 show clean, self-consistent, often months- or years-old arrears in every figure E-Banker gives this system, with nothing in any extract explaining why MAIIC's own workbook calls them current. That gap is not this fix's to close; it needs an answer from whoever prepared the workbook, not more code.
+
+Decision 2 below (Edward's written approval before this becomes the new baseline) has not yet happened.
 
 ## 9. The one question only MAIIC's ICT team, or the vendor, can answer
 
@@ -182,7 +205,7 @@ The question to put to ICT, in plain words: **"When we ask the Loan Book Report 
 
 | # | Decision | Who |
 |---|---|---|
-| 1 | Approve the corrected rule in section 6 ("prefer the earliest pull, once the stable fields agree, not the latest") as the fix to build, including the drift notice in section 6.3 | Edward |
+| 1 | Approve the corrected rule in section 6 ("prefer the earliest pull, once the stable fields and the buckets' own arithmetic agree, not the latest") as the fix to build, including the drift notice in section 6.3 and the cross-month check in section 6.4 | Edward |
 | 2 | Review the full before-and-after list of figures the fix changes, across every affected month, before it becomes the new baseline | Edward |
 | 3 | Confirm with ICT, or with Virtual Galaxy, whether the Loan Book Report's ageing-bucket fields can be made to genuinely freeze to a historical date, or whether this is a permanent characteristic of the report | MAIIC ICT |
 | 4 | Decide whether MAIIC wants this limitation disclosed anywhere in the financial statements or the regulatory return, given it can affect reported loan classifications for any historical month | Dr Thom |
