@@ -111,6 +111,57 @@ class UatModeTest extends TestCase
         $this->assertEqualsCanonicalizing(['Governance Centre setting', 'Staging threshold', 'SICR trigger', 'Period unlock'], MakerChecker::selfApprovals()->pluck('workflow')->all());
     }
 
+    /** Route 4's schedule settings are Governance Centre settings: one person may set them only under UAT mode, never on production. */
+    public function test_the_route_4_schedule_settings_follow_uat_mode(): void
+    {
+        $governance = new GovernanceService();
+        $set = function () use ($governance) {
+            foreach ([\App\Services\Ebanker\DirectRead\DirectReadSchedule::TIMING => \App\Services\Ebanker\DirectRead\DirectReadSchedule::AS_SET,
+                      \App\Services\Ebanker\DirectRead\DirectReadSchedule::WORKING_DAY => '3rd working day',
+                      \App\Services\Ebanker\DirectRead\DirectReadSchedule::TIME => '18:00'] as $key => $value) {
+                $p = $governance->propose($key, $value, '2026-11-01', 'Read after the month-end close, tested in UAT', $this->admin->id);
+                $governance->approve($p->id, $this->admin->id, $governance->adminOverrideAllowed($this->admin));
+            }
+        };
+        try {
+            $set();
+            $this->fail('a self-approval was allowed without UAT mode');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('cannot approve', $e->getMessage());
+        }
+        DB::table('governance_settings')->where('status', 'PROPOSED')->delete();
+
+        $this->uatOn();
+        $set();
+        $this->assertSame(3, MakerChecker::selfApprovals()->count());
+        // the governance lookup reads the date from CarbonImmutable, so both clocks are set
+        \Carbon\Carbon::setTestNow('2026-11-04 18:00:00');
+        \Carbon\CarbonImmutable::setTestNow('2026-11-04 18:00:00');
+        $this->assertTrue(\App\Services\Ebanker\DirectRead\DirectReadSchedule::isDue(now(), new GovernanceService()), 'the third working day of November 2026 at 18:00');
+        $this->assertFalse(\App\Services\Ebanker\DirectRead\DirectReadSchedule::isDue(now()->setTime(6, 0), new GovernanceService()));
+        \Carbon\Carbon::setTestNow();
+        \Carbon\CarbonImmutable::setTestNow();
+
+        $this->production();
+        $p = $governance->propose(\App\Services\Ebanker\DirectRead\DirectReadSchedule::TIME, '19:00', '2026-12-01', 'Later still', $this->admin->id);
+        $this->expectException(\LogicException::class);
+        $governance->approve($p->id, $this->admin->id, $governance->adminOverrideAllowed($this->admin));
+    }
+
+    public function test_the_governance_centre_offers_the_route_4_schedule_settings(): void
+    {
+        // the list the Governance Centre renders (EirGovernanceController::index)
+        $settings = collect((new GovernanceService())->overview())->keyBy('key');
+        foreach ([\App\Services\Ebanker\DirectRead\DirectReadSchedule::TIMING, \App\Services\Ebanker\DirectRead\DirectReadSchedule::WORKING_DAY, \App\Services\Ebanker\DirectRead\DirectReadSchedule::TIME] as $key) {
+            $this->assertTrue($settings->has($key), "{$key} is on the Governance Centre");
+        }
+        $timing = $settings[\App\Services\Ebanker\DirectRead\DirectReadSchedule::TIMING];
+        $this->assertSame(\App\Services\Ebanker\DirectRead\DirectReadSchedule::AT_SIX, $timing['in_force']['value']);
+        $this->assertTrue($timing['applied'], 'the scheduler reads it');
+        // the screen places them under Data sources, beside the feed route
+        $this->assertMatchesRegularExpression("/'ebanker_feed_route', 'ebanker_direct_read_timing', 'ebanker_direct_read_working_day', 'ebanker_direct_read_time'/", file_get_contents(resource_path('js/Pages/Eir/Governance.vue')));
+    }
+
     /** Acceptance 20: every self-approval check in the code goes through the one check. */
     public function test_every_maker_checker_site_uses_the_one_check(): void
     {
