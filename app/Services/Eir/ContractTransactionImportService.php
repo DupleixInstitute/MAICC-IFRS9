@@ -48,6 +48,10 @@ class ContractTransactionImportService
             if (isset($seen[$externalId])) { $duplicates++; continue; }
             $seen[$externalId] = true;
 
+            if ($account !== '' && \App\Support\AccountExclusions::isExcluded($account)) {
+                $held[$account] = \App\Support\AccountExclusions::refusal($account);
+                continue;
+            }
             $loan = DB::table('loan_books')->where('contract_id', $account)
                 ->orderByDesc('reporting_period')->first(['contract_id', 'customer_id']);
             if (! $loan) {

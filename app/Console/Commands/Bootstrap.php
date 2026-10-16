@@ -28,7 +28,8 @@ use Throwable;
  *   php artisan eir:bootstrap --fresh --with-client-inputs --build --run-engines --verify
  *
  * Steps: 1 migrate:fresh (refused if user data exists unless --force-wipe);
- * 2 seed; 3 land the committed pack; 4 land the take-on workbook; 5 build the
+ * 2 seed; 3 land the committed pack, the trial balances and the account
+ * exclusions MAIIC confirmed; 4 land the take-on workbook; 5 build the
  * loan books, the take-on population and the contract inputs, then the
  * version 1 schedules, then detect the restructure candidates and the rate
  * moves (detection only: the bootstrap never classifies, confirms or
@@ -183,6 +184,15 @@ class Bootstrap extends Command
                 $this->note('3c S&P grading', "draft profile \"{$name}\": " . $profile->mappings()->count() . ' grades, not active');
             }
         }
+        // the accounts MAIIC confirmed are not loans of the book (16 October 2026: nine UAT test accounts and
+        // three duplicate approvals never drawn), landed as approved under the bootstrap label, never as a MAIIC
+        // person, before anything is built: the reader then leaves them out of every build (AccountExclusionService)
+        $exclusions = $inputs . DIRECTORY_SEPARATOR . \App\Services\Ebanker\AccountExclusionService::CLIENT_INPUT;
+        if (is_file($exclusions)) {
+            $x = app(\App\Services\Ebanker\AccountExclusionService::class)->landClientInput($exclusions);
+            $this->note('3d account exclusions', "{$x['accounts']} accounts in {$x['file']}: {$x['landed']} landed as approved under the bootstrap label, " . count($x['already']) . ' already in the register'
+                . ($x['already'] !== [] ? ' (' . implode(', ', array_map(fn ($c, $s) => "{$c} {$s}", array_keys($x['already']), $x['already'])) . ')' : '') . "; {$x['archived']} rows moved to the archive");
+        }
     }
 
     /**
@@ -243,6 +253,11 @@ class Bootstrap extends Command
         $last = $zone->lastLedgerDate();
         $to = $this->option('to') ?? substr(end($ends) ?: substr((string) $last, 0, 7), 0, 7);
         $from = (string) $this->option('from');
+        if ($this->decisions !== null) {
+            // the exclusions people decided in the source database, before the book is built (section 8.10)
+            $summary = $this->decisions->replayExclusions();
+            $this->note('5a decisions pack: exclusions', $this->decisions->label() . ': ' . self::decisionsLine($summary));
+        }
         $build = app(LoanBookBuildService::class);
         $r = $build->build($from, $to, null, null, null, LoanBookBuildService::BOOTSTRAP_LABEL, false, true);
         $rows = array_sum(array_map(fn ($p) => $p['rows'], $r['periods']));

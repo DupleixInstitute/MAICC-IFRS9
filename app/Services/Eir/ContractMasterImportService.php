@@ -101,6 +101,11 @@ class ContractMasterImportService
         $skipped += $conflicts;
 
         foreach ($rows as $contractId => $row) {
+            // an account the exclusion register takes out of the book gets no contract_eir (AccountExclusionService)
+            if (\App\Support\AccountExclusions::isExcluded($contractId)) {
+                $held[$contractId] = \App\Support\AccountExclusions::refusal($contractId);
+                continue;
+            }
             $loan = DB::table('loan_books')->where('contract_id', $contractId)
                 ->orderByDesc('reporting_period')->first(['contract_id', 'customer_id']);
             if (! $loan) {

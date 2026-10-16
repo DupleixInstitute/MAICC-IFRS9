@@ -212,6 +212,75 @@
 </div>
 @endif
 
+@if (! empty($note['interest_revenue']['available']))
+<div style="page-break-inside: avoid">
+<h2>(i) Interest revenue, effective interest method</h2>
+<p class="cap">Headline basis: {{ $note['interest_revenue']['headline_source'] }} (IFRS 7.20(b)). Stage 3 accrues net of the loss allowance (IFRS 9 5.4.1(b)); the unwind of the discount is its own line.</p>
+<table class="fs">
+    <thead><tr><th class="l">Particulars</th><th>{{ $note['unit']['heading'] }}</th></tr></thead>
+    <tbody>
+        @if ($note['interest_revenue']['detail'] === 'split')
+            @foreach ([1, 2, 3] as $s)
+                @php $row = $note['interest_revenue']['by_stage'][$s]; @endphp
+                <tr><td class="l">Stage {{ $s }}: gross basis interest</td><td>{{ $fmt($row['gross']) }}</td></tr>
+                @if ($row['net'] !== 0 || $row['unwind'] !== 0)
+                    <tr><td class="l">Stage {{ $s }}: net basis interest</td><td>{{ $fmt($row['net']) }}</td></tr>
+                    <tr><td class="l">Stage {{ $s }}: unwind of discount on the allowance</td><td>{{ $fmt($row['unwind']) }}</td></tr>
+                @endif
+            @endforeach
+        @endif
+        <tr class="rule"><td class="l"><b>Total interest revenue</b></td><td><b>{{ $fmt($note['interest_revenue']['total']['total']) }}</b></td></tr>
+        @if ($note['interest_revenue']['gl_total'] !== null)
+            <tr><td class="l">Of which GL-posted interest income</td><td>{{ $fmt($note['interest_revenue']['gl_total']) }}</td></tr>
+            <tr class="closing"><td class="l">Variance (EIR-run less GL-posted)</td><td>{{ $fmt($note['interest_revenue']['variance']) }}</td></tr>
+        @endif
+    </tbody>
+</table>
+</div>
+@elseif (! empty($note['interest_revenue']['message']))
+<h2>(i) Interest revenue, effective interest method</h2>
+<p>{{ $note['interest_revenue']['message'] }}</p>
+@endif
+
+@if (! empty($note['sensitivity']))
+@if ($note['sensitivity']['table1'])
+<div style="page-break-inside: avoid">
+<h2>(j) Sensitivity analysis: macro-economic scenarios</h2>
+<p class="cap">@if ($note['sensitivity']['table1']['set'])Scenario set: {{ $note['sensitivity']['table1']['set'] }}. @endif{{ $note['sensitivity']['table1']['note'] }} (IFRS 7.35G)</p>
+<table class="fs">
+    <thead><tr><th class="l">Scenario</th><th>Weight</th><th>ECL under the scenario</th><th>Effect vs. booked</th></tr></thead>
+    <tbody>
+        @foreach ($note['sensitivity']['table1']['rows'] as $r)
+            <tr><td class="l">{{ $r['scenario'] }}</td><td>{{ N::percent($r['weight']) }}</td><td>{{ $fmt($r['ecl']) }}</td><td>{{ $fmt($r['effect']) }}</td></tr>
+        @endforeach
+    </tbody>
+</table>
+</div>
+@elseif ($note['sensitivity']['table1_message'])
+<h2>(j) Sensitivity analysis (IFRS 7.35G)</h2>
+<p>{{ $note['sensitivity']['table1_message'] }}</p>
+@endif
+@if ($note['sensitivity']['table2'])
+<div style="page-break-inside: avoid">
+<h2>(j) Sensitivity analysis: isolated PD/LGD stress</h2>
+<p class="cap">Each line holds every other assumption, including the macro-economic scenario, at its booked value (IFRS 7.35G).
+@if ($note['sensitivity']['table2']['unresolved_loans']) {{ $note['sensitivity']['table2']['unresolved_loans'] }} loan(s) could not be re-based and are excluded, named, never assumed at zero.@endif
+@if ($note['sensitivity']['table2']['programme_note']) {{ $note['sensitivity']['table2']['programme_note'] }}@endif</p>
+<table class="fs">
+    <thead><tr><th class="l">Stress</th><th>Stage 1</th><th>Stage 2</th><th>Stage 3</th><th>Total</th><th>Effect vs. booked</th></tr></thead>
+    <tbody>
+        @foreach ($note['sensitivity']['table2']['lines'] as $l)
+            <tr><td class="l">{{ $l['label'] }}</td><td>{{ $fmt($l['by_stage'][1]) }}</td><td>{{ $fmt($l['by_stage'][2]) }}</td><td>{{ $fmt($l['by_stage'][3]) }}</td><td>{{ $fmt($l['total']) }}</td><td>{{ $fmt($l['effect']) }}</td></tr>
+        @endforeach
+    </tbody>
+</table>
+</div>
+@elseif ($note['sensitivity']['table2_message'])
+<h2>(j) Sensitivity analysis: isolated PD/LGD stress</h2>
+<p>{{ $note['sensitivity']['table2_message'] }}</p>
+@endif
+@endif
+
 <div class="pb"></div>
 <h1>Workings and checks</h1>
 <p class="sub">Supporting information for the preparer and the auditor. Not part of the published note.</p>

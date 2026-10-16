@@ -211,6 +211,29 @@ class ScheduleShapeGovernanceTest extends TestCase
     }
 
     /**
+     * A maturity written as the day before the anniversary keeps the last
+     * instalment (16 October 2026): Nature's Gift, three annual instalments to
+     * 22 April 2025, and Kadava, 24 monthly to 2 August 2024, as E-Banker's charts
+     * have them; each retires the whole amount drawn.
+     */
+    public function test_a_maturity_the_day_before_the_anniversary_keeps_the_last_instalment(): void
+    {
+        $this->createScheduleSchema();
+        Scheme::create(['scheme_code' => 'MAIIC-IND', 'interest_calc_base' => 'B', 'installment_based_on' => 'disbursement', 'emi_calc_type' => 'E', 'effective_from' => '2020-01-01']);
+        $workflow = app(ScheduleWorkflowService::class);
+
+        $annual = $this->seedContract('104450000023', ['origination_date' => '2022-04-22', 'maturity_date' => '2025-04-21', 'payments_per_year' => 1, 'approved_amount' => 24_600_000, 'drawn_amount' => 24_600_000]);
+        $this->assertSame(3, $workflow->generate($annual)['rows']);
+        $rows = DB::table('contract_cashflow_schedule')->where('contract_id', '104450000023')->orderBy('due_date')->get();
+        $this->assertSame(['2023-04-22', '2024-04-22', '2025-04-22'], $rows->pluck('due_date')->map(fn ($d) => substr((string) $d, 0, 10))->all());
+        $this->assertEqualsWithDelta(24_600_000, (float) $rows->sum('principal_due'), 0.05);
+
+        $monthly = $this->seedContract('104450000041', ['origination_date' => '2022-08-02', 'maturity_date' => '2024-08-01', 'approved_amount' => 12_000_000, 'drawn_amount' => 12_000_000]);
+        $this->assertSame(24, $workflow->generate($monthly)['rows']);
+        $this->assertSame('2024-08-02', substr((string) DB::table('contract_cashflow_schedule')->where('contract_id', '104450000041')->max('due_date'), 0, 10));
+    }
+
+    /**
      * A take-on loan's version 1 schedule comes from Tamanda's workbook (spec
      * 6.9). The generator refuses to write a second version 1 beside it (which
      * doubled the scheduled principal of 41 take-on loans and blocked their

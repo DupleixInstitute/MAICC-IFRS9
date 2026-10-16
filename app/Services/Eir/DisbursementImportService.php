@@ -59,6 +59,16 @@ class DisbursementImportService
         $loaded = 0;
         $alreadyStored = 0;
         $skipped = [];
+        // an account the exclusion register takes out of the book has no drawdown loaded (AccountExclusionService)
+        $parsed = array_values(array_filter($parsed, function ($row) use (&$skipped) {
+            if (\App\Support\AccountExclusions::isExcluded($row['contract_id'])) {
+                $skipped[$row['label']] = \App\Support\AccountExclusions::refusal($row['contract_id']);
+
+                return false;
+            }
+
+            return true;
+        }));
         $now = now();
         // the part of a drawdown that is a fee debit capitalised into it (spec 7.8.4), where the schema carries it
         $withFees = \Illuminate\Support\Facades\Schema::hasColumn('contract_disbursements', 'capitalised_fees');

@@ -62,6 +62,16 @@ use Carbon\CarbonImmutable;
  */
 class InstalmentChartHistory
 {
+    /**
+     * Later extracts of the live chart (FIXLOAN_INST_CHART) for a few accounts, read with P2_10: pack 11's
+     * IC_01 of 16 October 2026, every chart row of the 17 loans pack 11 asked about, whatever its flags.
+     * P2_10 of 7 October held no row for JVD Agro 000104460000109 (its chart of 12 May 2025, 61 rows of
+     * 5,311,761.00 a month); IC_01 holds it. A row P2_10 already holds (the same INST_CHART_DET_ID) is
+     * kept as P2_10 has it, with every column; IC_01 adds only the rows P2_10 does not hold. The flags
+     * are read the same way as P2_10's.
+     */
+    public const LIVE_SUPPLEMENTS = ['IC_01'];
+
     /** The dated copies of the chart, by the date in the E-Banker table's name (FIX_INST_CHART28SEP: 2024, its rows created up to 7 August 2024). */
     public const COPIES = ['RS_02b' => '2024-08-30', 'RS_02d' => '2024-09-28', 'RS_02c' => '2024-11-14'];
 
@@ -260,9 +270,16 @@ class InstalmentChartHistory
             return $this->rows;
         }
         $by = [];
-        foreach ([['P2_10', false], ['RS_02a', true]] as [$query, $superseded]) {
+        $live = [];
+        foreach (array_merge([['P2_10', false]], array_map(fn ($q) => [$q, false], self::LIVE_SUPPLEMENTS), [['RS_02a', true]]) as [$query, $superseded]) {
             foreach ($this->zone->family([$query]) as $row) {
                 $p = $row['payload'];
+                if (in_array($query, self::LIVE_SUPPLEMENTS, true) && isset($live[(string) ($p['INST_CHART_DET_ID'] ?? '')])) {
+                    continue; // P2_10 holds the row already, with every column
+                }
+                if ($query === 'P2_10') {
+                    $live[(string) ($p['INST_CHART_DET_ID'] ?? '')] = true;
+                }
                 if (($p['ACTIVE_FLAG'] ?? 'Y') !== 'Y' || $row['account'] === null || $row['account'] === '') {
                     continue;
                 }

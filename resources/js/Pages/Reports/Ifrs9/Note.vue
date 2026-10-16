@@ -261,6 +261,75 @@ const levelBadge = { pass: 'maiic-badge-green', warn: 'maiic-badge-gold', fail: 
                             </Notice>
                             <p v-else class="mt-2 max-w-5xl text-sm leading-relaxed text-gray-700">{{ note.modifications.message }}</p>
                         </section>
+
+                        <section v-if="note.interest_revenue">
+                            <h3 class="font-semibold text-gray-900">(i) Interest revenue, effective interest method</h3>
+                            <template v-if="note.interest_revenue.available">
+                                <p class="mb-2 text-xs text-gray-500">Headline basis: {{ note.interest_revenue.headline_source }} (IFRS 7.20(b)). Stage 3 accrues net of the loss allowance (IFRS 9 5.4.1(b)); the unwind of the discount is its own line.</p>
+                                <div class="maiic-table-wrap rounded-lg border border-gray-200">
+                                    <table class="maiic-table">
+                                        <thead><tr><th>Particulars</th><th class="num">{{ note.unit.heading }}</th></tr></thead>
+                                        <tbody>
+                                            <template v-if="note.interest_revenue.detail === 'split'">
+                                                <template v-for="s in [1, 2, 3]" :key="'ir' + s">
+                                                    <tr><td>Stage {{ s }}: gross basis interest</td><td class="num">{{ amount(note.interest_revenue.by_stage[s].gross) }}</td></tr>
+                                                    <template v-if="note.interest_revenue.by_stage[s].net || note.interest_revenue.by_stage[s].unwind">
+                                                        <tr><td>Stage {{ s }}: net basis interest (IFRS 9 5.4.1(b))</td><td class="num">{{ amount(note.interest_revenue.by_stage[s].net) }}</td></tr>
+                                                        <tr><td>Stage {{ s }}: unwind of discount on the allowance</td><td class="num">{{ amount(note.interest_revenue.by_stage[s].unwind) }}</td></tr>
+                                                    </template>
+                                                </template>
+                                            </template>
+                                            <tr class="total"><td>Total interest revenue</td><td class="num">{{ amount(note.interest_revenue.total.total) }}</td></tr>
+                                            <template v-if="note.interest_revenue.gl_total !== null">
+                                                <tr><td>Of which GL-posted interest income</td><td class="num">{{ amount(note.interest_revenue.gl_total) }}</td></tr>
+                                                <tr><td>Variance (EIR-run less GL-posted)</td><td class="num">{{ amount(note.interest_revenue.variance) }}</td></tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <p v-else class="text-sm text-gray-700">{{ note.interest_revenue.message }}</p>
+                        </section>
+
+                        <section v-if="note.sensitivity">
+                            <h3 class="font-semibold text-gray-900">(j) Sensitivity analysis (IFRS 7.35G)</h3>
+                            <template v-if="note.sensitivity.table1">
+                                <p class="mb-2 text-xs text-gray-500">
+                                    <span v-if="note.sensitivity.table1.set">Scenario set: {{ note.sensitivity.table1.set }}. </span>{{ note.sensitivity.table1.note }}
+                                </p>
+                                <div class="maiic-table-wrap rounded-lg border border-gray-200">
+                                    <table class="maiic-table">
+                                        <thead><tr><th>Scenario</th><th class="num">Weight</th><th class="num">ECL under the scenario</th><th class="num">Effect vs. booked</th><th>Key shocks</th></tr></thead>
+                                        <tbody>
+                                            <tr v-for="r in note.sensitivity.table1.rows" :key="'sc' + r.scenario">
+                                                <td>{{ r.scenario }}</td><td class="num">{{ pct(r.weight) }}</td><td class="num">{{ amount(r.ecl) }}</td>
+                                                <td class="num">{{ amount(r.effect) }}</td><td class="text-gray-500">{{ r.shocks }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <p v-else-if="note.sensitivity.table1_message" class="text-sm text-gray-700">{{ note.sensitivity.table1_message }}</p>
+
+                            <template v-if="note.sensitivity.table2">
+                                <p class="mb-2 mt-4 text-xs text-gray-500">Isolated PD/LGD stress: each line holds every other assumption, including the macro-economic scenario, at its booked value.
+                                    <span v-if="note.sensitivity.table2.unresolved_loans"> {{ note.sensitivity.table2.unresolved_loans }} loan(s) could not be re-based and are excluded, named, never assumed at zero.</span>
+                                    <span v-if="note.sensitivity.table2.programme_note"> {{ note.sensitivity.table2.programme_note }}</span>
+                                </p>
+                                <div class="maiic-table-wrap rounded-lg border border-gray-200">
+                                    <table class="maiic-table">
+                                        <thead><tr><th>Stress</th><th class="num">Stage 1</th><th class="num">Stage 2</th><th class="num">Stage 3</th><th class="num">Total</th><th class="num">Effect vs. booked</th></tr></thead>
+                                        <tbody>
+                                            <tr v-for="l in note.sensitivity.table2.lines" :key="'st' + l.label">
+                                                <td>{{ l.label }}</td><td class="num">{{ amount(l.by_stage[1]) }}</td><td class="num">{{ amount(l.by_stage[2]) }}</td>
+                                                <td class="num">{{ amount(l.by_stage[3]) }}</td><td class="num">{{ amount(l.total) }}</td><td class="num">{{ amount(l.effect) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <p v-else-if="note.sensitivity.table2_message" class="mt-4 text-sm text-gray-700">{{ note.sensitivity.table2_message }}</p>
+                        </section>
                     </div>
 
                     <div v-else class="space-y-6 p-4">

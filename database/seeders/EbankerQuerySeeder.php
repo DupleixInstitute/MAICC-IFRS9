@@ -103,6 +103,10 @@ class EbankerQuerySeeder extends Seeder
             ['DD_17', 'Data dictionary: login and synonyms', null, null, null, null, false],
             ['DD_18', 'Data dictionary: read access per table', null, 'TABLE_NAME', null, null, false],
             ['DD_20', 'Data dictionary: refinance-link columns probe (names, statistics)', 'ALL_TAB_COLUMNS', null, null, null, false], // keyed by row, as CV_07
+            // pack 11 (16 October 2026): the live instalment chart of the 17 loans with no version 1 schedule, every row
+            // whatever its flags. Read with P2_10 as the live chart, for the rows P2_10 does not hold (JVD Agro's chart of
+            // 12 May 2025; InstalmentChartHistory::LIVE_SUPPLEMENTS); its own id, so no P2_10 row is versioned by it
+            ['IC_01', 'Instalment chart rows of the pack 11 loans, every flag (FIXLOAN_INST_CHART)', 'FIXLOAN_INST_CHART', 'INST_CHART_DET_ID', 'NEW_AC_NUMBER', 'INSTALLMENT_DATE', false],
             // packs 3 and 4 (9 and 11 October 2026)
             ['SM_01',  'Scheme master',                         'SCHEME_MASTER',           'SCHEME_MST_ID',       null,            null,                   false],
             ['CT_01',  'Row counts of the reschedule, write-off and charges tables', null,  'TABLE_NAME',          null,            null,                   false],

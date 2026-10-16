@@ -89,8 +89,78 @@ class Ifrs9NoteDocuments
         $note['basis'] = self::basis($report, $unit);
         $note['write_offs'] = self::writeOffs($report, $unit);
         $note['modifications'] = self::modifications($report, $unit);
+        $note['interest_revenue'] = self::interestRevenue($report, $unit);
+        $note['sensitivity'] = self::sensitivity($report, $unit);
 
         return $note;
+    }
+
+    /**
+     * (i) Interest revenue calculated using the effective interest method
+     * (IFRS 7.20(b)), from Ifrs9NoteService::interestRevenue() (IFRS 7
+     * Disclosures Specification v1, section 2). Null when the underlying data
+     * is not available; the raw message is kept so the caller can show why.
+     */
+    private static function interestRevenue(array $report, array $unit): ?array
+    {
+        $ir = $report['interest_revenue'] ?? null;
+        if ($ir === null) {
+            return null;
+        }
+        if (! $ir['available']) {
+            return ['available' => false, 'message' => $ir['message']];
+        }
+        $amt = fn (float $v) => (int) round(Attribution::cents($v) / $unit['step']);
+        $byStage = [];
+        foreach ([1, 2, 3] as $s) {
+            $row = $ir['by_stage'][$s] ?? ['gross' => 0.0, 'net' => 0.0, 'unwind' => 0.0];
+            $byStage[$s] = ['gross' => $amt($row['gross']), 'net' => $amt($row['net']), 'unwind' => $amt($row['unwind']),
+                'total' => $amt($row['gross'] + $row['net'] + $row['unwind'])];
+        }
+        $total = ['gross' => 0, 'net' => 0, 'unwind' => 0, 'total' => 0];
+        foreach ($byStage as $row) {
+            foreach ($total as $k => $v) {
+                $total[$k] += $row[$k];
+            }
+        }
+
+        return ['available' => true, 'detail' => $ir['detail_setting'] === 'Total only' ? 'total' : 'split',
+            'by_stage' => $byStage, 'total' => $total,
+            'headline' => $amt($ir['headline']), 'headline_source' => $ir['headline_source'],
+            'gl_total' => $ir['gl'] === null ? null : $amt($ir['gl']),
+            'variance' => $ir['variance'] === null ? null : $amt($ir['variance'])];
+    }
+
+    /**
+     * (j) Measurement uncertainty and sensitivity analysis (IFRS 7.35G), from
+     * Ifrs9NoteService::sensitivity() (specification section 3). Null when the
+     * Governance Centre setting ifrs7_sensitivity_disclosure excludes it, or
+     * its own data could not be read at all; otherwise each table carries
+     * either its rows or the honest reason it has none.
+     */
+    private static function sensitivity(array $report, array $unit): ?array
+    {
+        $sv = $report['sensitivity'] ?? null;
+        if ($sv === null || ! $sv['available'] || ! $sv['disclosed']) {
+            return null;
+        }
+        $amt = fn (float $v) => (int) round(Attribution::cents($v) / $unit['step']);
+        $t1 = $sv['table1'];
+        $table1 = null;
+        if ($t1['available']) {
+            $table1 = ['set' => $t1['set'], 'note' => $t1['note'],
+                'rows' => array_map(fn ($r) => ['scenario' => $r['scenario'] . ($r['is_base'] ? ' (base)' : ''), 'weight' => $r['weight'],
+                    'ecl' => $amt($r['ecl']), 'effect' => $amt($r['effect']), 'shocks' => $r['shocks']], $t1['rows'])];
+        }
+        $t2 = $sv['table2'];
+        $table2 = null;
+        if ($t2 !== null && $t2['available']) {
+            $table2 = ['unresolved_loans' => $t2['unresolved_loans'], 'programme_note' => $t2['programme_note'],
+                'lines' => array_map(fn ($l) => ['label' => $l['label'], 'by_stage' => array_map($amt, $l['by_stage']), 'total' => $amt($l['total']), 'effect' => $amt($l['effect'])], $t2['lines'])];
+        }
+
+        return ['scope' => $sv['scope'], 'table1' => $table1, 'table1_message' => $t1['available'] ? null : $t1['message'],
+            'table2' => $table2, 'table2_message' => ($t2 !== null && ! $t2['available']) ? $t2['message'] : null];
     }
 
     /**
@@ -397,6 +467,57 @@ class Ifrs9NoteDocuments
             }
             $doc->paragraph($mo['message']);
         }
+        if (! empty($note['interest_revenue']['available'])) {
+            $ir = $note['interest_revenue'];
+            $doc->heading('(i) Interest revenue, effective interest method', 2);
+            $doc->paragraph('Headline basis: ' . $ir['headline_source'] . ' (IFRS 7.20(b)). Stage 3 accrues net of the loss allowance (IFRS 9 5.4.1(b)); the unwind of the discount is its own line.', ['italic' => true, 'size' => 16, 'color' => '6B7280', 'after' => 80]);
+            $rows = [];
+            if ($ir['detail'] === 'split') {
+                foreach ([1, 2, 3] as $s) {
+                    $row = $ir['by_stage'][$s];
+                    $rows[] = ['cells' => ['Stage ' . $s . ': gross basis interest', $fmt($row['gross'])]];
+                    if ($row['net'] !== 0 || $row['unwind'] !== 0) {
+                        $rows[] = ['cells' => ['Stage ' . $s . ': net basis interest', $fmt($row['net'])]];
+                        $rows[] = ['cells' => ['Stage ' . $s . ': unwind of discount on the allowance', $fmt($row['unwind'])]];
+                    }
+                }
+            }
+            $rows[] = ['cells' => ['Total interest revenue', $fmt($ir['total']['total'])], 'bold' => true, 'top' => 'single'];
+            if ($ir['gl_total'] !== null) {
+                $rows[] = ['cells' => ['Of which GL-posted interest income', $fmt($ir['gl_total'])]];
+                $rows[] = ['cells' => ['Variance (EIR-run less GL-posted)', $fmt($ir['variance'])], 'bottom' => 'double'];
+            }
+            $doc->table([['width' => 7288, 'align' => 'left'], ['width' => 2350]], $rows, ['cells' => ['Particulars', $note['unit']['heading']]]);
+        } elseif (! empty($note['interest_revenue']['message'])) {
+            $doc->heading('(i) Interest revenue, effective interest method', 2);
+            $doc->paragraph($note['interest_revenue']['message']);
+        }
+        if (! empty($note['sensitivity'])) {
+            $sv = $note['sensitivity'];
+            if ($sv['table1']) {
+                $doc->heading('(j) Sensitivity analysis: macro-economic scenarios', 2);
+                $doc->paragraph(($sv['table1']['set'] ? 'Scenario set: ' . $sv['table1']['set'] . '. ' : '') . $sv['table1']['note'] . ' (IFRS 7.35G)', ['italic' => true, 'size' => 16, 'color' => '6B7280', 'after' => 80]);
+                $rows = array_map(fn ($r) => ['cells' => [$r['scenario'], self::percent($r['weight']), $fmt($r['ecl']), $fmt($r['effect'])]], $sv['table1']['rows']);
+                $doc->table([['width' => 3000, 'align' => 'left'], ['width' => 1500], ['width' => 2300], ['width' => 2538]], $rows,
+                    ['cells' => ['Scenario', 'Weight', 'ECL under the scenario', 'Effect vs. booked']]);
+            } elseif ($sv['table1_message']) {
+                $doc->heading('(j) Sensitivity analysis (IFRS 7.35G)', 2);
+                $doc->paragraph($sv['table1_message']);
+            }
+            if ($sv['table2']) {
+                $doc->heading('(j) Sensitivity analysis: isolated PD/LGD stress', 2);
+                $note2 = 'Each line holds every other assumption, including the macro-economic scenario, at its booked value (IFRS 7.35G).'
+                    . ($sv['table2']['unresolved_loans'] ? ' ' . number_format($sv['table2']['unresolved_loans']) . ' loan(s) could not be re-based and are excluded, named, never assumed at zero.' : '')
+                    . ($sv['table2']['programme_note'] ? ' ' . $sv['table2']['programme_note'] : '');
+                $doc->paragraph($note2, ['italic' => true, 'size' => 16, 'color' => '6B7280', 'after' => 80]);
+                $rows = array_map(fn ($l) => ['cells' => [$l['label'], $fmt($l['by_stage'][1]), $fmt($l['by_stage'][2]), $fmt($l['by_stage'][3]), $fmt($l['total']), $fmt($l['effect'])]], $sv['table2']['lines']);
+                $doc->table([['width' => 2238, 'align' => 'left'], ['width' => 1350], ['width' => 1350], ['width' => 1350], ['width' => 1350], ['width' => 1700]], $rows,
+                    ['cells' => ['Stress', 'Stage 1', 'Stage 2', 'Stage 3', 'Total', 'Effect vs. booked']]);
+            } elseif ($sv['table2_message']) {
+                $doc->heading('(j) Sensitivity analysis: isolated PD/LGD stress', 2);
+                $doc->paragraph($sv['table2_message']);
+            }
+        }
 
         $doc->pageBreak();
         $doc->heading('Workings and checks (not part of the published note)', 2);
@@ -480,6 +601,51 @@ class Ifrs9NoteDocuments
                 'rows' => $mo['rows']
                     ? array_map(fn ($r) => [$r['ref'], $r['label'], $r['contracts'] === null ? '' : self::count($r['contracts']), $fmt($r['amount'])], $mo['rows'])
                     : [['IFRS 7.35J, 20A', $mo['message'], '', '']]];
+        }
+        if (! empty($note['interest_revenue']['available'])) {
+            $ir = $note['interest_revenue'];
+            $rows = [];
+            if ($ir['detail'] === 'split') {
+                foreach ([1, 2, 3] as $s) {
+                    $row = $ir['by_stage'][$s];
+                    $rows[] = ['Stage ' . $s . ': gross basis interest', $fmt($row['gross'])];
+                    if ($row['net'] !== 0 || $row['unwind'] !== 0) {
+                        $rows[] = ['Stage ' . $s . ': net basis interest (IFRS 9 5.4.1(b))', $fmt($row['net'])];
+                        $rows[] = ['Stage ' . $s . ': unwind of discount on the allowance', $fmt($row['unwind'])];
+                    }
+                }
+            }
+            $rows[] = ['Total interest revenue, effective interest method', $fmt($ir['total']['total'])];
+            if ($ir['gl_total'] !== null) {
+                $rows[] = ['Of which GL-posted interest income (trial balance)', $fmt($ir['gl_total'])];
+                $rows[] = ['Variance (EIR-run less GL-posted)', $fmt($ir['variance'])];
+            }
+            $sections[] = ['heading' => '(i) Interest revenue, effective interest method',
+                'note' => 'Headline basis: ' . $ir['headline_source'] . ' (IFRS 7.20(b)). Stage 3 accrues on the carrying amount net of the loss allowance (IFRS 9 5.4.1(b)); the unwind of the discount on that allowance is its own line.',
+                'columns' => ['Particulars', 'Amount (' . $note['unit']['heading'] . ')'], 'align' => ['l', 'r'], 'rows' => $rows];
+        } elseif (! empty($note['interest_revenue']['message'])) {
+            $sections[] = ['heading' => '(i) Interest revenue, effective interest method', 'columns' => ['Note'], 'align' => ['l'], 'rows' => [[$note['interest_revenue']['message']]]];
+        }
+        if (! empty($note['sensitivity'])) {
+            $sv = $note['sensitivity'];
+            if ($sv['table1']) {
+                $sections[] = ['heading' => '(j) Sensitivity analysis: macro-economic scenarios',
+                    'note' => ($sv['table1']['set'] ? 'Scenario set: ' . $sv['table1']['set'] . '. ' : '') . $sv['table1']['note'] . ' (IFRS 7.35G)',
+                    'columns' => ['Scenario', 'Weight', 'ECL under the scenario', 'Effect vs. booked', 'Key shocks'], 'align' => ['l', 'r', 'r', 'r', 'l'],
+                    'rows' => array_map(fn ($r) => [$r['scenario'], self::percent($r['weight']), $fmt($r['ecl']), $fmt($r['effect']), $r['shocks']], $sv['table1']['rows'])];
+            } elseif ($sv['table1_message']) {
+                $sections[] = ['heading' => '(j) Sensitivity analysis (IFRS 7.35G)', 'columns' => ['Note'], 'align' => ['l'], 'rows' => [[$sv['table1_message']]]];
+            }
+            if ($sv['table2']) {
+                $sections[] = ['heading' => '(j) Sensitivity analysis: isolated PD/LGD stress',
+                    'note' => 'Each line holds every other assumption, including the macro-economic scenario, at its booked value (IFRS 7.35G).'
+                        . ($sv['table2']['unresolved_loans'] ? ' ' . number_format($sv['table2']['unresolved_loans']) . ' loan(s) could not be re-based and are excluded, named, never assumed at zero.' : '')
+                        . ($sv['table2']['programme_note'] ? ' ' . $sv['table2']['programme_note'] : ''),
+                    'columns' => ['Stress', 'Stage 1', 'Stage 2', 'Stage 3', 'Total', 'Effect vs. booked'], 'align' => ['l', 'r', 'r', 'r', 'r', 'r'],
+                    'rows' => array_map(fn ($l) => [$l['label'], $fmt($l['by_stage'][1]), $fmt($l['by_stage'][2]), $fmt($l['by_stage'][3]), $fmt($l['total']), $fmt($l['effect'])], $sv['table2']['lines'])];
+            } elseif ($sv['table2_message']) {
+                $sections[] = ['heading' => '(j) Sensitivity analysis: isolated PD/LGD stress', 'columns' => ['Note'], 'align' => ['l'], 'rows' => [[$sv['table2_message']]]];
+            }
         }
         foreach (['ecl' => 'loss allowance', 'gross' => 'gross carrying amount'] as $key => $what) {
             if ($recon = $note['tables'][$key]['recon']) {

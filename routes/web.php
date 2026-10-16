@@ -1106,6 +1106,15 @@ Route::group(['prefix' => 'eir-write-offs', 'as' => 'eir-write-offs.'], function
     Route::post('/{id}/approve', [\App\Http\Controllers\EirWriteOffController::class, 'approve'])->name('approve');
     Route::post('/{id}/close', [\App\Http\Controllers\EirWriteOffController::class, 'close'])->name('close');
 });
+// Account exclusions: E-Banker accounts that are not loans of the book (UAT test accounts, duplicate approvals; AccountExclusionService)
+Route::group(['prefix' => 'account-exclusions', 'as' => 'account-exclusions.'], function () {
+    Route::get('/', [\App\Http\Controllers\AccountExclusionController::class, 'index'])->name('index');
+    Route::post('/', [\App\Http\Controllers\AccountExclusionController::class, 'store'])->name('store');
+    Route::post('/{id}/approve', [\App\Http\Controllers\AccountExclusionController::class, 'approve'])->whereNumber('id')->name('approve');
+    Route::post('/{id}/close', [\App\Http\Controllers\AccountExclusionController::class, 'close'])->whereNumber('id')->name('close');
+    Route::post('/{id}/withdrawal/approve', [\App\Http\Controllers\AccountExclusionController::class, 'approveWithdrawal'])->whereNumber('id')->name('withdrawal.approve');
+    Route::post('/{id}/withdrawal/drop', [\App\Http\Controllers\AccountExclusionController::class, 'dropWithdrawal'])->whereNumber('id')->name('withdrawal.drop');
+});
 // Restructures and rate resets: the candidates, the governed register, the reset register (spec v4 s.3.9, P5 to P7)
 Route::group(['prefix' => 'eir-restructures', 'as' => 'eir-restructures.'], function () {
     Route::get('/', [\App\Http\Controllers\EirRestructureController::class, 'index'])->name('index');

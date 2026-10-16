@@ -28,6 +28,8 @@ final class DecisionsPack
     public const FILES = [
         'users' => 'users.json',
         'documents' => 'documents.json',
+        // replayed first of the decisions, before the loan book is built (replayExclusions)
+        'account_exclusions' => 'account_exclusions.json',
         'governance' => 'governance.json',
         'fee_rules' => 'fee_rules.json',
         'finance_lines' => 'finance_lines.json',

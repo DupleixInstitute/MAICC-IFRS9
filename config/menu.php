@@ -79,6 +79,8 @@ return [
         ['color' => '#5EEAD4', 'heading' => 'Data foundation'] + $group('Customer & Loan Data', 'users', [
             $leaf('Clients', 'clients.index'),
             $leaf('Loan Book', 'loan_applications.loan-book'),
+            // the E-Banker accounts that are not loans of the book: every build leaves an approved one out
+            $leaf('Account Exclusions', 'account-exclusions.index', 'circle', false, 'eir.view'),
             // In the order the data comes in: the file imports, the E-Banker
             // packs and the loan book built from them, then the take-on
             // workbook. The feed and take-on screens open on the view named

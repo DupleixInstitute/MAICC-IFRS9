@@ -55,6 +55,9 @@ class DecisionsPackReplayer
     /** @var list<array{kind: string, key: string, outcome: string, detail: string}> */
     private array $report = [];
 
+    /** Whether the users are carried already (replayExclusions runs before replay). */
+    private bool $usersCarried = false;
+
     /** @var array<string, int> fee key => fee id here, as built before any move */
     private array $feeIds = [];
 
@@ -74,8 +77,8 @@ class DecisionsPackReplayer
         }
         $this->manifest = json_decode((string) file_get_contents($path), true) ?: [];
         foreach (DecisionsPack::FILES as $kind => $file) {
-            if (! isset($this->manifest['files'][$kind]) && $kind === 'documents') {
-                $this->data[$kind] = []; // a pack exported before documents were carried
+            if (! isset($this->manifest['files'][$kind]) && in_array($kind, ['documents', 'account_exclusions'], true)) {
+                $this->data[$kind] = []; // a pack exported before documents, or the account exclusions, were carried
                 continue;
             }
             $json = (string) @file_get_contents($folder . '/' . $file);
@@ -110,7 +113,9 @@ class DecisionsPackReplayer
     public function replay(int $bootstrapUser): array
     {
         \App\Support\LedgerReadLimits::raise();
-        $this->users();
+        if (! $this->usersCarried) {
+            $this->users();
+        }
         $this->governance();
         $this->feeRules();
         $this->financeLines();
@@ -128,6 +133,88 @@ class DecisionsPackReplayer
         $this->reopenRequests();
 
         return $this->summary();
+    }
+
+    /**
+     * The account exclusions people decided in the source database, carried before the loan book is
+     * built (the bootstrap calls this first, then replay()): an exclusion here keeps its people and
+     * dates, and an approved one is applied (AccountExclusionService) so the build leaves the account
+     * out. The users are carried first, since the exclusions name them.
+     *
+     *  - not in the register here: recorded as it stood in the source (APPLIED);
+     *  - here in the same status: ALREADY;
+     *  - here APPROVED from the committed client input, and withdrawn by people in the source: the
+     *    withdrawal is carried and the account comes back into the book (APPLIED);
+     *  - here in another status: DIFFERENT, listed for a person to decide again;
+     *  - a person it names is not known here: NOT_FOUND.
+     *
+     * @return array<string, array<string, int>>
+     */
+    public function replayExclusions(): array
+    {
+        if (! $this->usersCarried) {
+            $this->users();
+            $this->usersCarried = true;
+        }
+        if (! Schema::hasTable('account_exclusions')) {
+            return [];
+        }
+        $service = app(\App\Services\Ebanker\AccountExclusionService::class);
+        foreach ($this->data['account_exclusions'] as $x) {
+            $key = (string) $x['contract_id'];
+            $people = [];
+            foreach (['proposed_by', 'approved_by', 'withdrawal_requested_by', 'closed_by'] as $col) {
+                $people[$col] = $this->userId($x[$col] ?? null);
+                if (($x[$col] ?? null) !== null && $people[$col] === null) {
+                    $this->note('account_exclusions', $key, self::NOT_FOUND, "{$col} {$x[$col]} is not known here");
+                    continue 2;
+                }
+            }
+            $here = DB::table('account_exclusions')->where('contract_id', $key)->first();
+            try {
+                if ($here !== null && $here->status === $x['status']) {
+                    $this->note('account_exclusions', $key, self::ALREADY, strtolower($x['status']) . ' here already (#' . $here->id . ')');
+                    continue;
+                }
+                if ($here !== null && $here->status === 'APPROVED' && $here->source === 'CLIENT_INPUT' && $x['status'] === 'WITHDRAWN' && $people['closed_by'] !== null) {
+                    // withdrawn by people in the source: the request and its approval, as they were made there
+                    DB::table('account_exclusions')->where('id', $here->id)->update(['withdrawal_requested_by' => $people['withdrawal_requested_by'] ?? $people['closed_by'],
+                        'withdrawal_requested_at' => $x['withdrawal_requested_at'] ?? $x['closed_at'], 'withdrawal_reason' => $x['close_reason'] ?? $x['withdrawal_reason'] ?? 'Withdrawn in the source database']);
+                    $service->approveWithdrawal((int) $here->id, (int) $people['closed_by']);
+                    $this->audit('account_exclusions', (int) $here->id, ['contract_id' => $key, 'status' => 'WITHDRAWN'], $x['closed_by'], $x['closed_at'], ['withdrawn_in_source' => true]);
+                    $this->note('account_exclusions', $key, self::APPLIED, 'withdrawn by ' . $x['closed_by'] . ' in the source; the account is back in the book');
+                    continue;
+                }
+                if ($here !== null) {
+                    $this->note('account_exclusions', $key, self::DIFFERENT, strtolower($here->status) . ' here (#' . $here->id . '), ' . strtolower($x['status']) . ' in the source');
+                    continue;
+                }
+                $id = (int) DB::table('account_exclusions')->insertGetId([
+                    'contract_id' => $key, 'account' => $x['account'] ?? null, 'customer_name' => $x['customer_name'] ?? null, 'category' => $x['category'], 'reason' => $x['reason'],
+                    'evidence' => $x['evidence'], 'sister_contract_id' => $x['sister_contract_id'] ?? null, 'status' => 'PROPOSED', 'source' => 'DECISIONS_PACK',
+                    'proposed_by' => $people['proposed_by'], 'proposed_at' => $x['proposed_at'] ?? null, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                foreach (array_values(array_filter($this->documentsFor[self::supportKey(['kind' => 'account_exclusion', 'contract_id' => $key])] ?? [], fn ($d) => $d['file'] !== null)) as $d) {
+                    $this->attachDocument($d, 'account_exclusions', $id, \App\Services\ApprovalDocumentService::FOLDER . '/account_exclusions/' . $id);
+                }
+                if ($x['status'] === 'APPROVED') {
+                    // applied here as it was in the source: the rows the account holds (none on a fresh install) go to the archive
+                    $service->approve($id, $people['approved_by'], $x['approver_label'] ?? null);
+                    DB::table('account_exclusions')->where('id', $id)->update(['approved_at' => $x['approved_at'] ?? now(),
+                        'withdrawal_requested_by' => $people['withdrawal_requested_by'], 'withdrawal_requested_at' => $x['withdrawal_requested_at'] ?? null, 'withdrawal_reason' => $x['withdrawal_reason'] ?? null]);
+                } else {
+                    DB::table('account_exclusions')->where('id', $id)->update(['status' => $x['status'], 'closed_by' => $people['closed_by'], 'closed_at' => $x['closed_at'] ?? null,
+                        'close_reason' => $x['close_reason'] ?? null, 'approved_by' => $people['approved_by'], 'approved_at' => $x['approved_at'] ?? null, 'approver_label' => $x['approver_label'] ?? null]);
+                }
+                $this->audit('account_exclusions', $id, ['contract_id' => $key, 'status' => $x['status'], 'category' => $x['category']], $x['approved_by'] ?? $x['closed_by'] ?? $x['proposed_by'], $x['approved_at'] ?? $x['closed_at'] ?? $x['proposed_at'], []);
+                $this->note('account_exclusions', $key, self::APPLIED, strtolower($x['status']) . ($x['status'] === 'APPROVED' ? ' by ' . ($x['approved_by'] ?? $x['approver_label']) : ''));
+            } catch (Throwable $e) {
+                $this->note('account_exclusions', $key, self::REFUSED, $e->getMessage());
+            }
+        }
+        \App\Support\AccountExclusions::forget();
+
+        return array_intersect_key($this->summary(), array_flip(['users', 'account_exclusions']));
     }
 
     /** @return array<string, array> contract id => the person's lock in the source database */
@@ -268,7 +355,11 @@ class DecisionsPackReplayer
     /** The key a document's support is filed under, the same for the export's entry and the decision it names. */
     private static function supportKey(array $s): string
     {
-        return ($s['kind'] ?? '') === 'fee_rule' ? 'fee_rule|' . $s['name'] : 'governance|' . $s['key'] . '|' . $s['value'] . '|' . $s['effective_from'];
+        return match ($s['kind'] ?? '') {
+            'fee_rule' => 'fee_rule|' . $s['name'],
+            'account_exclusion' => 'account_exclusion|' . $s['contract_id'],
+            default => 'governance|' . $s['key'] . '|' . $s['value'] . '|' . $s['effective_from'],
+        };
     }
 
     /**
@@ -629,6 +720,8 @@ class DecisionsPackReplayer
             'reviewed fee lines in force' => ['source' => (int) ($source['reviewed_lines_in_force'] ?? 0), 'here' => $reviewedHere, 'listed' => count(array_filter($this->notCarried(), fn ($r) => $r['kind'] === 'classifications'))],
             'EIRs locked by a person' => ['source' => (int) ($source['person_locked_eirs'] ?? 0), 'here' => DB::table('contract_eir')->whereNotNull('locked_at')->whereNull('locked_label')->count(), 'listed' => $listed('eir_locks')],
             'supporting documents' => ['source' => (int) ($source['documents'] ?? 0), 'here' => count($this->stored), 'listed' => 0],
+            'account exclusions approved' => ['source' => (int) ($source['account_exclusions_approved'] ?? 0),
+                'here' => Schema::hasTable('account_exclusions') ? DB::table('account_exclusions')->where('status', 'APPROVED')->where('source', '<>', 'CLIENT_INPUT')->count() : 0, 'listed' => $listed('account_exclusions')],
             // carried, and counted apart: approved on the source before a document was required (section 8.10)
             'approved before supporting documents were required' => ['source' => $grandfathered, 'here' => $grandfathered, 'listed' => 0],
         ];

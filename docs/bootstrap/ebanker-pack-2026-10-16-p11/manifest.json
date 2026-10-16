@@ -1,0 +1,66 @@
+{
+  "pack": "MAIIC E-Banker pack 11, received 16 October 2026",
+  "assembled": "2026-10-16",
+  "period": "2026-10",
+  "source": "E-Banker (Virtual Galaxy CBS, schema VGCBS), run by Barry Makumba in SQL Developer from FOLLOW-UP extracts for Barry - pack 11 - 16 Oct 2026 (all runs).sql (docs/bootstrap/queries/Pack 11 - 16 Oct 2026 (all runs).sql); RUN 0 was not applied, so dates are exported as m/d/yyyy; amounts signed",
+  "date_format": "m/d/Y",
+  "scope_scheme_ids": [],
+  "accepted_exceptions": [
+    "RUN 0 not applied: every date is m/d/yyyy; the manifest declares the format (D23)",
+    "IC_01 is the live instalment chart (FIXLOAN_INST_CHART) of the 17 pack 11 loans, every row whatever its flags; it has its own query id, read with P2_10 as the live chart only for the rows P2_10 does not hold (InstalmentChartHistory::LIVE_SUPPLEMENTS): JVD Agro 000104460000109's chart of 12 May 2025 (61 rows); the 62 rows of Nature's Gift and Kadava are the rows P2_10 already holds, and the 6 rows of 000104420000044 are of a UAT test account the account exclusion register takes out of the book"
+  ],
+  "not_landed": [
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/DS_01_disbursement_schedule_and_charges.csv",
+      "sha256": "62ab387098a9dc6b499247ae49d84bd34d318d7f3dff59b87e09958344ab74b6",
+      "reason": "the planned drawdowns of the 17 (LOAN_DISBURSMENT_SCHEDULE, 6 rows, all status D; no DISBURSE_CHARGES_DETAILS row): each row is the P3_12 row the zone holds since pack 1, field for field (JVD Agro 1473, 250,000,000.00 on 12 May 2025; Nature's Gift 92, 24,600,000.00 on 22 Apr 2022; Kadava 53, 12,000,000.00 on 2 Aug 2022). P3_12 has no key and comes whole, so landing six rows as P3_12 would supersede every other loan's schedule. The amounts drawn reach the contract master from the stored Loan Book Report runs before each loan closed (ContractInputsBuildService::statesTheFacility) and the tranche register from the ledger"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/SH_01_status_reschedule_closure.csv",
+      "sha256": "8ca05a8b270876d9bfcb110af95d9f71757f14ae6b347476c6122a15e70fd965",
+      "reason": "the status and closure history of the 17: the evidence of the account exclusion register (docs/bootstrap/account_exclusions.json: nine accounts closed with status C effective 31 Dec 2025, reason UAT accounts); the status history itself is in the zone as P3_13"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/AM_01_account_and_loan_master.csv",
+      "sha256": "1407a2eaca898e10acdb6e7438015db4215d92510804458463d9a011cc8cb00d",
+      "reason": "the account and loan master rows of the 17, already in the zone as P1_02 and P1_03; evidence of the account exclusion register (the three duplicate approvals)"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/CV_16_customer_loan_postings.csv",
+      "sha256": "ba2fb2a2ad8cddf8f901f311c7ca4e4476c52aa15622fdcaf4a3f4b3d0e0d01d",
+      "reason": "every loan posting of the 17 loans' customers, rows of the live ledger the zone holds as P1_01; evidence of the account exclusion register (no posting on any of the twelve excluded accounts; the duplicate approvals' loans are posted on their sister accounts)"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/CV_17_customer_loan_postings_old.csv",
+      "sha256": "ba2fb2a2ad8cddf8f901f311c7ca4e4476c52aa15622fdcaf4a3f4b3d0e0d01d",
+      "reason": "byte-identical to CV_16 (same SHA-256): the query of the pre-migration ledger copy returned the live ledger's rows; the pre-migration ledger is in the zone as CV_04a"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/SD_01_sanction_details.csv",
+      "sha256": "298858e8edad1355db758c1e2dcd1cd655b13afd8e83cae4e4a9e7adc5664a9e",
+      "reason": "the sanction details of the 17 (17 rows): reference; the sanction amounts are the loan master's (P1_03)"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/IP_01_instalment_plans.csv",
+      "sha256": "12ce86671b3a68509296259cb68ca47e5aaf57a938810f73a0c45d466e4aee52",
+      "reason": "the instalment plans of the 17 (25 rows), deleted ones too: reference; the live plans are in the zone as P3_11"
+    },
+    {
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/CH_03_other_fee_charges.csv",
+      "sha256": "d3149b5846bbb1955c60079f29a8033fcdf735147a08bbabee2e9735c1f59084",
+      "reason": "the other fee charges of LOS_DISB_CHARGES_POST (3,354 rows): reference for the fee review; the charges the engines read are P2_07, landed whole in pack 4"
+    }
+  ],
+  "classification": "MAIIC client data: borrower names and instalments. Private repository; access as for the production database.",
+  "files": [
+    {
+      "file": "IC_01_instalment_chart_17.csv",
+      "query_id": "IC_01",
+      "kind": "pack 11 RUN 5: FIXLOAN_INST_CHART rows of the 17 pack 11 loans, every row whatever its ACTIVE_FLAG or DELETE_FLAG; JVD Agro 61, Nature's Gift 37, Kadava 25, 000104420000044 6",
+      "rows": 129,
+      "sha256": "dcdda8dc0a6bb580f6aa2b336ec5abe16755ccb8eb063141b2afc473c3d23040",
+      "bytes": 26103,
+      "received_as": "Received 12 October 2026/Pack 4/Pack 11/Export Results/Pack 11/IC_01_instalment_chart_17.csv"
+    }
+  ]
+}
