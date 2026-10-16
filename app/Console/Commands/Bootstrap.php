@@ -6,6 +6,8 @@ use App\Models\ContractEir;
 use App\Models\ContractFee;
 use App\Models\EirFeeClassificationEvent;
 use App\Services\Ebanker\ContractInputsBuildService;
+use App\Services\Ebanker\DirectRead\DirectReadRunner;
+use App\Services\Ebanker\DirectRead\EbankerSource;
 use App\Services\Ebanker\LandingZoneReader;
 use App\Services\Ebanker\LoanBookBuildService;
 use App\Services\Ebanker\PackLandingService;
@@ -28,7 +30,8 @@ use Throwable;
  *   php artisan eir:bootstrap --fresh --with-client-inputs --build --run-engines --verify
  *
  * Steps: 1 migrate:fresh (refused if user data exists unless --force-wipe);
- * 2 seed; 3 land the committed pack; 4 land the take-on workbook; 5 build the
+ * 2 seed; 3 land the committed pack (3d, with --direct-read, then a month-end
+ * read from E-Banker by route 4); 4 land the take-on workbook; 5 build the
  * loan books, the take-on population and the contract inputs, then the
  * version 1 schedules, then detect the restructure candidates and the rate
  * moves (detection only: the bootstrap never classifies, confirms or
@@ -51,7 +54,8 @@ class Bootstrap extends Command
         {--user=1 : The system user the bootstrap records its loads against}
         {--inputs=docs/bootstrap : Folder of the committed inputs}
         {--live-macro : Fetch the World Bank series live instead of the committed snapshot (the results then depend on the day it runs)}
-        {--with-decisions= : Replay the decisions pack of this name from docs/bootstrap/decisions (section 8.10): decisions people made in the database it was exported from}';
+        {--with-decisions= : Replay the decisions pack of this name from docs/bootstrap/decisions (section 8.10): decisions people made in the database it was exported from}
+        {--direct-read= : After the committed packs, read this month-end (YYYY-MM) from E-Banker by route 4 into this database; under .env.bootstrap that is E-Banker\'s test copy (data access request, section 8)}';
 
     protected $description = 'Clean install: seed, land the committed client inputs, build, run the engines, verify the golden numbers';
 
@@ -77,6 +81,9 @@ class Bootstrap extends Command
             $to = null;
             if ($this->option('with-client-inputs')) {
                 $this->stepLand($inputs, $user);
+            }
+            if ($this->option('direct-read')) {
+                $this->stepDirectRead((string) $this->option('direct-read'), $user);
             }
             if ($this->option('build')) {
                 $to = $this->stepBuild($user);
@@ -182,6 +189,21 @@ class Bootstrap extends Command
                 $profile = app(\App\Services\Ifrs9\SpGradesImportService::class)->import($sp[0], 'MAIIC & FInES ECL Model - 14th December 2025_Final.xlsx (the two sheets as values, docs/bootstrap/models)', $name, $user);
                 $this->note('3c S&P grading', "draft profile \"{$name}\": " . $profile->mappings()->count() . ' grades, not active');
             }
+        }
+    }
+
+    /**
+     * Route 4 on test (data access request, sections 8 and 9, stage B): a month-end read from E-Banker
+     * lands over the history the committed packs built, so a month already received by hand must land
+     * as all unchanged; each query with a new or versioned row is named in the report.
+     */
+    private function stepDirectRead(string $period, int $user): void
+    {
+        $s = DirectReadRunner::summary(app(DirectReadRunner::class)->run(app(EbankerSource::class), $period, $user));
+        $changed = $s['changed'] === [] ? 'nothing new or changed' : 'changed: ' . implode('; ', array_map(fn ($q, $d) => "{$q} {$d}", array_keys($s['changed']), $s['changed']));
+        $this->note('3d direct read (route 4)', "{$period}: {$s['status']} (load {$s['load_id']}): {$s['rows_read']} rows read; {$s['new']} new, {$s['versioned']} versioned, {$s['unchanged']} unchanged; {$changed}");
+        if ($s['status'] === 'QUARANTINED') {
+            throw new \RuntimeException('The route 4 read did not pass its gates.');
         }
     }
 

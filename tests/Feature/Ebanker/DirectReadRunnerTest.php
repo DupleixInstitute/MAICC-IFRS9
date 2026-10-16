@@ -119,6 +119,9 @@ class DirectReadRunnerTest extends TestCase
         $r = $this->run4($source);
         $this->assertSame('LANDED', $r['landing']['status']);
         $this->assertSame(101, $source->bindsFor('M09_01')['watermark']);
+        $summary = DirectReadRunner::summary($r);
+        $this->assertSame(['M09_01' => '1 new, 0 versioned'], $summary['changed']);
+        $this->assertSame([3, 1, 0, 2], [$summary['rows_read'], $summary['new'], $summary['versioned'], $summary['unchanged']]);
         $ledger = collect($r['landing']['files'])->first(fn ($f, $file) => str_starts_with($file, 'M09_01_'));
         $this->assertSame(['new' => 1, 'unchanged' => 1], ['new' => $ledger['new'], 'unchanged' => $ledger['unchanged']]);
         $this->assertSame(4, DB::table('ebanker_raw_rows')->count());

@@ -69,6 +69,15 @@ class DirectReadCommandTest extends TestCase
         $this->assertSame('ROUTE_4_DIRECT', DB::table('ebanker_loads')->value('route'));
     }
 
+    public function test_the_bootstrap_reads_a_month_end_by_route_4_and_reports_what_changed(): void
+    {
+        $this->fake(['P1_02' => [['NEW_AC_NUMBER' => '000104420000005', 'GLCODE' => '1050101', 'ACCOUNT_NAME' => 'Customer 5', 'ACCOUNT_OPEN_DATE' => '2024-07-01']]]);
+        $this->artisan('eir:bootstrap', ['--direct-read' => '2026-11'])
+            ->expectsOutputToContain('2026-11: LANDED')
+            ->assertSuccessful();
+        $this->assertSame('ROUTE_4_DIRECT', DB::table('ebanker_loads')->value('route'));
+    }
+
     public function test_the_connection_test_proves_every_statement_without_reading_a_row(): void
     {
         $fake = $this->fake();

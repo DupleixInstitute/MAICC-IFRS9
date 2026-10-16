@@ -87,6 +87,31 @@ class DirectReadRunner
         return ['pack_dir' => $dir, 'reads' => $reads, 'landing' => $this->landing->land($dir, $userId, PackLandingService::ROUTE_DIRECT, $dryRun)];
     }
 
+    /**
+     * What a read changed against what the database already held (data access request, section 8):
+     * a month already received by hand lands as all unchanged; every query with a new or a versioned
+     * row is named, as a query to correct or a change in E-Banker to explain.
+     *
+     * @return array{status:string,load_id:int,rows_read:int,new:int,versioned:int,unchanged:int,changed:array<string,string>}
+     */
+    public static function summary(array $result): array
+    {
+        $out = ['status' => (string) $result['landing']['status'], 'load_id' => (int) $result['landing']['load_id'], 'rows_read' => array_sum(array_column($result['reads'], 'rows')),
+            'new' => 0, 'versioned' => 0, 'unchanged' => 0, 'changed' => []];
+        foreach ($result['landing']['files'] ?? [] as $file => $f) {
+            if (! is_array($f) || ! array_key_exists('new', $f)) {
+                continue;
+            }
+            $out['new'] += $f['new']; $out['versioned'] += $f['versioned']; $out['unchanged'] += $f['unchanged'];
+            $queryId = collect(array_keys($result['reads']))->first(fn ($q) => str_starts_with($file, $q . '_')) ?? $file;
+            if ($f['new'] + $f['versioned'] > 0) {
+                $out['changed'][$queryId] = "{$f['new']} new, {$f['versioned']} versioned";
+            }
+        }
+
+        return $out;
+    }
+
     /** @return array<string, int> query id => the highest key landed for it, across the landed loads */
     public function watermarks(): array
     {
