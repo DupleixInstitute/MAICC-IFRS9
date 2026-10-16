@@ -502,6 +502,23 @@ class GovernanceService
                 'default' => StagingPolicy::NOT_APPLIED,
                 'seed_reason' => 'Seeded at the value of MAIIC\'s staging policy as at 31 December 2025 (ECL workbooks of 14 December 2025) (Staging Module Specification v1, section 3).',
             ],
+            // the PD-change test's two thresholds (PD at Origination Specification v1, decision 4, taken by Edward
+            // Mazibuko on Dr Thom's behalf on 16 October 2026 for ratification); read by its shadow report only,
+            // until setting 9 (sicr_pd_change) is adopted
+            'sicr_pd_ratio_threshold' => [
+                'label' => 'PD-change test: how many times the starting PD',
+                'description' => 'The PD-change test (setting 9) treats a loan as having had a significant increase in credit risk when its 12-month PD after the forward-looking adjustment is at least this many times its PD at origination, and at least the points below higher. Read by the shadow report of the test only, until setting 9 is adopted.',
+                'options' => ['1.5 times', '2 times', '2.5 times', '3 times'],
+                'default' => '2 times',
+                'seed_reason' => 'Decided by Edward Mazibuko on Dr Thom\'s behalf on 16 October 2026, for ratification (PD at Origination Specification v1, decision 4): doubling is the widely used relative test.',
+            ],
+            'sicr_pd_points_threshold' => [
+                'label' => 'PD-change test: by how many percentage points',
+                'description' => 'The second half of the PD-change test: the 12-month PD must also have risen by at least this many percentage points since origination. The PDs of MAIIC are high, so a relative test alone would move loans on small absolute changes. Read by the shadow report of the test only, until setting 9 is adopted.',
+                'options' => ['5 percentage points', '10 percentage points', '15 percentage points', '20 percentage points'],
+                'default' => '10 percentage points',
+                'seed_reason' => 'Decided by Edward Mazibuko on Dr Thom\'s behalf on 16 October 2026, for ratification (PD at Origination Specification v1, decision 4).',
+            ],
             'stage_cure_test' => [
                 'label' => 'What a loan must do to cure',
                 'description' => 'What lets a loan move down a stage. Months below the threshold holds it for the cure months only, as MAIIC\'s staging policy as at 31 December 2025 did (with 0 months, it moves down at once). All arrears cleared moves it down only when nothing is overdue (the directive, section 13(3)). Arrears cleared, then the months needs both. Read only under the Custom preset.',
@@ -570,7 +587,7 @@ class GovernanceService
             'staging_rebuttal' => 'A rebuttal is a staging_thresholds row with its evidence, proposed and approved on Settings, Staging basis; this setting is not read.',
             'historic_materiality_assessment' => 'The historic materiality figure is not reproduced yet (O20).',
             'fee_reclass_journal' => 'No fee reclassification journal is proposed yet (O21).',
-            'sicr_pd_change' => 'No loan\'s PD at origination is kept yet, so the PD-change test is not built; staging never applies it.',
+            'sicr_pd_change' => 'Each loan\'s PD at origination is now kept and the PD-change test runs in shadow (IFRS 9 Model Setup, PD at Origination); staging never applies it until this setting is adopted (PD at Origination Specification v1, decision 5).',
         ];
     }
 

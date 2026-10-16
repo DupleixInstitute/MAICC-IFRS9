@@ -102,6 +102,10 @@ class RunRecordService
         }
         $this->stamp($run);
         $this->keepLoans($run);
+        // each loan's starting risk, once, for every loan that has a PD this month (PD at Origination Specification v1)
+        if ($ok) {
+            app(\App\Services\Pd\OriginationPdService::class)->capture((string) $run->reporting_period, (int) $runId);
+        }
         $snapshot = $this->snapshot($run->reporting_period, (string) $run->code_version);
         DB::table('run_records')->where('id', $runId)->update([
             'status' => $ok ? self::COMPLETED : self::FAILED, 'finished_at' => now(), 'error' => $error === null ? null : mb_substr($error, 0, 2000),

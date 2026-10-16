@@ -147,6 +147,7 @@ return [
                 $tab('Monthly Probability', 'transition-matrices.index'),
                 $tab('Cumulative Probability', 'transition-matrix-cummulative.index'),
                 $tab('Internal Grades', 'internal-grading.profiles'),
+                $tab('PD at Origination', 'origination-pd.index'),
             ]),
             $section('LGD Model', [
                 $tab('Monthly LGD', 'loss-given-default.index'),
