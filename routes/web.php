@@ -739,6 +739,9 @@ Route::group(['prefix' => 'eir-fee-classification', 'as' => 'eir-fee-classificat
     Route::post('/return', [\App\Http\Controllers\EirFeeClassificationController::class, 'returnToClassification'])->name('return');
     Route::post('/held/{held}/tie', [\App\Http\Controllers\EirFeeClassificationController::class, 'tieHeld'])->name('tie-held');
     Route::post('/held/{held}/not-this-loan', [\App\Http\Controllers\EirFeeClassificationController::class, 'dismissCandidate'])->name('dismiss-candidate');
+    // Held Fee Classification Export/Reimport Specification v1: the held queue as a CSV, and Finance's decisions re-uploaded
+    Route::get('/held/export', [\App\Http\Controllers\EirFeeClassificationController::class, 'downloadHeldExport'])->name('held.export');
+    Route::post('/held/import', [\App\Http\Controllers\EirFeeClassificationController::class, 'uploadHeldImport'])->name('held.import');
     Route::post('/fee/{fee}/overlap', [\App\Http\Controllers\EirFeeClassificationController::class, 'decideOverlap'])->name('decide-overlap');
     Route::post('/fee/{fee}/move', [\App\Http\Controllers\EirFeeClassificationController::class, 'moveFee'])->name('move');
     // the fee reconciliation workbook for Finance, and Finance's answers decided by a second person (spec v4 section 7.8.9)

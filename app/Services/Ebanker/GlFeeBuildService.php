@@ -213,7 +213,13 @@ class GlFeeBuildService
      * into contract_fees PENDING, so it still needs its classification and
      * review before it can affect an EIR; the precedence is applied again.
      */
-    public function assignHeld(int $heldId, string $contractId, int $userId, string $reason): array
+    /**
+     * @param  ?array  $origin  additive, optional (Held Fee Classification Export/Reimport Specification v1,
+     *                          section 6.1): merged into this call's audit meta when given (e.g.
+     *                          ['channel' => 'bulk_import', 'import_batch_id' => ...]); the screen's own calls
+     *                          never pass it, so they are byte-for-byte unaffected.
+     */
+    public function assignHeld(int $heldId, string $contractId, int $userId, string $reason, ?array $origin = null): array
     {
         $reason = trim($reason);
         if (mb_strlen($reason) < 10) {
@@ -227,7 +233,7 @@ class GlFeeBuildService
         if (! DB::table('contract_eir')->where('contract_id', $contractId)->exists() && ! DB::table('loan_books')->where('contract_id', $contractId)->exists()) {
             throw new \InvalidArgumentException("Loan {$contractId} is not in the contract master or the loan book.");
         }
-        $result = DB::transaction(function () use ($held, $contractId, $userId, $reason) {
+        $result = DB::transaction(function () use ($held, $contractId, $userId, $reason, $origin) {
             $r = $this->fees->import([[
                 'contract_id' => $contractId, 'fee_type' => self::TYPE_BY_GL[$held->gl_code] ?? 'other', 'amount' => (float) $held->amount,
                 'transaction_date' => $held->transaction_date, 'cashflow_direction' => 'RECEIVED', 'currency' => 'MWK',
@@ -237,7 +243,7 @@ class GlFeeBuildService
             ]]);
             DB::table('fee_gl_unassigned')->where('id', $held->id)->delete();
             AuditLoggerService::log('GL Fee Tied To Loan', 'contract_fees', null, ['new_values' => ['contract_id' => $contractId, 'external_transaction_id' => $held->external_transaction_id,
-                'amount' => (float) $held->amount, 'reason' => $reason, 'candidate_was' => $held->candidate_contract_id], 'meta' => ['user' => $userId]]);
+                'amount' => (float) $held->amount, 'reason' => $reason, 'candidate_was' => $held->candidate_contract_id], 'meta' => ($origin ?? []) + ['user' => $userId]]);
 
             return $r;
         });

@@ -1698,6 +1698,15 @@ class Ifrs9ReportsController extends Controller
     ];
 
     /** SQL CASE that maps overdue_days and the tenor to the RBM class label, by the directive's bands by term. */
+    /**
+     * The directive's day-count bands only, by this period's row alone. It does NOT apply
+     * paragraph 13(3) (RbmReturnService::build(): a facility non-performing last month-end is
+     * held at Substandard this month until its arrears are nil, built 16 October 2026): a loan
+     * the Return holds at Substandard on 13(3) can show a lower class here. The RBM Return
+     * (/rbm-return) is the filing of record; the reports built on this case (RBM Classification,
+     * IFRS 9 vs RBM, Provision Comparison, Concentration) are the day-count view and are named
+     * as such, not yet extended with the history the Return's hold needs.
+     */
     private function rbmClassCase(): string
     {
         return "CASE

@@ -108,8 +108,8 @@ class RbmReturnController extends Controller
                 ...$this->restructured($r['sections']['D_restructured'] ?? [], $m),
                 ['heading' => 'E. Security against classified facilities', 'columns' => ['Item', 'Value'], 'align' => ['l', 'r'], 'rows' => $kv($r['sections']['E_security']),
                     'note' => (string) ($r['sections']['E_security']['note'] ?? '')],
-                ['heading' => 'Per facility', 'columns' => ['Contract', 'Class', 'Term', 'Days past due', 'Balance', 'IFRS 9 stage'], 'align' => ['l', 'l', 'l', 'r', 'r', 'l'],
-                    'rows' => collect($r['per_loan'])->map(fn ($p, $cid) => [(string) $cid, $p['class'], $p['term'], (string) $p['dpd'], $m($p['balance']), 'Stage ' . $p['stage']])->values()->all()],
+                ['heading' => 'Per facility', 'columns' => ['Contract', 'Class', 'Term', 'Days past due', 'Balance', 'IFRS 9 stage', 'Held at Substandard (13(3))'], 'align' => ['l', 'l', 'l', 'r', 'r', 'l', 'l'],
+                    'rows' => collect($r['per_loan'])->map(fn ($p, $cid) => [(string) $cid, $p['class'], $p['term'], (string) $p['dpd'], $m($p['balance']), 'Stage ' . $p['stage'], ! empty($p['held_13_3']) ? 'Yes: arrears not yet nil' : ''])->values()->all()],
             ],
             'notes' => $r['notes'] ?? [],
         ];

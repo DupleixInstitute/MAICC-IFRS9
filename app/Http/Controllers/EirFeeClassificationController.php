@@ -18,12 +18,15 @@ class EirFeeClassificationController extends Controller
         $this->middleware('auth');
         // the list and the fee GL check are readable with eir.fees.import; classifying and reviewing stay with settings
         // the workbook for Finance and Finance's answers go with the fee intake (eir.fees.import), the permission
-        // Finance's users hold for this screen; eir.view does not open Fee Classification at all
-        $this->middleware('permission:settings|eir.fees.import')->only(['index', 'downloadWorkbook', 'uploadAnswers']);
-        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'downloadWorkbook', 'uploadAnswers', 'decideAnswer', 'approveSheet']);
+        // Finance's users hold for this screen; eir.view does not open Fee Classification at all. The held-fee
+        // export is the same read as the on-screen queue, so it takes the same grant explicitly (it does not
+        // inherit it from index) — Held Fee Classification Export/Reimport Specification v1, section 5.
+        $this->middleware('permission:settings|eir.fees.import')->only(['index', 'downloadWorkbook', 'uploadAnswers', 'downloadHeldExport']);
+        $this->middleware('permission:settings')->except(['index', 'tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'downloadWorkbook', 'uploadAnswers', 'decideAnswer', 'approveSheet', 'downloadHeldExport', 'uploadHeldImport']);
         // tying a held GL fee line to a loan is a governed, audit-logged act (spec 7.8.4), and so is deciding
-        // Finance's answers, which tie, decide and classify through the same services
-        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'decideAnswer', 'approveSheet']);
+        // Finance's answers, which tie, decide and classify through the same services; the held-fee re-import
+        // is a bulk front end to the same two governed operations (spec section 6), so it takes the same grant
+        $this->middleware('permission:eir.govern')->only(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'decideAnswer', 'approveSheet', 'uploadHeldImport']);
     }
 
     /**
@@ -273,9 +276,14 @@ class EirFeeClassificationController extends Controller
 
     public function index(Request $request)
     {
+        return Inertia::render('Eir/FeeClassification', $this->indexProps($request));
+    }
+
+    private function indexProps(Request $request, ?array $heldImportResult = null): array
+    {
         $query = $this->filtered($request)->with('suggestedRule:id,name,proposed_integral');
 
-        return Inertia::render('Eir/FeeClassification', [
+        return [
             'fees' => $query->orderByRaw("CASE classification_status WHEN 'PENDING' THEN 1 WHEN 'CLASSIFIED' THEN 2 ELSE 3 END")
                 ->orderByDesc('id')->paginate(15)->withQueryString(),
             'rules' => EirAccountingRule::where('active', true)->where('status', EirAccountingRule::STATUS_APPROVED)->whereNotNull('approved_at')->orderBy('priority')->get(['id', 'name', 'proposed_integral']),
@@ -305,7 +313,46 @@ class EirFeeClassificationController extends Controller
                 'approved_rules' => EirAccountingRule::where('active', true)->where('status', EirAccountingRule::STATUS_APPROVED)->whereNotNull('approved_at')->count(),
                 'draft_rules' => EirAccountingRule::where('active', true)->where('status', EirAccountingRule::STATUS_PROPOSED)->count(),
             ],
+            'heldImportResult' => $heldImportResult,
+        ];
+    }
+
+    /**
+     * The held queue as a CSV, identified by external_transaction_id (Held Fee Classification
+     * Export/Reimport Specification v1, section 5). Read only: nothing is written or audit-logged by
+     * a download.
+     */
+    public function downloadHeldExport(\App\Services\Eir\HeldFeeClassificationImportService $service)
+    {
+        $csv = $service->toCsv($service->exportRows());
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="held-fee-classification-' . now()->format('Y-m-d-His') . '.csv"',
         ]);
+    }
+
+    /**
+     * Finance's decisions on the held queue, from the downloaded (and possibly edited) file. Every
+     * accepted row calls assignHeld() or HeldFeeEvidence::dismiss() exactly as the screen does
+     * (section 6); nothing silent, every row accounted for in the result shown on the same screen.
+     */
+    public function uploadHeldImport(Request $request, \App\Services\Eir\HeldFeeClassificationImportService $service)
+    {
+        $request->validate(['file' => ['required', 'file', 'max:20480']]);
+        \App\Support\LedgerReadLimits::raise(); // a TIE applies the fee source precedence, which reads the ledger
+        try {
+            $r = $service->import($request->file('file')->get(), $request->file('file')->getClientOriginalName(), (int) $request->user()->id);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        $o = $r['outcomes'];
+        $message = "{$o['tied']} tied, {$o['candidate_rejected']} candidate(s) rejected (posting stays held), {$o['deferred']} deferred, {$o['unchanged']} unchanged; "
+            . "{$o['already_resolved']} already resolved, {$o['stale_evidence']} stale evidence (export again), {$o['not_currently_held']} not currently held, "
+            . "{$o['conflict']} conflict(s), {$o['rejected']} rejected.";
+        session()->flash('success', $message);
+
+        return Inertia::render('Eir/FeeClassification', $this->indexProps($request, $r));
     }
 
     /**

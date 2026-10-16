@@ -18,6 +18,32 @@
         <!-- held GL fee lines -->
         <div v-if="current === 'held'">
             <p class="px-5 py-2 text-xs text-gray-500">Fee postings on the fee income GLs whose batch names no single loan. Each is held, never dropped and never guessed: tie it to its loan with the reason, and it joins the fee lines below for classification and review.</p>
+            <div v-if="canGovern" class="mx-5 mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-800">
+                <a :href="route('eir-fee-classification.held.export')" class="secondary-btn whitespace-nowrap" title="Every held posting, identified by its durable external id, with the candidate as a label and the three decision columns blank for Finance to fill in">Download held queue (CSV)</a>
+                <label class="secondary-btn cursor-pointer whitespace-nowrap">{{ importing ? 'Uploading...' : 'Upload decisions (CSV)' }}
+                    <input type="file" accept=".csv" class="hidden" :disabled="importing" @change="uploadHeld($event)">
+                </label>
+                <span class="text-gray-500 dark:text-slate-400">Fill in <code>contract_id</code>, <code>decision</code> (TIE, CANDIDATE_REJECT or DEFER) and <code>reason_note</code>, then upload the same file back; every row is accounted for below.</span>
+            </div>
+            <div v-if="heldImportResult" class="mx-5 mb-3 rounded-lg border border-gray-200 dark:border-slate-700">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800">
+                    <span class="font-semibold text-gray-900 dark:text-slate-100">Import result</span>
+                    <span v-for="(n, k) in heldImportResult.outcomes" :key="k" v-show="n > 0" class="maiic-badge" :class="outcomeBadge(k)">{{ outcomeLabel(k) }}: {{ n }}</span>
+                </div>
+                <div class="maiic-table-wrap">
+                    <table class="maiic-table">
+                        <thead><tr><th>External id</th><th>Decision requested</th><th>Outcome</th><th>Detail</th></tr></thead>
+                        <tbody>
+                            <tr v-for="(r, i) in heldImportResult.rows" :key="r.external_transaction_id + i">
+                                <td class="font-mono text-xs">{{ r.external_transaction_id }}</td>
+                                <td class="text-xs">{{ r.decision || '(blank)' }}</td>
+                                <td><span class="maiic-badge" :class="outcomeBadge(r.outcome)">{{ outcomeLabel(r.outcome) }}</span></td>
+                                <td class="max-w-[24rem] text-xs text-gray-600 dark:text-slate-400">{{ r.detail }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             <div class="maiic-table-wrap">
                 <table class="maiic-table">
                     <thead><tr><th>Date</th><th>Batch</th><th class="num">Amount</th><th>GL</th><th>Narration</th><th>Why it is held</th><th>Loan the evidence points to</th><th v-if="canGovern" class="text-right">Action</th></tr></thead>
@@ -132,6 +158,9 @@ const props = defineProps({
     canGovern: { type: Boolean, default: false },
     // 'held' or 'differences': the page's tab row chooses; none shows this panel's own row
     view: { type: String, default: null },
+    // the per-row result of the last held-queue import (Held Fee Classification Export/Reimport
+    // Specification v1, section 7): null until a file has been uploaded this visit
+    heldImportResult: { type: Object, default: null },
 })
 
 const tab = ref(props.held.length || !props.differences.length ? 'held' : 'differences')
@@ -174,6 +203,23 @@ function submitTie() {
         onFinish: () => { saving.value = false },
     })
 }
+const importing = ref(false)
+function uploadHeld(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const data = new FormData()
+    data.append('file', file)
+    importing.value = true
+    router.post(route('eir-fee-classification.held.import'), data, { forceFormData: true, preserveScroll: true, onFinish: () => { importing.value = false } })
+}
+// decision requested -> what happened: 'tied'/'candidate_rejected'/'deferred'/'unchanged' changed nothing
+// wrong, 'already_resolved'/'stale_evidence'/'not_currently_held'/'conflict'/'rejected' need a fresh look
+const OUTCOME_LABELS = { unchanged: 'Unchanged', tied: 'Tied', candidate_rejected: 'Candidate rejected (still held)', deferred: 'Deferred', rejected: 'Rejected',
+    already_resolved: 'Already resolved', stale_evidence: 'Stale evidence: export again', not_currently_held: 'Not currently held', conflict: 'Conflict' }
+const outcomeLabel = (k) => OUTCOME_LABELS[k] || k
+const outcomeBadge = (k) => ({ tied: 'maiic-badge-green', candidate_rejected: 'maiic-badge-gold', deferred: 'maiic-badge-gold', unchanged: 'maiic-badge-grey',
+    already_resolved: 'maiic-badge-grey', stale_evidence: 'maiic-badge-gold', not_currently_held: 'maiic-badge-gold', conflict: 'maiic-badge-red', rejected: 'maiic-badge-red' }[k] || 'maiic-badge-grey')
 // the service writes CODE: explanation; the code reads as a short label, the explanation on hover
 const reasonLabel = (r) => {
     const [code, ...rest] = String(r || '').split(':')

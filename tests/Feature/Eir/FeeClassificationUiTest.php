@@ -92,10 +92,11 @@ class FeeClassificationUiTest extends TestCase
         // saying a held posting is not the named loan's fee is governed the same way (15 October 2026)
         $this->assertTrue(Route::has('eir-fee-classification.dismiss-candidate'));
         // and so is deciding Finance's workbook answers, which tie, decide and classify through the same services (16 October 2026)
-        $this->assertSame(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'decideAnswer', 'approveSheet'], $govern['options']['only']);
+        // and so is the held-queue re-import, a bulk front end to assignHeld()/dismiss() (Held Fee Classification Export/Reimport Specification v1)
+        $this->assertSame(['tieHeld', 'dismissCandidate', 'decideOverlap', 'moveFee', 'decideAnswer', 'approveSheet', 'uploadHeldImport'], $govern['options']['only']);
         $this->assertTrue(Route::has('eir-fee-classification.move'));
         $intake = collect((new EirFeeClassificationController())->getMiddleware())->firstWhere('middleware', 'permission:settings|eir.fees.import');
-        $this->assertSame(['index', 'downloadWorkbook', 'uploadAnswers'], $intake['options']['only']);
+        $this->assertSame(['index', 'downloadWorkbook', 'uploadAnswers', 'downloadHeldExport'], $intake['options']['only']);
     }
 
     public function test_select_all_matching_returns_every_line_the_filters_select_on_every_page(): void

@@ -229,4 +229,60 @@ class RbmReturnServiceTest extends TestCase
         $list = collect($payload['sections'])->firstWhere('heading', 'D. Restructured facilities: by facility')['rows'];
         $this->assertStringContainsString('No facility in this return', $list[0][0]);
     }
+
+    /**
+     * Paragraph 13(3): a facility non-performing last month-end is held at Substandard this
+     * month unless its days past due have reached nil, whatever band the day count alone
+     * would put it in — a catch-up on part of the arrears, a schedule correction or a
+     * modification must never by itself restore accrual while any arrears remain (compliance
+     * audit finding F4; built 16 October 2026).
+     */
+    public function test_paragraph_13_3_holds_a_facility_at_substandard_until_its_arrears_are_nil(): void
+    {
+        // G: Substandard in July (95 days, short-term), would be Pass in August (20 days, dpd > 0): held
+        DB::table('loan_books')->insert(['contract_id' => 'G', 'reporting_period' => '2026-07', 'product_code' => '1050101', 'tenor' => 12, 'overdue_days' => 95, 'carrying_amount' => 700, 'principal_balance' => 700]);
+        DB::table('loan_books')->insert(['contract_id' => 'G', 'reporting_period' => '2026-08', 'product_code' => '1050101', 'tenor' => 12, 'overdue_days' => 20, 'carrying_amount' => 700, 'principal_balance' => 700]);
+        // H: Substandard in July, genuinely nil arrears in August (0 days): released to Pass
+        DB::table('loan_books')->insert(['contract_id' => 'H', 'reporting_period' => '2026-07', 'product_code' => '1050101', 'tenor' => 12, 'overdue_days' => 95, 'carrying_amount' => 300, 'principal_balance' => 300]);
+        DB::table('loan_books')->insert(['contract_id' => 'H', 'reporting_period' => '2026-08', 'product_code' => '1050101', 'tenor' => 12, 'overdue_days' => 0, 'carrying_amount' => 300, 'principal_balance' => 300]);
+        // I: no July row (new to the book): classified on August's day count alone, no hold possible
+        DB::table('loan_books')->insert(['contract_id' => 'I', 'reporting_period' => '2026-08', 'product_code' => '1050101', 'tenor' => 12, 'overdue_days' => 20, 'carrying_amount' => 200, 'principal_balance' => 200]);
+        // J: Doubtful in July (medium-term, 400 days), would be Special mention in August (100 days, dpd > 0): held at Substandard, not Special mention
+        DB::table('loan_books')->insert(['contract_id' => 'J', 'reporting_period' => '2026-07', 'product_code' => '1050101', 'tenor' => 36, 'overdue_days' => 400, 'carrying_amount' => 900, 'principal_balance' => 900]);
+        DB::table('loan_books')->insert(['contract_id' => 'J', 'reporting_period' => '2026-08', 'product_code' => '1050101', 'tenor' => 36, 'overdue_days' => 100, 'carrying_amount' => 900, 'principal_balance' => 900]);
+
+        $r = (new RbmReturnService(new LandingZoneReader()))->build('2026-08');
+        $p = $r['per_loan'];
+        $this->assertSame('Substandard', $p['G']['class']);
+        $this->assertTrue($p['G']['held_13_3']);
+        $this->assertSame('Pass', $p['H']['class']);
+        $this->assertFalse($p['H']['held_13_3']);
+        $this->assertSame('Pass', $p['I']['class']);
+        $this->assertFalse($p['I']['held_13_3']);
+        $this->assertSame('Substandard', $p['J']['class']);
+        $this->assertTrue($p['J']['held_13_3']);
+        $this->assertStringContainsString('2 facilities were non-performing at the prior month-end', implode(' ', $r['notes']));
+        $this->assertStringContainsString('arrears are not yet nil', implode(' ', $r['notes']));
+
+        // held facilities count as non-performing for section A, the minimum provision and interest in suspense
+        $classes = array_column($r['sections']['A_classification'], 'total', 'class');
+        $this->assertSame(3, $classes['Substandard']['accounts']); // B (unchanged), G and J (held)
+        $this->assertSame(1, $classes['Special mention']['accounts']); // C alone: G and J did not land here despite their raw day count
+
+        // the download marks the held facilities
+        $payload = (new \ReflectionMethod(\App\Http\Controllers\RbmReturnController::class, 'payload'))->invoke(new \App\Http\Controllers\RbmReturnController(), $r);
+        $perFacility = collect($payload['sections'])->firstWhere('heading', 'Per facility')['rows'];
+        $byContract = collect($perFacility)->keyBy(0);
+        $this->assertSame('Yes: arrears not yet nil', $byContract['G'][6]);
+        $this->assertSame('', $byContract['H'][6]);
+
+        // known, bounded gap: the day-count-only SQL behind the RBM Classification, IFRS 9 vs RBM,
+        // Provision Comparison and Concentration reports does not (yet) apply 13(3), so a facility the
+        // Return holds at Substandard can show a lower class there. Documented, not a silent regression.
+        $case = new \ReflectionMethod(\App\Http\Controllers\Reports\Ifrs9ReportsController::class, 'rbmClassCase');
+        $sql = $case->invoke(app(\App\Http\Controllers\Reports\Ifrs9ReportsController::class));
+        $dayCountOnly = DB::table('loan_books')->where('reporting_period', '2026-08')->where('contract_id', 'G')->selectRaw("{$sql} rbm")->value('rbm');
+        $this->assertSame('Pass', $dayCountOnly, 'the day-count-only view is unaware of the hold');
+        $this->assertNotSame($dayCountOnly, $p['G']['class'], 'the Return (held at Substandard) is the filing of record; this divergence is why');
+    }
 }

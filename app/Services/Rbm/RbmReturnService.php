@@ -80,17 +80,32 @@ class RbmReturnService
                 $a[$c][$t] = ['accounts' => 0, 'balance' => 0.0, 'principal' => 0.0, 'interest' => 0.0, 'ifrs9_allowance' => 0.0];
             }
         }
+        $priorClasses = $this->priorClasses(array_column($loans->all(), 'contract_id'), $period);
         $perLoan = [];
+        $held13_3 = 0;
         foreach ($loans as $l) {
             $term = (int) $l->tenor <= 12 ? 'short' : 'long';
-            $class = self::classify((int) $l->overdue_days, (int) $l->tenor);
+            $dpd = (int) $l->overdue_days;
+            $rawClass = self::classify($dpd, (int) $l->tenor);
+            // Paragraph 13(3): "restore to accrual only when all arrears are paid." A facility non-performing last
+            // month-end is held at the floor of the non-performing classes (Substandard) this month unless its
+            // days past due have reached nil; day count alone (a catch-up posting on part of the arrears, a
+            // schedule correction or a modification that moves the oldest overdue instalment forward) must never
+            // by itself restore it to accrual while any arrears remain (compliance audit finding F4).
+            $prior = $priorClasses[$l->contract_id] ?? null;
+            $held = $dpd > 0 && in_array($prior, ['Substandard', 'Doubtful', 'Loss'], true) && ! in_array($rawClass, ['Substandard', 'Doubtful', 'Loss'], true);
+            $class = $held ? 'Substandard' : $rawClass;
+            $held13_3 += $held ? 1 : 0;
             $a[$class][$term]['accounts']++;
             $a[$class][$term]['balance'] += (float) $l->carrying_amount;
             $a[$class][$term]['principal'] += (float) $l->principal_balance;
             $a[$class][$term]['interest'] += (float) ($l->interest_to_date ?? 0);
             $a[$class][$term]['ifrs9_allowance'] += (float) $l->ecl_booked;
-            $perLoan[$l->contract_id] = ['class' => $class, 'term' => $term, 'balance' => (float) $l->carrying_amount, 'dpd' => (int) $l->overdue_days, 'stage' => $l->ifrs9stage_post_qualitative,
-                'customer_name' => $l->customer_name, 'tenor' => (int) $l->tenor, 'ifrs9_allowance' => round((float) $l->ecl_booked, 2)];
+            $perLoan[$l->contract_id] = ['class' => $class, 'term' => $term, 'balance' => (float) $l->carrying_amount, 'dpd' => $dpd, 'stage' => $l->ifrs9stage_post_qualitative,
+                'customer_name' => $l->customer_name, 'tenor' => (int) $l->tenor, 'ifrs9_allowance' => round((float) $l->ecl_booked, 2), 'held_13_3' => $held];
+        }
+        if ($held13_3 > 0) {
+            $notes[] = 'Paragraph 13(3): ' . number_format($held13_3) . ' facilit' . ($held13_3 === 1 ? 'y was' : 'ies were') . ' non-performing at the prior month-end and, on this month\'s days past due alone, would have returned to accrual; held at Substandard because their arrears are not yet nil (days past due is not zero). Marked on the per-facility list.';
         }
         $sectionA = [];
         foreach (self::CLASSES as $c) {
@@ -236,6 +251,28 @@ class RbmReturnService
 
         return ['accounts' => count($byLoan), 'balance' => round($balance, 2), 'restructured_in_period' => count(array_filter($facilities, fn ($f) => $f['in_period'])),
             'without_board_approval' => count($withoutBoard), 'candidates_awaiting_confirmation' => $awaiting, 'facilities' => array_values($facilities), 'note' => $note];
+    }
+
+    /**
+     * Each facility's class at the single month-end immediately before $period, for
+     * paragraph 13(3) (restore to accrual only once arrears are nil). Deliberately not
+     * the unbroken run classHistory() builds for paragraph 12: 13(3) is a one-step test
+     * (was it non-performing last month?), and a loan with no row at the prior month
+     * (new to the book, or a gap) has no history to hold it against, so it is left out
+     * and classified on this month's day count alone.
+     *
+     * @return array<string, string>
+     */
+    private function priorClasses(array $contracts, string $period): array
+    {
+        if ($contracts === []) {
+            return [];
+        }
+        $prior = \Carbon\CarbonImmutable::parse($period . '-01')->subMonthNoOverflow()->format('Y-m');
+
+        return DB::table('loan_books')->where('reporting_period', $prior)->whereIn('contract_id', array_map('strval', $contracts))
+            ->get(['contract_id', 'overdue_days', 'tenor'])
+            ->mapWithKeys(fn ($l) => [(string) $l->contract_id => self::classify((int) $l->overdue_days, (int) $l->tenor)])->all();
     }
 
     /**

@@ -12,9 +12,9 @@ Generated 2026-10-14 10:44:41; the Baselines were read from the database `maiic_
 
 | Status | Meaning | Sections |
 |---|---|---|
-| **Done** | Implemented in the system and visible in an approved output; the test in column 11 fails if the behaviour changes. | 5 |
+| **Done** | Implemented in the system and visible in an approved output; the test in column 11 fails if the behaviour changes. | 6 |
 | **Partially done** | The mechanics are in place, but a parameter, an input or a piece of evidence still differs from the requirement. | 6 |
-| **Outstanding** | Required for MAIIC and not built. | 2 |
+| **Outstanding** | Required for MAIIC and not built. | 1 |
 | **Not applicable, documented** | Does not apply to MAIIC by a recorded decision or fact (reason and reference given); revisit if the facts change. | 4 |
 | **Evidence needed from MAIIC** | The system is ready; MAIIC must supply a document, minute or dataset before the row can be closed. | 2 |
 | **Total** | | 19 |
@@ -34,7 +34,7 @@ Generated 2026-10-14 10:44:41; the Baselines were read from the database `maiic_
 | 12 | Write off loss facilities in the following quarter | Partially done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_loss_facilities_are_listed_with_the_quarter_they_must_be_written_off_by |
 | 13(1) | Non-accrual: cease accrual, reverse uncollected interest, recognise interest only when received in cash | Partially done | stage3_interest_basis | Tests\Feature\Rbm\RbmReturnServiceTest::test_cumulative_interest_in_suspense_is_measured_and_tied_to_gl_1320 |
 | 13(2) | Non-accrual regardless of collateral | Done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_directive_bands_by_term |
-| 13(3) | Restore to accrual only when all arrears are paid | Outstanding | stage_cure_months (IFRS 9 stage only) |  |
+| 13(3) | Restore to accrual only when all arrears are paid | Done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_paragraph_13_3_holds_a_facility_at_substandard_until_its_arrears_are_nil |
 | 14 and Schedule | Minimum provisions by class | Done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_return_fills_the_sections_from_the_book |
 | 15(1) | Excess of the regulatory provision over IFRS to a loan loss reserve | Partially done |  | Tests\Feature\Rbm\RbmReturnServiceTest::test_the_allowance_is_the_booked_discounted_allowance_and_a_gap_is_named |
 | 15(2), 15(4) | The reserve is not capital; released only after recoveries or with the Registrar's approval | Not applicable, documented |  |  |
@@ -140,11 +140,12 @@ Generated 2026-10-14 10:44:41 from maiic_ifrs9_wire.
 - **Recommended action:** Done.
 - **Owner:** Dupleix
 
-### F4. Loss-age write-off and restoration to accrual are not built (12, 13(3)) - In progress
+### F4. Loss-age write-off and restoration to accrual are not built (12, 13(3)) - Closed
 
 - **What was found:** No loss-since date exists, so the paragraph 12 write-off deadline cannot be shown (10 loss facilities of 1,511.0m at September 2026 on the fresh bootstrap); a facility returns to accrual when its days fall, not when its arrears are paid. Status 14 October 2026: paragraph 12 is built (loss since, age, write-off quarter, status; 7 of the 10 overdue); 13(3) is not.
-- **Impact:** The Return can restore accrual too early.
-- **Recommended action:** Dupleix adds an arrears-nil condition before restoration; Credit and Finance act on the 7 overdue loss facilities.
+- **Status 16 October 2026:** 13(3) is now built (`RbmReturnService::priorClasses()`, the `held_13_3` hold at Substandard until days past due reach nil; see the 13(3) row above). Both halves of this finding are closed.
+- **Impact:** None remaining in the Return. The day-count-only reports (RBM Classification, IFRS 9 vs RBM, Provision Comparison, Concentration) do not yet apply the 13(3) hold — a separate, named, bounded gap (see the 13(3) row above), not a reopening of this finding.
+- **Recommended action:** None remaining for the Return. Credit and Finance still act on the 7 overdue loss facilities under paragraph 12.
 - **Owner:** Dupleix / Credit
 
 ### F5. Interest in suspense is not the directive's measure (13(1)) - In progress
@@ -263,13 +264,15 @@ Generated 2026-10-14 10:44:41 from maiic_ifrs9_wire.
 - **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_the_directive_bands_by_term`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
-**13(3). Restore to accrual only when all arrears are paid** - *Outstanding*
+**13(3). Restore to accrual only when all arrears are paid** - *Done*
 
 - **What it requires:** Restore a facility to accrual only when the borrower has paid all past-due principal and interest.
-- **What the engine does:** Not built: the Return reclassifies each period from the day count alone, so a facility leaves the non-performing classes as soon as its days overdue fall below the band, whether or not all arrears are paid. The IFRS 9 cure period (stage_cure_months) holds the stage, not the RBM accrual status.
-- **Compliance comment:** Outstanding (Dupleix): hold a non-performing facility on non-accrual until its arrears are nil.
+- **What the engine does, status 16 October 2026:** Built: `RbmReturnService::build()` reads each facility's class at the prior month-end (`priorClasses()`); a facility non-performing then (Substandard, Doubtful or Loss) is held at Substandard this month, whatever the day count alone would compute, for as long as its days past due is not nil (`held_13_3`). A catch-up posting on part of the arrears, a schedule correction, or a confirmed modification that moves the oldest overdue instalment forward can therefore never, by itself, restore accrual while any arrears remain; only reaching nil days past due releases it. The count held each month is named in the return's own notes and on the "Per facility" download.
+- **General comment, until 16 October 2026 (superseded by the above):** "Not built: the Return reclassifies each period from the day count alone, so a facility leaves the non-performing classes as soon as its days overdue fall below the band, whether or not all arrears are paid. The IFRS 9 cure period (stage_cure_months) holds the stage, not the RBM accrual status." stage_cure_months still governs the IFRS 9 stage only, a deliberately separate control (Staging Module Specification v1, section 5); 13(3) is now its own, ungoverned rule in `RbmReturnService`, matching the directive's own classification bands, which are likewise not governed.
+- **Known, bounded gap:** the day-count-only SQL behind the RBM Classification, IFRS 9 vs RBM, Provision Comparison and Concentration reports (`Ifrs9ReportsController::rbmClassCase()`) does not apply this hold, so a facility the Return holds at Substandard can show a lower class in those reports until they are extended the same way. The Return (`/rbm-return`) is the filing of record.
+- **Compliance comment:** Compliant.
 - **Where to see it:** Reports: RBM Return (provisional) /rbm-return
-- **Governance setting:** `stage_cure_months (IFRS 9 stage only)`
+- **Test that proves it:** `Tests\Feature\Rbm\RbmReturnServiceTest::test_paragraph_13_3_holds_a_facility_at_substandard_until_its_arrears_are_nil`
 - **Reviewer sign-off:** ____________________   Date: ____________
 
 **14 and Schedule. Minimum provisions by class** - *Done*

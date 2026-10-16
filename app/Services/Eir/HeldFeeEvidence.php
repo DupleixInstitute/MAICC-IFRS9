@@ -53,8 +53,12 @@ class HeldFeeEvidence
     /**
      * A person states that a held posting is not this loan's fee, with the reason. The posting stays held
      * (for another loan, or for the person who ties it); only the candidate stops blocking this loan.
+     *
+     * @param  ?array  $origin  additive, optional (Held Fee Classification Export/Reimport Specification v1,
+     *                          section 6.1): merged into this call's audit meta when given; the screen's own
+     *                          calls never pass it, so they are byte-for-byte unaffected.
      */
-    public static function dismiss(int $heldId, string $contractId, string $reason, int $userId): void
+    public static function dismiss(int $heldId, string $contractId, string $reason, int $userId, ?array $origin = null): void
     {
         $reason = trim($reason);
         if (mb_strlen($reason) < 10) {
@@ -76,6 +80,6 @@ class HeldFeeEvidence
             ['reason' => mb_substr($reason, 0, 500), 'dismissed_by' => $userId, 'created_at' => now(), 'updated_at' => now()]
         );
         AuditLoggerService::log('Held Fee Candidate Dismissed', 'fee_gl_unassigned', $heldId, ['new_values' => ['contract_id' => $id,
-            'external_transaction_id' => $held->external_transaction_id, 'amount' => (float) $held->amount, 'reason' => $reason], 'meta' => ['user' => $userId]]);
+            'external_transaction_id' => $held->external_transaction_id, 'amount' => (float) $held->amount, 'reason' => $reason], 'meta' => ($origin ?? []) + ['user' => $userId]]);
     }
 }
