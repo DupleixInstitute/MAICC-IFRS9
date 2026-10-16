@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Ebanker\DirectRead\RegisteredStatements;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -9,11 +10,12 @@ use Illuminate\Support\Facades\DB;
  * The query register of the E-Banker feed (spec v4 section 6.4): each extract
  * the landing zone knows, its source table, the column that is its key, the
  * account and date columns, and whether it is pulled incrementally by key.
- * Idempotent on query_id. The register holds the shape only: its sql and
- * sha256 columns are not filled by this seeder or by the bootstrap. The SQL
- * text lives in the committed files under docs/bootstrap/queries, which the
- * E-Banker Feed screen hands out as one download (EirFeedController::queries)
- * (corrected 14 October 2026; it said the bootstrap loads the SQL text).
+ * Idempotent on query_id. The SQL text of the manual packs lives in the
+ * committed files under docs/bootstrap/queries, which the E-Banker Feed screen
+ * hands out as one download (EirFeedController::queries). The sql and sha256
+ * columns hold only the statements route 4 executes, one file per query id
+ * under resources/ebanker-queries/route4 (RegisteredStatements); every other
+ * query keeps them empty.
  */
 class EbankerQuerySeeder extends Seeder
 {
@@ -164,6 +166,15 @@ class EbankerQuerySeeder extends Seeder
                 'date_column' => $date, 'incremental' => $incremental, 'updated_at' => now(), 'created_at' => now(),
             ]);
         }
-        $this->command?->info('E-Banker query register: ' . count(self::queries()) . ' queries.');
+        $statements = RegisteredStatements::files();
+        $unknown = array_diff(array_keys($statements), array_column(self::queries(), 0));
+        if ($unknown !== []) {
+            throw new \RuntimeException('Route 4 statement files name queries the register does not hold: ' . implode(', ', $unknown));
+        }
+        DB::table('ebanker_queries')->whereNotIn('query_id', array_keys($statements))->update(['sql' => null, 'sha256' => null]);
+        foreach ($statements as $id => $sql) {
+            DB::table('ebanker_queries')->where('query_id', $id)->update(['sql' => $sql, 'sha256' => RegisteredStatements::fingerprint($sql)]);
+        }
+        $this->command?->info('E-Banker query register: ' . count(self::queries()) . ' queries, ' . count($statements) . ' with a route 4 statement.');
     }
 }
