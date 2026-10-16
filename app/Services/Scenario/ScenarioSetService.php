@@ -153,6 +153,8 @@ class ScenarioSetService
         if ($set->status !== 'PROPOSED') {
             throw new RuntimeException('Only a proposed set can be approved.');
         }
+        // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+        \App\Support\Approvals::assertEvidence('scenario-set', $setId, $label);
         $v = $this->validate($setId);
         if (! $v['ok']) {
             throw new RuntimeException('The set no longer passes its rules: ' . implode('; ', $v['problems']));

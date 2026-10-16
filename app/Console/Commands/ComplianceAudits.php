@@ -108,6 +108,86 @@ class ComplianceAudits extends Command
             fclose($csv);
             $files[] = $name;
         }
+        // every governed change up to the period end, with its reasons, decisions and documents (Staging Module
+        // Specification v1, section 8.4): the history of each Governance Centre setting
+        if (\Illuminate\Support\Facades\Schema::hasTable('governance_settings')) {
+            $end = \Carbon\CarbonImmutable::parse($period . '-01')->endOfMonth()->toDateString();
+            $names = DB::table('users')->pluck('name', 'id');
+            $docs = \Illuminate\Support\Facades\Schema::hasTable('supporting_documents')
+                ? DB::table('supporting_documents')->where('documentable_type', \App\Models\GovernanceSetting::class)->get()->groupBy('documentable_id') : collect();
+            $name = "Governance changes to {$end}.csv";
+            $csv = fopen($tmp . '/' . $name, 'w');
+            fputcsv($csv, ['Setting', 'Change', 'Value', 'Effective from', 'Status', 'Proposed by', 'Reason', 'Approved by', 'Approved at', 'Rejected or withdrawn by', 'Why', 'Documents (SHA-256)']);
+            foreach (DB::table('governance_settings')->whereDate('created_at', '<=', $end)->orderBy('key')->orderBy('effective_from')->orderBy('id')->get() as $s) {
+                fputcsv($csv, [$s->key, $s->id, $s->value, substr((string) $s->effective_from, 0, 10), $s->status, $s->set_by ? ($names[$s->set_by] ?? $s->set_by) : 'installation', $s->reason,
+                    $s->approved_by ? ($names[$s->approved_by] ?? $s->approved_by) : null, $s->approved_at, ($s->reviewed_by ?? null) ? ($names[$s->reviewed_by] ?? $s->reviewed_by) : null, $s->review_reason ?? null,
+                    collect($docs->get($s->id, []))->map(fn ($d) => $d->original_name . ($d->deleted_at ? ' (removed)' : '') . ' ' . $d->hash)->implode('; ')]);
+            }
+            fclose($csv);
+            $files[] = $name;
+        }
+        // the register of approvals to the period end, with its reconciliation to the audit log (Staging Module
+        // Specification v1, section 8.7; acceptance 15)
+        if (\Illuminate\Support\Facades\Schema::hasTable('governance_settings')) {
+            $end = \Carbon\CarbonImmutable::parse($period . '-01')->endOfMonth()->toDateString();
+            $register = app(\App\Services\ApprovalsRegisterService::class);
+            $rows = $register->rows(['to' => $end]);
+            $rec = $register->reconcile();
+            $name = "Approvals register to {$end}.csv";
+            $csv = fopen($tmp . '/' . $name, 'w');
+            fputcsv($csv, ['Register of approvals to ' . $end . '; reconciled to the audit log: ' . ($rec['reconciled'] ? 'yes' : 'no, ' . (count($rec['decided_without_entry']) + count($rec['entries_without_item'])) . ' finding(s) listed at the end')]);
+            fputcsv($csv, \App\Services\ApprovalsRegisterService::EXPORT_HEADINGS);
+            foreach (\App\Services\ApprovalsRegisterService::exportRows($rows) as $line) {
+                fputcsv($csv, $line);
+            }
+            foreach ($rec['decided_without_entry'] as $w) {
+                fputcsv($csv, ['Finding: decided, with no audit entry', $w['workflow'], $w['id'], $w['title'], $w['status']]);
+            }
+            foreach ($rec['entries_without_item'] as $o) {
+                fputcsv($csv, ['Finding: audit entry for an item not on record', $o['workflow'], $o['id'], 'entry ' . $o['entry'], $o['action'], $o['at']]);
+            }
+            fclose($csv);
+            $files[] = $name;
+        }
+        // what the month ran on, and what changed from the month before (Staging Module Specification v1, section 8.8, item 5)
+        $runs = app(\App\Services\RunRecordService::class);
+        if (($run = $runs->monthRun($period)) !== null) {
+            $name = "Settings in force {$period}.csv";
+            $csv = fopen($tmp . '/' . $name, 'w');
+            fputcsv($csv, ["What {$period} ran on: run {$run->id} ({$run->kind}" . ($run->of_record_at && ! $run->of_record_until ? ', the run of record' : '') . "), code {$run->code_version}, fingerprint {$run->fingerprint}"]);
+            fputcsv($csv, ['Section', 'Item', 'In force']);
+            foreach (\App\Services\RunRecordService::flatten(json_decode((string) $run->snapshot, true) ?: []) as $section => $items) {
+                foreach ($items as $item => $value) {
+                    fputcsv($csv, [$section, $item, $value]);
+                }
+            }
+            fclose($csv);
+            $files[] = $name;
+            // the month's latest re-performance of that run, with every difference it named (section 8.8, item 6)
+            if (\Illuminate\Support\Facades\Schema::hasTable('reperformances') && ($rp = DB::table('reperformances')->where('run_record_id', $run->id)->orderByDesc('id')->first()) !== null) {
+                $name = "Re-performance {$period}.csv";
+                $csv = fopen($tmp . '/' . $name, 'w');
+                fputcsv($csv, ["Re-performance {$rp->id} of run {$run->id}, " . strtolower(str_replace('_', ' ', $rp->mode)) . ($rp->workspace ? " in {$rp->workspace}" : '') . ", {$rp->finished_at}: {$rp->status}"]);
+                fputcsv($csv, ['Check', 'Loan', 'Item', 'Stored', 'Re-performed', 'Note']);
+                foreach (DB::table('reperformance_rows')->where('reperformance_id', $rp->id)->orderBy('id')->get() as $d) {
+                    fputcsv($csv, [$d->check, $d->contract_id, $d->item, $d->stored, $d->reperformed, $d->note]);
+                }
+                fclose($csv);
+                $files[] = $name;
+            }
+            $prev = \Carbon\CarbonImmutable::parse($period . '-01')->subMonth()->format('Y-m');
+            if (($before = $runs->monthRun($prev)) !== null) {
+                $name = "What changed {$prev} to {$period}.csv";
+                $csv = fopen($tmp . '/' . $name, 'w');
+                fputcsv($csv, ["Run {$before->id} of {$prev} against run {$run->id} of {$period}: every input that differs"]);
+                fputcsv($csv, ['Section', 'Item', $prev, $period]);
+                foreach (\App\Services\RunRecordService::differences(json_decode((string) $before->snapshot, true) ?: [], json_decode((string) $run->snapshot, true) ?: []) as $line) {
+                    fputcsv($csv, $line);
+                }
+                fclose($csv);
+                $files[] = $name;
+            }
+        }
         // the manifest
         $manifest = ['pack' => "MAIIC auditor's pack {$period}", 'built_at' => now()->toDateTimeString(), 'files' => []];
         foreach ($files as $f) {

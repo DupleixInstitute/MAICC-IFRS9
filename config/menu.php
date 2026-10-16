@@ -201,11 +201,13 @@ return [
         // and FLI), and the audit record.
         ['color' => '#C4B5FD', 'heading' => 'Administration & support'] + $group('Governance', 'shield-alt', [
             $leaf('Governance Centre', 'eir-governance.index', 'shield-alt', permission: 'eir.govern'),
+            $leaf('Approvals', 'approvals.register', 'clipboard-check', permission: 'eir.view|eir.govern|settings'),
             $section('Audit', [
                 $tab('Audit Trail', 'audit-trail.index'),
                 $tab('Audit Trace', 'audit-trace.index'),
                 $tab('Compliance Audits', 'compliance-audits.index'),
                 $tab('Self-approvals (UAT)', 'eir-governance.self-approvals', 'eir.govern'),
+                $tab('Run records', 'run-records.index', 'eir.view|eir.govern|settings'),
             ], 'history'),
         ], 9),
 

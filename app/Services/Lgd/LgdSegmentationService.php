@@ -42,6 +42,11 @@ class LgdSegmentationService
     /** @return array{run_id:string,window:string,portfolios:list<array>,pooled:?array,updated:int} */
     public function run(string $period, ?array $portfolioIds = null, int $windowMonths = 12, ?int $userId = null): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! \App\Support\RunContext::inside($period, 'LGD')) {
+            return \App\Support\RunContext::engine($period, 'LGD', $userId, fn () => $this->run($period, $portfolioIds, $windowMonths, $userId));
+        }
         \App\Support\ReportingPeriodLock::assertOpen($period, 'the LGD engine');
         $asOf = PdSegmentationService::periodEnd($period);
         $minimumOption = $this->governance->get('lgd_segment_min_cohort', $asOf);

@@ -76,6 +76,11 @@ class FliProjectionService
     /** Run the projection for a month and store it; returns the run with its results. */
     public function run(string $period, ?int $userId = null): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! \App\Support\RunContext::inside($period, 'Forward-looking projection')) {
+            return \App\Support\RunContext::engine($period, 'Forward-looking projection', $userId, fn () => $this->run($period, $userId));
+        }
         $fit = $this->route->approvedFit($period) ?? throw new RuntimeException("No model version is in force for {$period}: publish one on Model Versions (approve a fit on Regression) first.");
         $set = DB::table('governed_scenario_sets')->where('reporting_period', $period)->whereIn('status', ['APPROVED', 'LOCKED'])->orderByDesc('version')->first()
             ?? throw new RuntimeException("No approved scenario set for {$period}: approve one on Scenario Sets first.");

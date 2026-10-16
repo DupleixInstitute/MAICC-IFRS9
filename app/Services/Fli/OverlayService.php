@@ -91,6 +91,8 @@ class OverlayService
         if ($o->status !== 'PROPOSED') {
             throw new RuntimeException("Overlay {$overlayId} is {$o->status}, not proposed.");
         }
+        // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+        \App\Support\Approvals::assertEvidence('fli-overlay', $overlayId, $label);
         if ($clash = $this->doubleCount($o)) {
             throw new RuntimeException($clash);
         }

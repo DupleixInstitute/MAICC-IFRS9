@@ -238,6 +238,13 @@ Outside the Governance Centre, about twenty other workflows decide something tha
 
 The Governance Centre gains an **Approvals** view across all of the above and the Centre's own settings: everything awaiting a decision, with who proposed it and when; and everything decided, with the decision, the reasons and the documents. It filters by workflow, person, status and date, exports to PDF and Excel, and is included in the auditor's pack. One shared document store serves every workflow, so a minute attached once can be linked to the several decisions it covers.
 
+As built (section 9, 16 October 2026):
+
+- **What is on it.** Every item of the eighteen workflows of section 8.6 that waits for a decision or has been decided, and every Governance Centre change people made. A default seeded with the installation, and a staging threshold row seeded with it, have no proposer and no decider and are not decisions, so they are not listed. An item detected but not yet put forward (a restructure candidate, a detected rate move, a schedule not yet generated) is not listed either. An approval under the System Bootstrap label is listed and marked as such.
+- **Reconciled to the audit log both ways.** Every decided item must have at least one entry in the audit log, and every decision entry in the audit log must name an item that exists. Either kind of finding is named on the view, at the end of the exports and in the auditor's pack. On a fresh bootstrap the register reconciles with no finding.
+- **Linking.** A document already in the store is linked to another decision while that decision is pending, with a reason saying which part of it supports the decision. The file is not copied. A link counts as evidence wherever evidence is required, is shown on the decision's page as linked, and is recorded in the audit log. A removed document supports no decision, and a decided item keeps the documents it was decided on.
+- **Approved before supporting documents were required.** The rule requiring documents comes into force on a database when the release that contains it is migrated, and that moment is recorded. A change to a setting that now requires a document, approved without one before that moment, is labelled *approved before supporting documents were required* on the setting's history, on this view and in its exports, and can be listed on its own with the status filter. It is never shown as an approval that skipped its evidence.
+
 ### 8.8 The record of what each month ran on
 
 An auditor looking at a month a year later needs to know exactly what that month's figures were computed with: which settings, rules, models, data and code. Today that can only be partly reconstructed:
@@ -260,6 +267,22 @@ The following closes those gaps.
 **Where this applies.** Every engine of the month-end (build, staging, PD and LGD, ECL, forward-looking route, scenarios, Mega Farm, revenue, reports) writes into the one run record of the month-end job. A run outside the month-end job (an engine run by hand on a screen) gets a run record of its own, marked as such, and can never be the run of record.
 
 **The bootstrap.** Each bootstrap run also writes run records, labelled as bootstrap runs, so the regression check can compare a rebuilt month with the record of the previous rebuild.
+
+**Re-performance, as built (section 10b).** A run is re-performed only if its snapshot still verifies against its fingerprint. It is done in one of two ways, and each re-performance is recorded with every difference it names:
+
+- **In place** (from the run's page, or `run-records:reperform <month>`): nothing is written but the re-performance's record. Three checks are made. *Inputs*: the inputs fixed to the month (the Governance Centre settings in force at its end, the staging thresholds, the scenario set, the overlays, the forward-looking model and month record, the loan book build) as they stand now, against what the run froze; for a locked month they cannot have moved. *Stages*: every loan staged again under the staging rules the run froze, through the evaluation the staging comparison run uses (section 4), against the stage the run left. *Figures*: every loan's stage, PD, LGD, EAD, ECL, discounted ECL, EIR interest and closing gross as the month holds them now, against the run's.
+- **In a workspace** (`run-records:reperform <month> --workspace=<name>_reperform`, the console only): the database is copied into a throwaway workspace, which must be named `..._reperform` and can never be the database itself. The month is unlocked in the copy only, the month-end job and the revenue recalculation are run there, and every loan's figures in the copy are checked against the run's. The copy is dropped afterwards unless `--keep` is given.
+
+Each re-performance is shown on the run's page with its differences, exports to Excel and PDF, and the latest of the run of record is a sheet of the month's auditor's pack.
+
+**As built (section 10a, 16 October 2026).**
+
+- **One run per month of the month-end job.** `maiic:task month-end` opens the month's run before its first step and finishes it after its last. Every engine records its step in the open run of its month: staging, PD, LGD, the forward-looking route, projection and month record, the ECL (one step for all portfolios), Mega Farm and EIR revenue. An engine run with no run open for its month (from a screen, or a command run by hand) opens a run of its own, of kind *screen*, which is never the run of record. The bootstrap opens one run per month, labelled as a bootstrap run, around its engine chain.
+- **At the end of a run.** The run number is written on the month's result rows: every loan book row of the month, and the ECL, PD and LGD runs and results, forward-looking records and projections, scenario results, Mega Farm runs and EIR revenue rows that the run wrote. The snapshot of item 1 is frozen with its SHA-256 fingerprint, with the month's headline results beside it (loans, loans by stage, ECL, discounted ECL, EIR interest). The code version is the repository commit, read from the server's `APP_COMMIT` setting where it is set, otherwise from the repository the code runs from.
+- **Superseded, never deleted.** A month-end or bootstrap run that completes marks the month's earlier completed runs as superseded by it, unless one of them is the run of record.
+- **The lock.** `eir:lock-period` names the latest completed month-end or bootstrap run of the month as its run of record, on the lock and on the run. It is refused if there is none, or if an engine run from a screen has changed the month since that run: the month-end job is then run again. A month computed before run records existed is locked with `--without-run-record` and a reason saying so; its lock names no run. On unlock the run stays on record as the run of record until that moment.
+- **Each loan as the run left it.** At the end of a run each loan's stage, PD, LGD, EAD, ECL, discounted ECL, EIR interest and closing gross carrying amount of the month are kept with the run, for re-performance.
+- **The reports.** Governance, Audit, *Run records* lists every run with its kind, status, code version, fingerprint and steps. A run's page shows its snapshot section by section, checks its fingerprint (*Verifies* or *Does not verify*), and shows its steps, results and how many rows carry its number. *Settings in force* for a month and *What changed* between two months, both in Excel and PDF, read the month's run of record while it is locked, otherwise its latest completed month-end or bootstrap run. Both are sheets of the month's auditor's pack, *What changed* against the month before.
 
 ### 8.9 UAT mode: maker-checker relaxed for administrators, safely
 
@@ -307,6 +330,7 @@ The bootstrap approves its own steps under the label "System Bootstrap (automate
 | EIR locked by a person | The loan | Who calculated it, who locked it, when, the locked rate and a fingerprint of the cash flows it was solved on |
 | EIR reopen request | The loan and the request date | The request and its decision, carried as history |
 | User | E-mail | Name, roles and direct permissions; never the password or the two-factor secret |
+| Supporting document | Its SHA-256 | The file itself, with its name, type, description, who uploaded it and when, and every carried decision it supports, attached or linked |
 
 Every person is carried by e-mail and matched to the user of the same e-mail in the fresh database.
 
@@ -316,6 +340,8 @@ Every person is carried by e-mail and matched to the user of the same e-mail in 
 2. **In place of the bootstrap's own lock, for the loans the pack names:** the EIR is calculated and locked under the person who locked it in the source database, but only if the rate and the cash-flow fingerprint come out the same. Every other loan is locked under the System Bootstrap label as today.
 
 A reopen request is not executed again. In the source database it reopened an EIR so that fee lines could be moved. In the replay the lines are moved before any EIR is locked, so the request is carried as history on the loan.
+
+**Documents and the evidence rule.** The pack carries the supporting documents behind the decisions it carries, each file under its SHA-256, and the moment the supporting-document rule came into force on the source (section 8.7), or that it had not yet come into force there. On replay a document is stored once and attached to the first decision it supports; a further decision it supports gets a link, as on the source. A change to a setting that requires a document is replayed with its documents. If the pack carries none, the change is carried only if the source approved it before the rule came into force there; it is then labelled *approved before supporting documents were required* and counted apart on the replay report and in the tie-out. If the source approved it after that moment, it is refused and listed, and no proposal is left behind.
 
 **Labelled as carried, never as new.** Each replayed decision keeps its original person and date on the record. Each writes one audit entry, *"Carried from <database> by the decisions pack of <date>"*, naming the original person and date. It never carries the System Bootstrap label, because it was a person's decision and not an automated one. A decision the source database recorded as a UAT self-approval is carried with that label, and section 8.9 item 7 still applies to it.
 
@@ -360,11 +386,11 @@ A reopen request is not executed again. In the source database it reopened an EI
 12. **Append-only.** Editing or deleting a governance audit entry through the system is impossible, and doing it directly in the database is refused; a change made with the guard bypassed is found by the chain check, which names the first broken entry.
 13. **Other approvals.** Every workflow of section 8.6 records its proposal, decision (approve, reject or withdraw) and documents in the same log, and refuses approval without the evidence its table marks as required.
 14. **Fee rulebook control.** The person who wrote or changed a fee rule cannot approve it; approval and switching a rule on or off need a reason and a second person; the matcher uses only rules approved that way.
-15. **Approvals register.** The Approvals view lists every pending and decided item across all workflows and reconciles to the audit log.
-16. **Run record.** Every month-end run writes a run record with the frozen snapshot of section 8.8; its fingerprint verifies; every result row of the month carries the run number.
-17. **Run of record.** Locking a month names the run whose figures were reported; a later rebuild of an unlocked month supersedes earlier runs and keeps them.
+15. **Approvals register.** The Approvals view lists every pending and decided item across all workflows and reconciles to the audit log: a decided item with no audit entry, and an audit decision entry for an item not on record, are each named. A document linked to a second decision counts as that decision's evidence, and an approval made before supporting documents were required is labelled as such.
+16. **Run record.** Every month-end run writes a run record with the frozen snapshot of section 8.8; its fingerprint verifies, and a snapshot altered afterwards does not; every result row of the month carries the run number; an engine run from a screen gets a run record of its own.
+17. **Run of record.** Locking a month names the run whose figures were reported, and is refused when there is none or when a screen run has changed the month since; a later rebuild of an unlocked month supersedes earlier runs and keeps them.
 18. **No back-dating.** A setting or rule change with an effective date inside a locked month is refused unless approved through reopen-and-restate with documents.
-19. **Re-performance.** Re-running a locked month from its snapshot reproduces its stored stages, ECL and revenue loan by loan, or names each difference.
+19. **Re-performance.** Re-running a locked month from its snapshot reproduces its stored stages, ECL and revenue loan by loan, or names each difference; an input of the month that no longer matches the snapshot is named; a run whose snapshot no longer verifies is not re-performed.
 20. **One check.** Every workflow of section 8.6 and the Governance Centre honour the override through the same check; with the override not allowed, every one refuses a self-approval.
 21. **Production guard.** Under a production environment a self-approval is refused even with the setting allowed, the allowing option cannot be proposed or approved, and `governance:uat-mode on` is refused.
 22. **Labelled.** Every approval made under the override carries the UAT self-approval label on the record and in the audit log, and appears on the self-approvals report; the banner shows on every screen while the override is in force.

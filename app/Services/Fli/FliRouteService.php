@@ -82,6 +82,8 @@ class FliRouteService
         if ($fit->approval_status !== 'PROPOSED') {
             throw new RuntimeException("Fit {$fitId} is not proposed.");
         }
+        // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+        \App\Support\Approvals::assertEvidence('fli-fit', $fitId, $label);
         // the data may have moved since the proposal: checked again at approval
         $this->assertApplicable($fitId, 'approved');
         // approving publishes the model version from the fit's own month: refused before anything is
@@ -422,6 +424,11 @@ class FliRouteService
      */
     public function apply(string $period, ?int $userId = null): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! \App\Support\RunContext::inside($period, 'Forward-looking route')) {
+            return \App\Support\RunContext::engine($period, 'Forward-looking route', $userId, fn () => $this->apply($period, $userId));
+        }
         \App\Support\ReportingPeriodLock::assertOpen($period, 'the forward-looking route');
         $asOf = CarbonImmutable::parse($period . '-01')->endOfMonth();
         $route = $this->setting('fli_adjustment_route', $asOf);

@@ -659,6 +659,30 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
     Route::post('/{trigger}/close', [\App\Http\Controllers\SicrTriggerController::class, 'close'])->whereNumber('trigger')->name('close');
 });
 
+// One item of an approval workflow (Staging Module Specification v1, section 8.6): its history,
+// its supporting documents, and reject or withdraw with a reason.
+// the record of what each month ran on (Staging Module Specification v1, section 8.8)
+Route::group(['prefix' => 'run-records', 'as' => 'run-records.'], function () {
+    Route::get('/', [\App\Http\Controllers\RunRecordsController::class, 'index'])->name('index');
+    Route::get('/{run}', [\App\Http\Controllers\RunRecordsController::class, 'show'])->whereNumber('run')->name('show');
+    Route::get('/settings/{period}/{format}', [\App\Http\Controllers\RunRecordsController::class, 'settingsInForce'])->name('settings');
+    Route::get('/changes/{from}/{to}/{format}', [\App\Http\Controllers\RunRecordsController::class, 'whatChanged'])->name('changes');
+    Route::post('/{run}/reperform', [\App\Http\Controllers\RunRecordsController::class, 'reperform'])->whereNumber('run')->name('reperform');
+    Route::get('/reperformance/{reperformance}/{format}', [\App\Http\Controllers\RunRecordsController::class, 'reperformance'])->whereNumber('reperformance')->name('reperformance');
+});
+
+Route::group(['prefix' => 'approvals', 'as' => 'approvals.'], function () {
+    // the register of approvals (Staging Module Specification v1, section 8.7)
+    Route::get('/', [\App\Http\Controllers\ApprovalsRegisterController::class, 'index'])->name('register');
+    Route::get('/export/{format}', [\App\Http\Controllers\ApprovalsRegisterController::class, 'export'])->whereIn('format', ['xlsx', 'pdf'])->name('register.export');
+    Route::post('/link', [\App\Http\Controllers\ApprovalsRegisterController::class, 'link'])->name('register.link');
+    Route::get('/documents/{document}', [\App\Http\Controllers\ApprovalRecordController::class, 'openDocument'])->whereNumber('document')->name('documents.open');
+    Route::post('/documents/{document}/remove', [\App\Http\Controllers\ApprovalRecordController::class, 'removeDocument'])->whereNumber('document')->name('documents.remove');
+    Route::get('/{workflow}/{id}', [\App\Http\Controllers\ApprovalRecordController::class, 'show'])->whereNumber('id')->name('record');
+    Route::post('/{workflow}/{id}/decide', [\App\Http\Controllers\ApprovalRecordController::class, 'decide'])->whereNumber('id')->name('decide');
+    Route::post('/{workflow}/{id}/documents', [\App\Http\Controllers\ApprovalRecordController::class, 'attachDocument'])->whereNumber('id')->name('documents.attach');
+});
+
 // The staging comparison run (Staging Module Specification v1, section 4): a month's
 // stages and ECL under another staging policy, beside those booked; nothing booked changes.
 Route::group(['prefix' => 'staging-comparison', 'as' => 'staging-comparison.'], function () {
@@ -732,6 +756,12 @@ Route::group(['prefix' => 'eir-governance', 'as' => 'eir-governance.'], function
     Route::post('/propose', [\App\Http\Controllers\EirGovernanceController::class, 'propose'])->name('propose');
     Route::post('/{setting}/approve', [\App\Http\Controllers\EirGovernanceController::class, 'approve'])->name('approve');
     Route::get('/self-approvals', [\App\Http\Controllers\EirGovernanceController::class, 'selfApprovals'])->name('self-approvals');
+    // the change log (Staging Module Specification v1, sections 8.2 to 8.4)
+    Route::post('/{setting}/review', [\App\Http\Controllers\EirGovernanceController::class, 'review'])->name('review');
+    Route::post('/{setting}/documents', [\App\Http\Controllers\EirGovernanceController::class, 'attachDocument'])->name('documents.attach');
+    Route::post('/documents/{document}/remove', [\App\Http\Controllers\EirGovernanceController::class, 'removeDocument'])->name('documents.remove');
+    Route::get('/documents/{document}', [\App\Http\Controllers\EirGovernanceController::class, 'openDocument'])->whereNumber('document')->name('documents.open');
+    Route::get('/history/{key}', [\App\Http\Controllers\EirGovernanceController::class, 'history'])->name('history');
 });
 
 // Manual authoring routes. MUST stay behind auth + settings permission:
@@ -755,6 +785,7 @@ Route::get('/macro-statistics/legacy', [MacroStatsController::class, 'index'])->
 Route::post('/macro-statistics/preview', [\App\Http\Controllers\MacroStatisticsController::class, 'preview'])->name('macro-statistics.preview');
 Route::post('/macro-statistics/commit', [\App\Http\Controllers\MacroStatisticsController::class, 'commit'])->name('macro-statistics.commit');
 Route::post('/macro-statistics/manual', [\App\Http\Controllers\MacroStatisticsController::class, 'manual'])->name('macro-statistics.manual');
+Route::post('/macro-statistics/overrides/{id}/approve', [\App\Http\Controllers\MacroStatisticsController::class, 'approveOverride'])->whereNumber('id')->name('macro-statistics.overrides.approve');
 Route::get('/macro-statistics/export', [\App\Http\Controllers\MacroStatisticsController::class, 'export'])->name('macro-statistics.export');
 // Variables, observations, your own CSV and the scenario assumptions, all from the Macro Statistics screen
 Route::post('/macro-statistics/variables', [\App\Http\Controllers\MacroStatisticsController::class, 'variableStore'])->name('macro-statistics.variables.store');

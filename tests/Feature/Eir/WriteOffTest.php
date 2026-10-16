@@ -17,6 +17,8 @@ class WriteOffTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // these tests are of other behaviour; the evidence a workflow needs before approval is tested in ApprovalWorkflowsTest
+        config(['approvals.require_evidence' => false]);
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
         Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });

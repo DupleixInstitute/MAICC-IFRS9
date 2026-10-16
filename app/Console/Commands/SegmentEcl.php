@@ -69,16 +69,19 @@ class SegmentEcl extends Command
             $portfolios = DB::table('loan_books')->where('reporting_period', $period)->whereNotIn('loan_portfolio_id', $programme === [] ? [0] : $programme)
                 ->distinct()->orderBy('loan_portfolio_id')->pluck('loan_portfolio_id')->map(fn ($v) => (int) $v)->all();
             try {
-                foreach ($portfolios as $pid) {
-                    DB::transaction(function () use ($controller, $period, $pid, $pdCol, $lgdCol) {
-                        DB::table('expected_credit_loss')->where('reporting_period', $period)->where('ecl_calculation_level', 'portfolio')->where('ecl_calculation_id', $pid)->delete();
-                        $controller->calculateECL(Request::create('/expected-credit-loss/calculations', 'POST', [
-                            'ecl_calculation_level' => 'portfolio', 'ecl_calculation_id' => $pid, 'reporting_period' => $period . '-01',
-                            'pd_type' => $pdCol, 'lgd_type' => $lgdCol, 'discounting_mode' => $this->option('discounting'),
-                        ]));
-                    });
-                    set_time_limit(0); // the controller's 300 s is for the web; the console runs every month (audit H14)
-                }
+                // one ECL step of the month's run for every portfolio (Staging Module Specification v1, section 8.8)
+                \App\Support\RunContext::engine($period, 'ECL', null, function () use ($portfolios, $controller, $period, $pdCol, $lgdCol) {
+                    foreach ($portfolios as $pid) {
+                        DB::transaction(function () use ($controller, $period, $pid, $pdCol, $lgdCol) {
+                            DB::table('expected_credit_loss')->where('reporting_period', $period)->where('ecl_calculation_level', 'portfolio')->where('ecl_calculation_id', $pid)->delete();
+                            $controller->calculateECL(Request::create('/expected-credit-loss/calculations', 'POST', [
+                                'ecl_calculation_level' => 'portfolio', 'ecl_calculation_id' => $pid, 'reporting_period' => $period . '-01',
+                                'pd_type' => $pdCol, 'lgd_type' => $lgdCol, 'discounting_mode' => $this->option('discounting'),
+                            ]));
+                        });
+                        set_time_limit(0); // the controller's 300 s is for the web; the console runs every month (audit H14)
+                    }
+                });
             } catch (Throwable $e) {
                 $failures++;
                 $this->error("{$period}: ECL failed: " . $e->getMessage());

@@ -113,6 +113,14 @@ class StagingPolicyTest extends TestCase
         $governance = new GovernanceService();
         $proposal = $governance->propose(StagingPolicy::PRESET, StagingPolicy::PRESET_DIRECTIVE, '2026-04-01', 'Board decision of 20 March 2026 adopting directive-aligned staging', 1);
         $this->assertSame(StagingPolicy::PRESET_SINGLE, StagingPolicy::at(new GovernanceService(), CarbonImmutable::parse('2026-04-30'))->preset, 'a proposal governs nothing');
+        // adopting a staging policy needs its supporting document (section 8.3)
+        try {
+            $governance->approve($proposal->id, 2);
+            $this->fail('a staging policy was adopted without its supporting document');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('needs a supporting document', $e->getMessage());
+        }
+        $this->attachEvidence($proposal->id);
         $governance->approve($proposal->id, 2);
 
         $this->book('2026-03');
@@ -147,7 +155,9 @@ class StagingPolicyTest extends TestCase
     public function test_a_single_setting_change_turns_the_policy_to_custom_and_keeps_the_rest(): void
     {
         $governance = new GovernanceService();
-        $governance->approve($governance->propose(StagingPolicy::PRESET, StagingPolicy::PRESET_DIRECTIVE, '2026-01-01', 'Board decision adopting directive-aligned staging', 1)->id, 2);
+        $adopt = $governance->propose(StagingPolicy::PRESET, StagingPolicy::PRESET_DIRECTIVE, '2026-01-01', 'Board decision adopting directive-aligned staging', 1);
+        $this->attachEvidence($adopt->id);
+        $governance->approve($adopt->id, 2);
         $governance->approve($governance->propose('stage_cure_months', '6 months', '2026-06-01', 'Credit Committee lengthens the probation to six months', 1)->id, 2);
 
         $before = StagingPolicy::at(new GovernanceService(), CarbonImmutable::parse('2026-05-31'));
@@ -286,6 +296,7 @@ class StagingPolicyTest extends TestCase
     {
         $governance = new GovernanceService();
         $adopt = $governance->propose(StagingPolicy::PRESET, StagingPolicy::PRESET_DIRECTIVE, '2026-01-01', 'Board decision adopting directive-aligned staging', 1);
+        $this->attachEvidence($adopt->id);
         $governance->approve($adopt->id, 2);
         // the stored row says 0 months (seeded), the policy says 3: proposing 0 months is a real change
         $this->assertSame('PROPOSED', $governance->propose('stage_cure_months', '0 months (no probation)', '2026-06-01', 'Credit Committee drops the probation', 1)->status);

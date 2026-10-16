@@ -54,6 +54,11 @@ class FliCloseService
     /** @return array<string,mixed> the snapshot row, decoded */
     public function record(string $period, ?int $userId = null): array
     {
+        // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
+        // or bootstrap run, or one of its own when run from a screen
+        if (! \App\Support\RunContext::inside($period, 'Forward-looking month record')) {
+            return \App\Support\RunContext::engine($period, 'Forward-looking month record', $userId, fn () => $this->record($period, $userId));
+        }
         $all = $this->buildUp->loans($period);
         if ($all->isEmpty()) {
             throw new RuntimeException("No loan book is held for {$period}.");

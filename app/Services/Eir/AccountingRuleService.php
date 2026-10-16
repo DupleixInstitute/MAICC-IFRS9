@@ -63,6 +63,8 @@ class AccountingRuleService
             if ($rule->status !== EirAccountingRule::STATUS_PROPOSED && ! $confirming) {
                 throw new LogicException("Rule \"{$rule->name}\" is " . strtolower($rule->status) . '; only a proposed rule, or an approval waiting to be confirmed, can be approved.');
             }
+            // the evidence the workflow requires (section 8.6); a pre-control approval being confirmed needs it too
+            \App\Support\Approvals::assertEvidence('fee-rule', (int) $rule->id);
             // confirming an approval given before this control needs someone other than that approver as well:
             // a seeded rule has no maker on record, so the maker check alone let its approver confirm it
             // (review of 15 October 2026, S1)

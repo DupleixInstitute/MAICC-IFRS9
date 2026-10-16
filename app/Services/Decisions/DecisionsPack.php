@@ -27,6 +27,7 @@ final class DecisionsPack
     /** One file per kind of decision, in the order the replay applies them. */
     public const FILES = [
         'users' => 'users.json',
+        'documents' => 'documents.json',
         'governance' => 'governance.json',
         'fee_rules' => 'fee_rules.json',
         'finance_lines' => 'finance_lines.json',
@@ -39,6 +40,9 @@ final class DecisionsPack
         'reopen_requests' => 'reopen_requests.json',
         'eir_locks' => 'eir_locks.json',
     ];
+
+    /** Where the files of the supporting documents sit in a pack, each named by its SHA-256. */
+    public const DOCUMENTS = 'documents';
 
     /** The audit action every replayed decision writes. */
     public const AUDIT_ACTION = 'Carried By Decisions Pack';

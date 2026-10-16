@@ -56,7 +56,11 @@ class PeriodUnlockService
             if ((int) $r->requested_by === $approverId && ! \App\Support\MakerChecker::selfApprovalAllowed('Period unlock', 'period_unlock_requests', (int) $r->id, $approverId)) {
                 throw new LogicException('The person who requested the unlock cannot approve it; a second person with EIR governance approves it.');
             }
+            // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+            \App\Support\Approvals::assertEvidence('period-unlock', $requestId, null);
             DB::table('reporting_period_locks')->where('reporting_period', $r->reporting_period)->delete();
+            // the run the month reported stays on record, as the run of record until now (section 8.8, item 3)
+            app(\App\Services\RunRecordService::class)->releaseOfRecord((string) $r->reporting_period);
             DB::table(self::TABLE)->where('id', $requestId)->update(['status' => 'APPROVED', 'decided_by' => $approverId, 'decided_at' => now(), 'updated_at' => now()]);
             AuditLoggerService::log('Reporting Period Unlocked', 'reporting_period_locks', null, [
                 'reporting_period' => $r->reporting_period,

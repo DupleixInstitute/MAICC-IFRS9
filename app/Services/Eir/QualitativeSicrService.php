@@ -112,6 +112,8 @@ class QualitativeSicrService
         }
         // checked again on approval: the month may have been locked since the trigger was raised
         \App\Support\ReportingPeriodLock::assertNotBackDated((string) $t->effective_from, "SICR trigger {$triggerId}", $t->effective_to === null ? null : (string) $t->effective_to);
+        // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+        \App\Support\Approvals::assertEvidence('sicr-trigger', $triggerId, $label);
         if ($label !== LoanBookBuildService::BOOTSTRAP_LABEL && $approverId !== null && (int) $t->triggered_by === $approverId) {
             // the one maker-checker check (section 8.9): the override only on a non-production server, and recorded
             if (! $allowMakerCheckerOverride || ! \App\Support\MakerChecker::environmentAllows()) {

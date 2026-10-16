@@ -108,7 +108,10 @@ class ContractTransactionImportService
     private function insertActuals(array $rows): int
     {
         $loaded = 0;
+        // a voucher the ledger route already loaded is the same cash (EirLedgerCashService::vouchersLoadedElsewhere)
+        $elsewhere = EirLedgerCashService::vouchersLoadedElsewhere(self::SOURCE);
         foreach ($rows as $row) {
+            if (isset($elsewhere[(string) $row['external_transaction_id']])) continue;
             if (DB::table('eir_actual_transactions')->where('source_system', self::SOURCE)
                 ->where('external_transaction_id', $row['external_transaction_id'])->exists()) continue;
             DB::table('eir_actual_transactions')->insert($row + ['created_at' => now(), 'updated_at' => now()]);

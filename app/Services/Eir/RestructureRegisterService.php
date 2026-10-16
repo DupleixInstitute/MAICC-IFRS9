@@ -100,6 +100,8 @@ class RestructureRegisterService
             if ((int) $e->proposed_by === $userId && ! \App\Support\MakerChecker::selfApprovalAllowed('Restructure register', 'restructure_events', (int) $e->id, $userId)) {
                 throw new RuntimeException('The person who proposed a classification cannot approve it.');
             }
+            // the evidence the workflow requires before approval (Staging Module Specification v1, section 8.6)
+            \App\Support\Approvals::assertEvidence('restructure', $id, $label);
             $this->assertCanAccount($e, (string) $e->classification);
             $modification = null;
             if ($this->changesAccounting($e)) {

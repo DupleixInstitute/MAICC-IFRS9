@@ -68,7 +68,7 @@ class GovernanceSettingsSeeder extends Seeder
             // UAT mode (Staging Module Specification v1, section 8.9, item 3): a fresh install on a UAT
             // server (APP_ENV=uat) starts with the override allowed, labelled as seeded for UAT
             $uat = $key === MakerChecker::SETTING && app()->environment('uat');
-            GovernanceSetting::create([
+            $row = GovernanceSetting::create([
                 'key' => $key,
                 'value' => $uat ? MakerChecker::ALLOWED : ($kept ? self::STAGING_BEFORE_THE_MODULE[$key] : $definition['default']),
                 'options' => $definition['options'],
@@ -82,6 +82,13 @@ class GovernanceSettingsSeeder extends Seeder
                 'reason' => $uat ? self::UAT_REASON : ($kept ? self::EXISTING_REASON : ($definition['seed_reason'] ?? self::REASON)),
                 'status' => GovernanceSetting::STATUS_APPROVED,
             ]);
+            // the seeded default is on the record as seeded by installation, not a MAIIC decision (section 8.2)
+            if (\Illuminate\Support\Facades\Schema::hasTable('audit_logs')) {
+                \App\Services\AuditLoggerService::log('EIR Governance Setting Seeded', GovernanceSetting::class, $row->id, [
+                    'new_values' => ['key' => $key, 'value' => $row->value, 'effective_from' => self::EFFECTIVE_FROM, 'reason' => $row->reason],
+                    'meta' => ['seeded_by' => 'installation', 'environment' => app()->environment()],
+                ]);
+            }
             $seeded++;
         }
 
