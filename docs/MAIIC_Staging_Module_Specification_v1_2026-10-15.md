@@ -291,9 +291,9 @@ The bootstrap approves its own steps under the label "System Bootstrap (automate
 
 **Why.** The bootstrap rebuilds a database from files: the E-Banker packs, the take-on workbook, the trial balances and the models. It cannot rebuild what people decided in the system, because those decisions are in no file. By 15 October 2026 MAIIC's database held decisions of that kind: 277 fee lines reviewed under maker-checker, 113 EIRs locked by Edward, Finance's 2025 fee workbook and its integral-column re-import, the fee source precedence set to Finance first (proposal 68), the correction of loans 077 and 110 (6 fee lines moved, loan 110 reopened and both EIRs locked again), and the user accounts. A fresh bootstrap would lose all of them. The decisions pack carries them.
 
-**What it is.** A folder, `docs/bootstrap/decisions/<date>/`, committed beside the E-Banker packs. It holds one file per kind of decision, any source file a decision was made on (Finance's fee workbook), and a manifest with each file's SHA-256 and a tie-out of what the source database held. It is written by an export from one database and replayed into a fresh one by the bootstrap.
+**What it is.** A folder, `docs/bootstrap/decisions/<date>/`, committed beside the E-Banker packs. It holds one file per kind of decision and a manifest with each file's SHA-256 and a tie-out of what the source database held. Finance's fee workbook is carried as the lines it loaded, as they now stand: the system does not keep an uploaded workbook once it is loaded. A pack changed after export is refused. It is written by an export from one database and replayed into a fresh one by the bootstrap.
 
-**Export.** `decisions:export` reads a database and writes the pack. It writes nothing to the database it reads. It is run on MAIIC's server by MAIIC ICT or Edward, never by Dupleix on MAIIC's database. Every row is named by its business key, never by a database id, because a fresh load numbers its rows differently:
+**Export.** `decisions:export` reads a database and writes the pack. It writes nothing to the database it reads. It is run on MAIIC's server by MAIIC ICT or Edward, never by Dupleix on MAIIC's database, once the server has the release that contains it (phase 3a). Every row is named by its business key, never by a database id, because a fresh load numbers its rows differently:
 
 | Decision | Business key | What is carried |
 |---|---|---|
@@ -301,8 +301,8 @@ The bootstrap approves its own steps under the label "System Bootstrap (automate
 | Fee line moved to another loan | The line's key and its original loan and date | The new loan, the new date, the reason, who moved it and when |
 | Overlapping fee lines kept separate or treated as one | Both lines' keys | The decision, the reason, who decided |
 | Held GL fee tied to a loan, or dismissed | The GL posting's voucher and the loan | Who tied or dismissed it, the reason |
-| Finance fee workbook loaded | The workbook file itself and its SHA-256 | Who loaded it, when, and the months it covers |
-| Governance setting approved by people | Key, value and effective date | Who proposed it, who approved it, when, and the reason |
+| Finance fee workbook loaded | Each line's key, as for a fee line | Every line it loaded, as it now stands, and the months it covers |
+| Governance setting approved by people | Key, value and effective date | Who proposed it, who approved it, when, and the reason. The UAT mode setting is the server's own (section 8.9) and is not carried |
 | Fee rule approved by people | The rule's name and wording | Who wrote it, who approved it, the reason |
 | EIR locked by a person | The loan | Who calculated it, who locked it, when, the locked rate and a fingerprint of the cash flows it was solved on |
 | EIR reopen request | The loan and the request date | The request and its decision, carried as history |
