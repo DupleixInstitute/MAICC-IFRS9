@@ -189,6 +189,8 @@ class Ifrs9NoteService
             'write_offs_outside' => $writeOffs['outside'],
             'enforcement' => WriteOffSource::enforcementDisclosure(),
             'modifications' => self::modifications($opening, $closing, $portfolioId),
+            'interest_revenue' => self::interestRevenue($opening, $closing, $portfolioId),
+            'sensitivity' => self::sensitivity($closing, $portfolioId),
         ];
         $report['checks'] = self::checks($report, $pairs, $newGroups);
         $report['methodology'] = self::methodology($report);
@@ -335,6 +337,253 @@ class Ifrs9NoteService
         $d['message'] = implode(' ', $parts);
 
         return $d;
+    }
+
+    // -----------------------------------------------------------------
+    // (i) Interest revenue (IFRS 7.20(b)) and (j) sensitivity analysis
+    // (IFRS 7.35G) — IFRS 7 Disclosures Specification v1, 16 October 2026
+    // -----------------------------------------------------------------
+
+    /** The months strictly after $opening and up to and including $closing, as YYYY-MM. */
+    private static function periodsBetween(string $opening, string $closing): array
+    {
+        $out = [];
+        $cursor = \Carbon\CarbonImmutable::parse($opening . '-01')->addMonthNoOverflow();
+        $end = \Carbon\CarbonImmutable::parse($closing . '-01');
+        while ($cursor->lessThanOrEqualTo($end)) {
+            $out[] = $cursor->format('Y-m');
+            $cursor = $cursor->addMonthNoOverflow();
+        }
+
+        return $out;
+    }
+
+    /**
+     * (i) Interest revenue calculated using the effective interest method
+     * (IFRS 7.20(b)), from the EIR revenue engine's own locked roll-forward
+     * (eir_amortisation: interest_accrued, interest_basis, unwind_amount), for
+     * the months after $opening up to $closing. Nothing is recalculated: a
+     * month the revenue run has not reached is named as missing, never
+     * estimated. Governed by ifrs7_interest_revenue_basis and
+     * ifrs7_interest_revenue_detail (section 2 of the specification above);
+     * both are seeded at this build's recommendation and read no differently
+     * from any other governed setting.
+     */
+    private static function interestRevenue(string $opening, string $closing, ?int $portfolioId): array
+    {
+        if (! Schema::hasTable('governance_settings')) {
+            return ['available' => false, 'message' => 'Interest revenue (IFRS 7.20(b)) could not be disclosed: the Governance Centre is not installed.'];
+        }
+        $governance = new \App\Services\Eir\GovernanceService();
+        $asOf = \Carbon\CarbonImmutable::parse($closing . '-01')->endOfMonth();
+        try {
+            $basisSetting = $governance->get('ifrs7_interest_revenue_basis', $asOf);
+            $detailSetting = $governance->get('ifrs7_interest_revenue_detail', $asOf);
+        } catch (\App\Exceptions\GovernanceSettingMissingException $e) {
+            return ['available' => false, 'message' => 'Interest revenue (IFRS 7.20(b)) could not be disclosed: ' . $e->getMessage()];
+        }
+        if (! Schema::hasTable('eir_amortisation')) {
+            return ['available' => false, 'message' => 'The EIR revenue engine is not installed (eir_amortisation is missing), so interest revenue under the effective interest method cannot be disclosed.'];
+        }
+
+        $periods = self::periodsBetween($opening, $closing);
+        if ($periods === []) {
+            return ['available' => false, 'message' => 'The opening and closing months are the same; there is no period to disclose interest revenue for.'];
+        }
+
+        $stage = self::STAGE;
+        $rows = DB::table('eir_amortisation as a')
+            ->join('loan_books as lb', fn ($j) => $j->on('lb.contract_id', '=', 'a.contract_id')->on('lb.reporting_period', '=', 'a.reporting_period'))
+            ->whereIn('a.reporting_period', $periods)
+            ->when($portfolioId, fn ($q) => $q->where('lb.loan_portfolio_id', $portfolioId))
+            ->selectRaw("lb.{$stage} AS stage, a.interest_basis AS basis, SUM(a.interest_accrued) AS interest, SUM(a.unwind_amount) AS unwind")
+            ->groupBy('lb.' . $stage, 'a.interest_basis')->get();
+        $modGlTotal = (float) DB::table('eir_amortisation')->whereIn('reporting_period', $periods)
+            ->when($portfolioId, fn ($q) => $q->join('loan_books as lb2', fn ($j) => $j->on('lb2.contract_id', '=', 'eir_amortisation.contract_id')->on('lb2.reporting_period', '=', 'eir_amortisation.reporting_period'))->where('lb2.loan_portfolio_id', $portfolioId))
+            ->sum('modification_gain_loss');
+
+        $byStage = [];
+        foreach ($rows as $r) {
+            $s = self::stage($r->stage);
+            if ($s === null) {
+                continue;
+            }
+            $byStage[$s] ??= ['gross' => 0.0, 'net' => 0.0, 'unwind' => 0.0];
+            if ($r->basis === 'NET') {
+                $byStage[$s]['net'] += (float) $r->interest;
+                $byStage[$s]['unwind'] += (float) $r->unwind;
+            } else {
+                $byStage[$s]['gross'] += (float) $r->interest;
+            }
+        }
+        foreach (Attribution::STAGES as $s) {
+            $byStage[$s] ??= ['gross' => 0.0, 'net' => 0.0, 'unwind' => 0.0];
+        }
+        ksort($byStage);
+        $grossTotal = array_sum(array_column($byStage, 'gross'));
+        $netTotal = array_sum(array_column($byStage, 'net'));
+        $unwindTotal = array_sum(array_column($byStage, 'unwind'));
+        $eirTotal = round($grossTotal + $netTotal + $unwindTotal, 2);
+
+        $glAvailable = Schema::hasTable('gl_interest_postings');
+        $gl = $glAvailable ? (float) DB::table('gl_interest_postings as g')
+            ->join('loan_books as lb', fn ($j) => $j->on('lb.contract_id', '=', 'g.contract_id')->on('lb.reporting_period', '=', 'g.reporting_period'))
+            ->whereIn('g.reporting_period', $periods)
+            ->when($portfolioId, fn ($q) => $q->where('lb.loan_portfolio_id', $portfolioId))
+            ->sum('g.interest_income_posted') : null;
+
+        $wantsGl = $basisSetting !== 'EIR-run interest revenue (the locked engine figure)';
+        $glUsable = $glAvailable && $gl !== null;
+        $headline = match (true) {
+            ! $wantsGl => $eirTotal,
+            $glUsable => round($gl, 2),
+            default => $eirTotal, // GL-posted was wanted but is not available: fall back, named below
+        };
+        $headlineSource = match (true) {
+            ! $wantsGl => $basisSetting,
+            $glUsable => $basisSetting,
+            default => 'EIR-run (GL interest postings are not available for this period, so the headline falls back to the engine figure)',
+        };
+        $heldMonths = DB::table('eir_amortisation')->whereIn('reporting_period', $periods)->distinct()->pluck('reporting_period')->all();
+        $missingMonths = array_values(array_diff($periods, $heldMonths));
+
+        return [
+            'available' => true, 'basis_setting' => $basisSetting, 'detail_setting' => $detailSetting,
+            'periods' => $periods, 'missing_months' => $missingMonths,
+            'by_stage' => $byStage,
+            'eir' => ['gross' => round($grossTotal, 2), 'net' => round($netTotal, 2), 'unwind' => round($unwindTotal, 2), 'total' => $eirTotal],
+            'gl' => $glUsable ? round($gl, 2) : null, 'gl_available' => $glUsable,
+            'variance' => $glUsable ? round($eirTotal - $gl, 2) : null,
+            'headline' => $headline, 'headline_source' => $headlineSource,
+            'modification_gain_loss_total' => round($modGlTotal, 2),
+        ];
+    }
+
+    /**
+     * (j) Measurement uncertainty and sensitivity analysis (IFRS 7.35G), governed
+     * by ifrs7_sensitivity_disclosure: whether this section is shown at all, and
+     * whether Table 2 (isolated PD/LGD stress) joins Table 1 (governed macro
+     * scenarios). Neither table changes anything booked.
+     */
+    private static function sensitivity(string $closing, ?int $portfolioId): array
+    {
+        if (! Schema::hasTable('governance_settings')) {
+            return ['available' => false, 'disclosed' => false, 'message' => 'Sensitivity analysis (IFRS 7.35G) could not be read: the Governance Centre is not installed.'];
+        }
+        $governance = new \App\Services\Eir\GovernanceService();
+        $asOf = \Carbon\CarbonImmutable::parse($closing . '-01')->endOfMonth();
+        try {
+            $scope = $governance->get('ifrs7_sensitivity_disclosure', $asOf);
+        } catch (\App\Exceptions\GovernanceSettingMissingException $e) {
+            return ['available' => false, 'disclosed' => false, 'message' => 'Sensitivity analysis (IFRS 7.35G) could not be read: ' . $e->getMessage()];
+        }
+        if ($scope === 'Not disclosed') {
+            return ['available' => true, 'disclosed' => false, 'scope' => $scope,
+                'message' => 'Not disclosed for ' . $closing . ': the Governance Centre setting ifrs7_sensitivity_disclosure is "Not disclosed".'];
+        }
+
+        $table1 = self::sensitivityScenarios($closing);
+        $table2 = null;
+        if ($scope === 'Macro scenarios and isolated PD/LGD stress (Tables 1 and 2)') {
+            $pdOption = $governance->get('ifrs7_sensitivity_pd_shock', $asOf);
+            $lgdOption = $governance->get('ifrs7_sensitivity_lgd_shock', $asOf);
+            $table2 = self::sensitivityStress($closing, $portfolioId, $pdOption, $lgdOption);
+        }
+
+        return ['available' => true, 'disclosed' => true, 'scope' => $scope, 'table1' => $table1, 'table2' => $table2];
+    }
+
+    /** Table 1: the governed macro-economic scenarios already signed off for the month (the FLI month-end close). */
+    private static function sensitivityScenarios(string $closing): array
+    {
+        if (! Schema::hasTable('fli_run_snapshots')) {
+            return ['available' => false, 'message' => 'The FLI month-end close is not installed, so no macro-economic scenario can be disclosed.'];
+        }
+        $snap = DB::table('fli_run_snapshots')->where('reporting_period', $closing)->whereIn('status', ['RECORDED', 'SIGNED_OFF'])->orderByDesc('id')->first();
+        if ($snap === null) {
+            return ['available' => false, 'message' => 'No FLI month-end close is recorded or signed off for ' . $closing . ', so no macro-economic scenario can be disclosed (IFRS 7.35G).'];
+        }
+        $set = ($snap->set_id && Schema::hasTable('governed_scenario_sets')) ? DB::table('governed_scenario_sets')->where('id', $snap->set_id)->first() : null;
+        $rows = [];
+        foreach (json_decode($snap->per_scenario ?? '[]', true) ?: [] as $r) {
+            $name = (string) ($r['scenario'] ?? '-');
+            $shocks = ($set && Schema::hasTable('scenario_shocks') && Schema::hasTable('governed_scenarios'))
+                ? DB::table('scenario_shocks as sh')->join('governed_scenarios as gs', 'gs.id', '=', 'sh.scenario_id')
+                    ->where('gs.set_id', $set->id)->where('gs.name', $name)
+                    ->orderBy('sh.statistic_code')->orderBy('sh.year_offset')->get(['sh.statistic_code', 'sh.year_offset', 'sh.kind', 'sh.value'])
+                : collect();
+            $rows[] = [
+                'scenario' => $name, 'is_base' => (bool) ($r['is_base'] ?? false),
+                'weight' => ((float) ($r['weight'] ?? 0)) / 100,
+                'ecl' => (float) ($r['ecl'] ?? 0),
+                'effect' => (float) ($r['ecl'] ?? 0) - (float) ($snap->booked_ecl ?? 0),
+                'shocks' => $shocks->map(fn ($s) => $s->statistic_code . ' year ' . ((int) $s->year_offset + 1) . ' '
+                    . (['pct' => '%', 'abs' => '+', 'replace' => '=', 'mult' => 'x'][$s->kind] ?? $s->kind) . ' ' . $s->value)->implode('; '),
+            ];
+        }
+
+        return ['available' => true, 'set' => $set ? $set->name . ' v' . $set->version : null,
+            'booked_ecl' => (float) ($snap->booked_ecl ?? 0), 'weighted_ecl' => (float) ($snap->weighted_ecl ?? 0), 'rows' => $rows,
+            'note' => 'Whole-book figures: the FLI month-end close is not scoped to a portfolio, so this table does not follow a portfolio scope chosen for the rest of the note.'];
+    }
+
+    /**
+     * Table 2: an isolated stress of the probability of default (Stage 1 and
+     * 2) and the loss given default (every stage), holding the macro-economic
+     * scenario and everything else at its booked value (EclBuildUpService's
+     * pdStress()/lgdStress()). Mega Farm programme loans are measured by their
+     * own engine on their own PD and LGD (decision D30) and are kept out, shown
+     * as their own count; a loan whose booked ECL does not tie to its saved
+     * PD, LGD and EAD is named as unresolved, never assumed at zero.
+     */
+    private static function sensitivityStress(string $closing, ?int $portfolioId, string $pdOption, string $lgdOption): array
+    {
+        $pdMultiplier = \App\Services\Eir\GovernanceService::parsePdShock($pdOption);
+        $lgdAddOn = \App\Services\Eir\GovernanceService::parseLgdShock($lgdOption);
+        $svc = app(\App\Services\Reports\EclBuildUpService::class);
+        $loans = $svc->loans($closing, $portfolioId);
+        if ($loans->isEmpty()) {
+            return ['available' => false, 'message' => 'No loan book is held for ' . $closing . ', so the PD/LGD stress cannot be worked out.'];
+        }
+        [$programmeLoans, $engineLoans] = $svc->split($loans, $closing);
+
+        $booked = 0.0;
+        $tying = [];
+        $unresolvedLoans = 0;
+        $unresolvedEad = 0.0;
+        foreach ($engineLoans as $l) {
+            $x = \App\Services\Reports\EclBuildUpService::lineage($l);
+            if ($x['ecl'] !== null && $x['ties']) {
+                $booked += $x['ecl'];
+                $tying[] = ['loan' => $l, 'lineage' => $x];
+            } else {
+                $unresolvedLoans++;
+                $unresolvedEad += $x['ead'];
+            }
+        }
+
+        $lines = [];
+        foreach ([
+            ['label' => 'PD ' . $pdOption, 'fn' => fn ($l) => \App\Services\Reports\EclBuildUpService::pdStress($l, $pdMultiplier)],
+            ['label' => 'LGD ' . $lgdOption, 'fn' => fn ($l) => \App\Services\Reports\EclBuildUpService::lgdStress($l, $lgdAddOn)],
+        ] as $line) {
+            $byStage = [1 => 0.0, 2 => 0.0, 3 => 0.0];
+            $total = 0.0;
+            foreach ($tying as $t) {
+                $stressed = ($line['fn'])($t['loan']);
+                if ($stressed === null) {
+                    continue; // the same tie test already excluded it above; pdStress/lgdStress never disagrees with lineage()'s own ties
+                }
+                $byStage[$t['lineage']['stage']] = ($byStage[$t['lineage']['stage']] ?? 0) + $stressed;
+                $total += $stressed;
+            }
+            $lines[] = ['label' => $line['label'], 'by_stage' => $byStage, 'total' => round($total, 2), 'effect' => round($total - $booked, 2)];
+        }
+
+        return ['available' => true, 'pd_option' => $pdOption, 'lgd_option' => $lgdOption, 'booked_ecl' => round($booked, 2), 'lines' => $lines,
+            'unresolved_loans' => $unresolvedLoans, 'unresolved_ead' => round($unresolvedEad, 2),
+            'programme_loans' => $programmeLoans->count(),
+            'programme_note' => $programmeLoans->isEmpty() ? null : $programmeLoans->count() . ' Mega Farm programme loan(s) are measured by their own engine on their own PD and LGD (decision D30) and are not included in this stress.'];
     }
 
     /** Queries 2 and 3: one month's totals by stage straight from loan_books. */
@@ -608,6 +857,46 @@ class Ifrs9NoteService
         $checks[] = ['key' => 'modifications', 'label' => 'Modified financial assets (IFRS 7.35J, 20A)',
             'level' => ! $mod['installed'] ? 'warn' : ($unapplied > 0 ? 'fail' : 'info'),
             'detail' => $mod['message'] . ($unapplied > 0 ? ' Run the revenue for the month of each confirmed modification (or clear the reason it was stopped) before the note is used.' : '')];
+
+        // (i) interest revenue (IFRS 7.20(b)): a month the revenue run has not reached is named, never estimated
+        $ir = $r['interest_revenue'];
+        if (! $ir['available']) {
+            $checks[] = ['key' => 'interest_revenue', 'label' => 'Interest revenue (IFRS 7.20(b))', 'level' => 'warn', 'detail' => $ir['message']];
+        } else {
+            $missing = $ir['missing_months'];
+            $checks[] = ['key' => 'interest_revenue', 'label' => 'Interest revenue (IFRS 7.20(b))',
+                'level' => $missing ? 'fail' : 'info',
+                'detail' => $missing
+                    ? 'The EIR revenue run has not reached ' . implode(', ', $missing) . '; interest revenue for the period is incomplete. Run the EIR revenue for each missing month before the note is used.'
+                    : 'Complete for every month between ' . self::period($opening) . ' and ' . self::period($closing) . '. Basis: ' . $ir['basis_setting'] . '.'
+                        . (! $ir['gl_available'] && $ir['basis_setting'] !== 'EIR-run interest revenue (the locked engine figure)' ? ' GL interest postings are not available for this period, so the headline falls back to the EIR-run figure.' : '')];
+            // cross-check against (h): both are built from different tables (the roll-forward row vs. the
+            // restructure register) and are expected to agree, not assumed to
+            $modDisclosed = (float) ($r['modifications']['all_modified']['net_gain_loss'] ?? 0);
+            $modRoll = $ir['modification_gain_loss_total'];
+            if (abs($modDisclosed - $modRoll) > 0.01) {
+                $checks[] = ['key' => 'interest_revenue_mod_gl', 'label' => 'Interest revenue: modification gain/loss cross-check', 'level' => 'warn',
+                    'detail' => 'The modification gain/loss on the EIR roll-forward (' . $money((int) round($modRoll * 100)) . ') differs from the amount disclosed in (h) (' . $money((int) round($modDisclosed * 100)) . ').'];
+            }
+        }
+
+        // (j) sensitivity analysis (IFRS 7.35G): honest about what could not be shown, never fabricated
+        $sv = $r['sensitivity'];
+        if (! $sv['available']) {
+            $checks[] = ['key' => 'sensitivity', 'label' => 'Sensitivity analysis (IFRS 7.35G)', 'level' => 'warn', 'detail' => $sv['message']];
+        } elseif (! $sv['disclosed']) {
+            $checks[] = ['key' => 'sensitivity', 'label' => 'Sensitivity analysis (IFRS 7.35G)', 'level' => 'info', 'detail' => $sv['message']];
+        } else {
+            $t1ok = $sv['table1']['available'] ?? false;
+            $t2 = $sv['table2'];
+            $detail = $t1ok ? 'The macro-economic scenarios (Table 1) are shown for ' . self::period($closing) . '.' : $sv['table1']['message'];
+            if ($t2 !== null) {
+                $detail .= $t2['available']
+                    ? ' The isolated PD/LGD stress (Table 2) is shown' . ($t2['unresolved_loans'] > 0 ? ', ' . number_format($t2['unresolved_loans']) . ' loan(s) could not be re-based and are named, not assumed at zero' : '') . '.'
+                    : ' ' . $t2['message'];
+            }
+            $checks[] = ['key' => 'sensitivity', 'label' => 'Sensitivity analysis (IFRS 7.35G)', 'level' => $t1ok ? 'info' : 'warn', 'detail' => $detail];
+        }
 
         return $checks;
     }

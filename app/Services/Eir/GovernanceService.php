@@ -557,6 +557,37 @@ class GovernanceService
                 'options' => ['5 Stage 3 loans at the window start', '3 Stage 3 loans at the window start', '10 Stage 3 loans at the window start'],
                 'default' => '5 Stage 3 loans at the window start',
             ],
+            // IFRS 7 Disclosures Specification v1 (16 October 2026): sections (i) and (j) of the IFRS 9 note
+            'ifrs7_interest_revenue_basis' => [
+                'label' => 'Interest revenue (IFRS 7.20(b)): the headline figure',
+                'description' => 'The financial statements\' income statement has to tie to the trial balance, so the note\'s headline interest-revenue figure is the GL-posted interest income, with the EIR-run figure and its cause-coded variance (EirGlReconciliationService) shown underneath as the explanation, not as a competing total. "Both, shown side by side" is for a period where Finance wants the comparison foregrounded, such as the first year this note is used. Open choice O23; Finance (Tamanda) and the CFO to confirm.',
+                'options' => ['GL-posted interest income, with the EIR variance as supporting detail', 'EIR-run interest revenue (the locked engine figure)', 'Both, shown side by side'],
+                'default' => 'GL-posted interest income, with the EIR variance as supporting detail',
+            ],
+            'ifrs7_interest_revenue_detail' => [
+                'label' => 'Interest revenue (IFRS 7.20(b)): level of detail',
+                'description' => 'IFRS 7.20(b) requires only the total; the split makes the Stage 3 net-basis treatment (IFRS 9 5.4.1(b)) auditable without a separate request. "Total only" is kept for a period where Stage 3 history is thin and the split would be noise.',
+                'options' => ['Total only', 'Split by stage and interest basis (gross vs net)'],
+                'default' => 'Split by stage and interest basis (gross vs net)',
+            ],
+            'ifrs7_sensitivity_disclosure' => [
+                'label' => 'Sensitivity analysis (IFRS 7.35G): which tables are shown',
+                'description' => 'Table 1 (the governed macro-economic scenarios already signed off each month) is close to free; Table 2 (an isolated PD/LGD stress) adds the traditional credit-risk stress auditors expect beside it, but needs Risk to own the shock sizes first (ifrs7_sensitivity_pd_shock, ifrs7_sensitivity_lgd_shock). "Macro scenarios only" is for a period before those sizes are agreed; "Not disclosed" is for a period before any scenario set is signed off, or while this disclosure is still under review. Open choice O24; the CFO and Risk to confirm.',
+                'options' => ['Not disclosed', 'Macro scenarios only (Table 1)', 'Macro scenarios and isolated PD/LGD stress (Tables 1 and 2)'],
+                'default' => 'Macro scenarios and isolated PD/LGD stress (Tables 1 and 2)',
+            ],
+            'ifrs7_sensitivity_pd_shock' => [
+                'label' => 'Sensitivity analysis: the probability-of-default stress (Table 2)',
+                'description' => 'The relative increase applied to the booked probability of default for Stage 1 and Stage 2 only (Stage 3\'s PD is 100 percent by definition and is not shocked). A judgement for Risk, kept as a discrete, governed choice rather than a free-typed number, in the same style as the staging thresholds. Open choice O25; Risk and the CFO to confirm.',
+                'options' => ['+25% relative to the booked PD', '+50% relative to the booked PD', '+100% relative to the booked PD (doubling)'],
+                'default' => '+50% relative to the booked PD',
+            ],
+            'ifrs7_sensitivity_lgd_shock' => [
+                'label' => 'Sensitivity analysis: the loss-given-default stress (Table 2)',
+                'description' => 'The increase applied to the booked loss given default, every stage, expressed in percentage points rather than a relative multiple because a relative shock on a low (secured) LGD would understate the stress Risk usually intends. Open choice O25; Risk and the CFO to confirm.',
+                'options' => ['+10 percentage points', '+20 percentage points', '+30 percentage points'],
+                'default' => '+20 percentage points',
+            ],
         ];
     }
 
@@ -983,6 +1014,34 @@ class GovernanceService
         }
 
         throw new InvalidArgumentException("The Stage 3 basis option '{$option}' is neither net nor gross.");
+    }
+
+    /**
+     * Read an ifrs7_sensitivity_pd_shock option into a multiplier on the booked
+     * probability of default (IFRS 7 Disclosures Specification v1, section 3.4):
+     * "+50% relative to the booked PD" returns 1.5, "doubling" returns 2.0.
+     */
+    public static function parsePdShock(string $option): float
+    {
+        if (preg_match('/\+(\d+(?:\.\d+)?)\s*%/', $option, $m) === 1) {
+            return 1 + ((float) $m[1]) / 100;
+        }
+
+        throw new InvalidArgumentException("The PD shock option '{$option}' names no relative percentage.");
+    }
+
+    /**
+     * Read an ifrs7_sensitivity_lgd_shock option into an add-on to the booked
+     * loss given default, as a fraction (IFRS 7 Disclosures Specification v1,
+     * section 3.4): "+20 percentage points" returns 0.20.
+     */
+    public static function parseLgdShock(string $option): float
+    {
+        if (preg_match('/\+(\d+(?:\.\d+)?)\s*percentage\s*points?/i', $option, $m) === 1) {
+            return ((float) $m[1]) / 100;
+        }
+
+        throw new InvalidArgumentException("The LGD shock option '{$option}' names no percentage-point add-on.");
     }
 
     /**

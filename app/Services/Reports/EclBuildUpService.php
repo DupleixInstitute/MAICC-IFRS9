@@ -298,6 +298,56 @@ class EclBuildUpService
     }
 
     /**
+     * The booked ECL re-based to a stressed probability of default, the technique
+     * ecl_pre already uses for the PD before FLI (ecl_pre = booked * hPre / hPost)
+     * generalised to an arbitrary multiplier (IFRS 7 Disclosures Specification v1,
+     * section 3.3). Stage 3's PD is 100 percent by definition and is never
+     * shocked, so a Stage 3 loan returns its booked ECL unchanged. Returns null
+     * when the loan's booked ECL does not tie to its saved PD, LGD and EAD
+     * (lineage()'s own `ties`): never estimated, named as unresolved by the
+     * caller instead.
+     */
+    public static function pdStress(object $l, float $multiplier): ?float
+    {
+        $x = self::lineage($l);
+        if ($x['ecl'] === null || ! $x['ties']) {
+            return null;
+        }
+        if ($x['stage'] === 3) {
+            return $x['ecl'];
+        }
+        $hPost = $x['horizon_pd_post'];
+        if ($hPost <= 0) {
+            return $x['ecl'];
+        }
+        $hStressed = min(1.0, $hPost * $multiplier);
+
+        return round($x['ecl'] * $hStressed / $hPost, 2);
+    }
+
+    /**
+     * The booked ECL re-based to a stressed loss given default, the same ratio
+     * technique as pdStress(), applied at every stage (LGD is not a function of
+     * the stage). Returns null when the loan's booked ECL does not tie, or its
+     * saved LGD is nil or absent: a nil LGD has no ratio to stress by, and is
+     * never assumed to be some other value.
+     */
+    public static function lgdStress(object $l, float $addOn): ?float
+    {
+        $x = self::lineage($l);
+        if ($x['ecl'] === null || ! $x['ties']) {
+            return null;
+        }
+        $lgd = $x['lgd'];
+        if ($lgd === null || $lgd <= 0) {
+            return null;
+        }
+        $stressedLgd = min(1.0, $lgd + $addOn);
+
+        return round($x['ecl'] * $stressedLgd / $lgd, 2);
+    }
+
+    /**
      * Each approved overlay the route actually applied to these loans (its id
      * is on the loan), with its ECL line from the register's own rule.
      *
