@@ -53,7 +53,7 @@ The test IFRS 9 puts first, comparing the risk now with the risk at the start, i
 
 **When the record is written.** At the end of every month's run (the month-end job, the bootstrap, or an engine run from a screen), for every loan that has a PD that month and no record yet. The first time this runs on MAIIC's server, it works through every month already held, oldest first, so every existing loan gets its record at once.
 
-**Where you see it.** A screen, Credit Risk, PD at origination, lists every loan's record with its label, filters by label, and exports to Excel. The console command `pd:origination` does the same work and shows a summary.
+**Where you see it.** A screen, IFRS 9 Model Setup, PD Model, PD at Origination, lists every loan's record with its label, filters by label, and exports to Excel. The console command `pd:origination` does the same work and shows a summary.
 
 ## 5. The decisions, and what we decided
 

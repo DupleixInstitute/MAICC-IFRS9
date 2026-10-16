@@ -517,6 +517,12 @@ class Bootstrap extends Command
             }
         }
         $this->note('6.98 run records', count($ids) . ' bootstrap run(s), one per month ' . array_key_first($ids) . '..' . array_key_last($ids) . ', each frozen and fingerprinted (runs ' . reset($ids) . ' to ' . end($ids) . ')');
+        // each loan's starting risk, written at the end of each month's run (PD at Origination Specification v1)
+        if (\App\Services\Pd\OriginationPdService::available()) {
+            $by = DB::table('loan_origination_pds')->selectRaw('basis, count(*) n')->groupBy('basis')->pluck('n', 'basis')->all();
+            $this->note('6.985 PD at origination', collect(\App\Services\Pd\OriginationPdService::LABELS)->map(fn ($l, $b) => $l . ' ' . ($by[$b] ?? 0))->implode(', ')
+                . '; the PD-change test (setting 9) stays not applied');
+        }
     }
 
     private function stepEnginesRun(int $user, ?string $to): void

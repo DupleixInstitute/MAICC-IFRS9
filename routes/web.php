@@ -661,6 +661,10 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
 
 // One item of an approval workflow (Staging Module Specification v1, section 8.6): its history,
 // its supporting documents, and reject or withdraw with a reason.
+// each loan's starting risk, and the PD-change test in shadow (PD at Origination Specification v1)
+Route::get('/pd-at-origination', [\App\Http\Controllers\OriginationPdController::class, 'index'])->name('origination-pd.index');
+Route::get('/pd-at-origination/export', [\App\Http\Controllers\OriginationPdController::class, 'export'])->name('origination-pd.export');
+
 // the record of what each month ran on (Staging Module Specification v1, section 8.8)
 Route::group(['prefix' => 'run-records', 'as' => 'run-records.'], function () {
     Route::get('/', [\App\Http\Controllers\RunRecordsController::class, 'index'])->name('index');
