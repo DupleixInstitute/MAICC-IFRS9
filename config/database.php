@@ -112,6 +112,21 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        // E-Banker's Oracle database, read-only, for route 4 of the feed only (OracleConnectionSource).
+        // Needs yajra/laravel-oci8 and PHP's oci8 extension, not installed yet.
+        'ebanker' => [
+            'driver' => 'oracle',
+            'host' => env('EBANKER_DB_HOST'),
+            'port' => env('EBANKER_DB_PORT', '1521'),
+            'service_name' => env('EBANKER_DB_SERVICE'),
+            'database' => env('EBANKER_DB_SERVICE'),
+            'username' => env('EBANKER_DB_USERNAME'),
+            'password' => env('EBANKER_DB_PASSWORD'),
+            'current_schema' => env('EBANKER_DB_SCHEMA', 'VGCBS'),
+            'charset' => 'AL32UTF8',
+            'prefix' => '',
+        ],
+
     ],
 
     /*

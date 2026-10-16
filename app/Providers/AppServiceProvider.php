@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
             $this->app->register(TelescopeServiceProvider::class);
         }
-
+        $this->app->bind(\App\Services\Ebanker\DirectRead\EbankerSource::class, \App\Services\Ebanker\DirectRead\OracleConnectionSource::class);
     }
 
     /**
