@@ -32,7 +32,8 @@ class StagingBasisOverrideBuildTest extends TestCase
         Schema::create('loan_portfolios', function (Blueprint $t) { $t->increments('id'); $t->string('name'); });
         Schema::create('loan_staging_basis_overrides', function (Blueprint $t) {
             $t->increments('id');
-            $t->string('contract_id', 30)->unique(); $t->string('reason', 2000);
+            $t->string('contract_id', 30)->unique(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
+            $t->string('reason', 2000);
             $t->unsignedBigInteger('proposed_by'); $t->unsignedBigInteger('approved_by')->nullable();
             $t->string('status', 20)->default('PROPOSED'); $t->timestamp('approved_at')->nullable();
             $t->timestamps();
@@ -109,9 +110,25 @@ class StagingBasisOverrideBuildTest extends TestCase
 
         $row = DB::table('loan_books')->where('reporting_period', '2025-12')->where('contract_id', '104430000087')->first();
         $this->assertSame(69, (int) $row->staging_dpd, 'the override replaces the bucket basis with the already-computed directive count');
-        $this->assertStringContainsString("overridden to the directive's own count", $row->staging_dpd_basis);
+        $this->assertStringContainsString("overridden to the directive's own already-computed count", $row->staging_dpd_basis);
         $this->assertStringContainsString('staging basis overridden by governed decision', $row->build_flag);
         $this->assertStringContainsString('Ledger/chart reconstruction matches the workbook', $row->build_flag);
+    }
+
+    public function test_an_audited_workbook_override_uses_the_explicit_day_count_not_the_directives_own(): void
+    {
+        $a = '000104430000087';
+        $this->jatShapedLoan($a); // directive count is 69; the audited figure here is deliberately different, to prove it is not silently swapped for the directive's own
+        $overrides = new LoanStagingBasisOverrideService();
+        $id = $overrides->propose('104430000087', 'Audited and approved in the December 2025 AFS; MAIIC to supply facility-level reasons by 19 October 2026.', 1, 0);
+        $overrides->approve($id, 2);
+
+        $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
+
+        $row = DB::table('loan_books')->where('reporting_period', '2025-12')->where('contract_id', '104430000087')->first();
+        $this->assertSame(0, (int) $row->staging_dpd, 'the explicit audited figure is used, not the directive\'s own 69-day count');
+        $this->assertStringContainsString('an audited figure (0 days)', $row->build_flag);
+        $this->assertStringContainsString('Audited and approved in the December 2025 AFS', $row->build_flag);
     }
 
     public function test_a_withdrawn_override_stops_applying_on_the_next_build(): void

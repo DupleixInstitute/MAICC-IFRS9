@@ -8,16 +8,22 @@ use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
- * A governed, per-loan exception from the staging policy's own bucket-ageing basis to the
- * schedule-aware count the build already computes for the RBM directive's `overdue_days`
- * (December 2025 Loan Book Investigation Findings v1, section 10). Proposed and approved by two
- * different people, like every other maker-checker workflow in this system; every step is
- * audit-logged. The override never carries a typed-in day count — it only ever says "for this
- * loan, use the count this row already carries elsewhere", so there is nothing here for a person
- * to get wrong beyond the decision itself.
+ * A governed, per-loan exception from the staging policy's own bucket-ageing basis. Two sources,
+ * both proposed and approved by two different people like every other maker-checker workflow in
+ * this system, every step audit-logged:
+ *
+ *  - `directive_count` (no `$overrideDays` given): use the schedule-aware count the build
+ *    already computes for the RBM directive's `overdue_days`, evidenced loan by loan (December
+ *    2025 Loan Book Investigation Findings v1, section 10 — JAT and BenCal).
+ *  - `audited_workbook` (`$overrideDays` given): an explicit day count reconciling an
+ *    already-closed, already-audited period to the figures the external audit approved (MAIIC
+ *    Finance Overlay Importers Specification v1, section 4.3), pending MAIIC's facility-level
+ *    reasons. The reason still names the audit's own approval; nothing here invents a number
+ *    that was not actually reported.
  *
  * `LoanBookBuildService` reads only `active()` (status APPROVED) when building a period; every
- * other loan is unaffected, whatever is proposed or rejected here.
+ * other loan is unaffected, whatever is proposed or rejected here. The loan's own system figure
+ * is never lost: it is kept on the row and named in `build_flag` beside whichever source applied.
  */
 class LoanStagingBasisOverrideService
 {
@@ -25,8 +31,10 @@ class LoanStagingBasisOverrideService
     public const STATUS_APPROVED = 'APPROVED';
     public const STATUS_REJECTED = 'REJECTED';
     public const STATUS_WITHDRAWN = 'WITHDRAWN';
+    public const SOURCE_DIRECTIVE_COUNT = 'directive_count';
+    public const SOURCE_AUDITED_WORKBOOK = 'audited_workbook';
 
-    public function propose(string $contractId, string $reason, int $proposedBy): int
+    public function propose(string $contractId, string $reason, int $proposedBy, ?int $overrideDays = null): int
     {
         if (trim($reason) === '') {
             throw new RuntimeException('A staging basis override needs a reason.');
@@ -38,10 +46,11 @@ class LoanStagingBasisOverrideService
         }
         $id = (int) DB::table('loan_staging_basis_overrides')->insertGetId([
             'contract_id' => $contractId, 'reason' => $reason, 'proposed_by' => $proposedBy,
+            'override_days' => $overrideDays, 'source' => $overrideDays !== null ? self::SOURCE_AUDITED_WORKBOOK : self::SOURCE_DIRECTIVE_COUNT,
             'status' => self::STATUS_PROPOSED, 'created_at' => now(), 'updated_at' => now(),
         ]);
         AuditLoggerService::log('Staging Basis Override Proposed', 'loan_staging_basis_overrides', $id, [
-            'new_values' => ['contract_id' => $contractId, 'reason' => $reason],
+            'new_values' => ['contract_id' => $contractId, 'reason' => $reason, 'override_days' => $overrideDays],
             'meta' => ['proposed_by' => $proposedBy],
         ]);
 
@@ -104,7 +113,7 @@ class LoanStagingBasisOverrideService
      * The approved overrides only, keyed by contract id, for the build to apply. Every loan not
      * in this list is staged exactly as the governed policy already says.
      *
-     * @return array<string, array{id:int,reason:string,approved_by:?int,approved_at:?string}>
+     * @return array<string, array{id:int,reason:string,approved_by:?int,approved_at:?string,override_days:?int,source:string}>
      */
     public function active(): array
     {
@@ -113,7 +122,11 @@ class LoanStagingBasisOverrideService
         }
         $out = [];
         foreach (DB::table('loan_staging_basis_overrides')->where('status', self::STATUS_APPROVED)->get() as $r) {
-            $out[$r->contract_id] = ['id' => (int) $r->id, 'reason' => $r->reason, 'approved_by' => $r->approved_by, 'approved_at' => $r->approved_at];
+            $out[$r->contract_id] = [
+                'id' => (int) $r->id, 'reason' => $r->reason, 'approved_by' => $r->approved_by, 'approved_at' => $r->approved_at,
+                'override_days' => isset($r->override_days) ? (int) $r->override_days : null,
+                'source' => $r->source ?? self::SOURCE_DIRECTIVE_COUNT,
+            ];
         }
 
         return $out;

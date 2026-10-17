@@ -27,7 +27,8 @@ class LoanStagingBasisOverrideServiceTest extends TestCase
         Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });
         Schema::create('loan_staging_basis_overrides', function (Blueprint $t) {
             $t->increments('id');
-            $t->string('contract_id', 30)->unique(); $t->string('reason', 2000);
+            $t->string('contract_id', 30)->unique(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
+            $t->string('reason', 2000);
             $t->unsignedBigInteger('proposed_by'); $t->unsignedBigInteger('approved_by')->nullable();
             $t->string('status', 20)->default('PROPOSED'); $t->timestamp('approved_at')->nullable();
             $t->timestamps();

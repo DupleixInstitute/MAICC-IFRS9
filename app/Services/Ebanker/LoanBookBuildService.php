@@ -504,15 +504,21 @@ class LoanBookBuildService
     private function applyStagingOverride(string $contractId, int $directiveDpd, int $stagingDpd, string $stagingBasis, array $overrides): array
     {
         $override = $overrides[$contractId] ?? null;
-        if ($override === null || $stagingDpd === $directiveDpd) {
+        if ($override === null) {
             return [$stagingDpd, $stagingBasis, null];
         }
+        $isAudited = ($override['source'] ?? null) === \App\Services\Eir\LoanStagingBasisOverrideService::SOURCE_AUDITED_WORKBOOK;
+        $targetDpd = $isAudited ? ($override['override_days'] ?? $directiveDpd) : $directiveDpd;
+        if ($stagingDpd === $targetDpd) {
+            return [$stagingDpd, $stagingBasis, null];
+        }
+        $sourceLabel = $isAudited ? sprintf('an audited figure (%d days)', $targetDpd) : "the directive's own already-computed count ({$targetDpd} days)";
         $flag = sprintf(
-            "staging basis overridden by governed decision #%d: uses the directive's own already-computed count (%d days) instead of the policy's %s (%d days); reason: %s",
-            $override['id'], $directiveDpd, $stagingBasis, $stagingDpd, $override['reason']
+            "staging basis overridden by governed decision #%d: uses %s instead of the policy's %s (%d days); reason: %s",
+            $override['id'], $sourceLabel, $stagingBasis, $stagingDpd, $override['reason']
         );
 
-        return [$directiveDpd, sprintf("overridden to the directive's own count (policy basis was: %s)", $stagingBasis), $flag];
+        return [$targetDpd, sprintf('overridden to %s (policy basis was: %s)', $sourceLabel, $stagingBasis), $flag];
     }
 
     // ----- method B -------------------------------------------------------
