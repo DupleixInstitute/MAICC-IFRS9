@@ -246,4 +246,91 @@ class ClientBookReconciliationTest extends TestCase
         $this->actingAs($reader)->post(route('client-books.compare', $book))->assertForbidden();
         @unlink(storage_path('app/' . DB::table('client_loan_books')->value('csv_path')));
     }
+
+    /** The month's template with the client's figures filled in, as Finance would upload it. */
+    private function schedule(array $rows): string
+    {
+        $file = storage_path('app/test-override-schedule-' . uniqid() . '.csv');
+        $out = "contract_id,customer_name,system_carrying_amount,system_days_past_due,system_stage,carrying_amount,days_past_due,stage,comment\n";
+        foreach ($rows as [$contract, $amount, $days, $stage]) {
+            $out .= "{$contract},,,,,{$amount},{$days},{$stage},Finance's figure\n";
+        }
+        file_put_contents($file, $out);
+
+        return $file;
+    }
+
+    public function test_an_approved_stage_override_is_the_last_word_on_the_stage_and_the_policys_is_kept(): void
+    {
+        $svc = app(\App\Services\Eir\LoanStageOverrideService::class);
+        $id = $svc->propose('104420000002', '2026-08', 1, 'Finance stages the loan current: the arrears were rescheduled.', 501);
+        $staged = fn () => app(\App\Services\Eir\StagingService::class)->evaluate('2026-08', \App\Services\Eir\StagingPolicy::at(app(\App\Services\Eir\GovernanceService::class), \Carbon\CarbonImmutable::parse('2026-08-31')))['loans']['104420000002'];
+        $this->assertSame(3, $staged()['stage'], 'a proposal changes nothing');
+        DB::table('supporting_documents')->insert(['documentable_type' => 'loan_stage_overrides', 'documentable_id' => $id, 'disk' => 'local', 'path' => 'x', 'original_name' => 'minute.pdf', 'mime_type' => 'application/pdf', 'size' => 1, 'extension' => 'pdf', 'document_type' => 'minute', 'hash' => 'h', 'uploaded_by' => 501, 'created_at' => now(), 'updated_at' => now()]);
+        try {
+            $svc->approve($id, 501);
+            $this->fail('the proposer approved their own stage override');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Maker-checker', $e->getMessage());
+        }
+        $svc->approve($id, 502);
+        $l = $staged();
+        $this->assertSame([1, 3, 'override', $id], [$l['stage'], $l['policy_stage'], $l['reason'], $l['stage_override_id']]);
+        // only that loan, only that month
+        $this->assertSame([], $svc->active('2026-07'));
+    }
+
+    public function test_a_stage_the_clients_book_gives_becomes_a_stage_override(): void
+    {
+        $book = $this->service()->land($this->schedule([['104420000002', '', '', 1]]), '2026-08', 'template', 'Finance template, August 2026', 501)['book_id'];
+        $this->service()->compare($book);
+        $d = DB::table('client_book_differences')->where('client_book_id', $book)->where('contract_id', '104420000002')->first();
+        $this->assertSame('same bracket and balance, different stage', $d->cause);
+        $r = $this->service()->propose((int) $d->id, 501, 'Finance stages the loan current: the arrears were rescheduled.');
+        $this->assertNotNull($r['stage_override_id']);
+        $this->assertNull($r['staging_override_id']);
+        $this->assertSame(1, (int) DB::table('loan_stage_overrides')->where('id', $r['stage_override_id'])->value('override_stage'));
+        $this->assertSame(1, DB::table('supporting_document_links')->where('documentable_type', 'loan_stage_overrides')->where('documentable_id', $r['stage_override_id'])->count());
+    }
+
+    public function test_an_override_schedule_proposes_each_filled_cell_and_a_second_person_approves_it(): void
+    {
+        $file = $this->schedule([
+            ['104420000002', '', '', 1],            // a stage
+            ['104420000003', '2000000.00', '', ''], // an amount
+            ['104420000004', '', '45', ''],         // a day count
+            ['104420000001', '1000000.00', '', 1],  // the system's own figures: nothing to override
+            ['104420000099', '', '', 2],            // not in the system's book
+        ]);
+        $r = $this->service()->applySchedule($file, '2026-08', 'Finance overrides, August 2026', 'Finance figures signed by the CFO for August 2026.', 501);
+        $this->assertSame(['stage' => 1, 'days' => 1, 'amount' => 1], $r['proposed']);
+        $this->assertCount(2, $r['skipped']);
+        $this->assertSame(3, DB::table('supporting_document_links')->whereIn('documentable_type', ['loan_stage_overrides', 'loan_staging_basis_overrides', 'loan_gross_amount_overrides'])->count());
+        $this->assertSame(1, DB::table('loan_staging_basis_overrides')->where('client_book_id', $r['book_id'])->where('override_days', 45)->where('source', 'client_book')->count());
+
+        // the proposer approves nothing; a second person approves the schedule
+        $this->assertSame(0, $this->service()->approveSchedule($r['book_id'], 501)['approved']);
+        $a = $this->service()->approveSchedule($r['book_id'], 502);
+        $this->assertSame([3, []], [$a['approved'], $a['refused']]);
+        $this->assertSame('APPROVED', DB::table('loan_stage_overrides')->where('client_book_id', $r['book_id'])->value('status'));
+        // the same schedule again proposes nothing: every loan already has its override
+        $again = $this->service()->applySchedule($file, '2026-08', 'Finance overrides, August 2026', 'Finance figures signed by the CFO for August 2026.', 501);
+        $this->assertSame(['stage' => 0, 'days' => 0, 'amount' => 0], $again['proposed']);
+        @unlink($file);
+    }
+
+    public function test_the_bootstrap_applies_a_committed_schedule_under_its_label(): void
+    {
+        $inputs = storage_path('app/test-inputs-' . uniqid());
+        mkdir($inputs . '/override_schedules', 0775, true);
+        $file = $this->schedule([['104420000002', '', '', 1]]);
+        rename($file, $inputs . '/override_schedules/2026-08 schedule.csv');
+        file_put_contents($inputs . '/override_schedules/manifest.json', json_encode(['schedules' => [['period' => '2026-08', 'file' => 'override_schedules/2026-08 schedule.csv', 'label' => 'Committed schedule', 'reason' => 'The client\'s committed stages for August 2026.']]]));
+
+        $lines = \App\Console\Commands\ClientBook::applySchedules($this->service(), $inputs, 501);
+        $this->assertStringContainsString('approved 1 under the bootstrap label', $lines[0]);
+        $o = DB::table('loan_stage_overrides')->first();
+        $this->assertSame(['APPROVED', \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL], [$o->status, $o->approver_label]);
+        @unlink($inputs . '/override_schedules/2026-08 schedule.csv'); @unlink($inputs . '/override_schedules/manifest.json'); @rmdir($inputs . '/override_schedules'); @rmdir($inputs);
+    }
 }

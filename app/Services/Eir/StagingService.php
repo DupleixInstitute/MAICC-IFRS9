@@ -143,7 +143,8 @@ class StagingService
         $customers = $rows->pluck('customer_id', 'contract_id')->map(fn ($c) => $c === null ? null : (string) $c)->all();
         [$priorStage, $dpdHistory] = $this->priorMonths($period, $cureMonths, $customers, $qualitativeApplied);
         $qualMap = $qualitativeApplied ? $this->qualitative->mapAt($monthEnd->toDateString()) : [];
-        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0, 'instalments_no_chart' => 0, 'instalments_chart_contradicts_ledger' => 0, 'staging_dpd_derived' => 0];
+        $stageOverrides = app(LoanStageOverrideService::class)->active($period);
+        $counts = ['period' => $period, 'rows' => 0, 'stage1' => 0, 'stage2' => 0, 'stage3' => 0, 'by_override' => 0, 'by_dpd' => 0, 'by_instalments' => 0, 'by_sicr' => 0, 'by_credit_impaired' => 0, 'by_bucket' => 0, 'held_by_cure' => 0, 'cure_months' => $cureMonths, 'qualitative_triggers' => 0, 'instalments_no_chart' => 0, 'instalments_chart_contradicts_ledger' => 0, 'staging_dpd_derived' => 0];
         $applied = [];
         $notEvaluated = [];
         $loans = [];
@@ -210,6 +211,14 @@ class StagingService
                 $post = $prior;
                 $reason = 'cure';
             }
+            // an approved stage override for the month is the last word (Client Book Reconciliation Specification v1,
+            // section 6a): after the day count, the triggers and the cure rule; the policy's own stage stays beside it
+            $policyStage = $post;
+            if (isset($stageOverrides[(string) $r->contract_id])) {
+                $post = $stageOverrides[(string) $r->contract_id]['stage'];
+                $reason = 'override';
+                $counts['by_override']++;
+            }
             $counts['rows']++;
             $counts['stage' . $post]++;
             if ($reason === 'dpd') { $counts['by_dpd']++; }
@@ -217,7 +226,8 @@ class StagingService
             if ($reason === 'sicr') { $counts['by_sicr']++; }
             if ($reason === 'credit_impaired') { $counts['by_credit_impaired']++; }
             if ($reason === 'cure') { $counts['held_by_cure']++; }
-            $loans[(string) $r->contract_id] = ['id' => (int) $r->id, 'stage' => $post, 'pre' => $pre, 'dpd' => $dpd, 'reason' => $reason, 'sicr' => $qual['ids'] !== [] ? 1 : 0];
+            $loans[(string) $r->contract_id] = ['id' => (int) $r->id, 'stage' => $post, 'pre' => $pre, 'dpd' => $dpd, 'reason' => $reason, 'sicr' => $qual['ids'] !== [] ? 1 : 0, 'policy_stage' => $policyStage,
+                'stage_override_id' => $stageOverrides[(string) $r->contract_id]['id'] ?? null];
         }
         $counts['qualitative_triggers'] = count(array_unique(array_merge([], ...array_column($applied, 'triggers'))));
 

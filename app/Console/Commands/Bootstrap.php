@@ -286,6 +286,11 @@ class Bootstrap extends Command
         $flagged = array_sum(array_map(fn ($p) => $p['flagged'], $r['periods']));
         $methods = implode(',', array_unique(array_map(fn ($p) => $p['method'], $r['periods'])));
         $this->note('5a loan books', "{$r['status']} (build {$r['build_id']}): " . count($r['periods']) . " periods {$from}..{$to} by {$methods}, {$rows} rows, {$flagged} flagged");
+        // the client's committed override schedules (docs/bootstrap/override_schedules): stages, day counts or amounts the client
+        // takes instead of the rebuilt ones for a month, proposed and approved under the bootstrap label, the month built again
+        foreach (\App\Console\Commands\ClientBook::applySchedules(app(\App\Services\Ebanker\ClientBookReconciliationService::class), base_path((string) $this->option('inputs')), $user) as $line) {
+            $this->note('5a override schedule', $line);
+        }
 
         try {
             // the Build with approval (spec 6.9): proposed, then approved under the bootstrap label (not a MAIIC approval)

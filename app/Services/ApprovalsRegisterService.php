@@ -54,6 +54,7 @@ class ApprovalsRegisterService
         'macro-override' => ['title' => 'series_code', 'proposed_at' => ['created_at'], 'decided_by' => ['approved_by'], 'decided_at' => ['approved_at'], 'label' => null, 'reason' => ['reason']],
         'account-exclusion' => ['title' => 'contract_id', 'proposed_at' => ['proposed_at', 'created_at'], 'decided_by' => ['approved_by', 'closed_by'], 'decided_at' => ['approved_at', 'closed_at'], 'label' => 'approver_label', 'reason' => ['close_reason', 'reason']],
         'staging-override' => ['title' => 'contract_id', 'proposed_at' => ['created_at'], 'decided_by' => ['approved_by'], 'decided_at' => ['approved_at'], 'label' => null, 'reason' => ['reason']],
+        'stage-override' => ['title' => 'contract_id', 'proposed_at' => ['created_at'], 'decided_by' => ['approved_by'], 'decided_at' => ['approved_at'], 'label' => 'approver_label', 'reason' => ['reason']],
         'gross-override' => ['title' => 'contract_id', 'proposed_at' => ['created_at'], 'decided_by' => ['approved_by'], 'decided_at' => ['approved_at'], 'label' => null, 'reason' => ['reason']],
         'fee-workbook' => ['title' => 'original_name', 'proposed_at' => ['uploaded_at', 'created_at'], 'decided_by' => ['closed_by'], 'decided_at' => ['closed_at'], 'label' => null, 'reason' => ['close_reason']],
     ];

@@ -8,6 +8,7 @@ use App\Services\Ebanker\LoanBookBuildService;
 use App\Services\Eir\LoanAgeingOverlayService;
 use App\Services\Eir\LoanGrossAmountOverlayService;
 use App\Services\Eir\LoanGrossAmountOverrideService;
+use App\Services\Eir\LoanStageOverrideService;
 use App\Services\Eir\LoanStagingBasisOverrideService;
 use App\Support\SupportingDocuments;
 use Illuminate\Http\Request;
@@ -50,10 +51,13 @@ class ClientBookReconciliationController extends Controller
             ->map(fn ($d) => (array) $d + ['decided_by_name' => $name($d->decided_by)]) : collect();
 
         $overrides = collect();
-        foreach (['staging' => 'loan_staging_basis_overrides', 'gross' => 'loan_gross_amount_overrides'] as $type => $table) {
+        foreach (['stage' => 'loan_stage_overrides', 'staging' => 'loan_staging_basis_overrides', 'gross' => 'loan_gross_amount_overrides'] as $type => $table) {
+            if (! \Illuminate\Support\Facades\Schema::hasTable($table)) {
+                continue;
+            }
             foreach (DB::table($table)->orderByRaw("case status when 'PROPOSED' then 0 when 'APPROVED' then 1 when 'REJECTED' then 2 else 3 end")->orderByDesc('reporting_period')->orderBy('contract_id')->get() as $o) {
                 $overrides->push((array) $o + [
-                    'type' => $type, 'workflow' => $type === 'staging' ? 'staging-override' : 'gross-override',
+                    'type' => $type, 'workflow' => ['stage' => 'stage-override', 'staging' => 'staging-override', 'gross' => 'gross-override'][$type],
                     'customer_name' => DB::table('loan_books')->where('contract_id', $o->contract_id)->where('reporting_period', $o->reporting_period)->value('customer_name'),
                     'proposed_by_name' => $name($o->proposed_by), 'approved_by_name' => $name($o->approved_by),
                     'documents' => SupportingDocuments::count($table, (int) $o->id),
@@ -61,7 +65,16 @@ class ClientBookReconciliationController extends Controller
             }
         }
 
+        $schedules = $overrides->where('status', 'PROPOSED')->whereNotNull('client_book_id')->groupBy('client_book_id')->map(function ($rows, $bookId) use ($books) {
+            $b = $books->firstWhere('id', (int) $bookId);
+
+            return ['book_id' => (int) $bookId, 'period' => $b['reporting_period'] ?? null, 'label' => $b['source_label'] ?? null, 'proposed' => $rows->count(),
+                'proposed_by' => $rows->pluck('proposed_by')->unique()->values()->all(), 'proposed_by_name' => $rows->first()['proposed_by_name'] ?? null,
+                'by_type' => $rows->countBy('type')->all()];
+        })->values();
+
         return Inertia::render('Eir/ClientBooks/Index', [
+            'schedules' => $schedules,
             'books' => $books->values(),
             'bookId' => $bookId,
             'status' => $status,
@@ -169,14 +182,15 @@ class ClientBookReconciliationController extends Controller
     }
 
     /** A person proposes an override directly (not from a client book); its evidence is attached on its record before approval. */
-    public function storeOverride(Request $request, LoanStagingBasisOverrideService $staging, LoanGrossAmountOverrideService $gross)
+    public function storeOverride(Request $request, LoanStagingBasisOverrideService $staging, LoanGrossAmountOverrideService $gross, LoanStageOverrideService $stageService)
     {
         $data = $request->validate([
-            'type' => ['required', 'in:staging,gross'],
+            'type' => ['required', 'in:staging,gross,stage'],
             'contract_id' => ['required', 'string', 'max:30'],
             'period' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
             'days' => ['required_if:type,staging', 'nullable', 'integer', 'min:0', 'max:20000'],
             'amount' => ['required_if:type,gross', 'nullable', 'numeric'],
+            'stage' => ['required_if:type,stage', 'nullable', 'in:1,2,3'],
             'source' => ['nullable', 'in:audited_workbook,client_book'],
             'reason' => ['required', 'string', 'min:10', 'max:1500'],
         ]);
@@ -184,22 +198,24 @@ class ClientBookReconciliationController extends Controller
             return back()->with('error', "Contract {$data['contract_id']} is not in the loan book of {$data['period']}: an override changes a loan the system builds for that month.");
         }
         try {
-            $id = $data['type'] === 'staging'
-                ? $staging->propose($data['contract_id'], $data['period'], $data['reason'], (int) $request->user()->id, (int) $data['days'], $data['source'] ?? LoanStagingBasisOverrideService::SOURCE_AUDITED_WORKBOOK)
-                : $gross->propose($data['contract_id'], $data['period'], $data['reason'], (int) $request->user()->id, (float) $data['amount']);
+            $id = match ($data['type']) {
+                'staging' => $staging->propose($data['contract_id'], $data['period'], $data['reason'], (int) $request->user()->id, (int) $data['days'], $data['source'] ?? LoanStagingBasisOverrideService::SOURCE_AUDITED_WORKBOOK),
+                'gross' => $gross->propose($data['contract_id'], $data['period'], $data['reason'], (int) $request->user()->id, (float) $data['amount']),
+                'stage' => $stageService->propose($data['contract_id'], $data['period'], (int) $data['stage'], $data['reason'], (int) $request->user()->id),
+            };
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
 
         return redirect()->route('client-books.index', ['tab' => 'overrides'])
-            ->with('success', ($data['type'] === 'staging' ? 'Staging' : 'Gross amount') . " override #{$id} proposed. Attach the evidence on its record (the paperclip); a different person approves it.");
+            ->with('success', ['staging' => 'Day-count', 'gross' => 'Gross amount', 'stage' => 'Stage'][$data['type']] . " override #{$id} proposed. Attach the evidence on its record (the paperclip); a different person approves it.");
     }
 
-    public function decideOverride(Request $request, string $type, int $id, LoanStagingBasisOverrideService $staging, LoanGrossAmountOverrideService $gross)
+    public function decideOverride(Request $request, string $type, int $id, LoanStagingBasisOverrideService $staging, LoanGrossAmountOverrideService $gross, LoanStageOverrideService $stageService)
     {
-        abort_unless(in_array($type, ['staging', 'gross'], true), 404);
+        abort_unless(in_array($type, ['staging', 'gross', 'stage'], true), 404);
         $data = $request->validate(['action' => ['required', 'in:approve,reject,withdraw'], 'reason' => ['nullable', 'string', 'max:1500']]);
-        $service = $type === 'staging' ? $staging : $gross;
+        $service = ['staging' => $staging, 'gross' => $gross, 'stage' => $stageService][$type];
         $user = (int) $request->user()->id;
         try {
             match ($data['action']) {
@@ -210,13 +226,46 @@ class ClientBookReconciliationController extends Controller
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
-        $label = ($type === 'staging' ? 'Staging' : 'Gross amount') . " override #{$id}";
+        $label = ['staging' => 'Day-count', 'gross' => 'Gross amount', 'stage' => 'Stage'][$type] . " override #{$id}";
 
         return back()->with('success', match ($data['action']) {
-            'approve' => "{$label} approved. It applies when the month is rebuilt: propose the rebuild from \"Rebuilds due\" above the table.",
+            'approve' => $type === 'stage' ? "{$label} approved. It applies when the month is staged again: run the month-end for it (Rebuilds due)." : "{$label} approved. It applies when the month is rebuilt: propose the rebuild from \"Rebuilds due\" above the table.",
             'reject' => "{$label} rejected.",
             'withdraw' => "{$label} withdrawn.",
         });
+    }
+
+    /** An override schedule: the month's template with the client's stages, day counts or amounts filled in; each filled cell proposed as its override. */
+    public function uploadSchedule(Request $request, ClientBookReconciliationService $service)
+    {
+        $data = $request->validate([
+            'period' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
+            'label' => ['required', 'string', 'min:5', 'max:200'],
+            'reason' => ['required', 'string', 'min:10', 'max:1500'],
+            'file' => ['required', 'file', 'max:20480', 'mimes:xls,xlsx,csv,txt'],
+        ]);
+        try {
+            $r = $service->applySchedule($data['file']->getRealPath(), $data['period'], $data['label'], $data['reason'], (int) $request->user()->id, $data['file']->getClientOriginalName());
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        $n = $r['proposed']['stage'] + $r['proposed']['days'] + $r['proposed']['amount'];
+        $skipped = $r['skipped'] === [] ? '' : ' Not proposed: ' . implode(' | ', array_slice($r['skipped'], 0, 5)) . (count($r['skipped']) > 5 ? ' | and ' . (count($r['skipped']) - 5) . ' more.' : '');
+
+        return redirect()->route('client-books.index', ['tab' => 'overrides'])->with($n > 0 ? 'success' : 'error',
+            "Schedule landed as client book {$r['book_id']}: {$n} override(s) proposed ({$r['proposed']['stage']} stage, {$r['proposed']['days']} day count, {$r['proposed']['amount']} gross amount), each with the file as its evidence. A different person approves the schedule.{$skipped}");
+    }
+
+    public function approveSchedule(Request $request, int $id, ClientBookReconciliationService $service)
+    {
+        try {
+            $r = $service->approveSchedule($id, (int) $request->user()->id);
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        $refused = $r['refused'] === [] ? '' : ' Refused: ' . implode(' | ', array_slice($r['refused'], 0, 3));
+
+        return back()->with($r['approved'] > 0 ? 'success' : 'error', "Schedule {$id}: {$r['approved']} override(s) approved.{$refused} Stage overrides apply when the month is staged again; day-count and gross amount overrides when it is rebuilt.");
     }
 
     public function importOverlay(Request $request, LoanAgeingOverlayService $ageing, LoanGrossAmountOverlayService $gross)
@@ -295,6 +344,15 @@ class ClientBookReconciliationController extends Controller
             }
             $out[] = ['period' => $period, 'overrides' => $rows->count(), 'last_built' => $lastBuilt, 'proposed_build' => (clone $builds)->where('status', 'PROPOSED')->max('id'),
                 'locked' => DB::table('reporting_period_locks')->where('reporting_period', $period)->exists()];
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('loan_stage_overrides')) {
+            foreach (DB::table('loan_stage_overrides as o')->join('loan_books as b', fn ($j) => $j->on('b.contract_id', '=', 'o.contract_id')->on('b.reporting_period', '=', 'o.reporting_period'))
+                ->where('o.status', 'APPROVED')->whereRaw('coalesce(b.ifrs9_stage, 0) <> o.override_stage')->groupBy('o.reporting_period')
+                ->selectRaw('o.reporting_period p, count(*) n')->get() as $r) {
+                $out[] = ['period' => $r->p, 'overrides' => (int) $r->n, 'last_built' => null, 'proposed_build' => null, 'restage' => true,
+                    'locked' => DB::table('reporting_period_locks')->where('reporting_period', $r->p)->exists()];
+            }
         }
 
         return collect($out)->sortBy('period')->values()->all();

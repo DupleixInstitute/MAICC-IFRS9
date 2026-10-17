@@ -75,6 +75,8 @@ final class Approvals
         // applied when the month is rebuilt; the client's book is linked as the evidence when the override comes from a reconciliation
         'staging-override' => ['label' => 'Staging basis override', 'table' => 'loan_staging_basis_overrides', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['loan_staging_basis_overrides'],
             'evidence' => 'the loan book the client gave, or the audited figure, that the day count is taken from'],
+        'stage-override' => ['label' => 'Stage override', 'table' => 'loan_stage_overrides', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['loan_stage_overrides'],
+            'evidence' => 'the loan book the client gave, or the audited figure, that the stage is taken from'],
         'gross-override' => ['label' => 'Gross amount override', 'table' => 'loan_gross_amount_overrides', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['loan_gross_amount_overrides'],
             'evidence' => 'the loan book the client gave, or the audited figure, that the gross amount is taken from'],
         // Finance's answers on the fee reconciliation workbook (FeeWorkbookAnswerService, 16 October 2026): the upload is
@@ -206,6 +208,10 @@ final class Approvals
                 return true;
             case 'staging-override':
                 $action === 'reject' ? app(\App\Services\Eir\LoanStagingBasisOverrideService::class)->reject($id, $userId, $reason) : app(\App\Services\Eir\LoanStagingBasisOverrideService::class)->withdraw($id, $userId, $reason);
+
+                return true;
+            case 'stage-override':
+                $action === 'reject' ? app(\App\Services\Eir\LoanStageOverrideService::class)->reject($id, $userId, $reason) : app(\App\Services\Eir\LoanStageOverrideService::class)->withdraw($id, $userId, $reason);
 
                 return true;
             case 'gross-override':

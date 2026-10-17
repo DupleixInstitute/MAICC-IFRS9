@@ -73,19 +73,21 @@ class LoanStagingBasisOverrideService
     }
 
     /** @return array{status:string} */
-    public function approve(int $id, int $approvedBy): array
+    public function approve(int $id, int $approvedBy, ?string $label = null): array
     {
         $row = DB::table('loan_staging_basis_overrides')->where('id', $id)->first();
         if ($row === null || $row->status !== self::STATUS_PROPOSED) {
             throw new RuntimeException("Override {$id} is not awaiting approval.");
         }
-        if ((int) $row->proposed_by === $approvedBy && ! MakerChecker::selfApprovalAllowed('Staging basis override', 'loan_staging_basis_overrides', $id, $approvedBy)) {
+        $bootstrap = $label === \App\Services\Ebanker\LoanBookBuildService::BOOTSTRAP_LABEL;
+        if (! $bootstrap && (int) $row->proposed_by === $approvedBy && ! MakerChecker::selfApprovalAllowed('Staging basis override', 'loan_staging_basis_overrides', $id, $approvedBy)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
         // the figure an override takes is evidenced: the client's book linked by the reconciliation, or a document attached
-        \App\Support\Approvals::assertEvidence('staging-override', $id);
+        \App\Support\Approvals::assertEvidence('staging-override', $id, $label);
         DB::table('loan_staging_basis_overrides')->where('id', $id)
-            ->update(['status' => self::STATUS_APPROVED, 'approved_by' => $approvedBy, 'approved_at' => now(), 'updated_at' => now()]);
+            ->update(['status' => self::STATUS_APPROVED, 'approved_by' => $approvedBy, 'approved_at' => now(), 'updated_at' => now()]
+                + (\Illuminate\Support\Facades\Schema::hasColumn('loan_staging_basis_overrides', 'approver_label') ? ['approver_label' => $bootstrap ? $label : null] : []));
         AuditLoggerService::log('Staging Basis Override Approved', 'loan_staging_basis_overrides', $id, [
             'new_values' => ['contract_id' => $row->contract_id, 'reason' => $row->reason],
             'meta' => ['proposed_by' => (int) $row->proposed_by, 'approved_by' => $approvedBy],

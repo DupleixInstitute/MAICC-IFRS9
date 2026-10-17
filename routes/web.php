@@ -1133,7 +1133,9 @@ Route::group(['prefix' => 'client-books', 'as' => 'client-books.'], function () 
     Route::post('/', [$c, 'land'])->name('land');
     Route::get('/template', [$c, 'template'])->name('template');
     Route::post('/overrides', [$c, 'storeOverride'])->name('overrides.store');
-    Route::post('/overrides/{type}/{id}', [$c, 'decideOverride'])->whereIn('type', ['staging', 'gross'])->whereNumber('id')->name('overrides.decide');
+    Route::post('/overrides/{type}/{id}', [$c, 'decideOverride'])->whereIn('type', ['staging', 'gross', 'stage'])->whereNumber('id')->name('overrides.decide');
+    Route::post('/schedules', [$c, 'uploadSchedule'])->name('schedules.upload');
+    Route::post('/{id}/approve-schedule', [$c, 'approveSchedule'])->whereNumber('id')->name('schedules.approve');
     Route::post('/overlays', [$c, 'importOverlay'])->name('overlays.import');
     Route::post('/differences/{id}/propose', [$c, 'propose'])->whereNumber('id')->name('differences.propose');
     Route::post('/differences/{id}/keep', [$c, 'keep'])->whereNumber('id')->name('differences.keep');

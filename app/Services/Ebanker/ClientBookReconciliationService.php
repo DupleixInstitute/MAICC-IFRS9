@@ -52,6 +52,7 @@ class ClientBookReconciliationService
         private GovernanceService $governance,
         private LoanStagingBasisOverrideService $stagingOverrides,
         private LoanGrossAmountOverrideService $grossOverrides,
+        private \App\Services\Eir\LoanStageOverrideService $stageOverrides,
     ) {
     }
 
@@ -155,7 +156,7 @@ class ClientBookReconciliationService
             }
             if (! $balance && ! $bucket && ! $stage) {
                 $same++;
-                $ids = array_filter(['staging override #' . ($approved['staging'][$contract] ?? '') => isset($approved['staging'][$contract]), 'gross amount override #' . ($approved['gross'][$contract] ?? '') => isset($approved['gross'][$contract])]);
+                $ids = array_filter(['stage override #' . ($approved['stage'][$contract] ?? '') => isset($approved['stage'][$contract]), 'staging override #' . ($approved['staging'][$contract] ?? '') => isset($approved['staging'][$contract]), 'gross amount override #' . ($approved['gross'][$contract] ?? '') => isset($approved['gross'][$contract])]);
                 if ($ids !== []) {
                     $found[$contract] = $this->diff($book, $c, $s, $st, $matchedOn, 'agrees after the approved ' . implode(' and ', array_keys($ids)), self::STATUS_RECONCILED);
                 }
@@ -188,7 +189,10 @@ class ClientBookReconciliationService
         foreach ($found as $key => &$d) {
             $d['staging_override_id'] = $proposed['staging'][(string) $d['contract_id']] ?? ($approved['staging'][(string) $d['contract_id']] ?? null);
             $d['gross_override_id'] = $proposed['gross'][(string) $d['contract_id']] ?? ($approved['gross'][(string) $d['contract_id']] ?? null);
-            if ($d['status'] === self::STATUS_OPEN && ($d['staging_override_id'] !== null || $d['gross_override_id'] !== null)) {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('client_book_differences', 'stage_override_id')) {
+                $d['stage_override_id'] = $proposed['stage'][(string) $d['contract_id']] ?? ($approved['stage'][(string) $d['contract_id']] ?? null);
+            }
+            if ($d['status'] === self::STATUS_OPEN && ($d['staging_override_id'] !== null || $d['gross_override_id'] !== null || ($d['stage_override_id'] ?? null) !== null)) {
                 $d['status'] = self::STATUS_PROPOSED;
             }
         }
@@ -269,7 +273,7 @@ class ClientBookReconciliationService
      *
      * @return array{staging_override_id:?int, gross_override_id:?int}
      */
-    public function propose(int $differenceId, int $userId, string $reason, ?int $days = null, ?float $amount = null): array
+    public function propose(int $differenceId, int $userId, string $reason, ?int $days = null, ?float $amount = null, ?int $stage = null): array
     {
         $d = DB::table('client_book_differences')->where('id', $differenceId)->first() ?? throw new RuntimeException("No difference {$differenceId}.");
         if (! in_array($d->status, [self::STATUS_OPEN, self::STATUS_KEPT], true)) {
@@ -284,11 +288,13 @@ class ClientBookReconciliationService
         if (DB::table('reporting_period_locks')->where('reporting_period', $d->reporting_period)->exists()) {
             throw new RuntimeException("{$d->reporting_period} is locked: a locked period is never rebuilt, so an override could not take effect. Unlock the period first (Period close).");
         }
-        $book = DB::table('client_loan_books')->where('id', $d->client_book_id)->first();
-        $source = "From the client's book of {$d->reporting_period} ({$book->source_label}, file {$book->file_name}, sha256 " . substr((string) $book->file_hash, 0, 12) . ')';
-        $wantsDays = $d->bucket_differs || $d->stage_differs || $days !== null;
+        // the client's stage, where its book gives one and it differs, is taken as the stage itself (a stage override);
+        // otherwise a bracket difference takes the client's day count (a day-count override), and the stage follows the policy
+        $stage ??= $d->stage_differs && $d->client_stage !== null ? (int) $d->client_stage : null;
+        $wantsStage = $stage !== null;
+        $wantsDays = ! $wantsStage && ($d->bucket_differs || $days !== null);
         $wantsAmount = $d->balance_differs || $amount !== null;
-        if (! $wantsDays && ! $wantsAmount) {
+        if (! $wantsStage && ! $wantsDays && ! $wantsAmount) {
             throw new RuntimeException("Difference {$differenceId} is neither a bracket, a stage nor a balance difference: there is nothing to override.");
         }
         $days ??= $d->client_days !== null ? (int) $d->client_days : null;
@@ -299,28 +305,143 @@ class ClientBookReconciliationService
         if ($wantsAmount && $amount === null) {
             throw new RuntimeException("The client's book gives no amount for {$d->contract_id}; enter the amount the evidence supports.");
         }
+        $book = DB::table('client_loan_books')->where('id', $d->client_book_id)->first();
 
-        return DB::transaction(function () use ($d, $userId, $reason, $days, $amount, $wantsDays, $wantsAmount, $source, $book) {
-            $stagingId = $wantsDays ? $this->stagingOverrides->propose((string) $d->contract_id, (string) $d->reporting_period, trim($reason) . ' ' . $source . '.', $userId, $days, LoanStagingBasisOverrideService::SOURCE_CLIENT_BOOK) : null;
-            $grossId = $wantsAmount ? $this->grossOverrides->propose((string) $d->contract_id, (string) $d->reporting_period, trim($reason) . ' ' . $source . '.', $userId, (float) $amount) : null;
-            $doc = DB::table('supporting_documents')->where('documentable_type', 'client_loan_books')->where('documentable_id', $book->id)->whereNull('deleted_at')->value('id');
-            foreach (array_filter(['loan_staging_basis_overrides' => $stagingId, 'loan_gross_amount_overrides' => $grossId]) as $table => $id) {
-                if ($doc !== null) {
-                    DB::table('supporting_document_links')->insert(['supporting_document_id' => $doc, 'documentable_type' => $table, 'documentable_id' => $id, 'linked_by' => $userId,
-                        'reason' => mb_substr("The client's loan book of {$d->reporting_period} that the override takes its figure from (difference #{$d->id}, contract {$d->contract_id})", 0, 2000), 'created_at' => now(), 'updated_at' => now()]);
-                }
-            }
+        return DB::transaction(function () use ($d, $userId, $reason, $days, $amount, $stage, $wantsStage, $wantsDays, $wantsAmount, $book) {
+            $ids = $this->proposeFor($book, (string) $d->contract_id, $userId, trim($reason), $wantsStage ? $stage : null, $wantsDays ? $days : null, $wantsAmount ? $amount : null, "difference #{$d->id}");
             DB::table('client_book_differences')->where('id', $d->id)->update([
-                'status' => self::STATUS_PROPOSED, 'staging_override_id' => $stagingId ?? $d->staging_override_id, 'gross_override_id' => $grossId ?? $d->gross_override_id,
+                'status' => self::STATUS_PROPOSED, 'staging_override_id' => $ids['staging_override_id'] ?? $d->staging_override_id, 'gross_override_id' => $ids['gross_override_id'] ?? $d->gross_override_id,
+                'stage_override_id' => $ids['stage_override_id'] ?? ($d->stage_override_id ?? null),
                 'decided_by' => $userId, 'decision_reason' => mb_substr(trim($reason), 0, 2000), 'decided_at' => now(), 'updated_at' => now(),
             ]);
             AuditLoggerService::log('Client Book Difference Overridden', 'client_book_differences', (int) $d->id, [
-                'new_values' => ['contract_id' => $d->contract_id, 'reporting_period' => $d->reporting_period, 'staging_override_id' => $stagingId, 'days' => $wantsDays ? $days : null, 'gross_override_id' => $grossId, 'amount' => $wantsAmount ? $amount : null, 'reason' => $reason],
+                'new_values' => ['contract_id' => $d->contract_id, 'reporting_period' => $d->reporting_period] + $ids + ['stage' => $wantsStage ? $stage : null, 'days' => $wantsDays ? $days : null, 'amount' => $wantsAmount ? $amount : null, 'reason' => $reason],
                 'meta' => ['user' => $userId, 'client_book_id' => (int) $d->client_book_id],
             ]);
 
-            return ['staging_override_id' => $stagingId, 'gross_override_id' => $grossId];
+            return $ids;
         });
+    }
+
+    /**
+     * The overrides one loan of one client book calls for, each with the book linked as its evidence and named as
+     * the schedule it came from: a stage override (the stage itself), a day-count override (the stage follows the
+     * policy), a gross amount override. A null figure proposes nothing of its kind.
+     *
+     * @return array{staging_override_id:?int, gross_override_id:?int, stage_override_id:?int}
+     */
+    private function proposeFor(object $book, string $contract, int $userId, string $reason, ?int $stage, ?int $days, ?float $amount, string $what): array
+    {
+        $period = (string) $book->reporting_period;
+        $source = "From the client's book of {$period} ({$book->source_label}, file {$book->file_name}, sha256 " . substr((string) $book->file_hash, 0, 12) . ')';
+        $text = $reason . ' ' . $source . '.';
+        $stageId = $stage !== null ? $this->stageOverrides->propose($contract, $period, $stage, $text, $userId, (int) $book->id) : null;
+        $stagingId = $days !== null ? $this->stagingOverrides->propose($contract, $period, $text, $userId, $days, LoanStagingBasisOverrideService::SOURCE_CLIENT_BOOK) : null;
+        $grossId = $amount !== null ? $this->grossOverrides->propose($contract, $period, $text, $userId, $amount) : null;
+        foreach (['loan_staging_basis_overrides' => $stagingId, 'loan_gross_amount_overrides' => $grossId] as $table => $id) {
+            if ($id !== null && \Illuminate\Support\Facades\Schema::hasColumn($table, 'client_book_id')) {
+                DB::table($table)->where('id', $id)->update(['client_book_id' => (int) $book->id]);
+            }
+        }
+        $doc = DB::table('supporting_documents')->where('documentable_type', 'client_loan_books')->where('documentable_id', $book->id)->whereNull('deleted_at')->value('id');
+        foreach (array_filter(['loan_stage_overrides' => $stageId, 'loan_staging_basis_overrides' => $stagingId, 'loan_gross_amount_overrides' => $grossId]) as $table => $id) {
+            if ($doc !== null) {
+                DB::table('supporting_document_links')->insert(['supporting_document_id' => $doc, 'documentable_type' => $table, 'documentable_id' => $id, 'linked_by' => $userId,
+                    'reason' => mb_substr("The client's loan book of {$period} that the override takes its figure from ({$what}, contract {$contract})", 0, 2000), 'created_at' => now(), 'updated_at' => now()]);
+            }
+        }
+
+        return ['staging_override_id' => $stagingId, 'gross_override_id' => $grossId, 'stage_override_id' => $stageId];
+    }
+
+    /**
+     * An override schedule (Client Book Reconciliation Specification v1, section 6b): the reconciliation template of
+     * a month with the client's figures filled in, landed as a client book of kind 'template', each filled cell
+     * proposed as its override: a stage as a stage override, a day count (with no stage) as a day-count override, a
+     * carrying amount as a gross amount override. A figure equal to the system's, or for a loan the system's book of
+     * the month does not hold, proposes nothing and is listed with the reason; so does a loan that already has an
+     * override of the kind for the month. The file is every override's evidence; the approver approves the schedule
+     * (approveSchedule) or each override on its own.
+     *
+     * @return array{book_id:int, status:string, proposed:array{stage:int,days:int,amount:int}, skipped:list<string>}
+     */
+    public function applySchedule(string $path, string $period, string $label, string $reason, int $userId, ?string $originalName = null, ?string $landedLabel = null): array
+    {
+        if (mb_strlen(trim($reason)) < 10) {
+            throw new RuntimeException('Give the reason for the schedule (at least 10 characters): it is recorded on every override.');
+        }
+        \App\Support\ReportingPeriodLock::assertOpen($period, 'an override schedule');
+        if (! DB::table('loan_books')->where('reporting_period', $period)->exists()) {
+            throw new RuntimeException("The system has no loan book for {$period}: build the month first, then apply its schedule.");
+        }
+        $l = $this->land($path, $period, 'template', $label, $userId, $landedLabel, $originalName);
+        $book = DB::table('client_loan_books')->where('id', $l['book_id'])->first();
+        $system = DB::table('loan_books')->where('reporting_period', $period)->get(['contract_id', 'carrying_amount'])->keyBy(fn ($r) => (string) $r->contract_id);
+        $staged = $this->staging->evaluate($period, StagingPolicy::at($this->governance, CarbonImmutable::parse($period . '-01')->endOfMonth()))['loans'];
+        $tables = ['stage' => 'loan_stage_overrides', 'days' => 'loan_staging_basis_overrides', 'amount' => 'loan_gross_amount_overrides'];
+        $proposed = ['stage' => 0, 'days' => 0, 'amount' => 0];
+        $skipped = [];
+        DB::transaction(function () use ($book, $system, $staged, $tables, $userId, $reason, &$proposed, &$skipped) {
+            foreach (DB::table('client_loan_book_rows')->where('client_book_id', $book->id)->orderBy('row_no')->get() as $r) {
+                $c = (string) $r->contract_id;
+                if (! isset($system[$c])) {
+                    $skipped[] = "row {$r->row_no}, {$c}: not in the system's book of {$book->reporting_period}";
+                    continue;
+                }
+                $st = $staged[$c] ?? null;
+                $want = [
+                    'stage' => $r->stage !== null && (int) $r->stage !== (int) ($st['stage'] ?? 0) ? (int) $r->stage : null,
+                    'days' => $r->stage === null && $r->days_past_due !== null && (int) $r->days_past_due !== (int) ($st['dpd'] ?? -1) ? (int) $r->days_past_due : null,
+                    'amount' => $r->carrying_amount !== null && abs((float) $r->carrying_amount - (float) $system[$c]->carrying_amount) > 0.005 ? (float) $r->carrying_amount : null,
+                ];
+                foreach ($want as $kind => $value) {
+                    if ($value !== null && DB::table($tables[$kind])->where('contract_id', $c)->where('reporting_period', $book->reporting_period)->whereIn('status', ['PROPOSED', 'APPROVED'])->exists()) {
+                        $skipped[] = "row {$r->row_no}, {$c}: already has a {$kind} override for {$book->reporting_period}";
+                        $want[$kind] = null;
+                    }
+                }
+                if ($want['stage'] === null && $want['days'] === null && $want['amount'] === null) {
+                    if ($r->stage !== null || $r->days_past_due !== null || $r->carrying_amount !== null) {
+                        $skipped[] = "row {$r->row_no}, {$c}: nothing to override (the figures equal the system's, or are overridden already)";
+                    }
+                    continue;
+                }
+                $this->proposeFor($book, $c, $userId, trim($reason), $want['stage'], $want['days'], $want['amount'], "schedule row {$r->row_no}");
+                foreach ($want as $kind => $value) {
+                    $proposed[$kind] += $value !== null ? 1 : 0;
+                }
+            }
+        });
+        AuditLoggerService::log('Override Schedule Applied', 'client_loan_books', (int) $book->id, ['new_values' => ['reporting_period' => $book->reporting_period, 'proposed' => $proposed, 'skipped' => count($skipped)], 'meta' => ['user' => $userId]]);
+
+        return ['book_id' => (int) $book->id, 'status' => $l['status'], 'proposed' => $proposed, 'skipped' => $skipped];
+    }
+
+    /**
+     * Approve every override still proposed from one schedule: the approver is a second person (maker-checker in
+     * each service), or the bootstrap's automated approval of a committed schedule under its label.
+     *
+     * @return array{approved:int, refused:list<string>}
+     */
+    public function approveSchedule(int $bookId, int $approverId, ?string $label = null): array
+    {
+        $approved = 0;
+        $refused = [];
+        foreach (['loan_stage_overrides' => $this->stageOverrides, 'loan_staging_basis_overrides' => $this->stagingOverrides, 'loan_gross_amount_overrides' => $this->grossOverrides] as $table => $service) {
+            if (! \Illuminate\Support\Facades\Schema::hasColumn($table, 'client_book_id')) {
+                continue;
+            }
+            foreach (DB::table($table)->where('client_book_id', $bookId)->where('status', 'PROPOSED')->orderBy('id')->pluck('id') as $id) {
+                try {
+                    $service->approve((int) $id, $approverId, $label);
+                    $approved++;
+                } catch (\Throwable $e) {
+                    $refused[] = "{$table} #{$id}: " . $e->getMessage();
+                }
+            }
+        }
+
+        return ['approved' => $approved, 'refused' => $refused];
     }
 
     /**
@@ -434,7 +555,8 @@ class ClientBookReconciliationService
         $of = fn (string $t) => DB::table($t)->where('reporting_period', $period)->where('status', $status)->orderBy('id')->pluck('id', 'contract_id')
             ->mapWithKeys(fn ($id, $c) => [(string) $c => (int) $id])->all();
 
-        return ['staging' => $of('loan_staging_basis_overrides'), 'gross' => $of('loan_gross_amount_overrides')];
+        return ['staging' => $of('loan_staging_basis_overrides'), 'gross' => $of('loan_gross_amount_overrides'),
+            'stage' => \Illuminate\Support\Facades\Schema::hasTable('loan_stage_overrides') ? $of('loan_stage_overrides') : []];
     }
 
     /**

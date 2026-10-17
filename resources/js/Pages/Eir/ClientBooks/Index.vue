@@ -11,6 +11,7 @@
         <button type="button" class="primary-btn" :disabled="!picked.length" @click="proposeSelected"><font-awesome-icon icon="check-circle" /> Propose the client's figures ({{ picked.length }})</button>
       </template>
       <template v-if="canGovern && tab === 'overrides'">
+        <button type="button" class="secondary-btn" @click="openSchedule"><font-awesome-icon icon="upload" /> Upload override schedule</button>
         <button type="button" class="primary-btn" @click="openOverride"><font-awesome-icon icon="plus" /> Propose override</button>
       </template>
       <template v-if="canGovern && tab === 'overlays'">
@@ -120,7 +121,8 @@
                   <td class="max-w-[14rem] text-xs">{{ d.cause }}</td>
                   <td class="text-xs">
                     <span class="maiic-badge" :class="diffBadge(d.status)">{{ diffStatuses[d.status] || d.status }}</span>
-                    <div v-if="d.staging_override_id" class="mt-1 text-gray-500 dark:text-slate-400">staging #{{ d.staging_override_id }}</div>
+                    <div v-if="d.stage_override_id" class="mt-1 text-gray-500 dark:text-slate-400">stage #{{ d.stage_override_id }}</div>
+                    <div v-if="d.staging_override_id" class="mt-1 text-gray-500 dark:text-slate-400">day count #{{ d.staging_override_id }}</div>
                     <div v-if="d.gross_override_id" class="text-gray-500 dark:text-slate-400">gross #{{ d.gross_override_id }}</div>
                     <div v-if="d.decision_reason" class="mt-1 max-w-[14rem] text-gray-500 dark:text-slate-400">{{ d.decided_by_name }}: {{ d.decision_reason }}</div>
                   </td>
@@ -143,17 +145,31 @@
       <!-- ============ Overrides ============ -->
       <template v-if="tab === 'overrides'">
         <Notice id="client-books-overrides">
-          An override takes a client's or audited figure for one loan in one month: a staging day count, or a gross (carrying) amount. One person proposes it with the reason;
+          An override takes a client's or audited figure for one loan in one month: the stage itself (whatever the day count gives), a staging day count (the stage then follows the policy), or a gross (carrying) amount.
+          An override schedule is the month's template (Client books, Download template) with your stages, day counts or amounts filled in: uploaded, every filled cell is proposed as its override with the file as its evidence. One person proposes it with the reason;
           its evidence is the client's book (linked automatically when it comes from a reconciliation) or a document attached on its record; a different person approves it.
-          It changes nothing until the month is rebuilt, and the system's own figure stays named on the loan beside it. After the rebuild, run the month-end (staging, PD, LGD, ECL) and compare the client's book again.
+          A stage override applies when the month is staged again; a day count or an amount when the month is rebuilt. The system's own figure stays named on the loan beside it. After the rebuild, run the month-end (staging, PD, LGD, ECL) and compare the client's book again.
         </Notice>
+        <div v-if="schedules.length" class="maiic-panel p-4">
+          <h3 class="font-semibold text-gray-900 dark:text-slate-100">Schedules awaiting approval</h3>
+          <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Each uploaded schedule with its overrides still proposed. A different person approves them together; each can also be decided on its own below.</p>
+          <div class="mt-3 space-y-2">
+            <div v-for="sc in schedules" :key="sc.book_id" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-slate-700">
+              <div><strong>{{ sc.period }}</strong>: {{ sc.label }} <span class="text-gray-400">(book #{{ sc.book_id }})</span> - {{ sc.proposed }} proposed
+                <span class="text-xs text-gray-500 dark:text-slate-400">({{ Object.entries(sc.by_type).map(([t, n]) => n + ' ' + typeLabel(t)).join(', ') }}; by {{ sc.proposed_by_name || '-' }})</span></div>
+              <a :href="route('client-books.file', sc.book_id)" class="secondary-btn"><font-awesome-icon icon="paperclip" /> The schedule</a>
+              <button v-if="canGovern && !sc.proposed_by.includes(me)" type="button" class="primary-btn" @click="approveSchedule(sc)"><font-awesome-icon icon="check-circle" /> Approve all {{ sc.proposed }}</button>
+            </div>
+          </div>
+        </div>
         <div v-if="rebuilds.length" class="maiic-panel border-amber-300 p-4 dark:border-amber-700">
           <h3 class="font-semibold text-gray-900 dark:text-slate-100">Rebuilds due</h3>
           <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Months with an approved override the loan book has not been rebuilt with yet.</p>
           <div class="mt-3 space-y-2">
-            <div v-for="r in rebuilds" :key="r.period" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-slate-700">
-              <div><strong>{{ r.period }}</strong>: {{ r.overrides }} approved override(s); last built {{ r.last_built ? r.last_built.slice(0, 16) : 'never' }}<span v-if="r.locked" class="ml-2 font-semibold text-red-700 dark:text-red-300">locked</span></div>
-              <div v-if="canGovern && !r.locked">
+            <div v-for="r in rebuilds" :key="r.period + (r.restage ? 's' : 'b')" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-slate-700">
+              <div v-if="r.restage"><strong>{{ r.period }}</strong>: {{ r.overrides }} approved stage override(s) not yet applied: run the month-end for {{ r.period }} (Administration, Maintenance), which stages the month again<span v-if="r.locked" class="ml-2 font-semibold text-red-700 dark:text-red-300">locked</span></div>
+              <div v-else><strong>{{ r.period }}</strong>: {{ r.overrides }} approved override(s); last built {{ r.last_built ? r.last_built.slice(0, 16) : 'never' }}<span v-if="r.locked" class="ml-2 font-semibold text-red-700 dark:text-red-300">locked</span></div>
+              <div v-if="canGovern && !r.locked && !r.restage">
                 <Link v-if="r.proposed_build" :href="route('eir-feed.index', { tab: 'builds' })" class="secondary-btn">Build #{{ r.proposed_build }} proposed: approve it on Loan Book Builds</Link>
                 <button v-else type="button" class="primary-btn" @click="proposeRebuild(r.period)">Propose the rebuild of {{ r.period }}</button>
               </div>
@@ -174,7 +190,8 @@
                   <td><div class="font-semibold text-gray-900 dark:text-slate-100">{{ o.customer_name || '-' }}</div><div class="text-xs text-gray-500 dark:text-slate-400">{{ o.contract_id }}</div></td>
                   <td class="whitespace-nowrap">{{ o.reporting_period }}</td>
                   <td class="whitespace-nowrap text-xs">
-                    <template v-if="o.type === 'staging'"><div class="font-semibold">Staging #{{ o.id }}</div><div>{{ o.override_days !== null ? o.override_days + ' days' : "the directive's count" }}</div><div class="text-gray-400">{{ sourceLabel(o.source) }}</div></template>
+                    <template v-if="o.type === 'stage'"><div class="font-semibold">Stage #{{ o.id }}</div><div>Stage {{ o.override_stage }}</div><div v-if="o.client_book_id" class="text-gray-400">schedule #{{ o.client_book_id }}</div></template>
+                    <template v-else-if="o.type === 'staging'"><div class="font-semibold">Day count #{{ o.id }}</div><div>{{ o.override_days !== null ? o.override_days + ' days' : "the directive's count" }}</div><div class="text-gray-400">{{ sourceLabel(o.source) }}</div></template>
                     <template v-else><div class="font-semibold">Gross amount #{{ o.id }}</div><div>{{ money(o.override_amount) }}</div></template>
                   </td>
                   <td class="max-w-[24rem] text-xs text-gray-700 dark:text-slate-300">{{ o.reason }}</td>
@@ -324,7 +341,7 @@
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label class="maiic-flabel" for="ov-type">Override</label>
-            <select id="ov-type" v-model="ov.type" class="maiic-select"><option value="staging">Staging day count</option><option value="gross">Gross (carrying) amount</option></select>
+            <select id="ov-type" v-model="ov.type" class="maiic-select"><option value="stage">Stage</option><option value="staging">Staging day count</option><option value="gross">Gross (carrying) amount</option></select>
           </div>
           <div>
             <label class="maiic-flabel" for="ov-period">Month-end</label>
@@ -336,7 +353,12 @@
             <input id="ov-contract" v-model="ov.contract_id" type="text" class="maiic-input" placeholder="For example 104420000005" />
             <p v-if="ov.errors.contract_id" class="mt-1 text-xs text-red-600">{{ ov.errors.contract_id }}</p>
           </div>
-          <div v-if="ov.type === 'staging'">
+          <div v-if="ov.type === 'stage'">
+            <label class="maiic-flabel" for="ov-stage">Stage</label>
+            <select id="ov-stage" v-model="ov.stage" class="maiic-select"><option :value="1">Stage 1</option><option :value="2">Stage 2</option><option :value="3">Stage 3</option></select>
+            <p v-if="ov.errors.stage" class="mt-1 text-xs text-red-600">{{ ov.errors.stage }}</p>
+          </div>
+          <div v-else-if="ov.type === 'staging'">
             <label class="maiic-flabel" for="ov-days">Day count</label>
             <input id="ov-days" v-model="ov.days" type="number" min="0" class="maiic-input" />
             <p v-if="ov.errors.days" class="mt-1 text-xs text-red-600">{{ ov.errors.days }}</p>
@@ -359,6 +381,40 @@
         <div class="mt-6 flex justify-end gap-2">
           <button type="button" class="secondary-btn" :disabled="ov.processing" @click="modal = null">Cancel</button>
           <button type="submit" class="primary-btn" :disabled="ov.processing">Propose</button>
+        </div>
+      </form>
+    </jet-modal>
+
+    <!-- upload an override schedule -->
+    <jet-modal :show="modal === 'schedule'" max-width="2xl" @close="modal = null">
+      <form class="p-6" @submit.prevent="submitSchedule">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Upload an override schedule</h3>
+        <p class="mt-1 text-sm text-gray-600 dark:text-slate-400">The month's reconciliation template (Client books, Download template) with your figures in the blank columns: a stage, a day count, or a carrying amount. Each filled cell becomes a proposed override with this file as its evidence; a figure equal to the system's proposes nothing. A different person approves the schedule.</p>
+        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="maiic-flabel" for="sc-period">Month-end</label>
+            <select id="sc-period" v-model="schedule.period" class="maiic-select"><option value="">Choose the month</option><option v-for="p in periods" :key="p" :value="p">{{ p }}</option></select>
+            <p v-if="schedule.errors.period" class="mt-1 text-xs text-red-600">{{ schedule.errors.period }}</p>
+          </div>
+          <div>
+            <label class="maiic-flabel" for="sc-label">Name</label>
+            <input id="sc-label" v-model="schedule.label" type="text" class="maiic-input" placeholder="For example: Finance stages for December 2025, signed 20 October 2026" />
+            <p v-if="schedule.errors.label" class="mt-1 text-xs text-red-600">{{ schedule.errors.label }}</p>
+          </div>
+          <div class="md:col-span-2">
+            <label class="maiic-flabel" for="sc-reason">Reason (recorded on every override)</label>
+            <textarea id="sc-reason" v-model="schedule.reason" rows="2" class="maiic-input" placeholder="Why these figures replace the system's for the month"></textarea>
+            <p v-if="schedule.errors.reason" class="mt-1 text-xs text-red-600">{{ schedule.errors.reason }}</p>
+          </div>
+          <div class="md:col-span-2">
+            <label class="maiic-flabel" for="sc-file">Schedule (.csv, .xlsx or .xls)</label>
+            <input id="sc-file" type="file" accept=".csv,.xlsx,.xls" class="maiic-input" @input="schedule.file = $event.target.files[0]" />
+            <p v-if="schedule.errors.file" class="mt-1 text-xs text-red-600">{{ schedule.errors.file }}</p>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="secondary-btn" :disabled="schedule.processing" @click="modal = null">Cancel</button>
+          <button type="submit" class="primary-btn" :disabled="schedule.processing">{{ schedule.processing ? 'Proposing...' : 'Upload and propose' }}</button>
         </div>
       </form>
     </jet-modal>
@@ -401,6 +457,7 @@ const props = defineProps({
   differences: { type: Array, default: () => [] },
   overrides: { type: Array, default: () => [] },
   rebuilds: { type: Array, default: () => [] },
+  schedules: { type: Array, default: () => [] },
   overlays: { type: Object, default: () => ({ ageing: [], gross: [] }) },
   kinds: { type: Object, default: () => ({}) },
   periods: { type: Array, default: () => [] },
@@ -496,20 +553,29 @@ async function keep(d, action) {
   router.post(route('client-books.differences.keep', d.id), { action, reason }, { preserveScroll: true })
 }
 
-const ov = useForm({ type: 'staging', contract_id: '', period: '', days: null, amount: null, source: 'audited_workbook', reason: '' })
+const ov = useForm({ type: 'stage', contract_id: '', period: '', stage: 1, days: null, amount: null, source: 'audited_workbook', reason: '' })
 function openOverride() { ov.reset(); ov.clearErrors(); ov.period = props.periods[0] || ''; modal.value = 'override' }
 function submitOverride() { ov.post(route('client-books.overrides.store'), { preserveScroll: true, onSuccess: () => { if (!Object.keys(ov.errors).length) modal.value = null } }) }
 
+const schedule = useForm({ period: '', label: '', reason: '', file: null })
+function openSchedule() { schedule.reset(); schedule.clearErrors(); schedule.period = props.periods[0] || ''; modal.value = 'schedule' }
+function submitSchedule() { schedule.post(route('client-books.schedules.upload'), { forceFormData: true, preserveScroll: true, onSuccess: () => { if (!Object.keys(schedule.errors).length) modal.value = null } }) }
+async function approveSchedule(sc) {
+  if (!(await confirmDialog({ title: `Approve the ${sc.proposed} override(s) of schedule #${sc.book_id}?`, message: `${sc.label}, ${sc.period}. Each is approved on the schedule attached as its evidence. Stage overrides apply when the month is staged again; day counts and amounts when it is rebuilt.`, confirmLabel: 'Approve all' }))) return
+  router.post(route('client-books.schedules.approve', sc.book_id), {}, { preserveScroll: true })
+}
+const typeLabel = (t) => ({ stage: 'stage', staging: 'day count', gross: 'gross amount' }[t] || t)
+
 async function decide(o, action) {
-  const name = `${o.type === 'staging' ? 'staging' : 'gross amount'} override #${o.id}`
+  const name = `${typeLabel(o.type)} override #${o.id}`
   let reason = null
   if (action === 'approve') {
-    const what = o.type === 'staging' ? `${o.override_days} days` : money(o.override_amount)
-    if (!(await confirmDialog({ title: `Approve ${name}?`, message: `${o.customer_name || o.contract_id} takes ${what} in ${o.reporting_period} when the month is rebuilt. Approved on the evidence attached (${o.documents} document(s)).`, confirmLabel: 'Approve' }))) return
+    const what = o.type === 'stage' ? `Stage ${o.override_stage}` : (o.type === 'staging' ? `${o.override_days} days` : money(o.override_amount))
+    if (!(await confirmDialog({ title: `Approve ${name}?`, message: `${o.customer_name || o.contract_id} takes ${what} in ${o.reporting_period} when the month is ${o.type === 'stage' ? 'staged again' : 'rebuilt'}. Approved on the evidence attached (${o.documents} document(s)).`, confirmLabel: 'Approve' }))) return
   } else {
     reason = await promptReason({
       title: `${action === 'reject' ? 'Reject' : 'Withdraw'} ${name}`,
-      message: o.status === 'APPROVED' ? 'The next rebuild of the month stops applying it. Give the reason.' : 'Give the reason; it is kept in the audit trail.',
+      message: o.status === 'APPROVED' ? `The next ${o.type === 'stage' ? 'staging' : 'rebuild'} of the month stops applying it. Give the reason.` : 'Give the reason; it is kept in the audit trail.',
       confirmLabel: action === 'reject' ? 'Reject' : 'Withdraw',
     })
     if (!reason) return

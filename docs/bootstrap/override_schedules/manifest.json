@@ -1,0 +1,12 @@
+{
+  "about": "Override schedules the client gave: for a month, the stages, day counts or carrying amounts it takes instead of the rebuilt ones, in the reconciliation template's layout (ClientBookReader::TEMPLATE_HEADER). The bootstrap (step 5a, after the build) lands each as a client book, proposes every filled cell as its override with the file as its evidence, approves them under the bootstrap label (an automated approval of a committed client input, not a MAIIC approval) and builds the month again. Client Book Reconciliation Specification v1, section 6b.",
+  "schedules": [
+    {
+      "period": "2025-12",
+      "file": "override_schedules/2025-12 Override schedule - audited December 2025 model.csv",
+      "sha256": "4e27a1238c0e4cd079cf73ad322fdea19c735887586a35cf49940970d47f2454",
+      "label": "Override schedule: the audited December 2025 ECL model (36 day counts and MUSECO at nil)",
+      "reason": "Audited and approved in the December 2025 AFS (external audit): the model's revised age bracket at its lower bound, JAT 69 and BenCal 0 days from the December 2025 investigation, MUSECO reversed to nil (decisions of 17 October 2026, decisions pack 2026-10-17-december-2025-audited)."
+    }
+  ]
+}

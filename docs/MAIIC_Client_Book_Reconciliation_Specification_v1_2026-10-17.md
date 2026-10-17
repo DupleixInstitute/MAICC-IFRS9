@@ -96,6 +96,14 @@ The overrides are approval workflows (`staging-override`, `gross-override`):
 
 `LoanBookBuildService` now applies an explicit day count for both explicit sources (`audited_workbook`, `client_book`) and names which one on the loan.
 
+## 6a. The stage override
+
+For a month the client does not stage on E-Banker's ageing, a governed override sets the loan's stage itself (`loan_stage_overrides`, workflow `stage-override`), proposed and approved by two people with a supporting document, as the other two. `StagingService` applies an approved one last, after the day count, the missed-instalment trigger, the qualitative triggers and the cure rule, records the reason `override` and keeps the stage the policy gave beside it. It needs the month staged again (its month-end), not rebuilt, and touches no other loan or month. Proposing a difference takes the client's stage as a stage override where its book gives a stage that differs, else its day count.
+
+## 6b. The override schedule
+
+The client downloads the month's template (every loan with the system's carrying amount, day count and stage), fills in its own stage, day count or carrying amount where it takes another, and uploads it on the Overrides tab. Each filled cell is proposed as its override with the file as its evidence: a stage as a stage override, a day count with no stage as a day-count override, a carrying amount as a gross amount override. A figure equal to the system's, a loan not in the month's book and a loan already overridden for the month are listed and not proposed. A different person approves the schedule as a whole (Schedules awaiting approval) or each override on its own. The same routine runs from the command line (`eir:client-book schedule`) and in the bootstrap: step 5a, straight after the build, applies every schedule of `docs/bootstrap/override_schedules/manifest.json` under the bootstrap label and builds its month again, so a clean install reproduces the client's overrides from the file itself. The committed December 2025 schedule (`2025-12 Override schedule - audited December 2025 model.csv`) carries the 36 audited day counts and MUSECO at nil, the decisions of 17 October 2026; the system's own carrying amount and day count stand beside each in the file.
+
 ## 7. The screen
 
 **Customer & Loan Data, Client Book Reconciliation** has four tabs:
