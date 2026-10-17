@@ -203,12 +203,18 @@ class LoanBookBuildService
             throw new RuntimeException("Build {$buildId} is not awaiting approval.");
         }
         // decided here without recording: build() checks the same two people again and records the one use
-        if ((int) $b->requested_by === $approvedBy && ! \App\Support\MakerChecker::allowedFor(\App\Models\User::find($approvedBy))) {
+        $requestedBy = $b->requested_by !== null ? (int) $b->requested_by : null;
+        if ($requestedBy === $approvedBy && ! \App\Support\MakerChecker::allowedFor(\App\Models\User::find($approvedBy))) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the requester.');
         }
-        DB::table('loan_book_builds')->where('id', $buildId)->update(['status' => 'REJECTED', 'note' => 'Superseded by the approved build', 'updated_at' => now()]);
 
-        return $this->build($b->period_from, $b->period_to, $b->method === '?' ? null : $b->method, (int) $b->requested_by, $approvedBy);
+        // one transaction: a build that fails leaves its proposal awaiting approval, never superseded by nothing
+        // (a proposal made without a named person carries no requester: it was cast to user 0 and refused by the key)
+        return DB::transaction(function () use ($b, $buildId, $requestedBy, $approvedBy) {
+            DB::table('loan_book_builds')->where('id', $buildId)->update(['status' => 'REJECTED', 'note' => 'Superseded by the approved build', 'updated_at' => now()]);
+
+            return $this->build($b->period_from, $b->period_to, $b->method === '?' ? null : $b->method, $requestedBy, $approvedBy);
+        });
     }
 
     /**

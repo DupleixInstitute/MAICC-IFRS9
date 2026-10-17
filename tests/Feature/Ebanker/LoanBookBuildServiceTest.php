@@ -539,6 +539,31 @@ class LoanBookBuildServiceTest extends TestCase
         $this->assertSame(2, (int) DB::table('loan_book_builds')->where('id', $done['build_id'])->value('approved_by'));
     }
 
+    /** A build proposed from the command line without --user names no requester: it is approved, not refused as user 0. */
+    public function test_a_build_proposed_without_a_named_person_is_approved_by_a_second_person(): void
+    {
+        $r = $this->service()->build('2024-08', '2024-08', 'B', null);
+        $done = $this->service()->approve($r['build_id'], 2);
+        $this->assertSame('BUILT', $done['status']);
+        $this->assertNull(DB::table('loan_book_builds')->where('id', $done['build_id'])->value('requested_by'));
+        $this->assertSame(1, DB::table('loan_books')->count());
+    }
+
+    /** A build that fails at approval leaves its proposal awaiting approval: it is never superseded by nothing. */
+    public function test_a_failed_approval_keeps_the_proposal(): void
+    {
+        $r = $this->service()->build('2024-08', '2024-08', 'B', 1);
+        DB::table('reporting_period_locks')->insert(['reporting_period' => '2024-08', 'locked_at' => now(), 'reason' => 'audited', 'created_at' => now(), 'updated_at' => now()]);
+        try {
+            $this->service()->approve($r['build_id'], 2);
+            $this->fail('a locked month was built');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('Locked period', $e->getMessage());
+        }
+        $this->assertSame('PROPOSED', DB::table('loan_book_builds')->where('id', $r['build_id'])->value('status'));
+        $this->assertSame(0, DB::table('loan_books')->count());
+    }
+
     public function test_the_same_person_cannot_request_and_approve(): void
     {
         $this->expectException(RuntimeException::class);
