@@ -113,6 +113,16 @@ class StagingBasisOverrideBuildTest extends TestCase
         $this->assertStringContainsString("overridden to the directive's own already-computed count", $row->staging_dpd_basis);
         $this->assertStringContainsString('staging basis overridden by governed decision', $row->build_flag);
         $this->assertStringContainsString('Ledger/chart reconstruction matches the workbook', $row->build_flag);
+
+        // StagingService::evaluate() recomputes the day count from build_basis.dpd_counts under
+        // whichever policy is in force when it is read, bypassing staging_dpd entirely whenever
+        // those counts are present — which is always. An override that only set staging_dpd would
+        // be invisible to it (the real bug this guards: the override silently had no effect on
+        // the actual staging/ECL engines or on staging:december-check, only on the stored column).
+        $counts = json_decode($row->build_basis, true)['dpd_counts'];
+        foreach (['oldest', 'oldest_recounted', 'bucket', 'bucket_recounted', 'since_maturity'] as $key) {
+            $this->assertSame(69, $counts[$key], "dpd_counts.{$key} must also carry the override, or StagingService::evaluate() ignores it");
+        }
     }
 
     public function test_an_audited_workbook_override_uses_the_explicit_day_count_not_the_directives_own(): void

@@ -418,7 +418,7 @@ class LoanBookBuildService
             $contractId = ltrim($account, '0');
             $createDate = $this->date($p['VALUE_DATE'] ?? '');
             $jumpFlag = $this->overdueDateJumpFlag($contractId, $odDate, $createDate, $priorOverdueDates);
-            [$stagingDpd, $stagingBasis, $overrideFlag] = $this->applyStagingOverride($contractId, $dpd, $stagingDpd, $stagingBasis, $overrides);
+            [$stagingDpd, $stagingBasis, $overrideFlag, $dpdCounts] = $this->applyStagingOverride($contractId, $dpd, $stagingDpd, $stagingBasis, $overrides, $dpdCounts);
             $rows[] = $this->row([
                 'contract_id' => $contractId, 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
                 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl, 'funding_source' => $fund,
@@ -501,24 +501,36 @@ class LoanBookBuildService
      *
      * @return array{0:int,1:string,2:?string}
      */
-    private function applyStagingOverride(string $contractId, int $directiveDpd, int $stagingDpd, string $stagingBasis, array $overrides): array
+    /**
+     * @return array{0:int,1:string,2:?string,3:array<string,int>}
+     */
+    private function applyStagingOverride(string $contractId, int $directiveDpd, int $stagingDpd, string $stagingBasis, array $overrides, array $dpdCounts): array
     {
         $override = $overrides[$contractId] ?? null;
         if ($override === null) {
-            return [$stagingDpd, $stagingBasis, null];
+            return [$stagingDpd, $stagingBasis, null, $dpdCounts];
         }
         $isAudited = ($override['source'] ?? null) === \App\Services\Eir\LoanStagingBasisOverrideService::SOURCE_AUDITED_WORKBOOK;
         $targetDpd = $isAudited ? ($override['override_days'] ?? $directiveDpd) : $directiveDpd;
         if ($stagingDpd === $targetDpd) {
-            return [$stagingDpd, $stagingBasis, null];
+            return [$stagingDpd, $stagingBasis, null, $dpdCounts];
         }
         $sourceLabel = $isAudited ? sprintf('an audited figure (%d days)', $targetDpd) : "the directive's own already-computed count ({$targetDpd} days)";
         $flag = sprintf(
             "staging basis overridden by governed decision #%d: uses %s instead of the policy's %s (%d days); reason: %s",
             $override['id'], $sourceLabel, $stagingBasis, $stagingDpd, $override['reason']
         );
+        // StagingService::evaluate() recomputes the day count from these counts under whichever
+        // policy is in force at the time it is read, bypassing staging_dpd entirely whenever they
+        // are present — which is always. Forcing every one of them to the override's own figure
+        // is what makes the override survive that recompute, under any governed policy, not just
+        // the one in force when this build ran.
+        $overriddenCounts = $dpdCounts;
+        foreach (['oldest', 'oldest_recounted', 'bucket', 'bucket_recounted', 'since_maturity'] as $key) {
+            $overriddenCounts[$key] = $targetDpd;
+        }
 
-        return [$targetDpd, sprintf('overridden to %s (policy basis was: %s)', $sourceLabel, $stagingBasis), $flag];
+        return [$targetDpd, sprintf('overridden to %s (policy basis was: %s)', $sourceLabel, $stagingBasis), $flag, $overriddenCounts];
     }
 
     // ----- method B -------------------------------------------------------
@@ -702,7 +714,7 @@ class LoanBookBuildService
             if ($jumpFlag !== null) {
                 $flags[] = $jumpFlag;
             }
-            [$stagingDpd, $stagingBasis, $overrideFlag] = $this->applyStagingOverride($contractId, $dpd, $stagingDpd, $stagingBasis, $overrides);
+            [$stagingDpd, $stagingBasis, $overrideFlag, $dpdCounts] = $this->applyStagingOverride($contractId, $dpd, $stagingDpd, $stagingBasis, $overrides, $dpdCounts);
             if ($overrideFlag !== null) {
                 $flags[] = $overrideFlag;
             }
