@@ -90,8 +90,9 @@ class LoanBookBuildService
         'created_at', 'updated_at',
     ];
 
-    public function __construct(private LandingZoneReader $zone, private GovernanceService $governance)
+    public function __construct(private LandingZoneReader $zone, private GovernanceService $governance, private ?\App\Services\Eir\LoanStagingBasisOverrideService $stagingOverrides = null)
     {
+        $this->stagingOverrides ??= new \App\Services\Eir\LoanStagingBasisOverrideService();
     }
 
     /**
@@ -404,6 +405,7 @@ class LoanBookBuildService
         }
         $master = $this->zone->accountMaster();
         $priorOverdueDates = $this->priorOverdueDates($monthEnd);
+        $overrides = $this->stagingOverrides->active();
         $rows = [];
         foreach ($runs as $account => $run) {
             $p = $run['payload'];
@@ -416,6 +418,7 @@ class LoanBookBuildService
             $contractId = ltrim($account, '0');
             $createDate = $this->date($p['VALUE_DATE'] ?? '');
             $jumpFlag = $this->overdueDateJumpFlag($contractId, $odDate, $createDate, $priorOverdueDates);
+            [$stagingDpd, $stagingBasis, $overrideFlag] = $this->applyStagingOverride($contractId, $dpd, $stagingDpd, $stagingBasis, $overrides);
             $rows[] = $this->row([
                 'contract_id' => $contractId, 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
                 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl, 'funding_source' => $fund,
@@ -429,7 +432,7 @@ class LoanBookBuildService
                 'staging_dpd' => $stagingDpd, 'staging_dpd_basis' => $stagingBasis,
                 'industry_code' => $this->str($p['INDUSTRY_CODE'] ?? null), 'industry_type' => $this->str($p['IND_DESCR'] ?? null, 100),
                 'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'],
-                'build_flag' => implode('; ', array_filter([$pickFlag, $dpdFlag, $jumpFlag])) ?: null,
+                'build_flag' => implode('; ', array_filter([$pickFlag, $dpdFlag, $jumpFlag, $overrideFlag])) ?: null,
                 'build_basis' => ['run' => $run['query_id'] . ':' . $run['source_key'], 'run_date' => $this->date($p['TRANSACTION_DATE'] ?? ''), 'segment' => $p['SEG_MENT'] ?? null, 'dpd_counts' => $dpdCounts],
             ] + $arrears, $monthEnd);
         }
@@ -485,6 +488,33 @@ class LoanBookBuildService
         return null;
     }
 
+    /**
+     * A governed, per-loan exception from the staging policy's own basis (December 2025 Loan
+     * Book Investigation Findings v1, section 10, and the discussion that followed it on 17
+     * October 2026, decided without building a general policy change: the directive's own
+     * schedule-aware count, already computed for every loan as `overdue_days`, matched MAIIC's
+     * workbook on JAT and BenCal; the staging policy in force was still reading the raw report
+     * bucket for them). Where an approved override exists for this loan, staging_dpd becomes
+     * that already-computed directive count instead of whatever the governed policy would have
+     * read; every other loan is staged exactly as the policy says, unchanged. Never a typed-in
+     * number — there is nothing here for a person to get wrong beyond the decision itself.
+     *
+     * @return array{0:int,1:string,2:?string}
+     */
+    private function applyStagingOverride(string $contractId, int $directiveDpd, int $stagingDpd, string $stagingBasis, array $overrides): array
+    {
+        $override = $overrides[$contractId] ?? null;
+        if ($override === null || $stagingDpd === $directiveDpd) {
+            return [$stagingDpd, $stagingBasis, null];
+        }
+        $flag = sprintf(
+            "staging basis overridden by governed decision #%d: uses the directive's own already-computed count (%d days) instead of the policy's %s (%d days); reason: %s",
+            $override['id'], $directiveDpd, $stagingBasis, $stagingDpd, $override['reason']
+        );
+
+        return [$directiveDpd, sprintf("overridden to the directive's own count (policy basis was: %s)", $stagingBasis), $flag];
+    }
+
     // ----- method B -------------------------------------------------------
 
     /** The last month-end of the build in progress, and the ledger read once to it. */
@@ -532,6 +562,7 @@ class LoanBookBuildService
         $ledger = $this->ledgerOn($monthEnd);
         $runs = $this->zone->latestRunsOn($monthEnd);
         $priorOverdueDates = $this->priorOverdueDates($monthEnd);
+        $overrides = $this->stagingOverrides->active();
         $master = $this->masterCache['account'] ??= $this->zone->accountMaster();
         $loans = $this->masterCache['loan'] ??= $this->zone->loanMaster();
         $rates = $this->masterCache['rates'] ??= $this->zone->rateSetupByAccount();
@@ -664,6 +695,10 @@ class LoanBookBuildService
             $jumpFlag = $this->overdueDateJumpFlag($contractId, $odDate, $createDate, $priorOverdueDates);
             if ($jumpFlag !== null) {
                 $flags[] = $jumpFlag;
+            }
+            [$stagingDpd, $stagingBasis, $overrideFlag] = $this->applyStagingOverride($contractId, $dpd, $stagingDpd, $stagingBasis, $overrides);
+            if ($overrideFlag !== null) {
+                $flags[] = $overrideFlag;
             }
             $rows[] = $this->row([
                 'contract_id' => $contractId, 'customer_id' => trim((string) ($am['CUSTOMER_ID'] ?? ($p['CUSTOMER_ID'] ?? ''))),
