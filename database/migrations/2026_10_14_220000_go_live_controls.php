@@ -95,7 +95,7 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('loan_books') && Schema::hasColumn('loan_books', 'lifetime_pd') && DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE loan_books MODIFY lifetime_pd DECIMAL(12,8) NULL COMMENT 'Lifetime PD, a fraction'");
+            \App\Support\LegacyZeroDates::alter(fn () => DB::statement("ALTER TABLE loan_books MODIFY lifetime_pd DECIMAL(12,8) NULL COMMENT 'Lifetime PD, a fraction'"));
         }
     }
 

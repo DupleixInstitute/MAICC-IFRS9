@@ -22,7 +22,7 @@ return new class extends Migration
     public function up(): void
     {
         if (DB::connection()->getDriverName() === 'mysql' && Schema::hasColumn('loan_books', 'build_flag')) {
-            DB::statement('ALTER TABLE loan_books MODIFY build_flag TEXT NULL');
+            \App\Support\LegacyZeroDates::alter(fn () => DB::statement('ALTER TABLE loan_books MODIFY build_flag TEXT NULL'));
         }
     }
 

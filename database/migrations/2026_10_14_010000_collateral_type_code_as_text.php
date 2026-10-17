@@ -17,9 +17,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('collateral_types', function (Blueprint $table) {
+        \App\Support\LegacyZeroDates::alter(fn () => Schema::table('collateral_types', function (Blueprint $table) {
             $table->string('type_code', 50)->change();
-        });
+        }));
     }
 
     public function down(): void
