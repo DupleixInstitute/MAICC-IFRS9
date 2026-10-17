@@ -46,9 +46,16 @@ class BaselineService
 
         // method B ties to the stored report on every account-month of the in-scope loan GLs but the one-cent row
         $inScope = fn () => DB::table('loan_books')->where('build_method', 'B')->whereNotNull('stored_carrying_amount')->whereIn('product_code', array_keys(\App\Services\Ebanker\LandingZoneReader::LOAN_GLS));
-        $flagged = $inScope()->whereRaw('abs(carrying_amount - stored_carrying_amount) > 0.02')->count();
+        // an account-month whose carrying amount is an approved gross amount override (the client's or the audit's figure,
+        // Client Book Reconciliation Specification v1) differs from the report by that decision: named, not a difference
+        $overridden = \Illuminate\Support\Facades\Schema::hasTable('loan_gross_amount_overrides')
+            ? DB::table('loan_gross_amount_overrides')->where('status', 'APPROVED')->get(['id', 'contract_id', 'reporting_period', 'override_amount'])
+            : collect();
+        $differs = $inScope()->whereRaw('abs(carrying_amount - stored_carrying_amount) > 0.02')->get(['contract_id', 'reporting_period', 'carrying_amount']);
+        $explained = $differs->filter(fn ($r) => $overridden->contains(fn ($o) => (string) $o->contract_id === (string) $r->contract_id && $o->reporting_period === $r->reporting_period && abs((float) $o->override_amount - (float) $r->carrying_amount) < 0.005))->count();
+        $flagged = $differs->count() - $explained;
         $tied = $inScope()->count();
-        $checks[] = ['Derived carrying amount against the stored report, in-scope loan GLs (over 2 cents)', '0 differences', "{$flagged} of {$tied} account-months", $flagged === 0];
+        $checks[] = ['Derived carrying amount against the stored report, in-scope loan GLs (over 2 cents)', '0 differences', "{$flagged} of {$tied} account-months" . ($explained ? "; {$explained} by an approved gross amount override" : ''), $flagged === 0];
 
         // the Mega Farm accounts are derived from their MF_03 ledger with the government's 67 percent interest legs
         // (LoanBookBuildService, 14 October 2026); where it still differs the report's amount stands: reported, not asserted
@@ -97,6 +104,18 @@ class BaselineService
             if (! $ok && $diff !== null && isset($accepted[$gl]) && abs($diff - $accepted[$gl]) < 1) {
                 $label .= ' (accepted exception, spec 3.5: ' . number_format($accepted[$gl], 2) . ')';
                 $ok = true;
+            }
+            // E-Banker's trial balance keeps a balance an approved gross amount override takes out of the book (as the
+            // audit's TB-to-AFS mapping reverses MUSECO): the difference ties only when it is exactly the overrides' effect
+            if (! $ok && $diff !== null && \Illuminate\Support\Facades\Schema::hasTable('loan_gross_amount_overrides')) {
+                $ov = DB::table('loan_gross_amount_overrides as o')->join('loan_books as b', fn ($j) => $j->on('b.contract_id', '=', 'o.contract_id')->on('b.reporting_period', '=', 'o.reporting_period'))
+                    ->where('o.status', 'APPROVED')->where('o.reporting_period', '2025-12')->where('b.product_code', $gl)
+                    ->get(['o.id', DB::raw('b.carrying_amount - b.stored_carrying_amount as delta')]);
+                $effect = round((float) $ov->sum('delta'), 2);
+                if ($ov->isNotEmpty() && abs($diff - $effect) < 1) {
+                    $label .= ' (explained by the approved gross amount override(s) #' . $ov->pluck('id')->implode(', #') . ': ' . number_format($effect, 2) . ')';
+                    $ok = true;
+                }
             }
             $checks[] = [$label, $tb === null ? 'no TB line' : number_format($tb, 2), number_format((float) $ca, 2), $ok];
         }
