@@ -34,23 +34,27 @@ class LoanStagingBasisOverrideService
     public const SOURCE_DIRECTIVE_COUNT = 'directive_count';
     public const SOURCE_AUDITED_WORKBOOK = 'audited_workbook';
 
-    public function propose(string $contractId, string $reason, int $proposedBy, ?int $overrideDays = null): int
+    /** An override reconciles one reporting period (YYYY-MM); only that month's build applies it. */
+    public function propose(string $contractId, string $reportingPeriod, string $reason, int $proposedBy, ?int $overrideDays = null): int
     {
         if (trim($reason) === '') {
             throw new RuntimeException('A staging basis override needs a reason.');
         }
-        $existing = DB::table('loan_staging_basis_overrides')->where('contract_id', $contractId)
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $reportingPeriod) !== 1) {
+            throw new RuntimeException("A staging basis override names its reporting period as YYYY-MM; '{$reportingPeriod}' is not one.");
+        }
+        $existing = DB::table('loan_staging_basis_overrides')->where('contract_id', $contractId)->where('reporting_period', $reportingPeriod)
             ->whereIn('status', [self::STATUS_PROPOSED, self::STATUS_APPROVED])->first();
         if ($existing !== null) {
-            throw new RuntimeException("Contract {$contractId} already has a {$existing->status} override; withdraw or reject it first.");
+            throw new RuntimeException("Contract {$contractId} already has a {$existing->status} override for {$reportingPeriod}; withdraw or reject it first.");
         }
         $id = (int) DB::table('loan_staging_basis_overrides')->insertGetId([
-            'contract_id' => $contractId, 'reason' => $reason, 'proposed_by' => $proposedBy,
+            'contract_id' => $contractId, 'reporting_period' => $reportingPeriod, 'reason' => $reason, 'proposed_by' => $proposedBy,
             'override_days' => $overrideDays, 'source' => $overrideDays !== null ? self::SOURCE_AUDITED_WORKBOOK : self::SOURCE_DIRECTIVE_COUNT,
             'status' => self::STATUS_PROPOSED, 'created_at' => now(), 'updated_at' => now(),
         ]);
         AuditLoggerService::log('Staging Basis Override Proposed', 'loan_staging_basis_overrides', $id, [
-            'new_values' => ['contract_id' => $contractId, 'reason' => $reason, 'override_days' => $overrideDays],
+            'new_values' => ['contract_id' => $contractId, 'reporting_period' => $reportingPeriod, 'reason' => $reason, 'override_days' => $overrideDays],
             'meta' => ['proposed_by' => $proposedBy],
         ]);
 
@@ -110,18 +114,18 @@ class LoanStagingBasisOverrideService
     }
 
     /**
-     * The approved overrides only, keyed by contract id, for the build to apply. Every loan not
-     * in this list is staged exactly as the governed policy already says.
+     * The approved overrides for one reporting period, keyed by contract id, for that month's
+     * build to apply. Every loan not in this list is staged exactly as the governed policy says.
      *
      * @return array<string, array{id:int,reason:string,approved_by:?int,approved_at:?string,override_days:?int,source:string}>
      */
-    public function active(): array
+    public function active(string $reportingPeriod): array
     {
         if (! \Illuminate\Support\Facades\Schema::hasTable('loan_staging_basis_overrides')) {
             return [];
         }
         $out = [];
-        foreach (DB::table('loan_staging_basis_overrides')->where('status', self::STATUS_APPROVED)->get() as $r) {
+        foreach (DB::table('loan_staging_basis_overrides')->where('status', self::STATUS_APPROVED)->where('reporting_period', $reportingPeriod)->get() as $r) {
             $out[$r->contract_id] = [
                 'id' => (int) $r->id, 'reason' => $r->reason, 'approved_by' => $r->approved_by, 'approved_at' => $r->approved_at,
                 'override_days' => isset($r->override_days) ? (int) $r->override_days : null,

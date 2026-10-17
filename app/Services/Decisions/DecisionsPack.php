@@ -30,6 +30,9 @@ final class DecisionsPack
         'documents' => 'documents.json',
         // replayed first of the decisions, before the loan book is built (replayExclusions)
         'account_exclusions' => 'account_exclusions.json',
+        // also before the build: the build reads the approved overrides as it writes each loan
+        'staging_overrides' => 'staging_overrides.json',
+        'gross_amount_overrides' => 'gross_amount_overrides.json',
         'governance' => 'governance.json',
         'fee_rules' => 'fee_rules.json',
         'finance_lines' => 'finance_lines.json',

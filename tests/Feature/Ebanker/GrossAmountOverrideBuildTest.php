@@ -32,7 +32,7 @@ class GrossAmountOverrideBuildTest extends TestCase
         Schema::create('loan_portfolios', function (Blueprint $t) { $t->increments('id'); $t->string('name'); });
         Schema::create('loan_staging_basis_overrides', function (Blueprint $t) {
             $t->increments('id');
-            $t->string('contract_id', 30)->index(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
+            $t->string('contract_id', 30)->index(); $t->string('reporting_period', 7)->nullable(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
             $t->string('reason', 2000);
             $t->unsignedBigInteger('proposed_by'); $t->unsignedBigInteger('approved_by')->nullable();
             $t->string('status', 20)->default('PROPOSED'); $t->timestamp('approved_at')->nullable();
@@ -40,7 +40,7 @@ class GrossAmountOverrideBuildTest extends TestCase
         });
         Schema::create('loan_gross_amount_overrides', function (Blueprint $t) {
             $t->increments('id');
-            $t->string('contract_id', 30)->index(); $t->decimal('override_amount', 20, 2);
+            $t->string('contract_id', 30)->index(); $t->string('reporting_period', 7)->nullable(); $t->decimal('override_amount', 20, 2);
             $t->string('reason', 2000);
             $t->unsignedBigInteger('proposed_by'); $t->unsignedBigInteger('approved_by')->nullable();
             $t->string('status', 20)->default('PROPOSED'); $t->timestamp('approved_at')->nullable();
@@ -110,7 +110,7 @@ class GrossAmountOverrideBuildTest extends TestCase
         $a = '000104430000099';
         $this->loan($a);
         $overrides = new LoanGrossAmountOverrideService();
-        $id = $overrides->propose('104430000099', 'MUSECO: audited and approved in the December 2025 AFS at nil; MAIIC to supply facility-level reasons by 19 October 2026.', 1, 0.00);
+        $id = $overrides->propose('104430000099', '2025-12', 'MUSECO: audited and approved in the December 2025 AFS at nil; MAIIC to supply facility-level reasons by 19 October 2026.', 1, 0.00);
         $overrides->approve($id, 2);
 
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
@@ -127,7 +127,7 @@ class GrossAmountOverrideBuildTest extends TestCase
         $a = '000104430000099';
         $this->loan($a);
         $overrides = new LoanGrossAmountOverrideService();
-        $id = $overrides->propose('104430000099', 'Reason.', 1, 0.00);
+        $id = $overrides->propose('104430000099', '2025-12', 'Reason.', 1, 0.00);
         $overrides->approve($id, 2);
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
         $overrides->withdraw($id, 1);
@@ -144,7 +144,7 @@ class GrossAmountOverrideBuildTest extends TestCase
         $this->loan($a);
         $this->loan($b, '5000000.00');
         $overrides = new LoanGrossAmountOverrideService();
-        $id = $overrides->propose('104430000099', 'Reason.', 1, 0.00);
+        $id = $overrides->propose('104430000099', '2025-12', 'Reason.', 1, 0.00);
         $overrides->approve($id, 2);
 
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
@@ -152,5 +152,21 @@ class GrossAmountOverrideBuildTest extends TestCase
         $other = DB::table('loan_books')->where('reporting_period', '2025-12')->where('contract_id', '104420000011')->first();
         $this->assertSame(5000000.0, (float) $other->carrying_amount, 'unaffected by the other loan\'s override');
         $this->assertNull($other->build_flag);
+    }
+
+    /** The bug found on the bootstrap of 17 October 2026: an override for one month zeroed the loan in every month built. */
+    public function test_an_override_for_one_month_does_not_touch_another_month(): void
+    {
+        $a = '000104430000099';
+        $this->loan($a);
+        $overrides = new LoanGrossAmountOverrideService();
+        $id = $overrides->propose('104430000099', '2025-11', 'Audited for November only.', 1, 0.00);
+        $overrides->approve($id, 2);
+
+        $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
+
+        $row = DB::table('loan_books')->where('reporting_period', '2025-12')->where('contract_id', '104430000099')->first();
+        $this->assertSame(138123456.78, (float) $row->carrying_amount);
+        $this->assertNull($row->build_flag);
     }
 }

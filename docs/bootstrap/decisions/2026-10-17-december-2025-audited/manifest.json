@@ -1,0 +1,105 @@
+{
+    "pack": "2026-10-17-december-2025-audited",
+    "source_database": "maiic_ifrs9",
+    "exported_at": "2026-10-17 10:27:18",
+    "specification": "MAIIC Staging Module Specification v1, section 8.10",
+    "evidence_rule_from": "2026-10-17 09:34:49",
+    "files": {
+        "users": {
+            "file": "users.json",
+            "rows": 1,
+            "sha256": "7ccefabdf12d1fa9e5501637568282bf8a8355947dc7ba3e589fe961c61933c0"
+        },
+        "documents": {
+            "file": "documents.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "account_exclusions": {
+            "file": "account_exclusions.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "staging_overrides": {
+            "file": "staging_overrides.json",
+            "rows": 36,
+            "sha256": "f3635ab18c0debd0757eedc1853a33de68d8d366627b83cf27ff580f137c436d"
+        },
+        "gross_amount_overrides": {
+            "file": "gross_amount_overrides.json",
+            "rows": 1,
+            "sha256": "b22e200297de08795180a208698e5cb7073bb16b986f2484dd1c13b2494c9566"
+        },
+        "governance": {
+            "file": "governance.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "fee_rules": {
+            "file": "fee_rules.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "finance_lines": {
+            "file": "finance_lines.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "finance_coverage": {
+            "file": "finance_coverage.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "held_ties": {
+            "file": "held_ties.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "held_dismissals": {
+            "file": "held_dismissals.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "fee_moves": {
+            "file": "fee_moves.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "overlap_decisions": {
+            "file": "overlap_decisions.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "classifications": {
+            "file": "classifications.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "reopen_requests": {
+            "file": "reopen_requests.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "eir_locks": {
+            "file": "eir_locks.json",
+            "rows": 0,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        }
+    },
+    "tie_out": {
+        "users": 1,
+        "governance_settings": 0,
+        "fee_rules": 0,
+        "finance_lines": 0,
+        "classified_lines": 0,
+        "reviewed_lines": 0,
+        "reviewed_lines_in_force": 0,
+        "person_locked_eirs": 0,
+        "documents": 0,
+        "fee_moves": 0,
+        "reopen_requests": 0,
+        "account_exclusions_approved": 0,
+        "staging_overrides_approved": 36,
+        "gross_amount_overrides_approved": 1
+    }
+}

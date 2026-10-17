@@ -41,6 +41,9 @@ class MegaFarmController extends Controller
         }
         $runs = DB::table('megafarm_ecl_runs as r')->leftJoin('users as u', 'u.id', '=', 'r.run_by')->orderByDesc('r.id')->limit(20)->get(['r.*', 'u.name as run_by_name'])->map(function ($r) {
             $r->basis = json_decode($r->basis ?? '', true) ?: [];
+            if (($r->role ?? \App\Services\MegaFarm\MegaFarmEclService::ROLE_BOOKED) === \App\Services\MegaFarm\MegaFarmEclService::ROLE_COMPARISON) {
+                $r->method .= ' (comparison only, not booked)';
+            }
 
             return $r;
         });

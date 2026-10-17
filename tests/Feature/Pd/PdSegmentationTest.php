@@ -103,8 +103,59 @@ class PdSegmentationTest extends TestCase
         return (float) DB::table('loan_books')->where('reporting_period', '2026-08')->where('contract_id', $id)->value('pd_prefli');
     }
 
+    /** The seeded basis (17 October 2026): MAIIC's book is one PD pool, every loan taking the pooled stage PD. */
+    public function test_the_seeded_basis_measures_the_book_as_one_pool(): void
+    {
+        $r = app(PdSegmentationService::class)->run('2026-08', null, 12, 1, 'test');
+
+        $this->assertSame('book', $r['basis']);
+        $this->assertEqualsWithDelta(3 / 13, $this->pd('A1-5'), 1e-8);
+        $this->assertEqualsWithDelta(3 / 13, $this->pd('B1-2'), 1e-8);
+        $this->assertEqualsWithDelta(4 / 11, $this->pd('B2-5'), 1e-8);
+        $this->assertEqualsWithDelta(1.0, $this->pd('A3-4'), 1e-8);
+        $this->assertSame(0, DB::table('loan_books')->where('reporting_period', '2026-08')->whereNotNull('pd_applied_segment_key')->where('pd_applied_segment_key', '<>', 'book')->count());
+    }
+
+    /**
+     * The Mega Farm programme as its own pool: measured on its own loans by the same engine and window,
+     * never mixed into MAIIC's pool, and a thin stage declined rather than given MAIIC's PD.
+     */
+    public function test_the_mega_farm_programme_is_its_own_pool(): void
+    {
+        Schema::table('loan_books', fn (Blueprint $t) => $t->string('product_code')->nullable());
+        DB::table('loan_portfolios')->insert(['id' => 3, 'name' => 'Mega Farm']);
+        foreach (range(1, 12) as $i) {
+            $this->loan("F1-{$i}", '2025-08', 3, '1', 1000, '1-1. Agriculture, forestry and fishing', '112');
+            $this->loan("F1-{$i}", '2026-08', 3, $i <= 3 ? '3' : '1', 1000, '1-1. Agriculture, forestry and fishing', '112');
+        }
+        foreach (range(1, 10) as $i) {
+            $this->loan("F2-{$i}", '2025-08', 3, '2', 1000, '1-1. Agriculture, forestry and fishing', '112');
+            $this->loan("F2-{$i}", '2026-08', 3, $i <= 4 ? '3' : '2', 1000, '1-1. Agriculture, forestry and fishing', '112');
+        }
+        DB::table('loan_books')->where('loan_portfolio_id', 3)->update(['product_code' => \App\Services\MegaFarm\MegaFarmEclService::GLS[0]]);
+
+        [$pd, $basis, $declined] = app(\App\Services\MegaFarm\MegaFarmEclService::class)->programmePdByStage('2026-08');
+        $this->assertNull($declined);
+        $this->assertEqualsWithDelta(3 / 12, $pd['1'], 1e-9);
+        $this->assertEqualsWithDelta(0.4, $pd['2'], 1e-9);
+        $this->assertSame(1.0, $pd['3']);
+        $this->assertSame([3], $basis['portfolios']);
+
+        // MAIIC's pool is unchanged by the programme's loans: still 3 of 13 from Stage 1
+        app(PdSegmentationService::class)->run('2026-08', null, 12, 1, 'test');
+        $this->assertEqualsWithDelta(3 / 13, $this->pd('A1-5'), 1e-8);
+        $this->assertNull(DB::table('loan_books')->where('reporting_period', '2026-08')->where('contract_id', 'F1-5')->value('pd_segment_run_id'));
+
+        // a programme stage below the minimum is declined, not given MAIIC's PD
+        DB::table('loan_books')->whereIn('contract_id', ['F2-5', 'F2-6', 'F2-7', 'F2-8', 'F2-9', 'F2-10'])->delete();
+        [$thin, , $why] = app(\App\Services\MegaFarm\MegaFarmEclService::class)->programmePdByStage('2026-08');
+        $this->assertNull($thin);
+        $this->assertStringContainsString("Stage 2 holds 4 loans and 4 defaults", $why);
+    }
+
     public function test_each_portfolio_gets_its_own_pd_or_its_parents_with_the_lineage_recorded(): void
     {
+        $this->governed('pd_segmentation_basis', 'By portfolio');
         $r = app(PdSegmentationService::class)->run('2026-08', null, 12, 1, 'test');
 
         $this->assertSame('portfolio', $r['basis']);
@@ -145,6 +196,7 @@ class PdSegmentationTest extends TestCase
 
     public function test_a_thin_segment_fails_closed_under_the_fail_closed_rule_and_nothing_is_written(): void
     {
+        $this->governed('pd_segmentation_basis', 'By portfolio');
         $this->governed('pd_segment_thin_rule', 'Fail closed: stop the run and name the segment');
         try {
             app(PdSegmentationService::class)->run('2026-08', null, 12, 1, 'test');
@@ -259,6 +311,7 @@ class PdSegmentationTest extends TestCase
 
     public function test_an_ecl_row_carries_the_segment_run_of_its_loans(): void
     {
+        $this->governed('pd_segmentation_basis', 'By portfolio');
         $r = app(PdSegmentationService::class)->run('2026-08', null, 12, 1, 'test');
         Schema::create('expected_credit_loss', function (Blueprint $t) { $t->increments('id'); $t->string('pd_segment_run_id')->nullable(); $t->text('pd_segment_keys')->nullable(); });
         $row = new ExpectedCreditLoss(['reporting_period' => '2026-08', 'ecl_calculation_level' => 'portfolio', 'ecl_calculation_id' => 2, 'ifrs9_stage' => '1']);

@@ -292,9 +292,9 @@ class GovernanceService
             ],
             'megafarm_pd_method' => [
                 'label' => 'Probability of default for the Mega Farm schemes',
-                'description' => 'The programme has two seasons of history and seven thousand accounts: breadth without depth. The seeded method takes the shape of the probability (term structure, macro sensitivity) from MAIIC\'s own agricultural transition matrix and the level from the programme\'s observed cohort default rates through a measured, governed scalar (spec v4 section 16.8). The cohort rate alone is the check; the programme\'s own matrix is declined until three seasons exist; judgement with an overlay is for a season the data cannot describe. The method used for the 2025 provision is to be confirmed by Finance.',
+                'description' => 'The seeded method measures the programme as its own PD pool, apart from MAIIC\'s book (Edward Mazibuko, 17 October 2026): the transition matrix on the programme\'s own loans, the same measure and twelve-month window as MAIIC\'s pooled book, Stage 3 in default. A Stage 1 or 2 below the governed minimum history is declined, never given MAIIC\'s PD. The alternatives: MAIIC\'s agricultural-sector PD scaled by the programme\'s measured cohort default rate under a governed ceiling (spec v4 section 16.8, the seeded method until 17 October 2026); a seasonal cohort rate once two seasons exist; judgement with an overlay for a season the data cannot describe.',
                 'options' => ['Agricultural-sector PD scaled to the programme', 'Seasonal cohort default rate with a benchmark prior', 'Transition matrix on the programme history', 'Expert judgement with overlay'],
-                'default' => 'Agricultural-sector PD scaled to the programme',
+                'default' => 'Transition matrix on the programme history',
             ],
             'megafarm_scalar_ceiling' => [
                 'label' => 'Ceiling on the Mega Farm programme scalar',
@@ -556,9 +556,9 @@ class GovernanceService
             // PD and LGD by segment (9 October 2026): the book split into its real programmes
             'pd_segmentation_basis' => [
                 'label' => 'How the PD is segmented',
-                'description' => 'The probability of default is measured on groups of loans that share their credit risk (IFRS 9 B5.5.5): a segment. By portfolio measures each lending programme (MAIIC Industrial, MAIIC Agricultural, MAIIC Term, FInES Industrial, FInES Agricultural) on its own transition matrix. Pooled book measures the whole book as one. By RBM sector measures each economic sector of the directive across the programmes. By portfolio and RBM sector measures each sector inside each programme. Every segment uses the same twelve-month window. A segment with too little history follows the thin-segment rule. The ECL is still reported by portfolio; the loan carries the segment its PD came from.',
+                'description' => 'The probability of default is measured on groups of loans that share their credit risk (IFRS 9 B5.5.5): a segment. By portfolio measures each lending programme (MAIIC Industrial, MAIIC Agricultural, MAIIC Term, FInES Industrial, FInES Agricultural) on its own transition matrix. Pooled book measures the whole book as one. By RBM sector measures each economic sector of the directive across the programmes. By portfolio and RBM sector measures each sector inside each programme. Every segment uses the same twelve-month window. A segment with too little history follows the thin-segment rule. The ECL is still reported by portfolio; the loan carries the segment its PD came from. The seeded basis is the pooled book (Edward Mazibuko, 17 October 2026): MAIIC\'s book is one PD pool, and the Mega Farm programme is its own (megafarm_pd_method); neither is ever measured with the other.',
                 'options' => ['By portfolio', 'Pooled book', 'By RBM sector', 'By portfolio and RBM sector'],
-                'default' => 'By portfolio',
+                'default' => 'Pooled book',
             ],
             'pd_segment_min_observations' => [
                 'label' => 'Minimum history for a segment\'s own PD',

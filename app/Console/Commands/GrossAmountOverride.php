@@ -13,7 +13,7 @@ use Throwable;
  * the identical maker-checker, audit-logged pattern as StagingBasisOverride. Every other loan is
  * unaffected whatever is decided here.
  *
- *   php artisan eir:gross-amount-override 104430000087 --propose --amount=138123456.78 --reason="..." --user=1
+ *   php artisan eir:gross-amount-override 104430000087 --propose --period=2025-12 --amount=138123456.78 --reason="..." --user=1
  *   php artisan eir:gross-amount-override --approve=1 --user=2
  *   php artisan eir:gross-amount-override --reject=1 --user=2 --reason="..."
  *   php artisan eir:gross-amount-override --withdraw=1 --user=1
@@ -23,6 +23,7 @@ class GrossAmountOverride extends Command
 {
     protected $signature = 'eir:gross-amount-override {contract? : Contract id to propose an override for}
         {--propose : Propose an override for the named contract}
+        {--period= : Required with --propose, the reporting period it reconciles (YYYY-MM)}
         {--amount= : Required with --propose, the audited gross amount}
         {--approve= : Id of a proposed override to approve}
         {--reject= : Id of a proposed override to reject}
@@ -39,8 +40,8 @@ class GrossAmountOverride extends Command
         try {
             if ($this->option('list')) {
                 $rows = DB::table('loan_gross_amount_overrides')->orderByDesc('id')->get();
-                $this->table(['Id', 'Contract', 'Amount', 'Status', 'Proposed by', 'Approved by', 'Reason'],
-                    $rows->map(fn ($r) => [$r->id, $r->contract_id, $r->override_amount, $r->status, $r->proposed_by, $r->approved_by, $r->reason])->all());
+                $this->table(['Id', 'Contract', 'Period', 'Amount', 'Status', 'Proposed by', 'Approved by', 'Reason'],
+                    $rows->map(fn ($r) => [$r->id, $r->contract_id, $r->reporting_period, $r->override_amount, $r->status, $r->proposed_by, $r->approved_by, $r->reason])->all());
 
                 return self::SUCCESS;
             }
@@ -48,12 +49,12 @@ class GrossAmountOverride extends Command
                 $contract = (string) $this->argument('contract');
                 $reason = (string) $this->option('reason');
                 $amount = $this->option('amount');
-                if ($contract === '' || $reason === '' || $userId === null || $amount === null) {
-                    $this->error('Propose needs a contract id, --amount, --reason and --user.');
+                if ($contract === '' || $reason === '' || $userId === null || $amount === null || $this->option('period') === null) {
+                    $this->error('Propose needs a contract id, --period, --amount, --reason and --user.');
 
                     return self::FAILURE;
                 }
-                $id = $service->propose($contract, $reason, $userId, (float) $amount);
+                $id = $service->propose($contract, (string) $this->option('period'), $reason, $userId, (float) $amount);
                 $this->info("Gross amount override {$id} proposed for contract {$contract}, awaiting approval.");
 
                 return self::SUCCESS;

@@ -77,8 +77,8 @@ class DecisionsPackReplayer
         }
         $this->manifest = json_decode((string) file_get_contents($path), true) ?: [];
         foreach (DecisionsPack::FILES as $kind => $file) {
-            if (! isset($this->manifest['files'][$kind]) && in_array($kind, ['documents', 'account_exclusions'], true)) {
-                $this->data[$kind] = []; // a pack exported before documents, or the account exclusions, were carried
+            if (! isset($this->manifest['files'][$kind]) && in_array($kind, ['documents', 'account_exclusions', 'staging_overrides', 'gross_amount_overrides'], true)) {
+                $this->data[$kind] = []; // a pack exported before documents, the account exclusions or the loan overrides were carried
                 continue;
             }
             $json = (string) @file_get_contents($folder . '/' . $file);
@@ -213,8 +213,58 @@ class DecisionsPackReplayer
             }
         }
         \App\Support\AccountExclusions::forget();
+        $this->loanOverrides('staging_overrides', 'loan_staging_basis_overrides', ['override_days', 'source']);
+        $this->loanOverrides('gross_amount_overrides', 'loan_gross_amount_overrides', ['override_amount']);
 
-        return array_intersect_key($this->summary(), array_flip(['users', 'account_exclusions']));
+        return array_intersect_key($this->summary(), array_flip(['users', 'account_exclusions', 'staging_overrides', 'gross_amount_overrides']));
+    }
+
+    /**
+     * The per-loan staging and gross-amount overrides, carried before the loan book is built so the
+     * build applies the approved ones exactly as it did in the source. Each keeps its proposer,
+     * decider, dates and status; one already here (same loan, proposed at the same moment) is
+     * ALREADY; a live one where this loan already has a different live override is DIFFERENT.
+     */
+    private function loanOverrides(string $kind, string $table, array $figures): void
+    {
+        if (! Schema::hasTable($table)) {
+            return;
+        }
+        $live = ['PROPOSED', 'APPROVED'];
+        foreach ($this->data[$kind] as $o) {
+            $key = $o['contract_id'] . ' for ' . ($o['reporting_period'] ?? '?') . ' proposed ' . $o['proposed_at'];
+            if (($o['reporting_period'] ?? null) === null) {
+                $this->note($kind, $key, self::REFUSED, 'the override names no reporting period, so no month could apply it');
+                continue;
+            }
+            $proposer = $this->userId($o['proposed_by'] ?? null);
+            $decider = $this->userId($o['decided_by'] ?? null);
+            if ($proposer === null || (($o['decided_by'] ?? null) !== null && $decider === null)) {
+                $this->note($kind, $key, self::NOT_FOUND, 'a person it names is not known here: ' . ($proposer === null ? ($o['proposed_by'] ?? 'no proposer') : $o['decided_by']));
+                continue;
+            }
+            if (DB::table($table)->where('contract_id', $o['contract_id'])->where('created_at', $o['proposed_at'])->exists()) {
+                $this->note($kind, $key, self::ALREADY, strtolower($o['status']) . ' here already');
+                continue;
+            }
+            if (in_array($o['status'], $live, true) && DB::table($table)->where('contract_id', $o['contract_id'])->where('reporting_period', $o['reporting_period'])->whereIn('status', $live)->exists()) {
+                $this->note($kind, $key, self::DIFFERENT, 'this loan already has a live override for ' . $o['reporting_period'] . ' here');
+                continue;
+            }
+            try {
+                $id = (int) DB::table($table)->insertGetId(['contract_id' => $o['contract_id'], 'reporting_period' => $o['reporting_period']] + array_intersect_key($o, array_flip($figures)) + [
+                    'reason' => $o['reason'], 'status' => $o['status'], 'proposed_by' => $proposer, 'approved_by' => $decider, 'approved_at' => $o['decided_at'] ?? null,
+                    'created_at' => $o['proposed_at'], 'updated_at' => $o['last_changed_at'] ?? $o['proposed_at'],
+                ]);
+            } catch (Throwable $e) {
+                $this->note($kind, $key, self::REFUSED, $e->getMessage());
+                continue;
+            }
+            $this->audit($table, $id, ['contract_id' => $o['contract_id'], 'reporting_period' => $o['reporting_period'], 'status' => $o['status']] + array_intersect_key($o, array_flip($figures)),
+                $o['decided_by'] ?? $o['proposed_by'], $o['decided_at'] ?? $o['proposed_at'],
+                ['proposed_by' => $o['proposed_by'], 'self_approval' => ($o['decided_by'] ?? null) !== null && $o['decided_by'] === $o['proposed_by']]);
+            $this->note($kind, $key, self::APPLIED, strtolower($o['status']) . (($o['decided_by'] ?? null) !== null ? ' by ' . $o['decided_by'] : ''));
+        }
     }
 
     /** @return array<string, array> contract id => the person's lock in the source database */
@@ -722,6 +772,10 @@ class DecisionsPackReplayer
             'supporting documents' => ['source' => (int) ($source['documents'] ?? 0), 'here' => count($this->stored), 'listed' => 0],
             'account exclusions approved' => ['source' => (int) ($source['account_exclusions_approved'] ?? 0),
                 'here' => Schema::hasTable('account_exclusions') ? DB::table('account_exclusions')->where('status', 'APPROVED')->where('source', '<>', 'CLIENT_INPUT')->count() : 0, 'listed' => $listed('account_exclusions')],
+            'staging overrides approved' => ['source' => (int) ($source['staging_overrides_approved'] ?? 0),
+                'here' => Schema::hasTable('loan_staging_basis_overrides') ? DB::table('loan_staging_basis_overrides')->where('status', 'APPROVED')->count() : 0, 'listed' => $listed('staging_overrides')],
+            'gross amount overrides approved' => ['source' => (int) ($source['gross_amount_overrides_approved'] ?? 0),
+                'here' => Schema::hasTable('loan_gross_amount_overrides') ? DB::table('loan_gross_amount_overrides')->where('status', 'APPROVED')->count() : 0, 'listed' => $listed('gross_amount_overrides')],
             // carried, and counted apart: approved on the source before a document was required (section 8.10)
             'approved before supporting documents were required' => ['source' => $grandfathered, 'here' => $grandfathered, 'listed' => 0],
         ];

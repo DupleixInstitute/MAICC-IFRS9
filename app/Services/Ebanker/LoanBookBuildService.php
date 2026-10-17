@@ -406,8 +406,8 @@ class LoanBookBuildService
         }
         $master = $this->zone->accountMaster();
         $priorOverdueDates = $this->priorOverdueDates($monthEnd);
-        $overrides = $this->stagingOverrides->active();
-        $grossOverrides = $this->grossOverrides->active();
+        $overrides = $this->stagingOverrides->active(substr($monthEnd, 0, 7));
+        $grossOverrides = $this->grossOverrides->active(substr($monthEnd, 0, 7));
         $rows = [];
         foreach ($runs as $account => $run) {
             $p = $run['payload'];
@@ -612,8 +612,8 @@ class LoanBookBuildService
         $ledger = $this->ledgerOn($monthEnd);
         $runs = $this->zone->latestRunsOn($monthEnd);
         $priorOverdueDates = $this->priorOverdueDates($monthEnd);
-        $overrides = $this->stagingOverrides->active();
-        $grossOverrides = $this->grossOverrides->active();
+        $overrides = $this->stagingOverrides->active(substr($monthEnd, 0, 7));
+        $grossOverrides = $this->grossOverrides->active(substr($monthEnd, 0, 7));
         $master = $this->masterCache['account'] ??= $this->zone->accountMaster();
         $loans = $this->masterCache['loan'] ??= $this->zone->loanMaster();
         $rates = $this->masterCache['rates'] ??= $this->zone->rateSetupByAccount();

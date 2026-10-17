@@ -32,6 +32,8 @@ class MegaFarmProgrammeSeparationTest extends TestCase
         DB::purge('sqlite'); DB::reconnect('sqlite');
         // the engines read their governed settings with no value in code: the seeded defaults (D21)
         $this->seedGovernedDefaults(['mega_farms_scope', 'megafarm_pd_method', 'megafarm_scalar_ceiling']);
+        // these tests are of the scaled agricultural-sector method; the programme's own pool is tested in PdSegmentationTest
+        DB::table('governance_settings')->where('key', 'megafarm_pd_method')->update(['value' => 'Agricultural-sector PD scaled to the programme']);
         Schema::create('loan_books', function (Blueprint $t) {
             $t->increments('id');
             foreach (['contract_id', 'reporting_period', 'product_group', 'product_code', 'ifrs9stage_post_qualitative', 'calculated_ifrs9_stage', 'fli_route', 'fli_method'] as $c) { $t->string($c)->nullable(); }
@@ -39,7 +41,7 @@ class MegaFarmProgrammeSeparationTest extends TestCase
             foreach (['carrying_amount', 'commitments', 'facility_utilisation_rate', 'lgd_value', 'collection_lgd', 'pd_prefli', 'pd_post_fli', 'ead', 'ecl_value', 'repayments', 'interest_rate'] as $c) { $t->double($c)->nullable(); }
             $t->string('contract_status')->nullable();
         });
-        Schema::create('megafarm_ecl_runs', function (Blueprint $t) { $t->increments('id'); $t->string('reporting_period'); $t->string('scope'); $t->string('method'); $t->integer('loans'); $t->double('gross'); $t->double('programme_ecl'); $t->double('share'); $t->double('maiic_ecl'); $t->text('declined')->nullable(); $t->text('basis')->nullable(); $t->integer('run_by')->nullable(); $t->string('approver_label')->nullable(); $t->timestamps(); });
+        Schema::create('megafarm_ecl_runs', function (Blueprint $t) { $t->increments('id'); $t->string('reporting_period'); $t->string('scope'); $t->string('method'); $t->string('role', 20)->default('booked'); $t->integer('loans'); $t->double('gross'); $t->double('programme_ecl'); $t->double('share'); $t->double('maiic_ecl'); $t->text('declined')->nullable(); $t->text('basis')->nullable(); $t->integer('run_by')->nullable(); $t->string('approver_label')->nullable(); $t->timestamps(); });
         Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });
     }
 
@@ -114,6 +116,34 @@ class MegaFarmProgrammeSeparationTest extends TestCase
         $this->assertEqualsWithDelta(0.625, $r['scalar'], 1e-9);
         $this->assertSame(1.0, $r['pd_by_stage']['3']);
         $this->assertEqualsWithDelta(0.5, $r['pd_by_stage']['1'], 1e-9);
+    }
+
+    /** A method run beside the governed one is measured and recorded as a comparison, and writes nothing to the loans. */
+    public function test_a_comparison_run_records_its_figures_and_writes_nothing_to_the_loans(): void
+    {
+        $this->loan('M1', '2024-12', 1, '1050101', 'MAIIC Agricultural Loans', '1', 100, 0.8);
+        $this->loan('F1', '2024-12', 2, '1050302', 'Mega Farm Seed Loans', '1', 50);
+        $this->loan('F2', '2024-12', 2, '1050302', 'Mega Farm Seed Loans', '1', 50);
+        $this->loan('F3', '2024-12', 2, '1050302', 'Mega Farm Seed Loans', '3', 40);
+        $this->loan('M1', '2025-12', 1, '1050101', 'MAIIC Agricultural Loans', '1', 100, 0.8);
+        $this->loan('M3', '2025-12', 1, '1050101', 'MAIIC Agricultural Loans', '3', 10, 1.0);
+        $this->loan('F1', '2025-12', 2, '1050302', 'Mega Farm Seed Loans', '3', 50);
+        $this->loan('F2', '2025-12', 2, '1050302', 'Mega Farm Seed Loans', '1', 50);
+        $this->loan('F3', '2025-12', 2, '1050302', 'Mega Farm Seed Loans', '3', 20);
+        DB::table('governance_settings')->where('key', 'megafarm_pd_method')->update(['value' => 'Expert judgement with overlay']);
+
+        $r = (new MegaFarmEclService(new GovernanceService()))->run('2025-12', null, null, 'Agricultural-sector PD scaled to the programme');
+
+        $this->assertSame('comparison', $r['role']);
+        $this->assertNull($r['declined']);
+        $this->assertGreaterThan(0.0, $r['programme_ecl']);
+        $this->assertSame(0, DB::table('loan_books')->where('reporting_period', '2025-12')->where('product_code', '1050302')->whereNotNull('ecl_value')->count(), 'no programme loan is written');
+        $row = DB::table('megafarm_ecl_runs')->first();
+        $this->assertSame('comparison', $row->role);
+        $this->assertSame('Agricultural-sector PD scaled to the programme', $row->method);
+
+        $this->expectException(\RuntimeException::class);
+        (new MegaFarmEclService(new GovernanceService()))->run('2025-12', null, null, 'A method nobody governs');
     }
 
     /** A scope that states no MAIIC share is declined with the reason; the share used to fall back to 100 percent. */

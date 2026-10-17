@@ -48,6 +48,8 @@ class DecisionsPackExporter
             'users' => $this->users(),
             'documents' => $this->documents($folder),
             'account_exclusions' => $this->accountExclusions(),
+            'staging_overrides' => $this->loanOverrides('loan_staging_basis_overrides', ['override_days', 'source']),
+            'gross_amount_overrides' => $this->loanOverrides('loan_gross_amount_overrides', ['override_amount']),
             'governance' => $this->governance(),
             'fee_rules' => $this->feeRules(),
             'finance_lines' => $this->financeLines($keys, $finance),
@@ -300,6 +302,26 @@ class DecisionsPackExporter
             ->values()->all();
     }
 
+    /**
+     * The per-loan staging and gross-amount overrides, every one people proposed whatever became of
+     * it (approved, rejected, withdrawn or still awaiting a decision), oldest first, keyed by the
+     * contract and the moment it was proposed.
+     */
+    private function loanOverrides(string $table, array $figures): array
+    {
+        if (! Schema::hasTable($table)) {
+            return [];
+        }
+
+        return DB::table($table)->orderBy('id')->get()
+            ->map(fn ($o) => ['contract_id' => (string) $o->contract_id, 'reporting_period' => $o->reporting_period] + array_combine($figures, array_map(fn ($c) => $o->{$c}, $figures)) + [
+                'reason' => $o->reason, 'status' => $o->status,
+                'proposed_by' => $this->email($o->proposed_by), 'proposed_at' => (string) $o->created_at,
+                'decided_by' => $this->email($o->approved_by), 'decided_at' => $o->approved_at === null ? null : (string) $o->approved_at,
+                'last_changed_at' => (string) $o->updated_at])
+            ->values()->all();
+    }
+
     private function heldDismissals(): array
     {
         if (! Schema::hasTable('fee_gl_candidate_dismissals')) {
@@ -405,6 +427,8 @@ class DecisionsPackExporter
             'fee_moves' => count($data['fee_moves']),
             'reopen_requests' => count($data['reopen_requests']),
             'account_exclusions_approved' => count(array_filter($data['account_exclusions'], fn ($x) => $x['status'] === 'APPROVED')),
+            'staging_overrides_approved' => count(array_filter($data['staging_overrides'], fn ($o) => $o['status'] === 'APPROVED')),
+            'gross_amount_overrides_approved' => count(array_filter($data['gross_amount_overrides'], fn ($o) => $o['status'] === 'APPROVED')),
         ];
     }
 }

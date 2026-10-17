@@ -433,6 +433,25 @@ class Bootstrap extends Command
         return ['from' => $period, '--pd' => 'pd_post_fli', '--discounting' => 'discounted', '--prune-stale' => true];
     }
 
+    /** Mega Farm's booked method for the month (as governed), and the other method of the two pools beside it for comparison. */
+    public const MEGA_FARM_BOOKED = 'Transition matrix on the programme history';
+
+    public const MEGA_FARM_COMPARISON = 'Agricultural-sector PD scaled to the programme';
+
+    private function monthMegaFarm(\App\Services\MegaFarm\MegaFarmEclService $mega, string $p, int $user): array
+    {
+        $booked = $mega->run($p, $user, LoanBookBuildService::BOOTSTRAP_LABEL);
+        $other = $booked['method'] === self::MEGA_FARM_COMPARISON ? self::MEGA_FARM_BOOKED : self::MEGA_FARM_COMPARISON;
+        try {
+            $c = $mega->run($p, $user, LoanBookBuildService::BOOTSTRAP_LABEL, $other);
+            $booked['comparison'] = $c['declined'] ? "{$other}: declined, {$c['declined']}" : "{$other}: MAIIC share " . number_format($c['maiic_ecl'], 0) . ' (programme ' . number_format($c['programme_ecl'], 0) . '), not booked';
+        } catch (Throwable $e) {
+            $booked['comparison'] = "{$other}: not run, " . substr($e->getMessage(), 0, 120);
+        }
+
+        return $booked;
+    }
+
     private function monthPdLgd(string $p, int $user): string
     {
         $pd = app(\App\Services\Pd\PdSegmentationService::class)->run($p, null, 12, $user, 'bootstrap');
@@ -527,7 +546,9 @@ class Bootstrap extends Command
             . '; route ' . ($ok['fli-route'] ? 'set ' . ($route['set'] ?? 'none') . ($route['model_version'] ? ", model version {$route['model_version']}" : ', no model version in force') . ", {$route['adjusted']} adjusted, {$route['held']} held" . ($route['note'] ? " ({$route['note']})" : '') : $route)
             . '; projection ' . ($ok['fli-projection'] ? (is_array($proj) ? count($proj['segments'] ?? []) . ' portfolios' : $proj) : $proj)
             . '; ECL ' . $why['ecl']
-            . '; record ' . ($ok['fli-record'] ? "{$rec['id']} RECORDED" . (isset($rec['booked_ecl_discounted']) ? ', discounted ' . number_format((float) $rec['booked_ecl_discounted'], 0) : '') : $rec);
+            . '; record ' . ($ok['fli-record'] ? "{$rec['id']} RECORDED" . (isset($rec['booked_ecl_discounted']) ? ', discounted ' . number_format((float) $rec['booked_ecl_discounted'], 0) : '') : $rec)
+            . (is_array($why['mega-farm'] ?? null) ? '; Mega Farm ' . ($why['mega-farm']['declined'] ? "{$why['mega-farm']['method']}: declined, {$why['mega-farm']['declined']}" : "{$why['mega-farm']['method']}: MAIIC share " . number_format($why['mega-farm']['maiic_ecl'], 0) . ' booked')
+                . (isset($why['mega-farm']['comparison']) ? "; beside it {$why['mega-farm']['comparison']}" : '') : '');
     }
 
     /**
@@ -687,7 +708,7 @@ class Bootstrap extends Command
                         'fli-projection' => ($decision['in_force'] ?? false) ? app(\App\Services\Fli\FliProjectionService::class)->run($p, $user) : \App\Services\Fli\FliWithoutModel::PROJECTION_SKIPPED,
                         'ecl' => $this->monthEcl($p),
                         'fli-record' => app(\App\Services\Fli\FliCloseService::class)->record($p, $user),
-                        'mega-farm' => $mega->loans($p)->exists() ? $mega->run($p, $user, LoanBookBuildService::BOOTSTRAP_LABEL) : null,
+                        'mega-farm' => $mega->loans($p)->exists() ? $this->monthMegaFarm($mega, $p, $user) : null,
                     };
                     $ok[$key] = true;
                 } catch (Throwable $e) {
@@ -779,7 +800,7 @@ class Bootstrap extends Command
             $this->note('6.2 scenario sensitivity', 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
         }
         // 7b the Mega Farm programme of the last period, as run in the loop above (spec section 16, D30)
-        $last = DB::table('megafarm_ecl_runs')->where('reporting_period', $to)->orderByDesc('id')->first();
+        $last = DB::table('megafarm_ecl_runs')->where('reporting_period', $to)->where('role', \App\Services\MegaFarm\MegaFarmEclService::ROLE_BOOKED)->orderByDesc('id')->first();
         $this->note('6.7 Mega Farm', $last === null ? 'no Mega Farm loans in the book for ' . $to : ($last->declined ? "declined: {$last->declined}" : "{$last->loans} loans, programme ECL " . number_format((float) $last->programme_ecl, 0) . ', MAIIC share ' . ((float) $last->share * 100) . '% = ' . number_format((float) $last->maiic_ecl, 0)));
         // 11 stress testing: the approved set's scenarios as saved stress runs
         try {
@@ -878,8 +899,50 @@ class Bootstrap extends Command
             ? "intact: {$chain['entries']} chained entries; append-only guard " . ($chain['guard'] ? 'installed' : 'not installed')
             : "BROKEN at entry {$chain['first_broken']}: {$chain['reason']}");
         $failed += $chain['intact'] ? 0 : 1;
+        foreach (self::pdPoolChecks() as [$what, $ok, $detail]) {
+            $this->note('7 PD pools', ($ok ? 'PASS' : 'FAIL') . " {$what}: {$detail}");
+            $failed += $ok ? 0 : 1;
+        }
 
         return $failed;
+    }
+
+    /**
+     * The two PD pools (Edward Mazibuko, 17 October 2026): MAIIC's book measured as one pool and the
+     * Mega Farm programme as its own, on the seeded M101 transition profile. Checks of their own,
+     * beside the golden numbers, so the golden count does not change.
+     *
+     * @return list<array{0: string, 1: bool, 2: string}>
+     */
+    public static function pdPoolChecks(): array
+    {
+        $out = [];
+        $profile = DB::table('transition_profile_definitions')->where('profile_code', 'M101')->first();
+        $options = $profile === null ? collect() : DB::table('transition_profile_options')->where('profile_id', $profile->id)->get();
+        $starts = $options->filter(fn ($o) => strtolower($o->is_start_or_end) === 'start')->count();
+        $ends = $options->filter(fn ($o) => strtolower($o->is_start_or_end) === 'end')->count();
+        $out[] = ['transition profile M101 seeded', $profile !== null && $starts > 0 && $ends > 0,
+            $profile === null ? 'missing: the PD engine would grade on whichever profile came first' : "{$starts} start and {$ends} end stage options"];
+
+        $runs = DB::table('segment_parameter_runs')->where('measure', 'pd')->where('status', 'applied')->get(['run_id', 'reporting_period', 'basis']);
+        $notPooled = $runs->filter(fn ($r) => $r->basis !== 'book')->pluck('reporting_period')->unique()->values()->all();
+        $out[] = ['MAIIC book PD measured as one pool', $runs->isNotEmpty() && $notPooled === [],
+            $runs->isEmpty() ? 'no PD run applied' : ($notPooled === [] ? $runs->count() . ' monthly runs, every one on the pooled book' : 'not pooled in ' . implode(', ', $notPooled))];
+        $mfInMaiic = DB::table('loan_books')->whereIn('product_code', \App\Services\MegaFarm\MegaFarmEclService::GLS)->whereIn('pd_segment_run_id', $runs->pluck('run_id'))->count();
+        $out[] = ['no Mega Farm loan in the MAIIC pool', $mfInMaiic === 0, $mfInMaiic === 0 ? 'none' : "{$mfInMaiic} programme loan-months took MAIIC's pooled PD"];
+
+        $all = DB::table('megafarm_ecl_runs')->get(['reporting_period', 'method', 'role', 'declined']);
+        $mf = $all->where('role', \App\Services\MegaFarm\MegaFarmEclService::ROLE_BOOKED);
+        $other = $mf->filter(fn ($r) => $r->method !== self::MEGA_FARM_BOOKED)->pluck('reporting_period')->unique()->values()->all();
+        $provided = $mf->filter(fn ($r) => $r->method === self::MEGA_FARM_BOOKED && $r->declined === null)->count();
+        $out[] = ['Mega Farm PD booked on its own pool', $mf->isEmpty() || $other === [],
+            $mf->isEmpty() ? 'no Mega Farm run' : ($other === [] ? "{$mf->count()} booked runs on the programme's own pool, {$provided} provided, " . ($mf->count() - $provided) . ' declined with the reason recorded' : 'booked on another method in ' . implode(', ', $other))];
+        $compared = $all->where('role', \App\Services\MegaFarm\MegaFarmEclService::ROLE_COMPARISON)->where('method', self::MEGA_FARM_COMPARISON)->pluck('reporting_period')->unique();
+        $missing = $mf->pluck('reporting_period')->unique()->diff($compared)->values()->all();
+        $out[] = ['Mega Farm scaled agricultural-sector method run beside it', $missing === [],
+            $missing === [] ? $compared->count() . ' months compared, nothing written to the loans' : 'no comparison run for ' . implode(', ', $missing)];
+
+        return $out;
     }
 
     // ----- helpers ----------------------------------------------------------

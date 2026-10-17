@@ -1,0 +1,14 @@
+[
+    {
+        "contract_id": "104420000005",
+        "reporting_period": "2025-12",
+        "override_amount": "0.00",
+        "reason": "MUSECO: audited and approved in the December 2025 AFS at 0.00; MAIIC to supply facility-level reasons by 19 October 2026.",
+        "status": "APPROVED",
+        "proposed_by": "admin@localhost.com",
+        "proposed_at": "2026-10-17 09:49:56",
+        "decided_by": "admin@localhost.com",
+        "decided_at": "2026-10-17 09:49:56",
+        "last_changed_at": "2026-10-17 09:49:56"
+    }
+]

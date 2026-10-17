@@ -378,7 +378,7 @@ class BaselineService
                 ->selectRaw('ifrs9_stage s, round(sum(ecl_value_discounted), 2) disc')->groupBy('ifrs9_stage')->orderBy('ifrs9_stage')->get() as $s) {
                 $g["ecl_{$p}_maiic_stage{$s->s}_discounted"] = ['what' => "ECL {$p}, MAIIC's book, stage {$s->s}: discounted", 'value' => (float) $s->disc, 'amount' => true];
             }
-            $run = DB::table('megafarm_ecl_runs')->where('reporting_period', $p)->orderByDesc('id')->first();
+            $run = DB::table('megafarm_ecl_runs')->where('reporting_period', $p)->where('role', \App\Services\MegaFarm\MegaFarmEclService::ROLE_BOOKED)->orderByDesc('id')->first();
             // a period the programme engine declined (no PD on MAIIC's own agricultural book that month) is
             // golden as declined: verify then checks it is still declined rather than failing for want of a figure
             $declined = $run === null || (bool) $run->declined;

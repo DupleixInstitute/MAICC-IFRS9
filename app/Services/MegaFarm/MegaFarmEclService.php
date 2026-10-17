@@ -36,6 +36,12 @@ class MegaFarmEclService
 {
     public const GLS = ['1050301', '1050302', '1050303', '1050304', '1050305', '1050306', '1050307'];
 
+    /** A booked run writes the programme's PD, LGD and ECL to its loans; a comparison run only records its figures. */
+    public const ROLE_BOOKED = 'booked';
+    public const ROLE_COMPARISON = 'comparison';
+
+    private string $role = self::ROLE_BOOKED;
+
     public function __construct(private GovernanceService $governance)
     {
     }
@@ -84,13 +90,18 @@ class MegaFarmEclService
     }
 
     /** @return array{period:string,scope:string,method:string,loans:int,gross:float,by_stage:array,pd_by_stage:array,scalar:?float,lgd:float,programme_ecl:float,share:float,maiic_ecl:float,declined:?string,basis:array} */
-    public function run(string $period, ?int $userId = null, ?string $label = null): array
+    /**
+     * $compareWith names another of the governed methods to run beside the booked one: its PD, LGD and
+     * ECL are measured and recorded as a comparison run, and no loan is written.
+     */
+    public function run(string $period, ?int $userId = null, ?string $label = null, ?string $compareWith = null): array
     {
         // the run this month's work belongs to (Staging Module Specification v1, section 8.8): the open month-end
         // or bootstrap run, or one of its own when run from a screen
         if (! \App\Support\RunContext::inside($period, 'Mega Farm')) {
-            return \App\Support\RunContext::engine($period, 'Mega Farm', $userId, fn () => $this->run($period, $userId, $label));
+            return \App\Support\RunContext::engine($period, 'Mega Farm', $userId, fn () => $this->run($period, $userId, $label, $compareWith));
         }
+        $this->role = $compareWith === null ? self::ROLE_BOOKED : self::ROLE_COMPARISON;
         // a locked month is never restated (audit H4)
         \App\Support\ReportingPeriodLock::assertOpen($period, 'the Mega Farm programme ECL');
         $asOf = CarbonImmutable::parse($period . '-01')->endOfMonth();
@@ -98,6 +109,12 @@ class MegaFarmEclService
         // code: a missing approved value stops the run (GovernanceSettingMissingException)
         $scope = $this->setting('mega_farms_scope', $asOf);
         $method = $this->setting('megafarm_pd_method', $asOf);
+        if ($compareWith !== null) {
+            if (! in_array($compareWith, \App\Services\Eir\GovernanceService::catalogue()['megafarm_pd_method']['options'], true)) {
+                throw new RuntimeException("'{$compareWith}' is not one of the governed Mega Farm PD methods.");
+            }
+            $method = $compareWith;
+        }
         $ceilingText = $this->setting('megafarm_scalar_ceiling', $asOf);
         if (preg_match('/(\d+(?:\.\d+)?)/', $ceilingText, $m) !== 1) {
             throw new RuntimeException("The governed scalar ceiling '{$ceilingText}' names no number; the Mega Farm run stops.");
@@ -161,8 +178,11 @@ class MegaFarmEclService
                 $declined = 'the seasonal cohort method is governed but its calibration awaits the second season\'s books';
                 break;
             case str_starts_with($method, 'Transition matrix'):
-                $months = $this->loans(null)->whereNotNull('ifrs9stage_post_qualitative')->distinct()->count('reporting_period');
-                $declined = $months >= 12 ? 'the programme matrix is to be run by the PD engine on the programme\'s own books' : "the programme matrix needs twelve or more months of Mega Farm books; {$months} held";
+                [$own, $poolBasis, $declined] = $this->programmePdByStage($period);
+                $basis += $poolBasis;
+                foreach ($own ?? [] as $stage => $pd) {
+                    $pdByStage[(string) $stage] = $pd;
+                }
                 break;
             default:
                 $declined = 'expert judgement needs an approved overlay with its reason; none is recorded';
@@ -190,7 +210,8 @@ class MegaFarmEclService
         $basis['lgd'] = $lgd;
         $basis['lgd_basis'] = $lgdBasis;
         $programme = 0.0;
-        DB::transaction(function () use ($loans, $pdByStage, $lgd, $share, $method, &$programme) {
+        $book = $this->role === self::ROLE_BOOKED;
+        DB::transaction(function () use ($loans, $pdByStage, $lgd, $share, $method, $book, &$programme) {
             foreach ($loans as $l) {
                 $s = (string) $l->ifrs9stage_post_qualitative;
                 $pd = $pdByStage[$s];
@@ -199,11 +220,50 @@ class MegaFarmEclService
                 $ead = \App\Services\Ecl\EclExposure::of($l);
                 $ecl = $ead * $pd * $lgd;
                 $programme += $ecl;
-                DB::table('loan_books')->where('id', $l->id)->update(['pd_prefli' => round($pd, 8), 'pd_post_fli' => round($pd, 8), 'lgd_value' => round($lgd, 8), 'ead' => round($ead, 2), 'ecl_value' => round($ecl * $share, 2), 'fli_route' => 'Mega Farm programme (D30)', 'fli_method' => $method]);
+                $book && DB::table('loan_books')->where('id', $l->id)->update(['pd_prefli' => round($pd, 8), 'pd_post_fli' => round($pd, 8), 'lgd_value' => round($lgd, 8), 'ead' => round($ead, 2), 'ecl_value' => round($ecl * $share, 2), 'fli_route' => 'Mega Farm programme (D30)', 'fli_method' => $method]);
             }
         });
 
         return $this->record($period, $scope, $method, $loans, $byStage, $pdByStage, $scalar, $lgd, $share, null, $basis, $userId, $label, $programme);
+    }
+
+    /**
+     * The programme's own PD by stage: its loans measured as one pool by the PD engine, on the same
+     * measure and twelve-month window as MAIIC's pooled book, and kept apart from it. A Stage 1 or 2
+     * below the governed minimum (pd_segment_min_observations) is declined, not given MAIIC's PD:
+     * there is no pool above the programme's. Stage 3 is in default.
+     *
+     * @return array{0: ?array<string, float>, 1: array, 2: ?string} the PD by stage, the basis, the reason it was declined
+     */
+    public function programmePdByStage(string $period): array
+    {
+        $portfolios = self::programmePortfolios($period);
+        if ($portfolios === []) {
+            return [null, [], "no portfolio holds only the programme's loans for {$period}: run ifrs9:segment-portfolios first"];
+        }
+        $engine = app(\App\Services\Pd\PdSegmentationService::class);
+        try {
+            $m = $engine->measure($period, 'book', 12, $portfolios);
+        } catch (RuntimeException $e) {
+            return [null, [], 'the programme pool cannot be measured: ' . $e->getMessage()];
+        }
+        $settings = $engine->settings($period);
+        $stages = $m['segments']['book']['stages'] ?? [];
+        $basis = ['pool' => 'Mega Farm programme', 'portfolios' => $portfolios, 'window' => $m['window_start'] . ' to ' . $m['window_end'], 'window_months' => $m['window_months'],
+            'minimum' => $settings['minimum_option'], 'cohort' => array_map(fn ($c) => ['loans' => $c['loans'], 'defaults' => $c['default_loans'], 'balance' => round($c['balance'], 2),
+                'default_balance' => round($c['default_balance'], 2), 'annual' => $c['annual']], $stages)];
+        $pd = ['3' => 1.0];
+        foreach (['1', '2'] as $stage) {
+            $c = $stages[$stage] ?? null;
+            if ($c === null || $c['loans'] < $settings['min_loans'] || $c['default_loans'] < $settings['min_defaults'] || $c['annual'] === null) {
+                return [null, $basis, sprintf('the programme pool\'s Stage %s holds %d loans and %d defaults over %s, below the minimum of %s; there is no pool above the programme\'s to take',
+                    $stage, $c['loans'] ?? 0, $c['default_loans'] ?? 0, $basis['window'], $settings['minimum_option'])];
+            }
+            $pd[$stage] = min(1.0, (float) $c['annual']);
+        }
+        ksort($pd);
+
+        return [$pd, $basis, null];
     }
 
     /** The PD of MAIIC's own agricultural book by stage, from the PD engine's write-back. */
@@ -282,10 +342,11 @@ class MegaFarmEclService
     private function record(string $period, string $scope, string $method, $loans, array $byStage, ?array $pdByStage, ?float $scalar, float $lgd, float $share, ?string $declined, array $basis, ?int $userId, ?string $label, float $programme = 0.0): array
     {
         $result = ['period' => $period, 'scope' => $scope, 'method' => $method, 'loans' => $loans->count(), 'gross' => round((float) $loans->sum('carrying_amount'), 2), 'by_stage' => array_map(fn ($v) => round($v, 2), $byStage),
-            'pd_by_stage' => $pdByStage, 'scalar' => $scalar, 'lgd' => $lgd, 'programme_ecl' => round($programme, 2), 'share' => $share, 'maiic_ecl' => round($programme * $share, 2), 'declined' => $declined, 'basis' => $basis + ['label' => $label]];
-        DB::table('megafarm_ecl_runs')->insert(['reporting_period' => $period, 'scope' => $scope, 'method' => $method, 'loans' => $loans->count(), 'gross' => $result['gross'], 'programme_ecl' => $result['programme_ecl'], 'share' => $share, 'maiic_ecl' => $result['maiic_ecl'],
+            'pd_by_stage' => $pdByStage, 'scalar' => $scalar, 'lgd' => $lgd, 'programme_ecl' => round($programme, 2), 'share' => $share, 'maiic_ecl' => round($programme * $share, 2), 'declined' => $declined,
+            'role' => $this->role, 'basis' => $basis + ['label' => $label]];
+        DB::table('megafarm_ecl_runs')->insert(['reporting_period' => $period, 'scope' => $scope, 'method' => $method, 'role' => $this->role, 'loans' => $loans->count(), 'gross' => $result['gross'], 'programme_ecl' => $result['programme_ecl'], 'share' => $share, 'maiic_ecl' => $result['maiic_ecl'],
             'declined' => $declined, 'basis' => json_encode($result), 'run_by' => $userId, 'approver_label' => $label, 'created_at' => now(), 'updated_at' => now()]);
-        AuditLoggerService::log('Mega Farm ECL Run', 'megafarm_ecl_runs', null, ['reporting_period' => $period, 'rows_affected' => $loans->count(), 'new_values' => array_diff_key($result, ['basis' => 1]), 'meta' => ['user' => $userId, 'label' => $label]]);
+        AuditLoggerService::log($this->role === self::ROLE_BOOKED ? 'Mega Farm ECL Run' : 'Mega Farm ECL Comparison Run', 'megafarm_ecl_runs', null, ['reporting_period' => $period, 'rows_affected' => $this->role === self::ROLE_BOOKED ? $loans->count() : 0, 'new_values' => array_diff_key($result, ['basis' => 1]), 'meta' => ['user' => $userId, 'label' => $label]]);
 
         return $result;
     }

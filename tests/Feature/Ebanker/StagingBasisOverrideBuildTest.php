@@ -32,7 +32,7 @@ class StagingBasisOverrideBuildTest extends TestCase
         Schema::create('loan_portfolios', function (Blueprint $t) { $t->increments('id'); $t->string('name'); });
         Schema::create('loan_staging_basis_overrides', function (Blueprint $t) {
             $t->increments('id');
-            $t->string('contract_id', 30)->index(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
+            $t->string('contract_id', 30)->index(); $t->string('reporting_period', 7)->nullable(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
             $t->string('reason', 2000);
             $t->unsignedBigInteger('proposed_by'); $t->unsignedBigInteger('approved_by')->nullable();
             $t->string('status', 20)->default('PROPOSED'); $t->timestamp('approved_at')->nullable();
@@ -103,7 +103,7 @@ class StagingBasisOverrideBuildTest extends TestCase
         $a = '000104430000087';
         $this->jatShapedLoan($a);
         $overrides = new LoanStagingBasisOverrideService();
-        $id = $overrides->propose('104430000087', 'Ledger/chart reconstruction matches the workbook at 69 days (findings note, section 5.3).', 1);
+        $id = $overrides->propose('104430000087', '2025-12', 'Ledger/chart reconstruction matches the workbook at 69 days (findings note, section 5.3).', 1);
         $overrides->approve($id, 2);
 
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
@@ -130,7 +130,7 @@ class StagingBasisOverrideBuildTest extends TestCase
         $a = '000104430000087';
         $this->jatShapedLoan($a); // directive count is 69; the audited figure here is deliberately different, to prove it is not silently swapped for the directive's own
         $overrides = new LoanStagingBasisOverrideService();
-        $id = $overrides->propose('104430000087', 'Audited and approved in the December 2025 AFS; MAIIC to supply facility-level reasons by 19 October 2026.', 1, 0);
+        $id = $overrides->propose('104430000087', '2025-12', 'Audited and approved in the December 2025 AFS; MAIIC to supply facility-level reasons by 19 October 2026.', 1, 0);
         $overrides->approve($id, 2);
 
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
@@ -146,7 +146,7 @@ class StagingBasisOverrideBuildTest extends TestCase
         $a = '000104430000087';
         $this->jatShapedLoan($a);
         $overrides = new LoanStagingBasisOverrideService();
-        $id = $overrides->propose('104430000087', 'Reason.', 1);
+        $id = $overrides->propose('104430000087', '2025-12', 'Reason.', 1);
         $overrides->approve($id, 2);
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
         $overrides->withdraw($id, 1);
@@ -168,7 +168,7 @@ class StagingBasisOverrideBuildTest extends TestCase
         ]);
         $this->raw('P1_01', $b . 'd', $b, '2025-12-31', ['CUMVOUCH_DET_ID' => $b . 'd', 'NEW_AC_NUMBER' => $b, 'TRANSACTION_DATE' => '12/31/2025', 'TRANSAMT' => '0.00', 'TRANTYPE' => '303', 'DELETE_FLAG' => 'N']);
         $overrides = new LoanStagingBasisOverrideService();
-        $id = $overrides->propose('104430000087', 'Reason.', 1);
+        $id = $overrides->propose('104430000087', '2025-12', 'Reason.', 1);
         $overrides->approve($id, 2);
 
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
