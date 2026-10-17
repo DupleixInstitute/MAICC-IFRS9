@@ -56,7 +56,7 @@ These variables are read by the code but are not in `.env.example`; add the ones
 | `config/activitylog.php` | Activity log switch, table and retention (365 days) |
 | `config/dompdf.php` | PDF defaults: A4, font directory and cache under `storage/fonts`, remote images enabled for local logo paths |
 | `config/excel.php` | maatwebsite/excel reader and writer options |
-| `config/fortify.php`, `config/jetstream.php` | Authentication features: registration, password reset, profile and password updates, two-factor authentication with password confirmation; terms and privacy, profile photos and account deletion. Registration is enabled, so `/register` is served |
+| `config/fortify.php`, `config/jetstream.php` | Authentication features: registration, password reset, profile and password updates, two-factor authentication with password confirmation; terms and privacy and profile photos. Self-service account deletion is switched off (16 October 2026): approvals, the decisions pack and the audit log name the people who decided, so a user who leaves is made inactive instead. Registration is enabled, so `/register` is served |
 | `config/queue.php`, `config/session.php`, `config/cache.php` | Framework drivers as above |
 | `config/database.php` | Connections; tests use the sqlite connection forced by `phpunit.xml` (chapter 11.2) |
 | `config/telescope.php`, `config/debugbar.php` | Development tools, off in production |

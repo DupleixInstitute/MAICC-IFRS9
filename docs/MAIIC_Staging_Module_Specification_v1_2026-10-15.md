@@ -331,6 +331,11 @@ The bootstrap approves its own steps under the label "System Bootstrap (automate
 | EIR reopen request | The loan and the request date | The request and its decision, carried as history |
 | User | E-mail | Name, roles and direct permissions; never the password or the two-factor secret |
 | Supporting document | Its SHA-256 | The file itself, with its name, type, description, who uploaded it and when, and every carried decision it supports, attached or linked |
+| Account exclusion (added 16 October 2026) | The contract | The category, reason, evidence, status, and who proposed, approved, asked to withdraw or closed it and when; an exclusion the bootstrap landed from the client input and nobody touched is not carried |
+| Staging basis override (added 17 October 2026) | The contract, its reporting period and when it was proposed | The day count and its source, the reason, the status, who proposed and who decided it and when (Finance Overlay Importers Specification v2) |
+| Gross amount override (added 17 October 2026) | The contract, its reporting period and when it was proposed | The amount, the reason, the status, who proposed and who decided it and when |
+
+The account exclusions and the two kinds of override are replayed **before the loan book is built**, since the build reads them; a pack exported before they were carried replays without them.
 
 Every person is carried by e-mail and matched to the user of the same e-mail in the fresh database.
 

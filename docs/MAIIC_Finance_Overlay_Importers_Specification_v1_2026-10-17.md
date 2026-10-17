@@ -5,7 +5,7 @@ subtitle: A plain-language spec for the arrears-ageing and gross-loan-amount ove
 date: 17 October 2026
 prepared: Edward Mazibuko, Director, Data Analytics, Dupleix Institute
 people: For Dr Thomson Kumwenda (CFO), MAIIC Finance, Credit and ICT
-status: Draft for review — not built
+status: Superseded on 17 October 2026 by version 2 (MAIIC_Finance_Overlay_Importers_Specification_v2_2026-10-17), which describes what was built after the decision to apply audited overrides; kept for the reasoning
 logo: Dupleix logo.png
 justify: yes
 toc: yes

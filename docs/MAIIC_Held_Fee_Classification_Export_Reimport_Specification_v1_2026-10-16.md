@@ -4,7 +4,7 @@ title: Held fee classification, as a round trip: download, classify, re-upload
 subtitle: Closing the loop on fee_gl_unassigned without a second, parallel way of tying a fee to a loan
 date: 16 October 2026
 prepared: Dupleix Institute, for the build team, MAIIC Finance, and external reviewers (Codex, Copilot)
-status: Scope note, revision 3. Next build item after the GL fee route (spec v4 sections 7.8.3 to 7.8.5).
+status: Built and merged 16 October 2026 (commit 5cbb5bf; HeldFeeClassificationImportService, table fee_gl_held_notes). Scope note, revision 3.
 ---
 
 ## What this spec actually buys MAIIC
