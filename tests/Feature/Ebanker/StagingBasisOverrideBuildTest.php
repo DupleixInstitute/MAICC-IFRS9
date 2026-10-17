@@ -32,7 +32,7 @@ class StagingBasisOverrideBuildTest extends TestCase
         Schema::create('loan_portfolios', function (Blueprint $t) { $t->increments('id'); $t->string('name'); });
         Schema::create('loan_staging_basis_overrides', function (Blueprint $t) {
             $t->increments('id');
-            $t->string('contract_id', 30)->unique(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
+            $t->string('contract_id', 30)->index(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
             $t->string('reason', 2000);
             $t->unsignedBigInteger('proposed_by'); $t->unsignedBigInteger('approved_by')->nullable();
             $t->string('status', 20)->default('PROPOSED'); $t->timestamp('approved_at')->nullable();

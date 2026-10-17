@@ -27,7 +27,7 @@ class LoanStagingBasisOverrideServiceTest extends TestCase
         Schema::create('audit_logs', function (Blueprint $t) { $t->increments('id'); $t->integer('user_id')->nullable(); $t->string('action'); $t->string('entity_type'); $t->integer('entity_id')->nullable(); $t->string('scope')->nullable(); $t->string('reporting_period')->nullable(); $t->integer('rows_affected')->nullable(); $t->text('old_values')->nullable(); $t->text('new_values')->nullable(); $t->text('meta')->nullable(); $t->string('ip_address')->nullable(); $t->string('user_agent')->nullable(); $t->timestamps(); });
         Schema::create('loan_staging_basis_overrides', function (Blueprint $t) {
             $t->increments('id');
-            $t->string('contract_id', 30)->unique(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
+            $t->string('contract_id', 30)->index(); $t->integer('override_days')->nullable(); $t->string('source', 40)->default('directive_count');
             $t->string('reason', 2000);
             $t->unsignedBigInteger('proposed_by'); $t->unsignedBigInteger('approved_by')->nullable();
             $t->string('status', 20)->default('PROPOSED'); $t->timestamp('approved_at')->nullable();
@@ -97,6 +97,29 @@ class LoanStagingBasisOverrideServiceTest extends TestCase
         $this->assertSame('WITHDRAWN', $result['status']);
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'Staging Basis Override Withdrawn')->count());
         $this->assertSame([], $service->active());
+    }
+
+    /**
+     * A real-world sequence surfaced a schema bug: contract_id was given a hard, permanent
+     * unique constraint, so a withdrawn override's own row (still physically present) collided
+     * with any later re-proposal for the same loan, even though the application check only
+     * blocks a *live* (PROPOSED/APPROVED) one. Fixed by dropping the unique constraint in favour
+     * of the application check alone (migration 2026_10_17_150000).
+     */
+    public function test_a_contract_can_be_proposed_again_after_an_earlier_override_was_withdrawn(): void
+    {
+        $service = new LoanStagingBasisOverrideService();
+        $first = $service->propose('104430000087', 'First pass.', 1);
+        $service->approve($first, 2);
+        $service->withdraw($first, 1);
+
+        $second = $service->propose('104430000087', 'Re-proposed after withdrawal.', 1, 69);
+        $service->approve($second, 2);
+
+        $this->assertNotSame($first, $second);
+        $active = $service->active();
+        $this->assertSame(69, $active['104430000087']['override_days']);
+        $this->assertSame('Re-proposed after withdrawal.', $active['104430000087']['reason']);
     }
 
     public function test_a_contract_cannot_have_two_live_overrides_at_once(): void
