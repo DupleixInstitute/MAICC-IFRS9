@@ -22,6 +22,8 @@ class LoanGrossAmountOverrideServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // these test the override's own behaviour; the evidence an approval needs is tested in ClientBookReconciliationTest
+        config(['approvals.require_evidence' => false]);
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
         Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->timestamps(); });
@@ -94,7 +96,7 @@ class LoanGrossAmountOverrideServiceTest extends TestCase
         $service = new LoanGrossAmountOverrideService();
         $id = $service->propose('104430000099', '2025-12', 'Reason.', 1, 0.00);
         $service->approve($id, 2);
-        $result = $service->withdraw($id, 1);
+        $result = $service->withdraw($id, 1, 'Withdrawn in the test: the figure is superseded.');
 
         $this->assertSame('WITHDRAWN', $result['status']);
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'Gross Amount Override Withdrawn')->count());
@@ -106,7 +108,7 @@ class LoanGrossAmountOverrideServiceTest extends TestCase
         $service = new LoanGrossAmountOverrideService();
         $first = $service->propose('104430000099', '2025-12', 'First pass.', 1, 0.00);
         $service->approve($first, 2);
-        $service->withdraw($first, 1);
+        $service->withdraw($first, 1, 'Withdrawn in the test: the figure is superseded.');
 
         $second = $service->propose('104430000099', '2025-12', 'Re-proposed after withdrawal.', 1, 500.00);
         $service->approve($second, 2);

@@ -21,7 +21,7 @@ use Throwable;
  */
 class SegmentParameters extends Command
 {
-    protected $signature = 'ifrs9:segment-parameters {from : YYYY-MM} {to? : YYYY-MM} {--pd : the PD only} {--lgd : the LGD only} {--window=12 : months} {--user=} {--dry-run : measure and show, write nothing}';
+    protected $signature = 'ifrs9:segment-parameters {from : YYYY-MM} {to? : YYYY-MM} {--pd : the PD only} {--lgd : the LGD only} {--window=12 : months} {--user=} {--dry-run : measure and show, write nothing} {--no-compare : skip measuring the other bases beside the booked one}';
 
     protected $description = 'Measure and apply the PD and the LGD by segment on the governed basis, month by month';
 
@@ -47,6 +47,15 @@ class SegmentParameters extends Command
                         $this->table(['Segment', 'Stage', 'Cohort', 'Defaults', 'Observed', 'Applied PD', 'Source', 'Loans'], array_map(fn ($c) => [
                             $c['label'], $c['stage'], $c['cohort'], $c['defaults'], $c['observed'] === null ? '-' : number_format($c['observed'] * 100, 2) . '%',
                             number_format((float) $c['pd'] * 100, 2) . '%', $c['status'] === 'parent' ? 'parent: ' . $c['from'] : $c['status'], $c['loans']], $r['cells']));
+                        // every other basis measured beside the booked one, for the record; it books nothing and stops nothing
+                        if (! $this->option('no-compare')) {
+                            try {
+                                $cmp = $pd->compareBases($period, $window, $user);
+                                $this->line("{$period} PD bases kept for comparison: " . collect($cmp)->map(fn ($v, $b) => $b . ($v['booked'] ? ' (booked)' : '') . ' ' . $v['status'])->implode('; '));
+                            } catch (Throwable $e) {
+                                $this->warn("{$period} PD bases for comparison not measured: " . $e->getMessage());
+                            }
+                        }
                     }
                 } catch (Throwable $e) {
                     $failures++;

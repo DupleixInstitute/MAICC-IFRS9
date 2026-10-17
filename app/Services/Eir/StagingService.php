@@ -123,8 +123,12 @@ class StagingService
      *
      * @return array{loans:array<string,array{id:int,stage:int,pre:int,dpd:int,reason:?string,sicr:int}>,counts:array,applied:array,not_evaluated:array}
      */
+    /** @var array<string, ?StagingThreshold> the rules read in this evaluation */
+    private array $thresholdCache = [];
+
     public function evaluate(string $period, StagingPolicy $policy): array
     {
+        $this->thresholdCache = [];
         $monthEnd = CarbonImmutable::parse($period . '-01')->endOfMonth();
         $missedTrigger = $policy->missedInstalments();
         $cureMonths = $policy->cureMonths();
@@ -340,7 +344,10 @@ class StagingService
     private function thresholds(StagingPolicy $policy, bool $megaFarm, int $tenorMonths, CarbonImmutable $asOf): array
     {
         [$class, $exact] = $policy->thresholdClass($megaFarm);
-        $t = StagingThreshold::forFacility($class, $tenorMonths, $asOf->toDateString(), $exact);
+        // one read per class, tenor and month-end within an evaluation (it read the rule, and the table's columns, once per loan)
+        $key = $class . '|' . (int) $exact . '|' . $tenorMonths . '|' . $asOf->toDateString();
+        $t = array_key_exists($key, $this->thresholdCache) ? $this->thresholdCache[$key]
+            : ($this->thresholdCache[$key] = StagingThreshold::forFacility($class, $tenorMonths, $asOf->toDateString(), $exact));
         if ($t === null) {
             // no silent default (D21): a month without a rule in force is an error to fix, not a 31/181 to assume
             throw new \RuntimeException("No staging threshold is in force for facility class '{$class}' (tenor {$tenorMonths} months)" . ($asOf ? " at {$asOf->toDateString()}" : '') . '. Seed or approve one on the Staging & SICR Rules screen.');

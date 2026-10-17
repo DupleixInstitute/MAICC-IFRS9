@@ -460,8 +460,15 @@ class Bootstrap extends Command
             throw new \RuntimeException("no loan of {$p} carries a PD before FLI after the PD run (window {$pd['window']})");
         }
         app(\App\Services\Lgd\LgdSegmentationService::class)->run($p, null, 12, $user);
+        // every basis measured beside the booked one, kept for the record (it books nothing and stops nothing)
+        try {
+            $cmp = app(\App\Services\Pd\PdSegmentationService::class)->compareBases($p, 12, $user);
+            $kept = collect($cmp)->filter(fn ($v) => $v['status'] !== 'not measured')->count();
+        } catch (\Throwable $e) {
+            $kept = 0;
+        }
 
-        return "{$n} loans with a PD";
+        return "{$n} loans with a PD; {$kept} of 4 bases kept for comparison";
     }
 
     /**
@@ -827,6 +834,12 @@ class Bootstrap extends Command
             } catch (Throwable $e) {
                 $this->note('6.11 S&P basis ' . $gp, 'NOT RUN: ' . substr($e->getMessage(), 0, 160));
             }
+        }
+        // 13 the client's own loan books (docs/bootstrap/client_books): each month's E-Banker loan book report and the
+        // audited December 2025 model against the book rebuilt here, every difference on the register and in a CSV
+        // per book (storage/app/client-book-reconciliation); with a decisions pack, December's overrides show reconciled
+        foreach (\App\Console\Commands\ClientBook::landManifest(app(\App\Services\Ebanker\ClientBookReconciliationService::class), base_path((string) $this->option('inputs')), $user) as $line) {
+            $this->note('6.13 client book ' . substr($line, 0, 7), substr($line, 8));
         }
         // 12 the reports: every IFRS 9 report rendered for the period
         // in its own process: rendering thirty reports and the manual's PDF after the whole chain exhausts this one's memory

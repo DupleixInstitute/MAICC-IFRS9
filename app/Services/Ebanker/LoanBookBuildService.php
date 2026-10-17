@@ -514,12 +514,15 @@ class LoanBookBuildService
         if ($override === null) {
             return [$stagingDpd, $stagingBasis, null, $dpdCounts];
         }
-        $isAudited = ($override['source'] ?? null) === \App\Services\Eir\LoanStagingBasisOverrideService::SOURCE_AUDITED_WORKBOOK;
-        $targetDpd = $isAudited ? ($override['override_days'] ?? $directiveDpd) : $directiveDpd;
+        // an audited or client figure names its own day count; the directive count takes the build's own
+        $source = $override['source'] ?? \App\Services\Eir\LoanStagingBasisOverrideService::SOURCE_DIRECTIVE_COUNT;
+        $isAudited = $source !== \App\Services\Eir\LoanStagingBasisOverrideService::SOURCE_DIRECTIVE_COUNT && ($override['override_days'] ?? null) !== null;
+        $targetDpd = $isAudited ? (int) $override['override_days'] : $directiveDpd;
         if ($stagingDpd === $targetDpd) {
             return [$stagingDpd, $stagingBasis, null, $dpdCounts];
         }
-        $sourceLabel = $isAudited ? sprintf('an audited figure (%d days)', $targetDpd) : "the directive's own already-computed count ({$targetDpd} days)";
+        $sourceLabel = ! $isAudited ? "the directive's own already-computed count ({$targetDpd} days)"
+            : ($source === \App\Services\Eir\LoanStagingBasisOverrideService::SOURCE_CLIENT_BOOK ? sprintf("the client's book (%d days)", $targetDpd) : sprintf('an audited figure (%d days)', $targetDpd));
         $flag = sprintf(
             "staging basis overridden by governed decision #%d: uses %s instead of the policy's %s (%d days); reason: %s",
             $override['id'], $sourceLabel, $stagingBasis, $stagingDpd, $override['reason']

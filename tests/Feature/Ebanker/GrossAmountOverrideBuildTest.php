@@ -25,6 +25,8 @@ class GrossAmountOverrideBuildTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // these test the override's own behaviour; the evidence an approval needs is tested in ClientBookReconciliationTest
+        config(['approvals.require_evidence' => false]);
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite'); DB::reconnect('sqlite');
         Schema::create('users', function (Blueprint $t) { $t->increments('id'); $t->string('name'); $t->timestamps(); });
@@ -130,7 +132,7 @@ class GrossAmountOverrideBuildTest extends TestCase
         $id = $overrides->propose('104430000099', '2025-12', 'Reason.', 1, 0.00);
         $overrides->approve($id, 2);
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
-        $overrides->withdraw($id, 1);
+        $overrides->withdraw($id, 1, 'Withdrawn in the test: the figure is superseded.');
 
         $this->service()->build('2025-12', '2025-12', 'A', 1, 2);
 

@@ -153,6 +153,38 @@ class PdSegmentationTest extends TestCase
         $this->assertStringContainsString("Stage 2 holds 4 loans and 4 defaults", $why);
     }
 
+    /** Every basis measured beside the booked one and kept for the record; nothing booked moves, and a second measure replaces the first. */
+    public function test_every_basis_is_kept_for_comparison_and_nothing_booked_changes(): void
+    {
+        $service = app(PdSegmentationService::class);
+        $booked = $service->run('2026-08', null, 12, 1, 'test');
+        $before = DB::table('loan_books')->where('reporting_period', '2026-08')->orderBy('id')->pluck('pd_prefli', 'contract_id')->all();
+
+        $cmp = $service->compareBases('2026-08', 12, 10);
+
+        $this->assertSame(['portfolio', 'book', 'sector', 'portfolio_sector'], array_keys($cmp));
+        $this->assertTrue($cmp['book']['booked']);
+        $this->assertFalse($cmp['portfolio']['booked']);
+        $this->assertSame(4, DB::table('segment_parameter_runs')->where('reporting_period', '2026-08')->where('status', 'comparison')->count());
+        // the portfolio basis as it would have booked: Alpha Stage 1 its own 20%, Beta Stage 1 thin and the pooled book's
+        $alpha = DB::table('segment_parameter_results')->where('run_id', $cmp['portfolio']['run_id'])->where('segment_key', 'portfolio:1')->where('stage', 1)->first();
+        $this->assertSame('own', $alpha->status);
+        $this->assertEqualsWithDelta(0.2, (float) $alpha->applied_rate, 1e-8);
+        $beta = DB::table('segment_parameter_results')->where('run_id', $cmp['portfolio']['run_id'])->where('segment_key', 'portfolio:2')->where('stage', 1)->first();
+        $this->assertSame(['parent', 'book'], [$beta->status, $beta->applied_from_key]);
+        $this->assertStringContainsString('Comparison only', (string) DB::table('segment_parameter_runs')->where('run_id', $cmp['portfolio']['run_id'])->value('failure_reason'));
+        // nothing booked moves: the loans keep the booked run's PD and lineage, the applied run is the only applied one, no matrix is kept
+        $this->assertSame($before, DB::table('loan_books')->where('reporting_period', '2026-08')->orderBy('id')->pluck('pd_prefli', 'contract_id')->all());
+        $this->assertSame(0, DB::table('loan_books')->where('reporting_period', '2026-08')->whereNotNull('pd_segment_run_id')->where('pd_segment_run_id', '<>', $booked['run_id'])->count());
+        $this->assertSame(1, DB::table('segment_parameter_runs')->where('reporting_period', '2026-08')->where('status', 'applied')->count());
+        $this->assertSame(0, DB::table('transition_matrices')->where('comments', 'like', '%' . $cmp['portfolio']['run_id'] . '%')->count());
+
+        // measured again, the month's comparison is replaced, not added to
+        $service->compareBases('2026-08', 12, 10);
+        $this->assertSame(4, DB::table('segment_parameter_runs')->where('reporting_period', '2026-08')->where('status', 'comparison')->count());
+        $this->assertSame(0, DB::table('segment_parameter_results')->where('run_id', $cmp['portfolio']['run_id'])->count());
+    }
+
     public function test_each_portfolio_gets_its_own_pd_or_its_parents_with_the_lineage_recorded(): void
     {
         $this->governed('pd_segmentation_basis', 'By portfolio');

@@ -71,6 +71,12 @@ final class Approvals
         // the account exclusion register (AccountExclusionService, MAIIC's confirmation of 16 October 2026)
         'account-exclusion' => ['label' => 'Account exclusion', 'table' => 'account_exclusions', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['account_exclusions'],
             'evidence' => 'the client\'s confirmation that the account is a test account or a duplicate approval (the E-Banker status history or the account master that shows it)'],
+        // per-loan overrides of a month's rebuilt book to the client's own figure (Client Book Reconciliation Specification v1):
+        // applied when the month is rebuilt; the client's book is linked as the evidence when the override comes from a reconciliation
+        'staging-override' => ['label' => 'Staging basis override', 'table' => 'loan_staging_basis_overrides', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['loan_staging_basis_overrides'],
+            'evidence' => 'the loan book the client gave, or the audited figure, that the day count is taken from'],
+        'gross-override' => ['label' => 'Gross amount override', 'table' => 'loan_gross_amount_overrides', 'status' => 'status', 'pending' => ['PROPOSED'], 'maker' => 'proposed_by', 'entities' => ['loan_gross_amount_overrides'],
+            'evidence' => 'the loan book the client gave, or the audited figure, that the gross amount is taken from'],
         // Finance's answers on the fee reconciliation workbook (FeeWorkbookAnswerService, 16 October 2026): the upload is
         // the item, open while any of its answers waits; each answer is decided by a second person on Fee Classification
         'fee-workbook' => ['label' => 'Finance fee workbook answers', 'table' => 'fee_workbook_uploads', 'status' => 'status', 'pending' => ['OPEN'], 'maker' => 'uploaded_by', 'entities' => ['fee_workbook_uploads'],
@@ -196,6 +202,14 @@ final class Approvals
                 return true;
             case 'account-exclusion':
                 app(\App\Services\Ebanker\AccountExclusionService::class)->close($id, $userId, $action, $reason);
+
+                return true;
+            case 'staging-override':
+                $action === 'reject' ? app(\App\Services\Eir\LoanStagingBasisOverrideService::class)->reject($id, $userId, $reason) : app(\App\Services\Eir\LoanStagingBasisOverrideService::class)->withdraw($id, $userId, $reason);
+
+                return true;
+            case 'gross-override':
+                $action === 'reject' ? app(\App\Services\Eir\LoanGrossAmountOverrideService::class)->reject($id, $userId, $reason) : app(\App\Services\Eir\LoanGrossAmountOverrideService::class)->withdraw($id, $userId, $reason);
 
                 return true;
             case 'fee-workbook':

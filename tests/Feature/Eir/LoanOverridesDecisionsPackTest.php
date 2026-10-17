@@ -30,6 +30,8 @@ class LoanOverridesDecisionsPackTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // these test the override's own behaviour; the evidence an approval needs is tested in ClientBookReconciliationTest
+        config(['approvals.require_evidence' => false]);
         $this->maker = User::create(['name' => 'Finance analyst', 'email' => 'maker@example.com', 'password' => bcrypt('x')]);
         $this->checker = User::create(['name' => 'Chief Finance Officer', 'email' => 'checker@example.com', 'password' => bcrypt('x')]);
         $this->folder = storage_path('framework/testing/decisions-' . uniqid());
@@ -48,7 +50,7 @@ class LoanOverridesDecisionsPackTest extends TestCase
         $staging->approve($approved, $this->checker->id);
         $withdrawn = $staging->propose('104430000002', '2025-12', 'Withdrawn later.', $this->maker->id, 0);
         $staging->approve($withdrawn, $this->checker->id);
-        $staging->withdraw($withdrawn, $this->maker->id);
+        $staging->withdraw($withdrawn, $this->maker->id, 'Withdrawn in the test: the figure is superseded.');
         $gross = new LoanGrossAmountOverrideService();
         $g = $gross->propose('104420000005', '2025-12', 'MUSECO audited at nil.', $this->maker->id, 0.0);
         $gross->approve($g, $this->checker->id);

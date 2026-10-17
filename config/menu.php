@@ -81,6 +81,8 @@ return [
             $leaf('Loan Book', 'loan_applications.loan-book'),
             // the E-Banker accounts that are not loans of the book: every build leaves an approved one out
             $leaf('Account Exclusions', 'account-exclusions.index', 'circle', false, 'eir.view'),
+            // the client's own loan books against the rebuilt book: the differences and the governed overrides
+            $leaf('Client Book Reconciliation', 'client-books.index', 'circle', false, 'eir.view'),
             // In the order the data comes in: the file imports, the E-Banker
             // packs and the loan book built from them, then the take-on
             // workbook. The feed and take-on screens open on the view named
@@ -150,6 +152,7 @@ return [
                 $tab('Cumulative Probability', 'transition-matrix-cummulative.index'),
                 $tab('Internal Grades', 'internal-grading.profiles'),
                 $tab('PD at Origination', 'origination-pd.index'),
+                $tab('PD Bases Compared', 'pd-bases.index'),
             ]),
             $section('LGD Model', [
                 $tab('Monthly LGD', 'loss-given-default.index'),

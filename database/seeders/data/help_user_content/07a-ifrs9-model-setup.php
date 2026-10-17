@@ -591,6 +591,27 @@ return [
             ],
         ],
 
+        'PD bases compared' => [
+            'body' => '<p>PD Bases Compared shows, for a month-end, the 12-month PD of every way the book can be segmented, measured side by side on the same loans: the <b>Pooled book</b> (the whole MAIIC book as one pool), <b>By portfolio</b>, <b>By RBM sector</b> and <b>By portfolio and RBM sector</b>. Only the basis governed on the Governance Centre (PD &amp; LGD segments) is booked; the others are kept each month as the record behind the choice. In the sidebar open <b>IFRS 9 Model Setup</b>, <b>PD Model</b>, then the <b>PD Bases Compared</b> tab. Readers of the IFRS 9 reports can open it; <b>Measure the bases again</b> needs eir.govern.</p>'
+                . '<h4>What you see on the screen</h4><ul>'
+                . '<li>Four tiles: <b>Booked basis</b>, <b>Bases measured</b>, <b>Booked cells on their own PD</b> and <b>Booked cells taking a parent PD</b>.</li>'
+                . '<li>The month-end, the booked basis and its window, and the minimum and thin-segment rule in force.</li>'
+                . '<li><b>Every basis for the month</b>, fifteen rows a page: <b>Basis</b> (the booked one marked), <b>Segment</b> (a portfolio or sector indented under its parent), <b>Stage 1 PD</b> and <b>Stage 2 PD</b> with the defaults and the cohort, and <b>Loans now</b>. A segment below the minimum shows its parent\'s PD in grey ("parent\'s"), as it would if booked; "no PD under the thin rule" where the parent does not meet the minimum either.</li>'
+                . '<li><b>Cumulative PD over five years</b>: for each segment and stage of the booked basis, the PD over one to five years from its 12-month PD at a constant hazard, 1 - (1 - PD) to the power of the years, as the booked ECL reads it. Stage 3 is in default (PD 1).</li>'
+                . '<li><b>The pooled book, every month</b>: the whole book\'s Stage 1 and Stage 2 PD, each over three years, and the LGD (its Stage 3 cohort), from each month\'s booked run, newest first. Before December 2025 the history is too short for a Stage 1 or 2 PD: those months book Stage 3 only, with the LGD.</li></ul>'
+                . '<h4>Buttons</h4><ul><li><b>Measure the bases again for yyyy-mm</b> (above the table at its top right): measures the four bases on the month as it stands and replaces the month\'s earlier comparison. Nothing booked changes.</li></ul>'
+                . '<h4>What happens next</h4><p>The month-end (ifrs9:segment-parameters, and the bootstrap\'s PD step) measures every basis right after the booked PD run, so each month keeps the comparison. A comparison is stored with the status "comparison" in segment_parameter_runs and segment_parameter_results; no matrix is kept, no loan carries it and no report or ECL reads it. To change the booked basis, propose it on the Governance Centre, PD &amp; LGD segments; a second person approves it, and the months are run again. The December 2025 model\'s own method (the S&amp;P basis) is compared on Internal Grades, S&amp;P basis.</p>'
+                . '<h4>Common problems</h4><ul><li><b>No basis is measured for this month yet</b>: run the month-end, or press Measure the bases again.</li><li><b>Sector PDs look thin</b>: the 57 loans on E-Banker\'s default code 4290 are held apart as "unverified" until their real sector is captured.</li></ul>',
+            'steps' => [
+                'Open IFRS 9 Model Setup, PD Model, PD Bases Compared.',
+                'Choose the month-end.',
+                'Compare the booked basis with the others, segment by segment and stage by stage.',
+                'Read the cumulative PD of the booked segments, and the pooled book month by month.',
+            ],
+            'images' => [],
+            'routes' => ['pd-bases.index', 'pd-bases.measure'],
+        ],
+
         'Monthly loss given default' => [
             'body' => '<p>Loss given default (LGD) is the share of a defaulted balance the lender expects to lose after cures and recoveries. A monthly LGD run takes every Stage 3 loan of a portfolio at a start month, follows it to an end month, and records what cured (back to Stage 1 or 2), what was repaid in part or in full, and what was disbursed. Cure rate is the cured balance over the opening Stage 3 balance; recovery rate is net recoveries over the same balance; LGD is (1 minus cure rate) times (1 minus recovery rate), between 0 and 1. Recoveries may be discounted. To reach the page, open the sidebar and choose <b>Financial modelling</b>, then <b>IFRS 9 Model Setup</b>, then <b>LGD Model</b>, then the <b>Monthly LGD</b> tab.</p>'
                 . '<h4>What you see on the screen</h4>'

@@ -662,6 +662,9 @@ Route::group(['prefix' => 'sicr-triggers', 'as' => 'sicr-triggers.'], function (
 // One item of an approval workflow (Staging Module Specification v1, section 8.6): its history,
 // its supporting documents, and reject or withdraw with a reason.
 // each loan's starting risk, and the PD-change test in shadow (PD at Origination Specification v1)
+// every PD segmentation basis measured beside the booked one, the cumulative PD and the pooled book's history (PdSegmentationService::compareBases)
+Route::get('/pd-bases', [\App\Http\Controllers\PdBasesController::class, 'index'])->name('pd-bases.index');
+Route::post('/pd-bases/measure', [\App\Http\Controllers\PdBasesController::class, 'measure'])->name('pd-bases.measure');
 Route::get('/pd-at-origination', [\App\Http\Controllers\OriginationPdController::class, 'index'])->name('origination-pd.index');
 Route::get('/pd-at-origination/export', [\App\Http\Controllers\OriginationPdController::class, 'export'])->name('origination-pd.export');
 
@@ -1122,6 +1125,23 @@ Route::group(['prefix' => 'account-exclusions', 'as' => 'account-exclusions.'], 
     Route::post('/{id}/close', [\App\Http\Controllers\AccountExclusionController::class, 'close'])->whereNumber('id')->name('close');
     Route::post('/{id}/withdrawal/approve', [\App\Http\Controllers\AccountExclusionController::class, 'approveWithdrawal'])->whereNumber('id')->name('withdrawal.approve');
     Route::post('/{id}/withdrawal/drop', [\App\Http\Controllers\AccountExclusionController::class, 'dropWithdrawal'])->whereNumber('id')->name('withdrawal.drop');
+});
+// Client book reconciliation: the client's own loan books against the rebuilt book, the differences, and the governed overrides (ClientBookReconciliationService)
+Route::group(['prefix' => 'client-books', 'as' => 'client-books.'], function () {
+    $c = \App\Http\Controllers\ClientBookReconciliationController::class;
+    Route::get('/', [$c, 'index'])->name('index');
+    Route::post('/', [$c, 'land'])->name('land');
+    Route::get('/template', [$c, 'template'])->name('template');
+    Route::post('/overrides', [$c, 'storeOverride'])->name('overrides.store');
+    Route::post('/overrides/{type}/{id}', [$c, 'decideOverride'])->whereIn('type', ['staging', 'gross'])->whereNumber('id')->name('overrides.decide');
+    Route::post('/overlays', [$c, 'importOverlay'])->name('overlays.import');
+    Route::post('/differences/{id}/propose', [$c, 'propose'])->whereNumber('id')->name('differences.propose');
+    Route::post('/differences/{id}/keep', [$c, 'keep'])->whereNumber('id')->name('differences.keep');
+    Route::post('/{id}/compare', [$c, 'compare'])->whereNumber('id')->name('compare');
+    Route::post('/{id}/withdraw', [$c, 'withdrawBook'])->whereNumber('id')->name('withdraw');
+    Route::post('/{id}/propose', [$c, 'proposeMany'])->whereNumber('id')->name('propose-many');
+    Route::get('/{id}/differences.csv', [$c, 'differencesCsv'])->whereNumber('id')->name('differences-csv');
+    Route::get('/{id}/file', [$c, 'bookFile'])->whereNumber('id')->name('file');
 });
 // Restructures and rate resets: the candidates, the governed register, the reset register (spec v4 s.3.9, P5 to P7)
 Route::group(['prefix' => 'eir-restructures', 'as' => 'eir-restructures.'], function () {

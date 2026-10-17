@@ -33,10 +33,21 @@ class LoanStagingBasisOverrideService
     public const STATUS_WITHDRAWN = 'WITHDRAWN';
     public const SOURCE_DIRECTIVE_COUNT = 'directive_count';
     public const SOURCE_AUDITED_WORKBOOK = 'audited_workbook';
+    /** An explicit day count taken from a loan book the client gave for the month (ClientBookReconciliationService). */
+    public const SOURCE_CLIENT_BOOK = 'client_book';
 
     /** An override reconciles one reporting period (YYYY-MM); only that month's build applies it. */
-    public function propose(string $contractId, string $reportingPeriod, string $reason, int $proposedBy, ?int $overrideDays = null): int
+    public function propose(string $contractId, string $reportingPeriod, string $reason, int $proposedBy, ?int $overrideDays = null, ?string $source = null): int
     {
+        if ($source !== null && ! in_array($source, [self::SOURCE_DIRECTIVE_COUNT, self::SOURCE_AUDITED_WORKBOOK, self::SOURCE_CLIENT_BOOK], true)) {
+            throw new RuntimeException("'{$source}' is not a source of a staging basis override.");
+        }
+        if ($source === self::SOURCE_DIRECTIVE_COUNT && $overrideDays !== null || $source !== null && $source !== self::SOURCE_DIRECTIVE_COUNT && $overrideDays === null) {
+            throw new RuntimeException('An override that names its own day count is an audited or client figure; the directive count takes no day count.');
+        }
+        if ($overrideDays !== null && $overrideDays < 0) {
+            throw new RuntimeException('A day count is never negative.');
+        }
         if (trim($reason) === '') {
             throw new RuntimeException('A staging basis override needs a reason.');
         }
@@ -50,7 +61,7 @@ class LoanStagingBasisOverrideService
         }
         $id = (int) DB::table('loan_staging_basis_overrides')->insertGetId([
             'contract_id' => $contractId, 'reporting_period' => $reportingPeriod, 'reason' => $reason, 'proposed_by' => $proposedBy,
-            'override_days' => $overrideDays, 'source' => $overrideDays !== null ? self::SOURCE_AUDITED_WORKBOOK : self::SOURCE_DIRECTIVE_COUNT,
+            'override_days' => $overrideDays, 'source' => $source ?? ($overrideDays !== null ? self::SOURCE_AUDITED_WORKBOOK : self::SOURCE_DIRECTIVE_COUNT),
             'status' => self::STATUS_PROPOSED, 'created_at' => now(), 'updated_at' => now(),
         ]);
         AuditLoggerService::log('Staging Basis Override Proposed', 'loan_staging_basis_overrides', $id, [
@@ -71,6 +82,8 @@ class LoanStagingBasisOverrideService
         if ((int) $row->proposed_by === $approvedBy && ! MakerChecker::selfApprovalAllowed('Staging basis override', 'loan_staging_basis_overrides', $id, $approvedBy)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
+        // the figure an override takes is evidenced: the client's book linked by the reconciliation, or a document attached
+        \App\Support\Approvals::assertEvidence('staging-override', $id);
         DB::table('loan_staging_basis_overrides')->where('id', $id)
             ->update(['status' => self::STATUS_APPROVED, 'approved_by' => $approvedBy, 'approved_at' => now(), 'updated_at' => now()]);
         AuditLoggerService::log('Staging Basis Override Approved', 'loan_staging_basis_overrides', $id, [
@@ -88,6 +101,9 @@ class LoanStagingBasisOverrideService
         if ($row === null || $row->status !== self::STATUS_PROPOSED) {
             throw new RuntimeException("Override {$id} is not awaiting a decision.");
         }
+        if ((int) $row->proposed_by === $decidedBy && ! MakerChecker::selfApprovalAllowed('Staging basis override (reject)', 'loan_staging_basis_overrides', $id, $decidedBy)) {
+            throw new RuntimeException('The person who proposed an override withdraws it; a second person rejects it.');
+        }
         DB::table('loan_staging_basis_overrides')->where('id', $id)
             ->update(['status' => self::STATUS_REJECTED, 'approved_by' => $decidedBy, 'approved_at' => now(), 'updated_at' => now()]);
         AuditLoggerService::log('Staging Basis Override Rejected', 'loan_staging_basis_overrides', $id, [
@@ -98,15 +114,22 @@ class LoanStagingBasisOverrideService
         return ['status' => self::STATUS_REJECTED];
     }
 
-    public function withdraw(int $id, int $withdrawnBy): array
+    /** The proposer withdraws a proposal; an approved override is withdrawn with a reason and stops applying at the month's next rebuild. */
+    public function withdraw(int $id, int $withdrawnBy, ?string $reason = null): array
     {
         $row = DB::table('loan_staging_basis_overrides')->where('id', $id)->whereIn('status', [self::STATUS_PROPOSED, self::STATUS_APPROVED])->first();
         if ($row === null) {
             throw new RuntimeException("Override {$id} is not active.");
         }
+        if ($row->status === self::STATUS_PROPOSED && (int) $row->proposed_by !== $withdrawnBy) {
+            throw new RuntimeException('Only the person who proposed an override withdraws it; a second person rejects it instead.');
+        }
+        if ($row->status === self::STATUS_APPROVED && mb_strlen(trim((string) $reason)) < 10) {
+            throw new RuntimeException('Withdrawing an approved override needs the reason (at least 10 characters): the next rebuild of the month stops applying it.');
+        }
         DB::table('loan_staging_basis_overrides')->where('id', $id)->update(['status' => self::STATUS_WITHDRAWN, 'updated_at' => now()]);
         AuditLoggerService::log('Staging Basis Override Withdrawn', 'loan_staging_basis_overrides', $id, [
-            'new_values' => ['contract_id' => $row->contract_id, 'was' => $row->status],
+            'new_values' => ['contract_id' => $row->contract_id, 'was' => $row->status, 'reason' => $reason],
             'meta' => ['withdrawn_by' => $withdrawnBy],
         ]);
 

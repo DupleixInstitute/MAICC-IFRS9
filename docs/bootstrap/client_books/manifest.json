@@ -1,0 +1,159 @@
+{
+  "about": "The client's own loan books, one per month-end, that the bootstrap lands and compares with the book it rebuilt from the E-Banker queries and the ledger (Client Book Reconciliation Specification v1). Each writes a CSV of its differences to storage/app/client-book-reconciliation. MAIIC's monthly E-Banker loan book reports (rpt_Loan_Book_Detail_Report) as received, December 2024 to August 2026, and the audited December 2025 ECL model. Not listed: 'Nov 2024 loan book .csv' of the 2025 engagement (a prepared listing with masked account numbers, not an E-Banker report).",
+  "books": [
+    {
+      "period": "2024-12",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Dec 2024.xls",
+      "label": "E-Banker loan book report, 31 December 2024",
+      "sha256": "818f3dbc9e0a453c55a22d7075f5bcb7bfdf1adde8bd90ea9afd3a21c6865f8b"
+    },
+    {
+      "period": "2025-01",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Jan 2025.xls",
+      "label": "E-Banker loan book report, 31 January 2025",
+      "sha256": "89626cc1441a1f738681fdff2d2aad992d8cabb390bd0aac3dfab83bcadc9a48"
+    },
+    {
+      "period": "2025-02",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 28 Feb 2025.xls",
+      "label": "E-Banker loan book report, 28 February 2025",
+      "sha256": "2ca37b85f3b4d18fd7482266aa42e7033c59f8c0059115aaf6ee1bc92be523f3"
+    },
+    {
+      "period": "2025-03",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Mar 2025.xls",
+      "label": "E-Banker loan book report, 31 March 2025",
+      "sha256": "afdde247e4a4eeac799dbdcc961c11e7070d735a39ca7c5fc5e0c3e7fec29006"
+    },
+    {
+      "period": "2025-04",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 30 Apr 2025.xls",
+      "label": "E-Banker loan book report, 30 April 2025",
+      "sha256": "a69ce8f0c29b28606add28f3236da7fb6bfe7f42f5e569eaad268021b0b29499"
+    },
+    {
+      "period": "2025-05",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 May 2025.xls",
+      "label": "E-Banker loan book report, 31 May 2025",
+      "sha256": "406260ae0177e406007c360ba4371b1eac2215af19593b7358511f57616e0ec5"
+    },
+    {
+      "period": "2025-06",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 30 Jun 2025.xls",
+      "label": "E-Banker loan book report, 30 June 2025",
+      "sha256": "767f69bdd3b3bc9e9df065f3d6b7a80c0fedf5553199f2f39d52e208914f5ce7"
+    },
+    {
+      "period": "2025-07",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 July 2025.xls",
+      "label": "E-Banker loan book report, 31 July 2025",
+      "sha256": "113e92fbe63c4e62559d91b5edd86cb176647c2a6f22ac008ee54b1337f4ea1a"
+    },
+    {
+      "period": "2025-08",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 30 Aug 2025.xls",
+      "label": "E-Banker loan book report, 31 August 2025",
+      "sha256": "411326d826199526a012c7d4b3f131a28860d8bdfb181e670e053f9dddd5ee8f"
+    },
+    {
+      "period": "2025-09",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Sept 2025.xls",
+      "label": "E-Banker loan book report, 30 September 2025",
+      "sha256": "2b87864121b5b1c27700468fd76e1396494e8e1a5593da17f4341579b60ad79c"
+    },
+    {
+      "period": "2025-10",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 30 Oct 2025.xls",
+      "label": "E-Banker loan book report, 31 October 2025",
+      "sha256": "d4f51a792dd7ee7ceb1a531082fd6d35e188e51bdef58758b77ca0a23b23265d"
+    },
+    {
+      "period": "2025-11",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Nov 2025.xls",
+      "label": "E-Banker loan book report, 30 November 2025",
+      "sha256": "61fceb28bf6ac1b893d3472bab7a0c0db305cbc09a1c39e1d341463a980687e1"
+    },
+    {
+      "period": "2025-12",
+      "kind": "ebanker_report",
+      "file": "client_books/MAIIC & FINESS LOAN BOOK RECON DEC 2025.xls",
+      "label": "E-Banker loan book report, 31 December 2025 (received 11 September 2026)",
+      "sha256": "c2479de1852dcf8f7b9fef7b08911868afa23e8975ef5e7e221f2e4f5d87e822"
+    },
+    {
+      "period": "2026-01",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Jan 2026.xls",
+      "label": "E-Banker loan book report, 31 January 2026 (received 11 September 2026)",
+      "sha256": "15ae178827ed3c824ce5cc30932c61f40fdaf9ee8f1fe2ee97f7c9a3913389d1"
+    },
+    {
+      "period": "2026-02",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 28 Feb 2026.xls",
+      "label": "E-Banker loan book report, 28 February 2026 (received 11 September 2026)",
+      "sha256": "28993028590c5b783b000fd0c9efdefe74c0a6ad8b3888d8aa65167308cb0e09"
+    },
+    {
+      "period": "2026-03",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Mar 2026.xls",
+      "label": "E-Banker loan book report, 31 March 2026 (received 11 September 2026)",
+      "sha256": "2167bf372e189467af9b536cc0a73a2270f22926413b1708d37c8ce9e1b87980"
+    },
+    {
+      "period": "2026-04",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 30 Apr 2026.xls",
+      "label": "E-Banker loan book report, 30 April 2026 (received 11 September 2026)",
+      "sha256": "a5aed4eef2d7c68822288c0dad4d9645b09ada21a6a3faa0972b033f3803df6c"
+    },
+    {
+      "period": "2026-05",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 May 2026.xls",
+      "label": "E-Banker loan book report, 31 May 2026 (received 11 September 2026)",
+      "sha256": "96969d8653748ea7742f1914613a30aaab446f95d7fbf359d3aade1c145defae"
+    },
+    {
+      "period": "2026-06",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 30 Jun 2026.xls",
+      "label": "E-Banker loan book report, 30 June 2026 (received 11 September 2026)",
+      "sha256": "a22771b891c190f6ba59de4d51fdf7d9dd8847dde2543097ba3c6756fb75abe8"
+    },
+    {
+      "period": "2026-07",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Jul 2026.xls",
+      "label": "E-Banker loan book report, 31 July 2026 (received 11 September 2026)",
+      "sha256": "e92f589b55c74954b20dec5138c6aa0f8a7d4f8e6038e8bb15a29fdf0a3a52ae"
+    },
+    {
+      "period": "2026-08",
+      "kind": "ebanker_report",
+      "file": "client_books/Loan Book 31 Aug 2026.xls",
+      "label": "E-Banker loan book report, 31 August 2026 (received 11 September 2026)",
+      "sha256": "51c219f2e41ce2beb3975c306bfbc6e11bfc8b30e70924fd7a44d6662934fede"
+    },
+    {
+      "period": "2025-12",
+      "kind": "audited_model",
+      "file": "models/ECL model 14 Dec 2025 - portfolio report (values).csv",
+      "label": "Audited ECL model of 14 December 2025, portfolio report values (received 13 October 2026)",
+      "sha256": "ce0967db17aaf24c494a73e6620a05277a4bb274cf22e94e5e9b0f99e0097f87"
+    }
+  ]
+}

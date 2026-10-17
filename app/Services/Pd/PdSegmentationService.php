@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
+use Throwable;
 
 /**
  * The PD by segment (9 October 2026).
@@ -632,6 +633,69 @@ class PdSegmentationService
 
         return ['run_id' => $runId, 'basis' => $cfg['basis'], 'window' => $window, 'window_months' => $measure['window_months'], 'updated' => $updated,
             'unstaged' => count($unstaged), 'cells' => $cells, 'failed' => [], 'matrices' => $matrices];
+    }
+
+    /**
+     * Every basis measured beside the booked one, for the record (Client Book Reconciliation
+     * Specification v1, section 9: "calculate everything"). For each of the four bases the same loans,
+     * window, minimum and thin-segment rule as the booked run are measured and resolved, and the run is
+     * kept in segment_parameter_runs with status 'comparison' and its cells in segment_parameter_results.
+     * Nothing is written to the loan book and no matrix is kept: only the governed basis is booked, and
+     * a reader of the booked run reads status 'applied'. A basis whose stage has no PD under the thin
+     * rule is recorded with the reason, as the booked run would have failed, and stops nothing.
+     *
+     * @return array<string, array{run_id:string, status:string, reason:?string, booked:bool}>
+     */
+    public function compareBases(string $period, int $windowMonths = 12, ?int $userId = null): array
+    {
+        if (! Schema::hasTable('segment_parameter_runs')) {
+            return [];
+        }
+        $cfg = $this->settings($period);
+        $portfolioIds = $this->scope($period);
+        $stageExpr = TransitionMatrixService::gradeExpression('loan_books', 'ifrs9stage_post_qualitative');
+        $loans = DB::table('loan_books')->where('reporting_period', $period)->whereIn('loan_portfolio_id', $portfolioIds)
+            ->get(['id', 'loan_portfolio_id', 'industry_code', 'industry_type', DB::raw("{$stageExpr} as stage")]);
+        // a comparison run of a month replaces the month's earlier comparison runs: the record is the latest measure of each basis
+        $old = DB::table('segment_parameter_runs')->where('measure', 'PD')->where('reporting_period', $period)->where('status', 'comparison')->pluck('run_id');
+        DB::table('segment_parameter_results')->whereIn('run_id', $old)->delete();
+        DB::table('segment_parameter_runs')->whereIn('run_id', $old)->delete();
+        $out = [];
+        foreach (self::BASES as $option => $basis) {
+            $runId = (string) Str::uuid();
+            $c = ['basis' => $basis, 'basis_option' => $option] + $cfg;
+            try {
+                $measure = $this->measure($period, $basis, $windowMonths, $portfolioIds, $cfg['unverified']);
+                $needed = [];
+                foreach ($loans as $l) {
+                    if ($l->stage === null || $l->stage === '') {
+                        continue;
+                    }
+                    $key = self::segmentKey($basis, $l, $cfg['unverified']);
+                    $needed[$key][(string) $l->stage] = ($needed[$key][(string) $l->stage] ?? 0) + 1;
+                }
+                $resolved = self::resolve($measure, $needed, $cfg['min_loans'], $cfg['min_defaults'], $cfg['thin']);
+                $failed = [];
+                foreach ($resolved as $key => $stages) {
+                    foreach ($stages as $stage => $o) {
+                        if ($o['status'] === 'failed') {
+                            $failed[] = "{$this->label($key)} Stage {$stage}: {$o['reason']}";
+                        }
+                    }
+                }
+                $note = ($basis === $cfg['basis'] ? 'The governed basis, measured again for the comparison; the booked run is the applied one. ' : 'Comparison only: the governed basis is ' . $cfg['basis_option'] . '; nothing is written to the loan book. ')
+                    . ($failed === [] ? '' : 'Under the thin rule this basis gives no PD for ' . implode('; ', $failed) . '.');
+                DB::transaction(fn () => $this->record($runId, $period, $c, $measure, $resolved, [], 'comparison', mb_substr($note, 0, 60000), 0, $userId));
+                $out[$basis] = ['run_id' => $runId, 'status' => $failed === [] ? 'measured' : 'no PD for every stage', 'reason' => $failed === [] ? null : implode('; ', $failed), 'booked' => $basis === $cfg['basis']];
+            } catch (Throwable $e) {
+                DB::table('segment_parameter_runs')->insert(['run_id' => $runId, 'measure' => 'PD', 'reporting_period' => $period, 'basis' => $basis, 'window_start' => null, 'window_end' => null, 'window_months' => $windowMonths,
+                    'minimum_rule' => $cfg['minimum_option'], 'thin_rule' => $cfg['thin_option'], 'unverified_codes' => implode(',', $cfg['unverified']) ?: null, 'status' => 'comparison',
+                    'failure_reason' => mb_substr('Comparison only; not measured: ' . $e->getMessage(), 0, 60000), 'loans_updated' => 0, 'user_id' => $userId, 'created_at' => now(), 'updated_at' => now()]);
+                $out[$basis] = ['run_id' => $runId, 'status' => 'not measured', 'reason' => $e->getMessage(), 'booked' => $basis === $cfg['basis']];
+            }
+        }
+
+        return $out;
     }
 
     /** One transition matrix per segment, with its cells, as the Monthly Probability screen shows them. */

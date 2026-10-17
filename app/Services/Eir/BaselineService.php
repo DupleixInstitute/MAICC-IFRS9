@@ -399,6 +399,24 @@ class BaselineService
                 $g["sp_{$p}_stage{$st}_ecl"] = ['what' => "S&P basis {$p}, stage {$st} by the arrears bracket: ECL", 'value' => $sp ? (float) ($stages[$st]['ecl'] ?? $stages[(string) $st]['ecl'] ?? 0) : null, 'amount' => true];
             }
         }
+        // the client's own loan books against the rebuilt book (Client Book Reconciliation Specification v1): the books the
+        // bootstrap compared, and for each book of a golden month the loans matched, the same and the differences to decide
+        if (\Illuminate\Support\Facades\Schema::hasTable('client_loan_books')) {
+            $g['cb_books_compared'] = ['what' => "Client loan books compared with the rebuilt book (docs/bootstrap/client_books)", 'value' => DB::table('client_loan_books')->where('status', 'COMPARED')->count(), 'amount' => false];
+            $g['cb_differences_all'] = ['what' => 'Client loan books: differences on the register, every book', 'value' => DB::table('client_book_differences')->count(), 'amount' => false];
+            foreach (self::GOLDEN_PERIODS as $p) {
+                foreach (DB::table('client_loan_books')->where('reporting_period', $p)->where('status', 'COMPARED')->orderBy('id')->get() as $b) {
+                    $sum = json_decode((string) $b->summary, true) ?: [];
+                    foreach (['compared' => 'loans matched', 'same' => 'loans the same', 'differences' => 'differences to decide'] as $k => $words) {
+                        $g["cb_{$p}_{$b->kind}_{$k}"] = ['what' => "Client book {$p} ({$b->kind}): {$words}", 'value' => isset($sum[$k]) ? (int) $sum[$k] : null, 'amount' => false];
+                    }
+                }
+            }
+        }
+        // every PD basis measured beside the booked one (PdSegmentationService::compareBases): the comparison runs of each golden month
+        foreach (self::GOLDEN_PERIODS as $p) {
+            $g["pd_bases_{$p}_comparison_runs"] = ['what' => "PD bases {$p}: bases measured beside the booked one (comparison only)", 'value' => DB::table('segment_parameter_runs')->where('measure', 'PD')->where('reporting_period', $p)->where('status', 'comparison')->count(), 'amount' => false];
+        }
         foreach (['LOCKED' => 'locked', 'BLOCKED' => 'blocked'] as $status => $word) {
             $g["eir_contracts_{$word}"] = ['what' => "EIR contracts {$word}", 'value' => DB::table('contract_eir')->where('calculation_status', $status)->count(), 'amount' => false];
         }

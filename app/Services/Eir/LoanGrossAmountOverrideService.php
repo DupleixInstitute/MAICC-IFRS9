@@ -63,6 +63,8 @@ class LoanGrossAmountOverrideService
         if ((int) $row->proposed_by === $approvedBy && ! MakerChecker::selfApprovalAllowed('Gross amount override', 'loan_gross_amount_overrides', $id, $approvedBy)) {
             throw new RuntimeException('Maker-checker: the approver must be a different person from the proposer.');
         }
+        // the figure an override takes is evidenced: the client's book linked by the reconciliation, or a document attached
+        \App\Support\Approvals::assertEvidence('gross-override', $id);
         DB::table('loan_gross_amount_overrides')->where('id', $id)
             ->update(['status' => self::STATUS_APPROVED, 'approved_by' => $approvedBy, 'approved_at' => now(), 'updated_at' => now()]);
         AuditLoggerService::log('Gross Amount Override Approved', 'loan_gross_amount_overrides', $id, [
@@ -80,6 +82,9 @@ class LoanGrossAmountOverrideService
         if ($row === null || $row->status !== self::STATUS_PROPOSED) {
             throw new RuntimeException("Gross amount override {$id} is not awaiting a decision.");
         }
+        if ((int) $row->proposed_by === $decidedBy && ! MakerChecker::selfApprovalAllowed('Gross amount override (reject)', 'loan_gross_amount_overrides', $id, $decidedBy)) {
+            throw new RuntimeException('The person who proposed an override withdraws it; a second person rejects it.');
+        }
         DB::table('loan_gross_amount_overrides')->where('id', $id)
             ->update(['status' => self::STATUS_REJECTED, 'approved_by' => $decidedBy, 'approved_at' => now(), 'updated_at' => now()]);
         AuditLoggerService::log('Gross Amount Override Rejected', 'loan_gross_amount_overrides', $id, [
@@ -90,15 +95,22 @@ class LoanGrossAmountOverrideService
         return ['status' => self::STATUS_REJECTED];
     }
 
-    public function withdraw(int $id, int $withdrawnBy): array
+    /** The proposer withdraws a proposal; an approved override is withdrawn with a reason and stops applying at the month's next rebuild. */
+    public function withdraw(int $id, int $withdrawnBy, ?string $reason = null): array
     {
         $row = DB::table('loan_gross_amount_overrides')->where('id', $id)->whereIn('status', [self::STATUS_PROPOSED, self::STATUS_APPROVED])->first();
         if ($row === null) {
             throw new RuntimeException("Gross amount override {$id} is not active.");
         }
+        if ($row->status === self::STATUS_PROPOSED && (int) $row->proposed_by !== $withdrawnBy) {
+            throw new RuntimeException('Only the person who proposed an override withdraws it; a second person rejects it instead.');
+        }
+        if ($row->status === self::STATUS_APPROVED && mb_strlen(trim((string) $reason)) < 10) {
+            throw new RuntimeException('Withdrawing an approved override needs the reason (at least 10 characters): the next rebuild of the month stops applying it.');
+        }
         DB::table('loan_gross_amount_overrides')->where('id', $id)->update(['status' => self::STATUS_WITHDRAWN, 'updated_at' => now()]);
         AuditLoggerService::log('Gross Amount Override Withdrawn', 'loan_gross_amount_overrides', $id, [
-            'new_values' => ['contract_id' => $row->contract_id, 'was' => $row->status],
+            'new_values' => ['contract_id' => $row->contract_id, 'was' => $row->status, 'reason' => $reason],
             'meta' => ['withdrawn_by' => $withdrawnBy],
         ]);
 
