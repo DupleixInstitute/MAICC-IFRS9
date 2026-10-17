@@ -90,9 +90,10 @@ class LoanBookBuildService
         'created_at', 'updated_at',
     ];
 
-    public function __construct(private LandingZoneReader $zone, private GovernanceService $governance, private ?\App\Services\Eir\LoanStagingBasisOverrideService $stagingOverrides = null)
+    public function __construct(private LandingZoneReader $zone, private GovernanceService $governance, private ?\App\Services\Eir\LoanStagingBasisOverrideService $stagingOverrides = null, private ?\App\Services\Eir\LoanGrossAmountOverrideService $grossOverrides = null)
     {
         $this->stagingOverrides ??= new \App\Services\Eir\LoanStagingBasisOverrideService();
+        $this->grossOverrides ??= new \App\Services\Eir\LoanGrossAmountOverrideService();
     }
 
     /**
@@ -406,6 +407,7 @@ class LoanBookBuildService
         $master = $this->zone->accountMaster();
         $priorOverdueDates = $this->priorOverdueDates($monthEnd);
         $overrides = $this->stagingOverrides->active();
+        $grossOverrides = $this->grossOverrides->active();
         $rows = [];
         foreach ($runs as $account => $run) {
             $p = $run['payload'];
@@ -419,6 +421,8 @@ class LoanBookBuildService
             $createDate = $this->date($p['VALUE_DATE'] ?? '');
             $jumpFlag = $this->overdueDateJumpFlag($contractId, $odDate, $createDate, $priorOverdueDates);
             [$stagingDpd, $stagingBasis, $overrideFlag, $dpdCounts] = $this->applyStagingOverride($contractId, $dpd, $stagingDpd, $stagingBasis, $overrides, $dpdCounts);
+            $storedCarrying = $this->num($p['CARRYING_AMOUNT'] ?? 0);
+            [$carrying, $grossFlag] = $this->applyGrossAmountOverride($contractId, $storedCarrying, $grossOverrides);
             $rows[] = $this->row([
                 'contract_id' => $contractId, 'customer_id' => trim((string) ($p['CUSTOMER_ID'] ?? '')), 'customer_name' => $name,
                 'external_identity_id' => $account, 'product_group' => $group, 'product_code' => $gl, 'funding_source' => $fund,
@@ -426,13 +430,13 @@ class LoanBookBuildService
                 'tenor' => (int) round($this->num($p['TENOR_YRS'] ?? 0) * 12), 'interest_rate' => $this->num($p['INTEREST_RATE'] ?? 0),
                 'principal_balance' => $this->num($p['PRINCIPAL'] ?? 0), 'approved_amount' => $this->num($p['APPROVED'] ?? 0),
                 'disbursed' => $this->num($p['DISBURSD'] ?? 0), 'repayments' => $this->num($p['REPAYMENT'] ?? 0),
-                'carrying_amount' => $this->num($p['CARRYING_AMOUNT'] ?? 0), 'interest_to_date' => $this->num($p['INTEREST_TO_DATE'] ?? 0),
-                'stored_carrying_amount' => $this->num($p['CARRYING_AMOUNT'] ?? 0), 'commitments' => $this->num($p['NOT_YET_DISBURS'] ?? 0),
+                'carrying_amount' => $carrying, 'interest_to_date' => $this->num($p['INTEREST_TO_DATE'] ?? 0),
+                'stored_carrying_amount' => $storedCarrying, 'commitments' => $this->num($p['NOT_YET_DISBURS'] ?? 0),
                 'overdue_days' => $dpd, 'overdue_principal_date' => $odDate, 'contract_status' => $master[$account]['STATUS_CODE'] ?? null,
                 'staging_dpd' => $stagingDpd, 'staging_dpd_basis' => $stagingBasis,
                 'industry_code' => $this->str($p['INDUSTRY_CODE'] ?? null), 'industry_type' => $this->str($p['IND_DESCR'] ?? null, 100),
                 'build_method' => 'A', 'build_load_id' => $run['load_id'], 'build_source_key' => $run['source_key'],
-                'build_flag' => implode('; ', array_filter([$pickFlag, $dpdFlag, $jumpFlag, $overrideFlag])) ?: null,
+                'build_flag' => implode('; ', array_filter([$pickFlag, $dpdFlag, $jumpFlag, $overrideFlag, $grossFlag])) ?: null,
                 'build_basis' => ['run' => $run['query_id'] . ':' . $run['source_key'], 'run_date' => $this->date($p['TRANSACTION_DATE'] ?? ''), 'segment' => $p['SEG_MENT'] ?? null, 'dpd_counts' => $dpdCounts],
             ] + $arrears, $monthEnd);
         }
@@ -533,6 +537,34 @@ class LoanBookBuildService
         return [$targetDpd, sprintf('overridden to %s (policy basis was: %s)', $sourceLabel, $stagingBasis), $flag, $overriddenCounts];
     }
 
+    /**
+     * A governed, per-loan exception from the build's own rebuilt carrying (gross) amount to an
+     * explicit audited figure, reconciling an already-closed, already-audited period to the
+     * gross loan amount the external audit approved. Built to the identical pattern as
+     * applyStagingOverride(). The row's own system figure is never lost — it stays on
+     * stored_carrying_amount, unaffected by this method — only the figure used for EAD/ECL and
+     * every downstream calculation (carrying_amount) changes.
+     *
+     * @return array{0:float,1:?string}
+     */
+    private function applyGrossAmountOverride(string $contractId, float $carrying, array $overrides): array
+    {
+        $override = $overrides[$contractId] ?? null;
+        if ($override === null) {
+            return [$carrying, null];
+        }
+        $targetAmount = round($override['override_amount'], 2);
+        if (abs($carrying - $targetAmount) < 0.005) {
+            return [$carrying, null];
+        }
+        $flag = sprintf(
+            'gross amount overridden by governed decision #%d: uses an audited figure (%s) instead of the rebuilt %s; reason: %s',
+            $override['id'], number_format($targetAmount, 2), number_format($carrying, 2), $override['reason']
+        );
+
+        return [$targetAmount, $flag];
+    }
+
     // ----- method B -------------------------------------------------------
 
     /** The last month-end of the build in progress, and the ledger read once to it. */
@@ -581,6 +613,7 @@ class LoanBookBuildService
         $runs = $this->zone->latestRunsOn($monthEnd);
         $priorOverdueDates = $this->priorOverdueDates($monthEnd);
         $overrides = $this->stagingOverrides->active();
+        $grossOverrides = $this->grossOverrides->active();
         $master = $this->masterCache['account'] ??= $this->zone->accountMaster();
         $loans = $this->masterCache['loan'] ??= $this->zone->loanMaster();
         $rates = $this->masterCache['rates'] ??= $this->zone->rateSetupByAccount();
@@ -717,6 +750,10 @@ class LoanBookBuildService
             [$stagingDpd, $stagingBasis, $overrideFlag, $dpdCounts] = $this->applyStagingOverride($contractId, $dpd, $stagingDpd, $stagingBasis, $overrides, $dpdCounts);
             if ($overrideFlag !== null) {
                 $flags[] = $overrideFlag;
+            }
+            [$carrying, $grossFlag] = $this->applyGrossAmountOverride($contractId, $carrying, $grossOverrides);
+            if ($grossFlag !== null) {
+                $flags[] = $grossFlag;
             }
             $rows[] = $this->row([
                 'contract_id' => $contractId, 'customer_id' => trim((string) ($am['CUSTOMER_ID'] ?? ($p['CUSTOMER_ID'] ?? ''))),
